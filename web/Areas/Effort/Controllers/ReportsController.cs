@@ -23,6 +23,10 @@ public partial class ReportsController : BaseEffortController
     private readonly IClinicalEffortService _clinicalEffortService;
     private readonly IClinicalScheduleService _clinicalScheduleService;
     private readonly IZeroEffortService _zeroEffortService;
+    private readonly IEvaluationReportService _evaluationReportService;
+    private readonly IYearStatisticsService _yearStatisticsService;
+    private readonly IMeritMultiYearService _meritMultiYearService;
+    private readonly ISabbaticalService _sabbaticalService;
     private readonly IEffortPermissionService _permissionService;
 
     [GeneratedRegex(@"^\d{4}-\d{4}$")]
@@ -37,6 +41,10 @@ public partial class ReportsController : BaseEffortController
         IClinicalEffortService clinicalEffortService,
         IClinicalScheduleService clinicalScheduleService,
         IZeroEffortService zeroEffortService,
+        IEvaluationReportService evaluationReportService,
+        IYearStatisticsService yearStatisticsService,
+        IMeritMultiYearService meritMultiYearService,
+        ISabbaticalService sabbaticalService,
         IEffortPermissionService permissionService,
         ILogger<ReportsController> logger) : base(logger)
     {
@@ -48,6 +56,10 @@ public partial class ReportsController : BaseEffortController
         _clinicalEffortService = clinicalEffortService;
         _clinicalScheduleService = clinicalScheduleService;
         _zeroEffortService = zeroEffortService;
+        _evaluationReportService = evaluationReportService;
+        _yearStatisticsService = yearStatisticsService;
+        _meritMultiYearService = meritMultiYearService;
+        _sabbaticalService = sabbaticalService;
         _permissionService = permissionService;
     }
 
@@ -454,6 +466,30 @@ public partial class ReportsController : BaseEffortController
 
         report.JobGroups = report.JobGroups
             .Where(jg => jg.Instructors.Count > 0)
+            .ToList();
+    }
+
+    private static void FilterReportByAuthorizedDepartments(EvalSummaryReport report, List<string>? authorizedDepartments)
+    {
+        if (authorizedDepartments == null)
+        {
+            return;
+        }
+
+        report.Departments = report.Departments
+            .Where(d => authorizedDepartments.Contains(d.Department, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private static void FilterReportByAuthorizedDepartments(EvalDetailReport report, List<string>? authorizedDepartments)
+    {
+        if (authorizedDepartments == null)
+        {
+            return;
+        }
+
+        report.Departments = report.Departments
+            .Where(d => authorizedDepartments.Contains(d.Department, StringComparer.OrdinalIgnoreCase))
             .ToList();
     }
 
@@ -1209,6 +1245,540 @@ public partial class ReportsController : BaseEffortController
 
         FilterReportByAuthorizedDepartments(report, authorizedDepartments);
         return Ok(report);
+    }
+
+    // ============================================
+    // Evaluation Report Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get evaluation summary report. Shows weighted average per instructor
+    /// grouped by department.
+    /// </summary>
+    [HttpGet("eval/summary")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<EvalSummaryReport>> GetEvalSummary(
+        [FromQuery] int termCode = 0,
+        [FromQuery] string? academicYear = null,
+        [FromQuery] string? department = null,
+        [FromQuery] int? personId = null,
+        [FromQuery] string? role = null,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(termCode, academicYear)
+            ?? ValidateReportParams(department, personId, role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(department, authorizedDepartments);
+
+        EvalSummaryReport report;
+        if (!string.IsNullOrEmpty(academicYear))
+        {
+            SetExceptionContext("academicYear", academicYear);
+            _logger.LogInformation("Eval summary report requested: year={AcademicYear}, dept={Department}, person={PersonId}, role={Role}",
+                LogSanitizer.SanitizeString(academicYear),
+                LogSanitizer.SanitizeString(department),
+                personId,
+                LogSanitizer.SanitizeString(role));
+
+            report = await _evaluationReportService.GetEvalSummaryReportByYearAsync(
+                academicYear, effectiveDepartments, personId, role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", termCode);
+            _logger.LogInformation("Eval summary report requested: term={TermCode}, dept={Department}, person={PersonId}, role={Role}",
+                termCode,
+                LogSanitizer.SanitizeString(department),
+                personId,
+                LogSanitizer.SanitizeString(role));
+
+            report = await _evaluationReportService.GetEvalSummaryReportAsync(
+                termCode, effectiveDepartments, personId, role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export evaluation summary report as PDF.
+    /// </summary>
+    [HttpPost("eval/summary/pdf")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportEvalSummaryPdf(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        EvalSummaryReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _evaluationReportService.GetEvalSummaryReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _evaluationReportService.GetEvalSummaryReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.Departments.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _evaluationReportService.GenerateSummaryPdfAsync(report);
+        var filename = $"EvalSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    /// <summary>
+    /// Get evaluation detail report. Shows course-level evaluation data
+    /// with averages and medians grouped by department and instructor.
+    /// </summary>
+    [HttpGet("eval/detail")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<EvalDetailReport>> GetEvalDetail(
+        [FromQuery] int termCode = 0,
+        [FromQuery] string? academicYear = null,
+        [FromQuery] string? department = null,
+        [FromQuery] int? personId = null,
+        [FromQuery] string? role = null,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(termCode, academicYear)
+            ?? ValidateReportParams(department, personId, role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(department, authorizedDepartments);
+
+        EvalDetailReport report;
+        if (!string.IsNullOrEmpty(academicYear))
+        {
+            SetExceptionContext("academicYear", academicYear);
+            _logger.LogInformation("Eval detail report requested: year={AcademicYear}, dept={Department}, person={PersonId}, role={Role}",
+                LogSanitizer.SanitizeString(academicYear),
+                LogSanitizer.SanitizeString(department),
+                personId,
+                LogSanitizer.SanitizeString(role));
+
+            report = await _evaluationReportService.GetEvalDetailReportByYearAsync(
+                academicYear, effectiveDepartments, personId, role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", termCode);
+            _logger.LogInformation("Eval detail report requested: term={TermCode}, dept={Department}, person={PersonId}, role={Role}",
+                termCode,
+                LogSanitizer.SanitizeString(department),
+                personId,
+                LogSanitizer.SanitizeString(role));
+
+            report = await _evaluationReportService.GetEvalDetailReportAsync(
+                termCode, effectiveDepartments, personId, role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export evaluation detail report as PDF.
+    /// </summary>
+    [HttpPost("eval/detail/pdf")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportEvalDetailPdf(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        EvalDetailReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _evaluationReportService.GetEvalDetailReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _evaluationReportService.GetEvalDetailReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.Departments.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _evaluationReportService.GenerateDetailPdfAsync(report);
+        var filename = $"EvalDetail_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    // ============================================
+    // Year Statistics Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get year statistics report ("Lairmore Report"). Returns 4 sub-reports: SVM, DVM, Resident, Undergrad/Grad.
+    /// Only accepts academic year (not single term). Always returns full school data (no department filter).
+    /// </summary>
+    [HttpGet("year-stats")]
+    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
+    public async Task<ActionResult<YearStatisticsReport>> GetYearStatistics(
+        [FromQuery] string? academicYear = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(academicYear))
+        {
+            return BadRequest("academicYear is required.");
+        }
+
+        if (!AcademicYearFormatRegex().IsMatch(academicYear))
+        {
+            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
+        }
+
+        var parts = academicYear.Split('-');
+        if (int.TryParse(parts[0], out var startYear) && int.TryParse(parts[1], out var endYear)
+            && endYear != startYear + 1)
+        {
+            return BadRequest("academicYear must be a consecutive range (e.g., 2024-2025).");
+        }
+
+        if (!await _permissionService.HasFullAccessAsync(ct))
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("academicYear", academicYear);
+        _logger.LogInformation("Year statistics report requested: year={AcademicYear}",
+            LogSanitizer.SanitizeString(academicYear));
+
+        var report = await _yearStatisticsService.GetYearStatisticsReportAsync(academicYear, ct);
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export year statistics report as PDF.
+    /// </summary>
+    [HttpPost("year-stats/pdf")]
+    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
+    public async Task<ActionResult> ExportYearStatisticsPdf(
+        [FromBody] YearStatsPdfRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(request.AcademicYear))
+        {
+            return BadRequest("academicYear is required.");
+        }
+
+        if (!AcademicYearFormatRegex().IsMatch(request.AcademicYear))
+        {
+            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
+        }
+
+        var parts = request.AcademicYear.Split('-');
+        if (int.TryParse(parts[0], out var startYear) && int.TryParse(parts[1], out var endYear)
+            && endYear != startYear + 1)
+        {
+            return BadRequest("academicYear must be a consecutive range (e.g., 2024-2025).");
+        }
+
+        if (!await _permissionService.HasFullAccessAsync(ct))
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("academicYear", request.AcademicYear);
+
+        var report = await _yearStatisticsService.GetYearStatisticsReportAsync(request.AcademicYear, ct);
+
+        if (report.Svm.InstructorCount == 0
+            && report.Dvm.InstructorCount == 0
+            && report.Resident.InstructorCount == 0
+            && report.UndergradGrad.InstructorCount == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _yearStatisticsService.GenerateReportPdfAsync(report);
+        var filename = $"YearStatistics_{report.AcademicYear}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    // ============================================
+    // Multi-Year Merit + Evaluation Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get multi-year merit + evaluation report for a single instructor.
+    /// Combines merit activity data with course evaluation data across multiple years.
+    /// </summary>
+    [HttpGet("merit/multiyear")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<MultiYearReport>> GetMeritMultiYear(
+        [FromQuery] int personId = 0,
+        [FromQuery] int startYear = 0,
+        [FromQuery] int endYear = 0,
+        [FromQuery] string? excludeClinTerms = null,
+        [FromQuery] string? excludeDidTerms = null,
+        [FromQuery] bool useAcademicYear = false,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateMultiYearParams(personId, startYear, endYear);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("personId", personId);
+        _logger.LogInformation(
+            "Multi-year report requested: person={PersonId}, startYear={StartYear}, endYear={EndYear}, useAcademicYear={UseAcademicYear}",
+            personId, startYear, endYear, useAcademicYear);
+
+        var report = await _meritMultiYearService.GetMultiYearReportAsync(
+            personId, startYear, endYear,
+            excludeClinTerms, excludeDidTerms, useAcademicYear, ct);
+
+        // Department-scoped users can only view instructors in their authorized departments
+        if (authorizedDepartments != null
+            && !string.IsNullOrWhiteSpace(report.Department)
+            && !authorizedDepartments.Contains(report.Department, StringComparer.OrdinalIgnoreCase))
+        {
+            return Forbid();
+        }
+
+        return Ok(report);
+    }
+
+    /// <summary>
+    /// Export multi-year merit + evaluation report as PDF.
+    /// </summary>
+    [HttpPost("merit/multiyear/pdf")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportMeritMultiYearPdf(
+        [FromBody] MultiYearPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateMultiYearParams(request.PersonId, request.StartYear, request.EndYear);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("personId", request.PersonId);
+        _logger.LogInformation(
+            "Multi-year PDF export requested: person={PersonId}, startYear={StartYear}, endYear={EndYear}",
+            request.PersonId, request.StartYear, request.EndYear);
+
+        var report = await _meritMultiYearService.GetMultiYearReportAsync(
+            request.PersonId, request.StartYear, request.EndYear,
+            request.ExcludeClinicalTerms, request.ExcludeDidacticTerms,
+            request.UseAcademicYear, ct);
+
+        // Department-scoped users can only view instructors in their authorized departments
+        if (authorizedDepartments != null
+            && !string.IsNullOrWhiteSpace(report.Department)
+            && !authorizedDepartments.Contains(report.Department, StringComparer.OrdinalIgnoreCase))
+        {
+            return Forbid();
+        }
+
+        if (report.MeritSection.Years.Count == 0 && report.EvalSection.Years.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = await _meritMultiYearService.GenerateReportPdfAsync(report);
+        var filename = $"MultiYear_{report.Instructor}_{report.StartYear}-{report.EndYear}_{DateTime.Now:yyyyMMdd}.pdf";
+        return File(pdfBytes, "application/pdf", filename);
+    }
+
+    /// <summary>
+    /// Get the min/max calendar years for an instructor's effort data.
+    /// Used to populate year range dropdowns matching legacy behavior.
+    /// </summary>
+    [HttpGet("merit/multiyear/year-range")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<InstructorYearRangeDto>> GetMultiYearRange(
+        [FromQuery] int personId = 0,
+        CancellationToken ct = default)
+    {
+        if (personId <= 0)
+        {
+            return BadRequest("personId is required and must be greater than 0.");
+        }
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        // Department-scoped users can only view instructors in their authorized departments
+        if (authorizedDepartments != null)
+        {
+            var targetDepartment = await _sabbaticalService.GetPersonDepartmentAsync(personId, ct);
+            if (!string.IsNullOrWhiteSpace(targetDepartment)
+                && !authorizedDepartments.Contains(targetDepartment, StringComparer.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+        }
+
+        var result = await _meritMultiYearService.GetInstructorYearRangeAsync(personId, ct);
+        if (result == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(result);
+    }
+
+    // ============================================
+    // Sabbatical/Leave Exclusion Endpoints
+    // ============================================
+
+    /// <summary>
+    /// Get sabbatical exclusion data for a person.
+    /// </summary>
+    [HttpGet("sabbaticals/{personId:int}")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult<SabbaticalDto>> GetSabbatical(
+        int personId, CancellationToken ct = default)
+    {
+        if (personId <= 0)
+        {
+            return BadRequest("personId must be greater than 0.");
+        }
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        // Department-scoped users can only view instructors in their authorized departments
+        if (authorizedDepartments != null)
+        {
+            var targetDepartment = await _sabbaticalService.GetPersonDepartmentAsync(personId, ct);
+            if (!string.IsNullOrWhiteSpace(targetDepartment)
+                && !authorizedDepartments.Contains(targetDepartment, StringComparer.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+        }
+
+        SetExceptionContext("personId", personId);
+
+        var sabbatical = await _sabbaticalService.GetByPersonIdAsync(personId, ct);
+        return Ok(sabbatical ?? new SabbaticalDto { PersonId = personId });
+    }
+
+    /// <summary>
+    /// Save sabbatical exclusion data for a person (admin only).
+    /// </summary>
+    [HttpPut("sabbaticals/{personId:int}")]
+    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
+    public async Task<ActionResult<SabbaticalDto>> SaveSabbatical(
+        int personId,
+        [FromBody] SaveSabbaticalRequest request,
+        CancellationToken ct = default)
+    {
+        if (personId <= 0)
+        {
+            return BadRequest("personId must be greater than 0.");
+        }
+
+        SetExceptionContext("personId", personId);
+
+        var currentUserId = _permissionService.GetCurrentPersonId();
+        _logger.LogInformation(
+            "Saving sabbatical data: person={PersonId}, modifiedBy={ModifiedBy}",
+            personId, currentUserId);
+
+        var result = await _sabbaticalService.SaveAsync(
+            personId, request.ExcludeClinicalTerms,
+            request.ExcludeDidacticTerms, currentUserId, ct);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Validate multi-year report parameters.
+    /// </summary>
+    private ActionResult? ValidateMultiYearParams(int personId, int startYear, int endYear)
+    {
+        if (personId <= 0)
+        {
+            return BadRequest("personId is required and must be greater than 0.");
+        }
+
+        if (startYear <= 0 || endYear <= 0)
+        {
+            return BadRequest("startYear and endYear are required.");
+        }
+
+        if (endYear < startYear)
+        {
+            return BadRequest("endYear must be greater than or equal to startYear.");
+        }
+
+        if (endYear - startYear > 10)
+        {
+            return BadRequest("Year range cannot exceed 10 years.");
+        }
+
+        return null;
     }
 
     // ============================================

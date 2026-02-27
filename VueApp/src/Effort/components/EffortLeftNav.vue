@@ -40,11 +40,11 @@
                     class="leftNavHeader"
                 >
                     <q-item-section>
-                        <q-item-label lines="1">
-                            {{ currentTerm.termName }}
+                        <q-item-label class="term-label">
+                            <span class="term-text">{{ currentTerm.termName }}</span>
                             <q-icon
                                 name="edit"
-                                size="xs"
+                                size="1rem"
                                 class="q-ml-xs"
                             />
                         </q-item-label>
@@ -234,7 +234,7 @@
                 <!-- Merit & Promotion sub-header -->
                 <q-item
                     v-if="canViewReports && currentTerm"
-                    class="leftNavLink q-pl-lg"
+                    class="leftNavSubHeader q-pl-lg"
                 >
                     <q-item-section>
                         <q-item-label
@@ -264,6 +264,17 @@
                 >
                     <q-item-section>
                         <q-item-label lines="1">Detail</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MultiYearReport', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Multi-Year</q-item-label>
                     </q-item-section>
                 </q-item>
                 <q-item
@@ -302,7 +313,7 @@
                 <!-- Teaching Activity sub-header -->
                 <q-item
                     v-if="canViewReports && currentTerm"
-                    class="leftNavLink q-pl-lg"
+                    class="leftNavSubHeader q-pl-lg"
                 >
                     <q-item-section>
                         <q-item-label
@@ -356,10 +367,45 @@
                         <q-item-label lines="1">School Summary</q-item-label>
                     </q-item-section>
                 </q-item>
+                <!-- Evaluation sub-header -->
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    class="leftNavSubHeader q-pl-lg"
+                >
+                    <q-item-section>
+                        <q-item-label
+                            lines="1"
+                            class="text-weight-medium"
+                            >Evaluation</q-item-label
+                        >
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'EvalSummary', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'EvalDetail', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Detail</q-item-label>
+                    </q-item-section>
+                </q-item>
                 <!-- Other sub-header -->
                 <q-item
                     v-if="canViewReports && currentTerm"
-                    class="leftNavLink q-pl-lg"
+                    class="leftNavSubHeader q-pl-lg"
                 >
                     <q-item-section>
                         <q-item-label
@@ -378,6 +424,17 @@
                 >
                     <q-item-section>
                         <q-item-label lines="1">Zero Effort</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="isAdmin && currentTerm"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'YearStatistics', params: { termCode: currentTerm.termCode } }"
+                    class="leftNavLink q-pl-xl"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Year Statistics</q-item-label>
                     </q-item-section>
                 </q-item>
             </q-list>
@@ -484,5 +541,16 @@ watch(
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+}
+
+.term-label {
+    display: inline-flex !important;
+    align-items: center;
+}
+
+.term-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

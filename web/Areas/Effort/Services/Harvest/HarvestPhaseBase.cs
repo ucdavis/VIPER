@@ -63,7 +63,7 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             EffortTitleCode = person.TitleCode,
             EffortDept = person.Department,
             PercentAdmin = 0,
-            JobGroupId = null,
+            JobGroupId = ctx.JobGroupLookup?.GetValueOrDefault(person.TitleCode),
             Title = null,
             AdminUnit = null
         };

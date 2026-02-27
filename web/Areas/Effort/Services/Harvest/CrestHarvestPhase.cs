@@ -107,6 +107,13 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
             .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
 
+        context.JobGroupLookup ??= await context.DictionaryContext.Titles
+            .AsNoTracking()
+            .Where(t => t.Code != null && t.JobGroupId != null)
+            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
+            .Distinct()
+            .ToDictionaryAsync(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase, ct);
+
         context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
 
         // Get VIPER person IDs for the instructors

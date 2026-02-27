@@ -237,72 +237,6 @@ type MeritSummaryReport = {
     jobGroups: MeritSummaryJobGroup[]
 }
 
-// Clinical Effort types
-
-type ClinicalEffortInstructorRow = {
-    mothraId: string
-    instructor: string
-    clinicalPercent: number
-    effortByType: EffortByType
-    cliRatio: number | null
-}
-
-type ClinicalEffortJobGroup = {
-    jobGroupDescription: string
-    instructors: ClinicalEffortInstructorRow[]
-}
-
-type ClinicalEffortReport = {
-    termName: string
-    academicYear: string | null
-    clinicalType: number
-    clinicalTypeName: string
-    effortTypes: string[]
-    jobGroups: ClinicalEffortJobGroup[]
-}
-
-// Scheduled CLI Weeks types
-
-type ScheduledCliWeeksTermRow = {
-    termCode: number
-    termName: string
-    weeksByService: Record<string, number>
-    termTotal: number
-}
-
-type ScheduledCliWeeksInstructorRow = {
-    mothraId: string
-    instructor: string
-    terms: ScheduledCliWeeksTermRow[]
-    totalWeeks: number
-}
-
-type ScheduledCliWeeksReport = {
-    termName: string
-    academicYear: string | null
-    termNames: string[]
-    services: string[]
-    instructors: ScheduledCliWeeksInstructorRow[]
-}
-
-// Zero Effort types
-
-type ZeroEffortInstructorRow = {
-    mothraId: string
-    instructor: string
-    department: string
-    jobGroupId: string
-    verified: boolean
-}
-
-type ZeroEffortReport = {
-    termCode: number
-    termName: string
-    academicYear: string | null
-    filterDepartment: string | null
-    instructors: ZeroEffortInstructorRow[]
-}
-
 export type {
     EffortByType,
     TeachingActivityCourseRow,
@@ -329,12 +263,4 @@ export type {
     MeritSummaryDepartmentGroup,
     MeritSummaryJobGroup,
     MeritSummaryReport,
-    ClinicalEffortInstructorRow,
-    ClinicalEffortJobGroup,
-    ClinicalEffortReport,
-    ScheduledCliWeeksTermRow,
-    ScheduledCliWeeksInstructorRow,
-    ScheduledCliWeeksReport,
-    ZeroEffortInstructorRow,
-    ZeroEffortReport,
 }

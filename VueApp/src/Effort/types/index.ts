@@ -141,6 +141,9 @@ export type {
     MeritSummaryDepartmentGroup,
     MeritSummaryJobGroup,
     MeritSummaryReport,
+} from "./report-types"
+
+export type {
     ClinicalEffortInstructorRow,
     ClinicalEffortJobGroup,
     ClinicalEffortReport,
@@ -149,4 +152,23 @@ export type {
     ScheduledCliWeeksReport,
     ZeroEffortInstructorRow,
     ZeroEffortReport,
-} from "./report-types"
+    EvalInstructorSummary,
+    EvalDepartmentGroup,
+    EvalSummaryReport,
+    EvalCourseDetail,
+    EvalDetailInstructor,
+    EvalDetailDepartmentGroup,
+    EvalDetailReport,
+    YearStatsGrouping,
+    InstructorEffortDetail,
+    YearStatsSubReport,
+    YearStatisticsReport,
+    MultiYearCourseRow,
+    MultiYearMeritYear,
+    MultiYearMeritSection,
+    MultiYearEvalCourse,
+    MultiYearEvalYear,
+    MultiYearEvalSection,
+    MultiYearReport,
+    SabbaticalDto,
+} from "./report-types-extended"

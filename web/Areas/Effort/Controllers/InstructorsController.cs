@@ -51,7 +51,7 @@ public class InstructorsController : BaseEffortController
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PersonDto>>> GetInstructors(
-        [FromQuery] int termCode,
+        [FromQuery] int termCode = 0,
         [FromQuery] string? dept = null,
         [FromQuery] bool meritOnly = false,
         CancellationToken ct = default)

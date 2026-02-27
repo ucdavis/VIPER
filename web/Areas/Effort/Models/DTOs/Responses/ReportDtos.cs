@@ -428,6 +428,81 @@ public class ScheduledCliWeeksTermRow
 }
 
 // ============================================
+// Year Statistics Report DTOs
+// ============================================
+
+/// <summary>
+/// Year Statistics report ("Lairmore Report") with 4 sub-reports: SVM, DVM, Resident, Undergrad/Grad.
+/// The SP returns raw course-level data; all grouping/filtering/aggregation happens in the service layer.
+/// </summary>
+public class YearStatisticsReport
+{
+    public string AcademicYear { get; set; } = string.Empty;
+    public List<string> EffortTypes { get; set; } = [];
+    public YearStatsSubReport Svm { get; set; } = new();
+    public YearStatsSubReport Dvm { get; set; } = new();
+    public YearStatsSubReport Resident { get; set; } = new();
+    public YearStatsSubReport UndergradGrad { get; set; } = new();
+}
+
+/// <summary>
+/// A single sub-report within the Year Statistics report.
+/// Contains per-instructor details, summary statistics, and optional grouping tables.
+/// </summary>
+public class YearStatsSubReport
+{
+    public string Label { get; set; } = string.Empty;
+    public List<InstructorEffortDetail> Instructors { get; set; } = [];
+    public Dictionary<string, decimal> Sums { get; set; } = new();
+    public Dictionary<string, decimal> Averages { get; set; } = new();
+    public Dictionary<string, decimal> Medians { get; set; } = new();
+    public decimal TeachingHoursSum { get; set; }
+    public decimal TeachingHoursAverage { get; set; }
+    public decimal TeachingHoursMedian { get; set; }
+    public int InstructorCount { get; set; }
+    /// <summary>SVM and DVM only: group by department.</summary>
+    public List<YearStatsGrouping> ByDepartment { get; set; } = [];
+    /// <summary>SVM and DVM only: group by discipline.</summary>
+    public List<YearStatsGrouping> ByDiscipline { get; set; } = [];
+    /// <summary>SVM and DVM only: group by title/job group.</summary>
+    public List<YearStatsGrouping> ByTitle { get; set; } = [];
+}
+
+/// <summary>
+/// Per-instructor effort detail row in the Year Statistics report.
+/// </summary>
+public class InstructorEffortDetail
+{
+    public string MothraId { get; set; } = string.Empty;
+    public string Instructor { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string Discipline { get; set; } = string.Empty;
+    public string JobGroup { get; set; } = string.Empty;
+    public Dictionary<string, decimal> Efforts { get; set; } = new();
+    public decimal TeachingHours { get; set; }
+}
+
+/// <summary>
+/// Grouped statistics row in the Year Statistics report (by department, discipline, or title).
+/// </summary>
+public class YearStatsGrouping
+{
+    public string GroupName { get; set; } = string.Empty;
+    public int InstructorCount { get; set; }
+    public Dictionary<string, decimal> Sums { get; set; } = new();
+    public Dictionary<string, decimal> Averages { get; set; } = new();
+    public Dictionary<string, decimal> Medians { get; set; } = new();
+    public decimal TeachingHoursSum { get; set; }
+    public decimal TeachingHoursAverage { get; set; }
+    public decimal TeachingHoursMedian { get; set; }
+}
+
+/// <summary>
+/// Request body for year statistics PDF export.
+/// </summary>
+public record YearStatsPdfRequest(string? AcademicYear = null);
+
+// ============================================
 // Zero Effort Report DTOs
 // ============================================
 
@@ -453,4 +528,234 @@ public class ZeroEffortInstructorRow
     public string Department { get; set; } = string.Empty;
     public string JobGroupId { get; set; } = string.Empty;
     public bool Verified { get; set; }
+}
+
+// ============================================
+// Evaluation Report DTOs
+// ============================================
+
+/// <summary>
+/// Evaluation summary report grouped by department.
+/// Shows weighted average per instructor across all their evaluated courses.
+/// </summary>
+public class EvalSummaryReport
+{
+    public int TermCode { get; set; }
+    public string TermName { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
+    public string? FilterDepartment { get; set; }
+    public int? FilterPersonId { get; set; }
+    public string? FilterRole { get; set; }
+    public List<EvalDepartmentGroup> Departments { get; set; } = [];
+}
+
+/// <summary>
+/// Department-level grouping in evaluation summary.
+/// </summary>
+public class EvalDepartmentGroup
+{
+    public string Department { get; set; } = string.Empty;
+    public List<EvalInstructorSummary> Instructors { get; set; } = [];
+    public decimal DepartmentAverage { get; set; }
+    public int TotalResponses { get; set; }
+}
+
+/// <summary>
+/// Instructor-level summary in evaluation report with weighted average.
+/// </summary>
+public class EvalInstructorSummary
+{
+    public string MothraId { get; set; } = string.Empty;
+    public string Instructor { get; set; } = string.Empty;
+    public decimal WeightedAverage { get; set; }
+    public int TotalResponses { get; set; }
+    public int TotalEnrolled { get; set; }
+}
+
+/// <summary>
+/// Evaluation detail report grouped by department and instructor.
+/// Shows course-level evaluation data with averages and medians.
+/// </summary>
+public class EvalDetailReport
+{
+    public int TermCode { get; set; }
+    public string TermName { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
+    public string? FilterDepartment { get; set; }
+    public int? FilterPersonId { get; set; }
+    public string? FilterRole { get; set; }
+    public List<EvalDetailDepartmentGroup> Departments { get; set; } = [];
+}
+
+/// <summary>
+/// Department-level grouping in evaluation detail report.
+/// </summary>
+public class EvalDetailDepartmentGroup
+{
+    public string Department { get; set; } = string.Empty;
+    public List<EvalDetailInstructor> Instructors { get; set; } = [];
+    public decimal DepartmentAverage { get; set; }
+}
+
+/// <summary>
+/// Instructor-level grouping in evaluation detail with course breakdown.
+/// </summary>
+public class EvalDetailInstructor
+{
+    public string MothraId { get; set; } = string.Empty;
+    public string Instructor { get; set; } = string.Empty;
+    public List<EvalCourseDetail> Courses { get; set; } = [];
+    public decimal InstructorAverage { get; set; }
+    public decimal? InstructorMedian { get; set; }
+}
+
+/// <summary>
+/// Course-level row in evaluation detail report.
+/// </summary>
+public class EvalCourseDetail
+{
+    public string Course { get; set; } = string.Empty;
+    public string Crn { get; set; } = string.Empty;
+    public int TermCode { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public decimal Average { get; set; }
+    public decimal? Median { get; set; }
+    public int NumResponses { get; set; }
+    public int NumEnrolled { get; set; }
+}
+
+// ============================================
+// Multi-Year Merit + Evaluation Report DTOs
+// ============================================
+
+/// <summary>
+/// Combined multi-year report for a single instructor: merit activity + evaluation data.
+/// </summary>
+public class MultiYearReport
+{
+    public string MothraId { get; set; } = string.Empty;
+    public string Instructor { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public int StartYear { get; set; }
+    public int EndYear { get; set; }
+    public bool UseAcademicYear { get; set; }
+    public List<string> ExcludedClinicalTerms { get; set; } = [];
+    public List<string> ExcludedDidacticTerms { get; set; } = [];
+    public List<string> EffortTypes { get; set; } = [];
+    public MultiYearMeritSection MeritSection { get; set; } = new();
+    public MultiYearEvalSection EvalSection { get; set; } = new();
+}
+
+/// <summary>
+/// Merit activity section of the multi-year report grouped by year.
+/// </summary>
+public class MultiYearMeritSection
+{
+    public List<MultiYearMeritYear> Years { get; set; } = [];
+    public Dictionary<string, decimal> GrandTotals { get; set; } = new();
+    public Dictionary<string, decimal> YearlyAverages { get; set; } = new();
+    public Dictionary<string, decimal> DepartmentAverages { get; set; } = new();
+    /// <summary>Sum of faculty count across years used for department averages.</summary>
+    public int DepartmentFacultyCount { get; set; }
+}
+
+/// <summary>
+/// Single year of merit data with course rows and year totals.
+/// </summary>
+public class MultiYearMeritYear
+{
+    public int Year { get; set; }
+    public string YearLabel { get; set; } = string.Empty;
+    public List<MultiYearCourseRow> Courses { get; set; } = [];
+    public Dictionary<string, decimal> YearTotals { get; set; } = new();
+}
+
+/// <summary>
+/// Course-level row in multi-year merit report with effort by type.
+/// </summary>
+public class MultiYearCourseRow
+{
+    public string Course { get; set; } = string.Empty;
+    public int TermCode { get; set; }
+    public decimal Units { get; set; }
+    public int Enrollment { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public Dictionary<string, decimal> Efforts { get; set; } = new();
+}
+
+/// <summary>
+/// Evaluation section of the multi-year report grouped by year.
+/// </summary>
+public class MultiYearEvalSection
+{
+    public List<MultiYearEvalYear> Years { get; set; } = [];
+    public decimal OverallAverage { get; set; }
+    public decimal? OverallMedian { get; set; }
+    public decimal? DepartmentAverage { get; set; }
+}
+
+/// <summary>
+/// Single year of evaluation data with course rows and year averages.
+/// </summary>
+public class MultiYearEvalYear
+{
+    public int Year { get; set; }
+    public string YearLabel { get; set; } = string.Empty;
+    public List<MultiYearEvalCourse> Courses { get; set; } = [];
+    public decimal YearAverage { get; set; }
+    public decimal? YearMedian { get; set; }
+}
+
+/// <summary>
+/// Course-level row in multi-year evaluation report.
+/// </summary>
+public class MultiYearEvalCourse
+{
+    public string Course { get; set; } = string.Empty;
+    public string Crn { get; set; } = string.Empty;
+    public int TermCode { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public decimal Average { get; set; }
+    public decimal? Median { get; set; }
+    public int NumResponses { get; set; }
+    public int NumEnrolled { get; set; }
+}
+
+/// <summary>
+/// Request body for multi-year report PDF export.
+/// </summary>
+public record MultiYearPdfRequest(
+    int PersonId = 0,
+    int StartYear = 0,
+    int EndYear = 0,
+    string? ExcludeClinicalTerms = null,
+    string? ExcludeDidacticTerms = null,
+    bool UseAcademicYear = false);
+
+/// <summary>
+/// Sabbatical/leave exclusion data for a person.
+/// </summary>
+public class SabbaticalDto
+{
+    public int PersonId { get; set; }
+    public string? ExcludeClinicalTerms { get; set; }
+    public string? ExcludeDidacticTerms { get; set; }
+    public DateTime? ModifiedDate { get; set; }
+    public string? ModifiedBy { get; set; }
+}
+
+/// <summary>
+/// Request body for saving sabbatical/leave exclusion data.
+/// </summary>
+public record SaveSabbaticalRequest(
+    string? ExcludeClinicalTerms = null,
+    string? ExcludeDidacticTerms = null);
+
+/// <summary>
+/// Min/max calendar years for an instructor's effort data, used for year range dropdowns.
+/// </summary>
+public class InstructorYearRangeDto
+{
+    public int MinYear { get; set; }
+    public int MaxYear { get; set; }
 }

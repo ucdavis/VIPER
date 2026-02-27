@@ -19,28 +19,7 @@ public class CourseService : ICourseService
     private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<CourseService> _logger;
 
-    /// <summary>
-    /// Valid custodial department codes for the Effort system.
-    /// </summary>
-    private static readonly List<string> ValidCustDepts = new()
-    {
-        "APC", "VMB", "VME", "VSR", "PMI", "PHR", "UNK", "DVM", "VET"
-    };
-
-    /// <summary>
-    /// Mapping from Banner custodial department codes to Effort custodial departments.
-    /// Banner codes may be stored with or without leading zeros (e.g., "72030" or "072030").
-    /// The GetCustodialDepartment method normalizes input by padding to 6 digits.
-    /// </summary>
-    private static readonly Dictionary<string, string> BannerDeptMapping = new()
-    {
-        { "072030", "VME" },
-        { "072035", "VSR" },
-        { "072037", "APC" },
-        { "072047", "VMB" },
-        { "072057", "PMI" },
-        { "072067", "PHR" }
-    };
+    // Department resolution delegated to CustodialDepartmentResolver
 
     public CourseService(
         EffortDbContext context,
@@ -191,7 +170,7 @@ public class CourseService : ICourseService
 
         // Determine custodial department - check subject code first, then fall back to dept code mapping
         // For SVM courses, the subject code (e.g., "DVM", "VME", "PHR") often matches the custodial department
-        var custDept = GetCustodialDepartment(bannerCourse.SubjCode, bannerCourse.DeptCode);
+        var custDept = CustodialDepartmentResolver.Resolve(bannerCourse.SubjCode, bannerCourse.DeptCode);
 
         // Create the course
         var course = new EffortCourse
@@ -281,7 +260,7 @@ public class CourseService : ICourseService
         }
 
         // Validate custodial department
-        if (!ValidCustDepts.Contains(request.CustDept.ToUpperInvariant()))
+        if (!CustodialDepartmentResolver.ValidCustDepts.Contains(request.CustDept.ToUpperInvariant()))
         {
             throw new ArgumentException($"Invalid custodial department: {request.CustDept}");
         }
@@ -407,51 +386,17 @@ public class CourseService : ICourseService
 
     public List<string> GetValidCustodialDepartments()
     {
-        return ValidCustDepts.ToList();
+        return CustodialDepartmentResolver.ValidCustDepts.ToList();
     }
 
     public bool IsValidCustodialDepartment(string departmentCode)
     {
-        return ValidCustDepts.Contains(departmentCode.ToUpperInvariant());
+        return CustodialDepartmentResolver.ValidCustDepts.Contains(departmentCode.ToUpperInvariant());
     }
 
     public string GetCustodialDepartmentForBannerCode(string bannerDeptCode)
     {
-        return GetCustodialDepartment(null, bannerDeptCode);
-    }
-
-    /// <summary>
-    /// Get the custodial department based on subject code and/or Banner department code.
-    /// For SVM courses, the subject code (e.g., "DVM", "VME") often IS the custodial department.
-    /// Falls back to department code mapping for non-SVM subject codes.
-    /// </summary>
-    private static string GetCustodialDepartment(string? subjCode, string bannerDeptCode)
-    {
-        // First check if subject code is a valid SVM department (most common case for SVM courses)
-        if (!string.IsNullOrWhiteSpace(subjCode))
-        {
-            var trimmedSubj = subjCode.Trim().ToUpperInvariant();
-            if (ValidCustDepts.Contains(trimmedSubj))
-            {
-                return trimmedSubj;
-            }
-        }
-
-        // Then check if dept code is already a valid SVM department code
-        var trimmed = bannerDeptCode.Trim();
-        if (ValidCustDepts.Contains(trimmed.ToUpperInvariant()))
-        {
-            return trimmed.ToUpperInvariant();
-        }
-
-        // Try to look up by numeric Banner code - normalize to 6 digits with leading zero
-        var normalizedCode = trimmed.PadLeft(6, '0');
-        if (BannerDeptMapping.TryGetValue(normalizedCode, out var custDept))
-        {
-            return custDept;
-        }
-
-        return "UNK";
+        return CustodialDepartmentResolver.Resolve(null, bannerDeptCode);
     }
 
     private CourseDto ToDto(EffortCourse course, int? parentCourseId = null)
