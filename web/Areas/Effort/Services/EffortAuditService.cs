@@ -5,7 +5,6 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
-using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
@@ -21,20 +20,17 @@ public class EffortAuditService : IEffortAuditService
     private const int MaxSearchTextLength = 20;
 
     private readonly EffortDbContext _context;
-    private readonly AAUDContext _aaudContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IUserHelper _userHelper;
     private readonly ILogger<EffortAuditService> _logger;
 
     public EffortAuditService(
         EffortDbContext context,
-        AAUDContext aaudContext,
         IHttpContextAccessor httpContextAccessor,
         IUserHelper userHelper,
         ILogger<EffortAuditService> logger)
     {
         _context = context;
-        _aaudContext = aaudContext;
         _httpContextAccessor = httpContextAccessor;
         _userHelper = userHelper;
         _logger = logger;
@@ -270,11 +266,10 @@ public class EffortAuditService : IEffortAuditService
             .ToListAsync(ct);
 
         var changedByIds = audits.Select(a => a.ChangedBy).Distinct().ToList();
-        var userNames = await _aaudContext.AaudUsers
+        var userNames = await _context.ViperPersons
             .AsNoTracking()
-            .Where(u => changedByIds.Contains(u.AaudUserId))
-            .Select(u => new { u.AaudUserId, u.DisplayLastName, u.DisplayFirstName })
-            .ToDictionaryAsync(u => u.AaudUserId, u => $"{u.DisplayLastName}, {u.DisplayFirstName}", ct);
+            .Where(p => changedByIds.Contains(p.PersonId))
+            .ToDictionaryAsync(p => p.PersonId, p => p.LastName + ", " + p.FirstName, ct);
 
         var results = audits.Select(audit =>
         {
@@ -360,13 +355,13 @@ public class EffortAuditService : IEffortAuditService
             .Distinct()
             .ToListAsync(ct);
 
-        var modifiers = await _aaudContext.AaudUsers
+        var modifiers = await _context.ViperPersons
             .AsNoTracking()
-            .Where(u => modifierIds.Contains(u.AaudUserId))
-            .Select(u => new ModifierInfo
+            .Where(p => modifierIds.Contains(p.PersonId))
+            .Select(p => new ModifierInfo
             {
-                PersonId = u.AaudUserId,
-                FullName = u.DisplayLastName + ", " + u.DisplayFirstName
+                PersonId = p.PersonId,
+                FullName = p.LastName + ", " + p.FirstName
             })
             .OrderBy(m => m.FullName)
             .ToListAsync(ct);
@@ -603,18 +598,32 @@ public class EffortAuditService : IEffortAuditService
             auditQuery = ApplyDepartmentFilter(auditQuery, departmentCodes);
         }
 
-        var recordAuditQuery = auditQuery.Join(_context.Records, a => a.RecordId, r => r.Id, (a, r) => r);
+        var auditRecordIds = auditQuery.Select(a => a.RecordId);
+
+        IQueryable<int> courseIds;
 
         if (termCode.HasValue)
         {
-            recordAuditQuery = recordAuditQuery.Where(r => r.TermCode == termCode.Value);
+            // When filtering by term, start from Records (very selective on TermCode)
+            // and use a semi-join for audit existence instead of a full Audits→Records join
+            courseIds = _context.Records
+                .AsNoTracking()
+                .Where(r => r.TermCode == termCode.Value)
+                .Where(r => auditRecordIds.Contains(r.Id))
+                .Select(r => r.CourseId)
+                .Distinct();
         }
-
-        var recordAuditCourseIds = recordAuditQuery.Select(r => r.CourseId).Distinct();
+        else
+        {
+            courseIds = auditQuery
+                .Join(_context.Records, a => a.RecordId, r => r.Id, (a, r) => r)
+                .Select(r => r.CourseId)
+                .Distinct();
+        }
 
         return _context.Courses
             .AsNoTracking()
-            .Where(c => recordAuditCourseIds.Contains(c.Id));
+            .Where(c => courseIds.Contains(c.Id));
     }
 
     // ==================== Helper Methods ====================

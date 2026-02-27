@@ -166,7 +166,15 @@
                     label="Add Effort"
                     :loading="isSaving"
                     @click="createRecord"
-                />
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        Add Effort
+                    </template>
+                </q-btn>
             </q-card-actions>
         </q-card>
     </q-dialog>

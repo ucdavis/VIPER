@@ -47,11 +47,13 @@ public class InstructorsController : BaseEffortController
     /// <summary>
     /// Get all instructors for a term, optionally filtered by department.
     /// Non-admin users are restricted to their authorized departments.
+    /// When meritOnly is true, restricts to merit-eligible job groups.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PersonDto>>> GetInstructors(
-        [FromQuery] int termCode,
+        [FromQuery] int termCode = 0,
         [FromQuery] string? dept = null,
+        [FromQuery] bool meritOnly = false,
         CancellationToken ct = default)
     {
         SetExceptionContext("termCode", termCode);
@@ -79,12 +81,12 @@ public class InstructorsController : BaseEffortController
             // If no dept specified, get instructors for all authorized departments in a single query
             if (string.IsNullOrEmpty(dept))
             {
-                var allInstructors = await _instructorService.GetInstructorsByDepartmentsAsync(termCode, authorizedDepts, ct);
+                var allInstructors = await _instructorService.GetInstructorsByDepartmentsAsync(termCode, authorizedDepts, meritOnly, ct);
                 return Ok(allInstructors);
             }
         }
 
-        var instructors = await _instructorService.GetInstructorsAsync(termCode, dept, ct);
+        var instructors = await _instructorService.GetInstructorsAsync(termCode, dept, meritOnly, ct);
         return Ok(instructors);
     }
 
@@ -357,12 +359,15 @@ public class InstructorsController : BaseEffortController
     }
 
     /// <summary>
-    /// Get all job groups currently in use for the dropdown.
+    /// Get job groups currently in use, optionally filtered by term and department.
     /// </summary>
     [HttpGet("job-groups")]
-    public async Task<ActionResult<IEnumerable<JobGroupDto>>> GetJobGroups(CancellationToken ct = default)
+    public async Task<ActionResult<IEnumerable<JobGroupDto>>> GetJobGroups(
+        [FromQuery] int? termCode = null,
+        [FromQuery] string? department = null,
+        CancellationToken ct = default)
     {
-        var jobGroups = await _instructorService.GetJobGroupsAsync(ct);
+        var jobGroups = await _instructorService.GetJobGroupsAsync(termCode, department, ct);
         return Ok(jobGroups);
     }
 }

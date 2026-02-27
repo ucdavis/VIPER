@@ -153,7 +153,7 @@
                                     >
                                 </q-badge>
                                 <q-badge
-                                    v-if="props.row.enrollment === 0"
+                                    v-if="props.row.enrollment === 0 && !props.row.isRCourse"
                                     color="orange-8"
                                     text-color="white"
                                 >

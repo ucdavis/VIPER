@@ -505,7 +505,7 @@ BEGIN
         up.MothraId,
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
@@ -520,7 +520,7 @@ BEGIN
             ELSE 'PROFESSOR/IR'
         END as JobGroupDescription,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         CAST(c.Units AS VARCHAR(25)) as Units,
         c.Enrollment,
         r.RoleId
@@ -593,8 +593,8 @@ BEGIN
     FROM #EffortPivot ep
     LEFT JOIN (
         SELECT
-            up.MothraId,
-            r.CourseId,
+            MothraId,
+            CourseId,
             [CLI], [DIS], [EXM], [LAB], [LEC], [LED], [SEM], [VAR],
             [AUT], [FWK], [INT], [L/D], [PRJ], [TUT], [FAS], [PBL],
             [JLC], [ACT], [CBL], [PRS], [TBL], [PRB], [T-D], [WVL],
@@ -613,7 +613,7 @@ BEGIN
         ) AS SourceData
         PIVOT (
             SUM(Effort)
-            FOR EffortType IN (
+            FOR EffortTypeId IN (
                 [CLI], [DIS], [EXM], [LAB], [LEC], [LED], [SEM], [VAR],
                 [AUT], [FWK], [INT], [L/D], [PRJ], [TUT], [FAS], [PBL],
                 [JLC], [ACT], [CBL], [PRS], [TBL], [PRB], [T-D], [WVL],
@@ -653,14 +653,14 @@ BEGIN
         up.MothraId,
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
             ELSE 'All'
         END as Department,
         CASE
-            WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN t.dvtTitle_JobGroup_Abbrev
             ELSE 'PROFESSOR/IR'
         END as JobGroupDescription,
         p.PercentAdmin,
@@ -669,10 +669,18 @@ BEGIN
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [dictionary].[dbo].[dvtTitle] t
+        ON p.JobGroupId = t.dvtTitle_JobGroupID
+        AND RIGHT('00' + p.EffortTitleCode, 6) = RIGHT('00' + t.dvtTitle_code, 6)
     WHERE r.TermCode = @TermCode
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
         AND (COALESCE(r.Weeks, r.Hours, 0) > 0)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
+        )
     GROUP BY
         up.MothraId,
         p.LastName,
@@ -680,20 +688,20 @@ BEGIN
         p.EffortDept,
         p.ReportUnit,
         p.JobGroupId,
-        p.Title,
+        t.dvtTitle_JobGroup_Abbrev,
         p.PercentAdmin,
         r.EffortTypeId
     HAVING
         @Department IS NULL
         OR CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
             ELSE 'All'
         END = @Department
         OR CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
@@ -711,7 +719,7 @@ END;
         {
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_merit_report]
-    @PersonId INT,
+    @PersonId INT = NULL,
     @StartTermCode INT,
     @EndTermCode INT,
     @Department CHAR(6) = NULL,
@@ -720,7 +728,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Detailed merit report for a specific person across date range
+    -- Detailed merit report across date range, optionally filtered to a specific person
     -- Returns effort breakdown by course and effort type
 
     SELECT
@@ -729,20 +737,20 @@ BEGIN
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         p.EffortDept as Department,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Units,
         c.Enrollment,
-        r.RoleId,
+        CAST(r.RoleId as varchar(50)) as RoleId,
         r.EffortTypeId,
         COALESCE(r.Weeks, r.Hours, 0) as Effort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
-    WHERE r.PersonId = @PersonId
+    WHERE (@PersonId IS NULL OR r.PersonId = @PersonId)
         AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
         AND (@Department IS NULL OR p.EffortDept = @Department)
-        AND (@Role IS NULL OR r.RoleId = @Role)
+        AND (@Role IS NULL OR CAST(r.RoleId as varchar(50)) = @Role)
     ORDER BY r.TermCode, c.SubjCode, c.CrseNumb, c.SeqNumb;
 END;
 ";
@@ -791,7 +799,7 @@ BEGIN
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         p.EffortDept as Department,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Units,
         c.Enrollment,
         r.RoleId,
@@ -831,32 +839,52 @@ BEGIN
 
     -- Department-wide merit averages aggregated by effort type
     -- Returns instructor details with effort broken down by effort type
+    -- Groups by job group description: 335/341/317 use dictionary title, others = PROFESSOR/IR
 
     SELECT
         up.MothraId,
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
             ELSE 'All'
         END as Department,
         p.JobGroupId,
-        p.Title as JobGroupDescription,
+        CASE
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN t.dvtTitle_JobGroup_Abbrev
+            ELSE 'PROFESSOR/IR'
+        END as JobGroupDescription,
         p.PercentAdmin,
         r.EffortTypeId,
         SUM(COALESCE(r.Weeks, r.Hours, 0)) as TotalEffort
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [dictionary].[dbo].[dvtTitle] t
+        ON p.JobGroupId = t.dvtTitle_JobGroupID
+        AND RIGHT('00' + p.EffortTitleCode, 6) = RIGHT('00' + t.dvtTitle_code, 6)
     WHERE r.TermCode = @TermCode
-        AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit LIKE '%' + @Department + '%')
+        AND (@Department IS NULL OR
+            CASE
+                WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
+                WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
+                WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
+                WHEN p.JobGroupId = '317' THEN 'VMTH'
+                ELSE 'All'
+            END = @Department)
         AND (@PersonId IS NULL OR p.PersonId = @PersonId)
         AND (@Role IS NULL OR r.RoleId = @Role)
         AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
         AND (COALESCE(r.Weeks, r.Hours, 0) > 0)
+        -- Job group qualification (see effort.fn_qualified_job_groups)
+        AND EXISTS (
+            SELECT 1 FROM effort.fn_qualified_job_groups() q
+            WHERE q.JobGroupId = p.JobGroupId
+            AND (q.EffortTitleCode IS NULL OR RIGHT('00' + p.EffortTitleCode, 6) = q.EffortTitleCode)
+        )
     GROUP BY
         up.MothraId,
         p.LastName,
@@ -864,10 +892,11 @@ BEGIN
         p.EffortDept,
         p.ReportUnit,
         p.JobGroupId,
-        p.Title,
+        t.dvtTitle_JobGroup_Abbrev,
         p.PercentAdmin,
         r.EffortTypeId
     ORDER BY
+        JobGroupDescription,
         Department,
         p.LastName,
         p.FirstName,
@@ -905,10 +934,10 @@ BEGIN
         ELSE CAST(RIGHT(@TermCode, 4) AS INT)  -- Fallback for unexpected formats
     END;
 
-    -- Get end date of academic year (June 30 of the academic year)
-    SET @end = CAST(CAST(@AcademicYear AS VARCHAR(4)) + '-06-30' AS DATE);
-    -- Get start date of academic year (July 1 of previous year)
-    SET @start = DATEADD(YEAR, -1, DATEADD(DAY, 1, @end));
+    -- Get end date of academic year (June 30 of startYear+1, e.g. 2024 -> 2025-06-30)
+    SET @end = CAST(CAST(@AcademicYear + 1 AS VARCHAR(4)) + '-06-30' AS DATE);
+    -- Get start date of academic year (July 1 of startYear, e.g. 2024 -> 2024-07-01)
+    SET @start = CAST(CAST(@AcademicYear AS VARCHAR(4)) + '-07-01' AS DATE);
 
     -- Get distinct values of effort type to turn into columns via PIVOT
     -- ColumnNames will contain [CLI],[DIS],[L/D]...etc.
@@ -943,14 +972,20 @@ BEGIN
         p.PersonId,
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName),
         CASE
-            WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
+            WHEN p.JobGroupId IN ('335', '341', '317') THEN t.dvtTitle_JobGroup_Abbrev
             ELSE 'PROFESSOR/IR'
         END
     FROM [effort].[Records] r
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
-    WHERE ts.TermCode / 100 = @AcademicYear  -- All terms in academic year
+    INNER JOIN [dictionary].[dbo].[dvtTitle] t
+        ON p.JobGroupId = t.dvtTitle_JobGroupID
+        AND RIGHT('00' + p.EffortTitleCode, 6) = RIGHT('00' + t.dvtTitle_code, 6)
+    WHERE CASE
+            WHEN ts.TermCode % 100 BETWEEN 1 AND 3 THEN ts.TermCode / 100 - 1
+            ELSE ts.TermCode / 100
+        END = @AcademicYear  -- All terms in academic year (matches GetAcademicYearFromTermCode)
         -- Job group qualification (see effort.fn_qualified_job_groups)
         AND EXISTS (
             SELECT 1 FROM effort.fn_qualified_job_groups() q
@@ -967,6 +1002,13 @@ BEGIN
                 AND (pct.EndDate IS NULL OR pct.EndDate >= @start)
         );
 
+    -- Deduplicate instructors with name changes across terms (keep one row per person)
+    ;WITH cte AS (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY MothraID ORDER BY PersonId DESC) AS rn
+        FROM #Instructors
+    )
+    DELETE FROM cte WHERE rn > 1;
+
     -- Get all effort for the academic year for these instructors
     INSERT INTO #EffortReport (MothraID, Instructor, JGDDesc, EffortType, Effort)
     SELECT
@@ -978,7 +1020,10 @@ BEGIN
     FROM [effort].[Records] r
     INNER JOIN #Instructors I ON r.PersonId = I.PersonId
     INNER JOIN [effort].[TermStatus] ts ON r.TermCode = ts.TermCode
-    WHERE ts.TermCode / 100 = @AcademicYear;  -- All terms in academic year
+    WHERE CASE
+            WHEN ts.TermCode % 100 BETWEEN 1 AND 3 THEN ts.TermCode / 100 - 1
+            ELSE ts.TermCode / 100
+        END = @AcademicYear;  -- All terms in academic year (matches GetAcademicYearFromTermCode)
 
     -- Build dynamic pivot query matching legacy output format exactly
     SET @DynamicPivotQuery =
@@ -1103,7 +1148,7 @@ BEGIN
     -- Show teaching activity for specific instructor and term
 
     SELECT
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Crn,
         r.EffortTypeId,
         r.Hours,
@@ -1196,7 +1241,7 @@ BEGIN
     -- Returns course activity that can be joined with evaluation system data
 
     SELECT
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Crn,
         r.EffortTypeId,
         c.Enrollment,
@@ -1245,7 +1290,7 @@ BEGIN
     SELECT
         ti.term_desc AS TermName,
         course_TermCode AS TermCode,
-        ti.term_academic_year AS AcademicYear,
+        RIGHT(ti.term_academic_year, 4) AS AcademicYear,
         CAST(LEFT(CAST(course_TermCode AS VARCHAR(6)), 4) AS INT) AS CalendarYear,
         people_MothraID AS MothraID,
         p.EffortDept AS Dept,
@@ -1374,11 +1419,11 @@ BEGIN
         p.JobGroupId,
         p.EffortDept as Department,
         c.Id as CourseId,
-        c.SubjCode + ' ' + c.CrseNumb + '-' + c.SeqNumb as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
         c.Crn,
         c.Units,
         c.Enrollment,
-        r.RoleId,
+        CAST(r.RoleId as varchar(50)) as Role,
         r.EffortTypeId,
         r.Hours,
         r.Weeks
@@ -1386,13 +1431,51 @@ BEGIN
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
+    LEFT JOIN [effort].[Roles] rl ON r.RoleId = rl.Id
     WHERE r.TermCode = @TermCode
         AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit = @Department)
         AND (@PersonId IS NULL OR p.PersonId = @PersonId)
         AND (@Role IS NULL OR r.RoleId = @Role)
         AND (@JobGroupId IS NULL OR p.JobGroupId = @JobGroupId)
         AND c.Enrollment > 0
-    ORDER BY p.EffortDept, p.LastName, p.FirstName, c.SubjCode, c.CrseNumb, c.SeqNumb;
+
+    UNION ALL
+
+    -- Include shared/cross-listed child courses with 0 effort
+    SELECT
+        up.MothraId,
+        RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
+        p.JobGroupId,
+        p.EffortDept as Department,
+        child.Id as CourseId,
+        RTRIM(child.SubjCode) + ' ' + RTRIM(child.CrseNumb) + '-' + RTRIM(child.SeqNumb) + '-(' + LEFT(cr.RelationshipType, 1) + ')' as Course,
+        child.Crn,
+        child.Units,
+        child.Enrollment,
+        CAST(r.RoleId as varchar(50)) as Role,
+        r.EffortTypeId,
+        0 as Hours,
+        0 as Weeks
+    FROM [effort].[Records] r
+    INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
+    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
+    INNER JOIN [effort].[CourseRelationships] cr ON r.CourseId = cr.ParentCourseId
+    INNER JOIN [effort].[Courses] child ON cr.ChildCourseId = child.Id
+    WHERE r.TermCode = @TermCode
+        AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit = @Department)
+        AND (@PersonId IS NULL OR p.PersonId = @PersonId)
+        AND (@Role IS NULL OR r.RoleId = @Role)
+        AND (@JobGroupId IS NULL OR p.JobGroupId = @JobGroupId)
+        AND child.Enrollment > 0
+        -- Anti-join: exclude child courses where instructor already has a direct effort record
+        AND NOT EXISTS (
+            SELECT 1 FROM [effort].[Records] r2
+            WHERE r2.PersonId = r.PersonId
+              AND r2.TermCode = r.TermCode
+              AND r2.CourseId = child.Id
+        )
+
+    ORDER BY Department, Instructor, Course;
 END;
 ";
         }
@@ -1682,7 +1765,7 @@ BEGIN
 
     -- Calculate named dept (equivalent to fn_getEffortDept)
     SET @NamedDept = CASE
-        WHEN @PersonJobGroupId IN ('010', '011', '114', '311', '124') THEN @PersonDept
+        WHEN @PersonJobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN @PersonDept
         WHEN @PersonReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
         WHEN @PersonReportUnit LIKE '%WHC%' THEN 'WHC'
         WHEN @PersonJobGroupId = '317' THEN 'VMTH'
@@ -1691,13 +1774,9 @@ BEGIN
 
     -- Calculate named job description (equivalent to fn_getEffortTitle)
     SET @NamedJobDescription = CASE
-        WHEN @PersonJobGroupId IN ('335', '341', '317') THEN
-            (SELECT TOP 1 p.Title FROM [effort].[Persons] p
-             INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
-             WHERE up.MothraId = @MothraId ORDER BY p.TermCode DESC)
-        WHEN @PersonJobGroupId IN ('210', '211', '212', '216', '221', '223', '225', '357', '928') THEN 'LECTURER'
-        WHEN @PersonJobGroupId IN ('B0A', 'B24', 'B25', 'I15') THEN 'STAFF VET'
-        WHEN @PersonJobGroupId = '729' THEN 'CE SPECIALIST'
+        WHEN @PersonJobGroupId = '335' THEN 'ADJUNCT PROFESSOR'
+        WHEN @PersonJobGroupId = '341' THEN 'CLINICAL PROFESSOR'
+        WHEN @PersonJobGroupId = '317' THEN 'PROF OF CLIN ______'
         ELSE 'PROFESSOR/IR'
     END;
 
@@ -1716,17 +1795,16 @@ BEGIN
         r.TermCode,
         up.MothraId,
         CASE
-            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124') THEN p.EffortDept
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
             WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
             WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
             WHEN p.JobGroupId = '317' THEN 'VMTH'
             ELSE 'All'
         END,
         CASE
-            WHEN p.JobGroupId IN ('335', '341', '317') THEN p.Title
-            WHEN p.JobGroupId IN ('210', '211', '212', '216', '221', '223', '225', '357', '928') THEN 'LECTURER'
-            WHEN p.JobGroupId IN ('B0A', 'B24', 'B25', 'I15') THEN 'STAFF VET'
-            WHEN p.JobGroupId = '729' THEN 'CE SPECIALIST'
+            WHEN p.JobGroupId = '335' THEN 'ADJUNCT PROFESSOR'
+            WHEN p.JobGroupId = '341' THEN 'CLINICAL PROFESSOR'
+            WHEN p.JobGroupId = '317' THEN 'PROF OF CLIN ______'
             ELSE 'PROFESSOR/IR'
         END
     FROM [effort].[Records] r
@@ -1802,7 +1880,7 @@ END;
             return @"
 CREATE OR ALTER PROCEDURE [effort].[sp_dept_count_by_job_group_exclude]
     @Year VARCHAR(10),
-    @Dept CHAR(6),
+    @Dept VARCHAR(10),
     @JobGroupDesc VARCHAR(50),
     @ExcludedTerms NVARCHAR(MAX) = NULL,
     @FilterOutNoCLIAssigned BIT = 0,
@@ -1849,10 +1927,17 @@ BEGIN
 
     SELECT COUNT(DISTINCT p.PersonId) AS myCount
     FROM [effort].[Persons] p
-    WHERE p.EffortDept = @Dept
+    WHERE CASE
+            WHEN p.JobGroupId IN ('010', '011', '114', '311', '124', 'S56') THEN p.EffortDept
+            WHEN p.ReportUnit LIKE '%CAHFS%' THEN 'CAHFS'
+            WHEN p.ReportUnit LIKE '%WHC%' THEN 'WHC'
+            WHEN p.JobGroupId = '317' THEN 'VMTH'
+            ELSE 'All'
+          END = @Dept
         AND p.TermCode >= @StartTerm
         AND p.TermCode <= @EndTerm
         AND p.TermCode NOT IN (SELECT TermCode FROM @ExcludeTable)
+        AND p.EffortDept <> 'OTH'
         AND p.VolunteerWos = 0
         -- Only qualified job groups (legacy fn_checkJobGroupAndEffortCode)
         AND EXISTS (
@@ -1868,20 +1953,24 @@ BEGIN
             OR (@JobGroupDesc = 'PROFESSOR/IR' AND p.JobGroupId NOT IN ('335', '341', '317'))
         )
         -- Must have actual effort records (legacy HAVING SUM > 0)
+        -- Legacy uses ISNULL(effort_Weeks, ISNULL(effort_Hours, 0)): weeks-first
         AND EXISTS (
             SELECT 1 FROM [effort].[Records] r
             WHERE r.PersonId = p.PersonId
                 AND r.TermCode = p.TermCode
-                AND COALESCE(r.Hours, r.Weeks, 0) > 0
+                AND COALESCE(r.Weeks, r.Hours, 0) > 0
         )
+        -- CLI is counted via percent assignments, not effort records
         AND (
             @FilterOutNoCLIAssigned = 0
             OR EXISTS (
-                SELECT 1 FROM [effort].[Records] r
-                WHERE r.PersonId = p.PersonId
-                    AND r.TermCode = p.TermCode
-                    AND r.EffortTypeId = 'CLI'
-                    AND COALESCE(r.Hours, r.Weeks, 0) > 0
+                SELECT 1 FROM [effort].[Percentages] pct
+                WHERE pct.PersonId = p.PersonId
+                    AND pct.PercentAssignTypeId IN (1, 25)
+                    AND pct.[Percentage] > 0
+                    AND CONVERT(INT, LEFT(pct.AcademicYear, 4))
+                        BETWEEN CONVERT(INT, LEFT(@Year, 4)) - 1
+                            AND CONVERT(INT, LEFT(@Year, 4))
             )
         );
 END;
@@ -1895,7 +1984,7 @@ END;
 CREATE OR ALTER PROCEDURE [effort].[sp_instructor_evals_average_exclude]
     @StartTerm INT,
     @EndTerm INT,
-    @Dept VARCHAR(3) = NULL,
+    @Dept VARCHAR(6) = NULL,
     @MothraId VARCHAR(9) = NULL,
     @ExcludedTerms NVARCHAR(MAX) = NULL,
     @FacilitatorEvals BIT = 0
