@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "engines": {
-        "node": "24.13.0"
+        "node": "24.13.1"
     },
     "scripts": {
         "dev": "vite",
@@ -78,6 +78,6 @@
         }
     },
     "volta": {
-        "node": "24.13.0"
+        "node": "24.13.1"
     }
 }
