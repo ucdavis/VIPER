@@ -347,13 +347,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                 .Select(cg =>
                 {
                     var efforts = new Dictionary<string, decimal>();
-                    foreach (var row in cg)
+                    foreach (var row in cg.Where(r => !string.IsNullOrWhiteSpace(r.EffortTypeId) && r.Effort > 0))
                     {
-                        if (!string.IsNullOrWhiteSpace(row.EffortTypeId) && row.Effort > 0)
-                        {
-                            var key = row.EffortTypeId.Trim();
-                            efforts[key] = efforts.GetValueOrDefault(key) + row.Effort;
-                        }
+                        var key = row.EffortTypeId.Trim();
+                        efforts[key] = efforts.GetValueOrDefault(key) + row.Effort;
                     }
 
                     var first = cg.First();

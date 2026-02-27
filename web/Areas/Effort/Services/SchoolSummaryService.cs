@@ -268,7 +268,7 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                             row.ConstantItem(facultyLabelWidth).Text("# Faculty").SemiBold();
                             row.AutoItem().Text(dept.FacultyCount.ToString()).SemiBold();
                         });
-                        foreach (var type in orderedTypes)
+                        foreach (var _ in orderedTypes)
                             table.Cell().PaddingVertical(cellPadV).Text("");
 
                         // # Faculty with CLI + averages row
@@ -317,7 +317,7 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                         row.ConstantItem(facultyLabelWidth).Text("# Faculty").Bold();
                         row.AutoItem().Text(report.GrandTotals.FacultyCount.ToString()).Bold();
                     });
-                    foreach (var type in orderedTypes)
+                    foreach (var _ in orderedTypes)
                         table.Cell().PaddingVertical(cellPadV).Text("");
 
                     // # Faculty with CLI + grand averages row

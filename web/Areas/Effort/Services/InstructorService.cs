@@ -1426,7 +1426,7 @@ public class InstructorService : IInstructorService
             _cache.Set(cacheKey, jobGroups, cacheOptions);
 
             _logger.LogInformation("Loaded {Count} job groups from database (term={TermCode}, dept={Department})",
-                jobGroups.Count, termCode, department);
+                jobGroups.Count, termCode, LogSanitizer.SanitizeString(department));
 
             return jobGroups;
         }

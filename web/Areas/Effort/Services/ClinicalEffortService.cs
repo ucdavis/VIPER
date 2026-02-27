@@ -5,6 +5,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -111,7 +112,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
 
         _logger.LogDebug(
             "Clinical effort report for {AcademicYear} type {ClinicalType}: {InstructorCount} instructors, {EffortTypeCount} effort types",
-            academicYear, clinicalType, instructorRows.Count, filteredEffortTypes.Count);
+            LogSanitizer.SanitizeString(academicYear), clinicalType, instructorRows.Count, filteredEffortTypes.Count);
 
         return new ClinicalEffortReport
         {

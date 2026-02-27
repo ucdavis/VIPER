@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -78,7 +79,7 @@ public partial class ZeroEffortService : BaseReportService, IZeroEffortService
             Instructors = allInstructors
         };
 
-        _logger.LogDebug("Zero effort report for year {AcademicYear}: {Count} instructors with zero effort", academicYear, allInstructors.Count);
+        _logger.LogDebug("Zero effort report for year {AcademicYear}: {Count} instructors with zero effort", LogSanitizer.SanitizeString(academicYear), allInstructors.Count);
         return report;
     }
 
