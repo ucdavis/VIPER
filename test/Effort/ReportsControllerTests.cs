@@ -3291,6 +3291,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSabbatical_ValidPersonId_ReturnsSabbaticalData()
     {
+        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var dto = new SabbaticalDto
         {
             PersonId = 123,
@@ -3313,6 +3314,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSabbatical_NoRecord_ReturnsEmptyDto()
     {
+        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _sabbaticalServiceMock
             .Setup(s => s.GetByPersonIdAsync(456, It.IsAny<CancellationToken>()))
             .ReturnsAsync((SabbaticalDto?)null);
