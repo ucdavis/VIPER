@@ -4,6 +4,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -69,7 +70,7 @@ public class YearStatisticsService : BaseReportService, IYearStatisticsService
 
         _logger.LogDebug(
             "Year statistics report for {AcademicYear}: SVM={SvmCount}, DVM={DvmCount}, Res={ResCount}, UG={UgCount} instructors",
-            academicYear, report.Svm.InstructorCount, report.Dvm.InstructorCount,
+            LogSanitizer.SanitizeString(academicYear), report.Svm.InstructorCount, report.Dvm.InstructorCount,
             report.Resident.InstructorCount, report.UndergradGrad.InstructorCount);
 
         return report;
@@ -467,10 +468,8 @@ public class YearStatisticsService : BaseReportService, IYearStatisticsService
                 report.UndergradGrad
             };
 
-            foreach (var sub in subReports)
+            foreach (var sub in subReports.Where(s => s.InstructorCount > 0))
             {
-                if (sub.InstructorCount == 0) continue;
-
                 container.Page(page =>
                 {
                     page.Size(PageSizes.Legal.Landscape());
