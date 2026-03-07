@@ -90,7 +90,7 @@ namespace Viper.Controllers
                         break;
                     case "viper-clinical-scheduler":
                     case "clinicalscheduler":
-                        menu = new ClinicalSchedulerNavMenu().Nav();
+                        menu = new ClinicalSchedulerNavMenu(_context).Nav();
                         break;
                 }
                 if (menu != null)
