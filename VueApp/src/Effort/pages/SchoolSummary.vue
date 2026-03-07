@@ -57,7 +57,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="col-effort"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ type }}
                                 </th>
@@ -74,7 +74,7 @@
                                     <td
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
                                     >
                                         {{ getTotalValue(dept.effortTotals, type) }}
                                     </td>
@@ -97,7 +97,7 @@
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
                                         class="avg-value"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
                                     >
                                         {{ getAverageValue(dept.averages, type) }}
                                     </td>
@@ -120,7 +120,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="col-effort"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ type }}
                                 </th>
@@ -133,7 +133,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="total"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ getTotalValue(report.grandTotals.effortTotals, type) }}
                                 </td>
@@ -158,7 +158,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="total avg-value"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ getAverageValue(report.grandTotals.averages, type) }}
                                 </td>
@@ -195,6 +195,7 @@ const {
     orderedEffortTypes,
     getTotalValue,
     getAverageValue,
+    isSpacerColumn,
     generateReport,
     handlePrint,
 } = useReportPage<SchoolSummaryReport>({

@@ -897,11 +897,13 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
         QuestPDF.Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var lastType = orderedTypes[^1];
         var compact = orderedTypes.Count > 10;
-        var fontSize = compact ? 8f : 9f;
-        var headerFontSize = compact ? 7f : 8f;
-        var cellPadV = compact ? 1.5f : 2f;
-        var effortWidth = compact ? 28f : 36f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
+        var effortWidth = compact ? 28f : 36f; // wider than standard to fit multi-year layout
+        var spacerPad = ReportPdfSettings.SpacerPad;
 
         var yearLabel = report.UseAcademicYear
             ? $"{report.StartYear}-{report.StartYear + 1} to {report.EndYear}-{report.EndYear + 1}"
@@ -924,12 +926,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                         row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                     });
-                    col.Item().PaddingVertical(4).Text("Multi-Year Merit Activity Report").SemiBold().FontSize(12);
-                    col.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text($"{report.Instructor} ({report.Department})").SemiBold().FontSize(10);
-                        row.RelativeItem().AlignRight().Text(yearLabel).SemiBold().FontSize(10);
-                    });
+                    col.Item().PaddingVertical(4)
+                        .Text($"Merit & Promotion Multi-Year Report \u2014 {report.Instructor}").SemiBold().FontSize(12);
+                    var yearTypeLabel = report.UseAcademicYear ? "Academic Year" : "Calendar Year";
+                    col.Item().Text($"{yearLabel} ({yearTypeLabel})").SemiBold().FontSize(10);
                 });
 
                 page.Content().PaddingTop(8).Table(table =>
@@ -940,10 +940,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         columns.ConstantColumn(30);    // Role
                         columns.ConstantColumn(50);    // Enrolled
                         columns.ConstantColumn(40);    // Units
-                        columns.ConstantColumn(160);   // Course
-                        foreach (var _ in orderedTypes)
+                        columns.RelativeColumn();      // Course (fills remaining width)
+                        foreach (var type in orderedTypes)
                         {
-                            columns.ConstantColumn(effortWidth);
+                            columns.ConstantColumn(SpacerColumns.Contains(type) && type != lastType ? effortWidth + spacerPad : effortWidth);
                         }
                     });
 
@@ -965,7 +965,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         table.Cell().PaddingVertical(cellPadV).Text("Course").Style(hdrStyle);
                         foreach (var type in orderedTypes)
                         {
-                            table.Cell().PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
+                            var isSpacer = SpacerColumns.Contains(type) && type != lastType;
+                            var cell = table.Cell().PaddingVertical(cellPadV);
+                            if (isSpacer) cell = cell.PaddingRight(spacerPad);
+                            cell.Text(type).Style(hdrStyle);
                         }
 
                         foreach (var course in year.Courses)
@@ -977,9 +980,11 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                             table.Cell().PaddingVertical(cellPadV).Text(course.Course);
                             foreach (var type in orderedTypes)
                             {
+                                var isSpacer = SpacerColumns.Contains(type) && type != lastType;
                                 var val = course.Efforts.GetValueOrDefault(type);
-                                table.Cell().PaddingVertical(cellPadV)
-                                    .Text(val > 0 ? val.ToString() : "0");
+                                var cell = table.Cell().PaddingVertical(cellPadV);
+                                if (isSpacer) cell = cell.PaddingRight(spacerPad);
+                                cell.Text(val > 0 ? val.ToString() : "0");
                             }
                         }
 
@@ -988,9 +993,11 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                             .Text($"Total for {year.YearLabel}").Bold().Italic();
                         foreach (var type in orderedTypes)
                         {
+                            var isSpacer = SpacerColumns.Contains(type) && type != lastType;
                             var val = year.YearTotals.GetValueOrDefault(type);
-                            table.Cell().PaddingVertical(cellPadV)
-                                .Text(val > 0 ? val.ToString() : "0").Bold();
+                            var cell = table.Cell().PaddingVertical(cellPadV);
+                            if (isSpacer) cell = cell.PaddingRight(spacerPad);
+                            cell.Text(val > 0 ? val.ToString() : "0").Bold();
                         }
                     }
 
@@ -1000,10 +1007,12 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         .Text($"{report.Instructor} Total").Bold();
                     foreach (var type in orderedTypes)
                     {
+                        var isSpacer = SpacerColumns.Contains(type) && type != lastType;
                         var val = report.MeritSection.GrandTotals.GetValueOrDefault(type);
-                        table.Cell().BorderTop(1.5f).BorderColor("#666666")
-                            .Background("#E0E0E0").PaddingVertical(cellPadV)
-                            .Text(val > 0 ? val.ToString() : "0").Bold();
+                        var cell = table.Cell().BorderTop(1.5f).BorderColor("#666666")
+                            .Background("#E0E0E0").PaddingVertical(cellPadV);
+                        if (isSpacer) cell = cell.PaddingRight(spacerPad);
+                        cell.Text(val > 0 ? val.ToString() : "0").Bold();
                     }
 
                     // Yearly averages
@@ -1011,9 +1020,11 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         .Text($"* Yearly didactic average (actual clinical) over {report.StartYear} - {report.EndYear}").Italic();
                     foreach (var type in orderedTypes)
                     {
+                        var isSpacer = SpacerColumns.Contains(type) && type != lastType;
                         var val = report.MeritSection.YearlyAverages.GetValueOrDefault(type);
-                        table.Cell().PaddingVertical(cellPadV)
-                            .Text(val > 0 ? val.ToString("F1") : "0.0");
+                        var cell = table.Cell().PaddingVertical(cellPadV);
+                        if (isSpacer) cell = cell.PaddingRight(spacerPad);
+                        cell.Text(val > 0 ? val.ToString("F1") : "0.0");
                     }
 
                     // Department averages
@@ -1026,9 +1037,11 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                                     : "")).Italic();
                         foreach (var type in orderedTypes)
                         {
+                            var isSpacer = SpacerColumns.Contains(type) && type != lastType;
                             var val = report.MeritSection.DepartmentAverages.GetValueOrDefault(type);
-                            table.Cell().PaddingVertical(cellPadV)
-                                .Text(val > 0 ? val.ToString("F1") : "0.0");
+                            var cell = table.Cell().PaddingVertical(cellPadV);
+                            if (isSpacer) cell = cell.PaddingRight(spacerPad);
+                            cell.Text(val > 0 ? val.ToString("F1") : "0.0");
                         }
                     }
                 });

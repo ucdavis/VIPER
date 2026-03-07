@@ -9,10 +9,8 @@ import type {
     MeritSummaryReport,
     ClinicalEffortReport,
     ScheduledCliWeeksReport,
-    ZeroEffortReport,
     EvalSummaryReport,
     EvalDetailReport,
-    YearStatisticsReport,
     MultiYearReport,
     SabbaticalDto,
 } from "../types"
@@ -137,18 +135,6 @@ class ReportService {
     }
 
     /**
-     * Get the zero effort report.
-     */
-    async getZeroEffort(params: ReportFilterParams): Promise<ZeroEffortReport | null> {
-        const url = this.buildUrl("zero-effort", params)
-        const response = await get(url)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as ZeroEffortReport
-    }
-
-    /**
      * Get the evaluation summary report.
      */
     async getEvalSummary(params: ReportFilterParams): Promise<EvalSummaryReport | null> {
@@ -170,20 +156,6 @@ class ReportService {
             return null
         }
         return response.result as EvalDetailReport
-    }
-
-    /**
-     * Get the year statistics report ("Lairmore Report").
-     */
-    async getYearStatistics(academicYear: string): Promise<YearStatisticsReport | null> {
-        const searchParams = new URLSearchParams()
-        searchParams.set("academicYear", academicYear)
-        const url = `${this.baseUrl}/year-stats?${searchParams.toString()}`
-        const response = await get(url)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as YearStatisticsReport
     }
 
     /**

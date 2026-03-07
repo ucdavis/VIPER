@@ -428,109 +428,6 @@ public class ScheduledCliWeeksTermRow
 }
 
 // ============================================
-// Year Statistics Report DTOs
-// ============================================
-
-/// <summary>
-/// Year Statistics report ("Lairmore Report") with 4 sub-reports: SVM, DVM, Resident, Undergrad/Grad.
-/// The SP returns raw course-level data; all grouping/filtering/aggregation happens in the service layer.
-/// </summary>
-public class YearStatisticsReport
-{
-    public string AcademicYear { get; set; } = string.Empty;
-    public List<string> EffortTypes { get; set; } = [];
-    public YearStatsSubReport Svm { get; set; } = new();
-    public YearStatsSubReport Dvm { get; set; } = new();
-    public YearStatsSubReport Resident { get; set; } = new();
-    public YearStatsSubReport UndergradGrad { get; set; } = new();
-}
-
-/// <summary>
-/// A single sub-report within the Year Statistics report.
-/// Contains per-instructor details, summary statistics, and optional grouping tables.
-/// </summary>
-public class YearStatsSubReport
-{
-    public string Label { get; set; } = string.Empty;
-    public List<InstructorEffortDetail> Instructors { get; set; } = [];
-    public Dictionary<string, decimal> Sums { get; set; } = new();
-    public Dictionary<string, decimal> Averages { get; set; } = new();
-    public Dictionary<string, decimal> Medians { get; set; } = new();
-    public decimal TeachingHoursSum { get; set; }
-    public decimal TeachingHoursAverage { get; set; }
-    public decimal TeachingHoursMedian { get; set; }
-    public int InstructorCount { get; set; }
-    /// <summary>SVM and DVM only: group by department.</summary>
-    public List<YearStatsGrouping> ByDepartment { get; set; } = [];
-    /// <summary>SVM and DVM only: group by discipline.</summary>
-    public List<YearStatsGrouping> ByDiscipline { get; set; } = [];
-    /// <summary>SVM and DVM only: group by title/job group.</summary>
-    public List<YearStatsGrouping> ByTitle { get; set; } = [];
-}
-
-/// <summary>
-/// Per-instructor effort detail row in the Year Statistics report.
-/// </summary>
-public class InstructorEffortDetail
-{
-    public string MothraId { get; set; } = string.Empty;
-    public string Instructor { get; set; } = string.Empty;
-    public string Department { get; set; } = string.Empty;
-    public string Discipline { get; set; } = string.Empty;
-    public string JobGroup { get; set; } = string.Empty;
-    public Dictionary<string, decimal> Efforts { get; set; } = new();
-    public decimal TeachingHours { get; set; }
-}
-
-/// <summary>
-/// Grouped statistics row in the Year Statistics report (by department, discipline, or title).
-/// </summary>
-public class YearStatsGrouping
-{
-    public string GroupName { get; set; } = string.Empty;
-    public int InstructorCount { get; set; }
-    public Dictionary<string, decimal> Sums { get; set; } = new();
-    public Dictionary<string, decimal> Averages { get; set; } = new();
-    public Dictionary<string, decimal> Medians { get; set; } = new();
-    public decimal TeachingHoursSum { get; set; }
-    public decimal TeachingHoursAverage { get; set; }
-    public decimal TeachingHoursMedian { get; set; }
-}
-
-/// <summary>
-/// Request body for year statistics PDF export.
-/// </summary>
-public record YearStatsPdfRequest(string? AcademicYear = null);
-
-// ============================================
-// Zero Effort Report DTOs
-// ============================================
-
-/// <summary>
-/// Report of instructors with courses assigned but zero effort recorded.
-/// </summary>
-public class ZeroEffortReport
-{
-    public int TermCode { get; set; }
-    public string TermName { get; set; } = string.Empty;
-    public string? AcademicYear { get; set; }
-    public string? FilterDepartment { get; set; }
-    public List<ZeroEffortInstructorRow> Instructors { get; set; } = [];
-}
-
-/// <summary>
-/// Instructor row in zero effort report.
-/// </summary>
-public class ZeroEffortInstructorRow
-{
-    public string MothraId { get; set; } = string.Empty;
-    public string Instructor { get; set; } = string.Empty;
-    public string Department { get; set; } = string.Empty;
-    public string JobGroupId { get; set; } = string.Empty;
-    public bool Verified { get; set; }
-}
-
-// ============================================
 // Evaluation Report DTOs
 // ============================================
 
@@ -617,6 +514,7 @@ public class EvalCourseDetail
     public string Course { get; set; } = string.Empty;
     public string Crn { get; set; } = string.Empty;
     public int TermCode { get; set; }
+    public string TermName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public decimal Average { get; set; }
     public decimal? Median { get; set; }

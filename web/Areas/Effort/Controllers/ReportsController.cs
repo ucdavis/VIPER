@@ -22,9 +22,7 @@ public partial class ReportsController : BaseEffortController
     private readonly IMeritSummaryService _meritSummaryService;
     private readonly IClinicalEffortService _clinicalEffortService;
     private readonly IClinicalScheduleService _clinicalScheduleService;
-    private readonly IZeroEffortService _zeroEffortService;
     private readonly IEvaluationReportService _evaluationReportService;
-    private readonly IYearStatisticsService _yearStatisticsService;
     private readonly IMeritMultiYearService _meritMultiYearService;
     private readonly ISabbaticalService _sabbaticalService;
     private readonly IEffortPermissionService _permissionService;
@@ -40,9 +38,7 @@ public partial class ReportsController : BaseEffortController
         IMeritSummaryService meritSummaryService,
         IClinicalEffortService clinicalEffortService,
         IClinicalScheduleService clinicalScheduleService,
-        IZeroEffortService zeroEffortService,
         IEvaluationReportService evaluationReportService,
-        IYearStatisticsService yearStatisticsService,
         IMeritMultiYearService meritMultiYearService,
         ISabbaticalService sabbaticalService,
         IEffortPermissionService permissionService,
@@ -55,9 +51,7 @@ public partial class ReportsController : BaseEffortController
         _meritSummaryService = meritSummaryService;
         _clinicalEffortService = clinicalEffortService;
         _clinicalScheduleService = clinicalScheduleService;
-        _zeroEffortService = zeroEffortService;
         _evaluationReportService = evaluationReportService;
-        _yearStatisticsService = yearStatisticsService;
         _meritMultiYearService = meritMultiYearService;
         _sabbaticalService = sabbaticalService;
         _permissionService = permissionService;
@@ -416,18 +410,6 @@ public partial class ReportsController : BaseEffortController
 
         report.JobGroups = report.JobGroups
             .Where(jg => jg.Departments.Count > 0)
-            .ToList();
-    }
-
-    private static void FilterReportByAuthorizedDepartments(ZeroEffortReport report, List<string>? authorizedDepartments)
-    {
-        if (authorizedDepartments == null)
-        {
-            return;
-        }
-
-        report.Instructors = report.Instructors
-            .Where(i => authorizedDepartments.Contains(i.Department, StringComparer.OrdinalIgnoreCase))
             .ToList();
     }
 
@@ -1196,58 +1178,6 @@ public partial class ReportsController : BaseEffortController
     }
 
     // ============================================
-    // Zero Effort Endpoint
-    // ============================================
-
-    /// <summary>
-    /// Get zero effort report. Identifies instructors with courses assigned but zero effort recorded.
-    /// Accepts either termCode (single term) or academicYear (e.g., "2024-2025") for multi-term.
-    /// </summary>
-    [HttpGet("zero-effort")]
-    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
-    public async Task<ActionResult<ZeroEffortReport>> GetZeroEffort(
-        [FromQuery] int termCode = 0,
-        [FromQuery] string? academicYear = null,
-        [FromQuery] string? department = null,
-        CancellationToken ct = default)
-    {
-        var validationResult = ValidateTermAndYear(termCode, academicYear)
-            ?? ValidateReportParams(department);
-        if (validationResult != null) return validationResult;
-
-        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
-        if (authorizedDepartments is { Count: 0 })
-        {
-            return Forbid();
-        }
-
-        var effectiveDepartments = ResolveEffectiveDepartments(department, authorizedDepartments);
-
-        ZeroEffortReport report;
-        if (!string.IsNullOrEmpty(academicYear))
-        {
-            SetExceptionContext("academicYear", academicYear);
-            _logger.LogInformation("Zero effort report requested: year={AcademicYear}, dept={Department}",
-                LogSanitizer.SanitizeString(academicYear),
-                LogSanitizer.SanitizeString(department));
-
-            report = await _zeroEffortService.GetZeroEffortReportByYearAsync(academicYear, effectiveDepartments, ct);
-        }
-        else
-        {
-            SetExceptionContext("termCode", termCode);
-            _logger.LogInformation("Zero effort report requested: term={TermCode}, dept={Department}",
-                termCode,
-                LogSanitizer.SanitizeString(department));
-
-            report = await _zeroEffortService.GetZeroEffortReportAsync(termCode, effectiveDepartments, ct);
-        }
-
-        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
-        return Ok(report);
-    }
-
-    // ============================================
     // Evaluation Report Endpoints
     // ============================================
 
@@ -1454,98 +1384,6 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _evaluationReportService.GenerateDetailPdfAsync(report);
         var filename = $"EvalDetail_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
-    }
-
-    // ============================================
-    // Year Statistics Endpoints
-    // ============================================
-
-    /// <summary>
-    /// Get year statistics report ("Lairmore Report"). Returns 4 sub-reports: SVM, DVM, Resident, Undergrad/Grad.
-    /// Only accepts academic year (not single term). Always returns full school data (no department filter).
-    /// </summary>
-    [HttpGet("year-stats")]
-    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
-    public async Task<ActionResult<YearStatisticsReport>> GetYearStatistics(
-        [FromQuery] string? academicYear = null,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(academicYear))
-        {
-            return BadRequest("academicYear is required.");
-        }
-
-        if (!AcademicYearFormatRegex().IsMatch(academicYear))
-        {
-            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
-        }
-
-        var parts = academicYear.Split('-');
-        if (int.TryParse(parts[0], out var startYear) && int.TryParse(parts[1], out var endYear)
-            && endYear != startYear + 1)
-        {
-            return BadRequest("academicYear must be a consecutive range (e.g., 2024-2025).");
-        }
-
-        if (!await _permissionService.HasFullAccessAsync(ct))
-        {
-            return Forbid();
-        }
-
-        SetExceptionContext("academicYear", academicYear);
-        _logger.LogInformation("Year statistics report requested: year={AcademicYear}",
-            LogSanitizer.SanitizeString(academicYear));
-
-        var report = await _yearStatisticsService.GetYearStatisticsReportAsync(academicYear, ct);
-        return Ok(report);
-    }
-
-    /// <summary>
-    /// Export year statistics report as PDF.
-    /// </summary>
-    [HttpPost("year-stats/pdf")]
-    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
-    public async Task<ActionResult> ExportYearStatisticsPdf(
-        [FromBody] YearStatsPdfRequest request,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(request.AcademicYear))
-        {
-            return BadRequest("academicYear is required.");
-        }
-
-        if (!AcademicYearFormatRegex().IsMatch(request.AcademicYear))
-        {
-            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
-        }
-
-        var parts = request.AcademicYear.Split('-');
-        if (int.TryParse(parts[0], out var startYear) && int.TryParse(parts[1], out var endYear)
-            && endYear != startYear + 1)
-        {
-            return BadRequest("academicYear must be a consecutive range (e.g., 2024-2025).");
-        }
-
-        if (!await _permissionService.HasFullAccessAsync(ct))
-        {
-            return Forbid();
-        }
-
-        SetExceptionContext("academicYear", request.AcademicYear);
-
-        var report = await _yearStatisticsService.GetYearStatisticsReportAsync(request.AcademicYear, ct);
-
-        if (report.Svm.InstructorCount == 0
-            && report.Dvm.InstructorCount == 0
-            && report.Resident.InstructorCount == 0
-            && report.UndergradGrad.InstructorCount == 0)
-        {
-            return NoContent();
-        }
-
-        var pdfBytes = await _yearStatisticsService.GenerateReportPdfAsync(report);
-        var filename = $"YearStatistics_{report.AcademicYear}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", filename);
     }
 

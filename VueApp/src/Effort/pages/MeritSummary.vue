@@ -55,68 +55,64 @@
                 >
                     <div class="job-group-header">{{ jobGroup.jobGroupDescription }}</div>
 
-                    <div
-                        v-for="dept in jobGroup.departments"
-                        :key="`${jobGroup.jobGroupDescription}_${dept.department}`"
-                        class="dept-section"
-                    >
-                        <div class="dept-subheader bg-grey-3">{{ dept.department }}</div>
+                    <ReportDeptTabs :departments="jobGroup.departments">
+                        <template #default="{ dept }">
+                            <table class="report-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-label"></th>
+                                        <th
+                                            v-for="type in orderedEffortTypes"
+                                            :key="type"
+                                            class="col-effort"
+                                            :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                        >
+                                            {{ type }}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Department totals row -->
+                                    <tr class="totals-row bg-grey-1">
+                                        <th class="subt">Totals:</th>
+                                        <td
+                                            v-for="type in orderedEffortTypes"
+                                            :key="type"
+                                            class="total"
+                                            :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                        >
+                                            {{ getTotalValue(dept.departmentTotals, type) }}
+                                        </td>
+                                    </tr>
 
-                        <table class="report-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-label"></th>
-                                    <th
-                                        v-for="type in orderedEffortTypes"
-                                        :key="type"
-                                        class="col-effort"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                    >
-                                        {{ type }}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Department totals row -->
-                                <tr class="totals-row bg-grey-1">
-                                    <th class="subt">Totals:</th>
-                                    <td
-                                        v-for="type in orderedEffortTypes"
-                                        :key="type"
-                                        class="total"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                    >
-                                        {{ getTotalValue(dept.departmentTotals, type) }}
-                                    </td>
-                                </tr>
+                                    <!-- Number Faculty row -->
+                                    <tr class="faculty-row">
+                                        <td>
+                                            <span class="faculty-label">Number Faculty:</span>
+                                            <span class="faculty-count">{{ dept.facultyCount }}</span>
+                                        </td>
+                                    </tr>
 
-                                <!-- Number Faculty row -->
-                                <tr class="faculty-row">
-                                    <td>
-                                        <span class="faculty-label">Number Faculty:</span>
-                                        <span class="faculty-count">{{ dept.facultyCount }}</span>
-                                    </td>
-                                </tr>
-
-                                <!-- Faculty w/ CLI assigned + averages row -->
-                                <tr class="faculty-row bg-grey-3">
-                                    <td>
-                                        <span class="faculty-label">Faculty w/ CLI assigned:</span>
-                                        <span class="faculty-count">{{ dept.facultyWithCliCount }}</span>
-                                        <span class="avg-text">Average</span>
-                                    </td>
-                                    <td
-                                        v-for="type in orderedEffortTypes"
-                                        :key="type"
-                                        class="total"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                    >
-                                        {{ getAverageValue(dept.departmentAverages, type) }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                    <!-- Faculty w/ CLI assigned + averages row -->
+                                    <tr class="faculty-row bg-grey-3">
+                                        <td>
+                                            <span class="faculty-label">Faculty w/ CLI assigned:</span>
+                                            <span class="faculty-count">{{ dept.facultyWithCliCount }}</span>
+                                            <span class="avg-text">Average</span>
+                                        </td>
+                                        <td
+                                            v-for="type in orderedEffortTypes"
+                                            :key="type"
+                                            class="total"
+                                            :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                        >
+                                            {{ getAverageValue(dept.departmentAverages, type) }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                    </ReportDeptTabs>
                 </div>
             </template>
         </ReportLayout>
@@ -136,6 +132,7 @@ import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
+import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { MeritSummaryReport } from "../types"
 
 const {
@@ -147,6 +144,7 @@ const {
     orderedEffortTypes,
     getTotalValue,
     getAverageValue,
+    isSpacerColumn,
     generateReport,
     handlePrint,
 } = useReportPage<MeritSummaryReport>({
@@ -160,20 +158,4 @@ const {
 @import "../report-tables.css";
 </style>
 
-<style scoped>
-.job-group-section {
-    margin-bottom: 2rem;
-}
-
-.job-group-header {
-    font-weight: bold;
-    font-size: 1rem;
-    padding: 0.5rem 0;
-    border-bottom: 2px solid var(--ucdavis-black-80);
-    margin-bottom: 0.5rem;
-}
-
-.dept-section {
-    margin-bottom: 1.5rem;
-}
-</style>
+<style scoped></style>

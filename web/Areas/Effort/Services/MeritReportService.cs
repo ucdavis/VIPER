@@ -593,15 +593,15 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         // Compact when 12+ effort types: with fixed columns, non-compact overflows the page
         var compact = orderedTypes.Count > 11;
-        var fontSize = compact ? 8.5f : 10f;
-        var headerFontSize = compact ? 7.5f : 8.5f;
-        var hMargin = compact ? 0.35f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
         var qtrWidth = compact ? 36f : 48f;
         var roleWidth = compact ? 22f : 32f;
         var instructorWidth = compact ? 90f : 130f;
         var courseWidth = compact ? 70f : 100f;
-        var effortWidth = compact ? 24f : 32f;
+        var effortWidth = compact ? ReportPdfSettings.EffortWidthCompact : ReportPdfSettings.EffortWidth;
         var spacerWidth = compact ? 42f : 70f;
 
         var document = Document.Create(container =>
@@ -741,13 +741,13 @@ public class MeritReportService : BaseReportService, IMeritReportService
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
         var compact = orderedTypes.Count > 14;
-        var fontSize = compact ? 8.5f : 10f;
-        var headerFontSize = compact ? 7.5f : 8.5f;
-        var hMargin = compact ? 0.35f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
         var instructorWidth = compact ? 110f : 150f;
         var termWidth = compact ? 60f : 80f;
-        var effortWidth = compact ? 24f : 32f;
+        var effortWidth = compact ? ReportPdfSettings.EffortWidthCompact : ReportPdfSettings.EffortWidth;
         var spacerWidth = compact ? 42f : 70f;
 
         var document = Document.Create(container =>
@@ -852,15 +852,6 @@ public class MeritReportService : BaseReportService, IMeritReportService
                                     table.Cell().Background("#F8F8F8").BorderTop(0.5f).BorderColor("#CCCCCC")
                                         .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold();
                                 }
-                            }
-
-                            // Re-display effort type headers before group summary
-                            table.Cell().ColumnSpan(2).BorderTop(1).BorderColor("#999999")
-                                .PaddingVertical(cellPadV).Text("");
-                            foreach (var type in orderedTypes)
-                            {
-                                table.Cell().BorderTop(1).BorderColor("#999999")
-                                    .PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
                             }
 
                             // Faculty Count Total row

@@ -237,10 +237,9 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                 people_MothraID AS MothraId,
                 RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) AS Instructor,
                 p.EffortDept AS Department,
-                RTRIM(course_subj_code) + ' ' + RTRIM(course_crse_numb) +
-                    ' (' + ISNULL(bi.baseinfo_title, '') + ')' AS Course,
-                course_CRN AS CRN,
-                course_TermCode AS TermCode,
+                RTRIM(course_subj_code) + ' ' + RTRIM(course_crse_numb) AS Course,
+                CAST(course_CRN AS VARCHAR(6)) AS CRN,
+                CAST(course_TermCode AS INT) AS TermCode,
                 quant_mean AS QuantMean,
                 quant_1_n AS N1,
                 quant_2_n AS N2,
@@ -260,8 +259,6 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
             LEFT JOIN evalharvest.dbo.eh_POA poa ON course_CRN = poa_crn
                 AND course_TermCode = poa_termcode
                 AND people_mailid = poa_mailID
-            LEFT JOIN Courses.dbo.baseinfo bi ON quest_TermCode = bi.baseinfo_term_code
-                AND quest_CRN = bi.baseinfo_crn
             INNER JOIN [users].[Person] up ON people_MothraID = up.MothraId
             INNER JOIN [effort].[Persons] p ON up.PersonId = p.PersonId AND people_TermCode = p.TermCode
             WHERE course_TermCode = @TermCode
@@ -274,7 +271,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                 )
                 AND p.EffortDept <> 'OTH'
                 AND p.VolunteerWos = 0
-                AND (@Department IS NULL OR p.EffortDept = @Department)
+                AND (@Department IS NULL OR p.EffortDept = @Department OR p.ReportUnit = @Department)
                 AND (@PersonId IS NULL OR up.PersonId = @PersonId)
                 AND (@Role IS NULL OR (CASE WHEN poa.poa_mailID IS NULL THEN 2 ELSE 1 END) = @Role)
                 AND quant_mean > 0
@@ -373,7 +370,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
         return report;
     }
 
-    private static EvalDetailReport BuildEvalDetailReport(EvalDetailReport report, List<EvalRawRow> rows)
+    private EvalDetailReport BuildEvalDetailReport(EvalDetailReport report, List<EvalRawRow> rows)
     {
         if (rows.Count == 0)
         {
@@ -397,7 +394,8 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                                 Course = r.Course,
                                 Crn = r.Crn,
                                 TermCode = r.TermCode,
-                                Role = r.RoleId == 1 ? "I" : "F",
+                                TermName = _termService.GetTermName(r.TermCode),
+                                Role = r.RoleId == 1 ? "Course Leader" : "Teacher",
                                 Average = r.QuantMean,
                                 Median = CalculateMedian(r.N1, r.N2, r.N3, r.N4, r.N5),
                                 NumResponses = r.NumResponses,
@@ -506,79 +504,73 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
         var document = Document.Create(container =>
         {
-            container.Page(page =>
+            foreach (var dept in report.Departments)
             {
-                page.Size(PageSizes.Letter);
-                page.MarginHorizontal(0.5f, Unit.Inch);
-                page.MarginVertical(0.4f, Unit.Inch);
-                page.DefaultTextStyle(x => x.FontSize(10));
-
-                page.Header().Column(col =>
+                container.Page(page =>
                 {
-                    col.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
-                        row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
-                    });
-                    col.Item().PaddingVertical(6).Text("Evaluation Summary Report").SemiBold().FontSize(12);
-                    col.Item().BorderBottom(1.5f).BorderColor(Colors.Black)
-                        .PaddingBottom(3).Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(11);
-                });
+                    page.Size(PageSizes.Letter);
+                    page.MarginHorizontal(0.5f, Unit.Inch);
+                    page.MarginVertical(0.4f, Unit.Inch);
+                    page.DefaultTextStyle(x => x.FontSize(10));
 
-                page.Content().Table(table =>
-                {
-                    table.ColumnsDefinition(columns =>
+                    page.Header().Column(col =>
                     {
-                        columns.RelativeColumn();        // Instructor
-                        columns.ConstantColumn(80);      // Weighted Avg
-                        columns.ConstantColumn(80);      // Responses
-                        columns.ConstantColumn(80);      // Enrolled
-                    });
-
-                    var hdrStyle = TextStyle.Default.FontSize(9).Bold().Underline();
-                    table.Header(header =>
-                    {
-                        header.Cell().PaddingVertical(2).Text("Instructor").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Weighted Avg").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Responses").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Enrolled").Style(hdrStyle);
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
+                            row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
+                        });
+                        col.Item().PaddingVertical(6).Row(row =>
+                        {
+                            row.RelativeItem().Text("Eval Summary Report").SemiBold().FontSize(12);
+                            row.AutoItem().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignRight().Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(12);
+                        });
+                        col.Item().BorderBottom(1.5f).BorderColor(Colors.Black).PaddingBottom(3);
                     });
 
-                    foreach (var dept in report.Departments)
+                    page.Content().Table(table =>
                     {
-                        // Department header
-                        table.Cell().ColumnSpan(4).Background("#E0E0E0").PaddingVertical(3)
-                            .PaddingLeft(4).Text(text =>
-                            {
-                                text.Span(dept.Department).Bold();
-                                text.Span($"  (Avg: {dept.DepartmentAverage:F2}, Responses: {dept.TotalResponses})").FontSize(9);
-                            });
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn();        // Instructor
+                            columns.ConstantColumn(80);      // Average
+                        });
+
+                        var hdrStyle = TextStyle.Default.FontSize(9).Bold().Underline();
+                        table.Header(header =>
+                        {
+                            header.Cell().PaddingVertical(2).Text("Instructor").Style(hdrStyle);
+                            header.Cell().PaddingVertical(2).AlignCenter().Text("Average").Style(hdrStyle);
+                        });
 
                         foreach (var instructor in dept.Instructors)
                         {
                             table.Cell().PaddingVertical(2).PaddingLeft(8).Text(instructor.Instructor);
                             table.Cell().PaddingVertical(2).AlignCenter().Text(instructor.WeightedAverage.ToString("F2"));
-                            table.Cell().PaddingVertical(2).AlignCenter().Text(instructor.TotalResponses.ToString());
-                            table.Cell().PaddingVertical(2).AlignCenter().Text(instructor.TotalEnrolled.ToString());
                         }
-                    }
-                });
 
-                page.Footer().Column(col =>
-                {
-                    AddPdfFilterLine(col.Item(),
-                        ("Dept", report.FilterDepartment),
-                        ("Person", report.FilterPersonId?.ToString()),
-                        ("Role", report.FilterRole));
-                    col.Item().AlignCenter().Text(x =>
+                        // Department average row
+                        table.Cell().Background("#D0D0D0").PaddingVertical(2).Text("Department Average").Bold().FontSize(9);
+                        table.Cell().Background("#D0D0D0").PaddingVertical(2).AlignCenter().Text(dept.DepartmentAverage.ToString("F2")).Bold();
+                    });
+
+                    page.Footer().Column(col =>
                     {
-                        x.Span("Page ");
-                        x.CurrentPageNumber();
-                        x.Span(" of ");
-                        x.TotalPages();
+                        AddPdfFilterLine(col.Item(),
+                            ("Dept", report.FilterDepartment),
+                            ("Person", report.FilterPersonId?.ToString()),
+                            ("Role", report.FilterRole));
+                        col.Item().AlignCenter().Text(x =>
+                        {
+                            x.Span("Page ");
+                            x.CurrentPageNumber();
+                            x.Span(" of ");
+                            x.TotalPages();
+                        });
                     });
                 });
-            });
+            }
         });
 
         return Task.FromResult(document.GeneratePdf());
@@ -594,102 +586,109 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
         var document = Document.Create(container =>
         {
-            container.Page(page =>
+            foreach (var dept in report.Departments)
             {
-                page.Size(PageSizes.Letter.Landscape());
-                page.MarginHorizontal(0.5f, Unit.Inch);
-                page.MarginVertical(0.4f, Unit.Inch);
-                page.DefaultTextStyle(x => x.FontSize(9));
-
-                page.Header().Column(col =>
+                container.Page(page =>
                 {
-                    col.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
-                        row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
-                    });
-                    col.Item().PaddingVertical(6).Text("Evaluation Detail Report").SemiBold().FontSize(12);
-                    col.Item().BorderBottom(1.5f).BorderColor(Colors.Black)
-                        .PaddingBottom(3).Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(11);
-                });
+                    page.Size(PageSizes.Letter.Landscape());
+                    page.MarginHorizontal(0.5f, Unit.Inch);
+                    page.MarginVertical(0.4f, Unit.Inch);
+                    page.DefaultTextStyle(x => x.FontSize(9));
 
-                page.Content().Table(table =>
-                {
-                    table.ColumnsDefinition(columns =>
+                    page.Header().Column(col =>
                     {
-                        columns.RelativeColumn();        // Course
-                        columns.ConstantColumn(35);      // Role
-                        columns.ConstantColumn(55);      // Average
-                        columns.ConstantColumn(55);      // Median
-                        columns.ConstantColumn(70);      // Responses
-                        columns.ConstantColumn(60);      // Enrolled
-                    });
-
-                    var hdrStyle = TextStyle.Default.FontSize(8).Bold().Underline();
-                    table.Header(header =>
-                    {
-                        header.Cell().PaddingVertical(2).Text("Course").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Role").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Average").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Median").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Responses").Style(hdrStyle);
-                        header.Cell().PaddingVertical(2).AlignCenter().Text("Enrolled").Style(hdrStyle);
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
+                            row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
+                        });
+                        col.Item().PaddingVertical(6).Row(row =>
+                        {
+                            row.RelativeItem().Text("Eval Detail Report").SemiBold().FontSize(12);
+                            row.AutoItem().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignRight().Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(12);
+                        });
+                        col.Item().BorderBottom(1.5f).BorderColor(Colors.Black).PaddingBottom(3);
                     });
 
-                    foreach (var dept in report.Departments)
+                    page.Content().Table(table =>
                     {
-                        // Department header
-                        table.Cell().ColumnSpan(6).Background("#D0D0D0").PaddingVertical(3)
-                            .PaddingLeft(4).Text(text =>
-                            {
-                                text.Span(dept.Department).Bold();
-                                text.Span($"  (Dept Avg: {dept.DepartmentAverage:F2})").FontSize(8);
-                            });
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn();        // Instructor
+                            columns.ConstantColumn(75);      // Role
+                            columns.ConstantColumn(115);     // Term
+                            columns.RelativeColumn();        // Course
+                            columns.ConstantColumn(55);      // Average
+                            columns.ConstantColumn(55);      // Median
+                        });
+
+                        var hdrStyle = TextStyle.Default.FontSize(8).Bold().Underline();
+                        table.Header(header =>
+                        {
+                            header.Cell().PaddingVertical(2).Text("Instructor").Style(hdrStyle);
+                            header.Cell().PaddingVertical(2).AlignCenter().Text("Role").Style(hdrStyle);
+                            header.Cell().PaddingVertical(2).Text("Term").Style(hdrStyle);
+                            header.Cell().PaddingVertical(2).Text("Course").Style(hdrStyle);
+                            header.Cell().PaddingVertical(2).AlignCenter().Text("Average").Style(hdrStyle);
+                            header.Cell().PaddingVertical(2).AlignCenter().Text("Median").Style(hdrStyle);
+                        });
 
                         foreach (var instructor in dept.Instructors)
                         {
-                            // Instructor sub-header
-                            table.Cell().ColumnSpan(6).Background("#E8E8E8").PaddingVertical(2)
-                                .PaddingLeft(8).Text(text =>
-                                {
-                                    text.Span(instructor.Instructor).SemiBold();
-                                    text.Span($"  (Avg: {instructor.InstructorAverage:F2}");
-                                    if (instructor.InstructorMedian.HasValue)
-                                    {
-                                        text.Span($", Median: {instructor.InstructorMedian.Value:F2}");
-                                    }
-                                    text.Span(")");
-                                });
+                            var courseCount = instructor.Courses.Count;
 
-                            foreach (var course in instructor.Courses)
+                            for (int i = 0; i < courseCount; i++)
                             {
-                                table.Cell().PaddingVertical(1.5f).PaddingLeft(16).Text(course.Course);
-                                table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.Role);
-                                table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.Average.ToString("F2"));
-                                table.Cell().PaddingVertical(1.5f).AlignCenter()
-                                    .Text(course.Median.HasValue ? course.Median.Value.ToString("F2") : "-");
-                                table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.NumResponses.ToString());
-                                table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.NumEnrolled.ToString());
-                            }
-                        }
-                    }
-                });
+                                var course = instructor.Courses[i];
 
-                page.Footer().Column(col =>
-                {
-                    AddPdfFilterLine(col.Item(),
-                        ("Dept", report.FilterDepartment),
-                        ("Person", report.FilterPersonId?.ToString()),
-                        ("Role", report.FilterRole));
-                    col.Item().AlignCenter().Text(x =>
+                                // Instructor name rowspanned across course rows only
+                                if (i == 0)
+                                {
+                                    table.Cell().RowSpan((uint)courseCount)
+                                        .PaddingVertical(1.5f).PaddingLeft(4).Text(instructor.Instructor);
+                                }
+
+                                table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.Role);
+                                table.Cell().PaddingVertical(1.5f).Text(course.TermName);
+                                table.Cell().PaddingVertical(1.5f).Text(course.Course);
+                                table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.Average.ToString("F1"));
+                                table.Cell().PaddingVertical(1.5f).AlignCenter()
+                                    .Text(course.Median.HasValue ? course.Median.Value.ToString("F1") : "");
+                            }
+
+                            // Instructor average row (full width background)
+                            table.Cell().ColumnSpan(4).Background("#E8E8E8").PaddingVertical(1.5f)
+                                .Text("Instructor Average").Bold().FontSize(8).AlignRight();
+                            table.Cell().Background("#E8E8E8").PaddingVertical(1.5f).AlignCenter()
+                                .Text(instructor.InstructorAverage.ToString("F2")).Bold();
+                            table.Cell().Background("#E8E8E8").PaddingVertical(1.5f).Text("");
+                        }
+
+                        // Department average row
+                        table.Cell().ColumnSpan(4).Background("#D0D0D0").PaddingVertical(2)
+                            .Text("Department Average").Bold().FontSize(9).AlignRight();
+                        table.Cell().Background("#D0D0D0").PaddingVertical(2).AlignCenter()
+                            .Text(dept.DepartmentAverage.ToString("F2")).Bold();
+                        table.Cell().Background("#D0D0D0").PaddingVertical(2).Text("");
+                    });
+
+                    page.Footer().Column(col =>
                     {
-                        x.Span("Page ");
-                        x.CurrentPageNumber();
-                        x.Span(" of ");
-                        x.TotalPages();
+                        AddPdfFilterLine(col.Item(),
+                            ("Dept", report.FilterDepartment),
+                            ("Person", report.FilterPersonId?.ToString()),
+                            ("Role", report.FilterRole));
+                        col.Item().AlignCenter().Text(x =>
+                        {
+                            x.Span("Page ");
+                            x.CurrentPageNumber();
+                            x.Span(" of ");
+                            x.TotalPages();
+                        });
                     });
                 });
-            });
+            }
         });
 
         return Task.FromResult(document.GeneratePdf());

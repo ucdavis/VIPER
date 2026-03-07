@@ -250,9 +250,7 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritSummaryService, Viper.Areas.Effort.Services.MeritSummaryService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalEffortService, Viper.Areas.Effort.Services.ClinicalEffortService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalScheduleService, Viper.Areas.Effort.Services.ClinicalScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IZeroEffortService, Viper.Areas.Effort.Services.ZeroEffortService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvaluationReportService, Viper.Areas.Effort.Services.EvaluationReportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IYearStatisticsService, Viper.Areas.Effort.Services.YearStatisticsService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritMultiYearService, Viper.Areas.Effort.Services.MeritMultiYearService>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.ISabbaticalService, Viper.Areas.Effort.Services.SabbaticalService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));

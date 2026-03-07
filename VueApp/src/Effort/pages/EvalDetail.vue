@@ -47,81 +47,73 @@
             </template>
 
             <template v-else>
-                <div
-                    v-for="dept in report.departments"
-                    :key="dept.department"
-                    class="dept-section"
-                >
-                    <div class="dept-subheader bg-grey-3">{{ dept.department }}</div>
-
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th class="col-instructor">Instructor</th>
-                                <th class="col-role">Role</th>
-                                <th class="col-term">Term</th>
-                                <th>Course</th>
-                                <th class="col-numeric">Average</th>
-                                <th class="col-numeric">Median</th>
-                                <th class="col-numeric">Responses</th>
-                                <th class="col-numeric">Enrolled</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template
-                                v-for="instructor in dept.instructors"
-                                :key="instructor.mothraId"
-                            >
-                                <!-- Course rows with instructor name rowspanned -->
-                                <tr
-                                    v-for="(course, courseIdx) in instructor.courses"
-                                    :key="`${instructor.mothraId}_${course.crn}_${course.termCode}`"
+                <ReportDeptTabs :departments="report.departments">
+                    <template #default="{ dept }">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-instructor">Instructor</th>
+                                    <th class="col-role">Role</th>
+                                    <th class="col-term">Term</th>
+                                    <th>Course</th>
+                                    <th class="col-numeric">Average</th>
+                                    <th class="col-numeric">Median</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template
+                                    v-for="instructor in dept.instructors"
+                                    :key="instructor.mothraId"
                                 >
-                                    <td
-                                        v-if="courseIdx === 0"
-                                        :rowspan="instructor.courses.length"
-                                        class="instructor-cell"
+                                    <!-- Course rows with instructor name rowspanned -->
+                                    <tr
+                                        v-for="(course, courseIdx) in instructor.courses"
+                                        :key="`${instructor.mothraId}_${course.crn}_${course.termCode}`"
                                     >
-                                        {{ instructor.instructor }}
-                                    </td>
-                                    <td class="col-role">{{ course.role }}</td>
-                                    <td class="col-term">{{ course.termCode }}</td>
-                                    <td>{{ course.course }}</td>
-                                    <td class="col-numeric">{{ formatDecimal(course.average) }}</td>
-                                    <td class="col-numeric">{{ formatNullableDecimal(course.median) }}</td>
-                                    <td class="col-numeric">{{ course.numResponses }}</td>
-                                    <td class="col-numeric">{{ course.numEnrolled }}</td>
-                                </tr>
+                                        <td
+                                            v-if="courseIdx === 0"
+                                            :rowspan="instructor.courses.length"
+                                            class="instructor-cell"
+                                        >
+                                            {{ instructor.instructor }}
+                                        </td>
+                                        <td class="col-role">{{ course.role }}</td>
+                                        <td class="col-term">{{ course.termName }}</td>
+                                        <td>{{ course.course }}</td>
+                                        <td class="col-numeric">{{ formatDecimal(course.average) }}</td>
+                                        <td class="col-numeric">{{ formatNullableDecimal(course.median) }}</td>
+                                    </tr>
 
-                                <!-- Instructor subtotal row -->
-                                <tr class="totals-row bg-grey-1">
-                                    <th class="subt">Instructor Average:</th>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td class="col-numeric total">{{ formatDecimal(instructor.instructorAverage) }}</td>
-                                    <td class="col-numeric total">
-                                        {{ formatNullableDecimal(instructor.instructorMedian) }}
-                                    </td>
-                                    <td></td>
+                                    <!-- Instructor subtotal row -->
+                                    <tr class="totals-row bg-grey-1">
+                                        <th
+                                            colspan="4"
+                                            class="subt"
+                                        >
+                                            Instructor Average
+                                        </th>
+                                        <td class="col-numeric total">
+                                            {{ formatDecimal(instructor.instructorAverage) }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </template>
+
+                                <!-- Department average row -->
+                                <tr class="dept-totals-row bg-grey-4">
+                                    <th
+                                        colspan="4"
+                                        class="subt"
+                                    >
+                                        Department Average
+                                    </th>
+                                    <td class="col-numeric total">{{ formatDecimal(dept.departmentAverage) }}</td>
                                     <td></td>
                                 </tr>
-                            </template>
-
-                            <!-- Department average row -->
-                            <tr class="dept-totals-row bg-grey-4">
-                                <th class="subt">Department Average:</th>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td class="col-numeric total">{{ formatDecimal(dept.departmentAverage) }}</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                            </tbody>
+                        </table>
+                    </template>
+                </ReportDeptTabs>
             </template>
         </ReportLayout>
 
@@ -140,6 +132,7 @@ import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
+import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { EvalDetailReport } from "../types"
 
 const { termCode, loading, report, printLoading, initialFilters, generateReport, handlePrint } =
@@ -162,10 +155,6 @@ function formatNullableDecimal(value: number | null): string {
 </style>
 
 <style scoped>
-.dept-section {
-    margin-bottom: 1.5rem;
-}
-
 .col-numeric {
     text-align: right;
     white-space: nowrap;
@@ -174,7 +163,6 @@ function formatNullableDecimal(value: number | null): string {
 
 .col-term {
     white-space: nowrap;
-    width: 4rem;
 }
 
 .col-role {

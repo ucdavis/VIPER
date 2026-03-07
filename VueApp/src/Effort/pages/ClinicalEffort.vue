@@ -267,18 +267,6 @@ onMounted(async () => {
 </style>
 
 <style scoped>
-.job-group-section {
-    margin-bottom: 2rem;
-}
-
-.job-group-header {
-    font-weight: bold;
-    font-size: 1rem;
-    padding: 0.5rem 0;
-    border-bottom: 2px solid var(--ucdavis-black-80);
-    margin-bottom: 0.5rem;
-}
-
 :deep(.report-table tbody tr) {
     border-bottom: 1px solid var(--ucdavis-black-20);
 }

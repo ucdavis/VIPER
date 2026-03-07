@@ -85,5 +85,5 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
     }
 }
 
-export { useEffortTypeColumns, ALWAYS_SHOW }
+export { useEffortTypeColumns, ALWAYS_SHOW, SPACING_COLUMNS }
 export type { EffortColumnOptions }

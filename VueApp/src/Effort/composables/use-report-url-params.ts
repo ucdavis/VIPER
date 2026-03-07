@@ -57,7 +57,13 @@ export function useReportUrlParams() {
             query.title = params.title
         }
 
-        router.replace({ query })
+        // When a single term is selected, preserve the termCode in the path.
+        // When academic year is selected, clear the path termCode so the left nav
+        // doesn't display a stale single-term value.
+        const termCode = params.academicYear
+            ? undefined
+            : params.termCode?.toString() || (route.params.termCode as string) || undefined
+        router.replace({ name: route.name as string, params: { termCode }, query })
     }
 
     return { initialFilters: getInitialFilters(), updateUrlParams }
