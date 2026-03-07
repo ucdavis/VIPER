@@ -71,7 +71,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -81,7 +82,12 @@
             <template #header />
 
             <template v-if="report.jobGroups.length === 0">
-                <div class="text-grey-6 text-center q-pa-lg">No data found for the selected filters.</div>
+                <div
+                    role="status"
+                    class="text-grey-6 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
             </template>
 
             <template v-else>
@@ -90,24 +96,49 @@
                     :key="jobGroup.jobGroupDescription"
                     class="job-group-section"
                 >
-                    <div class="job-group-header">{{ jobGroup.jobGroupDescription }}</div>
+                    <h3 class="job-group-header">{{ jobGroup.jobGroupDescription }}</h3>
 
                     <table class="report-table">
+                        <caption class="sr-only">
+                            Clinical effort for
+                            {{
+                                jobGroup.jobGroupDescription
+                            }}
+                        </caption>
                         <thead>
                             <tr>
-                                <th class="col-instructor">Instructor</th>
-                                <th class="col-percent text-center">Clinical %</th>
-                                <th class="col-effort text-center">CLI</th>
-                                <th class="col-ratio text-center">
+                                <th
+                                    scope="col"
+                                    class="col-instructor"
+                                >
+                                    Instructor
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="col-percent text-center"
+                                >
+                                    Clinical %
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="col-effort text-center"
+                                >
+                                    <abbr title="Clinical Activity">CLI</abbr>
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="col-ratio text-center"
+                                >
                                     CLI Ratio
                                     <div>CLI Weeks / Percent</div>
                                 </th>
                                 <th
                                     v-for="type in effortTypesWithoutCli"
                                     :key="type"
+                                    scope="col"
                                     class="col-effort text-center"
                                 >
-                                    {{ type }}
+                                    <abbr :title="getEffortTypeLabel(type)">{{ type }}</abbr>
                                 </th>
                             </tr>
                         </thead>
@@ -137,7 +168,7 @@
         <!-- No report generated yet -->
         <div
             v-else-if="!loading"
-            class="text-grey-6 text-center q-pa-lg"
+            class="text-grey-7 text-center q-pa-lg"
         >
             Select an academic year and clinical type, then click "Generate Report" to view data.
         </div>
@@ -151,7 +182,7 @@ import { useQuasar } from "quasar"
 import { reportService } from "../services/report-service"
 import { postForBlob } from "@/composables/ViperFetch"
 import { termService } from "../services/term-service"
-import { useEffortTypeColumns } from "../composables/use-effort-type-columns"
+import { useEffortTypeColumns, getEffortTypeLabel, loadEffortTypeLabels } from "../composables/use-effort-type-columns"
 import ReportLayout from "../components/ReportLayout.vue"
 import type { ClinicalEffortReport } from "../types"
 
@@ -203,7 +234,11 @@ async function generateReport() {
     router.replace({ query: { academicYear: selectedYear.value, clinicalType: selectedType.value.toString() } })
     loading.value = true
     try {
-        report.value = await reportService.getClinicalEffort(selectedYear.value, selectedType.value)
+        const [data] = await Promise.all([
+            reportService.getClinicalEffort(selectedYear.value, selectedType.value),
+            loadEffortTypeLabels(),
+        ])
+        report.value = data
     } finally {
         loading.value = false
     }
@@ -263,7 +298,7 @@ onMounted(async () => {
 </script>
 
 <style>
-@import "../report-tables.css";
+@import url("../report-tables.css");
 </style>
 
 <style scoped>

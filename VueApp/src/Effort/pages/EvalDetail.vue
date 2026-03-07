@@ -33,7 +33,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -43,21 +44,54 @@
             <template #header />
 
             <template v-if="report.departments.length === 0">
-                <div class="text-grey-6 text-center q-pa-lg">No data found for the selected filters.</div>
+                <div
+                    role="status"
+                    class="text-grey-7 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
             </template>
 
             <template v-else>
                 <ReportDeptTabs :departments="report.departments">
                     <template #default="{ dept }">
                         <table class="report-table">
+                            <caption class="sr-only">
+                                Evaluation detail by instructor and course
+                            </caption>
                             <thead>
                                 <tr>
-                                    <th class="col-instructor">Instructor</th>
-                                    <th class="col-role">Role</th>
-                                    <th class="col-term">Term</th>
-                                    <th>Course</th>
-                                    <th class="col-numeric">Average</th>
-                                    <th class="col-numeric">Median</th>
+                                    <th
+                                        scope="col"
+                                        class="col-instructor"
+                                    >
+                                        Instructor
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-role"
+                                    >
+                                        Role
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-term"
+                                    >
+                                        Term
+                                    </th>
+                                    <th scope="col">Course</th>
+                                    <th
+                                        scope="col"
+                                        class="col-numeric"
+                                    >
+                                        Average
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-numeric"
+                                    >
+                                        Median
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -87,6 +121,7 @@
                                     <!-- Instructor subtotal row -->
                                     <tr class="totals-row bg-grey-1">
                                         <th
+                                            scope="row"
                                             colspan="4"
                                             class="subt"
                                         >
@@ -102,6 +137,7 @@
                                 <!-- Department average row -->
                                 <tr class="dept-totals-row bg-grey-4">
                                     <th
+                                        scope="row"
                                         colspan="4"
                                         class="subt"
                                     >
@@ -120,7 +156,7 @@
         <!-- No report generated yet -->
         <div
             v-else-if="!loading"
-            class="text-grey-6 text-center q-pa-lg"
+            class="text-grey-7 text-center q-pa-lg"
         >
             Select filters and click "Generate Report" to view data.
         </div>
