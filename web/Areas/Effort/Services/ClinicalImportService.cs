@@ -64,6 +64,11 @@ public class ClinicalImportService : IClinicalImportService
     /// </summary>
     private Dictionary<string, string>? _titleLookup;
 
+    /// <summary>
+    /// Lazily loaded title code to job group ID lookup from dictionary.dbo.dvtTitle.
+    /// </summary>
+    private Dictionary<string, string?>? _jobGroupLookup;
+
     public ClinicalImportService(
         EffortDbContext context,
         VIPERContext viperContext,
@@ -105,8 +110,9 @@ public class ClinicalImportService : IClinicalImportService
             .ToListAsync(ct);
 
         // Get valid effort title codes
-        _titleLookup ??= (await _instructorService.GetTitleCodesAsync(ct))
-            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+        var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
+        _titleLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+        _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
 
         // Build lookup of MothraId → titleCode for those with valid title codes
         var titleCodeByMothraId = aaudImportInfo
@@ -1076,8 +1082,9 @@ public class ClinicalImportService : IClinicalImportService
         var titleCode = aaudInfo?.EmpEffortTitleCode?.Trim() ?? "";
 
         // Validate title code
-        _titleLookup ??= (await _instructorService.GetTitleCodesAsync(ct))
-            .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+        var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
+        _titleLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+        _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
 
         if (string.IsNullOrEmpty(titleCode) || !_titleLookup.ContainsKey(titleCode))
         {
@@ -1110,7 +1117,7 @@ public class ClinicalImportService : IClinicalImportService
             EffortTitleCode = titleCode,
             EffortDept = dept,
             PercentAdmin = 0,
-            JobGroupId = null,
+            JobGroupId = _jobGroupLookup?.GetValueOrDefault(titleCode),
             Title = null,
             AdminUnit = null
         };

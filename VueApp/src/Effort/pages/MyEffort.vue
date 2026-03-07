@@ -187,7 +187,12 @@
                             :disable="!verifyConfirmed"
                             :loading="isVerifying"
                             @click="submitVerification"
-                        />
+                        >
+                            <template #loading>
+                                <q-spinner size="1em" class="q-mr-sm" />
+                                Submit Verification
+                            </template>
+                        </q-btn>
                     </div>
                 </div>
                 <div

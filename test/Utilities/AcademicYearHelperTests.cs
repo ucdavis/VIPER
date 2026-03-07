@@ -110,4 +110,74 @@ public class AcademicYearHelperTests
     }
 
     #endregion
+
+    // ── Term-code-based methods ──────────────────────────────────────
+
+    #region GetAcademicYearFromTermCode Tests
+
+    [Theory]
+    [InlineData(202501, "2024-2025")]   // Winter Quarter -> previous year
+    [InlineData(202502, "2024-2025")]   // Spring Semester -> previous year
+    [InlineData(202503, "2024-2025")]   // Spring Quarter -> previous year
+    [InlineData(202504, "2025-2026")]   // Summer Session 1 -> current year
+    [InlineData(202505, "2025-2026")]   // Summer Session 2 -> current year
+    [InlineData(202506, "2025-2026")]   // Summer Special -> current year
+    [InlineData(202508, "2025-2026")]   // Summer Semester -> current year
+    [InlineData(202409, "2024-2025")]   // Fall Semester -> current year
+    [InlineData(202410, "2024-2025")]   // Fall Quarter -> current year
+    public void GetAcademicYearFromTermCode_ReturnsCorrectYear(int termCode, string expectedAY)
+    {
+        Assert.Equal(expectedAY, AcademicYearHelper.GetAcademicYearFromTermCode(termCode));
+    }
+
+    [Fact]
+    public void GetAcademicYearFromTermCode_SummerBelongsToCurrentYear_NotPrevious()
+    {
+        // This is the specific bug that was fixed: Summer 2024 should be in "2024-2025", not "2023-2024"
+        Assert.Equal("2024-2025", AcademicYearHelper.GetAcademicYearFromTermCode(202404)); // Summer 2024
+        Assert.Equal("2025-2026", AcademicYearHelper.GetAcademicYearFromTermCode(202504)); // Summer 2025
+    }
+
+    #endregion
+
+    #region GetTermCodesForAcademicYear Tests
+
+    [Fact]
+    public void GetTermCodesForAcademicYear_FiltersAndOrdersCorrectly()
+    {
+        var allTerms = new[] { 202410, 202409, 202501, 202502, 202503, 202504, 202510 };
+        var result = AcademicYearHelper.GetTermCodesForAcademicYear(allTerms, 2024);
+
+        // AY 2024-2025: Fall 2024 (09, 10) + Winter/Spring 2025 (01, 02, 03)
+        // NOT Summer 2025 (04) or Fall 2025 (10)
+        Assert.Equal(new[] { 202503, 202502, 202501, 202410, 202409 }, result);
+    }
+
+    [Fact]
+    public void GetTermCodesForAcademicYear_IncludesSummerInCorrectYear()
+    {
+        var allTerms = new[] { 202404, 202409, 202504 };
+        var result = AcademicYearHelper.GetTermCodesForAcademicYear(allTerms, 2024);
+
+        // AY 2024-2025 should include Summer 2024 (202404) and Fall 2024 (202409)
+        // but NOT Summer 2025 (202504)
+        Assert.Equal(new[] { 202409, 202404 }, result);
+    }
+
+    [Fact]
+    public void GetTermCodesForAcademicYear_EmptyInput_ReturnsEmpty()
+    {
+        var result = AcademicYearHelper.GetTermCodesForAcademicYear([], 2024);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void GetTermCodesForAcademicYear_NoMatchingTerms_ReturnsEmpty()
+    {
+        var allTerms = new[] { 202310, 202401 };
+        var result = AcademicYearHelper.GetTermCodesForAcademicYear(allTerms, 2024);
+        Assert.Empty(result);
+    }
+
+    #endregion
 }

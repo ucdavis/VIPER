@@ -71,6 +71,8 @@ function useEffortPermissions() {
     const hasManageEffortTypes = computed(() => hasPermission(EffortPermissions.ManageEffortTypes))
     const hasEditAdHocEval = computed(() => hasPermission(EffortPermissions.EditAdHocEval))
     const hasViewEvalResults = computed(() => hasPermission(EffortPermissions.ViewEvalResults))
+    const hasReports = computed(() => hasPermission(EffortPermissions.Reports))
+    const hasSchoolSummary = computed(() => hasPermission(EffortPermissions.SchoolSummary))
     const isAdmin = computed(() => hasViewAllDepartments.value)
 
     return {
@@ -96,6 +98,8 @@ function useEffortPermissions() {
         hasManageEffortTypes,
         hasEditAdHocEval,
         hasViewEvalResults,
+        hasReports,
+        hasSchoolSummary,
         isAdmin,
         permissions: computed(() => userStore.userInfo.permissions),
     }

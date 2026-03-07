@@ -19,11 +19,15 @@ class InstructorService {
 
     /**
      * Get all instructors for a term, optionally filtered by department.
+     * When meritOnly is true, restricts to merit-eligible job groups.
      */
-    async getInstructors(termCode: number, dept?: string): Promise<PersonDto[]> {
+    async getInstructors(termCode: number, dept?: string, meritOnly?: boolean): Promise<PersonDto[]> {
         const params = new URLSearchParams({ termCode: termCode.toString() })
         if (dept) {
             params.append("dept", dept)
+        }
+        if (meritOnly) {
+            params.append("meritOnly", "true")
         }
         const response = await get(`${this.baseUrl}/instructors?${params.toString()}`)
         if (!response.success || !Array.isArray(response.result)) {
@@ -156,10 +160,19 @@ class InstructorService {
     }
 
     /**
-     * Get all job groups currently in use for the dropdown.
+     * Get job groups currently in use, optionally filtered by term and department.
      */
-    async getJobGroups(): Promise<JobGroupDto[]> {
-        const response = await get(`${this.baseUrl}/instructors/job-groups`)
+    async getJobGroups(termCode?: number, department?: string): Promise<JobGroupDto[]> {
+        const params = new URLSearchParams()
+        if (termCode) {
+            params.append("termCode", termCode.toString())
+        }
+        if (department) {
+            params.append("department", department)
+        }
+        const query = params.toString()
+        const url = `${this.baseUrl}/instructors/job-groups${query ? `?${query}` : ""}`
+        const response = await get(url)
         if (!response.success || !Array.isArray(response.result)) {
             return []
         }

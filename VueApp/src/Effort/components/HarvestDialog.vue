@@ -287,7 +287,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="crestInstructorPagination"
                                 class="q-mb-md"
                             >
                                 <template #body-cell-status="slotProps">
@@ -326,7 +326,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="crestCoursePagination"
                                 class="q-mb-md"
                             >
                                 <template #body-cell-status="slotProps">
@@ -365,7 +365,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="crestEffortPagination"
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
@@ -409,7 +409,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="nonCrestInstructorPagination"
                                 class="q-mb-md"
                             >
                                 <template #body-cell-status="slotProps">
@@ -448,7 +448,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="nonCrestCoursePagination"
                                 class="q-mb-md"
                             >
                                 <template #body-cell-status="slotProps">
@@ -487,7 +487,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="nonCrestEffortPagination"
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
@@ -531,7 +531,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="clinicalInstructorPagination"
                                 class="q-mb-md"
                             >
                                 <template #body-cell-status="slotProps">
@@ -570,7 +570,7 @@
                                 dense
                                 flat
                                 bordered
-                                :pagination="tablePagination"
+                                v-model:pagination="clinicalCoursePagination"
                                 class="q-mb-md"
                             >
                                 <template #body-cell-status="slotProps">
@@ -656,7 +656,15 @@ const harvestProgress = ref(0)
 const harvestPhase = ref("")
 const harvestDetail = ref("")
 
-const tablePagination = { rowsPerPage: 5 }
+// Each table needs its own pagination object to avoid shared state
+const crestInstructorPagination = ref({ rowsPerPage: 5 })
+const crestCoursePagination = ref({ rowsPerPage: 5 })
+const crestEffortPagination = ref({ rowsPerPage: 5 })
+const nonCrestInstructorPagination = ref({ rowsPerPage: 5 })
+const nonCrestCoursePagination = ref({ rowsPerPage: 5 })
+const nonCrestEffortPagination = ref({ rowsPerPage: 5 })
+const clinicalInstructorPagination = ref({ rowsPerPage: 5 })
+const clinicalCoursePagination = ref({ rowsPerPage: 5 })
 
 // Table filters
 const crestInstructorFilter = ref("")

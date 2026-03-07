@@ -61,6 +61,13 @@ public class InstructorService : IInstructorService
         "APC", "PHR", "PMI", "VMB", "VME", "VSR"
     };
 
+    /// <summary>
+    /// Merit-eligible job groups matching effort.fn_qualified_job_groups().
+    /// These are unconditionally eligible for Merit & Promotion reports.
+    /// Conditional groups (124 with title 001898, S56 with title 001067) are handled in ApplyMeritJobGroupFilter.
+    /// </summary>
+    private static readonly HashSet<string> MeritJobGroups = ["010", "011", "114", "311", "317", "335", "341"];
+
     public InstructorService(
         EffortDbContext context,
         VIPERContext viperContext,
@@ -83,15 +90,41 @@ public class InstructorService : IInstructorService
         _cache = cache;
     }
 
-    public async Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, CancellationToken ct = default)
+    public async Task<List<PersonDto>> GetInstructorsAsync(int termCode, string? department = null, bool meritOnly = false, CancellationToken ct = default)
     {
         var baseQuery = _context.Persons
-            .AsNoTracking()
-            .Where(p => p.TermCode == termCode);
+            .AsNoTracking();
+
+        // termCode == 0 means all terms (used by Multi-Year report, matching legacy behavior)
+        if (termCode > 0)
+        {
+            baseQuery = baseQuery.Where(p => p.TermCode == termCode);
+        }
 
         if (!string.IsNullOrWhiteSpace(department))
         {
             baseQuery = baseQuery.Where(p => p.EffortDept == department);
+        }
+
+        if (meritOnly)
+        {
+            baseQuery = ApplyMeritJobGroupFilter(baseQuery);
+        }
+
+        // All-terms mode: deduplicate to one record per person (most recent term wins).
+        if (termCode == 0)
+        {
+            var allRecords = await baseQuery
+                .Include(p => p.ViperPerson)
+                .OrderByDescending(p => p.TermCode)
+                .ToListAsync(ct);
+
+            var allPersons = allRecords
+                .DistinctBy(p => p.PersonId)
+                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+                .ToList();
+
+            return _mapper.Map<List<PersonDto>>(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -106,7 +139,7 @@ public class InstructorService : IInstructorService
         return dtos;
     }
 
-    public async Task<List<PersonDto>> GetInstructorsByDepartmentsAsync(int termCode, IReadOnlyList<string> departments, CancellationToken ct = default)
+    public async Task<List<PersonDto>> GetInstructorsByDepartmentsAsync(int termCode, IReadOnlyList<string> departments, bool meritOnly = false, CancellationToken ct = default)
     {
         if (departments.Count == 0)
         {
@@ -115,7 +148,33 @@ public class InstructorService : IInstructorService
 
         var baseQuery = _context.Persons
             .AsNoTracking()
-            .Where(p => p.TermCode == termCode && departments.Contains(p.EffortDept));
+            .Where(p => departments.Contains(p.EffortDept));
+
+        if (termCode > 0)
+        {
+            baseQuery = baseQuery.Where(p => p.TermCode == termCode);
+        }
+
+        if (meritOnly)
+        {
+            baseQuery = ApplyMeritJobGroupFilter(baseQuery);
+        }
+
+        // All-terms mode: return deduplicated name list only
+        if (termCode == 0)
+        {
+            var allRecords = await baseQuery
+                .Include(p => p.ViperPerson)
+                .OrderByDescending(p => p.TermCode)
+                .ToListAsync(ct);
+
+            var allPersons = allRecords
+                .DistinctBy(p => p.PersonId)
+                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+                .ToList();
+
+            return _mapper.Map<List<PersonDto>>(allPersons);
+        }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
 
@@ -127,6 +186,22 @@ public class InstructorService : IInstructorService
         await EnrichWithPercentageSummariesAsync(dtos, termCode, ct);
 
         return dtos;
+    }
+
+    /// <summary>
+    /// Filter to merit-eligible job groups, matching effort.fn_qualified_job_groups().
+    /// </summary>
+    private static IQueryable<EffortPerson> ApplyMeritJobGroupFilter(IQueryable<EffortPerson> query)
+    {
+        // Unconditional groups + conditional groups with specific EffortTitleCode.
+        // The RIGHT('00' + EffortTitleCode, 6) padding from the SQL function is replicated
+        // via string concatenation + Substring, which EF translates to SQL RIGHT().
+        return query.Where(p =>
+            p.JobGroupId != null && (
+                MeritJobGroups.Contains(p.JobGroupId)
+                || (p.JobGroupId == "124" && ("00" + p.EffortTitleCode).Substring(("00" + p.EffortTitleCode).Length - 6) == "001898")
+                || (p.JobGroupId == "S56" && ("00" + p.EffortTitleCode).Substring(("00" + p.EffortTitleCode).Length - 6) == "001067")
+            ));
     }
 
     public async Task<PersonDto?> GetInstructorAsync(int personId, int termCode, CancellationToken ct = default)
@@ -369,6 +444,13 @@ public class InstructorService : IInstructorService
         var dept = await DetermineDepartmentAsync(person.MothraId, request.TermCode, employee, deptSimpleNameLookup, ct) ?? "UNK";
         var titleCode = employee?.EmpEffortTitleCode?.Trim() ?? employee?.EmpTeachingTitleCode?.Trim() ?? "";
 
+        string? jobGroupId = null;
+        if (!string.IsNullOrEmpty(titleCode))
+        {
+            var titleCodes = await GetTitleCodesAsync(ct);
+            jobGroupId = titleCodes.FirstOrDefault(t => string.Equals(t.Code, titleCode, StringComparison.OrdinalIgnoreCase))?.JobGroupId;
+        }
+
         var instructor = new EffortPerson
         {
             PersonId = request.PersonId,
@@ -378,7 +460,7 @@ public class InstructorService : IInstructorService
             MiddleInitial = person.MiddleName?.Length > 0 ? person.MiddleName.Substring(0, 1) : null,
             EffortDept = dept,
             EffortTitleCode = titleCode,
-            JobGroupId = null,
+            JobGroupId = jobGroupId,
             PercentAdmin = 0,
             PercentClinical = null,
             VolunteerWos = null,
@@ -1243,7 +1325,7 @@ public class InstructorService : IInstructorService
             var titles = await _dictionaryContext.Titles
                 .AsNoTracking()
                 .Where(t => t.Code != null)
-                .Select(t => new { Code = t.Code!.Trim(), Name = t.Name ?? "" })
+                .Select(t => new { Code = t.Code!.Trim(), Name = t.Name ?? "", t.JobGroupId })
                 .Distinct()
                 .OrderBy(t => t.Name)
                 .ThenBy(t => t.Code)
@@ -1254,7 +1336,8 @@ public class InstructorService : IInstructorService
                 .Select(t => new TitleCodeDto
                 {
                     Code = t.Code,
-                    Name = t.Name.Trim()
+                    Name = t.Name.Trim(),
+                    JobGroupId = t.JobGroupId?.Trim()
                 })
                 .ToList();
 
@@ -1274,9 +1357,12 @@ public class InstructorService : IInstructorService
         }
     }
 
-    public async Task<List<JobGroupDto>> GetJobGroupsAsync(CancellationToken ct = default)
+    public async Task<List<JobGroupDto>> GetJobGroupsAsync(int? termCode = null, string? department = null, CancellationToken ct = default)
     {
-        if (_cache.TryGetValue<List<JobGroupDto>>(JobGroupsCacheKey, out var cached) && cached != null)
+        var hasFilters = termCode.HasValue || !string.IsNullOrEmpty(department);
+        var cacheKey = hasFilters ? $"{JobGroupsCacheKey}_{termCode}_{department}" : JobGroupsCacheKey;
+
+        if (_cache.TryGetValue<List<JobGroupDto>>(cacheKey, out var cached) && cached != null)
         {
             return cached;
         }
@@ -1284,9 +1370,21 @@ public class InstructorService : IInstructorService
         try
         {
             // Get job groups that are actually in use by instructors
-            var usedJobGroupIds = await _context.Persons
+            var query = _context.Persons
                 .AsNoTracking()
-                .Where(p => p.JobGroupId != null && p.JobGroupId != "")
+                .Where(p => p.JobGroupId != null && p.JobGroupId != "");
+
+            if (termCode.HasValue)
+            {
+                query = query.Where(p => p.TermCode == termCode.Value);
+            }
+
+            if (!string.IsNullOrEmpty(department))
+            {
+                query = query.Where(p => p.EffortDept == department);
+            }
+
+            var usedJobGroupIds = await query
                 .Select(p => p.JobGroupId!)
                 .Distinct()
                 .ToListAsync(ct);
@@ -1309,6 +1407,7 @@ public class InstructorService : IInstructorService
                 .GroupBy(t => t.JobGroupId!)
                 .ToDictionary(g => g.Key, g => g.First().JobGroupName ?? "", StringComparer.OrdinalIgnoreCase);
 
+            // Only include job groups that have a name in the dictionary (matches legacy behavior)
             var jobGroups = usedJobGroupIds
                 .Where(id => !string.IsNullOrEmpty(id))
                 .Select(id => new JobGroupDto
@@ -1316,16 +1415,18 @@ public class InstructorService : IInstructorService
                     Code = id.Trim(),
                     Name = jobGroupNameLookup.TryGetValue(id.Trim(), out var name) ? name.Trim() : ""
                 })
+                .Where(j => !string.IsNullOrEmpty(j.Name))
                 .OrderBy(j => j.Name)
                 .ThenBy(j => j.Code)
                 .ToList();
 
             var cacheOptions = new MemoryCacheEntryOptions()
-                .SetSlidingExpiration(TimeSpan.FromHours(24));
+                .SetSlidingExpiration(hasFilters ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(24));
 
-            _cache.Set(JobGroupsCacheKey, jobGroups, cacheOptions);
+            _cache.Set(cacheKey, jobGroups, cacheOptions);
 
-            _logger.LogInformation("Loaded {Count} job groups from database", jobGroups.Count);
+            _logger.LogInformation("Loaded {Count} job groups from database (term={TermCode}, dept={Department})",
+                jobGroups.Count, termCode, LogSanitizer.SanitizeString(department));
 
             return jobGroups;
         }
