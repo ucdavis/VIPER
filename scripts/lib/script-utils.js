@@ -270,7 +270,9 @@ async function killProcessOnPort(port) {
 
 module.exports = {
     checkPartiallyStaged,
+    checkProcessExists,
     createLogger,
+    execAsync,
     getDevServerEnv,
     getPartiallyStaged,
     killProcess,
