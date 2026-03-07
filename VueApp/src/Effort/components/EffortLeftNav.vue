@@ -224,7 +224,7 @@
 
                 <!-- Reports (legacy: ViewDept OR ViewAllDepartments OR Reports) -->
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     class="leftNavHeader q-mt-sm"
                 >
                     <q-item-section>
@@ -233,7 +233,7 @@
                 </q-item>
                 <!-- Merit & Promotion sub-header -->
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     class="leftNavSubHeader q-pl-lg"
                 >
                     <q-item-section>
@@ -245,10 +245,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'MeritAverage', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'MeritAverage', params: reportParams }"
+                    :active="route.name === 'MeritAverage'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -256,10 +257,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'MeritDetail', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'MeritDetail', params: reportParams }"
+                    :active="route.name === 'MeritDetail'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -267,10 +269,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'MultiYearReport', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'MultiYearReport', params: reportParams }"
+                    :active="route.name === 'MultiYearReport'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -278,10 +281,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'MeritSummary', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'MeritSummary', params: reportParams }"
+                    :active="route.name === 'MeritSummary'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -289,10 +293,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'ClinicalEffort', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'ClinicalEffort', params: reportParams }"
+                    :active="route.name === 'ClinicalEffort'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -300,10 +305,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewScheduledCliWeeks && currentTerm"
+                    v-if="canViewScheduledCliWeeks"
                     clickable
                     v-ripple
-                    :to="{ name: 'ScheduledCliWeeks', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'ScheduledCliWeeks', params: reportParams }"
+                    :active="route.name === 'ScheduledCliWeeks'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -312,7 +318,7 @@
                 </q-item>
                 <!-- Teaching Activity sub-header -->
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     class="leftNavSubHeader q-pl-lg"
                 >
                     <q-item-section>
@@ -324,10 +330,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'TeachingActivityGrouped', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'TeachingActivityGrouped', params: reportParams }"
+                    :active="route.name === 'TeachingActivityGrouped'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -335,10 +342,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'TeachingActivityIndividual', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'TeachingActivityIndividual', params: reportParams }"
+                    :active="route.name === 'TeachingActivityIndividual'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -346,10 +354,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'DeptSummary', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'DeptSummary', params: reportParams }"
+                    :active="route.name === 'DeptSummary'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -357,10 +366,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="(isAdmin || hasSchoolSummary) && currentTerm"
+                    v-if="isAdmin || hasSchoolSummary"
                     clickable
                     v-ripple
-                    :to="{ name: 'SchoolSummary', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'SchoolSummary', params: reportParams }"
+                    :active="route.name === 'SchoolSummary'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -369,7 +379,7 @@
                 </q-item>
                 <!-- Evaluation sub-header -->
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     class="leftNavSubHeader q-pl-lg"
                 >
                     <q-item-section>
@@ -381,10 +391,11 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'EvalSummary', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'EvalSummary', params: reportParams }"
+                    :active="route.name === 'EvalSummary'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
@@ -392,49 +403,15 @@
                     </q-item-section>
                 </q-item>
                 <q-item
-                    v-if="canViewReports && currentTerm"
+                    v-if="canViewReports"
                     clickable
                     v-ripple
-                    :to="{ name: 'EvalDetail', params: { termCode: currentTerm.termCode } }"
+                    :to="{ name: 'EvalDetail', params: reportParams }"
+                    :active="route.name === 'EvalDetail'"
                     class="leftNavLink q-pl-xl"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Detail</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <!-- Other sub-header -->
-                <q-item
-                    v-if="canViewReports && currentTerm"
-                    class="leftNavSubHeader q-pl-lg"
-                >
-                    <q-item-section>
-                        <q-item-label
-                            lines="1"
-                            class="text-weight-medium"
-                            >Other</q-item-label
-                        >
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'ZeroEffort', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink q-pl-xl"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Zero Effort</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="isAdmin && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'YearStatistics', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink q-pl-xl"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Year Statistics</q-item-label>
                     </q-item-section>
                 </q-item>
             </q-list>
@@ -487,6 +464,11 @@ const canViewCourses = computed(
 // Reports visible to ViewDept, ViewAllDepartments, or Reports users (matches legacy Nav.cfm)
 const canViewReports = computed(() => hasViewDept.value || isAdmin.value || hasReports.value)
 
+// Report route params — pass termCode when selected so the report page starts with that term.
+// Active detection uses route.name because after report generation the URL shifts termCode
+// from path param to query param, which breaks Quasar's default URL-based matching.
+const reportParams = computed(() => (currentTerm.value ? { termCode: currentTerm.value.termCode } : {}))
+
 // Scheduled CLI Weeks requires full access — clinical schedule data lacks department info
 const canViewScheduledCliWeeks = computed(() => isAdmin.value)
 
@@ -525,9 +507,11 @@ async function loadCurrentTerm(termCode: number | null) {
     }
 }
 
-// Watch both route params and query params for termCode
+// Watch both route params and query params for termCode.
+// Query takes precedence because updateUrlParams() writes the user's latest selection there,
+// while the path param may be stale from the initial navigation.
 watch(
-    () => route.params.termCode || route.query.termCode,
+    () => route.query.termCode || route.params.termCode,
     (newTermCode) => {
         const termCode = newTermCode ? parseInt(newTermCode as string, 10) : null
         loadCurrentTerm(termCode)

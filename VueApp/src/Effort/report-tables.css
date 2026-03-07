@@ -9,7 +9,7 @@
 .report-table th {
     text-align: left;
     text-decoration: underline;
-    font-size: 0.8em;
+    font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
 }
 
@@ -66,16 +66,26 @@
     border-top: 1px solid var(--ucdavis-black-20);
 }
 
+.totals-row td,
+.totals-row th {
+    background-color: inherit;
+}
+
 .counts-row {
     font-size: 0.85em;
     color: var(--ucdavis-black-60);
 }
 
-.dept-subheader {
-    font-weight: 500;
-    font-size: 0.9rem;
-    padding: 0.25rem 0.5rem;
-    margin-bottom: 0.25rem;
+.job-group-section {
+    margin-bottom: 2rem;
+}
+
+.job-group-header {
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 2px solid var(--ucdavis-black-80);
+    margin-bottom: 0.5rem;
 }
 
 .faculty-row td,

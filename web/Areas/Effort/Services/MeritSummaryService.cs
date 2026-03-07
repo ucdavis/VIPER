@@ -256,11 +256,11 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
         var compact = orderedTypes.Count > 14;
-        var fontSize = compact ? 8f : 10f;
-        var headerFontSize = compact ? 7f : 8.5f;
-        var hMargin = compact ? 0.3f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
-        var effortWidth = compact ? 24f : 32f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
+        var effortWidth = compact ? ReportPdfSettings.EffortWidthCompact : ReportPdfSettings.EffortWidth;
         var spacerWidth = compact ? 42f : 70f;
 
         var document = Document.Create(container =>

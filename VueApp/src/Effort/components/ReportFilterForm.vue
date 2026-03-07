@@ -134,6 +134,7 @@
             label="Generate Report"
             icon="assessment"
             :loading="loading"
+            :disable="!selectedTermValue"
             @click="handleGenerate"
         >
             <template #loading>
@@ -183,13 +184,11 @@ const emit = defineEmits<{
 
 // Filter state — value is either a numeric termCode or an academic year string like "2024-2025"
 // When initialFilters are provided (from URL query params), use those values instead of defaults.
-const selectedTermValue = ref<number | string>(
-    props.initialFilters?.academicYear ?? props.initialFilters?.termCode ?? props.termCode,
-)
+const selectedTermValue = ref<number | string | null>(null)
 const selectedDepartment = ref<string | null>(props.initialFilters?.department ?? null)
-const selectedPersonId = ref<number | null>(props.initialFilters?.personId ?? null)
+const selectedPersonId = ref<number | null>(null)
 const selectedRole = ref<string | null>(props.initialFilters?.role ?? null)
-const selectedTitle = ref<string | null>(props.initialFilters?.title ?? null)
+const selectedTitle = ref<string | null>(null)
 
 // Data sources
 const allTerms = ref<TermDto[]>([])
@@ -258,8 +257,8 @@ let jobGroupLoadVersion = 0
 const allFacultyOption = { fullName: "All Faculty", personId: null as number | null }
 const allTitlesOption = { label: "All Titles", value: null as string | null }
 
-// Person options filtered by search input
-const displayedPersonOptions = ref<{ fullName: string; personId: number | null }[]>([allFacultyOption])
+// Person options filtered by search input — start empty to avoid flashing "All Faculty" before init
+const displayedPersonOptions = ref<{ fullName: string; personId: number | null }[]>([])
 
 // Title options filtered by search input
 const titleOptions = ref<{ label: string; value: string | null }[]>([allTitlesOption])
@@ -379,7 +378,7 @@ function handleGenerate() {
 
     if (typeof val === "string") {
         params.academicYear = val
-    } else {
+    } else if (val) {
         params.termCode = val
     }
 
@@ -392,7 +391,11 @@ function handleGenerate() {
 }
 
 // Cascading filter reloads
+// Skip watch side-effects during initial mount — onMounted handles the first load
+let initialized = false
+
 watch(selectedTermValue, () => {
+    if (!initialized) return
     selectedPersonId.value = null
     selectedTitle.value = null
     loadInstructors()
@@ -400,6 +403,7 @@ watch(selectedTermValue, () => {
 })
 
 watch(selectedDepartment, () => {
+    if (!initialized) return
     selectedPersonId.value = null
     selectedTitle.value = null
     loadInstructors()
@@ -408,7 +412,22 @@ watch(selectedDepartment, () => {
 
 onMounted(async () => {
     await Promise.all([loadTerms(), loadDepartments()])
+
+    // Set term after options are loaded so the dropdown never flashes a raw code
+    selectedTermValue.value =
+        props.initialFilters?.academicYear ?? props.initialFilters?.termCode ?? (props.termCode || null)
+
     await Promise.all([loadInstructors(), loadJobGroups()])
+
+    // Set async-loaded filters after their options are loaded so dropdowns never flash raw values
+    if (props.initialFilters?.personId) {
+        selectedPersonId.value = props.initialFilters.personId
+    }
+    if (props.initialFilters?.title) {
+        selectedTitle.value = props.initialFilters.title
+    }
+
+    initialized = true
 
     // Auto-generate report when URL query params provided initial filters
     if (props.initialFilters) {

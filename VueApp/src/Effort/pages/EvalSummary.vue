@@ -47,43 +47,33 @@
             </template>
 
             <template v-else>
-                <div
-                    v-for="dept in report.departments"
-                    :key="dept.department"
-                    class="dept-section"
-                >
-                    <div class="dept-subheader bg-grey-3">{{ dept.department }}</div>
+                <ReportDeptTabs :departments="report.departments">
+                    <template #default="{ dept }">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Instructor</th>
+                                    <th class="col-numeric">Average</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="instructor in dept.instructors"
+                                    :key="instructor.mothraId"
+                                >
+                                    <td>{{ instructor.instructor }}</td>
+                                    <td class="col-numeric">{{ formatDecimal(instructor.weightedAverage) }}</td>
+                                </tr>
 
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th class="col-instructor">Instructor</th>
-                                <th class="col-numeric">Weighted Avg</th>
-                                <th class="col-numeric">Responses</th>
-                                <th class="col-numeric">Enrolled</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="instructor in dept.instructors"
-                                :key="instructor.mothraId"
-                            >
-                                <td class="instructor-cell">{{ instructor.instructor }}</td>
-                                <td class="col-numeric">{{ formatDecimal(instructor.weightedAverage) }}</td>
-                                <td class="col-numeric">{{ instructor.totalResponses }}</td>
-                                <td class="col-numeric">{{ instructor.totalEnrolled }}</td>
-                            </tr>
-
-                            <!-- Department average row -->
-                            <tr class="dept-totals-row bg-grey-4">
-                                <th class="subt">Department Average:</th>
-                                <td class="col-numeric total">{{ formatDecimal(dept.departmentAverage) }}</td>
-                                <td class="col-numeric total">{{ dept.totalResponses }}</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                <!-- Department average row -->
+                                <tr class="dept-totals-row bg-grey-4">
+                                    <th class="subt">Department Average</th>
+                                    <td class="col-numeric total">{{ formatDecimal(dept.departmentAverage) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </template>
+                </ReportDeptTabs>
             </template>
         </ReportLayout>
 
@@ -102,6 +92,7 @@ import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
+import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { EvalSummaryReport } from "../types"
 
 const { termCode, loading, report, printLoading, initialFilters, generateReport, handlePrint } =
@@ -120,13 +111,14 @@ function formatDecimal(value: number): string {
 </style>
 
 <style scoped>
-.dept-section {
-    margin-bottom: 1.5rem;
+.report-table {
+    width: 50%;
+    min-width: 20rem;
 }
 
 .col-numeric {
     text-align: right;
     white-space: nowrap;
-    width: 6rem;
+    padding-left: 3rem;
 }
 </style>

@@ -304,14 +304,12 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
         var compact = orderedTypes.Count > 14;
-        var fontSize = compact ? 8f : 10f;
-        var headerFontSize = compact ? 7f : 8.5f;
-        var hMargin = compact ? 0.3f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
-        var instructorWidth = compact ? 110f : 150f;
-        var percentWidth = compact ? 50f : 65f;
-        var ratioWidth = compact ? 50f : 65f;
-        var effortWidth = compact ? 24f : 32f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
+        var percentWidth = compact ? 50f : 60f;
+        var ratioWidth = compact ? 65f : 85f;
 
         var document = Document.Create(container =>
         {
@@ -344,11 +342,9 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.RelativeColumn(instructorWidth);
+                            columns.RelativeColumn(3); // Instructor — wider, flexes for long names
                             columns.ConstantColumn(percentWidth);
-                            // CLI column
-                            columns.ConstantColumn(effortWidth);
-                            // CLI Ratio column
+                            columns.RelativeColumn(1); // CLI
                             columns.ConstantColumn(ratioWidth);
                             // Other effort type columns (skip CLI since it's shown separately)
                             foreach (var type in orderedTypes)
@@ -357,7 +353,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                                 {
                                     continue;
                                 }
-                                columns.ConstantColumn(effortWidth);
+                                columns.RelativeColumn(1);
                             }
                         });
 

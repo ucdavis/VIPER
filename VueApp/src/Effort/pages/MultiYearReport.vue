@@ -307,7 +307,7 @@
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
                                         class="col-effort"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                        :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                     >
                                         {{ type }}
                                     </th>
@@ -325,7 +325,7 @@
                                     <td
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                        :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                     >
                                         {{ getTotalValue(course.efforts, type) }}
                                     </td>
@@ -341,7 +341,7 @@
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
                                         class="total"
-                                        :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                        :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                     >
                                         {{ getTotalValue(meritYear.yearTotals, type) }}
                                     </td>
@@ -358,7 +358,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="total"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                 >
                                     {{ getTotalValue(report.meritSection.grandTotals, type) }}
                                 </td>
@@ -376,7 +376,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="total"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                 >
                                     {{ getAverageValue(report.meritSection.yearlyAverages, type) }}
                                 </td>
@@ -397,7 +397,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="total"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                 >
                                     {{
                                         type in report.meritSection.departmentAverages
@@ -543,7 +543,7 @@ import { useQuasar } from "quasar"
 import { reportService } from "../services/report-service"
 import { instructorService } from "../services/instructor-service"
 import { termService } from "../services/term-service"
-import { useEffortTypeColumns } from "../composables/use-effort-type-columns"
+import { useEffortTypeColumns, SPACING_COLUMNS } from "../composables/use-effort-type-columns"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import ReportLayout from "../components/ReportLayout.vue"
 import LeaveEditorModal from "../components/LeaveEditorModal.vue"
@@ -699,9 +699,18 @@ async function onInstructorSelected(personId: number | null) {
         instructorMinYear.value = yearRange?.minYear ?? null
         instructorMaxYear.value = yearRange?.maxYear ?? null
 
-        // Reset year selections when instructor changes
-        selectedStartYear.value = null
-        selectedEndYear.value = null
+        // Set default years matching legacy: start = now - 3, end = now, clamped to available range
+        const currentYear = new Date().getFullYear()
+        const min = instructorMinYear.value
+        const max = instructorMaxYear.value
+        if (min !== null && max !== null) {
+            const maxEnd = max + 2
+            selectedStartYear.value = Math.max(min, Math.min(currentYear - 3, max))
+            selectedEndYear.value = Math.max(min, Math.min(currentYear, maxEnd))
+        } else {
+            selectedStartYear.value = null
+            selectedEndYear.value = null
+        }
     } finally {
         sabbaticalLoading.value = false
     }

@@ -194,12 +194,12 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
         var compact = orderedTypes.Count > 14;
-        var fontSize = compact ? 8.5f : 10f;
-        var headerFontSize = compact ? 7.5f : 8.5f;
-        var hMargin = compact ? 0.35f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
         var deptWidth = compact ? 60f : 80f;
-        var effortWidth = compact ? 24f : 32f;
+        var effortWidth = compact ? ReportPdfSettings.EffortWidthCompact : ReportPdfSettings.EffortWidth;
         var spacerWidth = compact ? 42f : 70f;
         var facultyLabelWidth = compact ? 90f : 115f;
         var facultyCountWidth = compact ? 20f : 25f;

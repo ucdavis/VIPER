@@ -170,9 +170,8 @@ namespace Viper.Areas.Effort.Scripts
             "sp_instructor_evals",
             "sp_instructor_evals_multiyear",
             "sp_instructor_evals_average",
-            // Other Reports (2 procedures)
+            // Other Reports (1 procedure)
             "sp_effort_general_report",
-            "sp_zero_effort_check",
             // Banner Integration (1 procedure)
             "sp_search_banner_courses",
             // Percent Assignment Reports (1 procedure)
@@ -223,9 +222,8 @@ namespace Viper.Areas.Effort.Scripts
                 CreateProcedure(connection, transaction, "sp_instructor_evals_multiyear", GetInstructorEvalsMultiyearSql(), ref successCount, ref failureCount, failedProcedures);
                 CreateProcedure(connection, transaction, "sp_instructor_evals_average", GetInstructorEvalsAverageSql(), ref successCount, ref failureCount, failedProcedures);
 
-                // Other Reports (2 procedures)
+                // Other Reports (1 procedure)
                 CreateProcedure(connection, transaction, "sp_effort_general_report", GetEffortGeneralReportSql(), ref successCount, ref failureCount, failedProcedures);
-                CreateProcedure(connection, transaction, "sp_zero_effort_check", GetZeroEffortCheckSql(), ref successCount, ref failureCount, failedProcedures);
 
                 // Banner Integration (1 procedure)
                 CreateProcedure(connection, transaction, "sp_search_banner_courses", GetSearchBannerCoursesSql(), ref successCount, ref failureCount, failedProcedures);
@@ -799,7 +797,8 @@ BEGIN
         RTRIM(p.LastName) + ', ' + RTRIM(p.FirstName) as Instructor,
         p.EffortDept as Department,
         c.Id as CourseId,
-        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb) as Course,
+        RTRIM(c.SubjCode) + ' ' + RTRIM(c.CrseNumb) + '-' + RTRIM(c.SeqNumb)
+            + ' (' + ISNULL(bi.baseinfo_title, '') + ')' as Course,
         c.Units,
         c.Enrollment,
         r.RoleId,
@@ -809,6 +808,8 @@ BEGIN
     INNER JOIN [effort].[Persons] p ON r.PersonId = p.PersonId AND r.TermCode = p.TermCode
     INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
     INNER JOIN [effort].[Courses] c ON r.CourseId = c.Id
+    LEFT JOIN Courses.dbo.baseinfo bi ON c.TermCode = bi.baseinfo_term_code
+        AND c.Crn = bi.baseinfo_crn
     WHERE r.PersonId = @PersonId
         AND r.TermCode BETWEEN @StartTermCode AND @EndTermCode
         AND c.Enrollment > 0
@@ -1476,38 +1477,6 @@ BEGIN
         )
 
     ORDER BY Department, Instructor, Course;
-END;
-";
-        }
-
-        static string GetZeroEffortCheckSql()
-        {
-            return @"
-CREATE OR ALTER PROCEDURE [effort].[sp_zero_effort_check]
-    @TermCode INT,
-    @Department CHAR(6) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    -- Identifies instructors with courses assigned but zero effort recorded
-    -- Critical for data validation before closing a term
-
-    SELECT DISTINCT
-        up.MothraId,
-        p.FirstName,
-        p.LastName,
-        p.MiddleInitial,
-        p.EffortDept,
-        p.EffortVerified
-    FROM [effort].[Persons] p
-    INNER JOIN [users].[Person] up ON p.PersonId = up.PersonId
-    INNER JOIN [effort].[Records] r ON p.PersonId = r.PersonId AND p.TermCode = r.TermCode
-    WHERE r.TermCode = @TermCode
-        AND r.Hours = 0
-        AND r.Weeks = 0
-        AND (@Department IS NULL OR p.EffortDept = @Department)
-    ORDER BY p.EffortDept, p.LastName, p.FirstName;
 END;
 ";
         }

@@ -214,17 +214,17 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
         // Compact when 12+ effort types: with 6 fixed columns (Qtr, Role, Instructor,
         // Course, Units, Enroll), non-compact overflows the page at 12+ effort types
         var compact = orderedTypes.Count > 11;
-        var fontSize = compact ? 8.5f : 10f;
-        var headerFontSize = compact ? 7.5f : 8.5f;
-        var hMargin = compact ? 0.35f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
         var qtrWidth = compact ? 36f : 48f;
         var roleWidth = compact ? 22f : 32f;
         var instructorWidth = compact ? 90f : 130f;
         var courseWidth = compact ? 70f : 100f;
         var unitsWidth = compact ? 22f : 30f;
         var enrlWidth = compact ? 42f : 70f;
-        var effortWidth = compact ? 24f : 32f;
+        var effortWidth = compact ? ReportPdfSettings.EffortWidthCompact : ReportPdfSettings.EffortWidth;
         var spacerWidth = compact ? 42f : 70f;
 
         var document = Document.Create(container =>
@@ -369,16 +369,16 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
         // Compact when 12+ effort types: with fixed columns, non-compact overflows the page
         var compact = orderedTypes.Count > 11;
-        var fontSize = compact ? 8.5f : 10f;
-        var headerFontSize = compact ? 7.5f : 8.5f;
-        var hMargin = compact ? 0.35f : 0.5f;
-        var cellPadV = compact ? 1.5f : 2f;
+        var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
+        var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
+        var hMargin = compact ? ReportPdfSettings.HMarginCompact : ReportPdfSettings.HMargin;
+        var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
         var qtrWidth = compact ? 36f : 48f;
         var roleWidth = compact ? 22f : 32f;
         var courseWidth = compact ? 70f : 100f;
         var unitsWidth = compact ? 22f : 30f;
         var enrlWidth = compact ? 42f : 70f;
-        var effortWidth = compact ? 24f : 32f;
+        var effortWidth = compact ? ReportPdfSettings.EffortWidthCompact : ReportPdfSettings.EffortWidth;
         var spacerWidth = compact ? 42f : 70f;
 
         // Flatten all instructors across departments for individual layout

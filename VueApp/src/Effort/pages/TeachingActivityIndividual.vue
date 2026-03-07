@@ -81,7 +81,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="col-effort"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ type }}
                                 </th>
@@ -100,7 +100,7 @@
                                 <td
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ getTotalValue(course.effortByType ?? {}, type) }}
                                 </td>
@@ -118,7 +118,7 @@
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
                                     class="total"
-                                    :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
+                                    :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
                                     {{ getTotalValue(instructor.instructorTotals, type) }}
                                 </td>
@@ -155,6 +155,7 @@ const {
     initialFilters,
     orderedEffortTypes,
     getTotalValue,
+    isSpacerColumn,
     generateReport,
     handlePrint,
 } = useReportPage<TeachingActivityReport>({

@@ -46,124 +46,91 @@
             </template>
 
             <template v-else>
-                <q-tabs
-                    v-if="report.departments.length > 0"
-                    v-model="activeDept"
-                    dense
-                    align="left"
-                    class="text-grey"
-                    active-color="primary"
-                    indicator-color="primary"
-                    narrow-indicator
-                >
-                    <q-tab
-                        v-for="(dept, idx) in report.departments"
-                        :key="dept.department"
-                        :name="idx"
-                        :label="dept.department"
-                    />
-                </q-tabs>
+                <ReportDeptTabs :departments="report.departments">
+                    <template #default="{ dept }">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-instructor">Instructor</th>
+                                    <th
+                                        v-for="type in orderedEffortTypes"
+                                        :key="type"
+                                        class="col-effort"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                    >
+                                        {{ type }}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="instructor in dept.instructors"
+                                    :key="instructor.mothraId"
+                                >
+                                    <td class="instructor-cell">{{ instructor.instructor }}</td>
+                                    <td
+                                        v-for="type in orderedEffortTypes"
+                                        :key="type"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                    >
+                                        {{ getTotalValue(instructor.effortByType ?? {}, type) }}
+                                    </td>
+                                </tr>
 
-                <q-separator />
+                                <!-- Re-display effort type headers before department totals -->
+                                <tr class="header-repeat">
+                                    <th></th>
+                                    <th
+                                        v-for="type in orderedEffortTypes"
+                                        :key="type"
+                                        class="col-effort"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                    >
+                                        {{ type }}
+                                    </th>
+                                </tr>
 
-                <q-tab-panels
-                    v-model="activeDept"
-                    animated
-                >
-                    <q-tab-panel
-                        v-for="(dept, idx) in report.departments"
-                        :key="dept.department"
-                        :name="idx"
-                        class="q-px-none"
-                    >
-                        <!-- Only render table content for active panel to avoid browser freeze -->
-                        <template v-if="idx === activeDept">
-                            <div class="dept-section">
-                                <table class="report-table">
-                                    <thead>
-                                        <tr>
-                                            <th class="col-instructor">Instructor</th>
-                                            <th
-                                                v-for="type in orderedEffortTypes"
-                                                :key="type"
-                                                class="col-effort"
-                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                            >
-                                                {{ type }}
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr
-                                            v-for="instructor in dept.instructors"
-                                            :key="instructor.mothraId"
-                                        >
-                                            <td class="instructor-cell">{{ instructor.instructor }}</td>
-                                            <td
-                                                v-for="type in orderedEffortTypes"
-                                                :key="type"
-                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                            >
-                                                {{ getTotalValue(instructor.effortByType ?? {}, type) }}
-                                            </td>
-                                        </tr>
+                                <!-- Department totals row -->
+                                <tr class="dept-totals-row bg-grey-4">
+                                    <th class="subt">Department Totals:</th>
+                                    <td
+                                        v-for="type in orderedEffortTypes"
+                                        :key="type"
+                                        class="total"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                    >
+                                        {{ getTotalValue(dept.departmentTotals, type) }}
+                                    </td>
+                                </tr>
 
-                                        <!-- Re-display effort type headers before department totals -->
-                                        <tr class="header-repeat">
-                                            <th></th>
-                                            <th
-                                                v-for="type in orderedEffortTypes"
-                                                :key="type"
-                                                class="col-effort"
-                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                            >
-                                                {{ type }}
-                                            </th>
-                                        </tr>
+                                <!-- Number Faculty row -->
+                                <tr class="faculty-row">
+                                    <td>
+                                        <span class="faculty-label">Number Faculty:</span>
+                                        <span class="faculty-count">{{ dept.facultyCount }}</span>
+                                    </td>
+                                </tr>
 
-                                        <!-- Department totals row -->
-                                        <tr class="dept-totals-row bg-grey-4">
-                                            <th class="subt">Department Totals:</th>
-                                            <td
-                                                v-for="type in orderedEffortTypes"
-                                                :key="type"
-                                                class="total"
-                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                            >
-                                                {{ getTotalValue(dept.departmentTotals, type) }}
-                                            </td>
-                                        </tr>
-
-                                        <!-- Number Faculty row -->
-                                        <tr class="faculty-row">
-                                            <td>
-                                                <span class="faculty-label">Number Faculty:</span>
-                                                <span class="faculty-count">{{ dept.facultyCount }}</span>
-                                            </td>
-                                        </tr>
-
-                                        <!-- Faculty w/ CLI + averages row -->
-                                        <tr class="faculty-row bg-grey-3">
-                                            <td>
-                                                <span class="faculty-label">Faculty w/ CLI assigned:</span>
-                                                <span class="faculty-count">{{ dept.facultyWithCliCount }}</span>
-                                                <span class="avg-text">Average</span>
-                                            </td>
-                                            <td
-                                                v-for="type in orderedEffortTypes"
-                                                :key="type"
-                                                class="total"
-                                                :class="{ 'col-spacer': type === 'VAR' || type === 'EXM' }"
-                                            >
-                                                {{ getAverageValue(dept.departmentAverages, type) }}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </template>
-                    </q-tab-panel>
-                </q-tab-panels>
+                                <!-- Faculty w/ CLI + averages row -->
+                                <tr class="faculty-row bg-grey-3">
+                                    <td>
+                                        <span class="faculty-label">Faculty w/ CLI assigned:</span>
+                                        <span class="faculty-count">{{ dept.facultyWithCliCount }}</span>
+                                        <span class="avg-text">Average</span>
+                                    </td>
+                                    <td
+                                        v-for="type in orderedEffortTypes"
+                                        :key="type"
+                                        class="total"
+                                        :class="{ 'col-spacer': isSpacerColumn(type) }"
+                                    >
+                                        {{ getAverageValue(dept.departmentAverages, type) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </template>
+                </ReportDeptTabs>
             </template>
         </ReportLayout>
 
@@ -178,11 +145,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
 import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
+import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { DeptSummaryReport } from "../types"
 
 const {
@@ -194,6 +161,7 @@ const {
     orderedEffortTypes,
     getTotalValue,
     getAverageValue,
+    isSpacerColumn,
     generateReport,
     handlePrint,
 } = useReportPage<DeptSummaryReport>({
@@ -201,23 +169,10 @@ const {
     fetchPdf: (params) => reportService.openPdf("teaching/dept-summary/pdf", params),
     getEffortTypes: (r) => r.effortTypes,
 })
-
-const activeDept = ref(0)
-
-watch(
-    () => report.value,
-    () => {
-        activeDept.value = 0
-    },
-)
 </script>
 
 <style>
 @import "../report-tables.css";
 </style>
 
-<style scoped>
-.dept-section {
-    margin-bottom: 2rem;
-}
-</style>
+<style scoped></style>

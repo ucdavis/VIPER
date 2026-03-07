@@ -48,24 +48,6 @@ type ScheduledCliWeeksReport = {
     instructors: ScheduledCliWeeksInstructorRow[]
 }
 
-// Zero Effort types
-
-type ZeroEffortInstructorRow = {
-    mothraId: string
-    instructor: string
-    department: string
-    jobGroupId: string
-    verified: boolean
-}
-
-type ZeroEffortReport = {
-    termCode: number
-    termName: string
-    academicYear: string | null
-    filterDepartment: string | null
-    instructors: ZeroEffortInstructorRow[]
-}
-
 // Evaluation Summary types
 
 type EvalInstructorSummary = {
@@ -97,6 +79,7 @@ type EvalCourseDetail = {
     course: string
     crn: string
     termCode: number
+    termName: string
     role: string
     average: number
     median: number | null
@@ -124,53 +107,6 @@ type EvalDetailReport = {
     academicYear: string | null
     filterDepartment: string | null
     departments: EvalDetailDepartmentGroup[]
-}
-
-// Year Statistics types
-
-type YearStatsGrouping = {
-    groupName: string
-    instructorCount: number
-    sums: EffortByType
-    averages: EffortByType
-    medians: EffortByType
-    teachingHoursSum: number
-    teachingHoursAverage: number
-    teachingHoursMedian: number
-}
-
-type InstructorEffortDetail = {
-    mothraId: string
-    instructor: string
-    department: string
-    discipline: string
-    jobGroup: string
-    efforts: EffortByType
-    teachingHours: number
-}
-
-type YearStatsSubReport = {
-    label: string
-    instructors: InstructorEffortDetail[]
-    sums: EffortByType
-    averages: EffortByType
-    medians: EffortByType
-    teachingHoursSum: number
-    teachingHoursAverage: number
-    teachingHoursMedian: number
-    instructorCount: number
-    byDepartment: YearStatsGrouping[]
-    byDiscipline: YearStatsGrouping[]
-    byTitle: YearStatsGrouping[]
-}
-
-type YearStatisticsReport = {
-    academicYear: string
-    effortTypes: string[]
-    svm: YearStatsSubReport
-    dvm: YearStatsSubReport
-    resident: YearStatsSubReport
-    undergradGrad: YearStatsSubReport
 }
 
 // Multi-Year Merit + Evaluation types
@@ -254,8 +190,6 @@ export type {
     ScheduledCliWeeksTermRow,
     ScheduledCliWeeksInstructorRow,
     ScheduledCliWeeksReport,
-    ZeroEffortInstructorRow,
-    ZeroEffortReport,
     EvalInstructorSummary,
     EvalDepartmentGroup,
     EvalSummaryReport,
@@ -263,10 +197,6 @@ export type {
     EvalDetailInstructor,
     EvalDetailDepartmentGroup,
     EvalDetailReport,
-    YearStatsGrouping,
-    InstructorEffortDetail,
-    YearStatsSubReport,
-    YearStatisticsReport,
     MultiYearCourseRow,
     MultiYearMeritYear,
     MultiYearMeritSection,

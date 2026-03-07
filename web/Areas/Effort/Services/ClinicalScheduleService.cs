@@ -297,9 +297,9 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
         var showTotal = report.TermNames.Count > 1;
         var termCount = report.TermNames.Count;
-        var fontSize = 10f;
-        var headerFontSize = 8.5f;
-        var cellPadV = 2f;
+        var fontSize = ReportPdfSettings.FontSize;
+        var headerFontSize = ReportPdfSettings.HeaderFontSize;
+        var cellPadV = ReportPdfSettings.CellPadV;
         // Use landscape for multi-term, portrait for single term
         var useLandscape = termCount > 1;
 

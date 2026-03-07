@@ -2,7 +2,7 @@ import { ref, computed } from "vue"
 import type { Ref } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute } from "vue-router"
-import { useEffortTypeColumns } from "./use-effort-type-columns"
+import { useEffortTypeColumns, SPACING_COLUMNS } from "./use-effort-type-columns"
 import { useReportUrlParams } from "./use-report-url-params"
 import type { ReportFilterParams } from "../types"
 
@@ -69,6 +69,10 @@ export function useReportPage<T>(options: {
         }
     }
 
+    function isSpacerColumn(type: string): boolean {
+        return SPACING_COLUMNS.has(type)
+    }
+
     return {
         termCode,
         loading,
@@ -80,6 +84,7 @@ export function useReportPage<T>(options: {
         orderedEffortTypes,
         getTotalValue,
         getAverageValue,
+        isSpacerColumn,
         generateReport,
         handlePrint,
     }
