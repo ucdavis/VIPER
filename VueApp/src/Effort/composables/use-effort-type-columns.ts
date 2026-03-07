@@ -2,16 +2,57 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 import type { QTableColumn } from "quasar"
 import type { EffortByType } from "../types"
+import { effortTypeService } from "../services/effort-type-service"
 
 const ALWAYS_SHOW = ["CLI", "VAR", "LEC", "LAB", "DIS", "PBL", "CBL", "TBL", "PRS", "JLC", "EXM"]
 
 const SPACING_COLUMNS = new Set(["VAR", "EXM"])
+
+// Effort type labels loaded from the API and cached at module level
+let effortTypeLabelCache: Record<string, string> | null = null
+let loadPromise: Promise<void> | null = null
+
+async function fetchAndCacheLabels(): Promise<void> {
+    const types = await effortTypeService.getEffortTypes()
+    if (types.length === 0) {
+        loadPromise = null
+        return
+    }
+    effortTypeLabelCache = {}
+    for (const t of types) {
+        effortTypeLabelCache[t.id] = t.description
+    }
+}
+
+async function loadEffortTypeLabels(): Promise<void> {
+    if (!loadPromise) {
+        loadPromise = fetchAndCacheLabels()
+        try {
+            await loadPromise
+        } catch (error) {
+            loadPromise = null
+            throw error
+        }
+    }
+    return loadPromise
+}
+
+function getEffortTypeLabel(code: string): string {
+    // Lazily kick off the load on first use (no-op if already started)
+    loadEffortTypeLabels()
+    return effortTypeLabelCache?.[code] ?? code
+}
 
 interface EffortColumnOptions {
     /** Show "0" instead of blank for zero values (grouped report = true, individual = false) */
     showZero?: boolean
     /** Apply legacy always-show column ordering and VAR/EXM spacing (grouped only) */
     legacyColumnOrder?: boolean
+}
+
+function getAverageValue(averages: EffortByType, type: string): string {
+    const val = averages[type] ?? 0
+    return val.toFixed(1)
 }
 
 /**
@@ -53,7 +94,7 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
         const inputSet = new Set(effortTypes.value)
         const ordered: string[] = [...ALWAYS_SHOW]
 
-        const remaining = effortTypes.value.filter((t) => !ALWAYS_SHOW.includes(t)).slice().sort()
+        const remaining = effortTypes.value.filter((t) => !ALWAYS_SHOW.includes(t)).toSorted()
         ordered.push(...remaining)
 
         // For ALWAYS_SHOW types, include even if not in input effortTypes.
@@ -61,21 +102,9 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
         return ordered.filter((t) => ALWAYS_SHOW.includes(t) || inputSet.has(t)).map((t) => buildColumn(t))
     })
 
-    /**
-     * Get the displayed value for an effort type in a totals row.
-     */
     function getTotalValue(totals: EffortByType, type: string): string {
         const val = totals[type] ?? 0
         return formatValue(val)
-    }
-
-    /**
-     * Get the displayed value for an effort type in an averages row.
-     * Always formats to 1 decimal place to match legacy numberFormat('9.9').
-     */
-    function getAverageValue(averages: EffortByType, type: string): string {
-        const val = averages[type] ?? 0
-        return val.toFixed(1)
     }
 
     return {
@@ -85,5 +114,5 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
     }
 }
 
-export { useEffortTypeColumns, ALWAYS_SHOW, SPACING_COLUMNS }
+export { useEffortTypeColumns, ALWAYS_SHOW, SPACING_COLUMNS, getEffortTypeLabel, loadEffortTypeLabels }
 export type { EffortColumnOptions }

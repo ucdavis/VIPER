@@ -2,7 +2,12 @@ import { ref, computed } from "vue"
 import type { Ref } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute } from "vue-router"
-import { useEffortTypeColumns, SPACING_COLUMNS } from "./use-effort-type-columns"
+import {
+    useEffortTypeColumns,
+    SPACING_COLUMNS,
+    getEffortTypeLabel,
+    loadEffortTypeLabels,
+} from "./use-effort-type-columns"
 import { useReportUrlParams } from "./use-report-url-params"
 import type { ReportFilterParams } from "../types"
 
@@ -48,7 +53,8 @@ export function useReportPage<T>(options: {
         loading.value = true
         lastParams.value = params
         try {
-            report.value = await options.fetchReport(params)
+            const [data] = await Promise.all([options.fetchReport(params), loadEffortTypeLabels()])
+            report.value = data
         } finally {
             loading.value = false
         }
@@ -85,6 +91,7 @@ export function useReportPage<T>(options: {
         getTotalValue,
         getAverageValue,
         isSpacerColumn,
+        getEffortTypeLabel,
         generateReport,
         handlePrint,
     }

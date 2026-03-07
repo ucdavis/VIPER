@@ -32,7 +32,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -44,22 +45,36 @@
             </template>
 
             <template v-if="report.departments.length === 0">
-                <div class="text-grey-6 text-center q-pa-lg">No data found for the selected filters.</div>
+                <div
+                    role="status"
+                    class="text-grey-7 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
             </template>
 
             <template v-else>
                 <div class="dept-section">
                     <table class="report-table">
+                        <caption class="sr-only">
+                            School-wide summary of effort by department
+                        </caption>
                         <thead>
                             <tr>
-                                <th class="col-department">Department</th>
+                                <th
+                                    scope="col"
+                                    class="col-department"
+                                >
+                                    Department
+                                </th>
                                 <th
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
+                                    scope="col"
                                     class="col-effort"
                                     :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
-                                    {{ type }}
+                                    <abbr :title="getEffortTypeLabel(type)">{{ type }}</abbr>
                                 </th>
                             </tr>
                         </thead>
@@ -106,6 +121,7 @@
                                 <tr
                                     v-if="deptIdx < report.departments.length - 1"
                                     class="divider-row"
+                                    aria-hidden="true"
                                 >
                                     <td colspan="100%">
                                         <hr />
@@ -115,20 +131,26 @@
 
                             <!-- Re-display effort type headers before grand totals -->
                             <tr class="header-repeat">
-                                <th></th>
+                                <th scope="col"></th>
                                 <th
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
+                                    scope="col"
                                     class="col-effort"
                                     :class="{ 'col-spacer': isSpacerColumn(type) }"
                                 >
-                                    {{ type }}
+                                    <abbr :title="getEffortTypeLabel(type)">{{ type }}</abbr>
                                 </th>
                             </tr>
 
                             <!-- Grand Total row -->
                             <tr class="grand-totals-row bg-grey-4">
-                                <th class="subt">Grand Total</th>
+                                <th
+                                    scope="row"
+                                    class="subt"
+                                >
+                                    Grand Total
+                                </th>
                                 <td
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
@@ -172,7 +194,7 @@
         <!-- No report generated yet -->
         <div
             v-else-if="!loading"
-            class="text-grey-6 text-center q-pa-lg"
+            class="text-grey-7 text-center q-pa-lg"
         >
             Select filters and click "Generate Report" to view data.
         </div>
@@ -196,6 +218,7 @@ const {
     getTotalValue,
     getAverageValue,
     isSpacerColumn,
+    getEffortTypeLabel,
     generateReport,
     handlePrint,
 } = useReportPage<SchoolSummaryReport>({
@@ -206,7 +229,7 @@ const {
 </script>
 
 <style>
-@import "../report-tables.css";
+@import url("../report-tables.css");
 </style>
 
 <style scoped>

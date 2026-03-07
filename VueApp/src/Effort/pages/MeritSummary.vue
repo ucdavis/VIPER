@@ -34,7 +34,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -44,7 +45,12 @@
             <template #header />
 
             <template v-if="report.jobGroups.length === 0">
-                <div class="text-grey-6 text-center q-pa-lg">No data found for the selected filters.</div>
+                <div
+                    role="status"
+                    class="text-grey-6 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
             </template>
 
             <template v-else>
@@ -53,28 +59,40 @@
                     :key="jobGroup.jobGroupDescription"
                     class="job-group-section"
                 >
-                    <div class="job-group-header">{{ jobGroup.jobGroupDescription }}</div>
+                    <h3 class="job-group-header">{{ jobGroup.jobGroupDescription }}</h3>
 
                     <ReportDeptTabs :departments="jobGroup.departments">
                         <template #default="{ dept }">
                             <table class="report-table">
+                                <caption class="sr-only">
+                                    Merit summary of effort
+                                </caption>
                                 <thead>
                                     <tr>
-                                        <th class="col-label"></th>
+                                        <th
+                                            scope="col"
+                                            class="col-label"
+                                        ></th>
                                         <th
                                             v-for="type in orderedEffortTypes"
                                             :key="type"
+                                            scope="col"
                                             class="col-effort"
                                             :class="{ 'col-spacer': isSpacerColumn(type) }"
                                         >
-                                            {{ type }}
+                                            <abbr :title="getEffortTypeLabel(type)">{{ type }}</abbr>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <!-- Department totals row -->
                                     <tr class="totals-row bg-grey-1">
-                                        <th class="subt">Totals:</th>
+                                        <th
+                                            scope="row"
+                                            class="subt"
+                                        >
+                                            Totals:
+                                        </th>
                                         <td
                                             v-for="type in orderedEffortTypes"
                                             :key="type"
@@ -120,7 +138,7 @@
         <!-- No report generated yet -->
         <div
             v-else-if="!loading"
-            class="text-grey-6 text-center q-pa-lg"
+            class="text-grey-7 text-center q-pa-lg"
         >
             Select filters and click "Generate Report" to view data.
         </div>
@@ -145,6 +163,7 @@ const {
     getTotalValue,
     getAverageValue,
     isSpacerColumn,
+    getEffortTypeLabel,
     generateReport,
     handlePrint,
 } = useReportPage<MeritSummaryReport>({
@@ -155,7 +174,7 @@ const {
 </script>
 
 <style>
-@import "../report-tables.css";
+@import url("../report-tables.css");
 </style>
 
 <style scoped></style>

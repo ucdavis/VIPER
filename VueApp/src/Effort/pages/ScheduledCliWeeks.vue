@@ -33,7 +33,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -49,7 +50,12 @@
             </q-banner>
 
             <template v-if="report.instructors.length === 0">
-                <div class="text-grey-6 text-center q-pa-lg">No scheduled clinical weeks found.</div>
+                <div
+                    role="status"
+                    class="text-grey-6 text-center q-pa-lg"
+                >
+                    No scheduled clinical weeks found.
+                </div>
             </template>
 
             <template v-else>
@@ -71,7 +77,7 @@
         <!-- No report generated yet -->
         <div
             v-else-if="!loading"
-            class="text-grey-6 text-center q-pa-lg"
+            class="text-grey-7 text-center q-pa-lg"
         >
             Select a term or academic year and click "Generate Report" to view data.
         </div>

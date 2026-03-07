@@ -41,7 +41,7 @@
                     </q-select>
                 </div>
             </div>
-            <div class="text-grey-6 text-center q-pa-lg">Select an instructor to configure the report.</div>
+            <div class="text-grey-7 text-center q-pa-lg">Select an instructor to configure the report.</div>
             <q-banner
                 class="bg-blue-1 text-caption q-mt-md"
                 rounded
@@ -117,7 +117,8 @@
                 <div class="sabbatical-section q-mb-sm q-pa-sm bg-grey-1 rounded-borders">
                     <div
                         v-if="sabbaticalLoading"
-                        class="text-grey"
+                        role="status"
+                        class="text-grey-7"
                     >
                         Loading leave data...
                     </div>
@@ -231,7 +232,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -271,6 +273,9 @@
                     </div>
 
                     <table class="report-table q-mb-lg">
+                        <caption class="sr-only">
+                            Multi-year merit activity
+                        </caption>
                         <colgroup>
                             <col style="width: 4rem" />
                             <col style="width: 3rem" />
@@ -291,6 +296,7 @@
                                 <tr class="year-header-row">
                                     <th
                                         :colspan="5 + orderedEffortTypes.length"
+                                        scope="col"
                                         class="text-left"
                                     >
                                         Year {{ meritYear.yearLabel }}
@@ -298,18 +304,44 @@
                                 </tr>
                                 <!-- Column headers (repeated per year, matching legacy) -->
                                 <tr>
-                                    <th class="col-qtr">Qtr</th>
-                                    <th class="col-role">Role</th>
-                                    <th class="col-enrl">Enrolled</th>
-                                    <th class="col-units">Units</th>
-                                    <th class="col-course">Course</th>
+                                    <th
+                                        scope="col"
+                                        class="col-qtr"
+                                    >
+                                        Qtr
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-role"
+                                    >
+                                        Role
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-enrl"
+                                    >
+                                        Enrolled
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-units"
+                                    >
+                                        Units
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-course"
+                                    >
+                                        Course
+                                    </th>
                                     <th
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
+                                        scope="col"
                                         class="col-effort"
                                         :class="{ 'col-spacer': SPACING_COLUMNS.has(type) }"
                                     >
-                                        {{ type }}
+                                        <abbr :title="getEffortTypeLabel(type)">{{ type }}</abbr>
                                     </th>
                                 </tr>
                                 <!-- Course rows -->
@@ -332,11 +364,13 @@
                                 </tr>
                                 <!-- Year subtotal -->
                                 <tr class="totals-row bg-grey-1">
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <th class="subt">Total for {{ meritYear.yearLabel }}</th>
+                                    <th
+                                        scope="row"
+                                        colspan="5"
+                                        class="subt"
+                                    >
+                                        Total for {{ meritYear.yearLabel }}
+                                    </th>
                                     <td
                                         v-for="type in orderedEffortTypes"
                                         :key="type"
@@ -349,11 +383,13 @@
                             </template>
                             <!-- Instructor total -->
                             <tr class="totals-row bg-grey-2">
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <th class="subt">{{ report.instructor }} Total</th>
+                                <th
+                                    scope="row"
+                                    colspan="5"
+                                    class="subt"
+                                >
+                                    {{ report.instructor }} Total
+                                </th>
                                 <td
                                     v-for="type in orderedEffortTypes"
                                     :key="type"
@@ -366,6 +402,7 @@
                             <!-- Yearly average -->
                             <tr class="totals-row">
                                 <th
+                                    scope="row"
                                     class="subt"
                                     colspan="5"
                                 >
@@ -384,6 +421,7 @@
                             <!-- Department average -->
                             <tr class="totals-row bg-grey-1">
                                 <th
+                                    scope="row"
                                     class="subt"
                                     colspan="5"
                                 >
@@ -416,6 +454,9 @@
                     <div class="text-bold q-mb-sm">Instructor</div>
 
                     <table class="report-table">
+                        <caption class="sr-only">
+                            Multi-year evaluation detail
+                        </caption>
                         <tbody>
                             <template
                                 v-for="evalYear in report.evalSection.years"
@@ -433,13 +474,43 @@
                                 </tr>
                                 <!-- Column headers (repeated per year, matching legacy) -->
                                 <tr>
-                                    <th>Term</th>
-                                    <th class="col-role">Role</th>
-                                    <th class="col-count"># Enrolled</th>
-                                    <th class="col-count">% Response</th>
-                                    <th class="col-course">Course</th>
-                                    <th class="col-avg">Average</th>
-                                    <th class="col-avg">Median</th>
+                                    <th scope="col">Term</th>
+                                    <th
+                                        scope="col"
+                                        class="col-role"
+                                    >
+                                        Role
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-count"
+                                    >
+                                        # Enrolled
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-count"
+                                    >
+                                        % Response
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-course"
+                                    >
+                                        Course
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-avg"
+                                    >
+                                        Average
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        class="col-avg"
+                                    >
+                                        Median
+                                    </th>
                                 </tr>
                                 <!-- Course rows -->
                                 <tr
@@ -459,6 +530,7 @@
                                 <!-- Year average -->
                                 <tr class="totals-row bg-grey-1">
                                     <th
+                                        scope="row"
                                         class="subt"
                                         colspan="5"
                                     >
@@ -471,6 +543,7 @@
                             <!-- Overall average -->
                             <tr class="totals-row bg-grey-2">
                                 <th
+                                    scope="row"
                                     class="subt"
                                     colspan="5"
                                 >
@@ -482,6 +555,7 @@
                             <!-- Department average -->
                             <tr class="totals-row bg-grey-1">
                                 <th
+                                    scope="row"
                                     class="subt"
                                     colspan="5"
                                 >
@@ -520,7 +594,12 @@
             </template>
 
             <template v-else>
-                <div class="text-grey-6 text-center q-pa-lg">No data found for the selected filters.</div>
+                <div
+                    role="status"
+                    class="text-grey-7 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
             </template>
         </ReportLayout>
 
@@ -543,7 +622,12 @@ import { useQuasar } from "quasar"
 import { reportService } from "../services/report-service"
 import { instructorService } from "../services/instructor-service"
 import { termService } from "../services/term-service"
-import { useEffortTypeColumns, SPACING_COLUMNS } from "../composables/use-effort-type-columns"
+import {
+    useEffortTypeColumns,
+    SPACING_COLUMNS,
+    getEffortTypeLabel,
+    loadEffortTypeLabels,
+} from "../composables/use-effort-type-columns"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import ReportLayout from "../components/ReportLayout.vue"
 import LeaveEditorModal from "../components/LeaveEditorModal.vue"
@@ -759,7 +843,8 @@ async function generateReport() {
     router.replace({ query: buildQueryParams() })
     loading.value = true
     try {
-        report.value = await reportService.getMultiYear(buildApiParams())
+        const [data] = await Promise.all([reportService.getMultiYear(buildApiParams()), loadEffortTypeLabels()])
+        report.value = data
     } finally {
         loading.value = false
     }

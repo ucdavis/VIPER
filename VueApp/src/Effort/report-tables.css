@@ -110,3 +110,7 @@
     margin-left: 1.5rem;
     font-style: italic;
 }
+
+.report-table th abbr {
+    text-decoration: none;
+}

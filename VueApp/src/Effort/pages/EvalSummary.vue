@@ -33,7 +33,8 @@
         <!-- Loading state -->
         <div
             v-if="loading"
-            class="text-grey q-my-lg"
+            role="status"
+            class="text-grey-7 q-my-lg"
         >
             Loading report...
         </div>
@@ -43,17 +44,30 @@
             <template #header />
 
             <template v-if="report.departments.length === 0">
-                <div class="text-grey-6 text-center q-pa-lg">No data found for the selected filters.</div>
+                <div
+                    role="status"
+                    class="text-grey-6 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
             </template>
 
             <template v-else>
                 <ReportDeptTabs :departments="report.departments">
                     <template #default="{ dept }">
                         <table class="report-table">
+                            <caption class="sr-only">
+                                Evaluation summary by instructor
+                            </caption>
                             <thead>
                                 <tr>
-                                    <th>Instructor</th>
-                                    <th class="col-numeric">Average</th>
+                                    <th scope="col">Instructor</th>
+                                    <th
+                                        scope="col"
+                                        class="col-numeric"
+                                    >
+                                        Average
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -67,7 +81,12 @@
 
                                 <!-- Department average row -->
                                 <tr class="dept-totals-row bg-grey-4">
-                                    <th class="subt">Department Average</th>
+                                    <th
+                                        scope="row"
+                                        class="subt"
+                                    >
+                                        Department Average
+                                    </th>
                                     <td class="col-numeric total">{{ formatDecimal(dept.departmentAverage) }}</td>
                                 </tr>
                             </tbody>
@@ -80,7 +99,7 @@
         <!-- No report generated yet -->
         <div
             v-else-if="!loading"
-            class="text-grey-6 text-center q-pa-lg"
+            class="text-grey-7 text-center q-pa-lg"
         >
             Select filters and click "Generate Report" to view data.
         </div>
