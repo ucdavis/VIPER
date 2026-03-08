@@ -13,4 +13,6 @@ public interface IClinicalScheduleService
         CancellationToken ct = default);
 
     Task<byte[]> GenerateReportPdfAsync(ScheduledCliWeeksReport report);
+
+    MemoryStream GenerateReportExcel(ScheduledCliWeeksReport report);
 }

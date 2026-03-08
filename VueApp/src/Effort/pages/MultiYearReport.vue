@@ -118,9 +118,13 @@
                     <div
                         v-if="sabbaticalLoading"
                         role="status"
-                        class="text-grey-7"
+                        class="text-center q-my-sm"
                     >
-                        Loading leave data...
+                        <q-spinner-dots
+                            size="2rem"
+                            color="primary"
+                        />
+                        <div class="q-mt-sm text-body2">Loading leave data...</div>
                     </div>
                     <template v-else-if="!hasSabbaticalData">
                         <p class="text-body2 q-mb-none">
@@ -204,6 +208,24 @@
                             Print/PDF
                         </template>
                     </q-btn>
+                    <q-btn
+                        v-if="report"
+                        outline
+                        dense
+                        icon="grid_on"
+                        label="Excel"
+                        :loading="excelLoading"
+                        class="q-ml-sm"
+                        @click="handleExcelDownload"
+                    >
+                        <template #loading>
+                            <q-spinner
+                                size="1em"
+                                class="q-mr-sm"
+                            />
+                            Excel
+                        </template>
+                    </q-btn>
                 </div>
             </div>
 
@@ -233,9 +255,13 @@
         <div
             v-if="loading"
             role="status"
-            class="text-grey-7 q-my-lg"
+            class="text-center q-my-lg"
         >
-            Loading report...
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading report...</div>
         </div>
 
         <!-- Report content -->
@@ -640,6 +666,7 @@ const { isAdmin } = useEffortPermissions()
 
 const loading = ref(false)
 const printLoading = ref(false)
+const excelLoading = ref(false)
 const report = ref<MultiYearReport | null>(null)
 
 // Filter state
@@ -860,6 +887,19 @@ async function handlePrint() {
         }
     } finally {
         printLoading.value = false
+    }
+}
+
+async function handleExcelDownload() {
+    if (selectedPersonId.value === null || !selectedStartYear.value || !selectedEndYear.value) return
+    excelLoading.value = true
+    try {
+        const success = await reportService.downloadMultiYearExcel(buildApiParams())
+        if (!success) {
+            $q.notify({ type: "warning", message: "No data to export for the selected filters." })
+        }
+    } finally {
+        excelLoading.value = false
     }
 }
 

@@ -23,4 +23,6 @@ public interface IClinicalEffortService
     /// Landscape legal-size, grouped by job group description.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(ClinicalEffortReport report);
+
+    MemoryStream GenerateReportExcel(ClinicalEffortReport report);
 }

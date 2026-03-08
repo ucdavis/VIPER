@@ -1,4 +1,4 @@
-import { useFetch, postForBlob } from "@/composables/ViperFetch"
+import { useFetch, postForBlob, downloadBlob } from "@/composables/ViperFetch"
 
 interface StudentPhoto {
     mailId: string
@@ -170,15 +170,8 @@ class PhotoGalleryService {
         return response.result as ClassYear[]
     }
 
-    downloadFile = (blob: Blob, filename: string): void => {
-        const url = globalThis.URL.createObjectURL(blob)
-        const link = document.createElement("a")
-        link.href = url
-        link.download = filename
-        document.body.append(link)
-        link.click()
-        link.remove()
-        globalThis.URL.revokeObjectURL(url)
+    downloadFile(blob: Blob, filename: string): void {
+        downloadBlob(blob, filename)
     }
 }
 

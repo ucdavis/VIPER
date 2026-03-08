@@ -28,4 +28,6 @@ public interface IMeritSummaryService
     /// Generate a PDF document from a merit summary report.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(MeritSummaryReport report);
+
+    MemoryStream GenerateReportExcel(MeritSummaryReport report);
 }

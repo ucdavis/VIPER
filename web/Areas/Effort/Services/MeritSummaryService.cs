@@ -1,4 +1,5 @@
 using System.Data;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -317,12 +318,11 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                             table.Cell().Background("#E8E8E8").BorderTop(1.5f).BorderColor("#666666")
                                 .PaddingVertical(cellPadV).AlignRight().PaddingRight(8)
                                 .Text("Totals:").Italic().Bold();
-                            foreach (var type in orderedTypes)
-                            {
-                                var val = dept.DepartmentTotals.GetValueOrDefault(type, 0);
-                                table.Cell().Background("#E8E8E8").BorderTop(1.5f).BorderColor("#666666")
-                                    .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold();
-                            }
+                            orderedTypes
+                                .Select(type => dept.DepartmentTotals.GetValueOrDefault(type, 0))
+                                .ToList()
+                                .ForEach(val => table.Cell().Background("#E8E8E8").BorderTop(1.5f).BorderColor("#666666")
+                                    .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold());
 
                             // Number Faculty row
                             table.Cell().PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
@@ -341,12 +341,11 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                                 row.ConstantItem(30).AlignRight().Text(dept.FacultyWithCliCount.ToString()).SemiBold().Italic();
                                 row.ConstantItem(55).AlignRight().Text("Average").SemiBold().Italic();
                             });
-                            foreach (var type in orderedTypes)
-                            {
-                                var val = dept.DepartmentAverages.GetValueOrDefault(type, 0);
-                                table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV)
-                                    .Text(val.ToString("F1")).Bold();
-                            }
+                            orderedTypes
+                                .Select(type => dept.DepartmentAverages.GetValueOrDefault(type, 0))
+                                .ToList()
+                                .ForEach(val => table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV)
+                                    .Text(val.ToString("F1")).Bold());
                         });
 
                         page.Footer().Column(col =>
@@ -366,5 +365,97 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
         });
 
         return Task.FromResult(document.GeneratePdf());
+    }
+
+    public MemoryStream GenerateReportExcel(MeritSummaryReport report)
+    {
+        var wb = new XLWorkbook();
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var effortCols = BuildExcelEffortColumns(orderedTypes);
+        var lastCol = 1 + effortCols.Count;
+        var termName = report.AcademicYear ?? report.TermName;
+
+        foreach (var jobGroup in report.JobGroups)
+        {
+            foreach (var dept in jobGroup.Departments)
+            {
+                var sheetName = ExcelHelper.SanitizeSheetName($"{dept.Department} - {jobGroup.JobGroupDescription}");
+                var ws = wb.Worksheets.Add(sheetName);
+
+                // Header rows matching PDF
+                int row = AddExcelHeader(ws, "Merit & Promotion Summary Report",
+                    termName, dept.Department, jobGroup.JobGroupDescription);
+                row = AddExcelFilterLine(ws, row, ("Dept", report.FilterDepartment));
+                row++; // blank separator
+
+                // Column headers
+                int headerRow = row;
+                int col = 1;
+                ws.Cell(row, col++).Value = "";
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer) ws.Cell(row, col).Value = type;
+                    col++;
+                }
+                ws.Range($"{row}:{row}").Style.Font.Bold = true;
+                ws.SheetView.FreezeRows(row);
+                row++;
+
+                // Totals row
+                col = 1;
+                ws.Cell(row, col++).Value = "Totals:";
+                ws.Cell(row, col - 1).Style.Font.Bold = true;
+                ws.Cell(row, col - 1).Style.Font.Italic = true;
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer) ws.Cell(row, col).Value = dept.DepartmentTotals.GetValueOrDefault(type, 0);
+                    col++;
+                }
+                ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+                ShadeExcelRow(ws, row, lastCol, "#E8E8E8");
+                row++;
+
+                // Number Faculty row
+                ws.Cell(row, 1).Value = "Number Faculty:";
+                ws.Cell(row, 1).Style.Font.Bold = true;
+                ws.Cell(row, 2).Value = dept.FacultyCount;
+                ws.Cell(row, 2).Style.Font.Bold = true;
+                row++;
+
+                // Faculty w/ CLI assigned + averages row
+                ws.Cell(row, 1).Value = "Faculty w/ CLI assigned:";
+                ws.Cell(row, 1).Style.Font.Bold = true;
+                ws.Cell(row, 1).Style.Font.Italic = true;
+                ws.Cell(row, 2).Value = dept.FacultyWithCliCount;
+                ws.Cell(row, 2).Style.Font.Bold = true;
+                ws.Cell(row, 2).Style.Font.Italic = true;
+                ws.Cell(row, 3).Value = "Average";
+                ws.Cell(row, 3).Style.Font.Bold = true;
+                ws.Cell(row, 3).Style.Font.Italic = true;
+                // Averages start at the same column offset as effort types in header
+                col = 2; // effort types start at col 2 in header
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer)
+                    {
+                        var val = dept.DepartmentAverages.GetValueOrDefault(type, 0);
+                        ws.Cell(row, col).Value = val;
+                        ws.Cell(row, col).Style.NumberFormat.Format = "0.0";
+                        ws.Cell(row, col).Style.Font.Bold = true;
+                    }
+                    col++;
+                }
+                ShadeExcelRow(ws, row, lastCol, "#E0E0E0");
+
+                ws.Columns().AdjustToContents();
+                ApplyExcelSpacerWidths(ws, 2, effortCols);
+            }
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 }

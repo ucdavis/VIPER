@@ -56,4 +56,8 @@ public interface IMeritReportService
     /// Generate a PDF document from a merit average report.
     /// </summary>
     Task<byte[]> GenerateMeritAveragePdfAsync(MeritAverageReport report);
+
+    MemoryStream GenerateMeritDetailExcel(MeritDetailReport report);
+
+    MemoryStream GenerateMeritAverageExcel(MeritAverageReport report);
 }

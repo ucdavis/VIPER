@@ -1,4 +1,4 @@
-import { useFetch, postForBlob } from "@/composables/ViperFetch"
+import { useFetch, postForBlob, downloadBlob } from "@/composables/ViperFetch"
 import type {
     TeachingActivityReport,
     ReportFilterParams,
@@ -228,6 +228,54 @@ class ReportService {
         }
         const url = globalThis.URL.createObjectURL(blob)
         globalThis.open(url, "_blank")
+        return true
+    }
+
+    /**
+     * Download a report as Excel. Returns false if the report has no data.
+     */
+    async downloadExcel(endpoint: string, params: ReportFilterParams): Promise<boolean> {
+        const { blob, filename } = await postForBlob(`${this.baseUrl}/${endpoint}`, params)
+        if (blob.size === 0) {
+            return false
+        }
+        downloadBlob(blob, filename ?? "report.xlsx")
+        return true
+    }
+
+    async downloadClinicalEffortExcel(academicYear: string, clinicalType: number): Promise<boolean> {
+        const { blob, filename } = await postForBlob(`${this.baseUrl}/merit/clinical/excel`, {
+            academicYear,
+            clinicalType,
+        })
+        if (blob.size === 0) {
+            return false
+        }
+        downloadBlob(blob, filename ?? "report.xlsx")
+        return true
+    }
+
+    async downloadMultiYearExcel(params: {
+        personId: number
+        startYear: number
+        endYear: number
+        excludeClinTerms?: string
+        excludeDidTerms?: string
+        useAcademicYear?: boolean
+    }): Promise<boolean> {
+        const body = {
+            personId: params.personId,
+            startYear: params.startYear,
+            endYear: params.endYear,
+            excludeClinicalTerms: params.excludeClinTerms || null,
+            excludeDidacticTerms: params.excludeDidTerms || null,
+            useAcademicYear: params.useAcademicYear || false,
+        }
+        const { blob, filename } = await postForBlob(`${this.baseUrl}/merit/multiyear/excel`, body)
+        if (blob.size === 0) {
+            return false
+        }
+        downloadBlob(blob, filename ?? "report.xlsx")
         return true
     }
 

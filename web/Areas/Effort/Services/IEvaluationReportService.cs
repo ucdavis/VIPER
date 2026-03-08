@@ -59,4 +59,8 @@ public interface IEvaluationReportService
     /// Generate a PDF document from an evaluation detail report.
     /// </summary>
     Task<byte[]> GenerateDetailPdfAsync(EvalDetailReport report);
+
+    MemoryStream GenerateEvalSummaryExcel(EvalSummaryReport report);
+
+    MemoryStream GenerateEvalDetailExcel(EvalDetailReport report);
 }

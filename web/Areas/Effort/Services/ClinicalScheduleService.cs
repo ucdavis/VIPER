@@ -1,9 +1,11 @@
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -408,6 +410,66 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         });
 
         return Task.FromResult(document.GeneratePdf());
+    }
+
+    public MemoryStream GenerateReportExcel(ScheduledCliWeeksReport report)
+    {
+        var wb = new XLWorkbook();
+        var ws = wb.Worksheets.Add("Scheduled CLI Weeks");
+        var showTotal = report.TermNames.Count > 1;
+
+        // Header rows matching PDF (term is already in the column headers)
+        int row = AddExcelHeader(ws, "Merit & Promotion Report - Scheduled Clinical Weeks", null);
+        row++; // blank separator
+
+        // Column headers
+        int col = 1;
+        ws.Cell(row, col++).Value = "Instructor";
+        foreach (var termName in report.TermNames)
+        {
+            ws.Cell(row, col++).Value = termName;
+        }
+        if (showTotal)
+        {
+            ws.Cell(row, col++).Value = "AY Total";
+        }
+        ws.Range($"{row}:{row}").Style.Font.Bold = true;
+        ws.SheetView.FreezeRows(row);
+        row++;
+        foreach (var instructor in report.Instructors)
+        {
+            col = 1;
+            ws.Cell(row, col++).Value = ExcelHelper.SanitizeStringCell(instructor.Instructor);
+
+            foreach (var termName in report.TermNames)
+            {
+                var term = instructor.Terms.FirstOrDefault(t => t.TermName == termName);
+                if (term != null)
+                {
+                    var services = term.WeeksByService
+                        .Where(kv => kv.Value > 0)
+                        .Select(kv => $"{kv.Key} - {kv.Value}");
+                    var cell = ws.Cell(row, col);
+                    cell.Value = string.Join("\n", services);
+                    cell.Style.Alignment.WrapText = true;
+                }
+                col++;
+            }
+
+            if (showTotal)
+            {
+                ws.Cell(row, col++).Value = instructor.TotalWeeks;
+            }
+            row++;
+        }
+
+        ws.Columns().AdjustToContents();
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 
     /// <summary>

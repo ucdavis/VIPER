@@ -220,6 +220,49 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    [HttpPost("teaching/grouped/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportTeachingActivityGroupedExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role, request.Title);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        TeachingActivityReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _teachingActivityService.GetTeachingActivityReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _teachingActivityService.GetTeachingActivityReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.Departments.Count == 0) return NoContent();
+
+        var stream = _teachingActivityService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "TeachingActivity-Grouped",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     /// <summary>
     /// Export individual teaching activity report as PDF (one section per instructor).
     /// </summary>
@@ -279,6 +322,49 @@ public partial class ReportsController : BaseEffortController
         var pdfBytes = await _teachingActivityService.GenerateIndividualReportPdfAsync(report);
         var filename = $"TeachingActivityIndividual_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", filename);
+    }
+
+    [HttpPost("teaching/individual/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportTeachingActivityIndividualExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role, request.Title);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        TeachingActivityReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _teachingActivityService.GetTeachingActivityReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _teachingActivityService.GetTeachingActivityReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.Departments.Count == 0) return NoContent();
+
+        var stream = _teachingActivityService.GenerateIndividualReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "TeachingActivity-Individual",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
     }
 
     /// <summary>
@@ -585,6 +671,49 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    [HttpPost("teaching/dept-summary/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportDeptSummaryExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role, request.Title);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        DeptSummaryReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _deptSummaryService.GetDeptSummaryReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _deptSummaryService.GetDeptSummaryReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.Departments.Count == 0) return NoContent();
+
+        var stream = _deptSummaryService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "DeptSummary",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ============================================
     // School Summary Endpoints
     // ============================================
@@ -686,6 +815,48 @@ public partial class ReportsController : BaseEffortController
         var pdfBytes = await _schoolSummaryService.GenerateReportPdfAsync(report);
         var filename = $"SchoolSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", filename);
+    }
+
+    [HttpPost("teaching/school-summary/excel")]
+    [Permission(Allow = $"{EffortPermissions.SchoolSummary},{EffortPermissions.ViewAllDepartments}")]
+    public async Task<ActionResult> ExportSchoolSummaryExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role, request.Title);
+        if (validationResult != null) return validationResult;
+
+        var hasSchoolSummaryAccess = await _permissionService.HasPermissionAsync(EffortPermissions.SchoolSummary, ct);
+        var authorizedDepartments = hasSchoolSummaryAccess ? null : await GetDepartmentFilterAsync(ct);
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        SchoolSummaryReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _schoolSummaryService.GetSchoolSummaryReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _schoolSummaryService.GetSchoolSummaryReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, request.Title, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.Departments.Count == 0) return NoContent();
+
+        var stream = _schoolSummaryService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "SchoolSummary",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
     }
 
     // ============================================
@@ -794,6 +965,49 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    [HttpPost("merit/detail/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportMeritDetailExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        MeritDetailReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _meritReportService.GetMeritDetailReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _meritReportService.GetMeritDetailReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.Departments.Count == 0) return NoContent();
+
+        var stream = _meritReportService.GenerateMeritDetailExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "MeritDetail",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ============================================
     // Merit & Promotion Average Endpoints
     // ============================================
@@ -897,6 +1111,49 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    [HttpPost("merit/average/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportMeritAverageExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        MeritAverageReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _meritReportService.GetMeritAverageReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _meritReportService.GetMeritAverageReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.JobGroups.Count == 0) return NoContent();
+
+        var stream = _meritReportService.GenerateMeritAverageExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "MeritAverage",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ============================================
     // Merit & Promotion Summary Endpoints
     // ============================================
@@ -997,6 +1254,49 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    [HttpPost("merit/summary/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportMeritSummaryExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        MeritSummaryReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _meritSummaryService.GetMeritSummaryReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _meritSummaryService.GetMeritSummaryReportAsync(
+                request.TermCode, effectiveDepartments, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+        if (report.JobGroups.Count == 0) return NoContent();
+
+        var stream = _meritSummaryService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "MeritSummary",
+            AcademicYear = report.AcademicYear,
+            TermName = report.AcademicYear == null ? report.TermName : null,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ============================================
     // Clinical Effort Endpoints
     // ============================================
@@ -1090,6 +1390,40 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    [HttpPost("merit/clinical/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportClinicalEffortExcel(
+        [FromBody] ClinicalEffortPdfRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(request.AcademicYear))
+            return BadRequest("academicYear is required.");
+        if (!AcademicYearFormatRegex().IsMatch(request.AcademicYear))
+            return BadRequest("academicYear must be in format YYYY-YYYY (e.g., 2024-2025).");
+        if (request.ClinicalType is not (1 or 25))
+            return BadRequest("clinicalType must be 1 (VMTH) or 25 (CAHFS).");
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 }) return Forbid();
+
+        SetExceptionContext("academicYear", request.AcademicYear);
+
+        var report = await _clinicalEffortService.GetClinicalEffortReportAsync(
+            request.AcademicYear, request.ClinicalType, ct);
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.JobGroups.Count == 0) return NoContent();
+
+        var stream = _clinicalEffortService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "ClinicalEffort",
+            AcademicYear = report.AcademicYear,
+            ClinicalType = report.ClinicalTypeName
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ============================================
     // Scheduled CLI Weeks Endpoints
     // ============================================
@@ -1175,6 +1509,52 @@ public partial class ReportsController : BaseEffortController
         var pdfBytes = await _clinicalScheduleService.GenerateReportPdfAsync(report);
         var filename = $"ScheduledClinicalWeeks_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", filename);
+    }
+
+    /// <summary>
+    /// Export scheduled clinical weeks report as Excel.
+    /// </summary>
+    [HttpPost("clinical-schedule/excel")]
+    [Permission(Allow = EffortPermissions.ViewAllDepartments)]
+    public async Task<ActionResult> ExportScheduledCliWeeksExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear);
+        if (validationResult != null) return validationResult;
+
+        if (!await _permissionService.HasFullAccessAsync(ct))
+        {
+            return Forbid();
+        }
+
+        ScheduledCliWeeksReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _clinicalScheduleService.GetScheduledCliWeeksReportByYearAsync(
+                request.AcademicYear, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _clinicalScheduleService.GetScheduledCliWeeksReportAsync(
+                request.TermCode, ct);
+        }
+
+        if (report.Instructors.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var stream = _clinicalScheduleService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "ScheduledClinicalWeeks",
+            TermName = report.TermName,
+            AcademicYear = report.AcademicYear
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
     }
 
     // ============================================
@@ -1285,6 +1665,59 @@ public partial class ReportsController : BaseEffortController
     }
 
     /// <summary>
+    /// Export evaluation summary report as Excel.
+    /// </summary>
+    [HttpPost("eval/summary/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportEvalSummaryExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        EvalSummaryReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _evaluationReportService.GetEvalSummaryReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _evaluationReportService.GetEvalSummaryReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.Departments.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var stream = _evaluationReportService.GenerateEvalSummaryExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "EvalSummary",
+            AcademicYear = report.AcademicYear,
+            TermName = report.TermName,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
+    /// <summary>
     /// Get evaluation detail report. Shows course-level evaluation data
     /// with averages and medians grouped by department and instructor.
     /// </summary>
@@ -1387,6 +1820,59 @@ public partial class ReportsController : BaseEffortController
         return File(pdfBytes, "application/pdf", filename);
     }
 
+    /// <summary>
+    /// Export evaluation detail report as Excel.
+    /// </summary>
+    [HttpPost("eval/detail/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportEvalDetailExcel(
+        [FromBody] ReportPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
+            ?? ValidateReportParams(request.Department, request.PersonId, request.Role);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        var effectiveDepartments = ResolveEffectiveDepartments(request.Department, authorizedDepartments);
+
+        EvalDetailReport report;
+        if (!string.IsNullOrEmpty(request.AcademicYear))
+        {
+            SetExceptionContext("academicYear", request.AcademicYear);
+            report = await _evaluationReportService.GetEvalDetailReportByYearAsync(
+                request.AcademicYear, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+        else
+        {
+            SetExceptionContext("termCode", request.TermCode);
+            report = await _evaluationReportService.GetEvalDetailReportAsync(
+                request.TermCode, effectiveDepartments, request.PersonId, request.Role, ct);
+        }
+
+        FilterReportByAuthorizedDepartments(report, authorizedDepartments);
+
+        if (report.Departments.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var stream = _evaluationReportService.GenerateEvalDetailExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "EvalDetail",
+            AcademicYear = report.AcademicYear,
+            TermName = report.TermName,
+            Department = request.Department
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ============================================
     // Multi-Year Merit + Evaluation Endpoints
     // ============================================
@@ -1479,6 +1965,54 @@ public partial class ReportsController : BaseEffortController
         var pdfBytes = await _meritMultiYearService.GenerateReportPdfAsync(report);
         var filename = $"MultiYear_{report.Instructor}_{report.StartYear}-{report.EndYear}_{DateTime.Now:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", filename);
+    }
+
+    /// <summary>
+    /// Export multi-year merit + evaluation report as Excel.
+    /// </summary>
+    [HttpPost("merit/multiyear/excel")]
+    [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
+    public async Task<ActionResult> ExportMeritMultiYearExcel(
+        [FromBody] MultiYearPdfRequest request,
+        CancellationToken ct = default)
+    {
+        var validationResult = ValidateMultiYearParams(request.PersonId, request.StartYear, request.EndYear);
+        if (validationResult != null) return validationResult;
+
+        var authorizedDepartments = await GetDepartmentFilterAsync(ct);
+        if (authorizedDepartments is { Count: 0 })
+        {
+            return Forbid();
+        }
+
+        SetExceptionContext("personId", request.PersonId);
+
+        var report = await _meritMultiYearService.GetMultiYearReportAsync(
+            request.PersonId, request.StartYear, request.EndYear,
+            request.ExcludeClinicalTerms, request.ExcludeDidacticTerms,
+            request.UseAcademicYear, ct);
+
+        if (authorizedDepartments != null
+            && !string.IsNullOrWhiteSpace(report.Department)
+            && !authorizedDepartments.Contains(report.Department, StringComparer.OrdinalIgnoreCase))
+        {
+            return Forbid();
+        }
+
+        if (report.MeritSection.Years.Count == 0 && report.EvalSection.Years.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var stream = _meritMultiYearService.GenerateReportExcel(report);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "MultiYear",
+            InstructorName = report.Instructor,
+            StartYear = report.StartYear,
+            EndYear = report.EndYear
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
     }
 
     /// <summary>

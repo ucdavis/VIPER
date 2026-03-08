@@ -34,4 +34,6 @@ public interface IDeptSummaryService
     /// Generate a PDF document from a department summary report.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(DeptSummaryReport report);
+
+    MemoryStream GenerateReportExcel(DeptSummaryReport report);
 }
