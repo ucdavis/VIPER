@@ -431,7 +431,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         }
         if (showTotal)
         {
-            ws.Cell(row, col++).Value = "AY Total";
+            ws.Cell(row, col).Value = "AY Total";
         }
         ws.Range($"{row}:{row}").Style.Font.Bold = true;
         ws.SheetView.FreezeRows(row);
@@ -458,7 +458,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
             if (showTotal)
             {
-                ws.Cell(row, col++).Value = instructor.TotalWeeks;
+                ws.Cell(row, col).Value = instructor.TotalWeeks;
             }
             row++;
         }

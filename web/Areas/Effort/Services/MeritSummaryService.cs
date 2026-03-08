@@ -389,7 +389,6 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                 row++; // blank separator
 
                 // Column headers
-                int headerRow = row;
                 int col = 1;
                 ws.Cell(row, col++).Value = "";
                 foreach (var (type, isSpacer) in effortCols)

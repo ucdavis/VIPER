@@ -1305,7 +1305,6 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                 col++;
             }
             ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
-            var headerRow = row;
             row++;
 
             foreach (var year in report.MeritSection.Years)
@@ -1394,7 +1393,6 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                 row++;
             }
 
-            row++;
         }
 
         // Eval Section — separate sheet matching PDF page break
