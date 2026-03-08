@@ -1,3 +1,4 @@
+using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -310,5 +311,115 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
         });
 
         return Task.FromResult(document.GeneratePdf());
+    }
+
+    public MemoryStream GenerateReportExcel(DeptSummaryReport report)
+    {
+        var wb = new XLWorkbook();
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var effortCols = BuildExcelEffortColumns(orderedTypes);
+        var lastCol = 1 + effortCols.Count;
+        var termName = report.AcademicYear ?? report.TermName;
+
+        foreach (var dept in report.Departments)
+        {
+            var ws = wb.Worksheets.Add(dept.Department);
+
+            // Header rows matching PDF
+            int row = AddExcelHeader(ws, "Department Summary Report", termName, dept.Department);
+            row = AddExcelFilterLine(ws, row,
+                ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
+            row++; // blank separator
+
+            // Column headers
+            int col = 1;
+            ws.Cell(row, col++).Value = "Instructor";
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = type;
+                col++;
+            }
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            ws.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var instructor in dept.Instructors)
+            {
+                col = 1;
+                ws.Cell(row, col++).Value = ExcelHelper.SanitizeStringCell(instructor.Instructor);
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer) ws.Cell(row, col).Value = instructor.EffortByType.GetValueOrDefault(type, 0);
+                    col++;
+                }
+                row++;
+            }
+
+            // Re-display effort type headers before totals
+            col = 1;
+            ws.Cell(row, col++).Value = "";
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = type;
+                col++;
+            }
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            row++;
+
+            // Department Totals
+            col = 1;
+            ws.Cell(row, col++).Value = "Department Totals:";
+            ws.Cell(row, col - 1).Style.Font.Bold = true;
+            ws.Cell(row, col - 1).Style.Font.Italic = true;
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = dept.DepartmentTotals.GetValueOrDefault(type, 0);
+                col++;
+            }
+            ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+            ShadeExcelRow(ws, row, lastCol, "#E8E8E8");
+            row++;
+
+            // Number Faculty row
+            ws.Cell(row, 1).Value = "Number Faculty:";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            ws.Cell(row, 2).Value = dept.FacultyCount;
+            ws.Cell(row, 2).Style.Font.Bold = true;
+            row++;
+
+            // Faculty w/ CLI assigned + averages row
+            ws.Cell(row, 1).Value = "Faculty w/ CLI assigned:";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            ws.Cell(row, 1).Style.Font.Italic = true;
+            ws.Cell(row, 2).Value = dept.FacultyWithCliCount;
+            ws.Cell(row, 2).Style.Font.Bold = true;
+            ws.Cell(row, 2).Style.Font.Italic = true;
+            ws.Cell(row, 3).Value = "Average";
+            ws.Cell(row, 3).Style.Font.Bold = true;
+            ws.Cell(row, 3).Style.Font.Italic = true;
+            col = 2;
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer)
+                {
+                    var val = dept.DepartmentAverages.GetValueOrDefault(type, 0);
+                    ws.Cell(row, col).Value = val;
+                    ws.Cell(row, col).Style.NumberFormat.Format = "0.0";
+                    ws.Cell(row, col).Style.Font.Bold = true;
+                }
+                col++;
+            }
+            ShadeExcelRow(ws, row, lastCol, "#E0E0E0");
+
+            ws.Columns().AdjustToContents();
+            ApplyExcelSpacerWidths(ws, 2, effortCols);
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 }

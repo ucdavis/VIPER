@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.RegularExpressions;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
@@ -214,6 +215,77 @@ public abstract partial class BaseReportService
         });
     }
 
+    // ── Excel Header / Filter Line ─────────────────────────────────
+
+    /// <summary>
+    /// Write standard report header rows to an Excel worksheet matching PDF headers.
+    /// Returns the next available row number (for filters or column headers).
+    /// </summary>
+    protected static int AddExcelHeader(IXLWorksheet ws, string reportTitle,
+        string? termName, string? department = null, string? subtitle = null)
+    {
+        // Date column aligns with term column so they stack vertically
+        int dateCol = department != null ? 3 : 2;
+
+        // Merge date/term cells across 5 columns so AdjustToContents doesn't inflate a single column
+        int mergeSpan = 5;
+
+        int row = 1;
+        ws.Cell(row, 1).Value = "UCD School of Veterinary Medicine";
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        ws.Cell(row, dateCol).Value = DateTime.Now.ToString("d MMMM yyyy");
+        ws.Cell(row, dateCol).Style.Font.Bold = true;
+        ws.Range(row, dateCol, row, dateCol + mergeSpan - 1).Merge();
+        row++;
+
+        ws.Cell(row, 1).Value = reportTitle;
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        if (department != null)
+        {
+            ws.Cell(row, 2).Value = department;
+            ws.Cell(row, 2).Style.Font.Bold = true;
+        }
+        if (termName != null)
+        {
+            ws.Cell(row, dateCol).Value = termName;
+            ws.Cell(row, dateCol).Style.Font.Bold = true;
+            ws.Range(row, dateCol, row, dateCol + mergeSpan - 1).Merge();
+        }
+        row++;
+
+        if (subtitle != null)
+        {
+            ws.Cell(row, 1).Value = subtitle;
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+        }
+
+        return row;
+    }
+
+    /// <summary>
+    /// Apply a background fill color to a row of cells in an Excel worksheet.
+    /// Color values match the PDF report shading for visual consistency.
+    /// </summary>
+    protected static void ShadeExcelRow(IXLWorksheet ws, int row, int lastCol, string hexColor)
+    {
+        ws.Range(row, 1, row, lastCol).Style.Fill.BackgroundColor = XLColor.FromHtml(hexColor);
+    }
+
+    /// <summary>
+    /// Write a "Filters: Dept: All  Role: All  ..." line to an Excel worksheet.
+    /// Returns the next available row number.
+    /// </summary>
+    protected static int AddExcelFilterLine(IXLWorksheet ws, int row,
+        params (string Label, string? Value)[] filters)
+    {
+        if (filters.Length == 0) return row;
+        var parts = filters.Select(f => $"{f.Label}: {f.Value ?? "All"}");
+        ws.Cell(row, 1).Value = "Filters: " + string.Join("   ", parts);
+        ws.Cell(row, 1).Style.Font.FontSize = 9;
+        return row + 1;
+    }
+
     // ── Effort Type Column Ordering (PDF) ───────────────────────────
 
     /// <summary>
@@ -238,5 +310,40 @@ public abstract partial class BaseReportService
             .ToList();
         ordered.AddRange(remaining);
         return ordered;
+    }
+
+    /// <summary>
+    /// Build an Excel column list with narrow spacer columns inserted after VAR and EXM,
+    /// matching the visual spacing in the HTML/PDF output.
+    /// </summary>
+    protected static List<(string Type, bool IsSpacer)> BuildExcelEffortColumns(List<string> orderedTypes)
+    {
+        var cols = new List<(string Type, bool IsSpacer)>();
+        for (int i = 0; i < orderedTypes.Count; i++)
+        {
+            var type = orderedTypes[i];
+            cols.Add((type, false));
+            // Add spacer after VAR/EXM, but not after the very last column
+            if (SpacerColumns.Contains(type) && i < orderedTypes.Count - 1)
+            {
+                cols.Add(("", true));
+            }
+        }
+        return cols;
+    }
+
+    /// <summary>
+    /// Set narrow widths on spacer columns after AdjustToContents() has run.
+    /// </summary>
+    protected static void ApplyExcelSpacerWidths(IXLWorksheet ws, int firstEffortCol,
+        List<(string Type, bool IsSpacer)> effortCols)
+    {
+        for (int i = 0; i < effortCols.Count; i++)
+        {
+            if (effortCols[i].IsSpacer)
+            {
+                ws.Column(firstEffortCol + i).Width = 3.0;
+            }
+        }
     }
 }

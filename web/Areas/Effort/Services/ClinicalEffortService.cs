@@ -1,4 +1,5 @@
 using System.Data;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -417,5 +418,76 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
         });
 
         return Task.FromResult(document.GeneratePdf());
+    }
+
+    public MemoryStream GenerateReportExcel(ClinicalEffortReport report)
+    {
+        var wb = new XLWorkbook();
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var termName = report.AcademicYear ?? report.TermName;
+
+        foreach (var jobGroup in report.JobGroups)
+        {
+            var ws = wb.Worksheets.Add(ExcelHelper.SanitizeSheetName(jobGroup.JobGroupDescription));
+
+            // Header rows matching PDF
+            int row = AddExcelHeader(ws, "Merit & Promotion Report - Clinical Effort",
+                termName, subtitle: jobGroup.JobGroupDescription);
+            row = AddExcelFilterLine(ws, row, ("Type", report.ClinicalTypeName));
+            row++; // blank separator
+
+            // Column headers (no Job Group column — it's in the sheet name/header)
+            int col = 1;
+            ws.Cell(row, col++).Value = "Instructor";
+            ws.Cell(row, col++).Value = "Department";
+            ws.Cell(row, col++).Value = "Clinical %";
+            ws.Cell(row, col++).Value = "CLI";
+            ws.Cell(row, col++).Value = "CLI Ratio";
+            foreach (var type in orderedTypes)
+            {
+                if (string.Equals(type, "CLI", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                ws.Cell(row, col++).Value = type;
+            }
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            ws.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var instructor in jobGroup.Instructors)
+            {
+                col = 1;
+                ws.Cell(row, col++).Value = ExcelHelper.SanitizeStringCell(instructor.Instructor);
+                ws.Cell(row, col++).Value = instructor.Department;
+                ws.Cell(row, col).Value = instructor.ClinicalPercent;
+                ws.Cell(row, col).Style.NumberFormat.Format = "0.0";
+                col++;
+                ws.Cell(row, col++).Value = instructor.EffortByType.GetValueOrDefault("CLI");
+                ws.Cell(row, col).Value = instructor.CliRatio.HasValue ? instructor.CliRatio.Value : "";
+                if (instructor.CliRatio.HasValue)
+                {
+                    ws.Cell(row, col).Style.NumberFormat.Format = "0.0";
+                }
+                col++;
+                foreach (var type in orderedTypes)
+                {
+                    if (string.Equals(type, "CLI", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    ws.Cell(row, col++).Value = instructor.EffortByType.GetValueOrDefault(type);
+                }
+                row++;
+            }
+
+            ws.Columns().AdjustToContents();
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 }

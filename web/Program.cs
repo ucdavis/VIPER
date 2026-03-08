@@ -378,6 +378,7 @@ try
         // Allow styles
         csp.AllowStyles
             .FromSelf() // This domain
+            .From("fonts.googleapis.com") // Google Fonts stylesheets
             .AllowUnsafeInline(); // Allows inline CSS
     });
 

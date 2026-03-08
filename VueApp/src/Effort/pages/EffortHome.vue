@@ -1,8 +1,15 @@
 <template>
     <div class="q-pa-md">
-        <template v-if="isLoading">
-            <div class="text-grey q-my-md">Loading...</div>
-        </template>
+        <div
+            v-if="isLoading"
+            class="text-center q-my-lg"
+        >
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading...</div>
+        </div>
         <template v-else>
             <h2 class="text-grey-7">Select your action from the menu</h2>
         </template>

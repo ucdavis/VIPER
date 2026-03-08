@@ -19,6 +19,7 @@ import type { ReportFilterParams } from "../types"
 export function useReportPage<T>(options: {
     fetchReport: (params: ReportFilterParams) => Promise<T | null>
     fetchPdf?: (params: ReportFilterParams) => Promise<boolean>
+    fetchExcel?: (params: ReportFilterParams) => Promise<boolean>
     getEffortTypes?: (report: T) => string[]
 }) {
     const $q = useQuasar()
@@ -34,6 +35,7 @@ export function useReportPage<T>(options: {
     const report = ref<T | null>(null) as Ref<T | null>
     const lastParams = ref<ReportFilterParams | null>(null)
     const printLoading = ref(false)
+    const excelLoading = ref(false)
 
     // Effort type columns (only set up if getEffortTypes is provided)
     const effortTypes = computed(() => {
@@ -75,6 +77,21 @@ export function useReportPage<T>(options: {
         }
     }
 
+    async function handleExcelDownload() {
+        if (!lastParams.value || !options.fetchExcel) {
+            return
+        }
+        excelLoading.value = true
+        try {
+            const success = await options.fetchExcel(lastParams.value)
+            if (!success) {
+                $q.notify({ type: "warning", message: "No data to export for the selected filters." })
+            }
+        } finally {
+            excelLoading.value = false
+        }
+    }
+
     function isSpacerColumn(type: string): boolean {
         return SPACING_COLUMNS.has(type)
     }
@@ -85,6 +102,7 @@ export function useReportPage<T>(options: {
         report,
         lastParams,
         printLoading,
+        excelLoading,
         initialFilters,
         effortTypes,
         orderedEffortTypes,
@@ -94,5 +112,6 @@ export function useReportPage<T>(options: {
         getEffortTypeLabel,
         generateReport,
         handlePrint,
+        handleExcelDownload,
     }
 }

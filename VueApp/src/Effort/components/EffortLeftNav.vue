@@ -234,7 +234,7 @@
                 <!-- Merit & Promotion sub-header -->
                 <q-item
                     v-if="canViewReports"
-                    class="leftNavSubHeader q-pl-lg"
+                    class="leftNavSubHeader"
                 >
                     <q-item-section>
                         <q-item-label
@@ -250,7 +250,7 @@
                     v-ripple
                     :to="{ name: 'MeritAverage', params: reportParams }"
                     :active="route.name === 'MeritAverage'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Average</q-item-label>
@@ -262,7 +262,7 @@
                     v-ripple
                     :to="{ name: 'MeritDetail', params: reportParams }"
                     :active="route.name === 'MeritDetail'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Detail</q-item-label>
@@ -274,7 +274,7 @@
                     v-ripple
                     :to="{ name: 'MultiYearReport', params: reportParams }"
                     :active="route.name === 'MultiYearReport'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Multi-Year</q-item-label>
@@ -286,7 +286,7 @@
                     v-ripple
                     :to="{ name: 'MeritSummary', params: reportParams }"
                     :active="route.name === 'MeritSummary'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Summary</q-item-label>
@@ -298,7 +298,7 @@
                     v-ripple
                     :to="{ name: 'ClinicalEffort', params: reportParams }"
                     :active="route.name === 'ClinicalEffort'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Clinical Effort</q-item-label>
@@ -310,7 +310,7 @@
                     v-ripple
                     :to="{ name: 'ScheduledCliWeeks', params: reportParams }"
                     :active="route.name === 'ScheduledCliWeeks'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Scheduled CLI Weeks</q-item-label>
@@ -319,7 +319,7 @@
                 <!-- Teaching Activity sub-header -->
                 <q-item
                     v-if="canViewReports"
-                    class="leftNavSubHeader q-pl-lg"
+                    class="leftNavSubHeader"
                 >
                     <q-item-section>
                         <q-item-label
@@ -335,7 +335,7 @@
                     v-ripple
                     :to="{ name: 'TeachingActivityGrouped', params: reportParams }"
                     :active="route.name === 'TeachingActivityGrouped'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Grouped</q-item-label>
@@ -347,7 +347,7 @@
                     v-ripple
                     :to="{ name: 'TeachingActivityIndividual', params: reportParams }"
                     :active="route.name === 'TeachingActivityIndividual'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Individual</q-item-label>
@@ -359,7 +359,7 @@
                     v-ripple
                     :to="{ name: 'DeptSummary', params: reportParams }"
                     :active="route.name === 'DeptSummary'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Dept Summary</q-item-label>
@@ -371,7 +371,7 @@
                     v-ripple
                     :to="{ name: 'SchoolSummary', params: reportParams }"
                     :active="route.name === 'SchoolSummary'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">School Summary</q-item-label>
@@ -380,7 +380,7 @@
                 <!-- Evaluation sub-header -->
                 <q-item
                     v-if="canViewReports"
-                    class="leftNavSubHeader q-pl-lg"
+                    class="leftNavSubHeader"
                 >
                     <q-item-section>
                         <q-item-label
@@ -396,7 +396,7 @@
                     v-ripple
                     :to="{ name: 'EvalSummary', params: reportParams }"
                     :active="route.name === 'EvalSummary'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Summary</q-item-label>
@@ -408,7 +408,7 @@
                     v-ripple
                     :to="{ name: 'EvalDetail', params: reportParams }"
                     :active="route.name === 'EvalDetail'"
-                    class="leftNavLink q-pl-xl"
+                    class="leftNavLink leftNavIndent1"
                 >
                     <q-item-section>
                         <q-item-label lines="1">Detail</q-item-label>

@@ -1,7 +1,9 @@
+using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -488,6 +490,207 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
         });
 
         return Task.FromResult(document.GeneratePdf());
+    }
+
+    public MemoryStream GenerateReportExcel(TeachingActivityReport report)
+    {
+        var wb = new XLWorkbook();
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var effortCols = BuildExcelEffortColumns(orderedTypes);
+        var lastCol = 4 + effortCols.Count;
+        var termName = report.AcademicYear ?? report.TermName;
+
+        foreach (var dept in report.Departments)
+        {
+            var ws = wb.Worksheets.Add(dept.Department);
+
+            // Header rows matching PDF
+            int row = AddExcelHeader(ws, "Teaching Activity Report", termName, dept.Department);
+            row = AddExcelFilterLine(ws, row,
+                ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
+            row++; // blank separator
+
+            // Column headers
+            int col = 1;
+            ws.Cell(row, col++).Value = "Instructor";
+            ws.Cell(row, col++).Value = "Course";
+            ws.Cell(row, col++).Value = "Units";
+            ws.Cell(row, col++).Value = "Enrl";
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = type;
+                col++;
+            }
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            ws.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var instructor in dept.Instructors)
+            {
+                bool firstCourse = true;
+                foreach (var course in instructor.Courses)
+                {
+                    col = 1;
+                    if (firstCourse)
+                    {
+                        ws.Cell(row, col).Value = ExcelHelper.SanitizeStringCell(instructor.Instructor);
+                        firstCourse = false;
+                    }
+                    col++;
+                    ws.Cell(row, col++).Value = ExcelHelper.SanitizeStringCell(course.Course);
+                    ws.Cell(row, col++).Value = course.Units;
+                    ws.Cell(row, col++).Value = course.Enrollment;
+                    foreach (var (type, isSpacer) in effortCols)
+                    {
+                        if (!isSpacer) ws.Cell(row, col).Value = course.EffortByType.GetValueOrDefault(type, 0);
+                        col++;
+                    }
+                    row++;
+                }
+
+                // Instructor totals row
+                col = 1;
+                ws.Cell(row, col).Value = ExcelHelper.SanitizeStringCell($"{instructor.Instructor} Totals");
+                ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+                ShadeExcelRow(ws, row, lastCol, "#F8F8F8");
+                col = 5;
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer) ws.Cell(row, col).Value = instructor.InstructorTotals.GetValueOrDefault(type, 0);
+                    col++;
+                }
+                row++;
+            }
+
+            // Re-display effort type headers before department totals
+            col = 1;
+            ws.Cell(row, col++).Value = "";
+            ws.Cell(row, col++).Value = "";
+            ws.Cell(row, col++).Value = "";
+            ws.Cell(row, col++).Value = "";
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = type;
+                col++;
+            }
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            row++;
+
+            // Department totals row
+            col = 1;
+            ws.Cell(row, col).Value = "Department Totals";
+            ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+            ShadeExcelRow(ws, row, lastCol, "#E8E8E8");
+            col = 5;
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = dept.DepartmentTotals.GetValueOrDefault(type, 0);
+                col++;
+            }
+
+            ws.Column(1).Width = 25; // Instructor
+            ws.Column(2).Width = 30; // Course
+            ws.Column(3).Width = 8;  // Units
+            ws.Column(4).Width = 8;  // Enrl
+            for (int i = 0; i < effortCols.Count; i++)
+            {
+                ws.Column(5 + i).Width = effortCols[i].IsSpacer ? 1.5 : 7;
+            }
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
+    }
+
+    public MemoryStream GenerateIndividualReportExcel(TeachingActivityReport report)
+    {
+        var wb = new XLWorkbook();
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var effortCols = BuildExcelEffortColumns(orderedTypes);
+        var lastCol = 3 + effortCols.Count;
+        var termName = report.AcademicYear ?? report.TermName;
+
+        var allInstructors = report.Departments
+            .SelectMany(d => d.Instructors.Select(i => (Dept: d.Department, Instructor: i)))
+            .ToList();
+
+        foreach (var (dept, instructor) in allInstructors)
+        {
+            var baseSheetName = ExcelHelper.SanitizeSheetName(instructor.Instructor);
+            var sheetName = baseSheetName;
+            if (wb.Worksheets.Any(w => string.Equals(w.Name, sheetName, StringComparison.OrdinalIgnoreCase)))
+            {
+                sheetName = ExcelHelper.SanitizeSheetName($"{instructor.Instructor}-{instructor.MothraId}");
+            }
+            var ws = wb.Worksheets.Add(sheetName);
+
+            // Header rows matching PDF
+            int row = AddExcelHeader(ws, "Teaching Activity Report (Individual)",
+                termName, dept, instructor.Instructor);
+            row = AddExcelFilterLine(ws, row,
+                ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
+            row++; // blank separator
+
+            // Column headers
+            int col = 1;
+            ws.Cell(row, col++).Value = "Course";
+            ws.Cell(row, col++).Value = "Units";
+            ws.Cell(row, col++).Value = "Enrl";
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = type;
+                col++;
+            }
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            ws.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var course in instructor.Courses)
+            {
+                col = 1;
+                ws.Cell(row, col++).Value = ExcelHelper.SanitizeStringCell(course.Course);
+                ws.Cell(row, col++).Value = course.Units;
+                ws.Cell(row, col++).Value = course.Enrollment;
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer) ws.Cell(row, col).Value = course.EffortByType.GetValueOrDefault(type, 0);
+                    col++;
+                }
+                row++;
+            }
+
+            // Totals row
+            col = 1;
+            ws.Cell(row, col).Value = ExcelHelper.SanitizeStringCell($"{instructor.Instructor} Totals:");
+            ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+            ws.Range(row, 1, row, lastCol).Style.Font.Italic = true;
+            ShadeExcelRow(ws, row, lastCol, "#F8F8F8");
+            col = 4;
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = instructor.InstructorTotals.GetValueOrDefault(type, 0);
+                col++;
+            }
+
+            ws.Column(1).Width = 30; // Course
+            ws.Column(2).Width = 8;  // Units
+            ws.Column(3).Width = 8;  // Enrl
+            for (int i = 0; i < effortCols.Count; i++)
+            {
+                ws.Column(4 + i).Width = effortCols[i].IsSpacer ? 1.5 : 7;
+            }
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 
 }

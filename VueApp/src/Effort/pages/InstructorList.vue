@@ -59,9 +59,13 @@
         <!-- Loading state -->
         <div
             v-if="isLoading"
-            class="text-grey q-my-md"
+            class="text-center q-my-lg"
         >
-            Loading instructors...
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading instructors...</div>
         </div>
 
         <!-- Grouped instructors by department -->
@@ -106,8 +110,12 @@
                         @click="confirmBulkEmail(deptGroup)"
                     >
                         <template #loading>
-                            <q-spinner size="1em" class="q-mr-sm" />
-                            Email {{ getEmailableCount(deptGroup) }} Unverified {{ inflect('Instructor', getEmailableCount(deptGroup)) }}
+                            <q-spinner
+                                size="1em"
+                                class="q-mr-sm"
+                            />
+                            Email {{ getEmailableCount(deptGroup) }} Unverified
+                            {{ inflect("Instructor", getEmailableCount(deptGroup)) }}
                         </template>
                     </q-btn>
                 </div>

@@ -1,9 +1,11 @@
 using System.Data;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -1257,5 +1259,248 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             MinYear = termCodes.Min() / 100,
             MaxYear = termCodes.Max() / 100,
         };
+    }
+
+    public MemoryStream GenerateReportExcel(MultiYearReport report)
+    {
+        var wb = new XLWorkbook();
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        var effortCols = BuildExcelEffortColumns(orderedTypes);
+        var lastCol = 4 + effortCols.Count;
+        var ws = wb.Worksheets.Add("Multi-Year Report");
+
+        // Report title header matching PDF
+        int row = AddExcelHeader(ws, "Merit & Promotion Report - Multi-Year", null);
+
+        // Instructor/Department/Period info
+        ws.Cell(row, 1).Value = "Instructor";
+        ws.Cell(row, 2).Value = ExcelHelper.SanitizeStringCell(report.Instructor);
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        row++;
+        ws.Cell(row, 1).Value = "Department";
+        ws.Cell(row, 2).Value = report.Department;
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        row++;
+        ws.Cell(row, 1).Value = "Period";
+        ws.Cell(row, 2).Value = $"{report.StartYear} - {report.EndYear}";
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        row += 2;
+
+        // Merit Section
+        if (report.MeritSection.Years.Count > 0)
+        {
+            ws.Cell(row, 1).Value = "MERIT ACTIVITY";
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            row++;
+
+            // Headers
+            int col = 1;
+            ws.Cell(row, col++).Value = "Year";
+            ws.Cell(row, col++).Value = "Course";
+            ws.Cell(row, col++).Value = "Units";
+            ws.Cell(row, col++).Value = "Enrl";
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = type;
+                col++;
+            }
+            ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+            var headerRow = row;
+            row++;
+
+            foreach (var year in report.MeritSection.Years)
+            {
+                foreach (var course in year.Courses)
+                {
+                    col = 1;
+                    ws.Cell(row, col++).Value = year.YearLabel;
+                    ws.Cell(row, col++).Value = ExcelHelper.SanitizeStringCell(course.Course);
+                    ws.Cell(row, col++).Value = course.Units;
+                    ws.Cell(row, col++).Value = course.Enrollment;
+                    foreach (var (type, isSpacer) in effortCols)
+                    {
+                        if (!isSpacer) ws.Cell(row, col).Value = course.Efforts.GetValueOrDefault(type, 0);
+                        col++;
+                    }
+                    row++;
+                }
+
+                // Year totals
+                col = 1;
+                ws.Cell(row, col).Value = $"{year.YearLabel} Totals";
+                ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+                ShadeExcelRow(ws, row, lastCol, "#F8F8F8");
+                col = 5;
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer) ws.Cell(row, col).Value = year.YearTotals.GetValueOrDefault(type, 0);
+                    col++;
+                }
+                row++;
+            }
+
+            // Grand totals
+            col = 1;
+            ws.Cell(row, col).Value = "Grand Totals";
+            ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+            ShadeExcelRow(ws, row, lastCol, "#E8E8E8");
+            col = 5;
+            foreach (var (type, isSpacer) in effortCols)
+            {
+                if (!isSpacer) ws.Cell(row, col).Value = report.MeritSection.GrandTotals.GetValueOrDefault(type, 0);
+                col++;
+            }
+            row++;
+
+            // Yearly averages
+            if (report.MeritSection.YearlyAverages.Count > 0)
+            {
+                col = 1;
+                ws.Cell(row, col).Value = "Yearly Averages";
+                ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+                ShadeExcelRow(ws, row, lastCol, "#E0E0E0");
+                col = 5;
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer)
+                    {
+                        var val = report.MeritSection.YearlyAverages.GetValueOrDefault(type, 0);
+                        ws.Cell(row, col).Value = val;
+                        ws.Cell(row, col).Style.NumberFormat.Format = "0.0";
+                    }
+                    col++;
+                }
+                row++;
+            }
+
+            // Department averages
+            if (report.MeritSection.DepartmentAverages.Count > 0)
+            {
+                col = 1;
+                ws.Cell(row, col).Value = $"Dept Average (Faculty: {report.MeritSection.DepartmentFacultyCount})";
+                ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
+                ShadeExcelRow(ws, row, lastCol, "#E0E0E0");
+                col = 5;
+                foreach (var (type, isSpacer) in effortCols)
+                {
+                    if (!isSpacer)
+                    {
+                        var val = report.MeritSection.DepartmentAverages.GetValueOrDefault(type, 0);
+                        ws.Cell(row, col).Value = val;
+                        ws.Cell(row, col).Style.NumberFormat.Format = "0.0";
+                    }
+                    col++;
+                }
+                row++;
+            }
+
+            row++;
+        }
+
+        // Eval Section — separate sheet matching PDF page break
+        var evalWs = wb.Worksheets.Add("Evaluation Multi-Year");
+        var yearLabel = report.UseAcademicYear
+            ? $"{report.StartYear}-{report.StartYear + 1} to {report.EndYear}-{report.EndYear + 1}"
+            : $"{report.StartYear} - {report.EndYear}";
+        row = AddExcelHeader(evalWs, "Multi-Year Evaluation Report", yearLabel,
+            $"{report.Instructor} ({report.Department})");
+
+        if (report.EvalSection.Years.Count > 0)
+        {
+            evalWs.Cell(row, 1).Value = "Year";
+            evalWs.Cell(row, 2).Value = "Course";
+            evalWs.Cell(row, 3).Value = "Role";
+            evalWs.Cell(row, 4).Value = "Average";
+            evalWs.Cell(row, 5).Value = "Median";
+            evalWs.Range(row, 1, row, 5).Style.Font.Bold = true;
+            evalWs.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var year in report.EvalSection.Years)
+            {
+                foreach (var course in year.Courses)
+                {
+                    evalWs.Cell(row, 1).Value = year.YearLabel;
+                    evalWs.Cell(row, 2).Value = ExcelHelper.SanitizeStringCell(course.Course);
+                    evalWs.Cell(row, 3).Value = course.Role;
+                    evalWs.Cell(row, 4).Value = course.Average;
+                    evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
+                    if (course.Median.HasValue)
+                    {
+                        evalWs.Cell(row, 5).Value = course.Median.Value;
+                        evalWs.Cell(row, 5).Style.NumberFormat.Format = "0.0";
+                    }
+                    row++;
+                }
+
+                // Year average
+                evalWs.Cell(row, 1).Value = $"{year.YearLabel} Average";
+                evalWs.Cell(row, 4).Value = year.YearAverage;
+                evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
+                if (year.YearMedian.HasValue)
+                {
+                    evalWs.Cell(row, 5).Value = year.YearMedian.Value;
+                    evalWs.Cell(row, 5).Style.NumberFormat.Format = "0.0";
+                }
+                evalWs.Range(row, 1, row, 5).Style.Font.Bold = true;
+                ShadeExcelRow(evalWs, row, 5, "#F8F8F8");
+                row++;
+            }
+
+            // Overall
+            evalWs.Cell(row, 1).Value = "Overall Average";
+            evalWs.Cell(row, 4).Value = report.EvalSection.OverallAverage;
+            evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
+            if (report.EvalSection.OverallMedian.HasValue)
+            {
+                evalWs.Cell(row, 5).Value = report.EvalSection.OverallMedian.Value;
+                evalWs.Cell(row, 5).Style.NumberFormat.Format = "0.0";
+            }
+            evalWs.Range(row, 1, row, 5).Style.Font.Bold = true;
+            ShadeExcelRow(evalWs, row, 5, "#E8E8E8");
+            row++;
+
+            // Department average
+            if (report.EvalSection.DepartmentAverage.HasValue)
+            {
+                evalWs.Cell(row, 1).Value = "Dept Average";
+                evalWs.Cell(row, 4).Value = report.EvalSection.DepartmentAverage.Value;
+                evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
+                evalWs.Range(row, 1, row, 5).Style.Font.Bold = true;
+                ShadeExcelRow(evalWs, row, 5, "#D0D0D0");
+            }
+        }
+        else
+        {
+            // No per-course eval data — summary matching PDF fallback
+            evalWs.Cell(row, 1).Value = "Overall Average:";
+            evalWs.Cell(row, 1).Style.Font.Bold = true;
+            evalWs.Cell(row, 1).Style.Font.Italic = true;
+            evalWs.Cell(row, 2).Value = report.EvalSection.OverallAverage;
+            evalWs.Cell(row, 2).Style.NumberFormat.Format = "0.00";
+            evalWs.Cell(row, 2).Style.Font.Bold = true;
+            row++;
+
+            if (report.EvalSection.DepartmentAverage.HasValue)
+            {
+                evalWs.Cell(row, 1).Value = $"{report.Department} Department Average for {report.StartYear} - {report.EndYear}:";
+                evalWs.Cell(row, 1).Style.Font.Bold = true;
+                evalWs.Cell(row, 1).Style.Font.Italic = true;
+                evalWs.Cell(row, 2).Value = report.EvalSection.DepartmentAverage.Value;
+                evalWs.Cell(row, 2).Style.NumberFormat.Format = "0.00";
+                evalWs.Cell(row, 2).Style.Font.Bold = true;
+            }
+        }
+
+        evalWs.Columns().AdjustToContents();
+
+        ws.Columns().AdjustToContents();
+        ApplyExcelSpacerWidths(ws, 5, effortCols);
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 }

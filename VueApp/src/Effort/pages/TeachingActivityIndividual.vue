@@ -26,6 +26,24 @@
                         Print/PDF
                     </template>
                 </q-btn>
+                <q-btn
+                    v-if="report"
+                    outline
+                    dense
+                    icon="grid_on"
+                    label="Excel"
+                    :loading="excelLoading"
+                    class="q-ml-sm"
+                    @click="handleExcelDownload"
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        Excel
+                    </template>
+                </q-btn>
             </template>
         </ReportFilterForm>
 
@@ -33,9 +51,13 @@
         <div
             v-if="loading"
             role="status"
-            class="text-grey-7 q-my-lg"
+            class="text-center q-my-lg"
         >
-            Loading report...
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading report...</div>
         </div>
 
         <!-- Report content -->
@@ -186,6 +208,7 @@ const {
     loading,
     report,
     printLoading,
+    excelLoading,
     initialFilters,
     orderedEffortTypes,
     getTotalValue,
@@ -193,9 +216,11 @@ const {
     getEffortTypeLabel,
     generateReport,
     handlePrint,
+    handleExcelDownload,
 } = useReportPage<TeachingActivityReport>({
     fetchReport: (params) => reportService.getTeachingActivityIndividual(params),
     fetchPdf: (params) => reportService.openPdf("teaching/individual/pdf", params),
+    fetchExcel: (params) => reportService.downloadExcel("teaching/individual/excel", params),
     getEffortTypes: (r) => r.effortTypes,
 })
 

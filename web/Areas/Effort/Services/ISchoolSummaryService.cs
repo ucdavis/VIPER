@@ -34,4 +34,6 @@ public interface ISchoolSummaryService
     /// Generate a PDF document from a school summary report.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(SchoolSummaryReport report);
+
+    MemoryStream GenerateReportExcel(SchoolSummaryReport report);
 }

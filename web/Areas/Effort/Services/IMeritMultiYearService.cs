@@ -32,4 +32,6 @@ public interface IMeritMultiYearService
     /// Used to populate year range dropdowns (matching legacy behavior).
     /// </summary>
     Task<InstructorYearRangeDto?> GetInstructorYearRangeAsync(int personId, CancellationToken ct = default);
+
+    MemoryStream GenerateReportExcel(MultiYearReport report);
 }

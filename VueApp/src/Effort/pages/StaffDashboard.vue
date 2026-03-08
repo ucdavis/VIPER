@@ -3,9 +3,16 @@
         <h2>Effort Dashboard</h2>
 
         <!-- Loading state -->
-        <template v-if="loading">
-            <div class="text-grey q-my-lg">Loading dashboard...</div>
-        </template>
+        <div
+            v-if="loading"
+            class="text-center q-my-lg"
+        >
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading dashboard...</div>
+        </div>
 
         <!-- Dashboard content -->
         <template v-else-if="stats">
@@ -514,9 +521,7 @@
                                             color="negative"
                                         />
                                     </q-item-section>
-                                    <q-item-section>
-                                        Unknown Department ({{ noDeptAlerts.length }})
-                                    </q-item-section>
+                                    <q-item-section> Unknown Department ({{ noDeptAlerts.length }}) </q-item-section>
                                 </template>
                                 <q-list
                                     dense

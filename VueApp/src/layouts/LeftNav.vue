@@ -50,11 +50,21 @@
                             </q-item-section>
                         </q-item>
                         <q-item
-                            v-else
-                            :clickable="menuItem.clickable"
-                            :v-ripple="menuItem.clickable"
+                            v-else-if="menuItem.menuItemUrl"
+                            clickable
+                            v-ripple
                             :href="menuItem.menuItemUrl"
                             target="_blank"
+                            :class="menuItem.displayClass"
+                        >
+                            <q-item-section>
+                                <q-item-label lines="1">
+                                    {{ menuItem.menuItemText }}
+                                </q-item-label>
+                            </q-item-section>
+                        </q-item>
+                        <q-item
+                            v-else
                             :class="menuItem.displayClass"
                         >
                             <q-item-section>
@@ -122,14 +132,19 @@ export default defineComponent({
                         }
                     }
 
+                    const indentClass =
+                        r.indentLevel === 2 ? " leftNavIndent2" : r.indentLevel === 1 ? " leftNavIndent1" : ""
+
                     return {
                         menuItemUrl: isExternalUrl ? r.menuItemURL : null,
                         routeTo: routeToUrl,
                         menuItemText: r.menuItemText,
                         clickable: r.menuItemURL.length > 0,
-                        displayClass: r.menuItemURL.length
-                            ? "leftNavLink"
-                            : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
+                        displayClass:
+                            (r.menuItemURL.length
+                                ? "leftNavLink"
+                                : (r.isHeader && r.menuItemText ? "leftNavHeader" : "") +
+                                  (r.menuItemText === "" ? " leftNavSpacer" : "")) + indentClass,
                     }
                 })
             } catch (_e) {

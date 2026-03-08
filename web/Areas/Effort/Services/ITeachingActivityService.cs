@@ -41,4 +41,8 @@ public interface ITeachingActivityService
     /// Generate a PDF document from a teaching activity report in individual (per-instructor) layout.
     /// </summary>
     Task<byte[]> GenerateIndividualReportPdfAsync(TeachingActivityReport report);
+
+    MemoryStream GenerateReportExcel(TeachingActivityReport report);
+
+    MemoryStream GenerateIndividualReportExcel(TeachingActivityReport report);
 }

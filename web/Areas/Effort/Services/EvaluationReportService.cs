@@ -1,9 +1,11 @@
 using System.Data;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -551,7 +553,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                         }
 
                         // Department average row
-                        table.Cell().Background("#D0D0D0").PaddingVertical(2).Text("Department Average").Bold().FontSize(9);
+                        table.Cell().Background("#D0D0D0").PaddingVertical(2).Text("Department Average").Italic().FontSize(9);
                         table.Cell().Background("#D0D0D0").PaddingVertical(2).AlignCenter().Text(dept.DepartmentAverage.ToString("F2")).Bold();
                     });
 
@@ -659,7 +661,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
                             // Instructor average row (full width background)
                             table.Cell().ColumnSpan(4).Background("#E8E8E8").PaddingVertical(1.5f)
-                                .Text("Instructor Average").Bold().FontSize(8).AlignRight();
+                                .Text("Instructor Average").Italic().FontSize(8).AlignRight();
                             table.Cell().Background("#E8E8E8").PaddingVertical(1.5f).AlignCenter()
                                 .Text(instructor.InstructorAverage.ToString("F2")).Bold();
                             table.Cell().Background("#E8E8E8").PaddingVertical(1.5f).Text("");
@@ -667,7 +669,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
                         // Department average row
                         table.Cell().ColumnSpan(4).Background("#D0D0D0").PaddingVertical(2)
-                            .Text("Department Average").Bold().FontSize(9).AlignRight();
+                            .Text("Department Average").Italic().FontSize(9).AlignRight();
                         table.Cell().Background("#D0D0D0").PaddingVertical(2).AlignCenter()
                             .Text(dept.DepartmentAverage.ToString("F2")).Bold();
                         table.Cell().Background("#D0D0D0").PaddingVertical(2).Text("");
@@ -692,5 +694,136 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
         });
 
         return Task.FromResult(document.GeneratePdf());
+    }
+
+    public MemoryStream GenerateEvalSummaryExcel(EvalSummaryReport report)
+    {
+        var wb = new XLWorkbook();
+        var termName = report.AcademicYear ?? report.TermName;
+
+        foreach (var dept in report.Departments)
+        {
+            var ws = wb.Worksheets.Add(dept.Department);
+
+            // Header rows matching PDF
+            int row = AddExcelHeader(ws, "Eval Summary Report", termName, dept.Department);
+            row = AddExcelFilterLine(ws, row,
+                ("Dept", report.FilterDepartment),
+                ("Person", report.FilterPersonId?.ToString()),
+                ("Role", report.FilterRole));
+            row++; // blank separator
+
+            // Column headers
+            ws.Cell(row, 1).Value = "Instructor";
+            ws.Cell(row, 2).Value = "Average";
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            ws.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var instructor in dept.Instructors)
+            {
+                ws.Cell(row, 1).Value = ExcelHelper.SanitizeStringCell(instructor.Instructor);
+                ws.Cell(row, 2).Value = instructor.WeightedAverage;
+                ws.Cell(row, 2).Style.NumberFormat.Format = "0.00";
+                row++;
+            }
+
+            // Department average
+            ws.Cell(row, 1).Value = "Department Average";
+            ws.Cell(row, 1).Style.Font.Italic = true;
+            ws.Cell(row, 2).Value = dept.DepartmentAverage;
+            ws.Cell(row, 2).Style.NumberFormat.Format = "0.00";
+            ws.Cell(row, 2).Style.Font.Bold = true;
+            ShadeExcelRow(ws, row, 2, "#D0D0D0");
+
+            ws.Columns().AdjustToContents();
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
+    }
+
+    public MemoryStream GenerateEvalDetailExcel(EvalDetailReport report)
+    {
+        var wb = new XLWorkbook();
+        var termName = report.AcademicYear ?? report.TermName;
+
+        foreach (var dept in report.Departments)
+        {
+            var ws = wb.Worksheets.Add(dept.Department);
+
+            // Header rows matching PDF
+            int row = AddExcelHeader(ws, "Eval Detail Report", termName, dept.Department);
+            row = AddExcelFilterLine(ws, row,
+                ("Dept", report.FilterDepartment),
+                ("Person", report.FilterPersonId?.ToString()),
+                ("Role", report.FilterRole));
+            row++; // blank separator
+
+            // Column headers
+            ws.Cell(row, 1).Value = "Instructor";
+            ws.Cell(row, 2).Value = "Role";
+            ws.Cell(row, 3).Value = "Term";
+            ws.Cell(row, 4).Value = "Course";
+            ws.Cell(row, 5).Value = "Average";
+            ws.Cell(row, 6).Value = "Median";
+            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            ws.SheetView.FreezeRows(row);
+            row++;
+
+            foreach (var instructor in dept.Instructors)
+            {
+                bool firstCourse = true;
+                foreach (var course in instructor.Courses)
+                {
+                    if (firstCourse)
+                    {
+                        ws.Cell(row, 1).Value = ExcelHelper.SanitizeStringCell(instructor.Instructor);
+                        firstCourse = false;
+                    }
+                    ws.Cell(row, 2).Value = course.Role;
+                    ws.Cell(row, 3).Value = course.TermName;
+                    ws.Cell(row, 4).Value = ExcelHelper.SanitizeStringCell(course.Course);
+                    ws.Cell(row, 5).Value = course.Average;
+                    ws.Cell(row, 5).Style.NumberFormat.Format = "0.0";
+                    if (course.Median.HasValue)
+                    {
+                        ws.Cell(row, 6).Value = course.Median.Value;
+                        ws.Cell(row, 6).Style.NumberFormat.Format = "0.0";
+                    }
+                    row++;
+                }
+
+                // Instructor average
+                ws.Cell(row, 4).Value = "Instructor Average";
+                ws.Cell(row, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Cell(row, 4).Style.Font.Italic = true;
+                ws.Cell(row, 5).Value = instructor.InstructorAverage;
+                ws.Cell(row, 5).Style.NumberFormat.Format = "0.00";
+                ws.Cell(row, 5).Style.Font.Bold = true;
+                ShadeExcelRow(ws, row, 6, "#E8E8E8");
+                row++;
+            }
+
+            // Department average
+            ws.Cell(row, 4).Value = "Department Average";
+            ws.Cell(row, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            ws.Cell(row, 4).Style.Font.Italic = true;
+            ws.Cell(row, 5).Value = dept.DepartmentAverage;
+            ws.Cell(row, 5).Style.NumberFormat.Format = "0.00";
+            ws.Cell(row, 5).Style.Font.Bold = true;
+            ShadeExcelRow(ws, row, 6, "#D0D0D0");
+
+            ws.Columns().AdjustToContents();
+        }
+
+        var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        wb.Dispose();
+        stream.Position = 0;
+        return stream;
     }
 }

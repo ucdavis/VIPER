@@ -12,9 +12,13 @@
         <!-- Loading state -->
         <div
             v-if="isLoading"
-            class="text-grey q-my-md"
+            class="text-center q-my-lg"
         >
-            Loading your effort data...
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading your effort data...</div>
         </div>
 
         <!-- Error state -->
@@ -189,7 +193,10 @@
                             @click="submitVerification"
                         >
                             <template #loading>
-                                <q-spinner size="1em" class="q-mr-sm" />
+                                <q-spinner
+                                    size="1em"
+                                    class="q-mr-sm"
+                                />
                                 Submit Verification
                             </template>
                         </q-btn>
