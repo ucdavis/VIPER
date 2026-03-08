@@ -14,10 +14,6 @@ let loadPromise: Promise<void> | null = null
 
 async function fetchAndCacheLabels(): Promise<void> {
     const types = await effortTypeService.getEffortTypes()
-    if (types.length === 0) {
-        loadPromise = null
-        return
-    }
     effortTypeLabelCache = {}
     for (const t of types) {
         effortTypeLabelCache[t.id] = t.description

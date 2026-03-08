@@ -1407,7 +1407,7 @@ public class InstructorService : IInstructorService
                 .GroupBy(t => t.JobGroupId!)
                 .ToDictionary(g => g.Key, g => g.First().JobGroupName ?? "", StringComparer.OrdinalIgnoreCase);
 
-            // Only include job groups that have a name in the dictionary (matches legacy behavior)
+            // Only include job groups that have a name in the dictionary
             var jobGroups = usedJobGroupIds
                 .Where(id => !string.IsNullOrEmpty(id))
                 .Select(id => new JobGroupDto
