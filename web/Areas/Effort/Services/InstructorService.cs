@@ -1326,19 +1326,19 @@ public class InstructorService : IInstructorService
                 .AsNoTracking()
                 .Where(t => t.Code != null)
                 .Select(t => new { Code = t.Code!.Trim(), Name = t.Name ?? "", t.JobGroupId })
-                .Distinct()
-                .OrderBy(t => t.Name)
-                .ThenBy(t => t.Code)
                 .ToListAsync(ct);
 
             var titleCodes = titles
                 .Where(t => !string.IsNullOrEmpty(t.Code))
-                .Select(t => new TitleCodeDto
+                .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
+                .Select(g => new TitleCodeDto
                 {
-                    Code = t.Code,
-                    Name = t.Name.Trim(),
-                    JobGroupId = t.JobGroupId?.Trim()
+                    Code = g.Key,
+                    Name = g.First().Name.Trim(),
+                    JobGroupId = g.First().JobGroupId?.Trim()
                 })
+                .OrderBy(t => t.Name)
+                .ThenBy(t => t.Code)
                 .ToList();
 
             var cacheOptions = new MemoryCacheEntryOptions()
