@@ -1386,7 +1386,6 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                     }
                     col++;
                 }
-                row++;
             }
 
         }

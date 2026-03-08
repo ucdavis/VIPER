@@ -86,7 +86,7 @@ async function killOrphanedDotnetWatch() {
         const entries = stdout.split(/\r?\n\r?\n/).filter((s) => s.includes("ProcessId="))
         const results = await Promise.all(
             entries.map(async (entry) => {
-                const pidMatch = entry.match(/(?<!=)ProcessId=(\d+)/)
+                const pidMatch = entry.match(/(?<!\w)ProcessId=(\d+)/)
                 const parentMatch = entry.match(/ParentProcessId=(\d+)/)
                 if (!pidMatch || !parentMatch) {
                     return false
