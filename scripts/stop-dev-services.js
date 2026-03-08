@@ -33,8 +33,12 @@ async function findPidOnPort(port) {
     if (process.platform !== "win32") {
         return null
     }
+    const safePort = Number.parseInt(port, 10)
+    if (Number.isNaN(safePort) || safePort < 1 || safePort > 65535) {
+        return null
+    }
     try {
-        const { stdout } = await execAsync(`netstat -aon | findstr ":${port}" | findstr "LISTENING"`)
+        const { stdout } = await execAsync(`netstat -aon | findstr ":${safePort}" | findstr "LISTENING"`)
         if (!stdout) {
             return null
         }
