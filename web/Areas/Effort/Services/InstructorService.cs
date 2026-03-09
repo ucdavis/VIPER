@@ -111,18 +111,16 @@ public class InstructorService : IInstructorService
             baseQuery = ApplyMeritJobGroupFilter(baseQuery);
         }
 
-        // All-terms mode: deduplicate to one record per person (most recent term wins).
+        // All-terms mode: deduplicate to one record per person (most recent term wins)
         if (termCode == 0)
         {
-            var allRecords = await baseQuery
+            var allPersons = await baseQuery
+                .Where(p => baseQuery
+                    .Where(p2 => p2.PersonId == p.PersonId)
+                    .Max(p2 => p2.TermCode) == p.TermCode)
                 .Include(p => p.ViperPerson)
-                .OrderByDescending(p => p.TermCode)
-                .ToListAsync(ct);
-
-            var allPersons = allRecords
-                .DistinctBy(p => p.PersonId)
                 .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
-                .ToList();
+                .ToListAsync(ct);
 
             return _mapper.Map<List<PersonDto>>(allPersons);
         }
@@ -163,15 +161,13 @@ public class InstructorService : IInstructorService
         // All-terms mode: return deduplicated name list only
         if (termCode == 0)
         {
-            var allRecords = await baseQuery
+            var allPersons = await baseQuery
+                .Where(p => baseQuery
+                    .Where(p2 => p2.PersonId == p.PersonId)
+                    .Max(p2 => p2.TermCode) == p.TermCode)
                 .Include(p => p.ViperPerson)
-                .OrderByDescending(p => p.TermCode)
-                .ToListAsync(ct);
-
-            var allPersons = allRecords
-                .DistinctBy(p => p.PersonId)
                 .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
-                .ToList();
+                .ToListAsync(ct);
 
             return _mapper.Map<List<PersonDto>>(allPersons);
         }
@@ -1359,7 +1355,9 @@ public class InstructorService : IInstructorService
 
     public async Task<List<JobGroupDto>> GetJobGroupsAsync(int? termCode = null, string? department = null, CancellationToken ct = default)
     {
-        var hasFilters = termCode.HasValue || !string.IsNullOrEmpty(department);
+        department = string.IsNullOrWhiteSpace(department) ? null : department.Trim().ToUpperInvariant();
+
+        var hasFilters = termCode.HasValue || department != null;
         var cacheKey = hasFilters ? $"{JobGroupsCacheKey}_{termCode}_{department}" : JobGroupsCacheKey;
 
         if (_cache.TryGetValue<List<JobGroupDto>>(cacheKey, out var cached) && cached != null)
@@ -1379,7 +1377,7 @@ public class InstructorService : IInstructorService
                 query = query.Where(p => p.TermCode == termCode.Value);
             }
 
-            if (!string.IsNullOrEmpty(department))
+            if (department != null)
             {
                 query = query.Where(p => p.EffortDept == department);
             }
