@@ -114,14 +114,7 @@ public class InstructorService : IInstructorService
         // All-terms mode: deduplicate to one record per person (most recent term wins)
         if (termCode == 0)
         {
-            var allPersons = await baseQuery
-                .Where(p => baseQuery
-                    .Where(p2 => p2.PersonId == p.PersonId)
-                    .Max(p2 => p2.TermCode) == p.TermCode)
-                .Include(p => p.ViperPerson)
-                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
-                .ToListAsync(ct);
-
+            var allPersons = await DeduplicateToLatestTermAsync(baseQuery, ct);
             return _mapper.Map<List<PersonDto>>(allPersons);
         }
 
@@ -161,14 +154,7 @@ public class InstructorService : IInstructorService
         // All-terms mode: return deduplicated name list only
         if (termCode == 0)
         {
-            var allPersons = await baseQuery
-                .Where(p => baseQuery
-                    .Where(p2 => p2.PersonId == p.PersonId)
-                    .Max(p2 => p2.TermCode) == p.TermCode)
-                .Include(p => p.ViperPerson)
-                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
-                .ToListAsync(ct);
-
+            var allPersons = await DeduplicateToLatestTermAsync(baseQuery, ct);
             return _mapper.Map<List<PersonDto>>(allPersons);
         }
 
@@ -192,12 +178,40 @@ public class InstructorService : IInstructorService
         // Unconditional groups + conditional groups with specific EffortTitleCode.
         // The RIGHT('000000' + EffortTitleCode, 6) padding from the SQL function is replicated
         // via string concatenation + Substring, which EF translates to SQL RIGHT().
-        return query.Where(p =>
-            p.JobGroupId != null && (
-                MeritJobGroups.Contains(p.JobGroupId)
-                || (p.JobGroupId == "124" && ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6) == "001898")
-                || (p.JobGroupId == "S56" && ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6) == "001067")
-            ));
+        // Project padded title once, filter, then project back to entity.
+        return query
+            .Where(p => p.JobGroupId != null)
+            .Select(p => new
+            {
+                Person = p,
+                PaddedTitle = ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6)
+            })
+            .Where(x =>
+                MeritJobGroups.Contains(x.Person.JobGroupId!)
+                || (x.Person.JobGroupId == "124" && x.PaddedTitle == "001898")
+                || (x.Person.JobGroupId == "S56" && x.PaddedTitle == "001067"))
+            .Select(x => x.Person);
+    }
+
+    /// <summary>
+    /// Deduplicate to one record per person, keeping the most recent term.
+    /// Uses GroupBy to compute max TermCode per person, then joins back — avoids a correlated subquery.
+    /// </summary>
+    private static async Task<List<EffortPerson>> DeduplicateToLatestTermAsync(
+        IQueryable<EffortPerson> baseQuery, CancellationToken ct)
+    {
+        var latestTermPerPerson = baseQuery
+            .GroupBy(p => p.PersonId)
+            .Select(g => new { PersonId = g.Key, MaxTermCode = g.Max(p => p.TermCode) });
+
+        return await baseQuery
+            .Join(latestTermPerPerson,
+                p => new { p.PersonId, p.TermCode },
+                lt => new { lt.PersonId, TermCode = lt.MaxTermCode },
+                (p, _) => p)
+            .Include(p => p.ViperPerson)
+            .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+            .ToListAsync(ct);
     }
 
     public async Task<PersonDto?> GetInstructorAsync(int personId, int termCode, CancellationToken ct = default)
@@ -1375,7 +1389,8 @@ public class InstructorService : IInstructorService
 
             if (termCode.HasValue)
             {
-                query = query.Where(p => p.TermCode == termCode.Value);
+                var tc = termCode.Value;
+                query = query.Where(p => p.TermCode == tc);
             }
 
             if (department != null)

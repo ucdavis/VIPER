@@ -52,7 +52,7 @@ async function findPidOnPort(port) {
 
 // Get the parent PID if it's a dotnet.exe process (Windows only)
 async function getDotnetParentPid(pid) {
-    if (process.platform !== "win32") {
+    if (process.platform !== "win32" || !/^\d+$/.test(String(pid))) {
         return null
     }
     try {
@@ -66,6 +66,7 @@ async function getDotnetParentPid(pid) {
             return null
         }
         // Only return if parent is a dotnet process (e.g. dotnet watch)
+        if (!/^\d+$/.test(parentPid)) return null
         const { stdout: parentInfo } = await execAsync(`wmic process where "ProcessId=${parentPid}" get Name /value`)
         return parentInfo.includes("dotnet.exe") ? parentPid : null
     } catch {
