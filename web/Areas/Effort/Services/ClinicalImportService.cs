@@ -1085,9 +1085,12 @@ public class ClinicalImportService : IClinicalImportService
         var titleCode = aaudInfo?.EmpEffortTitleCode?.Trim() ?? "";
 
         // Validate title code
-        var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
-        _titleLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
-        _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
+        if (_titleLookup == null || _jobGroupLookup == null)
+        {
+            var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
+            _titleLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+            _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
+        }
 
         if (string.IsNullOrEmpty(titleCode) || !_titleLookup.ContainsKey(titleCode))
         {

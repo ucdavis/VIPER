@@ -178,12 +178,19 @@ public class InstructorService : IInstructorService
         // Unconditional groups + conditional groups with specific EffortTitleCode.
         // The RIGHT('000000' + EffortTitleCode, 6) padding from the SQL function is replicated
         // via string concatenation + Substring, which EF translates to SQL RIGHT().
-        return query.Where(p =>
-            p.JobGroupId != null && (
-                MeritJobGroups.Contains(p.JobGroupId)
-                || (p.JobGroupId == "124" && ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6) == "001898")
-                || (p.JobGroupId == "S56" && ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6) == "001067")
-            ));
+        // Project padded title once, filter, then project back to entity.
+        return query
+            .Where(p => p.JobGroupId != null)
+            .Select(p => new
+            {
+                Person = p,
+                PaddedTitle = ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6)
+            })
+            .Where(x =>
+                MeritJobGroups.Contains(x.Person.JobGroupId!)
+                || (x.Person.JobGroupId == "124" && x.PaddedTitle == "001898")
+                || (x.Person.JobGroupId == "S56" && x.PaddedTitle == "001067"))
+            .Select(x => x.Person);
     }
 
     /// <summary>
@@ -1382,7 +1389,8 @@ public class InstructorService : IInstructorService
 
             if (termCode.HasValue)
             {
-                query = query.Where(p => p.TermCode == termCode.Value);
+                var tc = termCode.Value;
+                query = query.Where(p => p.TermCode == tc);
             }
 
             if (department != null)
