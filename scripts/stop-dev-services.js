@@ -192,13 +192,13 @@ async function stopDevServices() {
     // Load environment variables
     const envVars = getDevServerEnv()
 
-    // Check if .env.local was loaded
+    // Check if any env vars differ from defaults (via .env.local or shell overrides)
     const hasCustomValues = Object.entries(envVars).some(([key, value]) => DEFAULT_ENV_VARS[key] !== value)
 
     if (hasCustomValues) {
-        logInfo(`Loaded environment variables from .env.local`)
+        logInfo(`Using non-default environment variables`)
     } else {
-        logInfo(`Using default ports (no .env.local found)`)
+        logInfo(`Using default ports`)
     }
 
     // Show which ports we'll be checking

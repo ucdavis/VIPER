@@ -190,13 +190,13 @@ public class InstructorService : IInstructorService
     private static IQueryable<EffortPerson> ApplyMeritJobGroupFilter(IQueryable<EffortPerson> query)
     {
         // Unconditional groups + conditional groups with specific EffortTitleCode.
-        // The RIGHT('00' + EffortTitleCode, 6) padding from the SQL function is replicated
+        // The RIGHT('000000' + EffortTitleCode, 6) padding from the SQL function is replicated
         // via string concatenation + Substring, which EF translates to SQL RIGHT().
         return query.Where(p =>
             p.JobGroupId != null && (
                 MeritJobGroups.Contains(p.JobGroupId)
-                || (p.JobGroupId == "124" && ("00" + p.EffortTitleCode).Substring(("00" + p.EffortTitleCode).Length - 6) == "001898")
-                || (p.JobGroupId == "S56" && ("00" + p.EffortTitleCode).Substring(("00" + p.EffortTitleCode).Length - 6) == "001067")
+                || (p.JobGroupId == "124" && ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6) == "001898")
+                || (p.JobGroupId == "S56" && ("000000" + p.EffortTitleCode).Substring(("000000" + p.EffortTitleCode).Length - 6) == "001067")
             ));
     }
 
@@ -1356,6 +1356,7 @@ public class InstructorService : IInstructorService
     public async Task<List<JobGroupDto>> GetJobGroupsAsync(int? termCode = null, string? department = null, CancellationToken ct = default)
     {
         department = string.IsNullOrWhiteSpace(department) ? null : department.Trim().ToUpperInvariant();
+        if (termCode == 0) termCode = null;
 
         var hasFilters = termCode.HasValue || department != null;
         var cacheKey = hasFilters ? $"{JobGroupsCacheKey}_{termCode}_{department}" : JobGroupsCacheKey;
