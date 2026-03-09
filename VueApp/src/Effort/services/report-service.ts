@@ -227,7 +227,8 @@ class ReportService {
             return false
         }
         const url = globalThis.URL.createObjectURL(blob)
-        globalThis.open(url, "_blank")
+        globalThis.open(url, "_blank", "noopener")
+        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
         return true
     }
 
@@ -288,7 +289,8 @@ class ReportService {
             return false
         }
         const url = globalThis.URL.createObjectURL(blob)
-        globalThis.open(url, "_blank")
+        globalThis.open(url, "_blank", "noopener")
+        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
         return true
     }
 
@@ -311,7 +313,8 @@ class ReportService {
         if (params.title) {
             searchParams.set("title", params.title)
         }
-        return `${this.baseUrl}/${endpoint}?${searchParams.toString()}`
+        const query = searchParams.toString()
+        return query ? `${this.baseUrl}/${endpoint}?${query}` : `${this.baseUrl}/${endpoint}`
     }
 
     // ============================================

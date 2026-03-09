@@ -109,10 +109,13 @@ public class ClinicalImportService : IClinicalImportService
                 })
             .ToListAsync(ct);
 
-        // Get valid effort title codes
-        var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
-        _titleLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
-        _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
+        // Get valid effort title codes (only query DB when lookups haven't been built yet)
+        if (_titleLookup == null || _jobGroupLookup == null)
+        {
+            var titleCodes = await _instructorService.GetTitleCodesAsync(ct);
+            _titleLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+            _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
+        }
 
         // Build lookup of MothraId → titleCode for those with valid title codes
         var titleCodeByMothraId = aaudImportInfo

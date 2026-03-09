@@ -33,8 +33,12 @@ async function findPidOnPort(port) {
     if (process.platform !== "win32") {
         return null
     }
+    const safePort = Number.parseInt(port, 10)
+    if (Number.isNaN(safePort) || safePort < 1 || safePort > 65535) {
+        return null
+    }
     try {
-        const { stdout } = await execAsync(`netstat -aon | findstr ":${port}" | findstr "LISTENING"`)
+        const { stdout } = await execAsync(`netstat -aon | findstr ":${safePort}" | findstr "LISTENING"`)
         if (!stdout) {
             return null
         }
@@ -86,7 +90,7 @@ async function killOrphanedDotnetWatch() {
         const entries = stdout.split(/\r?\n\r?\n/).filter((s) => s.includes("ProcessId="))
         const results = await Promise.all(
             entries.map(async (entry) => {
-                const pidMatch = entry.match(/(?<!=)ProcessId=(\d+)/)
+                const pidMatch = entry.match(/(?<!\w)ProcessId=(\d+)/)
                 const parentMatch = entry.match(/ParentProcessId=(\d+)/)
                 if (!pidMatch || !parentMatch) {
                     return false

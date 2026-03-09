@@ -1305,7 +1305,6 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                 col++;
             }
             ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
-            var headerRow = row;
             row++;
 
             foreach (var year in report.MeritSection.Years)
@@ -1326,8 +1325,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                 }
 
                 // Year totals
-                col = 1;
-                ws.Cell(row, col).Value = $"{year.YearLabel} Totals";
+                ws.Cell(row, 4).Value = $"{year.YearLabel} Totals";
                 ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
                 ShadeExcelRow(ws, row, lastCol, "#F8F8F8");
                 col = 5;
@@ -1340,8 +1338,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             }
 
             // Grand totals
-            col = 1;
-            ws.Cell(row, col).Value = "Grand Totals";
+            ws.Cell(row, 4).Value = "Grand Totals";
             ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
             ShadeExcelRow(ws, row, lastCol, "#E8E8E8");
             col = 5;
@@ -1355,8 +1352,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             // Yearly averages
             if (report.MeritSection.YearlyAverages.Count > 0)
             {
-                col = 1;
-                ws.Cell(row, col).Value = "Yearly Averages";
+                ws.Cell(row, 4).Value = "Yearly Averages";
                 ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
                 ShadeExcelRow(ws, row, lastCol, "#E0E0E0");
                 col = 5;
@@ -1376,8 +1372,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             // Department averages
             if (report.MeritSection.DepartmentAverages.Count > 0)
             {
-                col = 1;
-                ws.Cell(row, col).Value = $"Dept Average (Faculty: {report.MeritSection.DepartmentFacultyCount})";
+                ws.Cell(row, 4).Value = $"Dept Average (Faculty: {report.MeritSection.DepartmentFacultyCount})";
                 ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
                 ShadeExcelRow(ws, row, lastCol, "#E0E0E0");
                 col = 5;
@@ -1391,10 +1386,8 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                     }
                     col++;
                 }
-                row++;
             }
 
-            row++;
         }
 
         // Eval Section — separate sheet matching PDF page break
@@ -1434,7 +1427,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                 }
 
                 // Year average
-                evalWs.Cell(row, 1).Value = $"{year.YearLabel} Average";
+                evalWs.Cell(row, 3).Value = $"{year.YearLabel} Average";
                 evalWs.Cell(row, 4).Value = year.YearAverage;
                 evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
                 if (year.YearMedian.HasValue)
@@ -1448,7 +1441,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             }
 
             // Overall
-            evalWs.Cell(row, 1).Value = "Overall Average";
+            evalWs.Cell(row, 3).Value = "Overall Average";
             evalWs.Cell(row, 4).Value = report.EvalSection.OverallAverage;
             evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
             if (report.EvalSection.OverallMedian.HasValue)
@@ -1463,7 +1456,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             // Department average
             if (report.EvalSection.DepartmentAverage.HasValue)
             {
-                evalWs.Cell(row, 1).Value = "Dept Average";
+                evalWs.Cell(row, 3).Value = "Dept Average";
                 evalWs.Cell(row, 4).Value = report.EvalSection.DepartmentAverage.Value;
                 evalWs.Cell(row, 4).Style.NumberFormat.Format = "0.00";
                 evalWs.Range(row, 1, row, 5).Style.Font.Bold = true;

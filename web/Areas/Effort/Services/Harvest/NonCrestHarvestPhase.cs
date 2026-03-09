@@ -252,12 +252,13 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
             .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
 
-        context.JobGroupLookup ??= await context.DictionaryContext.Titles
+        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
             .AsNoTracking()
             .Where(t => t.Code != null && t.JobGroupId != null)
             .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
-            .Distinct()
-            .ToDictionaryAsync(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase, ct);
+            .ToListAsync(ct))
+            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
 
         // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
         var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(nonCrestMothraIds, context.TermCode, ct);

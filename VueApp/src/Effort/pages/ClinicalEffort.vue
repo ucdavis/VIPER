@@ -281,6 +281,7 @@ async function handlePrint() {
         } else {
             const url = globalThis.URL.createObjectURL(blob)
             globalThis.open(url, "_blank")
+            globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
         }
     } finally {
         printLoading.value = false

@@ -9,10 +9,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // Mock the ViperFetch composable
 const mockGet = vi.fn()
+const mockPostForBlob = vi.fn()
+const mockDownloadBlob = vi.fn()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),
     }),
+    postForBlob: (...args: unknown[]) => mockPostForBlob(...args),
+    downloadBlob: (...args: unknown[]) => mockDownloadBlob(...args),
 }))
 
 // Import service after mocking
@@ -179,6 +183,102 @@ describe("ReportService", () => {
             await reportService.getTeachingActivityIndividual({ termCode: TEST_TERM_CODE, department: "APC" })
 
             expect(mockGet).toHaveBeenCalledWith(expect.stringContaining("department=APC"))
+        })
+    })
+
+    describe("downloadExcel", () => {
+        it("should return true and call downloadBlob when blob has data", async () => {
+            mockPostForBlob.mockResolvedValue({
+                blob: new Blob(["data"], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+                filename: "teaching-activity.xlsx",
+            })
+
+            const result = await reportService.downloadExcel("teaching/grouped/excel", { termCode: TEST_TERM_CODE })
+
+            expect(result).toBe(true)
+            expect(mockDownloadBlob).toHaveBeenCalledWith(expect.any(Blob), "teaching-activity.xlsx")
+        })
+
+        it("should return false when blob is empty", async () => {
+            mockPostForBlob.mockResolvedValue({ blob: new Blob([]), filename: null })
+
+            const result = await reportService.downloadExcel("teaching/grouped/excel", { termCode: TEST_TERM_CODE })
+
+            expect(result).toBe(false)
+            expect(mockDownloadBlob).not.toHaveBeenCalled()
+        })
+
+        it("should use fallback filename when server provides none", async () => {
+            mockPostForBlob.mockResolvedValue({
+                blob: new Blob(["data"]),
+                filename: null,
+            })
+
+            await reportService.downloadExcel("teaching/grouped/excel", { termCode: TEST_TERM_CODE })
+
+            expect(mockDownloadBlob).toHaveBeenCalledWith(expect.any(Blob), "report.xlsx")
+        })
+    })
+
+    describe("downloadClinicalEffortExcel", () => {
+        it("should return true and download when blob has data", async () => {
+            mockPostForBlob.mockResolvedValue({
+                blob: new Blob(["data"]),
+                filename: "clinical-effort.xlsx",
+            })
+
+            const result = await reportService.downloadClinicalEffortExcel("2024-2025", 1)
+
+            expect(result).toBe(true)
+            expect(mockPostForBlob).toHaveBeenCalledWith(
+                expect.stringContaining("merit/clinical/excel"),
+                expect.objectContaining({ academicYear: "2024-2025", clinicalType: 1 }),
+            )
+            expect(mockDownloadBlob).toHaveBeenCalledWith(expect.any(Blob), "clinical-effort.xlsx")
+        })
+
+        it("should return false when blob is empty", async () => {
+            mockPostForBlob.mockResolvedValue({ blob: new Blob([]), filename: null })
+
+            const result = await reportService.downloadClinicalEffortExcel("2024-2025", 1)
+
+            expect(result).toBe(false)
+            expect(mockDownloadBlob).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("downloadMultiYearExcel", () => {
+        it("should return true and download when blob has data", async () => {
+            mockPostForBlob.mockResolvedValue({
+                blob: new Blob(["data"]),
+                filename: "multi-year.xlsx",
+            })
+
+            const result = await reportService.downloadMultiYearExcel({
+                personId: 123,
+                startYear: 2020,
+                endYear: 2024,
+            })
+
+            expect(result).toBe(true)
+            expect(mockPostForBlob).toHaveBeenCalledWith(
+                expect.stringContaining("merit/multiyear/excel"),
+                expect.objectContaining({ personId: 123, startYear: 2020, endYear: 2024 }),
+            )
+            expect(mockDownloadBlob).toHaveBeenCalledWith(expect.any(Blob), "multi-year.xlsx")
+        })
+
+        it("should return false when blob is empty", async () => {
+            mockPostForBlob.mockResolvedValue({ blob: new Blob([]), filename: null })
+
+            const result = await reportService.downloadMultiYearExcel({
+                personId: 123,
+                startYear: 2020,
+                endYear: 2024,
+            })
+
+            expect(result).toBe(false)
+            expect(mockDownloadBlob).not.toHaveBeenCalled()
         })
     })
 })

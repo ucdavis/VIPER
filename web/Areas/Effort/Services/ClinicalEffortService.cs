@@ -280,7 +280,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
 
         _logger.LogDebug(
             "Clinical effort SP: {RowCount} rows, {EffortTypeCount} effort types for term {TermCode} type {ClinicalType}",
-            rows.Count, effortTypes.Count, termCode, clinicalType);
+            rows.Count, effortTypes.Count, LogSanitizer.SanitizeString(termCode), clinicalType);
 
         return (rows, effortTypes);
     }
