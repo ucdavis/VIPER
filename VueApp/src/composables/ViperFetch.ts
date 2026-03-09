@@ -268,8 +268,10 @@ function downloadBlob(blob: Blob, filename: string): void {
     link.download = filename
     document.body.append(link)
     link.click()
-    link.remove()
-    globalThis.URL.revokeObjectURL(url)
+    queueMicrotask(() => {
+        link.remove()
+        globalThis.URL.revokeObjectURL(url)
+    })
 }
 
 export { useFetch, postForBlob, downloadBlob, HTTP_STATUS }
