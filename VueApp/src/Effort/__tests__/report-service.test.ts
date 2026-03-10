@@ -136,7 +136,7 @@ describe("ReportService", () => {
                 title: "REG",
             })
 
-            const calledUrl = mockGet.mock.calls[0][0] as string
+            const calledUrl = mockGet.mock.calls[0]![0] as string
             expect(calledUrl).toContain(`termCode=${TEST_TERM_CODE}`)
             expect(calledUrl).toContain("department=VME")
             expect(calledUrl).toContain("personId=123")
@@ -149,7 +149,7 @@ describe("ReportService", () => {
 
             await reportService.getTeachingActivityGrouped({ termCode: TEST_TERM_CODE })
 
-            const calledUrl = mockGet.mock.calls[0][0] as string
+            const calledUrl = mockGet.mock.calls[0]![0] as string
             expect(calledUrl).toContain(`termCode=${TEST_TERM_CODE}`)
             expect(calledUrl).not.toContain("department=")
             expect(calledUrl).not.toContain("personId=")

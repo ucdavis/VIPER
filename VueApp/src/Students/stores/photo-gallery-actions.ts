@@ -167,7 +167,7 @@ function createExportToWord(refs: StoreRefs) {
             })
             // Use server-provided filename if available, otherwise fallback to timestamp
             const finalFilename = filename || `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.docx`
-            PhotoGalleryService.downloadFile(blob, finalFilename)
+            photoGalleryService.downloadFile(blob, finalFilename)
         } catch (err: any) {
             throw new Error(err.message || "Failed to export to Word", { cause: err })
         } finally {
@@ -187,7 +187,7 @@ function createExportToPDF(refs: StoreRefs) {
             })
             // Use server-provided filename if available, otherwise fallback to timestamp
             const finalFilename = filename || `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.pdf`
-            PhotoGalleryService.downloadFile(blob, finalFilename)
+            photoGalleryService.downloadFile(blob, finalFilename)
         } catch (err: any) {
             throw new Error(err.message || "Failed to export to PDF", { cause: err })
         } finally {
