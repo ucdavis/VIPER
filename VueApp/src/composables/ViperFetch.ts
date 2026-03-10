@@ -261,4 +261,17 @@ function useFetch() {
     return { get, post, put, del, patch, createUrlSearchParams }
 }
 
-export { useFetch, postForBlob, HTTP_STATUS }
+function downloadBlob(blob: Blob, filename: string): void {
+    const url = globalThis.URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.append(link)
+    link.click()
+    queueMicrotask(() => {
+        link.remove()
+        globalThis.URL.revokeObjectURL(url)
+    })
+}
+
+export { useFetch, postForBlob, downloadBlob, HTTP_STATUS }

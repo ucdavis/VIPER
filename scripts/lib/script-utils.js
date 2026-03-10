@@ -238,7 +238,7 @@ async function killProcessOnPort(port) {
             // Step 3: Kill each process by PID
             const killPromises = pids.map(async (pid) => {
                 try {
-                    await execAsync(`taskkill /F /PID ${pid}`)
+                    await execAsync(`taskkill /F /PID ${pid} /T`)
                     // Wait for the process to fully terminate before continuing
                     await waitForProcessTermination(pid, KILL_TERMINATION_WAIT_MS)
                     return true
@@ -270,7 +270,9 @@ async function killProcessOnPort(port) {
 
 module.exports = {
     checkPartiallyStaged,
+    checkProcessExists,
     createLogger,
+    execAsync,
     getDevServerEnv,
     getPartiallyStaged,
     killProcess,

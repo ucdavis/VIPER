@@ -3,7 +3,15 @@
 // A catch-all script in case there are zombie processes running.
 // Cross-platform support via shared utilities.
 
-const { killProcess, killProcessOnPort, getDevServerEnv, createLogger } = require("./lib/script-utils")
+const {
+    killProcess,
+    killProcessOnPort,
+    getDevServerEnv,
+    createLogger,
+    execAsync,
+    checkProcessExists,
+    DEFAULT_ENV_VARS,
+} = require("./lib/script-utils")
 
 // Create logger with prefix
 const logger = createLogger("Dev Stop")
@@ -20,11 +28,117 @@ async function stopMailpit() {
     return stopped
 }
 
-// Stop .NET processes on ASPNETCORE ports (safer than killing by name)
+// Find the PID of a process listening on a given port (Windows only)
+async function findPidOnPort(port) {
+    if (process.platform !== "win32") {
+        return null
+    }
+    const safePort = Number.parseInt(port, 10)
+    if (Number.isNaN(safePort) || safePort < 1 || safePort > 65535) {
+        return null
+    }
+    try {
+        const { stdout } = await execAsync(`netstat -aon | findstr ":${safePort}" | findstr "LISTENING"`)
+        if (!stdout) {
+            return null
+        }
+        const lines = stdout.trim().split(/\r?\n/).filter(Boolean)
+        const pids = lines.map((line) => line.trim().split(/\s+/).pop()).filter((pid) => pid && pid !== "0")
+        return pids.length > 0 ? pids[0] : null
+    } catch {
+        return null
+    }
+}
+
+// Get the parent PID if it's a dotnet.exe process (Windows only)
+async function getDotnetParentPid(pid) {
+    if (process.platform !== "win32" || !/^\d+$/.test(String(pid))) {
+        return null
+    }
+    try {
+        const { stdout } = await execAsync(`wmic process where "ProcessId=${pid}" get ParentProcessId /value`)
+        const match = stdout.match(/ParentProcessId=(\d+)/)
+        if (!match) {
+            return null
+        }
+        const [, parentPid] = match
+        if (parentPid === "0" || parentPid === "1") {
+            return null
+        }
+        // Only return if parent is a dotnet process (e.g. dotnet watch)
+        if (!/^\d+$/.test(parentPid)) return null
+        const { stdout: parentInfo } = await execAsync(`wmic process where "ProcessId=${parentPid}" get Name /value`)
+        return parentInfo.includes("dotnet.exe") ? parentPid : null
+    } catch {
+        return null
+    }
+}
+
+// Find and kill orphaned dotnet watch processes whose parent session is dead
+async function killOrphanedDotnetWatch() {
+    if (process.platform !== "win32") {
+        return 0
+    }
+    try {
+        const { stdout } = await execAsync(
+            `wmic process where "Name='dotnet.exe' AND CommandLine LIKE '%watch%'" get ProcessId,ParentProcessId /value`,
+        )
+        if (!stdout) {
+            return 0
+        }
+
+        // Parse PID/ParentProcessId pairs from wmic /value output
+        const entries = stdout.split(/\r?\n\r?\n/).filter((s) => s.includes("ProcessId="))
+        const results = await Promise.all(
+            entries.map(async (entry) => {
+                const pidMatch = entry.match(/(?<!\w)ProcessId=(\d+)/)
+                const parentMatch = entry.match(/ParentProcessId=(\d+)/)
+                if (!pidMatch || !parentMatch) {
+                    return false
+                }
+
+                const [, pid] = pidMatch
+                const [, parentPid] = parentMatch
+
+                // If the parent is dead, this dotnet watch is orphaned
+                const parentAlive = await checkProcessExists(parentPid)
+                if (!parentAlive) {
+                    const wasKilled = await killProcess(pid)
+                    if (wasKilled) {
+                        logSuccess(`Orphaned dotnet watch: Stopped process tree (PID ${pid})`)
+                        return true
+                    }
+                }
+                return false
+            }),
+        )
+        return results.filter(Boolean).length
+    } catch {
+        return 0
+    }
+}
+
+// Stop .NET processes on ASPNETCORE ports, including parent dotnet watch
 async function stopDotnetProcesses(envVars) {
     const dotnetPorts = [envVars.ASPNETCORE_HTTPS_PORT].filter((port) => port && !Number.isNaN(port))
 
     const stopPromises = dotnetPorts.map(async (port) => {
+        // Find the process on the port so we can also kill its parent (dotnet watch)
+        const pid = await findPidOnPort(port)
+        if (pid) {
+            const parentPid = await getDotnetParentPid(pid)
+            if (parentPid) {
+                // Kill the parent dotnet watch — killProcess uses /T to kill the entire tree
+                const killed = await killProcess(parentPid)
+                if (killed) {
+                    logSuccess(
+                        `.NET development server: Stopped dotnet watch (PID ${parentPid}) and its process tree on port ${port}`,
+                    )
+                    return true
+                }
+            }
+        }
+        // Fallback: kill just the port-bound process
         const portStopped = await killProcessOnPort(port)
         if (portStopped) {
             logSuccess(`.NET development server: Stopped process on port ${port}`)
@@ -36,10 +150,13 @@ async function stopDotnetProcesses(envVars) {
     const stopped = results.filter(Boolean).length
 
     if (stopped === 0) {
-        logInfo(".NET development server: Not running")
+        logInfo(".NET development server: Not running on port")
     }
 
-    return stopped
+    // Sweep for orphaned dotnet watch processes (parent session died but watch survived)
+    const orphansKilled = await killOrphanedDotnetWatch()
+
+    return stopped + orphansKilled
 }
 
 // Check and stop Vite dev server processes
@@ -76,15 +193,13 @@ async function stopDevServices() {
     // Load environment variables
     const envVars = getDevServerEnv()
 
-    // Check if .env.local was loaded
-    const hasCustomValues = Object.entries(envVars).some(
-        ([key, value]) => process.env[key] && Number.parseInt(process.env[key], 10) !== value,
-    )
+    // Check if any env vars differ from defaults (via .env.local or shell overrides)
+    const hasCustomValues = Object.entries(envVars).some(([key, value]) => DEFAULT_ENV_VARS[key] !== value)
 
     if (hasCustomValues) {
-        logInfo(`Loaded environment variables from .env.local`)
+        logInfo(`Using non-default environment variables`)
     } else {
-        logInfo(`Using default ports (no .env.local found)`)
+        logInfo(`Using default ports`)
     }
 
     // Show which ports we'll be checking

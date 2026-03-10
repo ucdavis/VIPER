@@ -40,11 +40,11 @@
                     class="leftNavHeader"
                 >
                     <q-item-section>
-                        <q-item-label lines="1">
-                            {{ currentTerm.termName }}
+                        <q-item-label class="term-label">
+                            <span class="term-text">{{ currentTerm.termName }}</span>
                             <q-icon
                                 name="edit"
-                                size="xs"
+                                size="1rem"
                                 class="q-ml-xs"
                             />
                         </q-item-label>
@@ -221,6 +221,199 @@
                         </q-item-label>
                     </q-item-section>
                 </q-item>
+
+                <!-- Reports (legacy: ViewDept OR ViewAllDepartments OR Reports) -->
+                <q-item
+                    v-if="canViewReports"
+                    class="leftNavHeader q-mt-sm"
+                >
+                    <q-item-section>
+                        <q-item-label class="text-weight-bold">Reports</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <!-- Merit & Promotion sub-header -->
+                <q-item
+                    v-if="canViewReports"
+                    class="leftNavSubHeader"
+                >
+                    <q-item-section>
+                        <q-item-label
+                            lines="1"
+                            class="text-weight-medium"
+                            >Merit &amp; Promotion</q-item-label
+                        >
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MeritAverage', params: reportParams }"
+                    :active="route.name === 'MeritAverage'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Average</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MeritDetail', params: reportParams }"
+                    :active="route.name === 'MeritDetail'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Detail</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MultiYearReport', params: reportParams }"
+                    :active="route.name === 'MultiYearReport'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Multi-Year</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'MeritSummary', params: reportParams }"
+                    :active="route.name === 'MeritSummary'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'ClinicalEffort', params: reportParams }"
+                    :active="route.name === 'ClinicalEffort'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Clinical Effort</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewScheduledCliWeeks"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'ScheduledCliWeeks', params: reportParams }"
+                    :active="route.name === 'ScheduledCliWeeks'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Scheduled CLI Weeks</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <!-- Teaching Activity sub-header -->
+                <q-item
+                    v-if="canViewReports"
+                    class="leftNavSubHeader"
+                >
+                    <q-item-section>
+                        <q-item-label
+                            lines="1"
+                            class="text-weight-medium"
+                            >Teaching Activity</q-item-label
+                        >
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'TeachingActivityGrouped', params: reportParams }"
+                    :active="route.name === 'TeachingActivityGrouped'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Grouped</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'TeachingActivityIndividual', params: reportParams }"
+                    :active="route.name === 'TeachingActivityIndividual'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Individual</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'DeptSummary', params: reportParams }"
+                    :active="route.name === 'DeptSummary'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Dept Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="isAdmin || hasSchoolSummary"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'SchoolSummary', params: reportParams }"
+                    :active="route.name === 'SchoolSummary'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">School Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <!-- Evaluation sub-header -->
+                <q-item
+                    v-if="canViewReports"
+                    class="leftNavSubHeader"
+                >
+                    <q-item-section>
+                        <q-item-label
+                            lines="1"
+                            class="text-weight-medium"
+                            >Evaluation</q-item-label
+                        >
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'EvalSummary', params: reportParams }"
+                    :active="route.name === 'EvalSummary'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Summary</q-item-label>
+                    </q-item-section>
+                </q-item>
+                <q-item
+                    v-if="canViewReports"
+                    clickable
+                    v-ripple
+                    :to="{ name: 'EvalDetail', params: reportParams }"
+                    :active="route.name === 'EvalDetail'"
+                    class="leftNavLink leftNavIndent1"
+                >
+                    <q-item-section>
+                        <q-item-label lines="1">Detail</q-item-label>
+                    </q-item-section>
+                </q-item>
             </q-list>
         </div>
     </q-drawer>
@@ -244,6 +437,8 @@ const {
     hasManageUnits,
     hasManageEffortTypes,
     hasAnyAuditAccess,
+    hasReports,
+    hasSchoolSummary,
     hasImportCourse,
     hasEditCourse,
     hasDeleteCourse,
@@ -265,6 +460,17 @@ const canViewCourses = computed(
         hasManageRCourseEnrollment.value ||
         isAdmin.value,
 )
+
+// Reports visible to ViewDept, ViewAllDepartments, or Reports users (matches legacy Nav.cfm)
+const canViewReports = computed(() => hasViewDept.value || isAdmin.value || hasReports.value)
+
+// Report route params — pass termCode when selected so the report page starts with that term.
+// Active detection uses route.name because after report generation the URL shifts termCode
+// from path param to query param, which breaks Quasar's default URL-based matching.
+const reportParams = computed(() => (currentTerm.value ? { termCode: currentTerm.value.termCode } : {}))
+
+// Scheduled CLI Weeks requires full access — clinical schedule data lacks department info
+const canViewScheduledCliWeeks = computed(() => isAdmin.value)
 
 // Users who can add/edit/delete instructors or have view access should see the Instructors link
 const canViewInstructors = computed(
@@ -301,9 +507,11 @@ async function loadCurrentTerm(termCode: number | null) {
     }
 }
 
-// Watch both route params and query params for termCode
+// Watch both route params and query params for termCode.
+// Query takes precedence because updateUrlParams() writes the user's latest selection there,
+// while the path param may be stale from the initial navigation.
 watch(
-    () => route.params.termCode || route.query.termCode,
+    () => route.query.termCode || route.params.termCode,
     (newTermCode) => {
         const termCode = newTermCode ? parseInt(newTermCode as string, 10) : null
         loadCurrentTerm(termCode)
@@ -317,5 +525,16 @@ watch(
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+}
+
+.term-label {
+    display: inline-flex !important;
+    align-items: center;
+}
+
+.term-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

@@ -84,9 +84,13 @@
         <!-- Loading state -->
         <div
             v-if="isLoading"
-            class="text-grey q-my-md"
+            class="text-center q-my-lg"
         >
-            Loading courses...
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading courses...</div>
         </div>
 
         <!-- Grouped courses by department -->
@@ -153,7 +157,7 @@
                                     >
                                 </q-badge>
                                 <q-badge
-                                    v-if="props.row.enrollment === 0"
+                                    v-if="props.row.enrollment === 0 && !props.row.isRCourse"
                                     color="orange-8"
                                     text-color="white"
                                 >

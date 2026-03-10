@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
-using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -13,13 +12,11 @@ namespace Viper.Areas.Effort.Services;
 public class DashboardService : IDashboardService
 {
     private readonly EffortDbContext _context;
-    private readonly AAUDContext _aaudContext;
     private readonly ITermService _termService;
 
-    public DashboardService(EffortDbContext context, AAUDContext aaudContext, ITermService termService)
+    public DashboardService(EffortDbContext context, ITermService termService)
     {
         _context = context;
-        _aaudContext = aaudContext;
         _termService = termService;
     }
 
@@ -424,10 +421,10 @@ public class DashboardService : IDashboardService
             .Distinct()
             .ToList();
         var userNames = ignoredByIds.Count > 0
-            ? await _aaudContext.AaudUsers
+            ? await _context.ViperPersons
                 .AsNoTracking()
-                .Where(u => ignoredByIds.Contains(u.AaudUserId))
-                .ToDictionaryAsync(u => u.AaudUserId, u => $"{u.DisplayFirstName} {u.DisplayLastName}", ct)
+                .Where(p => ignoredByIds.Contains(p.PersonId))
+                .ToDictionaryAsync(p => p.PersonId, p => p.FullName, ct)
             : new Dictionary<int, string>();
 
         // Apply states to alerts

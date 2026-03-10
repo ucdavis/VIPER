@@ -96,7 +96,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 SeqNumb = course.SeqNumb,
                 Enrollment = course.Enrollment,
                 Units = (decimal)course.Units,
-                CustDept = course.DeptCode,
+                CustDept = CustodialDepartmentResolver.Resolve(course.SubjCode, course.DeptCode),
                 Source = EffortConstants.SourceNonCrest
             });
         }
@@ -116,7 +116,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 SeqNumb = course.SeqNumb,
                 Enrollment = course.Enrollment,
                 Units = (decimal)course.Units,
-                CustDept = course.DeptCode,
+                CustDept = CustodialDepartmentResolver.Resolve(course.SubjCode, course.DeptCode),
                 Source = EffortConstants.SourceInCrest
             });
         }
@@ -251,6 +251,14 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         // Get lookups
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
             .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
+
+        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
+            .AsNoTracking()
+            .Where(t => t.Code != null && t.JobGroupId != null)
+            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
+            .ToListAsync(ct))
+            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
 
         // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
         var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(nonCrestMothraIds, context.TermCode, ct);

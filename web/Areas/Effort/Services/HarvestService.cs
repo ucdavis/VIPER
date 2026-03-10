@@ -408,11 +408,19 @@ public class HarvestService : IHarvestService
         // Check if database supports ExecuteDeleteAsync (in-memory provider does not)
         var isInMemory = _context.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) ?? false;
 
+        // CourseRelationships references Courses via FK — must be deleted before Courses
+        var termCourseIds = _context.Courses.Where(c => c.TermCode == termCode).Select(c => c.Id);
+
         if (isInMemory)
         {
             // Fall back to traditional delete for in-memory testing
             var recordsToDelete = await _context.Records.Where(r => r.TermCode == termCode).ToListAsync(ct);
             _context.Records.RemoveRange(recordsToDelete);
+
+            var relationshipsToDelete = await _context.CourseRelationships
+                .Where(cr => termCourseIds.Contains(cr.ParentCourseId) || termCourseIds.Contains(cr.ChildCourseId))
+                .ToListAsync(ct);
+            _context.CourseRelationships.RemoveRange(relationshipsToDelete);
 
             var coursesToDelete = await _context.Courses.Where(c => c.TermCode == termCode).ToListAsync(ct);
             _context.Courses.RemoveRange(coursesToDelete);
@@ -424,8 +432,11 @@ public class HarvestService : IHarvestService
         }
         else
         {
-            // Use efficient bulk delete for production
+            // Use efficient bulk delete for production — FK-safe order
             await _context.Records.Where(r => r.TermCode == termCode).ExecuteDeleteAsync(ct);
+            await _context.CourseRelationships
+                .Where(cr => termCourseIds.Contains(cr.ParentCourseId) || termCourseIds.Contains(cr.ChildCourseId))
+                .ExecuteDeleteAsync(ct);
             await _context.Courses.Where(c => c.TermCode == termCode).ExecuteDeleteAsync(ct);
             await _context.Persons.Where(p => p.TermCode == termCode).ExecuteDeleteAsync(ct);
         }

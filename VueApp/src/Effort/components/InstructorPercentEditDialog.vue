@@ -160,7 +160,12 @@
                                 label="Update Instructor"
                                 :loading="isSavingSettings"
                                 @click="updateInstructor"
-                            />
+                            >
+                                <template #loading>
+                                    <q-spinner size="1em" class="q-mr-sm" />
+                                    Update Instructor
+                                </template>
+                            </q-btn>
                         </div>
                     </q-form>
                 </div>

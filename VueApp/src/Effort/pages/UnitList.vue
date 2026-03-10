@@ -15,9 +15,13 @@
 
         <div
             v-if="isLoading"
-            class="text-grey q-my-md"
+            class="text-center q-my-lg"
         >
-            Loading units...
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading units...</div>
         </div>
 
         <template v-else>

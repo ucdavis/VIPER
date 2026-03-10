@@ -104,6 +104,14 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
         context.TitleLookup ??= (await context.InstructorService.GetTitleCodesAsync(ct))
             .ToDictionary(t => t.Code, t => t.Name, StringComparer.OrdinalIgnoreCase);
 
+        context.JobGroupLookup ??= (await context.DictionaryContext.Titles
+            .AsNoTracking()
+            .Where(t => t.Code != null && t.JobGroupId != null)
+            .Select(t => new { Code = t.Code!.Trim(), t.JobGroupId })
+            .ToListAsync(ct))
+            .GroupBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
+
         // Build effort records with priority resolution (uses shared priority from ClinicalImportService)
         var effortByPersonCourse = new Dictionary<string, HarvestRecordPreview>();
 

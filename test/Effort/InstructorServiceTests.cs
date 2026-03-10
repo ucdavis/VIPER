@@ -145,6 +145,64 @@ public sealed class InstructorServiceTests : IDisposable
         Assert.Empty(instructors);
     }
 
+    [Fact]
+    public async Task GetInstructorsAsync_AllTerms_DeduplicatesToLatestTermPerPerson()
+    {
+        // Arrange — same person across multiple terms
+        _context.Persons.AddRange(
+            new EffortPerson { PersonId = 1, TermCode = 202310, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" },
+            new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" },
+            new EffortPerson { PersonId = 2, TermCode = 202310, FirstName = "Jane", LastName = "Smith", EffortDept = "APC", EffortTitleCode = "5678" }
+        );
+        await _context.SaveChangesAsync();
+
+        // Act — termCode 0 means "all terms"
+        var result = await _instructorService.GetInstructorsAsync(0);
+
+        // Assert — one record per person, latest term wins
+        Assert.Equal(2, result.Count);
+        var john = result.First(r => r.PersonId == 1);
+        Assert.Equal(202410, john.TermCode);
+        var jane = result.First(r => r.PersonId == 2);
+        Assert.Equal(202310, jane.TermCode);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_AllTerms_RespectsDepartmentFilter()
+    {
+        // Arrange
+        _context.Persons.AddRange(
+            new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" },
+            new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortDept = "APC", EffortTitleCode = "5678" }
+        );
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(0, "VME");
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("VME", result[0].EffortDept);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_AllTerms_RespectsMeritFilter()
+    {
+        // Arrange — one merit-eligible, one not
+        _context.Persons.AddRange(
+            new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "Merit", LastName = "Prof", EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = "010" },
+            new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Other", LastName = "Prof", EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = "999" }
+        );
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(0, meritOnly: true);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("010", result[0].JobGroupId);
+    }
+
     #endregion
 
     #region GetInstructorAsync Tests
@@ -833,6 +891,147 @@ public sealed class InstructorServiceTests : IDisposable
         var jobGroups = await _instructorService.GetJobGroupsAsync();
 
         Assert.Empty(jobGroups);
+    }
+
+    #endregion
+
+    #region Merit Job Group Filter Tests
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_IncludesUnconditionalJobGroups()
+    {
+        // Arrange — each unconditional group should be included
+        var unconditionalGroups = new[] { "010", "011", "114", "311", "317", "335", "341" };
+        for (var i = 0; i < unconditionalGroups.Length; i++)
+        {
+            _context.Persons.Add(new EffortPerson
+            {
+                PersonId = 100 + i, TermCode = 202410, FirstName = $"Person{i}", LastName = "Test",
+                EffortDept = "VME", EffortTitleCode = "9999", JobGroupId = unconditionalGroups[i]
+            });
+        }
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert — all unconditional groups included
+        Assert.Equal(unconditionalGroups.Length, result.Count);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_IncludesGroup124_WithTitle001898()
+    {
+        // Arrange
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1, TermCode = 202410, FirstName = "Eligible", LastName = "Prof",
+            EffortDept = "VME", EffortTitleCode = "001898", JobGroupId = "124"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("124", result[0].JobGroupId);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_ExcludesGroup124_WithoutTitle001898()
+    {
+        // Arrange
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1, TermCode = 202410, FirstName = "Ineligible", LastName = "Prof",
+            EffortDept = "VME", EffortTitleCode = "005555", JobGroupId = "124"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_IncludesGroupS56_WithTitle001067()
+    {
+        // Arrange
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1, TermCode = 202410, FirstName = "Eligible", LastName = "Prof",
+            EffortDept = "VME", EffortTitleCode = "001067", JobGroupId = "S56"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("S56", result[0].JobGroupId);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_ExcludesGroupS56_WithoutTitle001067()
+    {
+        // Arrange
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1, TermCode = 202410, FirstName = "Ineligible", LastName = "Prof",
+            EffortDept = "VME", EffortTitleCode = "002222", JobGroupId = "S56"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_ExcludesNonEligibleJobGroups()
+    {
+        // Arrange
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1, TermCode = 202410, FirstName = "Other", LastName = "Prof",
+            EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = "999"
+        });
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 2, TermCode = 202410, FirstName = "Null", LastName = "Group",
+            EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = null
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetInstructorsAsync_MeritOnly_Group124_ShortTitleCode_PaddedCorrectly()
+    {
+        // Arrange — title code "1898" should be padded to "001898" and match
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = 1, TermCode = 202410, FirstName = "Short", LastName = "Code",
+            EffortDept = "VME", EffortTitleCode = "1898", JobGroupId = "124"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+
+        // Assert — "1898" padded to "001898" matches
+        Assert.Single(result);
     }
 
     #endregion

@@ -3,6 +3,49 @@
 @model Viper.Models.AAUD.AaudUser
 @{
     NavMenu leftNav = (NavMenu)(ViewData["ViperLeftNav"] ?? new NavMenu());
+    var currentPath = ViewContext.HttpContext.Request.Path.ToString().TrimEnd('/');
+    // Base path for resolving relative URLs (e.g. "/raps/Viper/" from "/raps/Viper/Rolelist")
+    var basePath = currentPath.Substring(0, currentPath.LastIndexOf('/') + 1);
+
+    // Pre-compute which item to highlight. When multiple items resolve to the same
+    // path (e.g. instance link "~/raps/Viper/RoleList" and page link "Rolelist"),
+    // prefer relative page links over tilde-prefixed instance links.
+    var items = leftNav?.MenuItems ?? new List<NavMenuItem>();
+    int activeIndex = -1;
+    bool activeIsTilde = false;
+    for (int i = 0; i < items.Count; i++)
+    {
+        var item = items[i];
+        if (string.IsNullOrEmpty(item.MenuItemURL)) { continue; }
+        var rawUrl = item.MenuItemURL.Split('?')[0].TrimEnd('/');
+        if (rawUrl.StartsWith("http")) { continue; }
+
+        bool isTilde = rawUrl.StartsWith("~");
+        string resolvedPath;
+        if (isTilde)
+        {
+            resolvedPath = Url.Content(rawUrl).TrimEnd('/');
+        }
+        else if (rawUrl.StartsWith("/"))
+        {
+            resolvedPath = rawUrl;
+        }
+        else
+        {
+            resolvedPath = basePath + rawUrl;
+        }
+
+        if (string.Equals(currentPath, resolvedPath, StringComparison.Ordinal))
+        {
+            // Prefer relative/page links over tilde-prefixed instance links
+            if (activeIndex < 0 || (activeIsTilde && !isTilde))
+            {
+                activeIndex = i;
+                activeIsTilde = isTilde;
+            }
+        }
+    }
+    int renderIndex = 0;
 }
 <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer" no-mini-animation @@click.capture="drawerClick"
           width="300" id="mainLeftDrawer" v-cloak>
@@ -19,11 +62,12 @@
                 <h2>@leftNav.MenuHeaderText</h2>
             }
             <q-list dense separator>
-                @foreach(var menuItem in leftNav?.MenuItems ?? new List<NavMenuItem>())
+                @foreach(var menuItem in items)
                 {
                     @if(menuItem.MenuItemURL != "")
                     {
-                        <q-item clickable v-ripple href="@Url.Content(menuItem.MenuItemURL)" class="leftNavLink">
+                        var isActive = renderIndex == activeIndex;
+                        <q-item clickable v-ripple href="@Url.Content(menuItem.MenuItemURL)" class="leftNavLink@(isActive ? " leftNavActive" : "")">
                             <q-item-section>
                                 <q-item-label lines="1">@menuItem.MenuItemText</q-item-label>
                             </q-item-section>
@@ -37,6 +81,7 @@
                             </q-item-section>
                         </q-item>
                     }
+                    renderIndex++;
                 }
             </q-list>
         </div>
