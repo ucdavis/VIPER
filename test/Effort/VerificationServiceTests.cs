@@ -858,6 +858,131 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.Null(person.LastEmailedBy); // Should be null, not 0, to avoid FK violation
     }
 
+    [Fact]
+    public async Task SendVerificationEmailAsync_UsesFallbackDueDate_WhenNoExpectedCloseDate()
+    {
+        // Arrange: Term without ExpectedCloseDate - should fall back to Now + 7 days
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Capture the view model passed to the template renderer
+        VerificationReminderViewModel? capturedViewModel = null;
+        _emailTemplateRendererMock
+            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
+                It.IsAny<string>(),
+                It.IsAny<VerificationReminderViewModel>(),
+                It.IsAny<Dictionary<string, object>?>()))
+            .Callback<string, VerificationReminderViewModel, Dictionary<string, object>?>(
+                (_, vm, _) => capturedViewModel = vm)
+            .ReturnsAsync("<html>Mock email body</html>");
+
+        // Act
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedViewModel);
+
+        // Fallback due date is Now + 7 days, formatted as M/d/yy
+        var expectedDueDate = DateTime.Now.AddDays(_settings.VerificationReplyDays);
+        Assert.Equal(expectedDueDate.ToString("M/d/yy"), capturedViewModel.ReplyByDate);
+        Assert.False(capturedViewModel.IsPastDue);
+    }
+
+    [Fact]
+    public async Task SendVerificationEmailAsync_UsesExpectedCloseDateMinus7_ForDueDate()
+    {
+        // Arrange: Term with ExpectedCloseDate in the future
+        var expectedCloseDate = DateTime.Now.AddDays(30);
+        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        effortTerm!.ExpectedCloseDate = expectedCloseDate;
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Capture the view model passed to the template renderer
+        VerificationReminderViewModel? capturedViewModel = null;
+        _emailTemplateRendererMock
+            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
+                It.IsAny<string>(),
+                It.IsAny<VerificationReminderViewModel>(),
+                It.IsAny<Dictionary<string, object>?>()))
+            .Callback<string, VerificationReminderViewModel, Dictionary<string, object>?>(
+                (_, vm, _) => capturedViewModel = vm)
+            .ReturnsAsync("<html>Mock email body</html>");
+
+        // Act
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedViewModel);
+
+        // Due date should be ExpectedCloseDate - 7 days
+        var expectedDueDate = expectedCloseDate.AddDays(-_settings.VerificationReplyDays);
+        Assert.Equal(expectedDueDate.ToString("M/d/yy"), capturedViewModel.ReplyByDate);
+        Assert.False(capturedViewModel.IsPastDue);
+    }
+
+    [Fact]
+    public async Task SendVerificationEmailAsync_SetsIsPastDue_WhenDueDateHasPassed()
+    {
+        // Arrange: Term with ExpectedCloseDate in the past so due date is past
+        // ExpectedCloseDate = 3 days ago => due date = 10 days ago (3 + 7), which is past
+        var expectedCloseDate = DateTime.Now.AddDays(-3);
+        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        effortTerm!.ExpectedCloseDate = expectedCloseDate;
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Capture the view model passed to the template renderer
+        VerificationReminderViewModel? capturedViewModel = null;
+        _emailTemplateRendererMock
+            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
+                It.IsAny<string>(),
+                It.IsAny<VerificationReminderViewModel>(),
+                It.IsAny<Dictionary<string, object>?>()))
+            .Callback<string, VerificationReminderViewModel, Dictionary<string, object>?>(
+                (_, vm, _) => capturedViewModel = vm)
+            .ReturnsAsync("<html>Mock email body</html>");
+
+        // Act
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedViewModel);
+
+        // Due date should be ExpectedCloseDate - 7 days = 10 days in the past
+        var expectedDueDate = expectedCloseDate.AddDays(-_settings.VerificationReplyDays);
+        Assert.Equal(expectedDueDate.ToString("M/d/yy"), capturedViewModel.ReplyByDate);
+        Assert.True(capturedViewModel.IsPastDue);
+    }
+
     #endregion
 
     #region SendBulkVerificationEmailsAsync Tests
@@ -1019,6 +1144,118 @@ public sealed class VerificationServiceTests : IDisposable
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
 
         // Assert: Should include instructors emailed outside the reply window
+        Assert.Equal(1, result.TotalInstructors);
+        Assert.Equal(1, result.EmailsSent);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_ReturnsEmailedPersonIds()
+    {
+        // Arrange
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 100, CourseId = TestCourseId, PersonId = TestPersonId,
+            TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Hours = 10, Crn = "12345"
+        });
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Act
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+
+        // Assert
+        Assert.Single(result.EmailedPersonIds);
+        Assert.Contains(TestPersonId, result.EmailedPersonIds);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_UseDueDateLogic_ExcludesEmailedBeforeDeadline()
+    {
+        // Arrange: Term has ExpectedCloseDate far in the future, instructor was emailed recently
+        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        effortTerm!.ExpectedCloseDate = DateTime.Now.AddDays(30);
+        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        person!.LastEmailed = DateTime.Now.AddDays(-3);
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act: Before deadline → all emailed instructors are "recently emailed"
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+
+        // Assert: Should exclude the emailed instructor
+        Assert.Equal(0, result.TotalInstructors);
+        Assert.Equal(0, result.EmailsSent);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_UseDueDateLogic_IncludesEmailedPastDeadline()
+    {
+        // Arrange: Term has ExpectedCloseDate in the past, instructor was emailed recently
+        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        effortTerm!.ExpectedCloseDate = DateTime.Now.AddDays(-1);
+        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        person!.LastEmailed = DateTime.Now.AddDays(-3);
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 100, CourseId = TestCourseId, PersonId = TestPersonId,
+            TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Hours = 10, Crn = "12345"
+        });
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Act: Past deadline → all instructors eligible for resend
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+
+        // Assert: Should include the recently emailed instructor
+        Assert.Equal(1, result.TotalInstructors);
+        Assert.Equal(1, result.EmailsSent);
+    }
+
+    [Fact]
+    public async Task SendBulkVerificationEmailsAsync_UseDueDateLogic_IncludesNeverEmailed()
+    {
+        // Arrange: Term has ExpectedCloseDate far in the future, instructor was NEVER emailed
+        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        effortTerm!.ExpectedCloseDate = DateTime.Now.AddDays(30);
+        await _context.SaveChangesAsync();
+
+        _context.Records.Add(new EffortRecord
+        {
+            Id = 100, CourseId = TestCourseId, PersonId = TestPersonId,
+            TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Hours = 10, Crn = "12345"
+        });
+        await _context.SaveChangesAsync();
+
+        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _emailServiceMock
+            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+
+        // Act: Before deadline but never emailed → should still be included
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+
+        // Assert
         Assert.Equal(1, result.TotalInstructors);
         Assert.Equal(1, result.EmailsSent);
     }

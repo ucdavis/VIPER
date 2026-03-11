@@ -62,6 +62,7 @@ public class EffortDbContext : DbContext
             entity.Property(e => e.HarvestedDate).HasColumnName("HarvestedDate");
             entity.Property(e => e.OpenedDate).HasColumnName("OpenedDate");
             entity.Property(e => e.ClosedDate).HasColumnName("ClosedDate");
+            entity.Property(e => e.ExpectedCloseDate).HasColumnName("ExpectedCloseDate");
 
             // Ignore computed Status property - it's derived from dates
             entity.Ignore(e => e.Status);

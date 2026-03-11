@@ -47,6 +47,11 @@
                             {{ formatDate(props.row.harvestedDate) }}
                         </q-td>
                     </template>
+                    <template #body-cell-expectedCloseDate="props">
+                        <q-td :props="props">
+                            {{ formatDate(props.row.expectedCloseDate) }}
+                        </q-td>
+                    </template>
                 </q-table>
                 <!-- Mobile: List -->
                 <div class="lt-sm">
@@ -67,9 +72,15 @@
                                 <q-item-label>{{ term.termName }}</q-item-label>
                                 <q-item-label
                                     caption
-                                    v-if="term.harvestedDate"
+                                    v-if="term.harvestedDate || term.expectedCloseDate"
                                 >
-                                    Harvested: {{ formatDate(term.harvestedDate) }}
+                                    <span v-if="term.harvestedDate"
+                                        >Harvested: {{ formatDate(term.harvestedDate) }}</span
+                                    >
+                                    <span v-if="term.expectedCloseDate">
+                                        {{ term.harvestedDate ? " &middot; " : "" }}Expected Close:
+                                        {{ formatDate(term.expectedCloseDate) }}
+                                    </span>
                                 </q-item-label>
                             </q-item-section>
                             <q-item-section side>
@@ -115,6 +126,11 @@
                             {{ formatDate(props.row.openedDate) }}
                         </q-td>
                     </template>
+                    <template #body-cell-expectedCloseDate="props">
+                        <q-td :props="props">
+                            {{ formatDate(props.row.expectedCloseDate) }}
+                        </q-td>
+                    </template>
                     <template #no-data>
                         <div class="text-grey q-pa-sm">No terms are currently open for editing</div>
                     </template>
@@ -136,7 +152,12 @@
                         >
                             <q-item-section>
                                 <q-item-label>{{ term.termName }}</q-item-label>
-                                <q-item-label caption> Opened: {{ formatDate(term.openedDate ?? "") }} </q-item-label>
+                                <q-item-label caption>
+                                    Opened: {{ formatDate(term.openedDate ?? "") }}
+                                    <span v-if="term.expectedCloseDate">
+                                        &middot; Expected Close: {{ formatDate(term.expectedCloseDate) }}
+                                    </span>
+                                </q-item-label>
                             </q-item-section>
                             <q-item-section side>
                                 <q-icon name="chevron_right" />
@@ -246,12 +267,14 @@ const closedTerms = computed(() => terms.value.filter((t) => t.closedDate))
 const unopenedColumns: QTableColumn[] = [
     { name: "termName", label: "Term", field: "termName", align: "left" },
     { name: "harvestedDate", label: "Harvested", field: "harvestedDate", align: "center" },
+    { name: "expectedCloseDate", label: "Expected Close", field: "expectedCloseDate", align: "center" },
 ]
 
 const openColumns: QTableColumn[] = [
     { name: "termName", label: "Term", field: "termName", align: "left" },
     { name: "harvestedDate", label: "Harvested", field: "harvestedDate", align: "center" },
     { name: "openedDate", label: "Opened", field: "openedDate", align: "center" },
+    { name: "expectedCloseDate", label: "Expected Close", field: "expectedCloseDate", align: "center" },
 ]
 
 const closedColumns: QTableColumn[] = [

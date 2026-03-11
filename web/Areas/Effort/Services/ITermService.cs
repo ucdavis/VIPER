@@ -37,7 +37,12 @@ public interface ITermService
     /// <summary>
     /// Create a new term with initial status "Created".
     /// </summary>
-    Task<TermDto> CreateTermAsync(int termCode, CancellationToken ct = default);
+    Task<TermDto> CreateTermAsync(int termCode, DateTime? expectedCloseDate = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update the expected close date for a term. Cannot update closed terms.
+    /// </summary>
+    Task<TermDto?> UpdateExpectedCloseDateAsync(int termCode, DateTime? expectedCloseDate, CancellationToken ct = default);
 
     /// <summary>
     /// Delete a term. Only succeeds if no courses, persons, or records exist.

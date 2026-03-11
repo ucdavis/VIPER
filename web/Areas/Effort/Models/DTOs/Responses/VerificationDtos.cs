@@ -150,6 +150,7 @@ public class BulkEmailResult
     public int EmailsSent { get; set; }
     public int EmailsFailed { get; set; }
     public List<EmailFailure> Failures { get; set; } = new();
+    public List<int> EmailedPersonIds { get; set; } = new();
 }
 
 /// <summary>

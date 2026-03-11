@@ -193,6 +193,332 @@ public sealed class TermServiceTests : IDisposable
         );
     }
 
+    [Fact]
+    public async Task CreateTermAsync_StoresExpectedCloseDate_WhenProvided()
+    {
+        // Arrange
+        var expectedDate = new DateTime(2025, 6, 15);
+
+        // Act
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: expectedDate);
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Equal(202510, term.TermCode);
+        Assert.Equal(expectedDate, term.ExpectedCloseDate);
+
+        var savedTerm = await _context.Terms.FindAsync(202510);
+        Assert.NotNull(savedTerm);
+        Assert.Equal(expectedDate, savedTerm.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task CreateTermAsync_LeavesExpectedCloseDateNull_WhenNotProvided()
+    {
+        // Act
+        var term = await _termService.CreateTermAsync(202510);
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Null(term.ExpectedCloseDate);
+
+        var savedTerm = await _context.Terms.FindAsync(202510);
+        Assert.NotNull(savedTerm);
+        Assert.Null(savedTerm.ExpectedCloseDate);
+    }
+
+    #endregion
+
+    #region UpdateExpectedCloseDateAsync Tests
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_UpdatesDate_WhenTermIsOpen()
+    {
+        // Arrange - OpenedDate makes status "Opened"
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
+        await _context.SaveChangesAsync();
+
+        var newDate = new DateTime(2025, 3, 31);
+
+        // Act
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, newDate);
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Equal(newDate, term.ExpectedCloseDate);
+
+        var savedTerm = await _context.Terms.FindAsync(202410);
+        Assert.NotNull(savedTerm);
+        Assert.Equal(newDate, savedTerm.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_ThrowsException_WhenTermIsClosed()
+    {
+        // Arrange - ClosedDate makes status "Closed"
+        _context.Terms.Add(new EffortTerm
+        {
+            TermCode = 202410,
+            OpenedDate = DateTime.Now.AddDays(-30),
+            ClosedDate = DateTime.Now.AddDays(-1)
+        });
+        await _context.SaveChangesAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 6, 1))
+        );
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_ClearsDate_WhenSetToNull()
+    {
+        // Arrange - Term with existing ExpectedCloseDate
+        _context.Terms.Add(new EffortTerm
+        {
+            TermCode = 202410,
+            OpenedDate = DateTime.Now.AddDays(-7),
+            ExpectedCloseDate = new DateTime(2025, 3, 31)
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, null);
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Null(term.ExpectedCloseDate);
+
+        var savedTerm = await _context.Terms.FindAsync(202410);
+        Assert.NotNull(savedTerm);
+        Assert.Null(savedTerm.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_ReturnsNull_WhenTermNotFound()
+    {
+        // Act
+        var term = await _termService.UpdateExpectedCloseDateAsync(999999, new DateTime(2025, 6, 1));
+
+        // Assert
+        Assert.Null(term);
+    }
+
+    #endregion
+
+    #region Expected Close Date Validation Tests
+
+    [Fact]
+    public async Task CreateTermAsync_ThrowsException_WhenExpectedCloseDateBeforeTermEnd()
+    {
+        // Arrange - Term ends 2025-06-15, expected close is before that
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202510,
+            Description = "Fall 2025",
+            StartDate = new DateTime(2025, 3, 31),
+            EndDate = new DateTime(2025, 6, 15),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 1))
+        );
+        Assert.Contains("after the term end date", ex.Message);
+    }
+
+    [Fact]
+    public async Task CreateTermAsync_ThrowsException_WhenExpectedCloseDateOnTermEndDate()
+    {
+        // Arrange - Term ends 2025-06-15, expected close is the same day
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202510,
+            Description = "Fall 2025",
+            StartDate = new DateTime(2025, 3, 31),
+            EndDate = new DateTime(2025, 6, 15),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 15))
+        );
+        Assert.Contains("after the term end date", ex.Message);
+    }
+
+    [Fact]
+    public async Task CreateTermAsync_ThrowsException_WhenExpectedCloseDateMoreThanOneYearAfterTermEnd()
+    {
+        // Arrange - Term ends 2025-06-15, expected close is more than 1 year later
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202510,
+            Description = "Fall 2025",
+            StartDate = new DateTime(2025, 3, 31),
+            EndDate = new DateTime(2025, 6, 15),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 16))
+        );
+        Assert.Contains("more than 1 year", ex.Message);
+    }
+
+    [Fact]
+    public async Task CreateTermAsync_AcceptsExpectedCloseDate_WhenDayAfterTermEnd()
+    {
+        // Arrange - Term ends 2025-06-15, expected close is 2025-06-16 (day after)
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202510,
+            Description = "Fall 2025",
+            StartDate = new DateTime(2025, 3, 31),
+            EndDate = new DateTime(2025, 6, 15),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 16));
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Equal(new DateTime(2025, 6, 16), term.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task CreateTermAsync_AcceptsExpectedCloseDate_WhenExactlyOneYearAfterTermEnd()
+    {
+        // Arrange - Term ends 2025-06-15, expected close is exactly 1 year later
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202510,
+            Description = "Fall 2025",
+            StartDate = new DateTime(2025, 3, 31),
+            EndDate = new DateTime(2025, 6, 15),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 15));
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Equal(new DateTime(2026, 6, 15), term.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_ThrowsException_WhenDateBeforeTermEnd()
+    {
+        // Arrange
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
+        await _context.SaveChangesAsync();
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202410,
+            Description = "Fall 2024",
+            StartDate = new DateTime(2024, 9, 25),
+            EndDate = new DateTime(2024, 12, 13),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2024, 11, 1))
+        );
+        Assert.Contains("after the term end date", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_ThrowsException_WhenDateMoreThanOneYearAfterTermEnd()
+    {
+        // Arrange
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
+        await _context.SaveChangesAsync();
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202410,
+            Description = "Fall 2024",
+            StartDate = new DateTime(2024, 9, 25),
+            EndDate = new DateTime(2024, 12, 13),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 12, 14))
+        );
+        Assert.Contains("more than 1 year", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_AcceptsDate_WhenWithinValidRange()
+    {
+        // Arrange
+        _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
+        await _context.SaveChangesAsync();
+        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        {
+            TermCode = 202410,
+            Description = "Fall 2024",
+            StartDate = new DateTime(2024, 9, 25),
+            EndDate = new DateTime(2024, 12, 13),
+            TermType = "Q"
+        });
+        await _viperContext.SaveChangesAsync();
+
+        // Act
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 3, 31));
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Equal(new DateTime(2025, 3, 31), term.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task UpdateExpectedCloseDateAsync_SkipsValidation_WhenClearingDate()
+    {
+        // Arrange - Setting to null should always succeed
+        _context.Terms.Add(new EffortTerm
+        {
+            TermCode = 202410,
+            OpenedDate = DateTime.Now.AddDays(-7),
+            ExpectedCloseDate = new DateTime(2025, 3, 31)
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, null);
+
+        // Assert
+        Assert.NotNull(term);
+        Assert.Null(term.ExpectedCloseDate);
+    }
+
+    [Fact]
+    public async Task CreateTermAsync_SkipsValidation_WhenTermNotInViperTerms()
+    {
+        // Arrange - No vwTerms entry for this term code
+        // Validation should be skipped, not throw
+
+        // Act
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2020, 1, 1));
+
+        // Assert - Accepts any date when term not found in vwTerms
+        Assert.NotNull(term);
+        Assert.Equal(new DateTime(2020, 1, 1), term.ExpectedCloseDate);
+    }
+
     #endregion
 
     #region OpenTermAsync Tests

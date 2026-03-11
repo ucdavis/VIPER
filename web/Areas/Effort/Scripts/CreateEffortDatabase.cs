@@ -705,6 +705,7 @@ BEGIN
         HarvestedDate datetime2(7) NULL,
         OpenedDate datetime2(7) NULL,
         ClosedDate datetime2(7) NULL,
+        ExpectedCloseDate datetime2(7) NULL,
         CONSTRAINT PK_TermStatus PRIMARY KEY CLUSTERED (TermCode)
     );
 END";

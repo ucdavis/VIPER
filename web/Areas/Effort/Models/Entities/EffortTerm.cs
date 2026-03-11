@@ -12,6 +12,7 @@ public class EffortTerm
     public DateTime? HarvestedDate { get; set; }
     public DateTime? OpenedDate { get; set; }
     public DateTime? ClosedDate { get; set; }
+    public DateTime? ExpectedCloseDate { get; set; }
 
     /// <summary>
     /// Computed status derived from date fields (matches legacy ColdFusion logic).

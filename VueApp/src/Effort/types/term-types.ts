@@ -9,8 +9,11 @@ type TermDto = {
     harvestedDate: string | null
     openedDate: string | null
     closedDate: string | null
+    expectedCloseDate: string | null
+    termEndDate: string | null
     isOpen: boolean
     canEdit: boolean
+    canEditExpectedCloseDate: boolean
     // State transition properties for term management UI
     canOpen: boolean
     canClose: boolean
@@ -55,6 +58,7 @@ type AvailableTermDto = {
     termCode: number
     termName: string
     startDate: string
+    endDate: string
 }
 
 type TermOptionDto = {

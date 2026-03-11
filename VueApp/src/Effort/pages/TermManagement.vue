@@ -121,7 +121,19 @@
                             dense
                             options-dense
                             outlined
-                            style="min-width: 250px"
+                            class="term-select-input"
+                        />
+                        <q-input
+                            v-model="newTermExpectedCloseDate"
+                            type="date"
+                            label="Expected Close Date"
+                            dense
+                            outlined
+                            clearable
+                            reactive-rules
+                            :rules="[createCloseDateRule]"
+                            :hint="createCloseDateHint"
+                            class="expected-close-input"
                         />
                         <q-btn
                             label="Add Term"
@@ -295,6 +307,66 @@
                         </div>
                     </q-td>
                 </template>
+                <template #body-cell-expectedCloseDate="props">
+                    <q-td :props="props">
+                        <div class="row items-center no-wrap">
+                            <template v-if="editingExpectedCloseTermCode === props.row.termCode">
+                                <q-input
+                                    v-model="editingExpectedCloseDate"
+                                    type="date"
+                                    dense
+                                    outlined
+                                    clearable
+                                    hide-bottom-space
+                                    :rules="[editCloseDateRule]"
+                                    class="expected-close-edit-input"
+                                    @keyup.enter="saveExpectedCloseDate(props.row)"
+                                    @keyup.escape="cancelEditExpectedCloseDate"
+                                />
+                                <q-btn
+                                    icon="check"
+                                    color="positive"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    class="q-ml-xs"
+                                    @click="saveExpectedCloseDate(props.row)"
+                                >
+                                    <q-tooltip>Save</q-tooltip>
+                                </q-btn>
+                                <q-btn
+                                    icon="close"
+                                    color="negative"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    @click="cancelEditExpectedCloseDate"
+                                >
+                                    <q-tooltip>Cancel</q-tooltip>
+                                </q-btn>
+                            </template>
+                            <template v-else>
+                                <span class="q-mr-sm">{{ formatDate(props.row.expectedCloseDate) }}</span>
+                                <q-btn
+                                    v-if="props.row.canEditExpectedCloseDate"
+                                    icon="edit"
+                                    dense
+                                    flat
+                                    round
+                                    size="sm"
+                                    color="grey-7"
+                                    @click="startEditExpectedCloseDate(props.row)"
+                                    @keyup.enter="startEditExpectedCloseDate(props.row)"
+                                    @keyup.space="startEditExpectedCloseDate(props.row)"
+                                >
+                                    <q-tooltip>Edit expected close date</q-tooltip>
+                                </q-btn>
+                            </template>
+                        </div>
+                    </q-td>
+                </template>
             </q-table>
 
             <!-- Mobile: Card view -->
@@ -327,6 +399,50 @@
                                 class="q-ml-md"
                                 >Closed: {{ formatDate(term.closedDate) }}</span
                             >
+                            <span
+                                v-if="term.expectedCloseDate && editingExpectedCloseTermCode !== term.termCode"
+                                class="q-ml-md"
+                                >Expected Close: {{ formatDate(term.expectedCloseDate) }}</span
+                            >
+                        </div>
+                        <!-- Mobile: Expected close date editing -->
+                        <div
+                            v-if="editingExpectedCloseTermCode === term.termCode"
+                            class="row items-center q-gutter-xs q-mt-sm"
+                        >
+                            <q-input
+                                v-model="editingExpectedCloseDate"
+                                type="date"
+                                label="Expected Close Date"
+                                dense
+                                outlined
+                                clearable
+                                hide-bottom-space
+                                :rules="[editCloseDateRule]"
+                                style="min-width: 170px"
+                            />
+                            <q-btn
+                                icon="check"
+                                color="positive"
+                                dense
+                                flat
+                                round
+                                size="sm"
+                                @click="saveExpectedCloseDate(term)"
+                            >
+                                <q-tooltip>Save</q-tooltip>
+                            </q-btn>
+                            <q-btn
+                                icon="close"
+                                color="negative"
+                                dense
+                                flat
+                                round
+                                size="sm"
+                                @click="cancelEditExpectedCloseDate"
+                            >
+                                <q-tooltip>Cancel</q-tooltip>
+                            </q-btn>
                         </div>
                         <div class="row q-gutter-xs q-mt-sm wrap">
                             <q-btn
@@ -420,6 +536,21 @@
                                 @keyup.space="confirmReopenTerm(term)"
                             />
                             <q-btn
+                                v-if="term.canEditExpectedCloseDate && editingExpectedCloseTermCode !== term.termCode"
+                                icon="edit_calendar"
+                                label="Expected Close"
+                                color="grey-7"
+                                text-color="white"
+                                dense
+                                no-caps
+                                size="sm"
+                                padding="2px sm"
+                                class="term-action-btn"
+                                @click="startEditExpectedCloseDate(term)"
+                                @keyup.enter="startEditExpectedCloseDate(term)"
+                                @keyup.space="startEditExpectedCloseDate(term)"
+                            />
+                            <q-btn
                                 v-if="term.canDelete"
                                 icon="delete"
                                 label="Delete"
@@ -466,7 +597,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useQuasar } from "quasar"
 import { termService } from "../services/term-service"
 import { rolloverService } from "../services/rollover-service"
@@ -483,9 +614,47 @@ const { formatDate } = useDateFunctions()
 const terms = ref<TermDto[]>([])
 const availableTerms = ref<AvailableTermDto[]>([])
 const selectedNewTerm = ref<AvailableTermDto | null>(null)
+const newTermExpectedCloseDate = ref<string | null>(null)
 const isLoading = ref(false)
 const showRolloverForm = ref(false)
 const showAddTermForm = ref(false)
+
+// Expected close date inline editing
+const editingExpectedCloseTermCode = ref<number | null>(null)
+const editingExpectedCloseDate = ref<string | null>(null)
+const editingTermEndDate = ref<string | null>(null)
+
+// Expected close date validation — must be after term end and within 1 year
+function toYmd(isoDate: string): string {
+    return isoDate.split("T")[0] ?? isoDate
+}
+
+function closeDateRule(endDateIso: string | null | undefined) {
+    return (val: string | null | undefined) => {
+        if (!val || !endDateIso) return true
+        const endYmd = toYmd(endDateIso)
+        if (val <= endYmd) return "Must be after term end date"
+        const maxYmd = `${parseInt(endYmd.slice(0, 4)) + 1}${endYmd.slice(4)}`
+        if (val > maxYmd) return "Cannot exceed 1 year after term end"
+        return true
+    }
+}
+
+function createCloseDateRule(val: string | null | undefined) {
+    return closeDateRule(selectedNewTerm.value?.endDate)(val)
+}
+
+function editCloseDateRule(val: string | null | undefined) {
+    return closeDateRule(editingTermEndDate.value)(val)
+}
+
+const createCloseDateHint = computed(() => {
+    if (!selectedNewTerm.value?.endDate) return ""
+    const endDate = new Date(selectedNewTerm.value.endDate)
+    const maxDate = new Date(selectedNewTerm.value.endDate)
+    maxDate.setFullYear(maxDate.getFullYear() + 1)
+    return `Between ${formatDate(endDate.toISOString())} and ${formatDate(maxDate.toISOString())}`
+})
 
 // Harvest dialog state
 const harvestDialogOpen = ref(false)
@@ -517,6 +686,9 @@ function toggleRolloverForm() {
 function toggleAddTermForm() {
     showAddTermForm.value = !showAddTermForm.value
     showRolloverForm.value = false
+    if (!showAddTermForm.value) {
+        newTermExpectedCloseDate.value = null
+    }
 }
 
 // Clinical Import dialog state
@@ -529,6 +701,7 @@ const columns: QTableColumn[] = [
     { name: "harvestedDate", label: "Harvested", field: "harvestedDate", align: "left" },
     { name: "openedDate", label: "Opened", field: "openedDate", align: "left" },
     { name: "closedDate", label: "Closed", field: "closedDate", align: "left" },
+    { name: "expectedCloseDate", label: "Expected Close", field: "expectedCloseDate", align: "left" },
 ]
 
 async function loadTerms(options?: { background?: boolean }) {
@@ -566,6 +739,8 @@ function confirmTermAction(config: TermActionConfig) {
         if (result && (typeof result !== "object" || (result as { success?: boolean }).success !== false)) {
             $q.notify({ type: "positive", message: config.successMessage })
             await loadTerms({ background: true })
+        } else {
+            $q.notify({ type: "negative", message: `${config.title} failed. Please try again.` })
         }
     })
 }
@@ -573,12 +748,64 @@ function confirmTermAction(config: TermActionConfig) {
 function confirmAddTerm() {
     if (!selectedNewTerm.value) return
     const term = selectedNewTerm.value
+    const expectedClose = newTermExpectedCloseDate.value || null
+
+    if (expectedClose) {
+        const ruleResult = createCloseDateRule(expectedClose)
+        if (ruleResult !== true) {
+            $q.notify({ type: "negative", message: ruleResult })
+            return
+        }
+    }
+
     confirmTermAction({
         title: "Add Term",
         message: `Add "${term.termName}" to the Effort system?`,
         successMessage: "Term added successfully",
-        action: () => termService.createTerm(term.termCode),
+        action: () => termService.createTerm(term.termCode, expectedClose),
     })
+}
+
+function startEditExpectedCloseDate(term: TermDto) {
+    editingExpectedCloseTermCode.value = term.termCode
+    // Convert ISO date to yyyy-MM-dd for the date input
+    editingExpectedCloseDate.value = term.expectedCloseDate
+        ? (term.expectedCloseDate.split("T")[0] ?? null)
+        : null
+    editingTermEndDate.value = term.termEndDate ?? null
+}
+
+function cancelEditExpectedCloseDate() {
+    editingExpectedCloseTermCode.value = null
+    editingExpectedCloseDate.value = null
+    editingTermEndDate.value = null
+}
+
+async function saveExpectedCloseDate(term: TermDto) {
+    // Skip API call if nothing changed
+    const originalYmd = term.expectedCloseDate ? (term.expectedCloseDate.split("T")[0] ?? null) : null
+    if ((editingExpectedCloseDate.value || null) === originalYmd) {
+        cancelEditExpectedCloseDate()
+        return
+    }
+
+    const ruleResult = editCloseDateRule(editingExpectedCloseDate.value)
+    if (ruleResult !== true) {
+        $q.notify({ type: "negative", message: ruleResult })
+        return
+    }
+
+    const { result, error } = await termService.updateExpectedCloseDate(
+        term.termCode,
+        editingExpectedCloseDate.value || null,
+    )
+    if (result) {
+        $q.notify({ type: "positive", message: "Expected close date updated" })
+        cancelEditExpectedCloseDate()
+        await loadTerms({ background: true })
+    } else {
+        $q.notify({ type: "negative", message: error ?? "Failed to update expected close date" })
+    }
 }
 
 function confirmOpenTerm(term: TermDto) {
@@ -660,5 +887,17 @@ onMounted(loadTerms)
 <style scoped>
 .term-action-btn {
     min-width: 130px;
+}
+
+.term-select-input {
+    min-width: 250px;
+}
+
+.expected-close-input {
+    min-width: 200px;
+}
+
+.expected-close-edit-input {
+    min-width: 170px;
 }
 </style>
