@@ -37,6 +37,7 @@ public static class EffortAuditActions
 
     // Term Actions
     public const string CreateTerm = "CreateTerm";
+    public const string UpdateTerm = "UpdateTerm";
     public const string DeleteTerm = "DeleteTerm";
     public const string OpenTerm = "OpenTerm";
     public const string CloseTerm = "CloseTerm";

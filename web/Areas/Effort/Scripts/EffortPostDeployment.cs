@@ -22,6 +22,7 @@
 // 15. DuplicatePercentagesCleanup - Remove duplicate percentage assignments (prerequisite for rollover)
 // 16. DeleteGuestPersonsAndRecords - Purge legacy guest placeholder accounts and their effort records
 // 17. AddNotesToRecords - Add optional Notes column to Records table for instructor notes
+// 18. AddExpectedCloseDateToTermStatus - Add ExpectedCloseDate column to TermStatus table
 // ============================================
 // USAGE:
 // dotnet run -- post-deployment              (dry-run mode - shows what would be changed)
@@ -351,6 +352,23 @@ namespace Viper.Areas.Effort.Scripts
 
                 var (success, message) = RunAddNotesToRecordsTask(viperConnectionString, executeMode);
                 taskResults["AddNotesToRecords"] = (success, message);
+                if (!success) overallResult = 1;
+
+                Console.WriteLine();
+            }
+
+            // Task 18: Add ExpectedCloseDate column to TermStatus table
+            {
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine("Task 18: Add ExpectedCloseDate Column to TermStatus");
+                Console.WriteLine("----------------------------------------");
+
+                string viperConnectionString = EffortScriptHelper.GetConnectionString(configuration, "Viper", readOnly: false);
+                Console.WriteLine($"Target server: {EffortScriptHelper.GetServerAndDatabase(viperConnectionString)}");
+                Console.WriteLine();
+
+                var (success, message) = RunAddExpectedCloseDateToTermStatusTask(viperConnectionString, executeMode);
+                taskResults["AddExpectedCloseDateToTermStatus"] = (success, message);
                 if (!success) overallResult = 1;
 
                 Console.WriteLine();
@@ -3375,6 +3393,70 @@ namespace Viper.Areas.Effort.Scripts
                 Console.ResetColor();
 
                 return (true, "Added Notes column to Records table");
+            }
+            catch (SqlException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  ✗ SQL Error: {ex.Message}");
+                Console.ResetColor();
+                return (false, $"SQL Error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Task 18: Add ExpectedCloseDate Column to TermStatus
+
+        /// <summary>
+        /// Adds an ExpectedCloseDate column to the TermStatus table for tracking
+        /// the expected close date for each term's effort reporting period.
+        /// </summary>
+        private static (bool Success, string Message) RunAddExpectedCloseDateToTermStatusTask(string connectionString, bool executeMode)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                Console.WriteLine("Checking ExpectedCloseDate column on TermStatus table...");
+                Console.WriteLine();
+
+                // Check if column already exists
+                using var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = @"
+                    SELECT COUNT(*) FROM sys.columns c
+                    INNER JOIN sys.tables t ON c.object_id = t.object_id
+                    INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+                    WHERE s.name = 'effort' AND t.name = 'TermStatus' AND c.name = 'ExpectedCloseDate'";
+                int exists = (int)checkCmd.ExecuteScalar();
+
+                if (exists > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  ✓ ExpectedCloseDate column already exists on TermStatus table");
+                    Console.ResetColor();
+                    return (true, "Column already exists");
+                }
+
+                if (!executeMode)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("  ○ ExpectedCloseDate column would be added to TermStatus table");
+                    Console.ResetColor();
+                    return (true, "Would add ExpectedCloseDate column to TermStatus");
+                }
+
+                // Add the column
+                Console.WriteLine("  Adding ExpectedCloseDate column to TermStatus table...");
+                using var alterCmd = connection.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE [effort].[TermStatus] ADD ExpectedCloseDate datetime2(7) NULL;";
+                alterCmd.ExecuteNonQuery();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ✓ ExpectedCloseDate column added to TermStatus table");
+                Console.ResetColor();
+
+                return (true, "Added ExpectedCloseDate column to TermStatus table");
             }
             catch (SqlException ex)
             {

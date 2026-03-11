@@ -417,8 +417,12 @@ public class VerificationService : IVerificationService
                 ? await GetChildCourseInfoAsync(courseIds, ct)
                 : new Dictionary<int, List<ChildCourseInfo>>();
 
-            // Get term dates from VIPER
+            // Get term dates from VIPER and expected close date from effort
             var viperTerm = await _viperContext.Terms
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+
+            var effortTerm = await _context.Terms
                 .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
 
@@ -426,7 +430,7 @@ public class VerificationService : IVerificationService
             var termDescription = _termService.GetTermName(termCode);
             var viewModel = BuildVerificationEmailViewModel(
                 records, childCourses, termDescription, verificationUrl, termCode,
-                viperTerm?.StartDate, viperTerm?.EndDate);
+                viperTerm?.StartDate, viperTerm?.EndDate, effortTerm?.ExpectedCloseDate);
             var emailBody = await _emailTemplateRenderer.RenderAsync(
                 "/Areas/Effort/EmailTemplates/Views/VerificationReminder.cshtml", viewModel);
 
@@ -525,25 +529,46 @@ public class VerificationService : IVerificationService
             };
         }
 
-        // Get unverified instructors in department (including those without records)
-        var cutoffDate = includeRecentlyEmailed
-            ? (DateTime?)null
-            : DateTime.Now.AddDays(-_settings.VerificationReplyDays);
-
-        var instructors = await _context.Persons
+        // Get unverified instructors in department, filtering by resend eligibility
+        var query = _context.Persons
             .AsNoTracking()
             .Where(p => p.TermCode == termCode
                 && p.EffortDept == departmentCode
-                && p.EffortVerified == null
-                && (cutoffDate == null || p.LastEmailed == null || p.LastEmailed < cutoffDate))
-            .ToListAsync(ct);
+                && p.EffortVerified == null);
+
+        if (!includeRecentlyEmailed)
+        {
+            var term = await _context.Terms.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+
+            if (term?.ExpectedCloseDate != null)
+            {
+                // Due-date logic: eligibility is term-wide based on ExpectedCloseDate
+                var dueDate = term.ExpectedCloseDate.Value.AddDays(-_settings.VerificationReplyDays);
+                if (DateTime.Now.Date <= dueDate.Date)
+                {
+                    // Before deadline: all emailed instructors are "recently emailed"
+                    query = query.Where(p => p.LastEmailed == null);
+                }
+                // Past deadline: no additional filter — all are eligible for resend
+            }
+            else
+            {
+                // Legacy rolling per-instructor cutoff
+                var cutoffDate = DateTime.Now.AddDays(-_settings.VerificationReplyDays);
+                query = query.Where(p => p.LastEmailed == null || p.LastEmailed < cutoffDate);
+            }
+        }
+
+        var instructors = await query.ToListAsync(ct);
 
         var result = new BulkEmailResult
         {
             TotalInstructors = instructors.Count,
             EmailsSent = 0,
             EmailsFailed = 0,
-            Failures = new List<EmailFailure>()
+            Failures = new List<EmailFailure>(),
+            EmailedPersonIds = new List<int>()
         };
 
         foreach (var instructor in instructors)
@@ -553,6 +578,7 @@ public class VerificationService : IVerificationService
             if (emailResult.Success)
             {
                 result.EmailsSent++;
+                result.EmailedPersonIds.Add(instructor.PersonId);
             }
             else
             {
@@ -740,10 +766,24 @@ public class VerificationService : IVerificationService
         string verificationUrl,
         int termCode,
         DateTime? termStartDate,
-        DateTime? termEndDate)
+        DateTime? termEndDate,
+        DateTime? expectedCloseDate = null)
     {
         var useWeeksForClinical = termCode >= EffortConstants.ClinicalAsWeeksStartTermCode;
-        var replyByDate = DateTime.Now.AddDays(_settings.VerificationReplyDays).ToString("MM/dd/yyyy");
+
+        // Due date: ExpectedCloseDate - 7 days if set, otherwise fallback to Now + 7
+        DateTime dueDate;
+        if (expectedCloseDate.HasValue)
+        {
+            dueDate = expectedCloseDate.Value.AddDays(-_settings.VerificationReplyDays);
+        }
+        else
+        {
+            dueDate = DateTime.Now.AddDays(_settings.VerificationReplyDays);
+        }
+
+        var isPastDue = DateTime.Now.Date > dueDate.Date;
+        var replyByDate = dueDate.ToString("M/d/yy");
 
         // Group records by course
         var courseGroups = new List<EffortCourseGroup>();
@@ -819,6 +859,7 @@ public class VerificationService : IVerificationService
             TermStartDate = termStartDate,
             TermEndDate = termEndDate,
             ReplyByDate = replyByDate,
+            IsPastDue = isPastDue,
             VerificationUrl = verificationUrl,
             HasZeroEffort = hasZeroEffort,
             HasGenericRCourseWithZeroEffort = hasGenericRCourseWithZeroEffort,

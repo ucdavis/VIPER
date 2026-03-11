@@ -23,9 +23,14 @@ public class VerificationReminderViewModel : EmailViewModelBase
     public DateTime? TermEndDate { get; set; }
 
     /// <summary>
-    /// Date by which the instructor should reply.
+    /// Date by which the instructor should reply (formatted as M/d/yy).
     /// </summary>
     public string ReplyByDate { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the due date has already passed when the email is sent.
+    /// </summary>
+    public bool IsPastDue { get; set; }
 
     /// <summary>
     /// Whether the instructor has no effort records for this term.

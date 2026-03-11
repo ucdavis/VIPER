@@ -11,7 +11,9 @@ public class AutoMapperProfileEffort : Profile
         // TermName comes from lookup, CanDelete set by service
         CreateMap<EffortTerm, TermDto>()
             .ForMember(d => d.TermName, opt => opt.Ignore())
-            .ForMember(d => d.CanDelete, opt => opt.Ignore());
+            .ForMember(d => d.TermEndDate, opt => opt.Ignore())
+            .ForMember(d => d.CanDelete, opt => opt.Ignore())
+            .ForMember(d => d.CanEditExpectedCloseDate, opt => opt.Ignore());
 
         // VolunteerWos: byte? (1=true) → bool
         // LastEmailedDate mapped from LastEmailed; LastEmailedBy (name) and MailId set by service lookup

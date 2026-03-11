@@ -94,6 +94,7 @@ type BulkEmailResult = {
     emailsSent: number
     emailsFailed: number
     failures: EmailFailure[]
+    emailedPersonIds: number[]
 }
 
 /**

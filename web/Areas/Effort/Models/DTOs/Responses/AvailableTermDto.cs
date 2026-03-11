@@ -20,4 +20,9 @@ public class AvailableTermDto
     /// Start date of the term.
     /// </summary>
     public DateTime StartDate { get; set; }
+
+    /// <summary>
+    /// End date of the term.
+    /// </summary>
+    public DateTime EndDate { get; set; }
 }

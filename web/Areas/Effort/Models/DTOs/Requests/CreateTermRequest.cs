@@ -14,4 +14,9 @@ public class CreateTermRequest
     [Required]
     [Range(100000, 999999, ErrorMessage = "Term code must be a 6-digit number")]
     public int TermCode { get; set; }
+
+    /// <summary>
+    /// Optional expected close date for the term.
+    /// </summary>
+    public DateTime? ExpectedCloseDate { get; set; }
 }
