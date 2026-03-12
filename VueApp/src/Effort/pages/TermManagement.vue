@@ -650,10 +650,10 @@ function editCloseDateRule(val: string | null | undefined) {
 
 const createCloseDateHint = computed(() => {
     if (!selectedNewTerm.value?.endDate) return ""
-    const endDate = new Date(selectedNewTerm.value.endDate)
-    const maxDate = new Date(selectedNewTerm.value.endDate)
-    maxDate.setFullYear(maxDate.getFullYear() + 1)
-    return `Between ${formatDate(endDate.toISOString())} and ${formatDate(maxDate.toISOString())}`
+    const endYmd = toYmd(selectedNewTerm.value.endDate)
+    const year = parseInt(endYmd.substring(0, 4))
+    const maxYmd = `${year + 1}${endYmd.substring(4)}`
+    return `Between ${formatDate(endYmd)} and ${formatDate(maxYmd)}`
 })
 
 // Harvest dialog state
