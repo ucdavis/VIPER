@@ -34,7 +34,7 @@ public class TermDto
 
     /// <summary>
     /// Expected close date for this term (set by admin when creating/managing term).
-    /// Used to calculate email due dates (ExpectedCloseDate - 7 days).
+    /// Used to calculate email due dates (ExpectedCloseDate minus the configured VerificationReplyDays).
     /// </summary>
     public DateTime? ExpectedCloseDate { get; set; }
 
