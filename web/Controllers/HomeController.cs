@@ -27,18 +27,20 @@ namespace Viper.Controllers
     {
         private readonly AAUDContext _aAUDContext;
         private readonly RAPSContext _rapsContext;
+        private readonly VIPERContext _viperContext;
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         private readonly IUserHelper _userHelper;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
             this._aAUDContext = aAUDContext;
             this._rapsContext = rapsContext;
+            this._viperContext = viperContext;
             this._userHelper = new UserHelper();
         }
         /// <summary>
@@ -69,9 +71,9 @@ namespace Viper.Controllers
             await base.OnActionExecutionAsync(context, next);
         }
 
-        private static NavMenu Nav()
+        private NavMenu Nav()
         {
-            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+            var menu = new LeftNavMenu(_viperContext, _rapsContext).GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
             if (menu != null)
             {
                 ConvertNavLinksForDevelopment(menu);
@@ -110,8 +112,8 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult RefreshSession()
         {
-            SessionTimeoutService.UpdateSessionTimeout();
-            return Ok(SessionTimeoutService.GetSessionTimeout());
+            SessionTimeoutService.UpdateSessionTimeout(_viperContext);
+            return Ok(SessionTimeoutService.GetSessionTimeout(_viperContext));
         }
 
         /// <summary>

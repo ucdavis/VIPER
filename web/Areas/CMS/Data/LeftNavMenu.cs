@@ -11,10 +11,10 @@ namespace Viper.Areas.CMS.Data
 
         public IUserHelper UserHelper { get; private set; }
 
-        public LeftNavMenu()
+        public LeftNavMenu(VIPERContext viperContext, RAPSContext rapsContext)
         {
-            this._viperContext = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
+            this._viperContext = viperContext;
+            this._rapsContext = rapsContext;
             UserHelper = new UserHelper();
         }
 

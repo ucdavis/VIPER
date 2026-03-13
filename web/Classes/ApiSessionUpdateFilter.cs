@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Filters;
+using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Classes
@@ -8,7 +9,8 @@ namespace Viper.Classes
     {
         public override void OnActionExecuting(ActionExecutingContext context)
         {
-            SessionTimeoutService.UpdateSessionTimeout();
+            var viperContext = context.HttpContext.RequestServices.GetRequiredService<VIPERContext>();
+            SessionTimeoutService.UpdateSessionTimeout(viperContext);
             base.OnActionExecuting(context);
         }
     }

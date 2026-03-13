@@ -65,13 +65,6 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region Constructors
-        public CMS()
-        {
-            this._viperContext = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
-            UserHelper = new UserHelper();
-        }
-
         public CMS(VIPERContext viperContext, RAPSContext rapsContext)
         {
             this._viperContext = viperContext;

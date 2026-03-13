@@ -13,6 +13,15 @@ namespace Viper
     /// </summary>
     public class UserHelper : IUserHelper
     {
+        private readonly AAUDContext? _aaudContext;
+
+        public UserHelper() { }
+
+        public UserHelper(AAUDContext aaudContext)
+        {
+            _aaudContext = aaudContext;
+        }
+
         #region public ClientData GetClientData()
         /// <summary>
         /// Returns client data for the current context
@@ -303,7 +312,8 @@ namespace Viper
         {
             try
             {
-                AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+                AAUDContext? aaudContext = _aaudContext
+                    ?? (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
                 AaudUser? currentUser = GetByLoginId(aaudContext, HttpHelper.HttpContext?.User?.Identity?.Name);
 
                 return currentUser;
@@ -328,7 +338,8 @@ namespace Viper
                 if (HttpHelper.HttpContext?.User != null)
                 {
                     var claims = HttpHelper.HttpContext?.User.Claims.ToList();
-                    AAUDContext? aaudContext = (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
+                    AAUDContext? aaudContext = _aaudContext
+                        ?? (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
                     AaudUser? trueUser = GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
 
                     if (trueUser != null)

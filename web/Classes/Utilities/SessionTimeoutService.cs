@@ -7,11 +7,10 @@ namespace Viper.Classes.Utilities
 {
     public static class SessionTimeoutService
     {
-        public static void UpdateSessionTimeout()
+        public static void UpdateSessionTimeout(VIPERContext context)
         {
             string loggedInUserId = GetLoggedInUserId();
             string service = GetService();
-            VIPERContext? context = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
             var logger = LogManager.GetCurrentClassLogger();
 
             if (!string.IsNullOrEmpty(loggedInUserId) && context != null)
@@ -44,11 +43,10 @@ namespace Viper.Classes.Utilities
             }
         }
 
-        public static SessionTimeout? GetSessionTimeout()
+        public static SessionTimeout? GetSessionTimeout(VIPERContext context)
         {
             string loggedInUserId = GetLoggedInUserId();
             string service = GetService();
-            VIPERContext? context = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
             if (!string.IsNullOrEmpty(loggedInUserId) && context != null)
             {
                 SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);

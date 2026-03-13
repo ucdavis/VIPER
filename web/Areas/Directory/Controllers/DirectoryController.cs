@@ -21,10 +21,10 @@ namespace Viper.Areas.Directory.Controllers
         private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper { get; private set; }
 
-        public DirectoryController(Classes.SQLContext.RAPSContext context)
+        public DirectoryController(AAUDContext aaud, RAPSContext rapsContext)
         {
-            _aaud = new AAUDContext();
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
+            _aaud = aaud;
+            _rapsContext = rapsContext;
             UserHelper = new UserHelper();
         }
 
@@ -82,6 +82,7 @@ namespace Viper.Areas.Directory.Controllers
                 var result = hasDetailPermission
                     ? new IndividualSearchResultWithIDs(m, l)
                     : new IndividualSearchResult(m, l);
+                result.LookupEmailHost(_aaud);
                 results.Add(result);
 
                 var vmsearch = VMACSService.Search(result.LoginId);
@@ -127,6 +128,7 @@ namespace Viper.Areas.Directory.Controllers
                 var result = hasDetailPermission
                     ? new IndividualSearchResultWithIDs(userInfo, l)
                     : new IndividualSearchResult(userInfo, l);
+                result.LookupEmailHost(_aaud);
                 results.Add(result);
 
                 var vmsearch = VMACSService.Search(result.LoginId);
