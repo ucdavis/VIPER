@@ -87,6 +87,7 @@ class VerificationService {
                 emailsSent: 0,
                 emailsFailed: 1,
                 failures: [{ personId: 0, instructorName: "", reason: "Request failed" }],
+                emailedPersonIds: [],
             }
         }
         return response.result as BulkEmailResult

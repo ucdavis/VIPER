@@ -107,7 +107,7 @@
                         no-caps
                         :disable="sendingEmailDepts.has(deptGroup.dept)"
                         :loading="sendingEmailDepts.has(deptGroup.dept)"
-                        @click="confirmBulkEmail(deptGroup)"
+                        @click.stop="confirmBulkEmail(deptGroup)"
                     >
                         <template #loading>
                             <q-spinner
@@ -722,6 +722,26 @@ const currentTermName = computed(() => {
     return term?.termName ?? ""
 })
 
+// Due date derived from the selected term's ExpectedCloseDate - VerificationReplyDays
+const selectedTermDueDate = computed<Date | null>(() => {
+    if (!selectedTermCode.value) return null
+    const term = terms.value.find((t) => t.termCode === selectedTermCode.value)
+    if (!term?.expectedCloseDate) return null
+    // Normalize to midnight local to match backend's date-only (.Date) comparison
+    const dueDate = new Date(term.expectedCloseDate)
+    dueDate.setHours(0, 0, 0, 0)
+    dueDate.setDate(dueDate.getDate() - verificationReplyDays.value)
+    return dueDate
+})
+
+// Whether the term-wide deadline has passed (date-only comparison, matching backend)
+const isPastTermDeadline = computed(() => {
+    if (!selectedTermDueDate.value) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return today.getTime() > selectedTermDueDate.value.getTime()
+})
+
 // Helper to check if department should be treated as "Unknown Department"
 function isNoDept(effortDept: string | null | undefined): boolean {
     return !effortDept || effortDept === "UNK"
@@ -998,6 +1018,10 @@ function getDaysSinceEmailed(instructor: PersonDto): number {
 }
 
 function isEmailedPastDeadline(instructor: PersonDto): boolean {
+    if (!instructor.lastEmailedDate) return false
+    // When ExpectedCloseDate is set, use term-wide deadline
+    if (selectedTermDueDate.value) return isPastTermDeadline.value
+    // Fallback: past deadline if emailed more than VerificationReplyDays ago
     const daysSince = getDaysSinceEmailed(instructor)
     return daysSince > verificationReplyDays.value
 }
@@ -1009,10 +1033,19 @@ function formatDate(dateStr: string): string {
 function getEmailTooltip(instructor: PersonDto): string {
     if (!instructor.lastEmailedDate) return ""
 
-    const daysSince = getDaysSinceEmailed(instructor)
     const dateStr = formatDate(instructor.lastEmailedDate)
     const sender = instructor.lastEmailedBy ?? "Unknown"
 
+    if (selectedTermDueDate.value) {
+        if (isPastTermDeadline.value) {
+            const dueDateStr = selectedTermDueDate.value.toLocaleDateString()
+            return `Emailed ${dateStr} by ${sender} - past deadline (${dueDateStr})`
+        }
+        return `Emailed ${dateStr} by ${sender}`
+    }
+
+    // Fallback: days-since-emailed logic
+    const daysSince = getDaysSinceEmailed(instructor)
     if (daysSince > verificationReplyDays.value) {
         const daysPast = daysSince - verificationReplyDays.value
         return `Emailed ${dateStr} by ${sender} - ${daysPast} ${inflect("day", daysPast)} past deadline`
@@ -1164,30 +1197,16 @@ async function sendBulkVerificationEmails(dept: string, includeRecentlyEmailed: 
             }
         }
 
-        // Update instructors locally instead of reloading
-        // Find all unverified instructors in this department that weren't in the failure list
-        const failedPersonIds = new Set(result.failures.map((f) => f.personId))
+        // Update instructors locally using actual recipient list from backend
+        const emailedSet = new Set(result.emailedPersonIds)
         const now = new Date().toISOString()
         const senderName = `${userStore.userInfo.firstName} ${userStore.userInfo.lastName}`
 
         for (const instructor of instructors.value) {
-            // Skip if not in this department, already verified, can't receive email, or failed
-            if (
-                instructor.effortDept !== dept ||
-                instructor.isVerified ||
-                !instructor.canSendVerificationEmail ||
-                failedPersonIds.has(instructor.personId)
-            ) {
-                continue
+            if (emailedSet.has(instructor.personId)) {
+                instructor.lastEmailedDate = now
+                instructor.lastEmailedBy = senderName
             }
-
-            // Skip recently emailed instructors if not including them
-            if (!includeRecentlyEmailed && !isEmailedPastDeadline(instructor) && instructor.lastEmailedDate !== null) {
-                continue
-            }
-
-            instructor.lastEmailedDate = now
-            instructor.lastEmailedBy = senderName
         }
     } catch {
         loadingNotify()

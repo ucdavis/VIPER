@@ -25,7 +25,14 @@
 {
     <tr>
         <td class="email-content section" style="padding: 20px;">
-            <p class="section" style="margin: 0; padding: 0 0 10px 0;">It is appreciated if you reply by <strong>@Model.ReplyByDate</strong>.</p>
+            @if (Model.IsPastDue)
+            {
+                <p class="section" style="margin: 0; padding: 0 0 10px 0;">The due date of <strong>@Model.ReplyByDate</strong> has passed. Please verify your effort as soon as possible.</p>
+            }
+            else
+            {
+                <p class="section" style="margin: 0; padding: 0 0 10px 0;">It is appreciated if you reply by <strong>@Model.ReplyByDate</strong>.</p>
+            }
             <p class="section" style="margin: 0; padding: 0 0 10px 0;">Our records show you have <strong>no teaching effort recorded</strong> for @Model.TermDescription.</p>
             <p class="section" style="margin: 0; padding: 0;">If this is correct, please verify your "no effort" status using the link below. If you believe you should have effort recorded for this term, please reply to this message with corrections.</p>
         </td>
@@ -49,7 +56,14 @@ else
 @* Intro Section *@
 <tr>
     <td class="email-content section" style="padding: 20px;">
-        <p class="section" style="margin: 0; padding: 0 0 10px 0;">It is appreciated if you reply by <strong>@Model.ReplyByDate</strong>.</p>
+        @if (Model.IsPastDue)
+        {
+            <p class="section" style="margin: 0; padding: 0 0 10px 0;">The due date of <strong>@Model.ReplyByDate</strong> has passed. Please verify your effort as soon as possible.</p>
+        }
+        else
+        {
+            <p class="section" style="margin: 0; padding: 0 0 10px 0;">It is appreciated if you reply by <strong>@Model.ReplyByDate</strong>.</p>
+        }
         <p class="section" style="margin: 0; padding: 0;">Your effort data for @Model.TermDescription has been imported from CREST and Banner. Please check the data below for accuracy and/or missing effort. This includes graduate courses.</p>
     </td>
 </tr>

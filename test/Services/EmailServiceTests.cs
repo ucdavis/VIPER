@@ -34,7 +34,7 @@ public class EmailServiceTests
         settings ??= new EmailSettings
         {
             SmtpHost = "localhost",
-            SmtpPort = 1025,
+            SmtpPort = 0, // Avoids sending emails during tests
             DefaultFromAddress = "test@example.com",
             UseMailpit = true
         };

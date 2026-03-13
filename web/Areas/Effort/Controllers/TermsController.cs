@@ -85,7 +85,7 @@ public class TermsController : BaseEffortController
 
         try
         {
-            var term = await _termService.CreateTermAsync(request.TermCode, ct);
+            var term = await _termService.CreateTermAsync(request.TermCode, request.ExpectedCloseDate, ct);
             _logger.LogInformation("Term created: {TermCode}", request.TermCode);
             return CreatedAtAction(nameof(GetTerm), new { termCode = term.TermCode }, term);
         }
@@ -94,6 +94,36 @@ public class TermsController : BaseEffortController
             _logger.LogWarning(ex, "Cannot create term {TermCode}: {Message}", request.TermCode, LogSanitizer.SanitizeString(ex.Message));
             return Conflict(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Update the expected close date for a term.
+    /// </summary>
+    [HttpPut("{termCode:int}/expected-close-date")]
+    [Permission(Allow = EffortPermissions.ManageTerms)]
+    public async Task<ActionResult<TermDto>> UpdateExpectedCloseDate(int termCode, [FromBody] UpdateExpectedCloseDateRequest request, CancellationToken ct)
+    {
+        SetExceptionContext("termCode", termCode);
+
+        TermDto? term;
+        try
+        {
+            term = await _termService.UpdateExpectedCloseDateAsync(termCode, request.ExpectedCloseDate, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Cannot update expected close date for term {TermCode}: {Message}", termCode, LogSanitizer.SanitizeString(ex.Message));
+            return BadRequest(ex.Message);
+        }
+
+        if (term == null)
+        {
+            _logger.LogWarning("Term not found for expected close date update: {TermCode}", termCode);
+            return NotFound($"Term {termCode} not found");
+        }
+
+        _logger.LogInformation("Expected close date updated for term {TermCode}", termCode);
+        return Ok(term);
     }
 
     /// <summary>

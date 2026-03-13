@@ -57,10 +57,16 @@ public class TermService : ITermService
             .Union(termsWithRecords)
             .ToHashSet();
 
+        var termEndDates = await _viperContext.Terms
+            .AsNoTracking()
+            .Where(t => termCodes.Contains(t.TermCode))
+            .ToDictionaryAsync(t => t.TermCode, t => t.EndDate, ct);
+
         return terms.Select(t =>
         {
             var dto = _mapper.Map<TermDto>(t);
             dto.TermName = GetTermName(t.TermCode);
+            dto.TermEndDate = termEndDates.TryGetValue(t.TermCode, out var endDate) ? endDate : null;
             dto.CanDelete = !termsWithData.Contains(t.TermCode);
             // Use term status and term code for clinical import eligibility
             dto.CanImportClinical = TermValidationHelper.CanImportClinical(dto.Status, t.TermCode);
@@ -75,8 +81,7 @@ public class TermService : ITermService
             .FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
 
         if (term == null) return null;
-        var dto = _mapper.Map<TermDto>(term);
-        dto.TermName = GetTermName(termCode);
+        var dto = await MapTermToDtoAsync(term, ct);
         // Use term status and term code for clinical import eligibility
         dto.CanImportClinical = TermValidationHelper.CanImportClinical(dto.Status, termCode);
         return dto;
@@ -92,9 +97,7 @@ public class TermService : ITermService
             .FirstOrDefaultAsync(ct);
 
         if (term == null) return null;
-        var dto = _mapper.Map<TermDto>(term);
-        dto.TermName = GetTermName(term.TermCode);
-        return dto;
+        return await MapTermToDtoAsync(term, ct);
     }
 
     public string GetTermName(int termCode)
@@ -111,9 +114,51 @@ public class TermService : ITermService
         return viperTerm?.TermType;
     }
 
+    /// <summary>
+    /// Validates that an expected close date falls within a reasonable range
+    /// relative to the term's end date: must be after term end and within 1 year of it.
+    /// </summary>
+    private async Task ValidateExpectedCloseDateAsync(int termCode, DateTime expectedCloseDate, CancellationToken ct)
+    {
+        var termEndDate = await GetTermEndDateAsync(termCode, ct);
+        if (termEndDate == null) return; // Can't validate against unknown term
+
+        if (expectedCloseDate.Date <= termEndDate.Value.Date)
+        {
+            throw new InvalidOperationException(
+                $"Expected close date must be after the term end date ({termEndDate.Value:M/d/yyyy})");
+        }
+
+        if (expectedCloseDate.Date > termEndDate.Value.Date.AddYears(1))
+        {
+            throw new InvalidOperationException(
+                $"Expected close date cannot be more than 1 year after the term end date ({termEndDate.Value:M/d/yyyy})");
+        }
+    }
+
+    private async Task<DateTime?> GetTermEndDateAsync(int termCode, CancellationToken ct)
+    {
+        return await _viperContext.Terms
+            .AsNoTracking()
+            .Where(t => t.TermCode == termCode)
+            .Select(t => (DateTime?)t.EndDate)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>
+    /// Maps an EffortTerm entity to a TermDto, enriching it with the term name and end date.
+    /// </summary>
+    private async Task<TermDto> MapTermToDtoAsync(Models.Entities.EffortTerm term, CancellationToken ct)
+    {
+        var dto = _mapper.Map<TermDto>(term);
+        dto.TermName = GetTermName(term.TermCode);
+        dto.TermEndDate = await GetTermEndDateAsync(term.TermCode, ct);
+        return dto;
+    }
+
     // Term Management Operations
 
-    public async Task<TermDto> CreateTermAsync(int termCode, CancellationToken ct = default)
+    public async Task<TermDto> CreateTermAsync(int termCode, DateTime? expectedCloseDate = null, CancellationToken ct = default)
     {
         var existingTerm = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
         if (existingTerm != null)
@@ -121,23 +166,63 @@ public class TermService : ITermService
             throw new InvalidOperationException($"Term {termCode} already exists");
         }
 
+        if (expectedCloseDate.HasValue)
+        {
+            await ValidateExpectedCloseDateAsync(termCode, expectedCloseDate.Value, ct);
+        }
+
         // New term starts with no dates set (Status will be computed as "Created")
         var term = new Models.Entities.EffortTerm
         {
-            TermCode = termCode
+            TermCode = termCode,
+            ExpectedCloseDate = expectedCloseDate
         };
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _context.Terms.Add(term);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CreateTerm,
             null,
-            new { Status = term.Status });
+            new { Status = term.Status, term.ExpectedCloseDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<TermDto>(term);
-        dto.TermName = GetTermName(termCode);
-        return dto;
+        return await MapTermToDtoAsync(term, ct);
+    }
+
+    public async Task<TermDto?> UpdateExpectedCloseDateAsync(int termCode, DateTime? expectedCloseDate, CancellationToken ct = default)
+    {
+        var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == termCode, ct);
+        if (term == null)
+        {
+            return null;
+        }
+
+        if (term.ClosedDate.HasValue)
+        {
+            throw new InvalidOperationException("Cannot update expected close date for a closed term");
+        }
+
+        if (expectedCloseDate.HasValue)
+        {
+            await ValidateExpectedCloseDateAsync(termCode, expectedCloseDate.Value, ct);
+        }
+
+        var oldDate = term.ExpectedCloseDate;
+
+        // Skip save+audit if nothing changed
+        if (oldDate != expectedCloseDate)
+        {
+            term.ExpectedCloseDate = expectedCloseDate;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            _auditService.AddTermChangeAudit(termCode, EffortAuditActions.UpdateTerm,
+                new { ExpectedCloseDate = oldDate },
+                new { ExpectedCloseDate = expectedCloseDate });
+            await _context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+
+        return await MapTermToDtoAsync(term, ct);
     }
 
     public async Task<bool> DeleteTermAsync(int termCode, CancellationToken ct = default)
@@ -190,9 +275,7 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<TermDto>(term);
-        dto.TermName = GetTermName(termCode);
-        return dto;
+        return await MapTermToDtoAsync(term, ct);
     }
 
     public async Task<(bool Success, string? ErrorMessage)> CloseTermAsync(int termCode, CancellationToken ct = default)
@@ -252,9 +335,7 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<TermDto>(term);
-        dto.TermName = GetTermName(termCode);
-        return dto;
+        return await MapTermToDtoAsync(term, ct);
     }
 
     public async Task<TermDto?> UnopenTermAsync(int termCode, CancellationToken ct = default)
@@ -283,9 +364,7 @@ public class TermService : ITermService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<TermDto>(term);
-        dto.TermName = GetTermName(termCode);
-        return dto;
+        return await MapTermToDtoAsync(term, ct);
     }
 
     public async Task<bool> CanDeleteTermAsync(int termCode, CancellationToken ct = default)
@@ -326,7 +405,8 @@ public class TermService : ITermService
             {
                 TermCode = t.TermCode,
                 TermName = t.Description,
-                StartDate = t.StartDate
+                StartDate = t.StartDate,
+                EndDate = t.EndDate
             })
             .ToListAsync(ct);
 

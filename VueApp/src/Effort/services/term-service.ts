@@ -1,7 +1,7 @@
 import { useFetch } from "@/composables/ViperFetch"
 import type { TermDto, AvailableTermDto } from "../types"
 
-const { get, post, del } = useFetch()
+const { get, post, put, del } = useFetch()
 
 /**
  * Service for Term management API calls.
@@ -58,9 +58,26 @@ class TermService {
     /**
      * Create a new term.
      */
-    async createTerm(termCode: number): Promise<TermDto> {
-        const response = await post(this.baseUrl, { termCode })
+    async createTerm(termCode: number, expectedCloseDate?: string | null): Promise<TermDto | null> {
+        const response = await post(this.baseUrl, { termCode, expectedCloseDate: expectedCloseDate ?? null })
+        if (!response.success) {
+            return null
+        }
         return response.result as TermDto
+    }
+
+    /**
+     * Update the expected close date for a term.
+     */
+    async updateExpectedCloseDate(
+        termCode: number,
+        expectedCloseDate: string | null,
+    ): Promise<{ result: TermDto | null; error?: string }> {
+        const response = await put(`${this.baseUrl}/${termCode}/expected-close-date`, { expectedCloseDate })
+        if (!response.success) {
+            return { result: null, error: response.errors?.[0] ?? "Failed to update expected close date" }
+        }
+        return { result: response.result as TermDto | null }
     }
 
     /**

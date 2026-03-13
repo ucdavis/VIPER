@@ -33,6 +33,23 @@ public class TermDto
     public DateTime? ClosedDate { get; set; }
 
     /// <summary>
+    /// Expected close date for this term (set by admin when creating/managing term).
+    /// Used to calculate email due dates (ExpectedCloseDate minus the configured VerificationReplyDays).
+    /// </summary>
+    public DateTime? ExpectedCloseDate { get; set; }
+
+    /// <summary>
+    /// The academic term's end date from vwTerms.
+    /// Used by the UI to constrain expected close date selection.
+    /// </summary>
+    public DateTime? TermEndDate { get; set; }
+
+    /// <summary>
+    /// Whether the ExpectedCloseDate can be edited (not allowed for closed terms).
+    /// </summary>
+    public bool CanEditExpectedCloseDate => !ClosedDate.HasValue;
+
+    /// <summary>
     /// Workflow status derived from date fields (matches legacy ColdFusion logic):
     /// Closed if ClosedDate is set, Opened if OpenedDate is set,
     /// Harvested if HarvestedDate is set, otherwise Created.
