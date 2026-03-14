@@ -91,12 +91,6 @@ internal static partial class ViteProxyHelpers
     {
         var path = context.Request.Path;
 
-        // Skip proxying built asset files with hashes - serve as static files
-        if (path.HasValue && AssetHashRegex.IsMatch(path.Value))
-        {
-            return false;
-        }
-
         // Proxy if path starts with /vue or /2/vue (Vite base paths)
         if (path.StartsWithSegments("/vue") || path.StartsWithSegments("/2/vue"))
             return true;

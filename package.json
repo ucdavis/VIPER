@@ -27,7 +27,6 @@
         "test:backend": "cross-env DOTNET_USE_COMPILER_SERVER=1 node scripts/test-dotnet.js",
         "test:frontend": "cd VueApp && npm run test:run",
         "verify:build": "node scripts/verify-build.js",
-        "analyze": "cd VueApp && cross-env ANALYZE=true npm run build-only",
         "merge": "node scripts/merge-to-dev.js"
     },
     "devDependencies": {

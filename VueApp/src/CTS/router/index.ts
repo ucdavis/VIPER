@@ -16,7 +16,7 @@ router.beforeEach(async (to) => {
     if (loginResult !== null && !loginResult) {
         return false
     }
-    if (to.meta.permissions !== null) {
+    if (to.meta.permissions !== null && to.meta.permissions !== undefined) {
         const hasPerm = checkHasOnePermission(to.meta.permissions as string[])
         if (!hasPerm) {
             return { name: "CtsAuth" }
