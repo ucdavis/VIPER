@@ -10,7 +10,6 @@ type DashboardStatsDto = {
     pendingInstructors: number
     verificationPercent: number
     totalCourses: number
-    coursesWithInstructors: number
     coursesWithoutInstructors: number
     totalRecords: number
     instructorsWithNoRecords: number

@@ -467,10 +467,8 @@ describe("StaffDashboard - Stats Calculations", () => {
         expect(pendingInstructors).toBe(20)
     })
 
-    it("should calculate courses without instructors", () => {
-        const totalCourses = 50
-        const coursesWithInstructors = 45
-        const coursesWithoutInstructors = totalCourses - coursesWithInstructors
+    it("should display courses without instructors from API", () => {
+        const coursesWithoutInstructors = 5
 
         expect(coursesWithoutInstructors).toBe(5)
     })

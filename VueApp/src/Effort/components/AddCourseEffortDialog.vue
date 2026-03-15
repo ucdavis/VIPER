@@ -64,7 +64,7 @@
                     <!-- Effort Type Selection -->
                     <q-select
                         v-model="selectedEffortType"
-                        :options="effortTypes"
+                        :options="filteredEffortTypes"
                         label="Session Type *"
                         dense
                         options-dense
@@ -187,6 +187,7 @@ import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
 import type { CourseInstructorOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
+import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
 import "../effort-dialogs.css"
 import "../effort-forms.css"
@@ -196,6 +197,9 @@ const props = defineProps<{
     courseId: number
     termCode: number
     isResidentCourse?: boolean
+    isDvm?: boolean
+    is199299?: boolean
+    isRCourse?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -314,6 +318,15 @@ function filterInstructors(val: string, update: (fn: () => void) => void) {
         }
     })
 }
+
+// Filter effort types based on course classification flags
+const filteredEffortTypes = computed(() =>
+    filterEffortTypesByCourse(effortTypes.value, {
+        isDvm: props.isDvm ?? false,
+        is199299: props.is199299 ?? false,
+        isRCourse: props.isRCourse ?? false,
+    }),
+)
 
 // Computed: Effort label (Hours vs Weeks) with required asterisk
 const effortLabel = computed(() => {

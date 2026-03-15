@@ -35,7 +35,7 @@ describe("DashboardService", () => {
                 totalInstructors: 100,
                 verifiedInstructors: 80,
                 totalCourses: 50,
-                coursesWithInstructors: 45,
+                coursesWithoutInstructors: 5,
                 totalRecords: 200,
                 hygieneSummary: {
                     activeAlerts: 5,

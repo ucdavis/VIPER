@@ -54,24 +54,10 @@ public class DashboardService : IDashboardService
         var instructorsWithNoRecords = await personsQuery
             .CountAsync(p => !personIdsWithRecords.Contains(p.PersonId), ct);
 
-        var coursesQuery = _context.Courses.Where(c => c.TermCode == termCode);
-        if (hasDeptFilter)
-        {
-            coursesQuery = coursesQuery.Where(c => departmentCodes!.Contains(c.CustDept));
-        }
-
-        // Get basic course counts
+        var coursesQuery = GetNonRCoursesQuery(termCode, departmentCodes);
         var totalCourses = await coursesQuery.CountAsync(ct);
-
-        // Get course IDs that have records (separate query to avoid nested aggregates)
-        var courseIdsWithRecords = await _context.Records
-            .Where(r => r.TermCode == termCode)
-            .Select(r => r.CourseId)
-            .Distinct()
-            .ToListAsync(ct);
-
-        var coursesWithInstructors = await coursesQuery
-            .CountAsync(c => courseIdsWithRecords.Contains(c.Id), ct);
+        var coursesWithoutInstructors = await coursesQuery
+            .CountAsync(c => !_context.Records.Any(r => r.CourseId == c.Id), ct);
 
         var recordsQuery = _context.Records.Where(r => r.TermCode == termCode);
         if (hasDeptFilter)
@@ -91,7 +77,7 @@ public class DashboardService : IDashboardService
             TotalInstructors = totalInstructors,
             VerifiedInstructors = verifiedInstructors,
             TotalCourses = totalCourses,
-            CoursesWithInstructors = coursesWithInstructors,
+            CoursesWithoutInstructors = coursesWithoutInstructors,
             TotalRecords = totalRecords,
             InstructorsWithNoRecords = instructorsWithNoRecords,
             HygieneSummary = new DataHygieneSummaryDto
@@ -189,20 +175,10 @@ public class DashboardService : IDashboardService
         }
 
         // Get courses with no instructors
-        var coursesQuery = _context.Courses.Where(c => c.TermCode == termCode);
-        if (hasDeptFilter)
-        {
-            coursesQuery = coursesQuery.Where(c => departmentCodes!.Contains(c.CustDept));
-        }
-
-        // S6610: EF Core LINQ-to-SQL doesn't support EndsWith(char), only EndsWith(string)
-#pragma warning disable S6610
-        var coursesNoInstructors = await coursesQuery
+        var coursesNoInstructors = await GetNonRCoursesQuery(termCode, departmentCodes)
             .Where(c => !_context.Records.Any(r => r.CourseId == c.Id))
-            .Where(c => !c.CrseNumb.Trim().EndsWith("R")) // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
             .Select(c => new { c.Id, c.SubjCode, c.CrseNumb, c.SeqNumb, c.CustDept })
             .ToListAsync(ct);
-#pragma warning restore S6610
 
         foreach (var course in coursesNoInstructors)
         {
@@ -444,4 +420,26 @@ public class DashboardService : IDashboardService
 
         await _context.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// Builds a courses query for the term, excluding R-courses (auto-generated placeholders)
+    /// and optionally filtering by department.
+    /// </summary>
+    // S6610: EF Core LINQ-to-SQL doesn't support EndsWith(char), only EndsWith(string)
+    // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
+#pragma warning disable S6610
+    private IQueryable<EffortCourse> GetNonRCoursesQuery(int termCode, List<string>? departmentCodes)
+    {
+        var query = _context.Courses
+            .Where(c => c.TermCode == termCode)
+            .Where(c => !c.CrseNumb.Trim().EndsWith("R"));
+
+        if (departmentCodes != null && departmentCodes.Count > 0)
+        {
+            query = query.Where(c => departmentCodes.Contains(c.CustDept));
+        }
+
+        return query;
+    }
+#pragma warning restore S6610
 }
