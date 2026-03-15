@@ -17,10 +17,6 @@ const {
 const logger = createLogger("Dev Stop")
 const { error: logError, success: logSuccess, info: logInfo } = logger
 
-// Centralize process.env access to a single top-level binding
-// oxlint-disable-next-line no-process-env -- single controlled access point
-const ENV = process.env
-
 // Stop Mailpit specifically (cross-platform)
 async function stopMailpit() {
     const stopped = await killProcess("mailpit")

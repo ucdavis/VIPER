@@ -1,3 +1,4 @@
+// oxlint-disable-next-line import/no-default-export, import/no-anonymous-default-export -- Stylelint config requires default export
 export default {
     extends: ["stylelint-config-standard", "@double-great/stylelint-a11y/strict"],
     customSyntax: "postcss-html",

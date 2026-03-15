@@ -12,7 +12,7 @@ import type {
     GalleryMenu,
     CourseInfo,
 } from "../services/photo-gallery-service"
-import { photoGalleryService, PhotoGalleryService } from "../services/photo-gallery-service"
+import { photoGalleryService, downloadFile } from "../services/photo-gallery-service"
 import { calculateGroupCounts } from "./photo-gallery-helpers"
 
 const ISO_DATE_LENGTH = 10 // Length of YYYY-MM-DD in ISO string
@@ -167,7 +167,7 @@ function createExportToWord(refs: StoreRefs) {
             })
             // Use server-provided filename if available, otherwise fallback to timestamp
             const finalFilename = filename || `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.docx`
-            photoGalleryService.downloadFile(blob, finalFilename)
+            downloadFile(blob, finalFilename)
         } catch (err: any) {
             throw new Error(err.message || "Failed to export to Word", { cause: err })
         } finally {
@@ -187,7 +187,7 @@ function createExportToPDF(refs: StoreRefs) {
             })
             // Use server-provided filename if available, otherwise fallback to timestamp
             const finalFilename = filename || `StudentPhotos_${new Date().toISOString().slice(0, ISO_DATE_LENGTH)}.pdf`
-            photoGalleryService.downloadFile(blob, finalFilename)
+            downloadFile(blob, finalFilename)
         } catch (err: any) {
             throw new Error(err.message || "Failed to export to PDF", { cause: err })
         } finally {

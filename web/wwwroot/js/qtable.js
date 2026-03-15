@@ -1,4 +1,4 @@
-﻿/*
+/*
  * quasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
 quasarTableDefaultConfig = {
@@ -60,16 +60,16 @@ class quasarTable {
         }
 
         if (this.sessionKey != null && this.sessionKey.length) {
-            var pag = getItemFromStorage(this.sessionKey + "_pagination")
+            const pag = getItemFromStorage(this.sessionKey + "_pagination")
             if (pag) {
                 this.pagination = pag
             }
         }
         
-        var queryParams = "";
+        let queryParams = "";
         this.loading = true
         if (this.serverSidePagination) {
-            var queryParamObject = {
+            const queryParamObject = {
                 perPage: this.pagination.rowsPerPage,
                 page: this.pagination.page,
                 sortOrder: (this.pagination.sortBy ? this.pagination.sortBy : "") + (this.pagination.descending ? " desc" : ""),
@@ -91,15 +91,16 @@ class quasarTable {
                         this.rows = r
                     }
                 }
-                
+
                 if (this.onLoad) {
                     this.onLoad.call(this, this.rows, vueApp)
                 }
             })
-            .then(r => {
+            .then(() => {
                 this.loading = false
                 this.clear()
             })
+            .catch(e => showViperFetchError(this.vueApp, e, this.errors))
     }
 
     savePagination(v) {
@@ -129,7 +130,7 @@ class quasarTable {
 
     //Submit (create or update) the selected item
     async submit(vueApp) {
-        var bodyObject = this.createBody
+        const bodyObject = this.createBody
             ? this.createBody(vueApp, this.object)
             : this.object
         if (!this.editing)
@@ -147,7 +148,7 @@ class quasarTable {
                 headers: { "Content-Type": "application/json" }
             },
             [
-                (r => this.load(this))
+                (() => this.load(this))
             ],
             this.errors
         )
@@ -162,7 +163,7 @@ class quasarTable {
                 headers: { "Content-Type": "application/json" }
             },
             [
-                (r => this.load(this))
+                (() => this.load(this))
             ],
             this.errors
         )
@@ -174,7 +175,7 @@ class quasarTable {
             this.getUpdateURL(),
             { method: "DELETE" },
             [
-                (r => this.load(this))
+                (() => this.load(this))
             ],
             this.errors)
     }
@@ -182,9 +183,9 @@ class quasarTable {
     //Get the URL to create or update the item
     //See comment under quasarTableDefaultConfig.urlBase
     getUpdateURL() {
-        var url = this.urlBase
+        let url = this.urlBase
         if (Array.isArray(this.keys)) {
-            for (var k of this.keys) {
+            for (const k of this.keys) {
                 if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
                     if (k?.urlPrefix) {
                         url += "/" + k.urlPrefix
@@ -222,13 +223,13 @@ class quasarTable {
         // naive encoding to csv format
         const columnsMinusExcludes = this.columns
             .filter(c => this.excludeFromExport.findIndex(e => e == c.name) == -1)
-        const content = [columnsMinusExcludes.map(col => this.wrapCsvValue(col.label))]
+        const content = [columnsMinusExcludes.map(col => wrapCsvValue(col.label))]
                 .concat(
                     this.rows.map(row => columnsMinusExcludes
-                        .map(col => this.wrapCsvValue(
+                        .map(col => wrapCsvValue(
                             typeof col.field === 'function'
                                 ? col.field(row)
-                                : row[col.field === void 0 ? col.name : col.field],
+                                : row[col.field === undefined ? col.name : col.field],
                             col.format,
                             row))
                         .join(',')
@@ -253,24 +254,25 @@ class quasarTable {
         }
     }
 
-    //Escape double quotes (" -> "") and new lines in the content
-    wrapCsvValue(val, formatFn, row) {
-        let formatted = formatFn !== void 0
-            ? formatFn(val, row)
-            : val
-
-        formatted = formatted === void 0 || formatted === null
-            ? ''
-            : String(formatted)
-
-        formatted = formatted.split('"').join('""')
-            /**
-            * Excel accepts \n and \r in strings, but some other CSV parsers do not
-            * Uncomment the next two lines to escape new lines
-            */
-            .split('\n').join('\\n')
-            .split('\r').join('\\r')
-
-        return `"${formatted}"`
-    }
 }
+
+// Escape double quotes (" -> "") and new lines in the content
+function wrapCsvValue(val, formatFn, row) {
+    let formatted = formatFn !== undefined
+        ? formatFn(val, row)
+        : val
+
+    formatted = formatted === undefined || formatted === null
+        ? ''
+        : String(formatted)
+
+    formatted = formatted.split('"').join('""')
+        /**
+        * Excel accepts \n and \r in strings, but some other CSV parsers do not
+        * Uncomment the next two lines to escape new lines
+        */
+        .split('\n').join('\\n')
+        .split('\r').join('\\r')
+
+    return `"${formatted}"`
+}

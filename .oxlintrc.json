@@ -200,6 +200,13 @@
             "rules": {
                 "unicorn/filename-case": "off" // Legacy core files - keep PascalCase naming for backwards compatibility
             }
+        },
+        {
+            "files": ["web/wwwroot/js/**"],
+            "rules": {
+                "no-unused-vars": "off", // Functions are called from Razor views via <script> tags
+                "import/unambiguous": "off" // These are <script> tag files, not ES modules
+            }
         }
     ],
     "ignorePatterns": [
@@ -207,7 +214,8 @@
         "bin/**",
         "obj/**",
         "dist/**",
-        "wwwroot/**",
+        "web/wwwroot/vue/**",
+        "web/wwwroot/lib/**",
         "*.min.js",
         "*.bundle.js",
         "**/*.vue"

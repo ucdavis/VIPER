@@ -170,14 +170,15 @@ class PhotoGalleryService {
         return response.result as ClassYear[]
     }
 
-    downloadFile(blob: Blob, filename: string): void {
-        downloadBlob(blob, filename)
-    }
+}
+
+function downloadFile(blob: Blob, filename: string): void {
+    downloadBlob(blob, filename)
 }
 
 const photoGalleryService = new PhotoGalleryService()
 
-export { photoGalleryService, PhotoGalleryService }
+export { photoGalleryService, PhotoGalleryService, downloadFile }
 export type {
     StudentPhoto,
     PhotoGalleryViewModel,

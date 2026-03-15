@@ -1,4 +1,4 @@
-﻿// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
 // Write your JavaScript code.
@@ -10,9 +10,9 @@ function formatDateForDateInput(d) {
     if (d == null || d == "") {
         return ""
     }
-    d = d.split("T")[0]
-    var dt = new Date(d + "T00:00:00")
-    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf()))
+    const dateStr = d.split("T")[0]
+    const dt = new Date(dateStr + "T00:00:00")
+    return (dateStr && dateStr != "" && dt instanceof Date && !Number.isNaN(dt.valueOf()))
         ? (dt.getFullYear() + "-" + ("" + (dt.getMonth() + 1)).padStart(2, "0") + "-" + ("" + (dt.getDate())).padStart(2, "0"))
         : "";
 }
@@ -24,17 +24,17 @@ function formatDate(d) {
     if (d == null || d == "") {
         return ""
     }
-    d = d.split("T")[0]
-    var dt = new Date(d + "T00:00:00")
-    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleDateString() : ""
+    const dateStr = d.split("T")[0]
+    const dt = new Date(dateStr + "T00:00:00")
+    return (dateStr && dateStr != "" && dt instanceof Date && !Number.isNaN(dt.valueOf())) ? dt.toLocaleDateString() : ""
 }
 
 function formatDateTime(d, options) {
     if (d == null || d == "") {
         return ""
     }
-    var dt = new Date(d)
-    return (d && d != "" && dt instanceof Date && !isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
+    const dt = new Date(d)
+    return (d && d != "" && dt instanceof Date && !Number.isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
 }
 
 /*
@@ -63,7 +63,7 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
         .then(r => (r.status == "204" || r.status == "202") ? r : r.json())
         //check for success flag and result being defined. call additional functions
         .then(r => {
-            var result = r
+            let result = r
             if (r.success !== undefined) {
                 if (!r.success || typeof (r.result) == "undefined") {
                     showViperFetchError(VueApp, r, errorTarget)
@@ -85,14 +85,15 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
  */
 async function handleViperFetchError(response) {
     if (!response.ok) {
+        let result
         try {
-            var result = await response.json()
+            result = await response.json()
         }
-        catch (e) {
+        catch {
             throw Error("An error occurred")
         }
 
-        var message = result.errorMessage != null ? result.errorMessage
+        const message = result.errorMessage != null ? result.errorMessage
             : result.detail != null ? result.detail
             : result.statusText
         throw new ValidationError(message, result?.errors)
@@ -104,7 +105,7 @@ async function handleViperFetchError(response) {
  * Show an error the client
  */
 function showViperFetchError(VueApp, error, errorTarget) {
-    var shownError = false
+    let shownError = false
     try {
         if (errorTarget) {
             errorTarget.message = error.message
@@ -118,7 +119,7 @@ function showViperFetchError(VueApp, error, errorTarget) {
                     }
                 }
                 else {
-                    for (var i = 0; i < 5 && i < error.errors.length; i++) {
+                    for (let i = 0; i < 5 && i < error.errors.length; i += 1) {
                         errorTarget.message += " " + error.errors[i];
                     }
                 }
@@ -126,8 +127,8 @@ function showViperFetchError(VueApp, error, errorTarget) {
             shownError = true
         }
     }
-    catch (e) {
-        //show the error dialog
+    catch {
+        // show the error dialog
     }
 
     if (!shownError) {
@@ -142,8 +143,10 @@ function showViperFetchError(VueApp, error, errorTarget) {
 async function loadViperLeftNav() {
     //build query param list
     //send in path for some apps?
-    var qs = [];
-    this.urlParams.forEach((val, paramName) => qs.push(paramName + "=" + val))
+    let qs = [];
+    for (const [paramName, val] of this.urlParams) {
+        qs.push(paramName + "=" + val)
+    }
     qs = qs.length ? ("?" + qs.join("&")) : ""
     //fix nav not loading when the url is host/2 instead of host/2/
     navLocation = window.location.href.substring(window.location.href.length - 2, window.location.href.length) == "/2"
@@ -153,14 +156,14 @@ async function loadViperLeftNav() {
 }
 
 function getItemFromStorage(key) {
-    var val = window.sessionStorage.getItem(key)
+    const val = window.sessionStorage.getItem(key)
     try {
         return val != null ? JSON.parse(val) : null
     }
-    catch { }
+    catch { /* parse failure — return null below */ }
     return null
 }
 
 function putItemInStorage(key, val) {
     window.sessionStorage.setItem(key, JSON.stringify(val))
-}
+}
