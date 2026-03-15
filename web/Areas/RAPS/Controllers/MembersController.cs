@@ -188,7 +188,7 @@ namespace Viper.Areas.RAPS.Controllers
 
 
             return permissions.Values
-                .Where(p => _securityService.PermissionBelongsToInstance(instance, p.PermissionName))
+                .Where(p => RAPSSecurityService.PermissionBelongsToInstance(instance, p.PermissionName))
                 .OrderBy(p => p.PermissionName)
                 .ToList();
         }

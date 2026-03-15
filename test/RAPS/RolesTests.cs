@@ -151,8 +151,8 @@ namespace Viper.test.RAPS
             rolesController.UserHelper = mockUser.Object;
             rolesController.SecurityService = new RAPSSecurityServiceWrapper(rapsSec);
 
-            var vmacsRole = roles.ToList().Find(r => rapsSec.RoleBelongsToInstance("VMACS.VMTH", r));
-            var viperRole = roles.ToList().Find(r => rapsSec.RoleBelongsToInstance("VIPER", r));
+            var vmacsRole = roles.ToList().Find(r => RAPSSecurityService.RoleBelongsToInstance("VMACS.VMTH", r));
+            var viperRole = roles.ToList().Find(r => RAPSSecurityService.RoleBelongsToInstance("VIPER", r));
 
             // act
             var canViewRolePermissions = rapsSec.IsAllowedTo("ViewRolePermissions", "VMACS.VMTH", vmacsRole!);

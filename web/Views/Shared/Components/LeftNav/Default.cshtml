@@ -20,13 +20,13 @@
         var rawUrl = item.MenuItemURL.Split('?')[0].TrimEnd('/');
         if (rawUrl.StartsWith("http")) { continue; }
 
-        bool isTilde = rawUrl.StartsWith("~");
+        bool isTilde = rawUrl.StartsWith('~');
         string resolvedPath;
         if (isTilde)
         {
             resolvedPath = Url.Content(rawUrl).TrimEnd('/');
         }
-        else if (rawUrl.StartsWith("/"))
+        else if (rawUrl.StartsWith('/'))
         {
             resolvedPath = rawUrl;
         }
@@ -35,14 +35,12 @@
             resolvedPath = basePath + rawUrl;
         }
 
-        if (string.Equals(currentPath, resolvedPath, StringComparison.Ordinal))
+        // Prefer relative/page links over tilde-prefixed instance links
+        if (string.Equals(currentPath, resolvedPath, StringComparison.Ordinal)
+            && (activeIndex < 0 || (activeIsTilde && !isTilde)))
         {
-            // Prefer relative/page links over tilde-prefixed instance links
-            if (activeIndex < 0 || (activeIsTilde && !isTilde))
-            {
-                activeIndex = i;
-                activeIsTilde = isTilde;
-            }
+            activeIndex = i;
+            activeIsTilde = isTilde;
         }
     }
     int renderIndex = 0;

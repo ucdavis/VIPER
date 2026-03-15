@@ -122,23 +122,17 @@ namespace Viper.Areas.CTS.Controllers
             bundleComp.Order = bundleCompetency.Order;
             bundleComp.RoleId = bundleCompetency.RoleId;
             var existingLevels = await context.BundleCompetencyLevels.Where(bcl => bcl.BundleCompetencyId == bundleCompetencyId).ToListAsync();
-            foreach (var existingLevel in existingLevels)
+            foreach (var existingLevel in existingLevels.Where(el => !bundleCompetency.LevelIds.Any(l => l == el.LevelId)))
             {
-                if (!bundleCompetency.LevelIds.Any(l => l == existingLevel.LevelId))
-                {
-                    context.BundleCompetencyLevels.Remove(existingLevel);
-                }
+                context.BundleCompetencyLevels.Remove(existingLevel);
             }
-            foreach (var newLevel in bundleCompetency.LevelIds)
+            foreach (var newLevel in bundleCompetency.LevelIds.Where(nl => !bundleComp.BundleCompetencyLevels.Any(bcl => bcl.LevelId == nl)))
             {
-                if (!bundleComp.BundleCompetencyLevels.Any(bcl => bcl.LevelId == newLevel))
+                context.Add(new BundleCompetencyLevel()
                 {
-                    context.Add(new BundleCompetencyLevel()
-                    {
-                        BundleCompetencyId = bundleCompetencyId,
-                        LevelId = newLevel
-                    });
-                }
+                    BundleCompetencyId = bundleCompetencyId,
+                    LevelId = newLevel
+                });
             }
             await context.SaveChangesAsync();
             AdjustBundleCompetencyOrders(bundleComp);

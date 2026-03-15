@@ -186,7 +186,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (!_securityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
+            if (!RAPSSecurityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
             {
                 return BadRequest();
             }

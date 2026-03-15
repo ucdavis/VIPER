@@ -71,16 +71,12 @@ namespace Viper.Areas.CMS.Controllers
 
                 var orderedGroupedResult = new List<LinkDto>();
                 var added = new HashSet<int>();
-                foreach (var v in allValues)
+                foreach (var r in allValues
+                    .SelectMany(v => result
+                        .Where(r => r.LinkTags.Any(lt => lt.Value == v && lt.LinkCollectionTagCategoryId == tagCategories.LinkCollectionTagCategoryId) && !added.Contains(r.LinkId))))
                 {
-                    foreach (var r in result)
-                    {
-                        if (r.LinkTags.Any(lt => lt.Value == v && lt.LinkCollectionTagCategoryId == tagCategories.LinkCollectionTagCategoryId) && !added.Contains(r.LinkId))
-                        {
-                            added.Add(r.LinkId);
-                            orderedGroupedResult.Add(r);
-                        }
-                    }
+                    added.Add(r.LinkId);
+                    orderedGroupedResult.Add(r);
                 }
 
                 return Ok(orderedGroupedResult);
@@ -221,12 +217,9 @@ namespace Viper.Areas.CMS.Controllers
                 .Select(tc => tc.LinkCollectionTagCategoryId)
                 .ToListAsync();
 
-            foreach (var key in tagValues.Keys)
+            if (tagValues.Keys.Any(key => !tagCategories.Contains(key)))
             {
-                if (!tagCategories.Contains(key))
-                {
-                    return BadRequest("Invalid tag category id");
-                }
+                return BadRequest("Invalid tag category id");
             }
 
             //remove tags and recreate
@@ -235,25 +228,20 @@ namespace Viper.Areas.CMS.Controllers
             await _context.SaveChangesAsync();
 
             int i = 1;
-            foreach (var tcId in tagCategories)
+            foreach (var (tcId, v) in tagCategories
+                .Where(tcId => tagValues.ContainsKey(tcId))
+                .SelectMany(tcId => tagValues[tcId].Split(",")
+                    .Where(v => v != null)
+                    .Select(v => (tcId, v))))
             {
-                if (tagValues.ContainsKey(tcId))
+                var linkTag = new LinkTag
                 {
-                    foreach (var v in tagValues[tcId].Split(","))
-                    {
-                        if (v != null)
-                        {
-                            var linkTag = new LinkTag
-                            {
-                                LinkId = linkId,
-                                LinkCollectionTagCategoryId = tcId,
-                                SortOrder = i++,
-                                Value = v
-                            };
-                            _context.LinkTags.Add(linkTag);
-                        }
-                    }
-                }
+                    LinkId = linkId,
+                    LinkCollectionTagCategoryId = tcId,
+                    SortOrder = i++,
+                    Value = v
+                };
+                _context.LinkTags.Add(linkTag);
             }
             await _context.SaveChangesAsync();
             await trans.CommitAsync();

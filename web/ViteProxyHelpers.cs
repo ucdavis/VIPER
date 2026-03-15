@@ -221,13 +221,11 @@ internal static partial class ViteProxyHelpers
                 "Content-Disposition",
                 "Content-Range"
             };
-            foreach (var header in context.Request.Headers)
+            foreach (var header in context.Request.Headers
+                .Where(h => h.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+                    !forbiddenContentHeaders.Contains(h.Key)))
             {
-                if (header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
-                    !forbiddenContentHeaders.Contains(header.Key))
-                {
-                    requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-                }
+                requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
             }
         }
 
@@ -238,15 +236,13 @@ internal static partial class ViteProxyHelpers
             "proxy-connection", "host", "te"
         };
 
-        foreach (var header in context.Request.Headers)
+        // Skip HTTP/2 pseudo-headers, content headers (already handled above), and hop-by-hop headers
+        foreach (var header in context.Request.Headers
+            .Where(h => !h.Key.StartsWith(':') &&
+                !h.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+                !requestHeaderSkip.Contains(h.Key)))
         {
-            // Skip HTTP/2 pseudo-headers, content headers (already handled above), and hop-by-hop headers
-            if (!header.Key.StartsWith(':') &&
-                !header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
-                !requestHeaderSkip.Contains(header.Key))
-            {
-                requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-            }
+            requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
         }
 
         return requestMessage;
@@ -269,22 +265,20 @@ internal static partial class ViteProxyHelpers
             };
 
             // Copy response headers
-            foreach (var header in response.Headers.Concat(response.Content.Headers))
+            foreach (var header in response.Headers.Concat(response.Content.Headers)
+                .Where(h => !headersToSkip.Contains(h.Key)))
             {
-                if (!headersToSkip.Contains(header.Key))
+                try
                 {
-                    try
-                    {
-                        context.Response.Headers[header.Key] = header.Value.ToArray();
-                    }
-                    catch (Exception headerEx)
-                    {
-                        // Use structured logging for header errors
-                        var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
-                        context.RequestServices.GetRequiredService<ILoggerFactory>()
-                            .CreateLogger("ViteProxyHelpers")
-                            .LogWarning(headerEx, "Failed to set header '{HeaderKey}' in proxy response.", safeHeaderKey);
-                    }
+                    context.Response.Headers[header.Key] = header.Value.ToArray();
+                }
+                catch (Exception headerEx)
+                {
+                    // Use structured logging for header errors
+                    var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
+                    context.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("ViteProxyHelpers")
+                        .LogWarning(headerEx, "Failed to set header '{HeaderKey}' in proxy response.", safeHeaderKey);
                 }
             }
         }

@@ -22,15 +22,13 @@ namespace Viper.Areas.Students.Services
             int term = termCode % 100;
             int? classYear = GetDvmYear(classLevel);
 
-            if (classYear != null && year >= 2000 && year < 2100)
+            //202309: V1 2027 V4 2024
+            //202402: V1 2027 V4 2024
+            //202404: V4 2025
+            if (classYear != null && year >= 2000 && year < 2100
+                && (term == 2 || term == 4 || term == 9))
             {
-                //202309: V1 2027 V4 2024
-                //202402: V1 2027 V4 2024
-                //202404: V4 2025
-                if (term == 2 || term == 4 || term == 9)
-                {
-                    return year + (5 - classYear) - (term == 2 ? 1 : 0);
-                }
+                return year + (5 - classYear) - (term == 2 ? 1 : 0);
             }
             return null;
         }

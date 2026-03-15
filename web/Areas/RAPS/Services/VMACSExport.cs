@@ -64,12 +64,9 @@ namespace Viper.Areas.RAPS.Services
         {
             _ = mothraId ?? UserHelper.GetCurrentUser()?.MothraId;
             List<string> messages = new();
-            foreach (string instance in instances.Split(","))
+            foreach (string instance in instances.Split(",").Where(i => !string.IsNullOrEmpty(i)))
             {
-                if (!string.IsNullOrEmpty(instance))
-                {
-                    await ExportToVMACS(instance: instance, loginId: loginid, roleIds: roleIds, messages: messages, debugOnly: debugOnly);
-                }
+                await ExportToVMACS(instance: instance, loginId: loginid, roleIds: roleIds, messages: messages, debugOnly: debugOnly);
             }
             return messages;
         }

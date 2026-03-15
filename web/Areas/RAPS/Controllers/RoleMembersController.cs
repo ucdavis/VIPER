@@ -68,7 +68,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             return (await roleMembers.ToListAsync())
-                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role))
+                .FindAll(rm => RAPSSecurityService.RoleBelongsToInstance(instance, rm.Role))
                 .Select(rm => new RoleMember(rm))
                 .ToList();
         }

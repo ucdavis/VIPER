@@ -51,26 +51,11 @@ namespace Viper.Areas.CMS.Data
             foreach (var m in menus)
             {
                 //by default, filter items based on user permissions
-                List<NavMenuItem> items = new();
-                foreach (var item in m.LeftNavItems)
-                {
-                    bool includeItem = !filterItemsByPermissions;
-                    if (filterItemsByPermissions)
-                    {
-                        foreach (var p in item.LeftNavItemToPermissions)
-                        {
-                            if (UserHelper.HasPermission(_rapsContext, currentUser, p.Permission))
-                            {
-                                includeItem = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (includeItem)
-                    {
-                        items.Add(new(item));
-                    }
-                }
+                List<NavMenuItem> items = m.LeftNavItems
+                    .Where(item => !filterItemsByPermissions
+                        || item.LeftNavItemToPermissions.Any(p => UserHelper.HasPermission(_rapsContext, currentUser, p.Permission)))
+                    .Select(item => new NavMenuItem(item))
+                    .ToList();
                 cmsMenus.Add(new(m.MenuHeaderText, items));
             }
             return cmsMenus;

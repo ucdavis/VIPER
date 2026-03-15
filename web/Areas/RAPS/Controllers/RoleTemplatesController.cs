@@ -17,14 +17,12 @@ namespace Viper.Areas.RAPS.Controllers
     public class RoleTemplatesController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSSecurityService _securityService;
         private readonly RAPSCacheService _rapsCacheService;
         public IUserHelper UserHelper { get; private set; }
 
         public RoleTemplatesController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
-            _securityService = new(context);
             UserHelper = new UserHelper();
             _rapsCacheService = new RAPSCacheService(context, aaudContext, UserHelper);
         }
@@ -209,7 +207,7 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(rt => rt.RoleTemplateId == roleTemplateId)
                 .FirstOrDefaultAsync();
 
-            if (roleTemplate == null || !_securityService.RoleTemplateBelongsToInstance(instance, roleTemplate))
+            if (roleTemplate == null || !RAPSSecurityService.RoleTemplateBelongsToInstance(instance, roleTemplate))
             {
                 return NotFound();
             }
@@ -229,7 +227,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (roleTemplateId != roleTemplate.RoleTemplateId || !_securityService.RoleTemplateBelongsToInstance(instance, rt))
+            if (roleTemplateId != roleTemplate.RoleTemplateId || !RAPSSecurityService.RoleTemplateBelongsToInstance(instance, rt))
             {
                 return BadRequest();
             }
@@ -311,7 +309,7 @@ namespace Viper.Areas.RAPS.Controllers
                 Description = roleTemplate.Description ?? ""
             };
 
-            if (!_securityService.RoleTemplateBelongsToInstance(instance, rt))
+            if (!RAPSSecurityService.RoleTemplateBelongsToInstance(instance, rt))
             {
                 return BadRequest();
             }

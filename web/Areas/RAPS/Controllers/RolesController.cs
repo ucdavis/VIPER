@@ -59,16 +59,11 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     q = q.Where(RAPSSecurityServiceWrapper.FilterRolesToInstance(instance));
                 }
-                List<TblRole> roles = await q
-                    .OrderBy(r => r.Role.ToUpper().StartsWith("VIPERFORMS") ? 1 :
-                        r.Role.ToUpper().StartsWith("VMACS.VMTH") ? 2 :
-                        r.Role.ToUpper().StartsWith("VMACS.VMLF") ? 3 :
-                        r.Role.ToUpper().StartsWith("VMACS.UCVMCSD") ? 4 :
-                        r.Role.ToUpper().StartsWith("VMACS.MGVP") ? 5 :
-                        0)
+                List<TblRole> roles = (await q.ToListAsync())
+                    .OrderBy(r => GetInstanceSortOrder(r.Role))
                     .ThenByDescending(r => r.Application)
                     .ThenBy(r => r.DisplayName ?? r.Role)
-                    .ToListAsync();
+                    .ToList();
                 return roles;
             }
             List<int> controlledRoleIds = SecurityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId);
@@ -280,6 +275,15 @@ namespace Viper.Areas.RAPS.Controllers
             return (_context.TblRoles?.Any(e => e.RoleId == roleId)).GetValueOrDefault();
         }
 
-
+        private static int GetInstanceSortOrder(string role)
+        {
+            var upper = role.ToUpper();
+            if (upper.StartsWith("VIPERFORMS")) return 1;
+            if (upper.StartsWith("VMACS.VMTH")) return 2;
+            if (upper.StartsWith("VMACS.VMLF")) return 3;
+            if (upper.StartsWith("VMACS.UCVMCSD")) return 4;
+            if (upper.StartsWith("VMACS.MGVP")) return 5;
+            return 0;
+        }
     }
 }

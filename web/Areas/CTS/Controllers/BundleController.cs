@@ -156,24 +156,18 @@ namespace Viper.Areas.CTS.Controllers
         {
             using var trans = await context.Database.BeginTransactionAsync();
             var existing = await context.BundleRoles.Where(br => br.BundleId == bundleId).ToListAsync();
-            foreach (var brId in bundleRoles)
+            foreach (var brId in bundleRoles.Where(brId => !existing.Any(e => e.RoleId == brId)))
             {
-                if (!existing.Any(e => e.RoleId == brId))
+                context.Add(new BundleRole()
                 {
-                    context.Add(new BundleRole()
-                    {
-                        BundleId = bundleId,
-                        RoleId = brId
-                    });
-                }
+                    BundleId = bundleId,
+                    RoleId = brId
+                });
             }
 
-            foreach (var e in existing)
+            foreach (var e in existing.Where(e => !bundleRoles.Any(brId => brId == e.RoleId)))
             {
-                if (!bundleRoles.Any(brId => brId == e.RoleId))
-                {
-                    context.Entry(e).State = EntityState.Deleted;
-                }
+                context.Entry(e).State = EntityState.Deleted;
             }
 
             await context.SaveChangesAsync();

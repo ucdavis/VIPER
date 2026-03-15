@@ -67,22 +67,19 @@ namespace Viper.Areas.RAPS.Services
             List<TblRoleMember> toDelete = new();
 
             //Add members that do not have the role, and for members added with an inactive date range, remove the membership with the date range and add the role
-            foreach (string? member in members)
+            foreach (string member in members.Where(m => !string.IsNullOrEmpty(m))!)
             {
-                if (!string.IsNullOrEmpty(member))
+                TblRoleMember? roleMember = roleMembers.FirstOrDefault(rm => rm.MemberId.Trim() == member.Trim());
+                if (roleMember == null)
                 {
-                    TblRoleMember? roleMember = roleMembers.FirstOrDefault(rm => rm.MemberId.Trim() == member.Trim());
-                    if (roleMember == null)
-                    {
-                        messages.Add(string.Format("Adding {0}", member));
-                        toAdd.Add(member);
-                    }
-                    else if (roleMember.StartDate > DateTime.Now || roleMember.EndDate < DateTime.Now)
-                    {
-                        messages.Add(string.Format("Converting {0} to role membership without dates", member));
-                        toDelete.Add(roleMember);
-                        toAdd.Add(member);
-                    }
+                    messages.Add(string.Format("Adding {0}", member));
+                    toAdd.Add(member);
+                }
+                else if (roleMember.StartDate > DateTime.Now || roleMember.EndDate < DateTime.Now)
+                {
+                    messages.Add(string.Format("Converting {0} to role membership without dates", member));
+                    toDelete.Add(roleMember);
+                    toAdd.Add(member);
                 }
             }
 

@@ -40,51 +40,50 @@ namespace Viper.Views.Shared.Components.VueTableDefault
             {
                 output.Append('[');
 
-                var properties =
+                var includedProperties =
                     (from property in data.First().GetType().GetProperties()
                      where property.PropertyType == typeof(string)
                         || !typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
-                     select property);
+                     select property)
+                    .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
+                    .ToList();
 
-                var last = properties.Last();
+                var last = includedProperties.LastOrDefault();
 
-                foreach (var propery in properties)
+                foreach (var propery in includedProperties)
                 {
                     string propertyName = propery.Name;
 
-                    if (skipColumns == null || !skipColumns.Contains(propertyName))
-                    {
-                        output.Append('{');
-                        output.Append(String.Format("name:'{0}',", propertyName));
-                        output.Append("align:'left',");
-                        output.Append("sortable:true,");
-                        output.Append(String.Format("field:'{0}',", propertyName));
+                    output.Append('{');
+                    output.Append(String.Format("name:'{0}',", propertyName));
+                    output.Append("align:'left',");
+                    output.Append("sortable:true,");
+                    output.Append(String.Format("field:'{0}',", propertyName));
 
-                        if (altColumnNames == null)
+                    if (altColumnNames == null)
+                    {
+                        output.Append(String.Format("label:'{0}'", propertyName));
+                    }
+                    else
+                    {
+                        string? altName = altColumnNames.FirstOrDefault(alt => alt.Item1.ToLower().Equals(propertyName.ToLower()))?.Item2;
+
+                        if (altName != null)
                         {
-                            output.Append(String.Format("label:'{0}'", propertyName));
+                            output.Append(String.Format("label:'{0}'", altName));
                         }
                         else
                         {
-                            string? altName = altColumnNames.FirstOrDefault(alt => alt.Item1.ToLower().Equals(propertyName.ToLower()))?.Item2;
-
-                            if (altName != null)
-                            {
-                                output.Append(String.Format("label:'{0}'", altName));
-                            }
-                            else
-                            {
-                                output.Append(String.Format("label:'{0}'", propertyName));
-                            }
-
+                            output.Append(String.Format("label:'{0}'", propertyName));
                         }
 
-                        output.Append('}');
+                    }
 
-                        if (!propery.Equals(last))
-                        {
-                            output.Append(',');
-                        }
+                    output.Append('}');
+
+                    if (!propery.Equals(last))
+                    {
+                        output.Append(',');
                     }
 
                 }
@@ -108,13 +107,15 @@ namespace Viper.Views.Shared.Components.VueTableDefault
 
             if (data != null)
             {
-                var properties =
+                var includedProperties =
                     (from property in data.First().GetType().GetProperties()
                      where property.PropertyType == typeof(string)
                         || !typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
-                     select property);
+                     select property)
+                    .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
+                    .ToList();
 
-                var last = properties.Last();
+                var last = includedProperties.LastOrDefault();
 
                 output.Append('[');
 
@@ -124,28 +125,24 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                 {
                     output.Append('{');
 
-                    foreach (var propery in properties)
+                    foreach (var propery in includedProperties)
                     {
-                        if (skipColumns == null || !skipColumns.Contains(propery.Name))
+                        string? value = obj.GetType()?.GetProperty(propery.Name)?.GetValue(obj)?.ToString();
+
+                        if (propery.PropertyType.Name.ToLower() == "string" || propery.PropertyType.Name.ToLower() == "datetime")
                         {
-                            string? value = obj.GetType()?.GetProperty(propery.Name)?.GetValue(obj)?.ToString();
+                            value = "'" + value?.Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "") + "'";
+                        }
+                        else if (propery.PropertyType.Name.ToLower().Contains("bool"))
+                        {
+                            value = value?.ToLower();
+                        }
 
-                            if (propery.PropertyType.Name.ToLower() == "string" || propery.PropertyType.Name.ToLower() == "datetime")
-                            {
-                                value = "'" + value?.Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "") + "'";
-                            }
-                            else if (propery.PropertyType.Name.ToLower().Contains("bool"))
-                            {
-                                value = value?.ToLower();
-                            }
+                        output.Append(String.Format("'{0}':{1}", propery.Name, value));
 
-                            output.Append(String.Format("'{0}':{1}", propery.Name, value));
-
-                            if (!propery.Equals(last))
-                            {
-                                output.Append(',');
-                            }
-
+                        if (!propery.Equals(last))
+                        {
+                            output.Append(',');
                         }
                     }
 
@@ -179,27 +176,24 @@ namespace Viper.Views.Shared.Components.VueTableDefault
             {
                 output.Append('[');
 
-                var properties =
+                var includedProperties =
                     (from property in data.First().GetType().GetProperties()
                      where property.PropertyType == typeof(string)
                         || !typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
-                     select property);
+                     select property)
+                    .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
+                    .ToList();
 
-                var last = properties.Last();
+                var last = includedProperties.LastOrDefault();
 
-                foreach (var propery in properties)
+                foreach (var propery in includedProperties)
                 {
-                    if (skipColumns == null || !skipColumns.Contains(propery.Name))
+                    output.Append("'" + propery.Name + "'");
+
+                    if (!propery.Equals(last))
                     {
-                        output.Append("'" + propery.Name + "'");
-
-                        if (!propery.Equals(last))
-                        {
-                            output.Append(',');
-                        }
-
+                        output.Append(',');
                     }
-
                 }
 
                 output.Append(']');

@@ -251,14 +251,11 @@ namespace Viper.Areas.RAPS.Services
         private async Task CompareToGroup(string groupName, List<GroupMember> members)
         {
             //Create a lookup of loginids of members that should be in the group
-            Dictionary<string, bool> membersInRoles = new();
-            foreach (GroupMember m in members)
-            {
-                if (m.LoginId != null)
-                {
-                    membersInRoles[m.LoginId] = true;
-                }
-            }
+            Dictionary<string, bool> membersInRoles = members
+                .Where(m => m.LoginId != null)
+                .Select(m => m.LoginId!)
+                .Distinct()
+                .ToDictionary(id => id, _ => true);
 
             //Create a lookup of loginids of people already in the group
             Dictionary<string, bool> membersInGroupLookup = new();

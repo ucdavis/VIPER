@@ -96,7 +96,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .ThenBy(rp => rp.Role.DisplayName ?? rp.Role.Role)
                     .ToListAsync();
             tblRolePermissions = tblRolePermissions
-                .Where(rp => _securityService.RoleBelongsToInstance(instance, rp.Role))
+                .Where(rp => RAPSSecurityService.RoleBelongsToInstance(instance, rp.Role))
                 .ToList();
             return tblRolePermissions;
         }

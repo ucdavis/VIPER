@@ -95,22 +95,19 @@ namespace Viper.Areas.RAPS.Controllers
                 new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
             };
             //Links to instances
-            foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }))
+            var universalPages = new List<string>()
             {
-                if (_securityService.IsAllowedTo("AccessInstance", inst))
-                {
-                    var universalPages = new List<string>()
-                    {
-                        "RolePermissionsComparison",
-                        "RoleTemplateList",
-                        "PerimissionList",
-                        "UserClone",
-                        "UserSearch",
-                        "AuditTrail"
-                    };
-                    var usePage = universalPages.Contains(page);
-                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
-                }
+                "RolePermissionsComparison",
+                "RoleTemplateList",
+                "PerimissionList",
+                "UserClone",
+                "UserSearch",
+                "AuditTrail"
+            };
+            foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }).Where(inst => _securityService.IsAllowedTo("AccessInstance", inst)))
+            {
+                var usePage = universalPages.Contains(page);
+                nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
@@ -122,7 +119,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
-            if (selectedRole != null && _securityService.RoleBelongsToInstance(instance, selectedRole))
+            if (selectedRole != null && RAPSSecurityService.RoleBelongsToInstance(instance, selectedRole))
             {
                 if ((selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                     || _securityService.IsAllowedTo("EditRoleMembership"))
