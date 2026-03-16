@@ -34,19 +34,14 @@ public class DashboardStatsDto
         : 0;
 
     /// <summary>
-    /// Total courses in the term.
+    /// Total courses in the term (excluding R-courses).
     /// </summary>
     public int TotalCourses { get; set; }
 
     /// <summary>
-    /// Courses with at least one instructor assigned.
-    /// </summary>
-    public int CoursesWithInstructors { get; set; }
-
-    /// <summary>
     /// Courses with no instructors assigned.
     /// </summary>
-    public int CoursesWithoutInstructors => TotalCourses - CoursesWithInstructors;
+    public int CoursesWithoutInstructors { get; set; }
 
     /// <summary>
     /// Total effort records in the term.

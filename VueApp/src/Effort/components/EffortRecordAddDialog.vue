@@ -213,7 +213,10 @@
                     @click="createRecord"
                 >
                     <template #loading>
-                        <q-spinner size="1em" class="q-mr-sm" />
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
                         Add Effort
                     </template>
                 </q-btn>
@@ -228,6 +231,7 @@ import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { recordService } from "../services/record-service"
 import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
+import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
 import "../effort-forms.css"
 
@@ -402,18 +406,11 @@ const filteredEffortTypes = computed<EffortTypeOption[]>(() => {
     }
 
     const course = selectedCourseObj.value
-    const filtered = effortTypes.value
-        .filter((et) => {
-            if (course.isDvm && !et.allowedOnDvm) return false
-            if (course.is199299 && !et.allowedOn199299) return false
-            if (course.isRCourse && !et.allowedOnRCourses) return false
-            return true
-        })
-        .map((et) => ({
-            ...et,
-            disable: usedEffortTypesOnCourse.value.has(et.id),
-            alreadyUsed: usedEffortTypesOnCourse.value.has(et.id),
-        }))
+    const filtered = filterEffortTypesByCourse(effortTypes.value, course).map((et) => ({
+        ...et,
+        disable: usedEffortTypesOnCourse.value.has(et.id),
+        alreadyUsed: usedEffortTypesOnCourse.value.has(et.id),
+    }))
 
     // Sort alphabetically within each group
     return filtered.sort((a, b) => a.id.localeCompare(b.id))
