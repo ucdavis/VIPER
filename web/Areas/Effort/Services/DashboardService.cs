@@ -57,7 +57,7 @@ public class DashboardService : IDashboardService
         var coursesQuery = GetNonRCoursesQuery(termCode, departmentCodes);
         var totalCourses = await coursesQuery.CountAsync(ct);
         var coursesWithoutInstructors = await coursesQuery
-            .CountAsync(c => !_context.Records.Any(r => r.CourseId == c.Id), ct);
+            .CountAsync(c => !_context.Records.Any(r => r.TermCode == termCode && r.CourseId == c.Id), ct);
 
         var recordsQuery = _context.Records.Where(r => r.TermCode == termCode);
         if (hasDeptFilter)
@@ -176,7 +176,7 @@ public class DashboardService : IDashboardService
 
         // Get courses with no instructors
         var coursesNoInstructors = await GetNonRCoursesQuery(termCode, departmentCodes)
-            .Where(c => !_context.Records.Any(r => r.CourseId == c.Id))
+            .Where(c => !_context.Records.Any(r => r.TermCode == termCode && r.CourseId == c.Id))
             .Select(c => new { c.Id, c.SubjCode, c.CrseNumb, c.SeqNumb, c.CustDept })
             .ToListAsync(ct);
 
@@ -422,7 +422,7 @@ public class DashboardService : IDashboardService
     }
 
     /// <summary>
-    /// Builds a courses query for the term, excluding R-courses (auto-generated placeholders)
+    /// Builds a courses query for the term, excluding R-courses (course number ends with "R")
     /// and optionally filtering by department.
     /// </summary>
     // S6610: EF Core LINQ-to-SQL doesn't support EndsWith(char), only EndsWith(string)

@@ -1,13 +1,6 @@
 import { describe, it, expect } from "vitest"
 import type { DepartmentVerificationDto, EffortChangeAlertDto } from "../types"
 
-/**
- * Tests for StaffDashboard page logic.
- *
- * These tests validate the helper functions and computed property logic
- * used in the Staff Dashboard component.
- */
-
 // Helper functions extracted from StaffDashboard.vue for testing
 function getProgressColor(percent: number): string {
     if (percent >= 80) {
@@ -63,61 +56,92 @@ function formatChangeAction(action: string): string {
         .replace(/^./, (str) => str.toUpperCase())
 }
 
+const termStatusColors: Record<string, string> = { Opened: "positive", Closed: "grey", Harvested: "info" }
 function getTermStatusColor(status: string | undefined): string {
-    switch (status) {
-        case "Opened": {
-            return "positive"
-        }
-        case "Closed": {
-            return "grey"
-        }
-        case "Harvested": {
-            return "info"
-        }
-        default: {
-            return "grey"
-        }
-    }
+    return (status && termStatusColors[status]) || "grey"
 }
 
+const alertIconMap: Record<string, string> = {
+    NoRecords: "warning",
+    NoInstructors: "school",
+    NotVerified: "schedule",
+    NoDepartment: "domain_disabled",
+    ZeroHours: "timer_off",
+}
 function getAlertIcon(alert: EffortChangeAlertDto): string {
-    switch (alert.alertType) {
-        case "NoRecords": {
-            return "warning"
-        }
-        case "NoInstructors": {
-            return "school"
-        }
-        case "NotVerified": {
-            return "schedule"
-        }
-        case "NoDepartment": {
-            return "domain_disabled"
-        }
-        case "ZeroHours": {
-            return "timer_off"
-        }
-        default: {
-            return "error"
-        }
+    return alertIconMap[alert.alertType] || "error"
+}
+
+const alertColorMap: Record<string, string> = { High: "negative", Medium: "warning", Low: "info" }
+function getAlertColor(alert: EffortChangeAlertDto): string {
+    return alertColorMap[alert.severity] || "grey"
+}
+
+function getDeptDisplayName(dept: DepartmentVerificationDto): string {
+    return dept.departmentCode === "UNK" ? "Unknown Department" : dept.departmentName
+}
+
+function isNoDept(dept: DepartmentVerificationDto): boolean {
+    return dept.departmentCode === "UNK"
+}
+
+// Test data factories
+function createAlert(overrides: Partial<EffortChangeAlertDto> = {}): EffortChangeAlertDto {
+    return {
+        alertType: "NoRecords",
+        title: "",
+        description: "",
+        entityType: "Instructor",
+        entityId: "1",
+        entityName: "Test",
+        departmentCode: "VME",
+        recordCount: 1,
+        severity: "Medium",
+        status: "Active",
+        isResolved: false,
+        isIgnored: false,
+        reviewedDate: null,
+        reviewedBy: null,
+        ...overrides,
     }
 }
 
-function getAlertColor(alert: EffortChangeAlertDto): string {
-    switch (alert.severity) {
-        case "High": {
-            return "negative"
-        }
-        case "Medium": {
-            return "warning"
-        }
-        case "Low": {
-            return "info"
-        }
-        default: {
-            return "grey"
-        }
+function makeDept(
+    code: string,
+    name: string,
+    overrides: Partial<DepartmentVerificationDto> = {},
+): DepartmentVerificationDto {
+    return {
+        departmentCode: code,
+        departmentName: name,
+        totalInstructors: 10,
+        verifiedInstructors: 5,
+        unverifiedInstructors: 5,
+        verificationPercent: 50,
+        meetsThreshold: false,
+        status: "NeedsFollowup",
+        ...overrides,
     }
+}
+
+function sortByVerification(a: DepartmentVerificationDto, b: DepartmentVerificationDto): number {
+    if (b.verificationPercent !== a.verificationPercent) {
+        return b.verificationPercent - a.verificationPercent
+    }
+    return b.totalInstructors - a.totalInstructors
+}
+
+function makeNotVerifiedAlerts(): EffortChangeAlertDto[] {
+    return [
+        createAlert({
+            alertType: "NotVerified",
+            title: "Verification Overdue",
+            description: "Effort not verified after 30+ days",
+            entityName: "John Doe",
+            severity: "Low",
+        }),
+        createAlert({ entityId: "2", entityName: "Jane Smith", departmentCode: "APC" }),
+    ]
 }
 
 describe("StaffDashboard - Progress Color", () => {
@@ -242,111 +266,63 @@ describe("StaffDashboard - Term Status Color", () => {
 })
 
 describe("StaffDashboard - Alert Icons", () => {
-    const createAlert = (alertType: string): EffortChangeAlertDto => ({
-        alertType,
-        title: "",
-        description: "",
-        entityType: "Instructor",
-        entityId: "1",
-        entityName: "Test",
-        departmentCode: "VME",
-        recordCount: 1,
-        severity: "Medium",
-        status: "Active",
-        isResolved: false,
-        isIgnored: false,
-        reviewedDate: null,
-        reviewedBy: null,
-    })
-
     it("should return warning for NoRecords", () => {
-        expect(getAlertIcon(createAlert("NoRecords"))).toBe("warning")
+        expect(getAlertIcon(createAlert({ alertType: "NoRecords" }))).toBe("warning")
     })
 
     it("should return school for NoInstructors", () => {
-        expect(getAlertIcon(createAlert("NoInstructors"))).toBe("school")
+        expect(getAlertIcon(createAlert({ alertType: "NoInstructors" }))).toBe("school")
     })
 
     it("should return schedule for NotVerified", () => {
-        expect(getAlertIcon(createAlert("NotVerified"))).toBe("schedule")
+        expect(getAlertIcon(createAlert({ alertType: "NotVerified" }))).toBe("schedule")
     })
 
     it("should return domain_disabled for NoDepartment", () => {
-        expect(getAlertIcon(createAlert("NoDepartment"))).toBe("domain_disabled")
+        expect(getAlertIcon(createAlert({ alertType: "NoDepartment" }))).toBe("domain_disabled")
     })
 
     it("should return timer_off for ZeroHours", () => {
-        expect(getAlertIcon(createAlert("ZeroHours"))).toBe("timer_off")
+        expect(getAlertIcon(createAlert({ alertType: "ZeroHours" }))).toBe("timer_off")
     })
 
     it("should return error for unknown alert type", () => {
-        expect(getAlertIcon(createAlert("Unknown"))).toBe("error")
+        expect(getAlertIcon(createAlert({ alertType: "Unknown" }))).toBe("error")
     })
 })
 
 describe("StaffDashboard - Alert Colors", () => {
-    const createAlert = (severity: "High" | "Medium" | "Low"): EffortChangeAlertDto => ({
-        alertType: "NoRecords",
-        title: "",
-        description: "",
-        entityType: "Instructor",
-        entityId: "1",
-        entityName: "Test",
-        departmentCode: "VME",
-        recordCount: 1,
-        severity,
-        status: "Active",
-        isResolved: false,
-        isIgnored: false,
-        reviewedDate: null,
-        reviewedBy: null,
-    })
-
     it("should return negative for High severity", () => {
-        expect(getAlertColor(createAlert("High"))).toBe("negative")
+        expect(getAlertColor(createAlert({ severity: "High" }))).toBe("negative")
     })
 
     it("should return warning for Medium severity", () => {
-        expect(getAlertColor(createAlert("Medium"))).toBe("warning")
+        expect(getAlertColor(createAlert({ severity: "Medium" }))).toBe("warning")
     })
 
     it("should return info for Low severity", () => {
-        expect(getAlertColor(createAlert("Low"))).toBe("info")
+        expect(getAlertColor(createAlert({ severity: "Low" }))).toBe("info")
     })
 })
 
 describe("StaffDashboard - Department Filtering", () => {
     const departments: DepartmentVerificationDto[] = [
-        {
-            departmentCode: "VME",
-            departmentName: "Medicine & Epidemiology",
+        makeDept("VME", "Medicine & Epidemiology", {
             totalInstructors: 20,
             verifiedInstructors: 18,
             unverifiedInstructors: 2,
             verificationPercent: 90,
             meetsThreshold: true,
             status: "OnTrack",
-        },
-        {
-            departmentCode: "APC",
-            departmentName: "Anatomy",
-            totalInstructors: 15,
-            verifiedInstructors: 10,
-            unverifiedInstructors: 5,
-            verificationPercent: 67,
-            meetsThreshold: false,
-            status: "NeedsFollowup",
-        },
-        {
-            departmentCode: "PMI",
-            departmentName: "Pathology",
-            totalInstructors: 10,
+        }),
+        makeDept("APC", "Anatomy", { totalInstructors: 15, verifiedInstructors: 10, verificationPercent: 67 }),
+        makeDept("PMI", "Pathology", {
             verifiedInstructors: 10,
             unverifiedInstructors: 0,
             verificationPercent: 100,
             meetsThreshold: true,
             status: "Complete",
-        },
+        }),
     ]
 
     it("should filter departments that need follow-up", () => {
@@ -365,54 +341,26 @@ describe("StaffDashboard - Department Filtering", () => {
 
 describe("StaffDashboard - Alert Filtering", () => {
     const alerts: EffortChangeAlertDto[] = [
-        {
-            alertType: "NoRecords",
-            title: "No Records",
-            description: "",
-            entityType: "Instructor",
-            entityId: "1",
-            entityName: "John Doe",
-            departmentCode: "VME",
-            recordCount: 1,
-            severity: "Medium",
-            status: "Active",
-            isResolved: false,
-            isIgnored: false,
-            reviewedDate: null,
-            reviewedBy: null,
-        },
-        {
+        createAlert({ entityName: "John Doe" }),
+        createAlert({
             alertType: "ZeroHours",
             title: "Zero Hours",
-            description: "",
-            entityType: "Instructor",
             entityId: "2",
             entityName: "Jane Smith",
             departmentCode: "APC",
-            recordCount: 1,
-            severity: "Medium",
             status: "Ignored",
-            isResolved: false,
             isIgnored: true,
             reviewedDate: "2024-10-01",
             reviewedBy: "Admin User",
-        },
-        {
+        }),
+        createAlert({
             alertType: "NoDepartment",
             title: "No Department",
-            description: "",
-            entityType: "Instructor",
             entityId: "3",
             entityName: "Bob Wilson",
             departmentCode: "",
-            recordCount: 1,
             severity: "High",
-            status: "Active",
-            isResolved: false,
-            isIgnored: false,
-            reviewedDate: null,
-            reviewedBy: null,
-        },
+        }),
     ]
 
     it("should filter out ignored alerts by default", () => {
@@ -466,35 +414,9 @@ describe("StaffDashboard - Stats Calculations", () => {
 
         expect(pendingInstructors).toBe(20)
     })
-
-    it("should display courses without instructors from API", () => {
-        const coursesWithoutInstructors = 5
-
-        expect(coursesWithoutInstructors).toBe(5)
-    })
 })
 
-// Helper functions extracted from StaffDashboard.vue for testing
-function getDeptDisplayName(dept: DepartmentVerificationDto): string {
-    return dept.departmentCode === "UNK" ? "Unknown Department" : dept.departmentName
-}
-
-function isNoDept(dept: DepartmentVerificationDto): boolean {
-    return dept.departmentCode === "UNK"
-}
-
 describe("StaffDashboard - Department Display Name", () => {
-    const makeDept = (code: string, name: string): DepartmentVerificationDto => ({
-        departmentCode: code,
-        departmentName: name,
-        totalInstructors: 10,
-        verifiedInstructors: 5,
-        unverifiedInstructors: 5,
-        verificationPercent: 50,
-        meetsThreshold: false,
-        status: "NeedsFollowup",
-    })
-
     it("should return 'Unknown Department' for UNK code", () => {
         expect(getDeptDisplayName(makeDept("UNK", "Unknown"))).toBe("Unknown Department")
     })
@@ -504,67 +426,44 @@ describe("StaffDashboard - Department Display Name", () => {
     })
 
     it("should identify UNK as no-department", () => {
-        expect(isNoDept(makeDept("UNK", "Unknown"))).toBe(true)
+        expect(isNoDept(makeDept("UNK", "Unknown"))).toBeTruthy()
     })
 
     it("should not flag normal departments as no-department", () => {
-        expect(isNoDept(makeDept("VME", "Medicine"))).toBe(false)
-        expect(isNoDept(makeDept("APC", "Anatomy"))).toBe(false)
+        expect(isNoDept(makeDept("VME", "Medicine"))).toBeFalsy()
+        expect(isNoDept(makeDept("APC", "Anatomy"))).toBeFalsy()
     })
 })
 
 describe("StaffDashboard - Department Sorting (Closed Terms)", () => {
     const departments: DepartmentVerificationDto[] = [
-        {
-            departmentCode: "APC",
-            departmentName: "Anatomy",
-            totalInstructors: 10,
-            verifiedInstructors: 5,
-            unverifiedInstructors: 5,
-            verificationPercent: 50,
-            meetsThreshold: false,
-            status: "NeedsFollowup",
-        },
-        {
-            departmentCode: "VME",
-            departmentName: "Medicine",
+        makeDept("APC", "Anatomy"),
+        makeDept("VME", "Medicine", {
             totalInstructors: 20,
             verifiedInstructors: 20,
             unverifiedInstructors: 0,
             verificationPercent: 100,
             meetsThreshold: true,
             status: "Complete",
-        },
-        {
-            departmentCode: "PMI",
-            departmentName: "Pathology",
+        }),
+        makeDept("PMI", "Pathology", {
             totalInstructors: 5,
             verifiedInstructors: 5,
             unverifiedInstructors: 0,
             verificationPercent: 100,
             meetsThreshold: true,
             status: "Complete",
-        },
+        }),
     ]
 
     it("should sort by verification percent descending", () => {
-        const sorted = [...departments].sort((a, b) => {
-            if (b.verificationPercent !== a.verificationPercent) {
-                return b.verificationPercent - a.verificationPercent
-            }
-            return b.totalInstructors - a.totalInstructors
-        })
+        const sorted = departments.toSorted(sortByVerification)
         expect(sorted[0].departmentCode).toBe("VME")
         expect(sorted[2].departmentCode).toBe("APC")
     })
 
     it("should break ties by instructor count descending", () => {
-        const sorted = [...departments].sort((a, b) => {
-            if (b.verificationPercent !== a.verificationPercent) {
-                return b.verificationPercent - a.verificationPercent
-            }
-            return b.totalInstructors - a.totalInstructors
-        })
+        const sorted = departments.toSorted(sortByVerification)
         // VME (100%, 20 instructors) before PMI (100%, 5 instructors)
         expect(sorted[0].departmentCode).toBe("VME")
         expect(sorted[1].departmentCode).toBe("PMI")
@@ -572,60 +471,24 @@ describe("StaffDashboard - Department Sorting (Closed Terms)", () => {
 })
 
 describe("StaffDashboard - NotVerified Alerts Filtering", () => {
-    const makeAlerts = (): EffortChangeAlertDto[] => [
-        {
-            alertType: "NotVerified",
-            title: "Verification Overdue",
-            description: "Effort not verified after 30+ days",
-            entityType: "Instructor",
-            entityId: "1",
-            entityName: "John Doe",
-            departmentCode: "VME",
-            recordCount: 1,
-            severity: "Low",
-            status: "Active",
-            isResolved: false,
-            isIgnored: false,
-            reviewedDate: null,
-            reviewedBy: null,
-        },
-        {
-            alertType: "NoRecords",
-            title: "No Records",
-            description: "",
-            entityType: "Instructor",
-            entityId: "2",
-            entityName: "Jane Smith",
-            departmentCode: "APC",
-            recordCount: 1,
-            severity: "Medium",
-            status: "Active",
-            isResolved: false,
-            isIgnored: false,
-            reviewedDate: null,
-            reviewedBy: null,
-        },
-    ]
-
     it("should include NotVerified alerts when term is Open", () => {
         const termStatus = "Opened"
-        const alerts = makeAlerts()
-        const notVerified =
-            termStatus === "Opened" ? alerts.filter((a) => a.alertType === "NotVerified") : []
+        const alerts = makeNotVerifiedAlerts()
+        const notVerified = termStatus === "Opened" ? alerts.filter((a) => a.alertType === "NotVerified") : []
         expect(notVerified).toHaveLength(1)
     })
 
     it("should exclude NotVerified alerts when term is Closed", () => {
-        const termStatus = "Closed"
+        const termStatus: string = "Closed"
         const notVerified =
-            termStatus === "Opened" ? makeAlerts().filter((a) => a.alertType === "NotVerified") : []
+            termStatus === "Opened" ? makeNotVerifiedAlerts().filter((a) => a.alertType === "NotVerified") : []
         expect(notVerified).toHaveLength(0)
     })
 
     it("should exclude NotVerified alerts when term is Harvested", () => {
-        const termStatus = "Harvested"
+        const termStatus: string = "Harvested"
         const notVerified =
-            termStatus === "Opened" ? makeAlerts().filter((a) => a.alertType === "NotVerified") : []
+            termStatus === "Opened" ? makeNotVerifiedAlerts().filter((a) => a.alertType === "NotVerified") : []
         expect(notVerified).toHaveLength(0)
     })
 })
