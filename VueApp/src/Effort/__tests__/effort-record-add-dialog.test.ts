@@ -1,36 +1,22 @@
 import { describe, it, expect } from "vitest"
 import type { EffortTypeOptionDto } from "../types"
+import { filterEffortTypesByCourse, type CourseClassification } from "../utils/effort-type-filters"
 
 /**
- * Tests for EffortRecordAddDialog component logic.
- *
- * These tests validate the effort type filtering, course option handling,
- * and form validation logic used when adding effort records.
+ * Tests for effort type filtering (shared by both add-effort dialogs)
+ * and EffortRecordAddDialog component logic.
  */
 
-// Type for course classification flags
-interface CourseClassification {
-    isDvm: boolean
-    is199299: boolean
-    isRCourse: boolean
-}
-
 /**
- * Filters effort types based on course classification.
- * Extracted from EffortRecordAddDialog.vue filteredEffortTypes computed.
+ * Filters effort types based on course classification, then marks used types as disabled.
+ * Mirrors the computed in EffortRecordAddDialog.vue.
  */
 function filterEffortTypesForCourse(
     effortTypes: EffortTypeOptionDto[],
     course: CourseClassification,
     usedEffortTypesOnCourse: Set<string>,
 ): Array<EffortTypeOptionDto & { disable: boolean; alreadyUsed: boolean }> {
-    return effortTypes
-        .filter((et) => {
-            if (course.isDvm && !et.allowedOnDvm) {return false}
-            if (course.is199299 && !et.allowedOn199299) {return false}
-            if (course.isRCourse && !et.allowedOnRCourses) {return false}
-            return true
-        })
+    return filterEffortTypesByCourse(effortTypes, course)
         .map((et) => ({
             ...et,
             disable: usedEffortTypesOnCourse.has(et.id),
@@ -47,7 +33,9 @@ function getUsedEffortTypesOnCourse(
     courseId: number | null,
     existingRecords: Array<{ courseId: number; effortType: string }>,
 ): Set<string> {
-    if (!courseId || !existingRecords) {return new Set<string>()}
+    if (!courseId || !existingRecords) {
+        return new Set<string>()
+    }
     return new Set(existingRecords.filter((r) => r.courseId === courseId).map((r) => r.effortType))
 }
 
@@ -56,7 +44,9 @@ function getUsedEffortTypesOnCourse(
  * Extracted from EffortRecordAddDialog.vue effortLabel computed.
  */
 function getEffortLabel(effortTypeId: string | null, effortTypes: EffortTypeOptionDto[], termCode: number): string {
-    if (!effortTypeId) {return "Hours *"}
+    if (!effortTypeId) {
+        return "Hours *"
+    }
     const effortType = effortTypes.find((et) => et.id === effortTypeId)
     // CLI uses weeks starting at term 201604
     if (effortType?.usesWeeks && termCode >= 201_604) {
@@ -70,10 +60,18 @@ function getEffortLabel(effortTypeId: string | null, effortTypes: EffortTypeOpti
  * Extracted from EffortRecordAddDialog.vue effortValueRules.
  */
 function validateEffortValue(val: number | null): string | true {
-    if (val === null) {return "Effort value is required"}
-    if (!Number.isFinite(val)) {return "Effort value must be a valid number"}
-    if (!Number.isInteger(val)) {return "Effort value must be a whole number"}
-    if (val <= 0) {return "Effort value must be greater than zero"}
+    if (val === null) {
+        return "Effort value is required"
+    }
+    if (!Number.isFinite(val)) {
+        return "Effort value must be a valid number"
+    }
+    if (!Number.isInteger(val)) {
+        return "Effort value must be a whole number"
+    }
+    if (val <= 0) {
+        return "Effort value must be greater than zero"
+    }
     return true
 }
 
@@ -93,7 +91,7 @@ function isFormValid(
     return selectedCourse !== null && selectedEffortType !== null && selectedRole !== null && isValidEffortValue
 }
 
-describe("EffortRecordAddDialog - Effort Type Filtering", () => {
+describe("Effort Type Filtering (shared by both add-effort dialogs)", () => {
     const effortTypes: EffortTypeOptionDto[] = [
         {
             id: "ADM",

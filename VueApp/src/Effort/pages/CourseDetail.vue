@@ -339,6 +339,9 @@
             :course-id="courseId"
             :term-code="termCodeNum"
             :is-resident-course="isResidentCourse"
+            :is-dvm="course?.isDvm"
+            :is-199299="course?.is199299"
+            :is-r-course="course?.isRCourse"
             @created="onEffortCreated"
         />
 
