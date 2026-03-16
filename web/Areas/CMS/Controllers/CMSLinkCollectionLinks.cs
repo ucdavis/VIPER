@@ -223,7 +223,7 @@ namespace Viper.Areas.CMS.Controllers
             }
 
             //remove tags and recreate
-            using var trans = _context.Database.BeginTransaction();
+            using var trans = await _context.Database.BeginTransactionAsync();
             _context.LinkTags.RemoveRange(_context.LinkTags.Where(lt => lt.LinkId == linkId));
             await _context.SaveChangesAsync();
 

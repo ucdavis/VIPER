@@ -10,7 +10,7 @@
     // Pre-compute which item to highlight. When multiple items resolve to the same
     // path (e.g. instance link "~/raps/Viper/RoleList" and page link "Rolelist"),
     // prefer relative page links over tilde-prefixed instance links.
-    var items = leftNav?.MenuItems ?? new List<NavMenuItem>();
+    var items = leftNav.MenuItems ?? new List<NavMenuItem>();
     int activeIndex = -1;
     bool activeIsTilde = false;
     for (int i = 0; i < items.Count; i++)

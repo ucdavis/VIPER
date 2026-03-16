@@ -122,13 +122,13 @@ namespace Viper.Areas.Students.Services
                 .ToListAsync();
             //get student grad years
             var studentIds = studentList.Select(s => s.PersonId).ToList();
-            var gradYears = _context.StudentClassYears
+            var gradYears = await _context.StudentClassYears
                 .Include(s => s.ClassYearLeftReason)
                 .Where(s => studentIds.Contains(s.PersonId))
                 .OrderBy(g => g.Active ? 0 : 1)
                 .ThenByDescending(g => g.ClassYear)
                 .AsNoTracking()
-                .ToList();
+                .ToListAsync();
             foreach (var student in studentList)
             {
                 var studentGradYears = gradYears

@@ -66,8 +66,8 @@ namespace Viper.test.ClinicalScheduler.Setup
 
         private static List<WeekGradYear> GetTestWeekGradYearsInternal()
         {
-            var baseDate = new DateTime(TestYear, 6, 1);
-            var prevYearBaseDate = new DateTime(TestYear - 1, 6, 1);
+            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Local);
+            var prevYearBaseDate = new DateTime(TestYear - 1, 6, 1, 0, 0, 0, DateTimeKind.Local);
 
             return new List<WeekGradYear>
             {

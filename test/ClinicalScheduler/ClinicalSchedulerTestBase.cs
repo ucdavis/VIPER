@@ -76,7 +76,7 @@ namespace Viper.test.ClinicalScheduler
 
         private void SetupWeeks()
         {
-            var baseDate = new DateTime(TestYear, 6, 1);
+            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Local);
 
             var weeks = new List<Week>
             {

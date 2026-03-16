@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    @RenderSection("Metatags", required: false)
+    @await RenderSectionAsync("Metatags", required: false)
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -20,7 +20,7 @@
     }
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
 
-    @RenderSection("Styles", required: false)
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
     <q-layout view="hHh lpr fff">

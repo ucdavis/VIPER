@@ -44,7 +44,7 @@ namespace Viper.Areas.CTS.Models
                     }
                 }
             }
-            return new DateTime(dt.Year, dt.Month, dt.Day, hour, minute, 0);
+            return new DateTime(dt.Year, dt.Month, dt.Day, hour, minute, 0, DateTimeKind.Local);
         }
     }
 }

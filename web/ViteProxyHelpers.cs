@@ -31,20 +31,9 @@ namespace Web;
 /// </remarks>
 internal static partial class ViteProxyHelpers
 {
-    // Base path for Vite assets - make configurable for maintainability
-    private const string ViteAssetsBasePath = "/2/vue/assets/";
-
     // Regex patterns for better maintainability and testability
-    private const string AssetHashPattern = @".*-[A-Za-z0-9_-]{6,}\.";
-    private const string SupportedAssetExtensions = @"(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)";
     private const string VueAppRoutePattern = @"^/({0})(/.*)?$";
     private const string VueAppAssetPattern = @"^/({0})/.*\.(js|ts|css|map|vue|json)$|^/({0})\.(js|ts|css|map|vue|json)$";
-
-    // Regex for built asset files with Vite hashes (used to skip proxying built assets)
-    private static readonly Regex AssetHashRegex = new Regex(
-        $@"{Regex.Escape(ViteAssetsBasePath)}{AssetHashPattern}{SupportedAssetExtensions}$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
 
     // Cached compiled regexes - initialized once at startup
     private static Regex? _vueAppRouteRegex;
