@@ -1,14 +1,13 @@
+using System.Collections.Immutable;
+
 namespace Viper.Areas.Students.Services
 {
     /// <summary>
     /// Helper class for translating between grad year and class level + term code
     /// </summary>
-    public class GradYearClassLevel
+    public static class GradYearClassLevel
     {
-        static public readonly List<string> ValidClassYears = new()
-        {
-            "V1", "V2", "V3", "V4"
-        };
+        public static readonly ImmutableArray<string> ValidClassYears = ["V1", "V2", "V3", "V4"];
 
         /// <summary>
         /// Get the grad year for a classlevel and a term code.

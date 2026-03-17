@@ -22,6 +22,7 @@ namespace Viper.Areas.CTS.Controllers
             this.mapper = mapper;
         }
 
+        [HttpGet]
         public async Task<ActionResult<List<RoleDto>>> GetRoles(int? bundleId = null)
         {
             var rolesQuery = context.Roles.AsQueryable();

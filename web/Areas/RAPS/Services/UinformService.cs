@@ -219,7 +219,7 @@ namespace Viper.Areas.RAPS.Services
 
             if (!_allowedHttpMethods.Contains(method))
             {
-                throw new Exception("Invalid Method: " + method.Method);
+                throw new ArgumentException($"Invalid HTTP method: {method.Method}", nameof(method));
             }
 
             int epochTime = (int)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;

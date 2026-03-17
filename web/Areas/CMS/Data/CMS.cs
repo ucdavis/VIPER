@@ -20,14 +20,9 @@ namespace Viper.Areas.CMS.Data
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
 
-        private IUserHelper _userHelper = null!;
-        public IUserHelper UserHelper
-        {
-            get => _userHelper;
-            set => _userHelper = value;
-        }
+        public IUserHelper UserHelper { get; set; }
 
-        private Dictionary<string, string> _mimeTypes = new()
+        public Dictionary<string, string> MimeTypes { get; set; } = new()
         {
             ["pdf"] = "application/pdf",
             ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -56,11 +51,6 @@ namespace Viper.Areas.CMS.Data
             ["dmg"] = "application/x-apple-diskimage",
             ["exe"] = "application/vnd.microsoft.portable-executable"
         };
-        public Dictionary<string, string> MimeTypes
-        {
-            get => _mimeTypes;
-            set => _mimeTypes = value;
-        }
 
         #endregion
 

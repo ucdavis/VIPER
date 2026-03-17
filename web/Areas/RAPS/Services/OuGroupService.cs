@@ -127,7 +127,7 @@ namespace Viper.Areas.RAPS.Services
             //finally, link the role and the group management app role, so people who can manage groups can see now see this one
             TblRole? AppRole = await _context.TblRoles
                 .Where(r => r.Role == _appRoleName)
-                .FirstOrDefaultAsync() ?? throw new Exception("Could not find group management application role.");
+                .FirstOrDefaultAsync() ?? throw new InvalidOperationException("Could not find group management application role.");
             TblAppRole appRole = new()
             {
                 AppRoleId = AppRole.RoleId,
@@ -482,7 +482,7 @@ namespace Viper.Areas.RAPS.Services
                 .Where(gr => gr.OugroupId == groupId)
                 .Where(gr => gr.IsGroupRole)
                 .Select(gr => gr.Role)
-                .FirstOrDefaultAsync() ?? throw new Exception("Could not find exception role for group.");
+                .FirstOrDefaultAsync() ?? throw new InvalidOperationException("Could not find exception role for group.");
             return role;
         }
     }

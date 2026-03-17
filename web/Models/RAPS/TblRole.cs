@@ -34,7 +34,7 @@ public partial class TblRole
             if (Role.Length > 15 && Role[..15] == "RAPS.Groups.CN=")
             {
                 string groupName = Role[15..];
-                if (groupName.IndexOf(",") > 0)
+                if (groupName.Contains(','))
                 {
                     groupName = groupName[..groupName.IndexOf(",")];
                 }

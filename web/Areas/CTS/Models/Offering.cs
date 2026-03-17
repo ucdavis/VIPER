@@ -30,7 +30,7 @@ namespace Viper.Areas.CTS.Models
         {
             int hour = 0;
             int minute = 0;
-            if (!string.IsNullOrEmpty(time) && time.IndexOf(":") > 0)
+            if (!string.IsNullOrEmpty(time) && time.Contains(':'))
             {
                 var timeComponents = time.Split(':');
                 bool timeValid = int.TryParse(timeComponents[0], out hour);

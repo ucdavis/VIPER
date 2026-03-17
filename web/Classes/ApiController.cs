@@ -27,7 +27,7 @@ namespace Viper.Classes
                 : query.OrderBy(q => !object.Equals(q, default(T)) ? EF.Property<object>(q!, sortOrder) : null);
         }
 
-        public static IOrderedQueryable<T> Sort<T>(IQueryable<T> query, string sortColumn, bool descending = false)
+        public static IOrderedQueryable<T> Sort<T>(IQueryable<T> query, string sortColumn, bool descending)
         {
             TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
             sortColumn = textInfo.ToTitleCase(sortColumn);

@@ -150,7 +150,7 @@ public partial class AAUDContext : DbContext
 
     public virtual DbSet<VwEmployeesForAaud> VwEmployeesForAauds { get; set; }
 
-    public virtual DbSet<VwException> VwExceptions { get; set; }
+    public virtual DbSet<VwAaudExemption> VwAaudExemptions { get; set; }
 
     public virtual DbSet<VwJobsForAaud> VwJobsForAauds { get; set; }
 
@@ -3648,7 +3648,7 @@ public partial class AAUDContext : DbContext
                 .HasColumnName("WOSEMP");
         });
 
-        modelBuilder.Entity<VwException>(entity =>
+        modelBuilder.Entity<VwAaudExemption>(entity =>
         {
             entity
                 .HasNoKey()

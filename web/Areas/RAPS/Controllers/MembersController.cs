@@ -27,7 +27,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
         // GET: <Members>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Get(string search, string active = "active")
+        public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Search(string search, string active = "active")
         {
             var memberQ = _context.VwAaudUser
                     .Include(u => u.TblRoleMembers)

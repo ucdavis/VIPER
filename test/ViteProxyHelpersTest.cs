@@ -19,26 +19,13 @@ namespace Viper.test
         [InlineData("/CTS/component.vue", true)]
         [InlineData("/cts.ts", true)]
         [InlineData("/computing.js", true)]
-        public void ShouldProxyToVite_AllowedPaths_ReturnsTrue(string path, bool expected)
-        {
-            // Arrange
-            var context = CreateHttpContext(path);
-
-            // Act
-            var result = ViteProxyHelpers.ShouldProxyToVite(context, _vueAppNames);
-
-            // Assert
-            Assert.Equal(expected, result);
-        }
-
-        [Theory]
         [InlineData("/api/cts/students", false)]
         [InlineData("/admin", false)]
         [InlineData("/favicon.ico", false)]
         [InlineData("/robots.txt", false)]
         [InlineData("/unknown/path", false)]
         [InlineData("/malicious/../../../etc/passwd", false)]
-        public void ShouldProxyToVite_DeniedPaths_ReturnsFalse(string path, bool expected)
+        public void ShouldProxyToVite_ReturnsExpectedResult(string path, bool expected)
         {
             // Arrange
             var context = CreateHttpContext(path);

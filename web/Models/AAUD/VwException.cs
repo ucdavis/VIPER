@@ -1,6 +1,10 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwException
+/// <summary>
+/// Maps to AAUD view [vw_exceptions]. Renamed from VwException to avoid S2166 
+/// (class name implies System.Exception inheritance).
+/// </summary>
+public partial class VwAaudExemption
 {
     public string PersonPKey { get; set; } = null!;
 

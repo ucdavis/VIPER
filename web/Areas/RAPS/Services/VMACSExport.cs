@@ -161,7 +161,7 @@ namespace Viper.Areas.RAPS.Services
                 vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
                 if (vmacsResponse == null)
                 {
-                    throw new Exception();
+                    throw new InvalidOperationException("Failed to deserialize VMACS response.");
                 }
                 else
                 {

@@ -6,11 +6,6 @@ namespace Viper.Classes
         public List<NavMenuItem>? MenuItems { get; set; }
 
 
-        public NavMenu()
-        {
-
-        }
-
         public NavMenu(string? menuHeaderText = null, List<NavMenuItem>? menuItems = null)
         {
             MenuHeaderText = menuHeaderText;
