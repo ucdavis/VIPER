@@ -35,7 +35,9 @@ async function loadEffortTypeLabels(): Promise<void> {
 
 function getEffortTypeLabel(code: string): string {
     // Lazily kick off the load on first use (no-op if already started)
-    loadEffortTypeLabels().catch(() => { /* label load is best-effort */ })
+    loadEffortTypeLabels().catch(() => {
+        /* label load is best-effort */
+    })
     return effortTypeLabelCache?.[code] ?? code
 }
 

@@ -388,6 +388,7 @@ try {
     if (!oxfmtPassed && !shouldFix) {
         console.log("\n💡 Some files have formatting issues. Use --fix to auto-format:")
         console.log("   npm run lint -- --fix <files>")
+        process.exit(1)
     }
 } catch (error) {
     console.error("❌ Unexpected error:", error.message)

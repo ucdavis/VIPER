@@ -133,7 +133,10 @@
                     @click="create"
                 >
                     <template #loading>
-                        <q-spinner size="1em" class="q-mr-sm" />
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
                         Create Course
                     </template>
                 </q-btn>

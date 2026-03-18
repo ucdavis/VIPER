@@ -169,7 +169,6 @@ class PhotoGalleryService {
         const response = await get(`${this.baseUrl}/metadata/classyears`)
         return response.result as ClassYear[]
     }
-
 }
 
 function downloadFile(blob: Blob, filename: string): void {
