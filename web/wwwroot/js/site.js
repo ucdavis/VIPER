@@ -1,40 +1,42 @@
-// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
+// Shared utilities for VIPER Razor views: fetch wrapper, error handling, date formatting, and session storage.
 
-// Write your JavaScript code.
+const MAX_DISPLAY_ERRORS = 5
+const HTTP_NO_CONTENT = 204
+const HTTP_ACCEPTED = 202
+
 /*
-    Returns a date formatted to yyyy-mm-dd
-    If the date is not valid, returns empty string
-*/
+ * Returns a date formatted to yyyy-mm-dd
+ * If the date is not valid, returns empty string
+ */
 function formatDateForDateInput(d) {
-    if (d == null || d == "") {
+    if (!d) {
         return ""
     }
-    const dateStr = d.split("T")[0]
-    const dt = new Date(dateStr + "T00:00:00")
-    return (dateStr && dateStr != "" && dt instanceof Date && !Number.isNaN(dt.valueOf()))
-        ? (dt.getFullYear() + "-" + ("" + (dt.getMonth() + 1)).padStart(2, "0") + "-" + ("" + (dt.getDate())).padStart(2, "0"))
-        : "";
+    const [dateStr] = d.split("T")
+    const dt = new Date(`${dateStr}T00:00:00`)
+    return dateStr && dateStr !== "" && dt instanceof Date && !Number.isNaN(dt.valueOf())
+        ? `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
+        : ""
 }
 
 /*
-    Returns a date formatted with toLocalDateString if possible
-*/
+ * Returns a date formatted with toLocalDateString if possible
+ */
 function formatDate(d) {
-    if (d == null || d == "") {
+    if (!d) {
         return ""
     }
-    const dateStr = d.split("T")[0]
-    const dt = new Date(dateStr + "T00:00:00")
-    return (dateStr && dateStr != "" && dt instanceof Date && !Number.isNaN(dt.valueOf())) ? dt.toLocaleDateString() : ""
+    const [dateStr] = d.split("T")
+    const dt = new Date(`${dateStr}T00:00:00`)
+    return dateStr && dateStr !== "" && dt instanceof Date && !Number.isNaN(dt.valueOf()) ? dt.toLocaleDateString() : ""
 }
 
 function formatDateTime(d, options) {
-    if (d == null || d == "") {
+    if (!d) {
         return ""
     }
     const dt = new Date(d)
-    return (d && d != "" && dt instanceof Date && !Number.isNaN(dt.valueOf())) ? dt.toLocaleString("en-US", options) : ""
+    return d && d !== "" && dt instanceof Date && !Number.isNaN(dt.valueOf()) ? dt.toLocaleString("en-US", options) : ""
 }
 
 /*
@@ -49,6 +51,7 @@ class ValidationError extends Error {
 /*
  * Perform a fetch given the url and data. If successful, call any additional functions provided
  */
+// oxlint-disable-next-line max-params -- API used across all Razor views
 async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], errorTarget = "") {
     if (data.headers === undefined) {
         data.headers = {}
@@ -57,26 +60,26 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
         data.headers["X-CSRF-TOKEN"] = csrfToken
     }
     return await fetch(url, data)
-        //handle 4xx and 5xx status codes
-        .then(r => handleViperFetchError(r))
-        //return json (unless we got 204 No Content or 202 Accepted)
-        .then(r => (r.status == "204" || r.status == "202") ? r : r.json())
-        //check for success flag and result being defined. call additional functions
-        .then(r => {
+        // Handle 4xx and 5xx status codes
+        .then((r) => handleViperFetchError(r))
+        // Return json (unless we got 204 No Content or 202 Accepted)
+        .then((r) => (r.status === HTTP_NO_CONTENT || r.status === HTTP_ACCEPTED ? r : r.json()))
+        // Check for success flag and result being defined. Call additional functions
+        .then((r) => {
             let result = r
             if (r.success !== undefined) {
-                if (!r.success || typeof (r.result) == "undefined") {
+                if (!r.success || r.result === undefined) {
                     showViperFetchError(VueApp, r, errorTarget)
                 }
-                result = r.result
+                ;({ result } = r)
             }
-            while (additionalFunctions.length) {
+            while (additionalFunctions.length > 0) {
                 additionalFunctions.shift().call(this, result)
             }
             return r.pagination ? { result: result, pagination: r.pagination } : result
         })
-        //catch errors, including those thrown by handleViperFetchError
-        .catch(e => showViperFetchError(VueApp, e, errorTarget))
+        // Catch errors, including those thrown by handleViperFetchError
+        .catch((error) => showViperFetchError(VueApp, error, errorTarget))
 }
 
 /*
@@ -85,17 +88,14 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
  */
 async function handleViperFetchError(response) {
     if (!response.ok) {
-        let result
+        let result = null
         try {
             result = await response.json()
-        }
-        catch {
-            throw Error("An error occurred")
+        } catch {
+            throw new Error("An error occurred")
         }
 
-        const message = result.errorMessage != null ? result.errorMessage
-            : result.detail != null ? result.detail
-            : result.statusText
+        const message = result.errorMessage ?? result.detail ?? result.statusText
         throw new ValidationError(message, result?.errors)
     }
     return response
@@ -104,31 +104,36 @@ async function handleViperFetchError(response) {
 /*
  * Show an error the client
  */
+function populateErrorTarget(errorTarget, error) {
+    errorTarget.message = error.message
+    if (!error?.errors) {
+        return
+    }
+    if (typeof error.errors === "object") {
+        for (const key in error.errors) {
+            if (Object.hasOwn(error.errors, key)) {
+                errorTarget[key] = {
+                    error: true,
+                    message: error.errors[key].join(""),
+                }
+            }
+        }
+    } else {
+        for (let i = 0; i < MAX_DISPLAY_ERRORS && i < error.errors.length; i += 1) {
+            errorTarget.message += ` ${error.errors[i]}`
+        }
+    }
+}
+
 function showViperFetchError(VueApp, error, errorTarget) {
     let shownError = false
     try {
         if (errorTarget) {
-            errorTarget.message = error.message
-            if (error?.errors != null) {
-                if (typeof error.errors == "object") {
-                    for (key in error.errors) {
-                        errorTarget[key] = {
-                            error: true,
-                            message: error.errors[key].join("")
-                        }
-                    }
-                }
-                else {
-                    for (let i = 0; i < 5 && i < error.errors.length; i += 1) {
-                        errorTarget.message += " " + error.errors[i];
-                    }
-                }
-            }
+            populateErrorTarget(errorTarget, error)
             shownError = true
         }
-    }
-    catch {
-        // show the error dialog
+    } catch {
+        // Show the error dialog
     }
 
     if (!shownError) {
@@ -141,29 +146,29 @@ function showViperFetchError(VueApp, error, errorTarget) {
  * Load left nav from the relative URL "nav"
  */
 async function loadViperLeftNav() {
-    //build query param list
-    //send in path for some apps?
-    let qs = [];
+    // Build query param list
+    // Send in path for some apps?
+    let qs = []
     for (const [paramName, val] of this.urlParams) {
-        qs.push(paramName + "=" + val)
+        qs.push(`${paramName}=${val}`)
     }
-    qs = qs.length ? ("?" + qs.join("&")) : ""
-    //fix nav not loading when the url is host/2 instead of host/2/
-    navLocation = window.location.href.substring(window.location.href.length - 2, window.location.href.length) == "/2"
-        ? "/2/nav"
-        : "nav"
+    qs = qs.length > 0 ? `?${qs.join("&")}` : ""
+    // Fix nav not loading when the url is host/2 instead of host/2/
+    // oxlint-disable-next-line no-magic-numbers -- last 2 chars of URL path
+    navLocation = globalThis.location.href.slice(-2) === "/2" ? "/2/nav" : "nav"
     this.viperNavMenu = await viperFetch(this, navLocation + qs)
 }
 
 function getItemFromStorage(key) {
-    const val = window.sessionStorage.getItem(key)
+    const val = globalThis.sessionStorage.getItem(key)
     try {
-        return val != null ? JSON.parse(val) : null
+        return val === null ? null : JSON.parse(val)
+    } catch {
+        /* Parse failure — return null below */
     }
-    catch { /* parse failure — return null below */ }
     return null
 }
 
 function putItemInStorage(key, val) {
-    window.sessionStorage.setItem(key, JSON.stringify(val))
-}
+    globalThis.sessionStorage.setItem(key, JSON.stringify(val))
+}

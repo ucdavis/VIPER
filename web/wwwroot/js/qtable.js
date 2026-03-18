@@ -1,126 +1,129 @@
 /*
- * quasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
+ * QuasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
 quasarTableDefaultConfig = {
-    //base of the url and keys of the objects, e.g. a urlBase of "Permissions" and a key of "id" means the following ajax calls will be made
-    //GET Permissions - load objects
-    //POST Permissions - create a new permission
-    //PUT Permissions/5 - update permission with ID 5
-    //DELETE Permissions/5 - delete permission with ID 5
-    //multiple keys can be specified in an array of objects. For example, keys=["id", {column: "memberId", urlPrefix="member"}]
-    //would create the PUT and DELETE url Permissions/5/member/12345678
+    // Base of the url and keys of the objects, e.g. a urlBase of "Permissions" and a key of "id" means the following ajax calls will be made
+    // GET Permissions - load objects
+    // POST Permissions - create a new permission
+    // PUT Permissions/5 - update permission with ID 5
+    // DELETE Permissions/5 - delete permission with ID 5
+    // Multiple keys can be specified in an array of objects. For example, keys=["id", {column: "memberId", urlPrefix="member"}]
+    // Would create the PUT and DELETE url Permissions/5/member/12345678
     urlBase: "",
     keys: "id",
-    //query params to append to GET requests, e.g. search=x&startDate=2023-01-01
+    // Query params to append to GET requests, e.g. search=x&startDate=2023-01-01
     query: {},
-    //function to execute after data has been loaded, for example to add or alter columns
+    // Function to execute after data has been loaded, for example to add or alter columns
     onLoad: "",
-    //function to create the body of a POST or PUT 
+    // Function to create the body of a POST or PUT
     createBody: "",
-    //function to select the object
+    // Function to select the object
     selectObject: "",
-    //default pagination options
+    // Default pagination options
     pagination: { rowsPerPage: 15 },
-    //default rows per page options
+    // Default rows per page options
+    // oxlint-disable-next-line no-magic-numbers -- UI pagination choices
     rowsPerPageOptions: [5, 10, 15, 25, 50, 100, 0],
-    //set to true to use server side pagination
+    // Set to true to use server side pagination
     serverSidePagination: false,
-    //columns definition, required if exporting is enabled
+    // Columns definition, required if exporting is enabled
     columns: [],
     excludeFromExport: [],
-    //key to use for session storage, e.g. to persist pagination and table sorting
-    sessionKey: null
+    // Key to use for session storage, e.g. to persist pagination and table sorting
+    sessionKey: null,
 }
 class quasarTable {
     constructor(config) {
-        //override default config properties with input
+        // Override default config properties with input
         Object.assign(this, { ...quasarTableDefaultConfig, ...config })
-        //the data for the rows being shown
+        // The data for the rows being shown
         this.rows = []
-        //if true, the data is being (re)loaded
+        // If true, the data is being (re)loaded
         this.loading = true
-        //the object being edited
+        // The object being edited
         this.object = {}
-        //true if a form to edit the selected object is being shown
+        // True if a form to edit the selected object is being shown
         this.showForm = false
-        //if showing the form, this is true if updating an existing object, and false if creating a new object
+        // If showing the form, this is true if updating an existing object, and false if creating a new object
         this.editing = false
-        //errors to be displayed on a form
+        // Errors to be displayed on a form
         this.errors = {}
-        //filter variable, necessary for server side pagination
+        // Filter variable, necessary for server side pagination
         this.filter = ""
-        //when loading, store a reference to the vueApp
+        // When loading, store a reference to the vueApp
         this.vueApp = null
     }
 
-    //Load data. For server side pagination, send the pagination options as query params.
+    // Load data. For server side pagination, send the pagination options as query params.
     load(vueApp) {
-        if (vueApp != null && this.vueApp == null) {
+        if (vueApp && this.vueApp === null) {
             this.vueApp = vueApp
         }
 
-        if (this.sessionKey != null && this.sessionKey.length) {
-            const pag = getItemFromStorage(this.sessionKey + "_pagination")
+        if (this.sessionKey !== null && this.sessionKey.length > 0) {
+            const pag = getItemFromStorage(`${this.sessionKey}_pagination`)
             if (pag) {
                 this.pagination = pag
             }
         }
-        
-        let queryParams = "";
+
+        let queryParams = ""
         this.loading = true
         if (this.serverSidePagination) {
             const queryParamObject = {
                 perPage: this.pagination.rowsPerPage,
                 page: this.pagination.page,
-                sortOrder: (this.pagination.sortBy ? this.pagination.sortBy : "") + (this.pagination.descending ? " desc" : ""),
-                filter: (this.filter ? this.filter : "")
+                sortOrder: (this.pagination.sortBy || "") + (this.pagination.descending ? " desc" : ""),
+                filter: this.filter || "",
             }
-            queryParams = "?" + new URLSearchParams(queryParamObject)
+            queryParams = `?${new URLSearchParams(queryParamObject)}`
         }
         viperFetch(vueApp, this.urlBase + queryParams, {}, [])
-            .then(r => {
+            // oxlint-disable-next-line prefer-await-to-then, always-return -- promise chain is the established pattern here
+            .then((r) => {
                 if (r) {
                     if (this.serverSidePagination) {
-                        //record data and pagination
+                        // Record data and pagination
                         this.rows = r.result
                         this.pagination.rowsNumber = r.pagination.totalRecords
                         this.pagination.rowsPerPage = r.pagination.perPage
                         this.pagination.page = r.pagination.page
-                    }
-                    else {
+                    } else {
                         this.rows = r
                     }
                 }
 
                 if (this.onLoad) {
-                    this.onLoad.call(this, this.rows, vueApp)
+                    this.onLoad(this.rows, vueApp)
                 }
             })
+            // oxlint-disable-next-line prefer-await-to-then, always-return -- promise chain is the established pattern here
             .then(() => {
                 this.loading = false
                 this.clear()
             })
-            .catch(e => showViperFetchError(this.vueApp, e, this.errors))
+            // oxlint-disable-next-line prefer-await-to-then, prefer-await-to-callbacks -- promise chain is the established pattern here
+            .catch((error) => showViperFetchError(this.vueApp, error, this.errors))
     }
 
     savePagination(v) {
         this.pagination = v
-        if (this.sessionKey != null && this.sessionKey.length) {
-            putItemInStorage(this.sessionKey + "_pagination", this.pagination)
-        }        
+        if (this.sessionKey !== null && this.sessionKey.length > 0) {
+            putItemInStorage(`${this.sessionKey}_pagination`, this.pagination)
+        }
     }
 
-    //Select an item for editing
+    // Select an item for editing
     selectRow(item) {
         this.editing = true
         this.object = item
         if (this.selectObject) {
-            this.selectObject.call(this, item)
+            this.selectObject(item)
         }
         this.showForm = true
     }
 
-    //Clear the selected item
+    // Clear the selected item
     clear() {
         this.editing = false
         this.object = {}
@@ -128,151 +131,135 @@ class quasarTable {
         this.errors = {}
     }
 
-    //Submit (create or update) the selected item
+    // Submit (create or update) the selected item
     async submit(vueApp) {
-        const bodyObject = this.createBody
-            ? this.createBody(vueApp, this.object)
-            : this.object
-        if (!this.editing)
-            this.create(vueApp, bodyObject)
-        else
-            this.update(vueApp, bodyObject)
+        const bodyObject = this.createBody ? this.createBody(vueApp, this.object) : this.object
+        await (this.editing
+            ? this.update(vueApp, bodyObject)
+            : this.create(vueApp, bodyObject))
     }
 
     async create(vueApp, bodyObject) {
-        await viperFetch(vueApp,
+        await viperFetch(
+            vueApp,
             this.urlBase,
             {
                 method: "POST",
                 body: JSON.stringify(bodyObject),
-                headers: { "Content-Type": "application/json" }
+                headers: { "Content-Type": "application/json" },
             },
-            [
-                (() => this.load(this))
-            ],
-            this.errors
+            [() => this.load(this)],
+            this.errors,
         )
     }
 
     async update(vueApp, bodyObject) {
-        await viperFetch(vueApp,
+        await viperFetch(
+            vueApp,
             this.getUpdateURL(),
             {
                 method: "PUT",
                 body: JSON.stringify(bodyObject),
-                headers: { "Content-Type": "application/json" }
+                headers: { "Content-Type": "application/json" },
             },
-            [
-                (() => this.load(this))
-            ],
-            this.errors
+            [() => this.load(this)],
+            this.errors,
         )
     }
 
-    //Delete the selected item
+    // Delete the selected item
     async delete(vueApp) {
-        await viperFetch(vueApp,
-            this.getUpdateURL(),
-            { method: "DELETE" },
-            [
-                (() => this.load(this))
-            ],
-            this.errors)
+        await viperFetch(vueApp, this.getUpdateURL(), { method: "DELETE" }, [() => this.load(this)], this.errors)
     }
 
-    //Get the URL to create or update the item
-    //See comment under quasarTableDefaultConfig.urlBase
+    // Get the URL to create or update the item
+    // See comment under quasarTableDefaultConfig.urlBase
     getUpdateURL() {
         let url = this.urlBase
         if (Array.isArray(this.keys)) {
             for (const k of this.keys) {
-                if (typeof k === 'object' && k !== null && !Array.isArray(k)) {
+                if (typeof k === "object" && k !== null && !Array.isArray(k)) {
                     if (k?.urlPrefix) {
-                        url += "/" + k.urlPrefix
+                        url += `/${k.urlPrefix}`
                     }
-                    url += "/" + this.object[k.column]
-                }
-                else {
-                    url += "/" + this.object[k]
+                    url += `/${this.object[k.column]}`
+                } else {
+                    url += `/${this.object[k]}`
                 }
             }
-        }
-        else {
-            url += "/" + this.object[this.keys]
+        } else {
+            url += `/${this.object[this.keys]}`
         }
         return url
     }
 
-    //Function called for server side paging when pagination options or filter options are changed
+    // Function called for server side paging when pagination options or filter options are changed
     request(props, vueApp) {
         this.pagination.page = props.pagination.page
-        this.pagination.rowsPerPage = props.pagination.rowsPerPage 
+        this.pagination.rowsPerPage = props.pagination.rowsPerPage
         if (props.pagination.sortBy) {
             this.pagination.sortOrder = props.pagination.sortBy
             this.pagination.descending = props.pagination.descending
-        }
-        else {
+        } else {
             this.pagination.sortOrder = ""
         }
-        
+
         this.load(vueApp)
     }
 
-    //Export function
+    // Export function
     exportTable() {
-        // naive encoding to csv format
-        const columnsMinusExcludes = this.columns
-            .filter(c => this.excludeFromExport.findIndex(e => e == c.name) == -1)
-        const content = [columnsMinusExcludes.map(col => wrapCsvValue(col.label))]
-                .concat(
-                    this.rows.map(row => columnsMinusExcludes
-                        .map(col => wrapCsvValue(
-                            typeof col.field === 'function'
+        // Naive encoding to csv format
+        const columnsMinusExcludes = this.columns.filter((c) => !this.excludeFromExport.some((e) => e === c.name))
+        const content = [
+            columnsMinusExcludes.map((col) => wrapCsvValue(col.label)),
+            ...this.rows.map((row) =>
+                columnsMinusExcludes
+                    .map((col) =>
+                        wrapCsvValue(
+                            typeof col.field === "function"
                                 ? col.field(row)
                                 : row[col.field === undefined ? col.name : col.field],
                             col.format,
-                            row))
-                        .join(',')
-                    ))
-                .join('\r\n')
+                            row,
+                        ),
+                    )
+                    .join(","),
+            ),
+        ].join("\r\n")
 
-        const { useQuasar, exportFile } = Quasar;
-        const $q = useQuasar();
+        const { useQuasar, exportFile } = Quasar
+        const $q = useQuasar()
 
-        const status = exportFile(
-            'table-export.csv',
-            content,
-            'text/csv'
-        )
+        const status = exportFile("table-export.csv", content, "text/csv")
 
         if (status !== true) {
             $q.notify({
-                message: 'Browser denied file download...',
-                color: 'negative',
-                icon: 'warning'
+                message: "Browser denied file download...",
+                color: "negative",
+                icon: "warning",
             })
         }
     }
-
 }
 
 // Escape double quotes (" -> "") and new lines in the content
 function wrapCsvValue(val, formatFn, row) {
-    let formatted = formatFn !== undefined
-        ? formatFn(val, row)
-        : val
+    let formatted = formatFn === undefined ? val : formatFn(val, row)
 
-    formatted = formatted === undefined || formatted === null
-        ? ''
-        : String(formatted)
+    formatted = formatted === undefined || formatted === null ? "" : String(formatted)
 
-    formatted = formatted.split('"').join('""')
+    formatted = formatted
+        .split('"')
+        .join('""')
         /**
-        * Excel accepts \n and \r in strings, but some other CSV parsers do not
-        * Uncomment the next two lines to escape new lines
-        */
-        .split('\n').join('\\n')
-        .split('\r').join('\\r')
+         * Excel accepts \n and \r in strings, but some other CSV parsers do not
+         * Uncomment the next two lines to escape new lines
+         */
+        .split("\n")
+        .join(String.raw`\n`)
+        .split("\r")
+        .join(String.raw`\r`)
 
     return `"${formatted}"`
-}
+}
