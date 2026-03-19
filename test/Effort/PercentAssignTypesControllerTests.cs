@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -14,18 +14,18 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class PercentAssignTypesControllerTests
 {
-    private readonly Mock<IPercentAssignTypeService> _typeServiceMock;
-    private readonly Mock<ILogger<PercentAssignTypesController>> _loggerMock;
+    private readonly IPercentAssignTypeService _typeServiceMock;
+    private readonly ILogger<PercentAssignTypesController> _loggerMock;
     private readonly PercentAssignTypesController _controller;
 
     public PercentAssignTypesControllerTests()
     {
-        _typeServiceMock = new Mock<IPercentAssignTypeService>();
-        _loggerMock = new Mock<ILogger<PercentAssignTypesController>>();
+        _typeServiceMock = Substitute.For<IPercentAssignTypeService>();
+        _loggerMock = Substitute.For<ILogger<PercentAssignTypesController>>();
 
         _controller = new PercentAssignTypesController(
-            _typeServiceMock.Object,
-            _loggerMock.Object);
+            _typeServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -53,8 +53,7 @@ public sealed class PercentAssignTypesControllerTests
             new() { Id = 1, Class = "Teaching", Name = "Lecture", IsActive = true, InstructorCount = 5 },
             new() { Id = 2, Class = "Admin", Name = "Chair", IsActive = true, InstructorCount = 2 }
         };
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypesAsync(false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(types);
+        _typeServiceMock.GetPercentAssignTypesAsync(false, Arg.Any<CancellationToken>()).Returns(types);
 
         // Act
         var result = await _controller.GetPercentAssignTypes();
@@ -73,8 +72,7 @@ public sealed class PercentAssignTypesControllerTests
         {
             new() { Id = 1, Class = "Teaching", Name = "Active Type", IsActive = true, InstructorCount = 3 }
         };
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypesAsync(true, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(types);
+        _typeServiceMock.GetPercentAssignTypesAsync(true, Arg.Any<CancellationToken>()).Returns(types);
 
         // Act
         var result = await _controller.GetPercentAssignTypes(activeOnly: true);
@@ -83,16 +81,14 @@ public sealed class PercentAssignTypesControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedTypes = Assert.IsAssignableFrom<IEnumerable<PercentAssignTypeDto>>(okResult.Value);
         Assert.Single(returnedTypes);
-        _typeServiceMock.Verify(s => s.GetPercentAssignTypesAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        await _typeServiceMock.Received(1).GetPercentAssignTypesAsync(true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task GetPercentAssignTypes_ReturnsOk_WithEmptyList()
     {
         // Arrange
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypesAsync(false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<PercentAssignTypeDto>());
-
+        _typeServiceMock.GetPercentAssignTypesAsync(false, Arg.Any<CancellationToken>()).Returns(new List<PercentAssignTypeDto>());
         // Act
         var result = await _controller.GetPercentAssignTypes();
 
@@ -111,8 +107,7 @@ public sealed class PercentAssignTypesControllerTests
     {
         // Arrange
         var type = new PercentAssignTypeDto { Id = 1, Class = "Teaching", Name = "Lecture", IsActive = true };
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypeAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(type);
+        _typeServiceMock.GetPercentAssignTypeAsync(1, Arg.Any<CancellationToken>()).Returns(type);
 
         // Act
         var result = await _controller.GetPercentAssignType(1, CancellationToken.None);
@@ -127,8 +122,7 @@ public sealed class PercentAssignTypesControllerTests
     public async Task GetPercentAssignType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypeAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PercentAssignTypeDto?)null);
+        _typeServiceMock.GetPercentAssignTypeAsync(999, Arg.Any<CancellationToken>()).Returns((PercentAssignTypeDto?)null);
 
         // Act
         var result = await _controller.GetPercentAssignType(999, CancellationToken.None);
@@ -147,8 +141,7 @@ public sealed class PercentAssignTypesControllerTests
     {
         // Arrange
         var classes = new List<string> { "Admin", "Research", "Teaching" };
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypeClassesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(classes);
+        _typeServiceMock.GetPercentAssignTypeClassesAsync(Arg.Any<CancellationToken>()).Returns(classes);
 
         // Act
         var result = await _controller.GetClasses(CancellationToken.None);
@@ -163,9 +156,7 @@ public sealed class PercentAssignTypesControllerTests
     public async Task GetClasses_ReturnsOk_WithEmptyList()
     {
         // Arrange
-        _typeServiceMock.Setup(s => s.GetPercentAssignTypeClassesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _typeServiceMock.GetPercentAssignTypeClassesAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         // Act
         var result = await _controller.GetClasses(CancellationToken.None);
 
@@ -194,8 +185,7 @@ public sealed class PercentAssignTypesControllerTests
                 new() { PersonId = 2, FirstName = "Jane", LastName = "Smith", FullName = "Smith, Jane", AcademicYear = "2024-25" }
             }
         };
-        _typeServiceMock.Setup(s => s.GetInstructorsByTypeAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+        _typeServiceMock.GetInstructorsByTypeAsync(1, Arg.Any<CancellationToken>()).Returns(response);
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -211,8 +201,7 @@ public sealed class PercentAssignTypesControllerTests
     public async Task GetInstructorsByType_ReturnsNotFound_WhenTypeMissing()
     {
         // Arrange
-        _typeServiceMock.Setup(s => s.GetInstructorsByTypeAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((InstructorsByPercentAssignTypeResponseDto?)null);
+        _typeServiceMock.GetInstructorsByTypeAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorsByPercentAssignTypeResponseDto?)null);
 
         // Act
         var result = await _controller.GetInstructorsByType(999, CancellationToken.None);
@@ -233,8 +222,7 @@ public sealed class PercentAssignTypesControllerTests
             TypeClass = "Teaching",
             Instructors = new List<InstructorByPercentAssignTypeDto>()
         };
-        _typeServiceMock.Setup(s => s.GetInstructorsByTypeAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(response);
+        _typeServiceMock.GetInstructorsByTypeAsync(1, Arg.Any<CancellationToken>()).Returns(response);
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);

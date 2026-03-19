@@ -181,11 +181,13 @@ The project includes VS Code launch configurations for debugging both frontend a
 
 ### Build Cache
 
-The linter and build verification scripts use caching to avoid redundant rebuilds. If you encounter stale cache issues (e.g., linter showing warnings for already-fixed code), clear the cache:
+The linter, test, and build verification scripts use caching to avoid redundant rebuilds. If you encounter stale cache issues (e.g., linter showing warnings for already-fixed code), clear the cache:
 
-- `npm run lint -- --clear-cache <path>` - Clear cache and lint specific files
-- `npm run lint:staged -- --clear-cache` - Clear cache and lint staged files
-- `npm run verify:build -- --clear-cache` - Clear cache and verify build
+```sh
+npm run clear-cache                        # Clear all build caches
+npm run clear-cache && npm run test:backend  # Clear cache and run tests
+npm run clear-cache && npm run verify:build  # Clear cache and verify build
+```
 
 ## Troubleshooting
 

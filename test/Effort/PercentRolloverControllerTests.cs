@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -14,21 +14,21 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class PercentRolloverControllerTests
 {
-    private readonly Mock<IPercentRolloverService> _rolloverServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<ILogger<PercentRolloverController>> _loggerMock;
+    private readonly IPercentRolloverService _rolloverServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ILogger<PercentRolloverController> _loggerMock;
     private readonly PercentRolloverController _controller;
 
     public PercentRolloverControllerTests()
     {
-        _rolloverServiceMock = new Mock<IPercentRolloverService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _loggerMock = new Mock<ILogger<PercentRolloverController>>();
+        _rolloverServiceMock = Substitute.For<IPercentRolloverService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _loggerMock = Substitute.For<ILogger<PercentRolloverController>>();
 
         _controller = new PercentRolloverController(
-            _rolloverServiceMock.Object,
-            _permissionServiceMock.Object,
-            _loggerMock.Object);
+            _rolloverServiceMock,
+            _permissionServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -76,9 +76,7 @@ public sealed class PercentRolloverControllerTests
         await _controller.GetPreview(2019, CancellationToken.None);
 
         // Assert
-        _rolloverServiceMock.Verify(
-            s => s.GetRolloverPreviewAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        await _rolloverServiceMock.DidNotReceive().GetRolloverPreviewAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -90,8 +88,7 @@ public sealed class PercentRolloverControllerTests
     {
         // Arrange
         var preview = CreateSamplePreview();
-        _rolloverServiceMock.Setup(s => s.GetRolloverPreviewAsync(2025, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(preview);
+        _rolloverServiceMock.GetRolloverPreviewAsync(2025, Arg.Any<CancellationToken>()).Returns(preview);
 
         // Act
         var result = await _controller.GetPreview(2025, CancellationToken.None);
@@ -143,8 +140,7 @@ public sealed class PercentRolloverControllerTests
             ExistingAssignments = []
         };
 
-        _rolloverServiceMock.Setup(s => s.GetRolloverPreviewAsync(2025, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(preview);
+        _rolloverServiceMock.GetRolloverPreviewAsync(2025, Arg.Any<CancellationToken>()).Returns(preview);
 
         // Act
         var result = await _controller.GetPreview(2025, CancellationToken.None);
@@ -193,8 +189,7 @@ public sealed class PercentRolloverControllerTests
             ]
         };
 
-        _rolloverServiceMock.Setup(s => s.GetRolloverPreviewAsync(2025, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(preview);
+        _rolloverServiceMock.GetRolloverPreviewAsync(2025, Arg.Any<CancellationToken>()).Returns(preview);
 
         // Act
         var result = await _controller.GetPreview(2025, CancellationToken.None);
@@ -212,16 +207,13 @@ public sealed class PercentRolloverControllerTests
     {
         // Arrange
         var preview = CreateSamplePreview();
-        _rolloverServiceMock.Setup(s => s.GetRolloverPreviewAsync(2025, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(preview);
+        _rolloverServiceMock.GetRolloverPreviewAsync(2025, Arg.Any<CancellationToken>()).Returns(preview);
 
         // Act
         await _controller.GetPreview(2025, CancellationToken.None);
 
         // Assert
-        _rolloverServiceMock.Verify(
-            s => s.GetRolloverPreviewAsync(2025, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _rolloverServiceMock.Received(1).GetRolloverPreviewAsync(2025, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -242,8 +234,7 @@ public sealed class PercentRolloverControllerTests
             ExistingAssignments = []
         };
 
-        _rolloverServiceMock.Setup(s => s.GetRolloverPreviewAsync(2025, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(preview);
+        _rolloverServiceMock.GetRolloverPreviewAsync(2025, Arg.Any<CancellationToken>()).Returns(preview);
 
         // Act
         var result = await _controller.GetPreview(2025, CancellationToken.None);

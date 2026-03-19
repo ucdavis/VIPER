@@ -346,19 +346,10 @@ try {
         console.log(`  🔷 .NET/SonarAnalyzer: ${categories.dotnet.length} files`)
     }
 
-    // Get all unique files for formatting check
-    const allUniqueFiles = [
-        ...new Set([
-            ...categories.css,
-            ...categories.vue,
-            ...categories.ts,
-            ...categories.cshtml,
-            ...categories.dotnet,
-        ]),
-    ]
+    // Run oxfmt on JS/TS/CSS/Vue files only (C# formatting is handled by dotnet format)
+    const oxfmtFiles = [...new Set([...categories.css, ...categories.vue, ...categories.ts])]
 
-    // Run oxfmt check first
-    const oxfmtPassed = runOxfmtCheck(allUniqueFiles, shouldFix)
+    const oxfmtPassed = runOxfmtCheck(oxfmtFiles, shouldFix)
 
     // Run each linter with its files
     runLinter(

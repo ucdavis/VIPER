@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -14,48 +14,48 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class ReportsControllerTests
 {
-    private readonly Mock<ITeachingActivityService> _teachingActivityServiceMock;
-    private readonly Mock<IDeptSummaryService> _deptSummaryServiceMock;
-    private readonly Mock<ISchoolSummaryService> _schoolSummaryServiceMock;
-    private readonly Mock<IMeritReportService> _meritReportServiceMock;
-    private readonly Mock<IMeritSummaryService> _meritSummaryServiceMock;
-    private readonly Mock<IClinicalEffortService> _clinicalEffortServiceMock;
-    private readonly Mock<IClinicalScheduleService> _clinicalScheduleServiceMock;
-    private readonly Mock<IEvaluationReportService> _evaluationReportServiceMock;
-    private readonly Mock<IMeritMultiYearService> _meritMultiYearServiceMock;
-    private readonly Mock<ISabbaticalService> _sabbaticalServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<ILogger<ReportsController>> _loggerMock;
+    private readonly ITeachingActivityService _teachingActivityServiceMock;
+    private readonly IDeptSummaryService _deptSummaryServiceMock;
+    private readonly ISchoolSummaryService _schoolSummaryServiceMock;
+    private readonly IMeritReportService _meritReportServiceMock;
+    private readonly IMeritSummaryService _meritSummaryServiceMock;
+    private readonly IClinicalEffortService _clinicalEffortServiceMock;
+    private readonly IClinicalScheduleService _clinicalScheduleServiceMock;
+    private readonly IEvaluationReportService _evaluationReportServiceMock;
+    private readonly IMeritMultiYearService _meritMultiYearServiceMock;
+    private readonly ISabbaticalService _sabbaticalServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ILogger<ReportsController> _loggerMock;
     private readonly ReportsController _controller;
 
     public ReportsControllerTests()
     {
-        _teachingActivityServiceMock = new Mock<ITeachingActivityService>();
-        _deptSummaryServiceMock = new Mock<IDeptSummaryService>();
-        _schoolSummaryServiceMock = new Mock<ISchoolSummaryService>();
-        _meritReportServiceMock = new Mock<IMeritReportService>();
-        _meritSummaryServiceMock = new Mock<IMeritSummaryService>();
-        _clinicalEffortServiceMock = new Mock<IClinicalEffortService>();
-        _clinicalScheduleServiceMock = new Mock<IClinicalScheduleService>();
-        _evaluationReportServiceMock = new Mock<IEvaluationReportService>();
-        _meritMultiYearServiceMock = new Mock<IMeritMultiYearService>();
-        _sabbaticalServiceMock = new Mock<ISabbaticalService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _loggerMock = new Mock<ILogger<ReportsController>>();
+        _teachingActivityServiceMock = Substitute.For<ITeachingActivityService>();
+        _deptSummaryServiceMock = Substitute.For<IDeptSummaryService>();
+        _schoolSummaryServiceMock = Substitute.For<ISchoolSummaryService>();
+        _meritReportServiceMock = Substitute.For<IMeritReportService>();
+        _meritSummaryServiceMock = Substitute.For<IMeritSummaryService>();
+        _clinicalEffortServiceMock = Substitute.For<IClinicalEffortService>();
+        _clinicalScheduleServiceMock = Substitute.For<IClinicalScheduleService>();
+        _evaluationReportServiceMock = Substitute.For<IEvaluationReportService>();
+        _meritMultiYearServiceMock = Substitute.For<IMeritMultiYearService>();
+        _sabbaticalServiceMock = Substitute.For<ISabbaticalService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _loggerMock = Substitute.For<ILogger<ReportsController>>();
 
         _controller = new ReportsController(
-            _teachingActivityServiceMock.Object,
-            _deptSummaryServiceMock.Object,
-            _schoolSummaryServiceMock.Object,
-            _meritReportServiceMock.Object,
-            _meritSummaryServiceMock.Object,
-            _clinicalEffortServiceMock.Object,
-            _clinicalScheduleServiceMock.Object,
-            _evaluationReportServiceMock.Object,
-            _meritMultiYearServiceMock.Object,
-            _sabbaticalServiceMock.Object,
-            _permissionServiceMock.Object,
-            _loggerMock.Object);
+            _teachingActivityServiceMock,
+            _deptSummaryServiceMock,
+            _schoolSummaryServiceMock,
+            _meritReportServiceMock,
+            _meritSummaryServiceMock,
+            _clinicalEffortServiceMock,
+            _clinicalScheduleServiceMock,
+            _evaluationReportServiceMock,
+            _meritMultiYearServiceMock,
+            _sabbaticalServiceMock,
+            _permissionServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -73,7 +73,7 @@ public sealed class ReportsControllerTests
     }
 
     /// <summary>
-    /// Moq matcher for IReadOnlyList&lt;string&gt; containing exactly the expected departments.
+    /// NSubstitute matcher for IReadOnlyList&lt;string&gt; containing exactly the expected departments.
     /// </summary>
     private static bool IsDepts(IReadOnlyList<string>? actual, params string[] expected) =>
         actual != null && actual.Count == expected.Length
@@ -252,10 +252,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410);
@@ -274,10 +273,9 @@ public sealed class ReportsControllerTests
         // Arrange
         var report = CreateTestReport();
         report.FilterDepartment = "VME";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME");
@@ -293,19 +291,16 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", "REG", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", "REG", Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME", personId: 123, role: "I", title: "REG");
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
-        _teachingActivityServiceMock.Verify(
-            s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", "REG", It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _teachingActivityServiceMock.Received(1).GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", "REG", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -313,10 +308,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityIndividual(202410);
@@ -335,19 +329,16 @@ public sealed class ReportsControllerTests
     {
         // Arrange - admin has full access, no department restriction
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "APC")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "APC")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, department: "APC");
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
-        _teachingActivityServiceMock.Verify(
-            s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "APC")), null, null, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _teachingActivityServiceMock.Received(1).GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "APC")), null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -355,21 +346,17 @@ public sealed class ReportsControllerTests
     {
         // Arrange - ViewDept user with one authorized department
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act - no department filter requested
         var result = await _controller.GetTeachingActivityGrouped(202410);
 
         // Assert - should auto-select the single authorized dept
         Assert.IsType<OkObjectResult>(result.Result);
-        _teachingActivityServiceMock.Verify(
-            s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _teachingActivityServiceMock.Received(1).GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -377,21 +364,17 @@ public sealed class ReportsControllerTests
     {
         // Arrange - ViewDept user with multiple authorized departments
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME", "APC" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME", "APC" });
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act - no department filter requested
         var result = await _controller.GetTeachingActivityGrouped(202410);
 
         // Assert - should pass all authorized departments so SP filters per-dept
         Assert.IsType<OkObjectResult>(result.Result);
-        _teachingActivityServiceMock.Verify(
-            s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _teachingActivityServiceMock.Received(1).GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -399,21 +382,17 @@ public sealed class ReportsControllerTests
     {
         // Arrange - ViewDept user requests their own authorized department
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME", "APC" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME", "APC" });
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME");
 
         // Assert - authorized dept is allowed through
         Assert.IsType<OkObjectResult>(result.Result);
-        _teachingActivityServiceMock.Verify(
-            s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _teachingActivityServiceMock.Received(1).GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -427,12 +406,10 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => d != null && d.Count == 0), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => d != null && d.Count == 0), null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         // Act - requests "PHR" but only authorized for "VME"
         var result = await _controller.GetTeachingActivityGrouped(202410, department: "PHR");
@@ -447,10 +424,8 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ViewDeptUser_NoDepts_ReturnsForbid()
     {
         // Arrange - ViewDept user with no authorized departments
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410);
 
@@ -474,12 +449,10 @@ public sealed class ReportsControllerTests
                 new TeachingActivityDepartmentGroup { Department = "PMI", Instructors = [], DepartmentTotals = new() }
             ]
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME", "APC" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME", "APC" });
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410);
@@ -506,10 +479,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetTeachingActivityReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410);
@@ -683,10 +655,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "ABCDEF")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "ABCDEF")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, department: "ABCDEF");
@@ -700,10 +671,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, null, null, "I", null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, null, null, "I", null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, role: "I");
@@ -717,10 +687,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, null, null, null, "REG", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, null, null, null, "REG", Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, title: "REG");
@@ -734,10 +703,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange
         var report = CreateTestReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _teachingActivityServiceMock
-            .Setup(s => s.GetTeachingActivityReportAsync(202410, null, 1, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetTeachingActivityReportAsync(202410, null, 1, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
         var result = await _controller.GetTeachingActivityGrouped(202410, personId: 1);
@@ -794,10 +762,9 @@ public sealed class ReportsControllerTests
     public async Task GetDeptSummary_ReturnsOk_WithReport()
     {
         var report = CreateTestDeptSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _deptSummaryServiceMock
-            .Setup(s => s.GetDeptSummaryReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetDeptSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetDeptSummary(202410);
 
@@ -811,17 +778,14 @@ public sealed class ReportsControllerTests
     public async Task GetDeptSummary_PassesDepartmentAndTitleFilters()
     {
         var report = CreateTestDeptSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _deptSummaryServiceMock
-            .Setup(s => s.GetDeptSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, "REG", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetDeptSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, "REG", Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetDeptSummary(202410, department: "VME", title: "REG");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _deptSummaryServiceMock.Verify(
-            s => s.GetDeptSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, "REG", It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _deptSummaryServiceMock.Received(1).GetDeptSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, "REG", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -829,10 +793,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestDeptSummaryReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _deptSummaryServiceMock
-            .Setup(s => s.GetDeptSummaryReportByYearAsync("2024-2025", null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetDeptSummaryReportByYearAsync("2024-2025", null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetDeptSummary(academicYear: "2024-2025");
 
@@ -844,10 +807,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetDeptSummary_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetDeptSummary(202410);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -864,12 +825,10 @@ public sealed class ReportsControllerTests
             DepartmentTotals = new(),
             DepartmentAverages = new()
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _deptSummaryServiceMock
-            .Setup(s => s.GetDeptSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetDeptSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetDeptSummary(202410);
 
@@ -889,10 +848,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _deptSummaryServiceMock
-            .Setup(s => s.GetDeptSummaryReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetDeptSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetDeptSummary(202410);
 
@@ -931,10 +889,9 @@ public sealed class ReportsControllerTests
     public async Task GetSchoolSummary_ReturnsOk_WithReport()
     {
         var report = CreateTestSchoolSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasPermissionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
         _schoolSummaryServiceMock
-            .Setup(s => s.GetSchoolSummaryReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetSchoolSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetSchoolSummary(202410);
 
@@ -949,10 +906,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestSchoolSummaryReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasPermissionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
         _schoolSummaryServiceMock
-            .Setup(s => s.GetSchoolSummaryReportByYearAsync("2024-2025", null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetSchoolSummaryReportByYearAsync("2024-2025", null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetSchoolSummary(academicYear: "2024-2025");
 
@@ -966,10 +922,9 @@ public sealed class ReportsControllerTests
     {
         // Arrange - user has SchoolSummary but NOT ViewAllDepartments or ViewDept
         var report = CreateTestSchoolSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasPermissionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
         _schoolSummaryServiceMock
-            .Setup(s => s.GetSchoolSummaryReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetSchoolSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetSchoolSummary(202410);
 
@@ -983,13 +938,11 @@ public sealed class ReportsControllerTests
     public async Task GetSchoolSummary_ViewDeptUser_WithoutSchoolSummary_FiltersResponseDepartments()
     {
         var report = CreateTestSchoolSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasPermissionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _schoolSummaryServiceMock
-            .Setup(s => s.GetSchoolSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetSchoolSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetSchoolSummary(202410);
 
@@ -1003,17 +956,14 @@ public sealed class ReportsControllerTests
     public async Task GetSchoolSummary_PassesAllFilters()
     {
         var report = CreateTestSchoolSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasPermissionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
         _schoolSummaryServiceMock
-            .Setup(s => s.GetSchoolSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "1", "REG", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetSchoolSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "1", "REG", Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetSchoolSummary(202410, department: "VME", personId: 123, role: "1", title: "REG");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _schoolSummaryServiceMock.Verify(
-            s => s.GetSchoolSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "1", "REG", It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _schoolSummaryServiceMock.Received(1).GetSchoolSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "1", "REG", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1031,10 +981,9 @@ public sealed class ReportsControllerTests
                 Averages = new()
             }
         };
-        _permissionServiceMock.Setup(s => s.HasPermissionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasPermissionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
         _schoolSummaryServiceMock
-            .Setup(s => s.GetSchoolSummaryReportAsync(202410, null, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetSchoolSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetSchoolSummary(202410);
 
@@ -1094,10 +1043,9 @@ public sealed class ReportsControllerTests
     public async Task GetMeritDetail_ReturnsOk_WhenPersonIdOmitted()
     {
         var report = CreateTestMeritDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritDetailReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritDetail(202410, personId: null);
         Assert.IsType<OkObjectResult>(result.Result);
@@ -1107,10 +1055,9 @@ public sealed class ReportsControllerTests
     public async Task GetMeritDetail_ReturnsOk_WithReport()
     {
         var report = CreateTestMeritDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritDetailReportAsync(202410, null, 100, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritDetailReportAsync(202410, null, 100, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritDetail(202410, personId: 100);
 
@@ -1124,17 +1071,14 @@ public sealed class ReportsControllerTests
     public async Task GetMeritDetail_PassesAllFilters()
     {
         var report = CreateTestMeritDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritDetailReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritDetail(202410, department: "VME", personId: 123, role: "I");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _meritReportServiceMock.Verify(
-            s => s.GetMeritDetailReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _meritReportServiceMock.Received(1).GetMeritDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1142,10 +1086,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestMeritDetailReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritDetailReportByYearAsync("2024-2025", null, 100, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritDetailReportByYearAsync("2024-2025", null, 100, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritDetail(academicYear: "2024-2025", personId: 100);
 
@@ -1157,10 +1100,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritDetail_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetMeritDetail(202410, personId: 100);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -1176,12 +1117,10 @@ public sealed class ReportsControllerTests
             Instructors = [],
             DepartmentTotals = new()
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _meritReportServiceMock
-            .Setup(s => s.GetMeritDetailReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 100, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 100, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritDetail(202410, personId: 100);
 
@@ -1201,10 +1140,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritDetailReportAsync(202410, null, 100, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetMeritDetailReportAsync(202410, null, 100, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetMeritDetail(202410, personId: 100);
 
@@ -1257,10 +1195,9 @@ public sealed class ReportsControllerTests
     public async Task GetMeritAverage_ReturnsOk_WithReport()
     {
         var report = CreateTestMeritAverageReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritAverageReportAsync(202410, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritAverageReportAsync(202410, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritAverage(202410);
 
@@ -1274,17 +1211,14 @@ public sealed class ReportsControllerTests
     public async Task GetMeritAverage_PassesDepartmentAndPersonFilters()
     {
         var report = CreateTestMeritAverageReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritAverageReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritAverage(202410, department: "VME", personId: 123);
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _meritReportServiceMock.Verify(
-            s => s.GetMeritAverageReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _meritReportServiceMock.Received(1).GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1292,10 +1226,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestMeritAverageReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritAverageReportByYearAsync("2024-2025", null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritAverageReportByYearAsync("2024-2025", null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritAverage(academicYear: "2024-2025");
 
@@ -1307,10 +1240,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritAverage_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetMeritAverage(202410);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -1330,12 +1261,10 @@ public sealed class ReportsControllerTests
             GroupTotals = new(),
             GroupAverages = new()
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _meritReportServiceMock
-            .Setup(s => s.GetMeritAverageReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritAverage(202410);
 
@@ -1367,12 +1296,10 @@ public sealed class ReportsControllerTests
                 }
             ]
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _meritReportServiceMock
-            .Setup(s => s.GetMeritAverageReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritAverage(202410);
 
@@ -1393,10 +1320,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             JobGroups = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritReportServiceMock
-            .Setup(s => s.GetMeritAverageReportAsync(202410, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetMeritAverageReportAsync(202410, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetMeritAverage(202410);
 
@@ -1540,10 +1466,9 @@ public sealed class ReportsControllerTests
     public async Task GetMeritSummary_ReturnsOk_WithReport()
     {
         var report = CreateTestMeritSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritSummary(202410);
 
@@ -1557,17 +1482,14 @@ public sealed class ReportsControllerTests
     public async Task GetMeritSummary_PassesDepartmentFilter()
     {
         var report = CreateTestMeritSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritSummary(202410, department: "VME");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _meritSummaryServiceMock.Verify(
-            s => s.GetMeritSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _meritSummaryServiceMock.Received(1).GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1575,10 +1497,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestMeritSummaryReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportByYearAsync("2024-2025", null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritSummaryReportByYearAsync("2024-2025", null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritSummary(academicYear: "2024-2025");
 
@@ -1590,10 +1511,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritSummary_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetMeritSummary(202410);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -1611,12 +1530,10 @@ public sealed class ReportsControllerTests
             DepartmentTotals = new(),
             DepartmentAverages = new()
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritSummary(202410);
 
@@ -1646,12 +1563,10 @@ public sealed class ReportsControllerTests
                 }
             ]
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritSummary(202410);
 
@@ -1671,10 +1586,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             JobGroups = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetMeritSummary(202410);
 
@@ -1713,10 +1627,9 @@ public sealed class ReportsControllerTests
     public async Task GetClinicalEffort_ReturnsOk_WithVmthReport()
     {
         var report = CreateTestClinicalEffortReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
 
@@ -1731,10 +1644,9 @@ public sealed class ReportsControllerTests
     public async Task GetClinicalEffort_ReturnsOk_WithCahfsReport()
     {
         var report = CreateTestClinicalEffortReport(clinicalType: 25, clinicalTypeName: "CAHFS");
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 25, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetClinicalEffortReportAsync("2024-2025", 25, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 25);
 
@@ -1746,10 +1658,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetClinicalEffort_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -1768,12 +1678,10 @@ public sealed class ReportsControllerTests
             EffortByType = new Dictionary<string, decimal> { ["CLI"] = 8.0m },
             CliRatio = 0.2m
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
 
@@ -1804,12 +1712,10 @@ public sealed class ReportsControllerTests
                 }
             ]
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
 
@@ -1831,10 +1737,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             JobGroups = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
 
@@ -1872,7 +1777,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetScheduledCliWeeks_ReturnsForbid_WhenNotFullAccess()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
 
         var result = await _controller.GetScheduledCliWeeks(202410);
 
@@ -1883,10 +1788,9 @@ public sealed class ReportsControllerTests
     public async Task GetScheduledCliWeeks_ReturnsOk_WithReport()
     {
         var report = CreateTestScheduledCliWeeksReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalScheduleServiceMock
-            .Setup(s => s.GetScheduledCliWeeksReportAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetScheduledCliWeeks(202410);
 
@@ -1901,10 +1805,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestScheduledCliWeeksReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalScheduleServiceMock
-            .Setup(s => s.GetScheduledCliWeeksReportByYearAsync("2024-2025", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetScheduledCliWeeksReportByYearAsync("2024-2025", Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetScheduledCliWeeks(academicYear: "2024-2025");
 
@@ -1923,10 +1826,9 @@ public sealed class ReportsControllerTests
             Services = [],
             Instructors = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalScheduleServiceMock
-            .Setup(s => s.GetScheduledCliWeeksReportAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetScheduledCliWeeks(202410);
 
@@ -1957,10 +1859,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             JobGroups = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportMeritSummaryPdf(request);
@@ -1973,13 +1874,11 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestMeritSummaryReport();
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritSummaryServiceMock
-            .Setup(s => s.GetMeritSummaryReportAsync(202410, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(report);
         _meritSummaryServiceMock
-            .Setup(s => s.GenerateReportPdfAsync(report))
-            .ReturnsAsync(pdfBytes);
+            .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportMeritSummaryPdf(request);
@@ -2017,10 +1916,9 @@ public sealed class ReportsControllerTests
             EffortTypes = [],
             JobGroups = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ClinicalEffortPdfRequest(AcademicYear: "2024-2025", ClinicalType: 1);
         var result = await _controller.ExportClinicalEffortPdf(request);
@@ -2033,13 +1931,11 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestClinicalEffortReport();
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalEffortServiceMock
-            .Setup(s => s.GetClinicalEffortReportAsync("2024-2025", 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
         _clinicalEffortServiceMock
-            .Setup(s => s.GenerateReportPdfAsync(report))
-            .ReturnsAsync(pdfBytes);
+            .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new ClinicalEffortPdfRequest(AcademicYear: "2024-2025", ClinicalType: 1);
         var result = await _controller.ExportClinicalEffortPdf(request);
@@ -2059,7 +1955,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task ExportScheduledCliWeeksPdf_ReturnsForbid_WhenNotFullAccess()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportScheduledCliWeeksPdf(request);
@@ -2077,10 +1973,9 @@ public sealed class ReportsControllerTests
             Services = [],
             Instructors = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalScheduleServiceMock
-            .Setup(s => s.GetScheduledCliWeeksReportAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportScheduledCliWeeksPdf(request);
@@ -2093,13 +1988,11 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestScheduledCliWeeksReport();
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _clinicalScheduleServiceMock
-            .Setup(s => s.GetScheduledCliWeeksReportAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(report);
         _clinicalScheduleServiceMock
-            .Setup(s => s.GenerateReportPdfAsync(report))
-            .ReturnsAsync(pdfBytes);
+            .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportScheduledCliWeeksPdf(request);
@@ -2223,10 +2116,9 @@ public sealed class ReportsControllerTests
     public async Task GetEvalSummary_ReturnsOk_WithReport()
     {
         var report = CreateTestEvalSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalSummary(202410);
 
@@ -2240,17 +2132,14 @@ public sealed class ReportsControllerTests
     public async Task GetEvalSummary_PassesDepartmentFilter()
     {
         var report = CreateTestEvalSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalSummary(202410, department: "VME");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _evaluationReportServiceMock.Verify(
-            s => s.GetEvalSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _evaluationReportServiceMock.Received(1).GetEvalSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -2258,10 +2147,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestEvalSummaryReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportByYearAsync("2024-2025", null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportByYearAsync("2024-2025", null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalSummary(academicYear: "2024-2025");
 
@@ -2273,10 +2161,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalSummary_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetEvalSummary(202410);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -2293,12 +2179,10 @@ public sealed class ReportsControllerTests
             TotalResponses = 20,
             Instructors = []
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalSummary(202410);
 
@@ -2317,10 +2201,9 @@ public sealed class ReportsControllerTests
             TermName = "Fall Quarter 2024",
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetEvalSummary(202410);
 
@@ -2333,34 +2216,28 @@ public sealed class ReportsControllerTests
     public async Task GetEvalSummary_PassesPersonIdFilter()
     {
         var report = CreateTestEvalSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, null, 42, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalSummary(202410, personId: 42);
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _evaluationReportServiceMock.Verify(
-            s => s.GetEvalSummaryReportAsync(202410, null, 42, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _evaluationReportServiceMock.Received(1).GetEvalSummaryReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task GetEvalSummary_PassesRoleFilter()
     {
         var report = CreateTestEvalSummaryReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, null, null, "1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportAsync(202410, null, null, "1", Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalSummary(202410, role: "1");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _evaluationReportServiceMock.Verify(
-            s => s.GetEvalSummaryReportAsync(202410, null, null, "1", It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _evaluationReportServiceMock.Received(1).GetEvalSummaryReportAsync(202410, null, null, "1", Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -2393,10 +2270,9 @@ public sealed class ReportsControllerTests
     public async Task GetEvalDetail_ReturnsOk_WithReport()
     {
         var report = CreateTestEvalDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalDetail(202410);
 
@@ -2410,17 +2286,14 @@ public sealed class ReportsControllerTests
     public async Task GetEvalDetail_PassesDepartmentFilter()
     {
         var report = CreateTestEvalDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalDetail(202410, department: "VME");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _evaluationReportServiceMock.Verify(
-            s => s.GetEvalDetailReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _evaluationReportServiceMock.Received(1).GetEvalDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -2428,10 +2301,9 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestEvalDetailReport();
         report.AcademicYear = "2024-2025";
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportByYearAsync("2024-2025", null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportByYearAsync("2024-2025", null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalDetail(academicYear: "2024-2025");
 
@@ -2443,10 +2315,8 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalDetail_ViewDeptUser_NoDepts_ReturnsForbid()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string>());
-
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         var result = await _controller.GetEvalDetail(202410);
 
         Assert.IsType<ForbidResult>(result.Result);
@@ -2462,12 +2332,10 @@ public sealed class ReportsControllerTests
             DepartmentAverage = 3.8m,
             Instructors = []
         });
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, It.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalDetail(202410);
 
@@ -2486,10 +2354,9 @@ public sealed class ReportsControllerTests
             TermName = "Fall Quarter 2024",
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var result = await _controller.GetEvalDetail(202410);
 
@@ -2502,34 +2369,28 @@ public sealed class ReportsControllerTests
     public async Task GetEvalDetail_PassesPersonIdFilter()
     {
         var report = CreateTestEvalDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, null, 42, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalDetail(202410, personId: 42);
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _evaluationReportServiceMock.Verify(
-            s => s.GetEvalDetailReportAsync(202410, null, 42, null, It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _evaluationReportServiceMock.Received(1).GetEvalDetailReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task GetEvalDetail_PassesRoleFilter()
     {
         var report = CreateTestEvalDetailReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, null, null, "2", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportAsync(202410, null, null, "2", Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetEvalDetail(202410, role: "2");
 
         Assert.IsType<OkObjectResult>(result.Result);
-        _evaluationReportServiceMock.Verify(
-            s => s.GetEvalDetailReportAsync(202410, null, null, "2", It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _evaluationReportServiceMock.Received(1).GetEvalDetailReportAsync(202410, null, null, "2", Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -2553,10 +2414,9 @@ public sealed class ReportsControllerTests
             TermName = "Fall Quarter 2024",
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportEvalSummaryPdf(request);
@@ -2569,13 +2429,11 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestEvalSummaryReport();
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalSummaryReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
         _evaluationReportServiceMock
-            .Setup(s => s.GenerateSummaryPdfAsync(report))
-            .ReturnsAsync(pdfBytes);
+            .GenerateSummaryPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportEvalSummaryPdf(request);
@@ -2602,10 +2460,9 @@ public sealed class ReportsControllerTests
             TermName = "Fall Quarter 2024",
             Departments = []
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportEvalDetailPdf(request);
@@ -2618,13 +2475,11 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestEvalDetailReport();
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _evaluationReportServiceMock
-            .Setup(s => s.GetEvalDetailReportAsync(202410, null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
         _evaluationReportServiceMock
-            .Setup(s => s.GenerateDetailPdfAsync(report))
-            .ReturnsAsync(pdfBytes);
+            .GenerateDetailPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
         var result = await _controller.ExportEvalDetailPdf(request);
@@ -2752,10 +2607,9 @@ public sealed class ReportsControllerTests
     public async Task GetMeritMultiYear_ReturnsOk_WithReport()
     {
         var report = CreateTestMultiYearReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritMultiYearServiceMock
-            .Setup(s => s.GetMultiYearReportAsync(123, 2020, 2024, null, null, true, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMultiYearReportAsync(123, 2020, 2024, null, null, true, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024, useAcademicYear: true);
 
@@ -2771,12 +2625,10 @@ public sealed class ReportsControllerTests
     public async Task GetMeritMultiYear_ViewDeptUser_AuthorizedDept_AllowsAccess()
     {
         var report = CreateTestMultiYearReport();
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
         _meritMultiYearServiceMock
-            .Setup(s => s.GetMultiYearReportAsync(123, 2020, 2024, null, null, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024);
 
@@ -2787,12 +2639,10 @@ public sealed class ReportsControllerTests
     public async Task GetMeritMultiYear_ViewDeptUser_UnauthorizedDept_ReturnsForbid()
     {
         var report = CreateTestMultiYearReport(); // Department = "VME"
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "APC" });
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "APC" });
         _meritMultiYearServiceMock
-            .Setup(s => s.GetMultiYearReportAsync(123, 2020, 2024, null, null, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(report);
 
         var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024);
 
@@ -2821,10 +2671,9 @@ public sealed class ReportsControllerTests
             MeritSection = new MultiYearMeritSection(),
             EvalSection = new MultiYearEvalSection()
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritMultiYearServiceMock
-            .Setup(s => s.GetMultiYearReportAsync(123, 2020, 2024, null, null, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emptyReport);
+            .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new MultiYearPdfRequest(PersonId: 123, StartYear: 2020, EndYear: 2024);
         var result = await _controller.ExportMeritMultiYearPdf(request);
@@ -2837,13 +2686,11 @@ public sealed class ReportsControllerTests
     {
         var report = CreateTestMultiYearReport();
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _meritMultiYearServiceMock
-            .Setup(s => s.GetMultiYearReportAsync(123, 2020, 2024, null, null, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(report);
+            .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(report);
         _meritMultiYearServiceMock
-            .Setup(s => s.GenerateReportPdfAsync(report))
-            .ReturnsAsync(pdfBytes);
+            .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new MultiYearPdfRequest(PersonId: 123, StartYear: 2020, EndYear: 2024);
         var result = await _controller.ExportMeritMultiYearPdf(request);
@@ -2860,7 +2707,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSabbatical_ValidPersonId_ReturnsSabbaticalData()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         var dto = new SabbaticalDto
         {
             PersonId = 123,
@@ -2869,8 +2716,7 @@ public sealed class ReportsControllerTests
             ModifiedBy = "Test User"
         };
         _sabbaticalServiceMock
-            .Setup(s => s.GetByPersonIdAsync(123, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(dto);
+            .GetByPersonIdAsync(123, Arg.Any<CancellationToken>()).Returns(dto);
 
         var result = await _controller.GetSabbatical(123);
 
@@ -2883,10 +2729,9 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSabbatical_NoRecord_ReturnsEmptyDto()
     {
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _sabbaticalServiceMock
-            .Setup(s => s.GetByPersonIdAsync(456, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SabbaticalDto?)null);
+            .GetByPersonIdAsync(456, Arg.Any<CancellationToken>()).Returns((SabbaticalDto?)null);
 
         var result = await _controller.GetSabbatical(456);
 
@@ -2914,10 +2759,9 @@ public sealed class ReportsControllerTests
             ExcludeDidacticTerms = null,
             ModifiedBy = "Admin User"
         };
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(999);
+        _permissionServiceMock.GetCurrentPersonId().Returns(999);
         _sabbaticalServiceMock
-            .Setup(s => s.SaveAsync(123, "202409", null, 999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(savedDto);
+            .SaveAsync(123, "202409", null, 999, Arg.Any<CancellationToken>()).Returns(savedDto);
 
         var request = new SaveSabbaticalRequest("202409", null);
         var result = await _controller.SaveSabbatical(123, request);

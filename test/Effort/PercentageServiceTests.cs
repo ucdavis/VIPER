@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -18,8 +18,8 @@ public sealed class PercentageServiceTests : IDisposable
 {
     private const int TestUserId = 12345;
     private readonly EffortDbContext _context;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<IUserHelper> _userHelperMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly IUserHelper _userHelperMock;
     private readonly IMapper _mapper;
     private readonly PercentageService _percentageService;
 
@@ -31,8 +31,8 @@ public sealed class PercentageServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _userHelperMock = new Mock<IUserHelper>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _userHelperMock = Substitute.For<IUserHelper>();
 
         var mapperConfig = new MapperConfiguration(cfg =>
         {
@@ -41,16 +41,15 @@ public sealed class PercentageServiceTests : IDisposable
         _mapper = mapperConfig.CreateMapper();
 
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
-        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
+        _userHelperMock.GetCurrentUser().Returns(testUser);
 
         _auditServiceMock
-            .Setup(s => s.LogPercentageChangeAsync(
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .LogPercentageChangeAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(),
+                Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         _percentageService = new PercentageService(
-            _context, _mapper, _auditServiceMock.Object, _userHelperMock.Object);
+            _context, _mapper, _auditServiceMock, _userHelperMock);
     }
 
     public void Dispose()
@@ -402,15 +401,13 @@ public sealed class PercentageServiceTests : IDisposable
         await _percentageService.CreatePercentageAsync(request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.LogPercentageChangeAsync(
-                It.IsAny<int>(),
-                null,
-                It.Is<string>(a => a.Contains("Create")),
-                null,
-                It.IsAny<object>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        await _auditServiceMock.Received(1).LogPercentageChangeAsync(
+                Arg.Any<int>(),
+                Arg.Is<int?>(x => x == null),
+                Arg.Is<string>(a => a.Contains("Create")),
+                Arg.Is<object?>(x => x == null),
+                Arg.Any<object>(),
+                Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -485,15 +482,13 @@ public sealed class PercentageServiceTests : IDisposable
         await _percentageService.UpdatePercentageAsync(existing.Id, request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.LogPercentageChangeAsync(
+        await _auditServiceMock.Received(1).LogPercentageChangeAsync(
                 existing.Id,
                 null,
-                It.Is<string>(a => a.Contains("Update")),
-                It.IsAny<object>(),
-                It.IsAny<object>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Is<string>(a => a.Contains("Update")),
+                Arg.Any<object>(),
+                Arg.Any<object>(),
+                Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -537,15 +532,13 @@ public sealed class PercentageServiceTests : IDisposable
         await _percentageService.DeletePercentageAsync(existing.Id);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.LogPercentageChangeAsync(
+        await _auditServiceMock.Received(1).LogPercentageChangeAsync(
                 existing.Id,
-                null,
-                It.Is<string>(a => a.Contains("Delete")),
-                It.IsAny<object>(),
-                null,
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Is<int?>(x => x == null),
+                Arg.Is<string>(a => a.Contains("Delete")),
+                Arg.Any<object>(),
+                Arg.Is<object?>(x => x == null),
+                Arg.Any<CancellationToken>());
     }
 
     #endregion

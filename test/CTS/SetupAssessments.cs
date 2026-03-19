@@ -1,10 +1,9 @@
-using Moq;
+using NSubstitute;
 using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
-using Microsoft.EntityFrameworkCore;
-using MockQueryable.Moq;
+using MockQueryable.NSubstitute;
 
 namespace Viper.test.CTS
 {
@@ -66,13 +65,14 @@ namespace Viper.test.CTS
             return Encounters.AsAsyncQueryable();
         }
 
-        public static void SetupEncountersTable(Mock<VIPERContext> context)
+        public static void SetupEncountersTable(VIPERContext context)
         {
-            var mockSet = Encounters.AsAsyncQueryable().BuildMockDbSet();
-            context.Setup(c => c.Encounters).Returns(mockSet.Object);
-            context.Setup(c => c.Add(It.IsAny<Encounter>()))
-                .Callback((Encounter e) =>
+            var mockSet = Encounters.BuildMockDbSet();
+            context.Encounters.Returns(mockSet);
+            context.When(c => c.Add(Arg.Any<Encounter>()))
+                .Do(callInfo =>
                  {
+                     var e = callInfo.Arg<Encounter>();
                      e.Student = new Models.VIPER.Person()
                      {
                          PersonId = e.StudentUserId,

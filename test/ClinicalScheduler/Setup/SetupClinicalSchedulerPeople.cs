@@ -1,5 +1,5 @@
-using MockQueryable.Moq;
-using Moq;
+using MockQueryable.NSubstitute;
+using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 
@@ -65,19 +65,19 @@ namespace Viper.test.ClinicalScheduler.Setup
         /// <summary>
         /// Sets up the Persons DbSet mock with test data
         /// </summary>
-        public static void SetupPersonsTable(Mock<ClinicalSchedulerContext> mockContext)
+        public static void SetupPersonsTable(ClinicalSchedulerContext mockContext)
         {
-            var mockDbSet = TestPeople.AsQueryable().BuildMockDbSet();
-            mockContext.Setup(c => c.Persons).Returns(mockDbSet.Object);
+            var mockDbSet = TestPeople.BuildMockDbSet();
+            mockContext.Persons.Returns(mockDbSet);
         }
 
         /// <summary>
         /// Sets up the Persons DbSet mock with custom test data
         /// </summary>
-        public static void SetupPersonsTable(Mock<ClinicalSchedulerContext> mockContext, List<Person> customPeople)
+        public static void SetupPersonsTable(ClinicalSchedulerContext mockContext, List<Person> customPeople)
         {
-            var mockDbSet = customPeople.AsQueryable().BuildMockDbSet();
-            mockContext.Setup(c => c.Persons).Returns(mockDbSet.Object);
+            var mockDbSet = customPeople.BuildMockDbSet();
+            mockContext.Persons.Returns(mockDbSet);
         }
 
         /// <summary>

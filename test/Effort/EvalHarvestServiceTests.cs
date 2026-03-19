@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -210,8 +210,8 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             .Options;
         _viperContext = new VIPERContext(viperOptions);
 
-        var loggerMock = new Mock<ILogger<EvalHarvestService>>();
-        _service = new EvalHarvestService(_evalContext, _effortContext, _viperContext, loggerMock.Object);
+        var loggerMock = Substitute.For<ILogger<EvalHarvestService>>();
+        _service = new EvalHarvestService(_evalContext, _effortContext, _viperContext, loggerMock);
 
         SeedBaseDataAsync().GetAwaiter().GetResult();
     }

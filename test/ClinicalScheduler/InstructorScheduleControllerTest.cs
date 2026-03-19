@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using System.ComponentModel.DataAnnotations;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
@@ -15,38 +15,38 @@ namespace Viper.test.ClinicalScheduler
     /// </summary>
     public class InstructorScheduleControllerTest : ClinicalSchedulerTestBase
     {
-        private readonly Mock<IScheduleEditService> _mockScheduleEditService;
-        private readonly Mock<IScheduleAuditService> _mockAuditService;
-        private readonly Mock<ISchedulePermissionService> _mockPermissionService;
-        private readonly Mock<IGradYearService> _mockGradYearService;
-        private readonly Mock<ILogger<InstructorScheduleController>> _mockLogger;
+        private readonly IScheduleEditService _mockScheduleEditService;
+        private readonly IScheduleAuditService _mockAuditService;
+        private readonly ISchedulePermissionService _mockPermissionService;
+        private readonly IGradYearService _mockGradYearService;
+        private readonly ILogger<InstructorScheduleController> _mockLogger;
         private readonly InstructorScheduleController _controller;
 
         public InstructorScheduleControllerTest()
         {
-            _mockScheduleEditService = new Mock<IScheduleEditService>();
-            _mockAuditService = new Mock<IScheduleAuditService>();
-            _mockPermissionService = new Mock<ISchedulePermissionService>();
-            _mockGradYearService = new Mock<IGradYearService>();
-            _mockLogger = new Mock<ILogger<InstructorScheduleController>>();
+            _mockScheduleEditService = Substitute.For<IScheduleEditService>();
+            _mockAuditService = Substitute.For<IScheduleAuditService>();
+            _mockPermissionService = Substitute.For<ISchedulePermissionService>();
+            _mockGradYearService = Substitute.For<IGradYearService>();
+            _mockLogger = Substitute.For<ILogger<InstructorScheduleController>>();
 
             // Set up default mock for grad year service - use current year
             var currentYear = DateTime.Now.Year;
-            _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync())
-                .ReturnsAsync(currentYear);
+            _mockGradYearService.GetCurrentGradYearAsync()
+                .Returns(currentYear);
 
             // Create mock user helper and validator
-            var mockUserHelper = new Mock<IUserHelper>();
-            var mockValidatorLogger = new Mock<ILogger<AddInstructorValidator>>();
-            var validator = new AddInstructorValidator(mockValidatorLogger.Object, _mockGradYearService.Object);
+            var mockUserHelper = Substitute.For<IUserHelper>();
+            var mockValidatorLogger = Substitute.For<ILogger<AddInstructorValidator>>();
+            var validator = new AddInstructorValidator(mockValidatorLogger, _mockGradYearService);
 
             _controller = new InstructorScheduleController(
-                _mockScheduleEditService.Object,
-                _mockAuditService.Object,
-                _mockPermissionService.Object,
-                mockUserHelper.Object,
-                _mockGradYearService.Object,
-                _mockLogger.Object,
+                _mockScheduleEditService,
+                _mockAuditService,
+                _mockPermissionService,
+                mockUserHelper,
+                _mockGradYearService,
+                _mockLogger,
                 validator
             );
 
@@ -184,34 +184,34 @@ namespace Viper.test.ClinicalScheduler
 
 
             // Mock all the service dependencies
-            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
+            _mockPermissionService.HasEditPermissionForRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>())
+                .Returns(true);
 
-            _mockScheduleEditService.Setup(x => x.GetOtherRotationSchedulesAsync(
+            _mockScheduleEditService.GetOtherRotationSchedulesAsync(
                     request.MothraId,
                     request.WeekIds,
                     request.GradYear.Value,
                     request.RotationId.Value,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<Viper.Models.ClinicalScheduler.InstructorSchedule>());
+                    Arg.Any<CancellationToken>())
+                .Returns(new List<Viper.Models.ClinicalScheduler.InstructorSchedule>());
 
-            _mockScheduleEditService.Setup(x => x.AddInstructorAsync(
+            _mockScheduleEditService.AddInstructorAsync(
                     request.MothraId,
                     request.RotationId.Value,
                     request.WeekIds,
                     request.GradYear.Value,
                     request.IsPrimaryEvaluator,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<Viper.Models.ClinicalScheduler.InstructorSchedule>
+                    Arg.Any<CancellationToken>())
+                .Returns(new List<Viper.Models.ClinicalScheduler.InstructorSchedule>
                 {
                     new() { InstructorScheduleId = 1, MothraId = TestUserMothraId, WeekId = 1, RotationId = CardiologyRotationId, Evaluator = false },
                     new() { InstructorScheduleId = 2, MothraId = TestUserMothraId, WeekId = 2, RotationId = CardiologyRotationId, Evaluator = false }
                 });
 
-            _mockScheduleEditService.Setup(x => x.CanRemoveInstructorAsync(
-                    It.IsAny<int>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
+            _mockScheduleEditService.CanRemoveInstructorAsync(
+                    Arg.Any<int>(),
+                    Arg.Any<CancellationToken>())
+                .Returns(true);
 
             // Note: Audit service is not called directly by controller in this flow
 
@@ -228,14 +228,14 @@ namespace Viper.test.ClinicalScheduler
             Assert.Equal(2, actualResponse.Schedules.Count);
             Assert.Null(actualResponse.WarningMessage);
 
-            _mockPermissionService.Verify(x => x.HasEditPermissionForRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()), Times.Once);
-            _mockScheduleEditService.Verify(x => x.AddInstructorAsync(
+            await _mockPermissionService.Received(1).HasEditPermissionForRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>());
+            await _mockScheduleEditService.Received(1).AddInstructorAsync(
                 request.MothraId,
                 request.RotationId.Value,
                 request.WeekIds,
                 request.GradYear.Value,
                 request.IsPrimaryEvaluator,
-                It.IsAny<CancellationToken>()), Times.Once);
+                Arg.Any<CancellationToken>());
             // Note: Audit logging might be handled within the service layer rather than directly by the controller
         }
 
@@ -253,8 +253,8 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Mock permission service to deny access
-            _mockPermissionService.Setup(x => x.HasEditPermissionForRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(false);
+            _mockPermissionService.HasEditPermissionForRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>())
+                .Returns(false);
 
             // Act
             var result = await _controller.AddInstructor(request);
@@ -263,14 +263,14 @@ namespace Viper.test.ClinicalScheduler
             Assert.IsType<ForbidResult>(result);
 
             // Verify permission was checked but no other services were called
-            _mockPermissionService.Verify(x => x.HasEditPermissionForRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()), Times.Once);
-            _mockScheduleEditService.Verify(x => x.AddInstructorAsync(
-                It.IsAny<string>(),
-                It.IsAny<int>(),
-                It.IsAny<int[]>(),
-                It.IsAny<int>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()), Times.Never);
+            await _mockPermissionService.Received(1).HasEditPermissionForRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>());
+            await _mockScheduleEditService.DidNotReceive().AddInstructorAsync(
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<int[]>(),
+                Arg.Any<int>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -297,14 +297,14 @@ namespace Viper.test.ClinicalScheduler
             Assert.Contains("required", errorResponse.UserMessage, StringComparison.OrdinalIgnoreCase);
 
             // Verify no services were called due to validation failure
-            _mockPermissionService.Verify(x => x.HasEditPermissionForRotationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
-            _mockScheduleEditService.Verify(x => x.AddInstructorAsync(
-                It.IsAny<string>(),
-                It.IsAny<int>(),
-                It.IsAny<int[]>(),
-                It.IsAny<int>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()), Times.Never);
+            await _mockPermissionService.DidNotReceive().HasEditPermissionForRotationAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
+            await _mockScheduleEditService.DidNotReceive().AddInstructorAsync(
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<int[]>(),
+                Arg.Any<int>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>());
         }
 
         /// <summary>

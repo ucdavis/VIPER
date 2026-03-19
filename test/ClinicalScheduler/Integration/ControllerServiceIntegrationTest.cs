@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
@@ -17,7 +18,7 @@ namespace Viper.test.ClinicalScheduler.Integration
     /// <summary>
     /// Integration tests for controller-to-service communication patterns.
     /// Verifies that controllers properly use services and DTOs after refactoring.
-    /// 
+    ///
     /// NOTE: Tests that require bypassing the PermissionAttribute are marked with [Fact(Skip="...")]
     /// because the PermissionAttribute creates its own UserHelper instance, preventing proper mocking.
     /// These tests are kept for documentation purposes and can be converted to unit tests.
@@ -33,42 +34,42 @@ namespace Viper.test.ClinicalScheduler.Integration
         public ControllerServiceIntegrationTest()
         {
             // Create real service instances for integration testing
-            var personServiceLogger = new Mock<ILogger<PersonService>>();
-            _personService = new PersonService(personServiceLogger.Object, Context, AaudContext);
+            var personServiceLogger = Substitute.For<ILogger<PersonService>>();
+            _personService = new PersonService(personServiceLogger, Context, AaudContext);
 
-            var rotationServiceLogger = new Mock<ILogger<RotationService>>();
-            _rotationService = new RotationService(rotationServiceLogger.Object, Context);
+            var rotationServiceLogger = Substitute.For<ILogger<RotationService>>();
+            _rotationService = new RotationService(rotationServiceLogger, Context);
 
             // Initialize permission service first since other services depend on it
-            var permissionServiceLogger = new Mock<ILogger<SchedulePermissionService>>();
+            var permissionServiceLogger = Substitute.For<ILogger<SchedulePermissionService>>();
             _permissionService = new SchedulePermissionService(
                 Context,
                 RapsContext,
-                permissionServiceLogger.Object,
-                MockUserHelper.Object
+                permissionServiceLogger,
+                MockUserHelper
             );
 
-            var scheduleEditLogger = new Mock<ILogger<ScheduleEditService>>();
-            var mockAuditService = new Mock<IScheduleAuditService>();
-            var mockEmailService = new Mock<IEmailService>();
-            var mockEmailNotificationSettings = new Mock<IOptions<EmailNotificationSettings>>();
-            mockEmailNotificationSettings.Setup(x => x.Value).Returns(new EmailNotificationSettings());
-            var mockEmailSettings = new Mock<IOptions<EmailSettings>>();
-            mockEmailSettings.Setup(x => x.Value).Returns(new EmailSettings());
-            var mockGradYearService = new Mock<IGradYearService>();
-            var mockPermissionValidator = new Mock<IPermissionValidator>();
-            var mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
+            var scheduleEditLogger = Substitute.For<ILogger<ScheduleEditService>>();
+            var mockAuditService = Substitute.For<IScheduleAuditService>();
+            var mockEmailService = Substitute.For<IEmailService>();
+            var mockEmailNotificationSettings = Substitute.For<IOptions<EmailNotificationSettings>>();
+            mockEmailNotificationSettings.Value.Returns(new EmailNotificationSettings());
+            var mockEmailSettings = Substitute.For<IOptions<EmailSettings>>();
+            mockEmailSettings.Value.Returns(new EmailSettings());
+            var mockGradYearService = Substitute.For<IGradYearService>();
+            var mockPermissionValidator = Substitute.For<IPermissionValidator>();
+            var mockEmailTemplateRenderer = Substitute.For<IEmailTemplateRenderer>();
 
             _scheduleEditService = new ScheduleEditService(
                 Context,
-                mockAuditService.Object,
-                scheduleEditLogger.Object,
-                mockEmailService.Object,
-                mockEmailNotificationSettings.Object,
-                mockEmailSettings.Object,
-                mockGradYearService.Object,
-                mockPermissionValidator.Object,
-                mockEmailTemplateRenderer.Object);
+                mockAuditService,
+                scheduleEditLogger,
+                mockEmailService,
+                mockEmailNotificationSettings,
+                mockEmailSettings,
+                mockGradYearService,
+                mockPermissionValidator,
+                mockEmailTemplateRenderer);
 
             _evaluationPolicyService = new EvaluationPolicyService();
         }
@@ -81,22 +82,22 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithManagePermission();
             SeedCliniciansTestData();
 
-            var mockLogger = new Mock<ILogger<CliniciansController>>();
-            var mockGradYearService = new Mock<IGradYearService>();
-            var mockWeekService = new Mock<IWeekService>();
+            var mockLogger = Substitute.For<ILogger<CliniciansController>>();
+            var mockGradYearService = Substitute.For<IGradYearService>();
+            var mockWeekService = Substitute.For<IWeekService>();
 
             // Mock the current grad year to match our test data (currentYear + 3)
             var currentYear = DateTime.Now.Year;
             var testGradYear = currentYear + 3;
-            mockGradYearService.Setup(x => x.GetCurrentGradYearAsync()).ReturnsAsync(testGradYear);
+            mockGradYearService.GetCurrentGradYearAsync().Returns(testGradYear);
 
             var controller = new CliniciansController(
                 Context,
-                mockLogger.Object,
-                mockGradYearService.Object,
-                mockWeekService.Object,
+                mockLogger,
+                mockGradYearService,
+                mockWeekService,
                 _personService,
-                MockUserHelper.Object
+                MockUserHelper
             );
 
             SetupControllerContext(controller);
@@ -117,23 +118,23 @@ namespace Viper.test.ClinicalScheduler.Integration
         public async Task RotationsController_UsesDTO_NoAnonymousObjects()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<RotationsController>>();
-            var mockGradYearService = new Mock<IGradYearService>();
-            var mockWeekService = new Mock<IWeekService>();
-            var mockPermissionService = new Mock<ISchedulePermissionService>();
+            var mockLogger = Substitute.For<ILogger<RotationsController>>();
+            var mockGradYearService = Substitute.For<IGradYearService>();
+            var mockWeekService = Substitute.For<IWeekService>();
+            var mockPermissionService = Substitute.For<ISchedulePermissionService>();
 
             mockPermissionService
-                .Setup(p => p.HasEditPermissionForRotationAsync(100, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
+                .HasEditPermissionForRotationAsync(100, Arg.Any<CancellationToken>())
+                .Returns(true);
 
             var controller = new RotationsController(
                 Context,
-                mockGradYearService.Object,
-                mockWeekService.Object,
+                mockGradYearService,
+                mockWeekService,
                 _rotationService,
-                mockPermissionService.Object,
+                mockPermissionService,
                 _evaluationPolicyService,
-                mockLogger.Object
+                mockLogger
             );
 
             controller.ControllerContext = new ControllerContext
@@ -167,18 +168,18 @@ namespace Viper.test.ClinicalScheduler.Integration
         public async Task RotationsController_GetRotationsByService_ReturnsRotationDtos()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<RotationsController>>();
-            var mockGradYearService = new Mock<IGradYearService>();
-            var mockWeekService = new Mock<IWeekService>();
-            var mockPermissionService = new Mock<ISchedulePermissionService>();
+            var mockLogger = Substitute.For<ILogger<RotationsController>>();
+            var mockGradYearService = Substitute.For<IGradYearService>();
+            var mockWeekService = Substitute.For<IWeekService>();
+            var mockPermissionService = Substitute.For<ISchedulePermissionService>();
             var controller = new RotationsController(
                 Context,
-                mockGradYearService.Object,
-                mockWeekService.Object,
+                mockGradYearService,
+                mockWeekService,
                 _rotationService,
-                mockPermissionService.Object,
+                mockPermissionService,
                 _evaluationPolicyService,
-                mockLogger.Object
+                mockLogger
             );
 
             controller.ControllerContext = new ControllerContext
@@ -201,25 +202,25 @@ namespace Viper.test.ClinicalScheduler.Integration
             // Arrange
             SetupUserWithManagePermission();
 
-            var mockLogger = new Mock<ILogger<RotationsController>>();
-            var mockRotationService = new Mock<IRotationService>();
+            var mockLogger = Substitute.For<ILogger<RotationsController>>();
+            var mockRotationService = Substitute.For<IRotationService>();
             mockRotationService
-                .Setup(x => x.GetRotationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new InvalidOperationException("Service error"));
+                .GetRotationAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+                .Throws(new InvalidOperationException("Service error"));
 
-            var mockGradYearService = new Mock<IGradYearService>();
-            var mockWeekService = new Mock<IWeekService>();
-            var mockPermissionService = new Mock<ISchedulePermissionService>();
-            var mockEvaluationPolicyService = new Mock<IEvaluationPolicyService>();
+            var mockGradYearService = Substitute.For<IGradYearService>();
+            var mockWeekService = Substitute.For<IWeekService>();
+            var mockPermissionService = Substitute.For<ISchedulePermissionService>();
+            var mockEvaluationPolicyService = Substitute.For<IEvaluationPolicyService>();
 
             var controller = new RotationsController(
                 Context,
-                mockGradYearService.Object,
-                mockWeekService.Object,
-                mockRotationService.Object,
-                mockPermissionService.Object,
-                mockEvaluationPolicyService.Object,
-                mockLogger.Object
+                mockGradYearService,
+                mockWeekService,
+                mockRotationService,
+                mockPermissionService,
+                mockEvaluationPolicyService,
+                mockLogger
             );
 
             SetupControllerContext(controller);
@@ -239,31 +240,31 @@ namespace Viper.test.ClinicalScheduler.Integration
         [Fact]
         public Task EvaluationPolicyService_AsDependencyInjected_NotStatic()
         {
-            var mockScheduleEditService = new Mock<IScheduleEditService>();
-            var mockAuditService = new Mock<IScheduleAuditService>();
-            var mockUserHelper = new Mock<IUserHelper>();
-            var mockGradYearService = new Mock<IGradYearService>();
+            var mockScheduleEditService = Substitute.For<IScheduleEditService>();
+            var mockAuditService = Substitute.For<IScheduleAuditService>();
+            var mockUserHelper = Substitute.For<IUserHelper>();
+            var mockGradYearService = Substitute.For<IGradYearService>();
 
             mockScheduleEditService
-                .Setup(x => x.AddInstructorAsync(
-                    It.IsAny<string>(),
-                    It.IsAny<int>(),
-                    It.IsAny<int[]>(),
-                    It.IsAny<int>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<CS.InstructorSchedule> { new CS.InstructorSchedule { InstructorScheduleId = 1 } });
+                .AddInstructorAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<int>(),
+                    Arg.Any<int[]>(),
+                    Arg.Any<int>(),
+                    Arg.Any<bool>(),
+                    Arg.Any<CancellationToken>())
+                .Returns(new List<CS.InstructorSchedule> { new CS.InstructorSchedule { InstructorScheduleId = 1 } });
 
-            var controllerLogger = new Mock<ILogger<InstructorScheduleController>>();
-            var mockValidatorLogger = new Mock<ILogger<AddInstructorValidator>>();
-            var validator = new AddInstructorValidator(mockValidatorLogger.Object, mockGradYearService.Object);
+            var controllerLogger = Substitute.For<ILogger<InstructorScheduleController>>();
+            var mockValidatorLogger = Substitute.For<ILogger<AddInstructorValidator>>();
+            var validator = new AddInstructorValidator(mockValidatorLogger, mockGradYearService);
             var controller = new InstructorScheduleController(
-                mockScheduleEditService.Object,
-                mockAuditService.Object,
+                mockScheduleEditService,
+                mockAuditService,
                 _permissionService,
-                mockUserHelper.Object,
-                mockGradYearService.Object,
-                controllerLogger.Object,
+                mockUserHelper,
+                mockGradYearService,
+                controllerLogger,
                 validator
             );
 
@@ -284,21 +285,21 @@ namespace Viper.test.ClinicalScheduler.Integration
         {
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { CardiologyEditPermission });
 
-            var mockAuditService = new Mock<IScheduleAuditService>();
-            var mockUserHelper = new Mock<IUserHelper>();
-            var mockGradYearService = new Mock<IGradYearService>();
-            mockGradYearService.Setup(x => x.GetCurrentGradYearAsync()).ReturnsAsync(2024);
+            var mockAuditService = Substitute.For<IScheduleAuditService>();
+            var mockUserHelper = Substitute.For<IUserHelper>();
+            var mockGradYearService = Substitute.For<IGradYearService>();
+            mockGradYearService.GetCurrentGradYearAsync().Returns(2024);
 
-            var controllerLogger = new Mock<ILogger<InstructorScheduleController>>();
-            var mockValidatorLogger = new Mock<ILogger<AddInstructorValidator>>();
-            var validator = new AddInstructorValidator(mockValidatorLogger.Object, mockGradYearService.Object);
+            var controllerLogger = Substitute.For<ILogger<InstructorScheduleController>>();
+            var mockValidatorLogger = Substitute.For<ILogger<AddInstructorValidator>>();
+            var validator = new AddInstructorValidator(mockValidatorLogger, mockGradYearService);
             var controller = new InstructorScheduleController(
                 _scheduleEditService,
-                mockAuditService.Object,
+                mockAuditService,
                 _permissionService,
-                mockUserHelper.Object,
-                mockGradYearService.Object,
-                controllerLogger.Object,
+                mockUserHelper,
+                mockGradYearService,
+                controllerLogger,
                 validator
             );
 

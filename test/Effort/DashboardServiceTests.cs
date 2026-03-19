@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -15,7 +15,7 @@ namespace Viper.test.Effort;
 public sealed class DashboardServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly Mock<ITermService> _termServiceMock;
+    private readonly ITermService _termServiceMock;
     private readonly DashboardService _service;
 
     private const int TermCode = 202410;
@@ -30,12 +30,11 @@ public sealed class DashboardServiceTests : IDisposable
 
         _context = new EffortDbContext(options);
 
-        _termServiceMock = new Mock<ITermService>();
+        _termServiceMock = Substitute.For<ITermService>();
         _termServiceMock
-            .Setup(s => s.GetTermAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermDto { TermCode = TermCode, TermName = "Fall 2024" });
+            .GetTermAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new TermDto { TermCode = TermCode, TermName = "Fall 2024" });
 
-        _service = new DashboardService(_context, _termServiceMock.Object);
+        _service = new DashboardService(_context, _termServiceMock);
 
         SeedBasicData();
     }

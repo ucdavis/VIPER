@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using Moq;
+using NSubstitute;
 using System.Net;
 using Viper.Areas.CTS.Controllers;
 using Viper.Areas.CTS.Models;
@@ -11,14 +11,14 @@ namespace Viper.test.CTS
 {
     public class AssessmentControllerTest
     {
-        readonly Mock<VIPERContext> context = new Mock<VIPERContext>();
-        readonly Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
+        readonly VIPERContext context = Substitute.For<VIPERContext>();
+        readonly RAPSContext rapsContext = Substitute.For<RAPSContext>();
 
         private AssessmentController GetAssessmentController(SetupUsers.UserType userType)
         {
-            var ctsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, userType);
+            var ctsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, userType);
 
-            return new AssessmentController(context.Object, rapsContext.Object, ctsSec, SetupUsers.GetUserHelperForUserType(userType).Object);
+            return new AssessmentController(context, rapsContext, ctsSec, SetupUsers.GetUserHelperForUserType(userType));
         }
 
 
@@ -157,12 +157,11 @@ namespace Viper.test.CTS
             SetupPeople.SetupPersonTable(context);
 
             //for begin transaction and commitasync
-            var transMock = new Mock<IDbContextTransaction>();
-            transMock.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-            var facadeMock = new Mock<DatabaseFacade>(context.Object);
-            facadeMock.Setup(f => f.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transMock.Object);
-            facadeMock.Setup(f => f.BeginTransaction()).Returns(transMock.Object);
-            context.SetupGet(d => d.Database).Returns(facadeMock.Object);
+            var transSub = Substitute.For<IDbContextTransaction>();
+            transSub.CommitAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+            var facadeSub = Substitute.For<DatabaseFacade>(context);
+            facadeSub.BeginTransactionAsync(Arg.Any<CancellationToken>()).Returns(transSub);
+            context.Database.Returns(facadeSub);
 
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
             var newEpa = new CreateUpdateStudentEpa()
@@ -193,12 +192,11 @@ namespace Viper.test.CTS
             SetupPeople.SetupPersonTable(context);
 
             //for begin transaction and commitasync
-            var transMock = new Mock<IDbContextTransaction>();
-            transMock.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-            var facadeMock = new Mock<DatabaseFacade>(context.Object);
-            facadeMock.Setup(f => f.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transMock.Object);
-            facadeMock.Setup(f => f.BeginTransaction()).Returns(transMock.Object);
-            context.SetupGet(d => d.Database).Returns(facadeMock.Object);
+            var transSub = Substitute.For<IDbContextTransaction>();
+            transSub.CommitAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+            var facadeSub = Substitute.For<DatabaseFacade>(context);
+            facadeSub.BeginTransactionAsync(Arg.Any<CancellationToken>()).Returns(transSub);
+            context.Database.Returns(facadeSub);
 
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
             var actrlAsStd = GetAssessmentController(SetupUsers.UserType.Student);

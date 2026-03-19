@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -16,18 +17,18 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class EffortTypesControllerTests
 {
-    private readonly Mock<IEffortTypeService> _effortTypeServiceMock;
-    private readonly Mock<ILogger<EffortTypesController>> _loggerMock;
+    private readonly IEffortTypeService _effortTypeServiceMock;
+    private readonly ILogger<EffortTypesController> _loggerMock;
     private readonly EffortTypesController _controller;
 
     public EffortTypesControllerTests()
     {
-        _effortTypeServiceMock = new Mock<IEffortTypeService>();
-        _loggerMock = new Mock<ILogger<EffortTypesController>>();
+        _effortTypeServiceMock = Substitute.For<IEffortTypeService>();
+        _loggerMock = Substitute.For<ILogger<EffortTypesController>>();
 
         _controller = new EffortTypesController(
-            _effortTypeServiceMock.Object,
-            _loggerMock.Object);
+            _effortTypeServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -55,8 +56,7 @@ public sealed class EffortTypesControllerTests
             new() { Id = "LEC", Description = "Lecture", IsActive = true, UsageCount = 0, CanDelete = true },
             new() { Id = "LAB", Description = "Laboratory", IsActive = true, UsageCount = 5, CanDelete = false }
         };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypesAsync(false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortTypes);
+        _effortTypeServiceMock.GetEffortTypesAsync(false, Arg.Any<CancellationToken>()).Returns(effortTypes);
 
         // Act
         var result = await _controller.GetEffortTypes();
@@ -75,8 +75,7 @@ public sealed class EffortTypesControllerTests
         {
             new() { Id = "ACT", Description = "Active Type", IsActive = true, UsageCount = 0, CanDelete = true }
         };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypesAsync(true, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortTypes);
+        _effortTypeServiceMock.GetEffortTypesAsync(true, Arg.Any<CancellationToken>()).Returns(effortTypes);
 
         // Act
         var result = await _controller.GetEffortTypes(activeOnly: true);
@@ -85,7 +84,7 @@ public sealed class EffortTypesControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedEffortTypes = Assert.IsAssignableFrom<IEnumerable<EffortTypeDto>>(okResult.Value);
         Assert.Single(returnedEffortTypes);
-        _effortTypeServiceMock.Verify(s => s.GetEffortTypesAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        await _effortTypeServiceMock.Received(1).GetEffortTypesAsync(true, Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -97,8 +96,7 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var effortType = new EffortTypeDto { Id = "LEC", Description = "Lecture", IsActive = true, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("LEC", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
+        _effortTypeServiceMock.GetEffortTypeAsync("LEC", Arg.Any<CancellationToken>()).Returns(effortType);
 
         // Act
         var result = await _controller.GetEffortType("LEC", CancellationToken.None);
@@ -113,8 +111,7 @@ public sealed class EffortTypesControllerTests
     public async Task GetEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("XXX", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((EffortTypeDto?)null);
+        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
 
         // Act
         var result = await _controller.GetEffortType("XXX", CancellationToken.None);
@@ -133,8 +130,7 @@ public sealed class EffortTypesControllerTests
         // Arrange
         var request = new CreateEffortTypeRequest { Id = "NEW", Description = "New Type" };
         var createdEffortType = new EffortTypeDto { Id = "NEW", Description = "New Type", IsActive = true, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.CreateEffortTypeAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdEffortType);
+        _effortTypeServiceMock.CreateEffortTypeAsync(request, Arg.Any<CancellationToken>()).Returns(createdEffortType);
 
         // Act
         var result = await _controller.CreateEffortType(request, CancellationToken.None);
@@ -151,8 +147,7 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var request = new CreateEffortTypeRequest { Id = "DUP", Description = "Duplicate Type" };
-        _effortTypeServiceMock.Setup(s => s.CreateEffortTypeAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("A effort type with ID 'DUP' already exists"));
+        _effortTypeServiceMock.CreateEffortTypeAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("A effort type with ID 'DUP' already exists"));
 
         // Act
         var result = await _controller.CreateEffortType(request, CancellationToken.None);
@@ -167,8 +162,7 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var request = new CreateEffortTypeRequest { Id = "ERR", Description = "Error Type" };
-        _effortTypeServiceMock.Setup(s => s.CreateEffortTypeAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Constraint violation"));
+        _effortTypeServiceMock.CreateEffortTypeAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Constraint violation"));
 
         // Act
         var result = await _controller.CreateEffortType(request, CancellationToken.None);
@@ -197,8 +191,7 @@ public sealed class EffortTypesControllerTests
             AllowedOnRCourses = false
         };
         var updatedEffortType = new EffortTypeDto { Id = "UPD", Description = "Updated Type", IsActive = false, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("UPD", request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedEffortType);
+        _effortTypeServiceMock.UpdateEffortTypeAsync("UPD", request, Arg.Any<CancellationToken>()).Returns(updatedEffortType);
 
         // Act
         var result = await _controller.UpdateEffortType("UPD", request, CancellationToken.None);
@@ -224,8 +217,7 @@ public sealed class EffortTypesControllerTests
             AllowedOn199299 = false,
             AllowedOnRCourses = false
         };
-        _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("XXX", request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((EffortTypeDto?)null);
+        _effortTypeServiceMock.UpdateEffortTypeAsync("XXX", request, Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
 
         // Act
         var result = await _controller.UpdateEffortType("XXX", request, CancellationToken.None);
@@ -248,8 +240,7 @@ public sealed class EffortTypesControllerTests
             AllowedOn199299 = false,
             AllowedOnRCourses = false
         };
-        _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("INV", request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Invalid update operation"));
+        _effortTypeServiceMock.UpdateEffortTypeAsync("INV", request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Invalid update operation"));
 
         // Act
         var result = await _controller.UpdateEffortType("INV", request, CancellationToken.None);
@@ -273,8 +264,7 @@ public sealed class EffortTypesControllerTests
             AllowedOn199299 = false,
             AllowedOnRCourses = false
         };
-        _effortTypeServiceMock.Setup(s => s.UpdateEffortTypeAsync("ERR", request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Constraint violation"));
+        _effortTypeServiceMock.UpdateEffortTypeAsync("ERR", request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Constraint violation"));
 
         // Act
         var result = await _controller.UpdateEffortType("ERR", request, CancellationToken.None);
@@ -293,10 +283,8 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var effortType = new EffortTypeDto { Id = "DEL", Description = "Deletable", IsActive = true, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("DEL", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
-        _effortTypeServiceMock.Setup(s => s.DeleteEffortTypeAsync("DEL", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _effortTypeServiceMock.GetEffortTypeAsync("DEL", Arg.Any<CancellationToken>()).Returns(effortType);
+        _effortTypeServiceMock.DeleteEffortTypeAsync("DEL", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.DeleteEffortType("DEL", CancellationToken.None);
@@ -309,8 +297,7 @@ public sealed class EffortTypesControllerTests
     public async Task DeleteEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("XXX", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((EffortTypeDto?)null);
+        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
 
         // Act
         var result = await _controller.DeleteEffortType("XXX", CancellationToken.None);
@@ -324,8 +311,7 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var effortType = new EffortTypeDto { Id = "REF", Description = "Referenced", IsActive = true, UsageCount = 5, CanDelete = false };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("REF", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
+        _effortTypeServiceMock.GetEffortTypeAsync("REF", Arg.Any<CancellationToken>()).Returns(effortType);
 
         // Act
         var result = await _controller.DeleteEffortType("REF", CancellationToken.None);
@@ -340,10 +326,8 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange - session exists, canDelete=true, but delete returns false (race condition)
         var effortType = new EffortTypeDto { Id = "RC", Description = "Race Condition", IsActive = true, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("RC", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
-        _effortTypeServiceMock.Setup(s => s.DeleteEffortTypeAsync("RC", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _effortTypeServiceMock.GetEffortTypeAsync("RC", Arg.Any<CancellationToken>()).Returns(effortType);
+        _effortTypeServiceMock.DeleteEffortTypeAsync("RC", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.DeleteEffortType("RC", CancellationToken.None);
@@ -358,10 +342,8 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var effortType = new EffortTypeDto { Id = "ERR", Description = "Error Type", IsActive = true, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("ERR", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
-        _effortTypeServiceMock.Setup(s => s.DeleteEffortTypeAsync("ERR", It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Foreign key constraint"));
+        _effortTypeServiceMock.GetEffortTypeAsync("ERR", Arg.Any<CancellationToken>()).Returns(effortType);
+        _effortTypeServiceMock.DeleteEffortTypeAsync("ERR", Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Foreign key constraint"));
 
         // Act
         var result = await _controller.DeleteEffortType("ERR", CancellationToken.None);
@@ -380,8 +362,7 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var effortType = new EffortTypeDto { Id = "USE", Description = "In Use Type", IsActive = true, UsageCount = 5, CanDelete = false };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("USE", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
+        _effortTypeServiceMock.GetEffortTypeAsync("USE", Arg.Any<CancellationToken>()).Returns(effortType);
 
         // Act
         var result = await _controller.CanDeleteEffortType("USE", CancellationToken.None);
@@ -399,8 +380,7 @@ public sealed class EffortTypesControllerTests
     {
         // Arrange
         var effortType = new EffortTypeDto { Id = "NEW", Description = "New Type", IsActive = true, UsageCount = 0, CanDelete = true };
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("NEW", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortType);
+        _effortTypeServiceMock.GetEffortTypeAsync("NEW", Arg.Any<CancellationToken>()).Returns(effortType);
 
         // Act
         var result = await _controller.CanDeleteEffortType("NEW", CancellationToken.None);
@@ -417,8 +397,7 @@ public sealed class EffortTypesControllerTests
     public async Task CanDeleteEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypeAsync("XXX", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((EffortTypeDto?)null);
+        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
 
         // Act
         var result = await _controller.CanDeleteEffortType("XXX", CancellationToken.None);
@@ -499,9 +478,7 @@ public sealed class EffortTypesControllerTests
     public async Task GetEffortTypes_ReturnsOk_WithEmptyList()
     {
         // Arrange
-        _effortTypeServiceMock.Setup(s => s.GetEffortTypesAsync(false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<EffortTypeDto>());
-
+        _effortTypeServiceMock.GetEffortTypesAsync(false, Arg.Any<CancellationToken>()).Returns(new List<EffortTypeDto>());
         // Act
         var result = await _controller.GetEffortTypes();
 

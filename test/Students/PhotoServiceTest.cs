@@ -2,38 +2,38 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Hosting;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Students.Services;
 
 namespace Viper.test.Students
 {
     public class PhotoServiceTest : IDisposable
     {
-        private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly IConfiguration _mockConfiguration;
         private readonly IMemoryCache _memoryCache;
-        private readonly Mock<ILogger<PhotoService>> _mockLogger;
-        private readonly Mock<IWebHostEnvironment> _mockWebHostEnvironment;
+        private readonly ILogger<PhotoService> _mockLogger;
+        private readonly IWebHostEnvironment _mockWebHostEnvironment;
         private readonly PhotoService _photoService;
         private readonly string _testPhotoDirectory;
         private readonly string _testDefaultPhotoPath;
 
         public PhotoServiceTest()
         {
-            _mockConfiguration = new Mock<IConfiguration>();
+            _mockConfiguration = Substitute.For<IConfiguration>();
             _memoryCache = new MemoryCache(new MemoryCacheOptions());
-            _mockLogger = new Mock<ILogger<PhotoService>>();
-            _mockWebHostEnvironment = new Mock<IWebHostEnvironment>();
+            _mockLogger = Substitute.For<ILogger<PhotoService>>();
+            _mockWebHostEnvironment = Substitute.For<IWebHostEnvironment>();
 
             _testPhotoDirectory = Path.Join(Path.GetTempPath(), $"VIPERPhotoTest_{Guid.NewGuid()}");
             Directory.CreateDirectory(_testPhotoDirectory);
 
-            _mockConfiguration.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(_testPhotoDirectory);
-            _mockConfiguration.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("nopic.jpg");
-            _mockConfiguration.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("24");
+            _mockConfiguration["PhotoGallery:IDCardPhotoPath"].Returns(_testPhotoDirectory);
+            _mockConfiguration["PhotoGallery:DefaultPhotoFile"].Returns("nopic.jpg");
+            _mockConfiguration["PhotoGallery:CacheDurationHours"].Returns("24");
 
             var wwwrootPath = Path.Join(_testPhotoDirectory, "wwwroot");
             Directory.CreateDirectory(Path.Join(wwwrootPath, "images"));
-            _mockWebHostEnvironment.Setup(e => e.WebRootPath).Returns(wwwrootPath);
+            _mockWebHostEnvironment.WebRootPath.Returns(wwwrootPath);
 
             _testDefaultPhotoPath = Path.Join(_testPhotoDirectory, "nopic.jpg");
             File.WriteAllBytes(_testDefaultPhotoPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
@@ -41,7 +41,7 @@ namespace Viper.test.Students
             var wwwrootDefaultPath = Path.Join(wwwrootPath, "images", "nopic.jpg");
             File.WriteAllBytes(wwwrootDefaultPath, new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
 
-            _photoService = new PhotoService(_mockConfiguration.Object, _memoryCache, _mockLogger.Object, _mockWebHostEnvironment.Object);
+            _photoService = new PhotoService(_mockConfiguration, _memoryCache, _mockLogger, _mockWebHostEnvironment);
         }
 
         public void Dispose()
@@ -329,13 +329,13 @@ namespace Viper.test.Students
         public void PhotoService_InvalidCacheDuration_UsesDefault24Hours()
         {
             // Arrange
-            var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(_testPhotoDirectory);
-            mockConfig.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("nopic.jpg");
-            mockConfig.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("invalid");
+            var mockConfig = Substitute.For<IConfiguration>();
+            mockConfig["PhotoGallery:IDCardPhotoPath"].Returns(_testPhotoDirectory);
+            mockConfig["PhotoGallery:DefaultPhotoFile"].Returns("nopic.jpg");
+            mockConfig["PhotoGallery:CacheDurationHours"].Returns("invalid");
 
             // Act
-            var service = new PhotoService(mockConfig.Object, new MemoryCache(new MemoryCacheOptions()), _mockLogger.Object, _mockWebHostEnvironment.Object);
+            var service = new PhotoService(mockConfig, new MemoryCache(new MemoryCacheOptions()), _mockLogger, _mockWebHostEnvironment);
 
             // Assert - No exception thrown, service created successfully
             Assert.NotNull(service);
@@ -345,13 +345,13 @@ namespace Viper.test.Students
         public void PhotoService_CacheDurationTooLow_UsesDefault()
         {
             // Arrange
-            var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(_testPhotoDirectory);
-            mockConfig.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("nopic.jpg");
-            mockConfig.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("0");
+            var mockConfig = Substitute.For<IConfiguration>();
+            mockConfig["PhotoGallery:IDCardPhotoPath"].Returns(_testPhotoDirectory);
+            mockConfig["PhotoGallery:DefaultPhotoFile"].Returns("nopic.jpg");
+            mockConfig["PhotoGallery:CacheDurationHours"].Returns("0");
 
             // Act
-            var service = new PhotoService(mockConfig.Object, new MemoryCache(new MemoryCacheOptions()), _mockLogger.Object, _mockWebHostEnvironment.Object);
+            var service = new PhotoService(mockConfig, new MemoryCache(new MemoryCacheOptions()), _mockLogger, _mockWebHostEnvironment);
 
             // Assert
             Assert.NotNull(service);
@@ -361,13 +361,13 @@ namespace Viper.test.Students
         public void PhotoService_CacheDurationTooHigh_UsesDefault()
         {
             // Arrange
-            var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(_testPhotoDirectory);
-            mockConfig.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("nopic.jpg");
-            mockConfig.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("200");
+            var mockConfig = Substitute.For<IConfiguration>();
+            mockConfig["PhotoGallery:IDCardPhotoPath"].Returns(_testPhotoDirectory);
+            mockConfig["PhotoGallery:DefaultPhotoFile"].Returns("nopic.jpg");
+            mockConfig["PhotoGallery:CacheDurationHours"].Returns("200");
 
             // Act
-            var service = new PhotoService(mockConfig.Object, new MemoryCache(new MemoryCacheOptions()), _mockLogger.Object, _mockWebHostEnvironment.Object);
+            var service = new PhotoService(mockConfig, new MemoryCache(new MemoryCacheOptions()), _mockLogger, _mockWebHostEnvironment);
 
             // Assert
             Assert.NotNull(service);
@@ -381,15 +381,15 @@ namespace Viper.test.Students
         public async Task GetStudentPhotoAsync_DefaultPhotoMissing_ThrowsException()
         {
             // Arrange
-            var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["PhotoGallery:IDCardPhotoPath"]).Returns(Path.Join(_testPhotoDirectory, "nonexistent"));
-            mockConfig.Setup(c => c["PhotoGallery:DefaultPhotoFile"]).Returns("missing.jpg");
-            mockConfig.Setup(c => c["PhotoGallery:CacheDurationHours"]).Returns("24");
+            var mockConfig = Substitute.For<IConfiguration>();
+            mockConfig["PhotoGallery:IDCardPhotoPath"].Returns(Path.Join(_testPhotoDirectory, "nonexistent"));
+            mockConfig["PhotoGallery:DefaultPhotoFile"].Returns("missing.jpg");
+            mockConfig["PhotoGallery:CacheDurationHours"].Returns("24");
 
-            var mockWebHost = new Mock<IWebHostEnvironment>();
-            mockWebHost.Setup(e => e.WebRootPath).Returns(Path.Join(_testPhotoDirectory, "nonexistentwwwroot"));
+            var mockWebHost = Substitute.For<IWebHostEnvironment>();
+            mockWebHost.WebRootPath.Returns(Path.Join(_testPhotoDirectory, "nonexistentwwwroot"));
 
-            var service = new PhotoService(mockConfig.Object, new MemoryCache(new MemoryCacheOptions()), _mockLogger.Object, mockWebHost.Object);
+            var service = new PhotoService(mockConfig, new MemoryCache(new MemoryCacheOptions()), _mockLogger, mockWebHost);
 
             // Act & Assert
             await Assert.ThrowsAsync<FileNotFoundException>(async () =>

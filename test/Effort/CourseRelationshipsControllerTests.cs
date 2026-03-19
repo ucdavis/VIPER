@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -15,10 +16,10 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class CourseRelationshipsControllerTests
 {
-    private readonly Mock<ICourseRelationshipService> _relationshipServiceMock;
-    private readonly Mock<ICourseService> _courseServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<ILogger<CourseRelationshipsController>> _loggerMock;
+    private readonly ICourseRelationshipService _relationshipServiceMock;
+    private readonly ICourseService _courseServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ILogger<CourseRelationshipsController> _loggerMock;
     private readonly CourseRelationshipsController _controller;
 
     private const int TestTermCode = 202410;
@@ -28,16 +29,16 @@ public sealed class CourseRelationshipsControllerTests
 
     public CourseRelationshipsControllerTests()
     {
-        _relationshipServiceMock = new Mock<ICourseRelationshipService>();
-        _courseServiceMock = new Mock<ICourseService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _loggerMock = new Mock<ILogger<CourseRelationshipsController>>();
+        _relationshipServiceMock = Substitute.For<ICourseRelationshipService>();
+        _courseServiceMock = Substitute.For<ICourseService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _loggerMock = Substitute.For<ILogger<CourseRelationshipsController>>();
 
         _controller = new CourseRelationshipsController(
-            _relationshipServiceMock.Object,
-            _courseServiceMock.Object,
-            _permissionServiceMock.Object,
-            _loggerMock.Object);
+            _relationshipServiceMock,
+            _courseServiceMock,
+            _permissionServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -83,10 +84,10 @@ public sealed class CourseRelationshipsControllerTests
             }
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.GetRelationshipsForCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.GetRelationships(1);
@@ -101,7 +102,7 @@ public sealed class CourseRelationshipsControllerTests
     public async Task GetRelationships_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var actionResult = await _controller.GetRelationships(999);
@@ -116,8 +117,8 @@ public sealed class CourseRelationshipsControllerTests
     {
         // Arrange
         var course = CreateCourse(1, DvmDept);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var actionResult = await _controller.GetRelationships(1);
@@ -137,10 +138,10 @@ public sealed class CourseRelationshipsControllerTests
             ChildRelationships = new List<CourseRelationshipDto>()
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.GetRelationshipsForCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.GetRelationships(1);
@@ -173,10 +174,10 @@ public sealed class CourseRelationshipsControllerTests
             }
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.GetRelationshipsForCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.GetRelationships(1);
@@ -203,11 +204,11 @@ public sealed class CourseRelationshipsControllerTests
             }
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { DvmDept });
-        _relationshipServiceMock.Setup(s => s.GetRelationshipsForCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { DvmDept });
+        _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.GetRelationships(1);
@@ -237,11 +238,11 @@ public sealed class CourseRelationshipsControllerTests
             ChildRelationships = new List<CourseRelationshipDto>()
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { DvmDept });
-        _relationshipServiceMock.Setup(s => s.GetRelationshipsForCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { DvmDept });
+        _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.GetRelationships(1);
@@ -267,10 +268,10 @@ public sealed class CourseRelationshipsControllerTests
             CreateCourse(3, DvmDept)
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.GetAvailableChildCoursesAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(availableCourses);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.GetAvailableChildCoursesAsync(1, Arg.Any<CancellationToken>()).Returns(availableCourses);
 
         // Act
         var actionResult = await _controller.GetAvailableChildren(1);
@@ -292,11 +293,11 @@ public sealed class CourseRelationshipsControllerTests
             CreateCourse(3, DvmDept)
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { DvmDept });
-        _relationshipServiceMock.Setup(s => s.GetAvailableChildCoursesAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(availableCourses);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { DvmDept });
+        _relationshipServiceMock.GetAvailableChildCoursesAsync(1, Arg.Any<CancellationToken>()).Returns(availableCourses);
 
         // Act
         var actionResult = await _controller.GetAvailableChildren(1);
@@ -328,11 +329,11 @@ public sealed class CourseRelationshipsControllerTests
             ChildCourse = childCourse
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(childCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(VmeDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.CreateRelationshipAsync(1, request, It.IsAny<CancellationToken>())).ReturnsAsync(relationship);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _courseServiceMock.GetCourseAsync(2, Arg.Any<CancellationToken>()).Returns(childCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync(VmeDept, Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.CreateRelationshipAsync(1, request, Arg.Any<CancellationToken>()).Returns(relationship);
 
         // Act
         var actionResult = await _controller.CreateRelationship(1, request);
@@ -351,8 +352,8 @@ public sealed class CourseRelationshipsControllerTests
         var parentCourse = CreateCourse(1, DvmDept);
         var request = new CreateCourseRelationshipRequest { ChildCourseId = 2, RelationshipType = CrossListType };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var actionResult = await _controller.CreateRelationship(1, request);
@@ -369,10 +370,10 @@ public sealed class CourseRelationshipsControllerTests
         var childCourse = CreateCourse(2, VmeDept);
         var request = new CreateCourseRelationshipRequest { ChildCourseId = 2, RelationshipType = CrossListType };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(childCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(VmeDept, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _courseServiceMock.GetCourseAsync(2, Arg.Any<CancellationToken>()).Returns(childCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync(VmeDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var actionResult = await _controller.CreateRelationship(1, request);
@@ -389,11 +390,10 @@ public sealed class CourseRelationshipsControllerTests
         var childCourse = CreateCourse(2, VmeDept);
         var request = new CreateCourseRelationshipRequest { ChildCourseId = 2, RelationshipType = CrossListType };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(childCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.CreateRelationshipAsync(1, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Child course is already a child of another course"));
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _courseServiceMock.GetCourseAsync(2, Arg.Any<CancellationToken>()).Returns(childCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.CreateRelationshipAsync(1, request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Child course is already a child of another course"));
 
         // Act
         var actionResult = await _controller.CreateRelationship(1, request);
@@ -421,12 +421,12 @@ public sealed class CourseRelationshipsControllerTests
             RelationshipType = CrossListType
         };
 
-        _relationshipServiceMock.Setup(s => s.GetRelationshipAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(relationship);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(childCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(VmeDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _relationshipServiceMock.Setup(s => s.DeleteRelationshipAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _relationshipServiceMock.GetRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(relationship);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _courseServiceMock.GetCourseAsync(2, Arg.Any<CancellationToken>()).Returns(childCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync(VmeDept, Arg.Any<CancellationToken>()).Returns(true);
+        _relationshipServiceMock.DeleteRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var actionResult = await _controller.DeleteRelationship(1, 1);
@@ -439,7 +439,7 @@ public sealed class CourseRelationshipsControllerTests
     public async Task DeleteRelationship_ReturnsNotFound_WhenRelationshipNotFound()
     {
         // Arrange
-        _relationshipServiceMock.Setup(s => s.GetRelationshipAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((CourseRelationshipDto?)null);
+        _relationshipServiceMock.GetRelationshipAsync(999, Arg.Any<CancellationToken>()).Returns((CourseRelationshipDto?)null);
 
         // Act
         var actionResult = await _controller.DeleteRelationship(1, 999);
@@ -461,7 +461,7 @@ public sealed class CourseRelationshipsControllerTests
             RelationshipType = CrossListType
         };
 
-        _relationshipServiceMock.Setup(s => s.GetRelationshipAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(relationship);
+        _relationshipServiceMock.GetRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(relationship);
 
         // Act
         var actionResult = await _controller.DeleteRelationship(1, 1); // Trying to delete via parent 1
@@ -484,9 +484,9 @@ public sealed class CourseRelationshipsControllerTests
             RelationshipType = CrossListType
         };
 
-        _relationshipServiceMock.Setup(s => s.GetRelationshipAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(relationship);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _relationshipServiceMock.GetRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(relationship);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var actionResult = await _controller.DeleteRelationship(1, 1);
@@ -509,11 +509,11 @@ public sealed class CourseRelationshipsControllerTests
             RelationshipType = CrossListType
         };
 
-        _relationshipServiceMock.Setup(s => s.GetRelationshipAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(relationship);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(parentCourse);
-        _courseServiceMock.Setup(s => s.GetCourseAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(childCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(DvmDept, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(VmeDept, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _relationshipServiceMock.GetRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(relationship);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(parentCourse);
+        _courseServiceMock.GetCourseAsync(2, Arg.Any<CancellationToken>()).Returns(childCourse);
+        _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync(VmeDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var actionResult = await _controller.DeleteRelationship(1, 1);

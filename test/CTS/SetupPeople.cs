@@ -1,8 +1,7 @@
-using Moq;
+using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
-using Microsoft.EntityFrameworkCore;
-using MockQueryable.Moq;
+using MockQueryable.NSubstitute;
 
 namespace Viper.test.CTS
 {
@@ -81,10 +80,10 @@ namespace Viper.test.CTS
             return People.AsQueryable();
         }
 
-        public static void SetupPersonTable(Mock<VIPERContext> context)
+        public static void SetupPersonTable(VIPERContext context)
         {
-            var mockSet = People.AsAsyncQueryable().BuildMockDbSet();
-            context.Setup(c => c.People).Returns(mockSet.Object);
+            var mockSet = People.BuildMockDbSet();
+            context.People.Returns(mockSet);
         }
     }
 }

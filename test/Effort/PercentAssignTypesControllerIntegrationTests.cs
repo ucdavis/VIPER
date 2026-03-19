@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -23,8 +23,8 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         var mapper = AutoMapperHelper.CreateMapper();
         _service = new PercentAssignTypeService(EffortContext, mapper);
 
-        var mockLogger = new Mock<ILogger<PercentAssignTypesController>>();
-        _controller = new PercentAssignTypesController(_service, mockLogger.Object);
+        var mockLogger = Substitute.For<ILogger<PercentAssignTypesController>>();
+        _controller = new PercentAssignTypesController(_service, mockLogger);
         SetupControllerContext(_controller);
 
         // Seed percent assignment types for tests

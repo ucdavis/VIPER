@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using MockQueryable.Moq;
-using Moq;
+using MockQueryable.NSubstitute;
+using NSubstitute;
 using Viper.Areas.CTS.Controllers;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;
@@ -10,15 +10,15 @@ namespace Viper.test.CTS
 {
     public class CompetencyBundleAssociationControllerTest
     {
-        private readonly Mock<VIPERContext> _mockContext;
+        private readonly VIPERContext _mockContext;
         private readonly CompetencyBundleAssociationController _controller;
         private readonly List<Competency> _testCompetencies;
         private readonly List<Bundle> _testBundles;
 
         public CompetencyBundleAssociationControllerTest()
         {
-            _mockContext = new Mock<VIPERContext>();
-            _controller = new CompetencyBundleAssociationController(_mockContext.Object);
+            _mockContext = Substitute.For<VIPERContext>();
+            _controller = new CompetencyBundleAssociationController(_mockContext);
 
             // Setup test data
             _testBundles = new List<Bundle>
@@ -104,8 +104,8 @@ namespace Viper.test.CTS
             };
 
             // Setup mock DbSet using MockQueryable
-            var mockDbSet = _testCompetencies.AsQueryable().BuildMockDbSet();
-            _mockContext.Setup(c => c.Competencies).Returns(mockDbSet.Object);
+            var mockDbSet = _testCompetencies.BuildMockDbSet();
+            _mockContext.Competencies.Returns(mockDbSet);
         }
 
         [Fact]

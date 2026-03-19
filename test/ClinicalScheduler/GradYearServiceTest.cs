@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 
@@ -8,12 +8,12 @@ namespace Viper.test.ClinicalScheduler
 {
     public class GradYearServiceTest
     {
-        private readonly Mock<ILogger<GradYearService>> _mockLogger;
+        private readonly ILogger<GradYearService> _mockLogger;
         private readonly ClinicalSchedulerContext _context;
 
         public GradYearServiceTest()
         {
-            _mockLogger = new Mock<ILogger<GradYearService>>();
+            _mockLogger = Substitute.For<ILogger<GradYearService>>();
 
             // Use in-memory database for testing
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
@@ -26,7 +26,7 @@ namespace Viper.test.ClinicalScheduler
         public void GradYearService_CanBeCreated()
         {
             // Arrange & Act
-            var service = new GradYearService(_mockLogger.Object, _context);
+            var service = new GradYearService(_mockLogger, _context);
 
             // Assert
             Assert.NotNull(service);
@@ -57,7 +57,7 @@ namespace Viper.test.ClinicalScheduler
         public void GradYearService_ValidYears_ShouldBeAccepted(int year)
         {
             // Arrange
-            _ = new GradYearService(_mockLogger.Object, _context);
+            _ = new GradYearService(_mockLogger, _context);
 
             // Act & Assert
             Assert.True(year >= 2010 && year <= 2030); // Reasonable year range

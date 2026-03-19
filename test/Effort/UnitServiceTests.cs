@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -16,7 +16,7 @@ namespace Viper.test.Effort;
 public sealed class UnitServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly IEffortAuditService _auditServiceMock;
     private readonly IMapper _mapper;
     private readonly UnitService _unitService;
 
@@ -28,7 +28,7 @@ public sealed class UnitServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
 
         // Configure AutoMapper with the Effort profile
         var mapperConfig = new MapperConfiguration(cfg =>
@@ -39,9 +39,9 @@ public sealed class UnitServiceTests : IDisposable
 
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
-            .Setup(s => s.AddUnitChangeAudit(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+            .AddUnitChangeAudit(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _unitService = new UnitService(_context, _auditServiceMock.Object, _mapper);
+        _unitService = new UnitService(_context, _auditServiceMock, _mapper);
     }
 
     public void Dispose()
@@ -267,13 +267,11 @@ public sealed class UnitServiceTests : IDisposable
         await _unitService.CreateUnitAsync(request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddUnitChangeAudit(
-                It.IsAny<int>(),
-                It.Is<string>(action => action.Contains("Create")),
-                null,
-                It.IsAny<object>()),
-            Times.Once);
+        _auditServiceMock.Received(1).AddUnitChangeAudit(
+                Arg.Any<int>(),
+                Arg.Is<string>(action => action.Contains("Create")),
+                Arg.Is<object?>(x => x == null),
+                Arg.Any<object>());
     }
 
     [Fact]
@@ -387,13 +385,11 @@ public sealed class UnitServiceTests : IDisposable
         await _unitService.UpdateUnitAsync(1, request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddUnitChangeAudit(
+        _auditServiceMock.Received(1).AddUnitChangeAudit(
                 1,
-                It.Is<string>(action => action.Contains("Update")),
-                It.IsAny<object>(),
-                It.IsAny<object>()),
-            Times.Once);
+                Arg.Is<string>(action => action.Contains("Update")),
+                Arg.Any<object>(),
+                Arg.Any<object>());
     }
 
     [Fact]
@@ -484,13 +480,11 @@ public sealed class UnitServiceTests : IDisposable
         await _unitService.DeleteUnitAsync(1);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddUnitChangeAudit(
+        _auditServiceMock.Received(1).AddUnitChangeAudit(
                 1,
-                It.Is<string>(action => action.Contains("Delete")),
-                It.IsAny<object>(),
-                null),
-            Times.Once);
+                Arg.Is<string>(action => action.Contains("Delete")),
+                Arg.Any<object>(),
+                Arg.Is<object?>(x => x == null));
     }
 
     #endregion

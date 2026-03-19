@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -21,7 +21,7 @@ public sealed class SabbaticalServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
-        _service = new SabbaticalService(_context, Mock.Of<ILogger<SabbaticalService>>());
+        _service = new SabbaticalService(_context, Substitute.For<ILogger<SabbaticalService>>());
     }
 
     public void Dispose()

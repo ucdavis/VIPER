@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
@@ -26,12 +26,16 @@ namespace Viper.test.ClinicalScheduler.Integration
 
             // Create mock services since actual services require VIPERContext
             // Note: studentLogger not used since we're mocking the service
-            var mockStudentService = new Mock<IStudentScheduleService>();
-            mockStudentService.Setup(x => x.GetStudentScheduleAsync(
-                It.IsAny<int?>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(),
-                It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
-                .ReturnsAsync((int? classYear, string mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate) =>
+            var mockStudentService = Substitute.For<IStudentScheduleService>();
+            mockStudentService.GetStudentScheduleAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
+                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
+                .Returns(callInfo =>
                 {
+                    var mothraId = callInfo.ArgAt<string>(1);
+                    var rotationId = callInfo.ArgAt<int?>(2);
+                    var weekId = callInfo.ArgAt<int?>(4);
+
                     // Return mock data that matches the test scenarios
                     var mockData = new List<Viper.Areas.CTS.Models.ClinicalScheduledStudent>();
 
@@ -77,17 +81,21 @@ namespace Viper.test.ClinicalScheduler.Integration
                         });
                     }
 
-                    return mockData;
+                    return Task.FromResult(mockData);
                 });
-            _studentScheduleService = mockStudentService.Object;
+            _studentScheduleService = mockStudentService;
 
             // Note: instructorLogger not used since we're mocking the service
-            var mockInstructorService = new Mock<IInstructorScheduleService>();
-            mockInstructorService.Setup(x => x.GetInstructorScheduleAsync(
-                It.IsAny<int?>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(),
-                It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<bool?>()))
-                .Returns((int? classYear, string mothraId, int? rotationId, int? serviceId, int? weekId, DateTime? startDate, DateTime? endDate, bool? active) =>
+            var mockInstructorService = Substitute.For<IInstructorScheduleService>();
+            mockInstructorService.GetInstructorScheduleAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
+                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<bool?>())
+                .Returns(callInfo =>
                 {
+                    var mothraId = callInfo.ArgAt<string>(1);
+                    var rotationId = callInfo.ArgAt<int?>(2);
+                    var weekId = callInfo.ArgAt<int?>(4);
+
                     // Return mock data that matches the test scenarios
                     var mockData = new List<CtsModels.InstructorSchedule>();
 
@@ -150,15 +158,15 @@ namespace Viper.test.ClinicalScheduler.Integration
 
                     return Task.FromResult(mockData);
                 });
-            _instructorScheduleService = mockInstructorService.Object;
+            _instructorScheduleService = mockInstructorService;
 
             _clinicalScheduleService = new ClinicalScheduleService(
                 _studentScheduleService,
                 _instructorScheduleService
             );
 
-            var personLogger = new Mock<ILogger<PersonService>>();
-            _personService = new PersonService(personLogger.Object, Context, AaudContext);
+            var personLogger = Substitute.For<ILogger<PersonService>>();
+            _personService = new PersonService(personLogger, Context, AaudContext);
 
             // EvaluationPolicyService is now static-like with no constructor parameters needed
             _evaluationPolicyService = new EvaluationPolicyService();
@@ -173,14 +181,14 @@ namespace Viper.test.ClinicalScheduler.Integration
                 MothraId = "student1"
             };
 
-            var mockService = new Mock<IStudentScheduleService>();
-            mockService.Setup(x => x.GetStudentScheduleAsync(
-                It.IsAny<int?>(), It.IsAny<string>(), CardiologyRotationId, It.IsAny<int?>(),
-                It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
-                .ReturnsAsync(new List<Viper.Areas.CTS.Models.ClinicalScheduledStudent> { testStudent });
+            var mockService = Substitute.For<IStudentScheduleService>();
+            mockService.GetStudentScheduleAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), CardiologyRotationId, Arg.Any<int?>(),
+                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
+                .Returns(new List<Viper.Areas.CTS.Models.ClinicalScheduledStudent> { testStudent });
 
             // Act
-            var schedules = await mockService.Object.GetStudentScheduleAsync(
+            var schedules = await mockService.GetStudentScheduleAsync(
                 classYear: null,
                 mothraId: null,
                 rotationId: CardiologyRotationId,
@@ -448,7 +456,6 @@ namespace Viper.test.ClinicalScheduler.Integration
             Context.Rotations.AddRange(rotation1, rotation2);
             await Context.SaveChangesAsync();
 
-            // Act - Create ServiceSummaryDto
             // Act - Test DTO structures individually since ServiceSummaryDto doesn't exist
             var rotation1Dto = rotation1.ToDto();
             var rotation2Dto = rotation2.ToDto();

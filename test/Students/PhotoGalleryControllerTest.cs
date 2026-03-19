@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Controllers;
 using Viper.Areas.Students.Models;
@@ -10,31 +10,31 @@ namespace Viper.test.Students
 {
     public class PhotoGalleryControllerTest
     {
-        private readonly Mock<IPhotoService> _mockPhotoService;
-        private readonly Mock<IStudentGroupService> _mockStudentGroupService;
-        private readonly Mock<IPhotoExportService> _mockPhotoExportService;
-        private readonly Mock<ICourseService> _mockCourseService;
-        private readonly Mock<TermCodeService> _mockTermCodeService;
-        private readonly Mock<ILogger<PhotoGalleryController>> _mockLogger;
+        private readonly IPhotoService _mockPhotoService;
+        private readonly IStudentGroupService _mockStudentGroupService;
+        private readonly IPhotoExportService _mockPhotoExportService;
+        private readonly ICourseService _mockCourseService;
+        private readonly TermCodeService _mockTermCodeService;
+        private readonly ILogger<PhotoGalleryController> _mockLogger;
         private readonly PhotoGalleryController _controller;
 
         public PhotoGalleryControllerTest()
         {
-            _mockPhotoService = new Mock<IPhotoService>();
-            _mockStudentGroupService = new Mock<IStudentGroupService>();
-            _mockPhotoExportService = new Mock<IPhotoExportService>();
-            _mockCourseService = new Mock<ICourseService>();
-            // TermCodeService requires VIPERContext and CoursesContext, mock with null using MockBehavior.Loose
-            _mockTermCodeService = new Mock<TermCodeService>(MockBehavior.Loose, [null!, null!]);
-            _mockLogger = new Mock<ILogger<PhotoGalleryController>>();
+            _mockPhotoService = Substitute.For<IPhotoService>();
+            _mockStudentGroupService = Substitute.For<IStudentGroupService>();
+            _mockPhotoExportService = Substitute.For<IPhotoExportService>();
+            _mockCourseService = Substitute.For<ICourseService>();
+            // TermCodeService requires VIPERContext and CoursesContext, mock with null using NSubstitute
+            _mockTermCodeService = Substitute.For<TermCodeService>([null!, null!]);
+            _mockLogger = Substitute.For<ILogger<PhotoGalleryController>>();
 
             _controller = new PhotoGalleryController(
-                _mockPhotoService.Object,
-                _mockStudentGroupService.Object,
-                _mockPhotoExportService.Object,
-                _mockCourseService.Object,
-                _mockTermCodeService.Object,
-                _mockLogger.Object
+                _mockPhotoService,
+                _mockStudentGroupService,
+                _mockPhotoExportService,
+                _mockCourseService,
+                _mockTermCodeService,
+                _mockLogger
             );
         }
 
@@ -63,8 +63,8 @@ namespace Viper.test.Students
         public async Task GetClassGallery_ValidClassLevel_ReturnsContent(string classLevel)
         {
             // Arrange
-            _mockStudentGroupService.Setup(s => s.GetStudentsByClassLevelAsync(It.IsAny<string>(), It.IsAny<bool>()))
-                .ReturnsAsync(new List<StudentPhoto>());
+            _mockStudentGroupService.GetStudentsByClassLevelAsync(Arg.Any<string>(), Arg.Any<bool>())
+                .Returns(new List<StudentPhoto>());
 
             // Act
             var result = await _controller.GetClassGallery(classLevel, false);
@@ -133,10 +133,10 @@ namespace Viper.test.Students
         public async Task GetCourseGallery_ValidTermCodeAndCrn_CallsServices()
         {
             // Arrange
-            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new List<StudentPhoto>());
-            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new CourseInfo
+            _mockStudentGroupService.GetStudentsByCourseAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new List<StudentPhoto>());
+            _mockCourseService.GetCourseInfoAsync(Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new CourseInfo
                 {
                     TermCode = "202409",
                     Crn = "12345",
@@ -148,18 +148,18 @@ namespace Viper.test.Students
 
             // Assert
             Assert.IsType<ContentResult>(result);
-            _mockStudentGroupService.Verify(s => s.GetStudentsByCourseAsync("202409", "12345", false, null, null), Times.Once);
-            _mockCourseService.Verify(c => c.GetCourseInfoAsync("202409", "12345"), Times.Once);
+            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202409", "12345", false, null, null);
+            await _mockCourseService.Received(1).GetCourseInfoAsync("202409", "12345");
         }
 
         [Fact]
         public async Task GetCourseGallery_CourseNotFound_ReturnsNotFound()
         {
             // Arrange
-            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new List<StudentPhoto>());
-            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync((CourseInfo?)null);
+            _mockStudentGroupService.GetStudentsByCourseAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new List<StudentPhoto>());
+            _mockCourseService.GetCourseInfoAsync(Arg.Any<string>(), Arg.Any<string>())
+                .Returns((CourseInfo?)null);
 
             // Act
             var result = await _controller.GetCourseGallery("202409", "12345", false);
@@ -183,8 +183,8 @@ namespace Viper.test.Students
                 IncludeRossStudents = false
             };
 
-            _mockPhotoExportService.Setup(e => e.ExportToWordAsync(It.IsAny<PhotoExportRequest>()))
-                .ReturnsAsync(new PhotoExportResult
+            _mockPhotoExportService.ExportToWordAsync(Arg.Any<PhotoExportRequest>())
+                .Returns(new PhotoExportResult
                 {
                     ExportId = Guid.NewGuid().ToString(),
                     FileData = new byte[] { 0x50, 0x4B }, // ZIP header for DOCX
@@ -210,8 +210,8 @@ namespace Viper.test.Students
                 IncludeRossStudents = false
             };
 
-            _mockPhotoExportService.Setup(e => e.ExportToPdfAsync(It.IsAny<PhotoExportRequest>()))
-                .ReturnsAsync(new PhotoExportResult
+            _mockPhotoExportService.ExportToPdfAsync(Arg.Any<PhotoExportRequest>())
+                .Returns(new PhotoExportResult
                 {
                     ExportId = Guid.NewGuid().ToString(),
                     FileData = new byte[] { 0x25, 0x50, 0x44, 0x46 }, // PDF header
@@ -255,11 +255,11 @@ namespace Viper.test.Students
         public async Task GetGroupGallery_ValidV3GroupTypes_ReturnsContent(string groupType)
         {
             // Arrange
-            _mockStudentGroupService.Setup(s => s.GetStudentsByGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new List<StudentPhoto>());
+            _mockStudentGroupService.GetStudentsByGroupAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new List<StudentPhoto>());
 
-            _mockStudentGroupService.Setup(s => s.GetGroupingInfoAsync(It.IsAny<string>()))
-                .ReturnsAsync(new GroupingInfo
+            _mockStudentGroupService.GetGroupingInfoAsync(Arg.Any<string>())
+                .Returns(new GroupingInfo
                 {
                     GroupType = groupType,
                     GroupId = "1",
@@ -277,8 +277,8 @@ namespace Viper.test.Students
         public async Task GetGroupGallery_TeamsGroupType_CallsServiceWithCorrectParameters()
         {
             // Arrange
-            _mockStudentGroupService.Setup(s => s.GetStudentsByGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new List<StudentPhoto>
+            _mockStudentGroupService.GetStudentsByGroupAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new List<StudentPhoto>
                 {
                     new StudentPhoto
                     {
@@ -292,8 +292,8 @@ namespace Viper.test.Students
                     }
                 });
 
-            _mockStudentGroupService.Setup(s => s.GetGroupingInfoAsync(It.IsAny<string>()))
-                .ReturnsAsync(new GroupingInfo
+            _mockStudentGroupService.GetGroupingInfoAsync(Arg.Any<string>())
+                .Returns(new GroupingInfo
                 {
                     GroupType = "teams",
                     GroupId = "1",
@@ -304,8 +304,8 @@ namespace Viper.test.Students
             var result = await _controller.GetGroupGallery("teams", "1", "V3");
 
             // Assert
-            _mockStudentGroupService.Verify(s => s.GetStudentsByGroupAsync("teams", "1", "V3"), Times.Once);
-            _mockStudentGroupService.Verify(s => s.GetGroupingInfoAsync("teams"), Times.Once);
+            await _mockStudentGroupService.Received(1).GetStudentsByGroupAsync("teams", "1", "V3");
+            await _mockStudentGroupService.Received(1).GetGroupingInfoAsync("teams");
             Assert.IsType<ContentResult>(result);
         }
 
@@ -337,16 +337,16 @@ namespace Viper.test.Students
                 }
             };
 
-            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
-                .ReturnsAsync(mockStudents);
+            _mockStudentGroupService.GetStudentsByCourseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+                .Returns(mockStudents);
 
-            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new CourseInfo
+            _mockCourseService.GetCourseInfoAsync(Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new CourseInfo
                 {
                     TermCode = "202501",
                     Crn = "12345",
@@ -359,9 +359,7 @@ namespace Viper.test.Students
             var result = await _controller.GetCourseGallery("202501", "12345", false, "teams", "1");
 
             // Assert
-            _mockStudentGroupService.Verify(
-                s => s.GetStudentsByCourseAsync("202501", "12345", false, "teams", "1"),
-                Times.Once);
+            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202501", "12345", false, "teams", "1");
             Assert.IsType<ContentResult>(result);
         }
 
@@ -386,16 +384,16 @@ namespace Viper.test.Students
                 }
             };
 
-            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
-                .ReturnsAsync(mockStudents);
+            _mockStudentGroupService.GetStudentsByCourseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+                .Returns(mockStudents);
 
-            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new CourseInfo
+            _mockCourseService.GetCourseInfoAsync(Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new CourseInfo
                 {
                     TermCode = "202501",
                     Crn = "12345",
@@ -411,9 +409,7 @@ namespace Viper.test.Students
             Assert.NotNull(contentResult?.Content);
 
             // Verify service was called
-            _mockStudentGroupService.Verify(
-                s => s.GetStudentsByCourseAsync("202501", "12345", false, null, null),
-                Times.Once);
+            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202501", "12345", false, null, null);
         }
 
         [Theory]
@@ -424,16 +420,16 @@ namespace Viper.test.Students
         public async Task GetCourseGallery_WithV3GroupFilters_AcceptsValidGroupTypes(string groupType, string groupId)
         {
             // Arrange
-            _mockStudentGroupService.Setup(s => s.GetStudentsByCourseAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()))
-                .ReturnsAsync(new List<StudentPhoto>());
+            _mockStudentGroupService.GetStudentsByCourseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+                .Returns(new List<StudentPhoto>());
 
-            _mockCourseService.Setup(c => c.GetCourseInfoAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(new CourseInfo
+            _mockCourseService.GetCourseInfoAsync(Arg.Any<string>(), Arg.Any<string>())
+                .Returns(new CourseInfo
                 {
                     TermCode = "202501",
                     Crn = "12345",
@@ -445,9 +441,7 @@ namespace Viper.test.Students
 
             // Assert
             Assert.IsType<ContentResult>(result);
-            _mockStudentGroupService.Verify(
-                s => s.GetStudentsByCourseAsync("202501", "12345", false, groupType, groupId),
-                Times.Once);
+            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202501", "12345", false, groupType, groupId);
         }
 
         #endregion

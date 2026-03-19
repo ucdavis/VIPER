@@ -10,17 +10,17 @@ const {
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
-    shouldClearCache,
-    clearBuildCache,
 } = require("./lib/build-cache")
 
 const { env } = process
 const logger = createLogger("TEST")
 
+// Uses --artifacts-path for full isolation from dev server (avoids file lock conflicts)
+const MAX_BUILD_BUFFER = 20_971_520 // 20 MB for .NET build output
+const artifactsPath = ".artifacts-precommit"
 const projectPath = "test"
 const projectName = "Viper.test.csproj"
-const precommitBinPath = path.join(projectPath, "bin", "Precommit")
-const precommitDll = path.join(precommitBinPath, "Viper.test.dll")
+const precommitDll = path.join(artifactsPath, "bin", "Viper.test", "debug", "Viper.test.dll")
 
 /**
  * Check if precommit build exists (called from pre-commit hook)
@@ -30,7 +30,7 @@ function precommitBuildExists() {
 }
 
 /**
- * Build to bin/Precommit if needed (for standalone runs)
+ * Build to .artifacts-precommit if needed (for standalone runs)
  * @returns {boolean} - Success status
  */
 function ensureBuild() {
@@ -46,7 +46,7 @@ function ensureBuild() {
         return true
     }
 
-    logger.info(`Building test project → ${precommitBinPath}`)
+    logger.info(`Building test project → ${artifactsPath}`)
 
     try {
         const result = execFileSync(
@@ -54,15 +54,16 @@ function ensureBuild() {
             [
                 "build",
                 `${projectPath}/`,
-                "-o",
-                precommitBinPath,
+                "--artifacts-path",
+                artifactsPath,
                 "--verbosity",
                 "quiet",
                 "--nologo",
-                "/p:WarningLevel=0",
+                "-p:WarningLevel=0",
             ],
             {
                 encoding: "utf8",
+                maxBuffer: MAX_BUILD_BUFFER,
                 timeout: 120_000,
                 stdio: ["inherit", "pipe", "pipe"],
                 env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
@@ -104,36 +105,11 @@ function runTests() {
 }
 
 /**
- * Clear caches and build artifacts when --clear-cache is passed
- */
-function clearCacheIfRequested() {
-    if (shouldClearCache()) {
-        clearBuildCache()
-        // Also delete precommit build directory to force fresh build
-        if (fs.existsSync(precommitBinPath)) {
-            fs.rmSync(precommitBinPath, { recursive: true, force: true })
-        }
-        // Delete main project bin/obj to ensure test project gets fresh dependencies
-        const webBin = path.join("web", "bin")
-        const webObj = path.join("web", "obj")
-        const testObj = path.join("test", "obj")
-        for (const dir of [webBin, webObj, testObj]) {
-            if (fs.existsSync(dir)) {
-                fs.rmSync(dir, { recursive: true, force: true })
-            }
-        }
-        logger.info("🧹 Cleared test build artifacts")
-    }
-}
-
-/**
  * Main execution
  */
 function main() {
-    // Handle --clear-cache flag
-    clearCacheIfRequested()
-
     // Ensure build exists (either from precommit or build now)
+    // To clear cache first, run: npm run clear-cache && npm run test:backend
     if (!ensureBuild()) {
         process.exit(1)
     }

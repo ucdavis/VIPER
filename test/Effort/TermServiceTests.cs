@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.Entities;
@@ -17,7 +17,7 @@ public sealed class TermServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly IEffortAuditService _auditServiceMock;
     private readonly IMapper _mapper;
     private readonly TermService _termService;
 
@@ -34,24 +34,22 @@ public sealed class TermServiceTests : IDisposable
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options);
-        _auditServiceMock = new Mock<IEffortAuditService>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
-            .Setup(s => s.AddTermChangeAudit(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+            .AddTermChangeAudit(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
         _auditServiceMock
-            .Setup(s => s.AddImportAudit(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()));
+            .AddImportAudit(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>());
         // Keep async methods for backward compatibility
         _auditServiceMock
-            .Setup(s => s.LogTermChangeAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .LogTermChangeAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         _auditServiceMock
-            .Setup(s => s.LogImportAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .LogImportAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var mapperConfig = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfileEffort>());
         _mapper = mapperConfig.CreateMapper();
 
-        _termService = new TermService(_context, _viperContext, _auditServiceMock.Object, _mapper);
+        _termService = new TermService(_context, _viperContext, _auditServiceMock, _mapper);
     }
 
     public void Dispose()
@@ -197,7 +195,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_StoresExpectedCloseDate_WhenProvided()
     {
         // Arrange
-        var expectedDate = new DateTime(2025, 6, 15);
+        var expectedDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local);
 
         // Act
         var term = await _termService.CreateTermAsync(202510, expectedCloseDate: expectedDate);
@@ -238,7 +236,7 @@ public sealed class TermServiceTests : IDisposable
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         await _context.SaveChangesAsync();
 
-        var newDate = new DateTime(2025, 3, 31);
+        var newDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local);
 
         // Act
         var term = await _termService.UpdateExpectedCloseDateAsync(202410, newDate);
@@ -266,8 +264,7 @@ public sealed class TermServiceTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 6, 1))
-        );
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local)));
     }
 
     [Fact]
@@ -278,7 +275,7 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202410,
             OpenedDate = DateTime.Now.AddDays(-7),
-            ExpectedCloseDate = new DateTime(2025, 3, 31)
+            ExpectedCloseDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local)
         });
         await _context.SaveChangesAsync();
 
@@ -298,7 +295,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task UpdateExpectedCloseDateAsync_ReturnsNull_WhenTermNotFound()
     {
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(999999, new DateTime(2025, 6, 1));
+        var term = await _termService.UpdateExpectedCloseDateAsync(999999, new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local));
 
         // Assert
         Assert.Null(term);
@@ -316,16 +313,15 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202510,
             Description = "Fall 2025",
-            StartDate = new DateTime(2025, 3, 31),
-            EndDate = new DateTime(2025, 6, 15),
+            StartDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 1))
-        );
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local)));
         Assert.Contains("after the term end date", ex.Message);
     }
 
@@ -337,16 +333,15 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202510,
             Description = "Fall 2025",
-            StartDate = new DateTime(2025, 3, 31),
-            EndDate = new DateTime(2025, 6, 15),
+            StartDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 15))
-        );
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local)));
         Assert.Contains("after the term end date", ex.Message);
     }
 
@@ -358,16 +353,15 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202510,
             Description = "Fall 2025",
-            StartDate = new DateTime(2025, 3, 31),
-            EndDate = new DateTime(2025, 6, 15),
+            StartDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 16))
-        );
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 16, 0, 0, 0, DateTimeKind.Local)));
         Assert.Contains("more than 1 year", ex.Message);
     }
 
@@ -379,18 +373,18 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202510,
             Description = "Fall 2025",
-            StartDate = new DateTime(2025, 3, 31),
-            EndDate = new DateTime(2025, 6, 15),
+            StartDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 16));
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 16, 0, 0, 0, DateTimeKind.Local));
 
         // Assert
         Assert.NotNull(term);
-        Assert.Equal(new DateTime(2025, 6, 16), term.ExpectedCloseDate);
+        Assert.Equal(new DateTime(2025, 6, 16, 0, 0, 0, DateTimeKind.Local), term.ExpectedCloseDate);
     }
 
     [Fact]
@@ -401,18 +395,18 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202510,
             Description = "Fall 2025",
-            StartDate = new DateTime(2025, 3, 31),
-            EndDate = new DateTime(2025, 6, 15),
+            StartDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 15));
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Local));
 
         // Assert
         Assert.NotNull(term);
-        Assert.Equal(new DateTime(2026, 6, 15), term.ExpectedCloseDate);
+        Assert.Equal(new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Local), term.ExpectedCloseDate);
     }
 
     [Fact]
@@ -425,16 +419,15 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202410,
             Description = "Fall 2024",
-            StartDate = new DateTime(2024, 9, 25),
-            EndDate = new DateTime(2024, 12, 13),
+            StartDate = new DateTime(2024, 9, 25, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2024, 11, 1))
-        );
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2024, 11, 1, 0, 0, 0, DateTimeKind.Local)));
         Assert.Contains("after the term end date", ex.Message);
     }
 
@@ -448,16 +441,15 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202410,
             Description = "Fall 2024",
-            StartDate = new DateTime(2024, 9, 25),
-            EndDate = new DateTime(2024, 12, 13),
+            StartDate = new DateTime(2024, 9, 25, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 12, 14))
-        );
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 12, 14, 0, 0, 0, DateTimeKind.Local)));
         Assert.Contains("more than 1 year", ex.Message);
     }
 
@@ -471,18 +463,18 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202410,
             Description = "Fall 2024",
-            StartDate = new DateTime(2024, 9, 25),
-            EndDate = new DateTime(2024, 12, 13),
+            StartDate = new DateTime(2024, 9, 25, 0, 0, 0, DateTimeKind.Local),
+            EndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
         await _viperContext.SaveChangesAsync();
 
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 3, 31));
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local));
 
         // Assert
         Assert.NotNull(term);
-        Assert.Equal(new DateTime(2025, 3, 31), term.ExpectedCloseDate);
+        Assert.Equal(new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local), term.ExpectedCloseDate);
     }
 
     [Fact]
@@ -493,7 +485,7 @@ public sealed class TermServiceTests : IDisposable
         {
             TermCode = 202410,
             OpenedDate = DateTime.Now.AddDays(-7),
-            ExpectedCloseDate = new DateTime(2025, 3, 31)
+            ExpectedCloseDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local)
         });
         await _context.SaveChangesAsync();
 
@@ -512,11 +504,11 @@ public sealed class TermServiceTests : IDisposable
         // Validation should be skipped, not throw
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2020, 1, 1));
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local));
 
         // Assert - Accepts any date when term not found in vwTerms
         Assert.NotNull(term);
-        Assert.Equal(new DateTime(2020, 1, 1), term.ExpectedCloseDate);
+        Assert.Equal(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local), term.ExpectedCloseDate);
     }
 
     #endregion

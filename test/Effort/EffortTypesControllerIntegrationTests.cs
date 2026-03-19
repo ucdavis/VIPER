@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -21,12 +21,12 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
     public EffortTypesControllerIntegrationTests()
     {
         // Create real service with real DbContext (in-memory)
-        var mockAuditService = new Mock<IEffortAuditService>();
+        var mockAuditService = Substitute.For<IEffortAuditService>();
         var mapper = AutoMapperHelper.CreateMapper();
-        _service = new EffortTypeService(EffortContext, mockAuditService.Object, mapper);
+        _service = new EffortTypeService(EffortContext, mockAuditService, mapper);
 
-        var mockLogger = new Mock<ILogger<EffortTypesController>>();
-        _controller = new EffortTypesController(_service, mockLogger.Object);
+        var mockLogger = Substitute.For<ILogger<EffortTypesController>>();
+        _controller = new EffortTypesController(_service, mockLogger);
         SetupControllerContext(_controller);
 
         // Seed effort types for tests

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -26,9 +26,9 @@ public sealed class ClinicalImportServiceTests : IDisposable
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
     private readonly CoursesContext _coursesContext;
-    private readonly Mock<IInstructorService> _instructorServiceMock;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<ILogger<ClinicalImportService>> _loggerMock;
+    private readonly IInstructorService _instructorServiceMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly ILogger<ClinicalImportService> _loggerMock;
     private readonly ClinicalImportService _service;
 
     public ClinicalImportServiceTests()
@@ -57,31 +57,29 @@ public sealed class ClinicalImportServiceTests : IDisposable
         _viperContext = new VIPERContext(viperOptions);
         _aaudContext = new AAUDContext(aaudOptions);
         _coursesContext = new CoursesContext(coursesOptions);
-        _instructorServiceMock = new Mock<IInstructorService>();
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _loggerMock = new Mock<ILogger<ClinicalImportService>>();
+        _instructorServiceMock = Substitute.For<IInstructorService>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _loggerMock = Substitute.For<ILogger<ClinicalImportService>>();
 
         // Default instructor service behavior
         _instructorServiceMock
-            .Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<TitleCodeDto>
+            .GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<TitleCodeDto>
             {
                 new() { Code = "1234", Name = "Test Title" }
             });
 
         _instructorServiceMock
-            .Setup(s => s.BatchResolveDepartmentsAsync(It.IsAny<List<string>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((List<string> ids, int _, CancellationToken _) =>
-                ids.ToDictionary(id => id, _ => "VME"));
+            .BatchResolveDepartmentsAsync(Arg.Any<List<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<List<string>>().ToDictionary(id => id, _ => "VME"));
 
         _service = new ClinicalImportService(
             _context,
             _viperContext,
             _aaudContext,
             _coursesContext,
-            _instructorServiceMock.Object,
-            _auditServiceMock.Object,
-            _loggerMock.Object);
+            _instructorServiceMock,
+            _auditServiceMock,
+            _loggerMock);
     }
 
     public void Dispose()

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Constants;
 using Viper.Models.ClinicalScheduler;
@@ -10,7 +10,7 @@ namespace Viper.test.ClinicalScheduler
 {
     public class ScheduleAuditServiceTest : IDisposable
     {
-        private readonly Mock<ILogger<ScheduleAuditService>> _mockLogger;
+        private readonly ILogger<ScheduleAuditService> _mockLogger;
         private readonly ScheduleAuditService _service;
         private readonly ClinicalSchedulerContext _context;
         private bool _disposed = false;
@@ -23,8 +23,8 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
 
             _context = new ClinicalSchedulerContext(options);
-            _mockLogger = new Mock<ILogger<ScheduleAuditService>>();
-            _service = new ScheduleAuditService(_context, _mockLogger.Object);
+            _mockLogger = Substitute.For<ILogger<ScheduleAuditService>>();
+            _service = new ScheduleAuditService(_context, _mockLogger);
         }
 
         [Fact]

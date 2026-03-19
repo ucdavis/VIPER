@@ -1,4 +1,4 @@
-using Moq;
+using NSubstitute;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
 
@@ -6,8 +6,8 @@ namespace Viper.test.CTS
 {
     public class AssessmentAccessTest
     {
-        readonly Mock<VIPERContext> context = new Mock<VIPERContext>();
-        readonly Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
+        readonly VIPERContext context = Substitute.For<VIPERContext>();
+        readonly RAPSContext rapsContext = Substitute.For<RAPSContext>();
 
         /// <summary>
         /// Test that a student can access their own assessments, but not an assessment of another student
@@ -17,7 +17,7 @@ namespace Viper.test.CTS
         {
             //arrange
             var stdUserHelper = SetupUsers.GetUserHelperForUserType(SetupUsers.UserType.Student);
-            var ctsSec = new CtsSecurityService(rapsContext.Object, context.Object, stdUserHelper.Object);
+            var ctsSec = new CtsSecurityService(rapsContext, context, stdUserHelper);
 
             //act
             var studentCanAccessOwnAssessments = ctsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, SetupUsers.facultyUser.AaudUserId);
@@ -35,10 +35,10 @@ namespace Viper.test.CTS
         public void AssessorAccessTest()
         {
             //arrange
-            var facCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Faculty);
-            var managerCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Manager);
-            var csCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.CSTeam);
-            var stdCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Student);
+            var facCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.Faculty);
+            var managerCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.Manager);
+            var csCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.CSTeam);
+            var stdCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.Student);
 
             //act
             var facCanViewOwnAssessment = facCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId, SetupUsers.facultyUser.AaudUserId);
@@ -61,7 +61,7 @@ namespace Viper.test.CTS
         {
             //arrange
             SetupServices.SetupServicesTable(context);
-            var chiefCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Chief);
+            var chiefCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.Chief);
 
             //act
             var chiefCanAccessAssessmentOnService = chiefCtsSec.CheckStudentAssessmentViewAccess(SetupUsers.studentUser1.AaudUserId,
@@ -81,9 +81,9 @@ namespace Viper.test.CTS
         public void CheckAssessmentModificationAccess()
         {
             //arrange
-            var facCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Faculty);
-            var managerCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.Manager);
-            var csCtsSec = SetupUsers.GetCtsSecurityService(rapsContext.Object, context.Object, SetupUsers.UserType.CSTeam);
+            var facCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.Faculty);
+            var managerCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.Manager);
+            var csCtsSec = SetupUsers.GetCtsSecurityService(rapsContext, context, SetupUsers.UserType.CSTeam);
 
             //act
             var facCanEditOwnAssessment = facCtsSec.CanEditStudentAssessment(SetupUsers.facultyUser.AaudUserId, DateTime.Now);
