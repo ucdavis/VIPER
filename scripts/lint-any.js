@@ -260,6 +260,9 @@ function runOxfmtCheck(files, fix) {
 
     if (!allPassed && !fix) {
         console.log(`\n❌ ${allFailedFiles.length} file(s) have formatting issues`)
+        for (const f of allFailedFiles) {
+            console.log(`  - ${f}`)
+        }
         console.log("\n💡 Files need formatting. Run with --fix to auto-format:")
         console.log("   npm run lint -- --fix <files>")
     }

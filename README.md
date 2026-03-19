@@ -6,20 +6,20 @@ Clinical, curriculum, and student management application for UC Davis School of 
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 - [Volta](https://volta.sh/) - Node.js version manager
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/)
 
 ### Node.js Setup with Volta (Recommended)
 
-This project uses Node.js v20.6.1. We recommend using [Volta](https://volta.sh/) to manage Node.js versions:
+This project uses Node.js 24 LTS. We recommend using [Volta](https://volta.sh/) to manage Node.js versions:
 
 **Install Volta on Windows:**
 ```sh
 winget install Volta.Volta
 
 # After installation, restart your terminal and install Node.js 20.6.1
-volta install node@20.6.1
+volta install node@24
 ```
 
 ## Quick Start
@@ -151,22 +151,6 @@ VIPER2 features a sophisticated development setup with hot reload for both front
 2. Configuration is automatic (uses `.oxfmtrc.json`)
 
 Files auto-format on save with consistent 4-space indentation and project style.
-
-### Vue Inspector (Click-to-Open Components)
-
-Vue Inspector is enabled in development mode and allows you to click Vue components in the browser to open them directly in your IDE.
-
-**How to Use:**
-1. Start development mode: `npm run dev`
-2. Press `Ctrl+Shift` to toggle the inspector overlay
-3. Click any Vue component in the browser to open it in your editor
-
-**Editor Configuration:**
-- **VS Code (Default)**: Works automatically
-- **Visual Studio**: Set `VITE_EDITOR=visual-studio` in your `.env.local` file
-- **Other Editors**: Set `VITE_EDITOR` to your editor command (e.g., `webstorm`, `sublime`)
-
-The inspector only works in development mode and is automatically disabled in production builds.
 
 ## Debugging
 

@@ -429,13 +429,6 @@ describe("StaffDashboard - Department Display Name", () => {
     })
 })
 
-// Sort by verification % desc, then by instructor count desc
-function sortByVerification(a: DepartmentVerificationDto, b: DepartmentVerificationDto) {
-    return a.verificationPercent === b.verificationPercent
-        ? b.totalInstructors - a.totalInstructors
-        : b.verificationPercent - a.verificationPercent
-}
-
 describe("StaffDashboard - Department Sorting (Closed Terms)", () => {
     const departments: DepartmentVerificationDto[] = [
         makeDept("APC", "Anatomy"),
