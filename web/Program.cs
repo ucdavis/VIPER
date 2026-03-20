@@ -208,41 +208,6 @@ try
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
 
-    // Photo Gallery services
-    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
-    builder.Services.AddScoped<Viper.Areas.Students.Services.IStudentGroupService, Viper.Areas.Students.Services.StudentGroupService>();
-    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoExportService, Viper.Areas.Students.Services.PhotoExportService>();
-    builder.Services.AddScoped<Viper.Areas.Students.Services.ICourseService, Viper.Areas.Students.Services.CourseService>();
-
-    // Effort services
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortPermissionService, Viper.Areas.Effort.Services.EffortPermissionService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ITermService, Viper.Areas.Effort.Services.TermService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortAuditService, Viper.Areas.Effort.Services.EffortAuditService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseClassificationService, Viper.Areas.Effort.Services.CourseClassificationService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseService, Viper.Areas.Effort.Services.CourseService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseRelationshipService, Viper.Areas.Effort.Services.CourseRelationshipService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IInstructorService, Viper.Areas.Effort.Services.InstructorService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortTypeService, Viper.Areas.Effort.Services.EffortTypeService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IUnitService, Viper.Areas.Effort.Services.UnitService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentAssignTypeService, Viper.Areas.Effort.Services.PercentAssignTypeService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortRecordService, Viper.Areas.Effort.Services.EffortRecordService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IVerificationService, Viper.Areas.Effort.Services.VerificationService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentageService, Viper.Areas.Effort.Services.PercentageService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IRCourseService, Viper.Areas.Effort.Services.RCourseService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IDashboardService, Viper.Areas.Effort.Services.DashboardService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentRolloverService, Viper.Areas.Effort.Services.PercentRolloverService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalImportService, Viper.Areas.Effort.Services.ClinicalImportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvalHarvestService, Viper.Areas.Effort.Services.EvalHarvestService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ITeachingActivityService, Viper.Areas.Effort.Services.TeachingActivityService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IDeptSummaryService, Viper.Areas.Effort.Services.DeptSummaryService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ISchoolSummaryService, Viper.Areas.Effort.Services.SchoolSummaryService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritReportService, Viper.Areas.Effort.Services.MeritReportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritSummaryService, Viper.Areas.Effort.Services.MeritSummaryService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalEffortService, Viper.Areas.Effort.Services.ClinicalEffortService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalScheduleService, Viper.Areas.Effort.Services.ClinicalScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvaluationReportService, Viper.Areas.Effort.Services.EvaluationReportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritMultiYearService, Viper.Areas.Effort.Services.MeritMultiYearService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ISabbaticalService, Viper.Areas.Effort.Services.SabbaticalService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
