@@ -264,7 +264,10 @@ namespace Viper.Services
                 var area = routeValues["area"]?.ToString();
                 var controller = routeValues["controller"]?.ToString();
 
-                return area != null ? $"{area}/{controller}" : controller ?? "Unknown";
+                var sanitizedArea = area != null ? LogSanitizer.SanitizeString(area) : null;
+                var sanitizedController = controller != null ? LogSanitizer.SanitizeString(controller) : null;
+
+                return sanitizedArea != null ? $"{sanitizedArea}/{sanitizedController}" : sanitizedController ?? "Unknown";
             }
             catch
             {
