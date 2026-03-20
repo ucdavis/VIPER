@@ -20,8 +20,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
     public PercentAssignTypesControllerIntegrationTests()
     {
         // Create real service with real DbContext (in-memory)
-        var mapper = AutoMapperHelper.CreateMapper();
-        _service = new PercentAssignTypeService(EffortContext, mapper);
+        _service = new PercentAssignTypeService(EffortContext);
 
         var mockLogger = Substitute.For<ILogger<PercentAssignTypesController>>();
         _controller = new PercentAssignTypesController(_service, mockLogger);

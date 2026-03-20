@@ -1,6 +1,6 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -14,13 +14,11 @@ public class EffortTypeService : IEffortTypeService
 {
     private readonly EffortDbContext _context;
     private readonly IEffortAuditService _auditService;
-    private readonly IMapper _mapper;
 
-    public EffortTypeService(EffortDbContext context, IEffortAuditService auditService, IMapper mapper)
+    public EffortTypeService(EffortDbContext context, IEffortAuditService auditService)
     {
         _context = context;
         _auditService = auditService;
-        _mapper = mapper;
     }
 
     private static string NormalizeEffortType(string id) => id.Trim().ToUpperInvariant();
@@ -60,7 +58,7 @@ public class EffortTypeService : IEffortTypeService
 
         return effortTypes.Select(s =>
         {
-            var dto = _mapper.Map<EffortTypeDto>(s);
+            var dto = EffortMapper.ToEffortTypeDto(s);
             dto.UsageCount = usageCounts.GetValueOrDefault(s.Id, 0);
             dto.CanDelete = dto.UsageCount == 0;
             return dto;
@@ -76,7 +74,7 @@ public class EffortTypeService : IEffortTypeService
 
         if (effortType == null) return null;
 
-        var dto = _mapper.Map<EffortTypeDto>(effortType);
+        var dto = EffortMapper.ToEffortTypeDto(effortType);
         dto.UsageCount = await GetUsageCountAsync(normalizedId, ct);
         dto.CanDelete = dto.UsageCount == 0;
         return dto;
@@ -114,7 +112,7 @@ public class EffortTypeService : IEffortTypeService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<EffortTypeDto>(effortType);
+        var dto = EffortMapper.ToEffortTypeDto(effortType);
         dto.UsageCount = 0;
         dto.CanDelete = true;
         return dto;
@@ -143,7 +141,7 @@ public class EffortTypeService : IEffortTypeService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<EffortTypeDto>(effortType);
+        var dto = EffortMapper.ToEffortTypeDto(effortType);
         dto.UsageCount = await GetUsageCountAsync(normalizedId, ct);
         dto.CanDelete = dto.UsageCount == 0;
         return dto;

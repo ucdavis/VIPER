@@ -5,7 +5,6 @@ using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 using Viper.Areas.CTS.Models;
-using AutoMapper;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -14,12 +13,10 @@ namespace Viper.Areas.CTS.Controllers
     public class CompetencyController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
 
-        public CompetencyController(VIPERContext context, IMapper mapper)
+        public CompetencyController(VIPERContext context)
         {
             this.context = context;
-            this.mapper = mapper;
         }
 
         [HttpGet]
@@ -70,7 +67,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(c => c.Order)
                 .ToListAsync();
             var compHierarchy = new List<CompetencyHierarchyDto>();
-            var allCompDtos = mapper.Map<List<CompetencyHierarchyDto>>(comps);
+            var allCompDtos = CtsMapper.ToCompetencyHierarchyDtos(comps);
             foreach (var comp in allCompDtos)
             {
                 if (comp.ParentId == null)

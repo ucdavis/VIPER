@@ -1,6 +1,6 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -14,13 +14,11 @@ public class UnitService : IUnitService
 {
     private readonly EffortDbContext _context;
     private readonly IEffortAuditService _auditService;
-    private readonly IMapper _mapper;
 
-    public UnitService(EffortDbContext context, IEffortAuditService auditService, IMapper mapper)
+    public UnitService(EffortDbContext context, IEffortAuditService auditService)
     {
         _context = context;
         _auditService = auditService;
-        _mapper = mapper;
     }
 
     public async Task<List<UnitDto>> GetUnitsAsync(bool activeOnly = false, CancellationToken ct = default)
@@ -46,7 +44,7 @@ public class UnitService : IUnitService
 
         return units.Select(u =>
         {
-            var dto = _mapper.Map<UnitDto>(u);
+            var dto = EffortMapper.ToUnitDto(u);
             dto.UsageCount = usageCounts.GetValueOrDefault(u.Id, 0);
             dto.CanDelete = dto.UsageCount == 0;
             return dto;
@@ -61,7 +59,7 @@ public class UnitService : IUnitService
 
         if (unit == null) return null;
 
-        var dto = _mapper.Map<UnitDto>(unit);
+        var dto = EffortMapper.ToUnitDto(unit);
         dto.UsageCount = await GetUsageCountAsync(id, ct);
         dto.CanDelete = dto.UsageCount == 0;
         return dto;
@@ -87,7 +85,7 @@ public class UnitService : IUnitService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<UnitDto>(unit);
+        var dto = EffortMapper.ToUnitDto(unit);
         dto.UsageCount = 0;
         dto.CanDelete = true;
         return dto;
@@ -112,7 +110,7 @@ public class UnitService : IUnitService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        var dto = _mapper.Map<UnitDto>(unit);
+        var dto = EffortMapper.ToUnitDto(unit);
         dto.UsageCount = await GetUsageCountAsync(id, ct);
         dto.CanDelete = dto.UsageCount == 0;
         return dto;

@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -14,12 +13,10 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS")]
     public class BundleController : ApiController
     {
-        private readonly IMapper mapper;
         private readonly VIPERContext context;
 
-        public BundleController(IMapper mapper, VIPERContext context)
+        public BundleController(VIPERContext context)
         {
-            this.mapper = mapper;
             this.context = context;
         }
 
@@ -57,7 +54,7 @@ namespace Viper.Areas.CTS.Controllers
                 .OrderBy(b => b.Name)
                 .ToListAsync();
 
-            return mapper.Map<List<BundleDto>>(bundles);
+            return CtsMapper.ToBundleDtos(bundles);
         }
 
         [HttpGet("{bundleId}")]
@@ -72,7 +69,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return NotFound();
             }
-            return mapper.Map<BundleDto>(bundle);
+            return CtsMapper.ToBundleDto(bundle);
         }
 
         [HttpPost]
@@ -89,11 +86,11 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Bundle Name must be unique.");
             }
 
-            Bundle b = mapper.Map<Bundle>(bundleDto);
+            Bundle b = CtsMapper.ToBundle(bundleDto);
             context.Add(b);
             await context.SaveChangesAsync();
 
-            return mapper.Map<BundleDto>(b);
+            return CtsMapper.ToBundleDto(b);
         }
 
         [HttpPut("{bundleId}")]
@@ -114,10 +111,10 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return BadRequest("Bundle Name must be unique.");
             }
-            Bundle b = mapper.Map<Bundle>(bundleDto);
+            Bundle b = CtsMapper.ToBundle(bundleDto);
             context.Update(b);
             await context.SaveChangesAsync();
-            return mapper.Map<BundleDto>(b);
+            return CtsMapper.ToBundleDto(b);
         }
 
         [HttpDelete("{bundleId}")]
@@ -146,7 +143,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return BadRequest("Could not delete bundle. If this bundle has been used, it cannot be deleted.");
             }
-            return mapper.Map<BundleDto>(bundle);
+            return CtsMapper.ToBundleDto(bundle);
         }
 
         /* Bundle Roles */
@@ -174,7 +171,7 @@ namespace Viper.Areas.CTS.Controllers
             await trans.CommitAsync();
 
             var roles = await context.BundleRoles.Where(br => br.BundleId == bundleId).Select(br => br.Role).ToListAsync();
-            return mapper.Map<List<RoleDto>>(roles);
+            return CtsMapper.ToRoleDtos(roles);
         }
     }
 }

@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
@@ -13,12 +12,10 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS")]
     public class BundleCompetencyController : ApiController
     {
-        private readonly IMapper mapper;
         private readonly VIPERContext context;
 
-        public BundleCompetencyController(IMapper mapper, VIPERContext context)
+        public BundleCompetencyController(VIPERContext context)
         {
-            this.mapper = mapper;
             this.context = context;
         }
 
@@ -52,7 +49,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(bc => bc.Competency.Name)
                 .ToListAsync();
 
-            return mapper.Map<List<BundleCompetencyDto>>(bundleComps);
+            return CtsMapper.ToBundleCompetencyDtos(bundleComps);
         }
 
         [HttpPost]
@@ -101,7 +98,7 @@ namespace Viper.Areas.CTS.Controllers
             AdjustBundleCompetencyOrders(bundleCompetency);
             await trans.CommitAsync();
 
-            return mapper.Map<BundleCompetencyDto>(bundleCompetency);
+            return CtsMapper.ToBundleCompetencyDto(bundleCompetency);
         }
 
         [HttpPut("{bundleCompetencyId}")]
@@ -138,7 +135,7 @@ namespace Viper.Areas.CTS.Controllers
             AdjustBundleCompetencyOrders(bundleComp);
             await trans.CommitAsync();
 
-            return mapper.Map<BundleCompetencyDto>(bundleComp);
+            return CtsMapper.ToBundleCompetencyDto(bundleComp);
         }
 
         [HttpDelete("{bundleCompetencyId}")]
@@ -166,7 +163,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Cannot delete this bundle competency.");
             }
 
-            return mapper.Map<BundleCompetencyDto>(bundleComp);
+            return CtsMapper.ToBundleCompetencyDto(bundleComp);
         }
 
         private void AdjustBundleCompetencyOrders(BundleCompetency bundleComp)

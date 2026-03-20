@@ -1,8 +1,6 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Viper.Areas.Effort;
-using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 
@@ -14,7 +12,6 @@ namespace Viper.test.Effort;
 public sealed class PercentAssignTypeServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly IMapper _mapper;
     private readonly PercentAssignTypeService _service;
 
     public PercentAssignTypeServiceTests()
@@ -26,13 +23,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
 
         _context = new EffortDbContext(effortOptions);
 
-        var mapperConfig = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<AutoMapperProfileEffort>();
-        });
-        _mapper = mapperConfig.CreateMapper();
-
-        _service = new PercentAssignTypeService(_context, _mapper);
+        _service = new PercentAssignTypeService(_context);
     }
 
     public void Dispose()

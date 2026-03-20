@@ -1,9 +1,9 @@
 using System.Data.Common;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -23,7 +23,6 @@ public class InstructorService : IInstructorService
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
-    private readonly IMapper _mapper;
     private readonly ILogger<InstructorService> _logger;
     private readonly IMemoryCache _cache;
 
@@ -75,7 +74,6 @@ public class InstructorService : IInstructorService
         DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
-        IMapper mapper,
         ILogger<InstructorService> logger,
         IMemoryCache cache)
     {
@@ -85,7 +83,6 @@ public class InstructorService : IInstructorService
         _dictionaryContext = dictionaryContext;
         _auditService = auditService;
         _classificationService = classificationService;
-        _mapper = mapper;
         _logger = logger;
         _cache = cache;
     }
@@ -115,7 +112,7 @@ public class InstructorService : IInstructorService
         if (termCode == 0)
         {
             var allPersons = await DeduplicateToLatestTermAsync(baseQuery, ct);
-            return _mapper.Map<List<PersonDto>>(allPersons);
+            return EffortMapper.ToPersonDtos(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -155,7 +152,7 @@ public class InstructorService : IInstructorService
         if (termCode == 0)
         {
             var allPersons = await DeduplicateToLatestTermAsync(baseQuery, ct);
-            return _mapper.Map<List<PersonDto>>(allPersons);
+            return EffortMapper.ToPersonDtos(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -233,7 +230,7 @@ public class InstructorService : IInstructorService
     /// <summary>
     /// Executes instructor query with navigation properties to resolve LastEmailedBy sender names and MailId.
     /// </summary>
-    private async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
+    private static async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
         IQueryable<EffortPerson> baseQuery,
         CancellationToken ct,
         bool applyOrdering = true)
@@ -248,7 +245,7 @@ public class InstructorService : IInstructorService
         }
 
         var instructors = await query.ToListAsync(ct);
-        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+        var dtos = EffortMapper.ToPersonDtos(instructors);
 
         for (int i = 0; i < dtos.Count; i++)
         {
@@ -501,7 +498,7 @@ public class InstructorService : IInstructorService
         _logger.LogInformation("Created instructor: {PersonId} ({LastName}, {FirstName}) for term {TermCode}",
             instructor.PersonId, LogSanitizer.SanitizeString(instructor.LastName), LogSanitizer.SanitizeString(instructor.FirstName), instructor.TermCode);
 
-        return _mapper.Map<PersonDto>(instructor);
+        return EffortMapper.ToPersonDto(instructor);
     }
 
     public async Task<PersonDto?> UpdateInstructorAsync(int personId, int termCode, UpdateInstructorRequest request, CancellationToken ct = default)
@@ -553,7 +550,7 @@ public class InstructorService : IInstructorService
 
         _logger.LogInformation("Updated instructor: {PersonId} for term {TermCode}", personId, termCode);
 
-        return _mapper.Map<PersonDto>(instructor);
+        return EffortMapper.ToPersonDto(instructor);
     }
 
     public async Task<bool> DeleteInstructorAsync(int personId, int termCode, CancellationToken ct = default)

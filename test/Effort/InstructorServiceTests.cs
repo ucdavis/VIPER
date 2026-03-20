@@ -1,11 +1,9 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Effort;
-using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -26,7 +24,6 @@ public sealed class InstructorServiceTests : IDisposable
     private readonly ICourseClassificationService _classificationServiceMock;
     private readonly ILogger<InstructorService> _loggerMock;
     private readonly IMemoryCache _cache;
-    private readonly IMapper _mapper;
     private readonly InstructorService _instructorService;
 
     public InstructorServiceTests()
@@ -60,13 +57,6 @@ public sealed class InstructorServiceTests : IDisposable
         _loggerMock = Substitute.For<ILogger<InstructorService>>();
         _cache = new MemoryCache(new MemoryCacheOptions());
 
-        // Configure AutoMapper with the Effort profile
-        var mapperConfig = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<AutoMapperProfileEffort>();
-        });
-        _mapper = mapperConfig.CreateMapper();
-
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
             .AddPersonChangeAudit(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
@@ -78,7 +68,6 @@ public sealed class InstructorServiceTests : IDisposable
             _dictionaryContext,
             _auditServiceMock,
             _classificationServiceMock,
-            _mapper,
             _loggerMock,
             _cache);
     }
@@ -742,7 +731,7 @@ public sealed class InstructorServiceTests : IDisposable
 
     #endregion
 
-    #region AutoMapper PersonDto Mapping Tests
+    #region PersonDto Mapping Tests
 
     [Fact]
     public async Task GetInstructorAsync_MapsVolunteerWosCorrectly()

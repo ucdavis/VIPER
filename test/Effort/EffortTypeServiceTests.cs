@@ -1,9 +1,7 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
 using Viper.Areas.Effort;
-using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -17,7 +15,6 @@ public sealed class EffortTypeServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly IEffortAuditService _auditServiceMock;
-    private readonly IMapper _mapper;
     private readonly EffortTypeService _effortTypeService;
 
     public EffortTypeServiceTests()
@@ -30,16 +27,10 @@ public sealed class EffortTypeServiceTests : IDisposable
         _context = new EffortDbContext(effortOptions);
         _auditServiceMock = Substitute.For<IEffortAuditService>();
 
-        var mapperConfig = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<AutoMapperProfileEffort>();
-        });
-        _mapper = mapperConfig.CreateMapper();
-
         _auditServiceMock
             .AddEffortTypeChangeAudit(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _effortTypeService = new EffortTypeService(_context, _auditServiceMock, _mapper);
+        _effortTypeService = new EffortTypeService(_context, _auditServiceMock);
     }
 
     public void Dispose()

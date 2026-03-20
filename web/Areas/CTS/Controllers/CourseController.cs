@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
@@ -22,15 +21,13 @@ namespace Viper.Areas.CTS.Controllers
     {
         private readonly RAPSContext rapsContext;
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
         private readonly List<string> CompetencySupportedSessionTypes = new List<string>()
         {
             "Lab", "L/D", "Dis","Exm","AUT","JLC","PRS","CBL","PBL","D/L","TBL","ACT"
         };
 
-        public CourseController(IMapper mapper, VIPERContext context, RAPSContext rapsContext)
+        public CourseController(VIPERContext context, RAPSContext rapsContext)
         {
-            this.mapper = mapper;
             this.context = context;
             this.rapsContext = rapsContext;
         }
@@ -43,7 +40,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Term code or course ID is required.");
             }
             var courses = await GetCourses(termCode, subjectCode, courseNum, courseId);
-            return mapper.Map<List<CourseDto>>(courses);
+            return courses;
         }
 
         [HttpGet("{courseId}")]
@@ -75,7 +72,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Select(cr => cr.Role)
                 .OrderBy(r => r.Name)
                 .ToListAsync();
-            return mapper.Map<List<RoleDto>>(roles);
+            return CtsMapper.ToRoleDtos(roles);
         }
 
         [HttpPut("{courseId}/roles")]
@@ -117,7 +114,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Select(cr => cr.Role)
                 .OrderBy(r => r.Name)
                 .ToListAsync();
-            return mapper.Map<List<RoleDto>>(rolesUpdated);
+            return CtsMapper.ToRoleDtos(rolesUpdated);
         }
 
         /* 
@@ -143,7 +140,7 @@ namespace Viper.Areas.CTS.Controllers
                 .OrderBy(c => c.PaceOrder)
                 .ThenBy(c => c.SessionId)
                 .ToListAsync();
-            return mapper.Map<List<SessionDto>>(sessions);
+            return CtsMapper.ToSessionDtos(sessions);
         }
 
         [HttpGet("{courseId}/sessions/{sessionId}")]
@@ -160,7 +157,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return NotFound();
             }
-            return mapper.Map<SessionDto>(session);
+            return CtsMapper.ToSessionDto(session);
         }
 
         /*
@@ -199,7 +196,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 if (lastComp != sessionCompetency.CompetencyId || lastRole != sessionCompetency.RoleId)
                 {
-                    current = mapper.Map<SessionCompetencyDto>(sessionCompetency);
+                    current = CtsMapper.ToSessionCompetencyDto(sessionCompetency);
                     scs.Add(current);
                     lastComp = sessionCompetency.CompetencyId;
                     lastRole = sessionCompetency.RoleId;
@@ -246,7 +243,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(sc => sc.CompetencyId == sessionComp.CompetencyId)
                 .ToListAsync();
 
-            return mapper.Map<List<SessionCompetencyDto>>(sessionComps);
+            return CtsMapper.ToSessionCompetencyDtos(sessionComps);
         }
 
         [HttpPut("{courseId}/sessions/{sessionId}/competencies")]
@@ -297,7 +294,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(sc => sc.SessionId == sessionComp.SessionId)
                 .Where(sc => sc.CompetencyId == sessionComp.CompetencyId)
                 .ToListAsync();
-            return mapper.Map<List<SessionCompetencyDto>>(existing);
+            return CtsMapper.ToSessionCompetencyDtos(existing);
         }
 
         [HttpDelete("{courseId}/sessions/{sessionId}/competencies/{competencyId}")]
@@ -447,7 +444,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             courseList = courseList.Where(c => validCourseIds.Contains(c.CourseId)).ToList();
 
-            var courseDtos = mapper.Map<List<CourseDto>>(courseList);
+            var courseDtos = CtsMapper.ToCourseDtos(courseList);
 
             foreach (var c in courseDtos)
             {

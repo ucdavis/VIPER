@@ -296,9 +296,6 @@ try
     // Add Data Protection services (i.e. encryption)
     builder.Services.AddDataProtection();
 
-    // Add automapper
-    builder.Services.AddAutoMapper(typeof(Program));
-
     // Add email services
     builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
     builder.Services.Configure<Viper.Services.EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));

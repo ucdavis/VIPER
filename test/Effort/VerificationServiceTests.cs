@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -28,7 +27,6 @@ public sealed class VerificationServiceTests : IDisposable
     private readonly ITermService _termServiceMock;
     private readonly IEmailService _emailServiceMock;
     private readonly ICourseClassificationService _classificationServiceMock;
-    private readonly IMapper _mapperMock;
     private readonly ILogger<VerificationService> _loggerMock;
     private readonly EffortSettings _settings;
     private readonly IEmailTemplateRenderer _emailTemplateRendererMock;
@@ -57,7 +55,6 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock = Substitute.For<ITermService>();
         _emailServiceMock = Substitute.For<IEmailService>();
         _classificationServiceMock = Substitute.For<ICourseClassificationService>();
-        _mapperMock = Substitute.For<IMapper>();
         _loggerMock = Substitute.For<ILogger<VerificationService>>();
 
         _settings = new EffortSettings
@@ -101,7 +98,6 @@ public sealed class VerificationServiceTests : IDisposable
             _termServiceMock,
             _emailServiceMock,
             _classificationServiceMock,
-            _mapperMock,
             _loggerMock,
             settingsOptions,
             emailSettingsOptions,
@@ -206,8 +202,6 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
-        _mapperMock.Map<PersonDto>(Arg.Any<EffortPerson>()).Returns(new PersonDto { PersonId = TestPersonId, FirstName = "Test", LastName = "Instructor" });
-        _mapperMock.Map<List<InstructorEffortRecordDto>>(Arg.Any<List<EffortRecord>>()).Returns(new List<InstructorEffortRecordDto>());
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
 
@@ -241,19 +235,6 @@ public sealed class VerificationServiceTests : IDisposable
         // OpenedDate makes status "Opened"
         _termServiceMock.GetTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
-
-        _mapperMock.Map<PersonDto>(Arg.Any<EffortPerson>()).Returns(new PersonDto { PersonId = TestPersonId });
-        _mapperMock.Map<List<InstructorEffortRecordDto>>(Arg.Any<List<EffortRecord>>()).Returns(new List<InstructorEffortRecordDto>
-            {
-                new()
-                {
-                    Id = 1,
-                    CourseId = TestCourseId,
-                    Hours = 0,
-                    EffortType = "LEC",
-                    Course = new CourseDto { SubjCode = "VET", CrseNumb = "410" }
-                }
-            });
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -700,7 +681,6 @@ public sealed class VerificationServiceTests : IDisposable
             _termServiceMock,
             _emailServiceMock,
             _classificationServiceMock,
-            _mapperMock,
             _loggerMock,
             Options.Create(badSettings),
             Options.Create(badEmailSettings),

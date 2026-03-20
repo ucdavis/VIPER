@@ -22,8 +22,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
     {
         // Create real service with real DbContext (in-memory)
         var mockAuditService = Substitute.For<IEffortAuditService>();
-        var mapper = AutoMapperHelper.CreateMapper();
-        _service = new EffortTypeService(EffortContext, mockAuditService, mapper);
+        _service = new EffortTypeService(EffortContext, mockAuditService);
 
         var mockLogger = Substitute.For<ILogger<EffortTypesController>>();
         _controller = new EffortTypesController(_service, mockLogger);

@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
@@ -13,11 +12,10 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS")]
     public class BundleCompetencyGroupController : ApiController
     {
-        private readonly IMapper mapper;
         private readonly VIPERContext context;
-        public BundleCompetencyGroupController(IMapper mapper, VIPERContext context)
+
+        public BundleCompetencyGroupController(VIPERContext context)
         {
-            this.mapper = mapper;
             this.context = context;
         }
 
@@ -45,7 +43,7 @@ namespace Viper.Areas.CTS.Controllers
             var groups = await context.BundleCompetencyGroups
                 .Where(g => g.BundleId == bundleId)
                 .ToListAsync();
-            return mapper.Map<List<BundleCompetencyGroupDto>>(groups);
+            return CtsMapper.ToBundleCompetencyGroupDtos(groups);
         }
 
         [HttpPost]
@@ -70,7 +68,7 @@ namespace Viper.Areas.CTS.Controllers
             context.BundleCompetencyGroups.Add(group);
             await context.SaveChangesAsync();
             AdjustGroupOrders(group);
-            return mapper.Map<BundleCompetencyGroupDto>(group);
+            return CtsMapper.ToBundleCompetencyGroupDto(group);
         }
 
         [HttpPut("{bundleCompetencyGroupId}")]
@@ -96,7 +94,7 @@ namespace Viper.Areas.CTS.Controllers
             context.Update(group);
             await context.SaveChangesAsync();
             AdjustGroupOrders(group);
-            return mapper.Map<BundleCompetencyGroupDto>(group);
+            return CtsMapper.ToBundleCompetencyGroupDto(group);
         }
 
         [HttpDelete("{bundleCompetencyGroupId}")]
@@ -122,7 +120,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return BadRequest("Cannot delete group. Competencies must be removed from the group, and the group cannot have been used to document a student competency.");
             }
-            return mapper.Map<BundleCompetencyGroupDto>(group);
+            return CtsMapper.ToBundleCompetencyGroupDto(group);
         }
 
         private void AdjustGroupOrders(BundleCompetencyGroup group)

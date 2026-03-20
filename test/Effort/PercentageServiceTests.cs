@@ -1,9 +1,7 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
 using Viper.Areas.Effort;
-using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -20,7 +18,6 @@ public sealed class PercentageServiceTests : IDisposable
     private readonly EffortDbContext _context;
     private readonly IEffortAuditService _auditServiceMock;
     private readonly IUserHelper _userHelperMock;
-    private readonly IMapper _mapper;
     private readonly PercentageService _percentageService;
 
     public PercentageServiceTests()
@@ -34,12 +31,6 @@ public sealed class PercentageServiceTests : IDisposable
         _auditServiceMock = Substitute.For<IEffortAuditService>();
         _userHelperMock = Substitute.For<IUserHelper>();
 
-        var mapperConfig = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<AutoMapperProfileEffort>();
-        });
-        _mapper = mapperConfig.CreateMapper();
-
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
         _userHelperMock.GetCurrentUser().Returns(testUser);
 
@@ -49,7 +40,7 @@ public sealed class PercentageServiceTests : IDisposable
                 Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         _percentageService = new PercentageService(
-            _context, _mapper, _auditServiceMock, _userHelperMock);
+            _context, _auditServiceMock, _userHelperMock);
     }
 
     public void Dispose()

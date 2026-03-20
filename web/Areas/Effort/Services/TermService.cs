@@ -1,8 +1,8 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
 
@@ -16,14 +16,12 @@ public class TermService : ITermService
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
     private readonly IEffortAuditService _auditService;
-    private readonly IMapper _mapper;
 
-    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService, IMapper mapper)
+    public TermService(EffortDbContext context, VIPERContext viperContext, IEffortAuditService auditService)
     {
         _context = context;
         _viperContext = viperContext;
         _auditService = auditService;
-        _mapper = mapper;
     }
 
     public async Task<List<TermDto>> GetTermsAsync(CancellationToken ct = default)
@@ -64,7 +62,7 @@ public class TermService : ITermService
 
         return terms.Select(t =>
         {
-            var dto = _mapper.Map<TermDto>(t);
+            var dto = EffortMapper.ToTermDto(t);
             dto.TermName = GetTermName(t.TermCode);
             dto.TermEndDate = termEndDates.TryGetValue(t.TermCode, out var endDate) ? endDate : null;
             dto.CanDelete = !termsWithData.Contains(t.TermCode);
@@ -150,7 +148,7 @@ public class TermService : ITermService
     /// </summary>
     private async Task<TermDto> MapTermToDtoAsync(Models.Entities.EffortTerm term, CancellationToken ct)
     {
-        var dto = _mapper.Map<TermDto>(term);
+        var dto = EffortMapper.ToTermDto(term);
         dto.TermName = GetTermName(term.TermCode);
         dto.TermEndDate = await GetTermEndDateAsync(term.TermCode, ct);
         return dto;

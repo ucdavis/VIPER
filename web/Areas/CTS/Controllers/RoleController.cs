@@ -1,10 +1,8 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
 using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
@@ -14,12 +12,10 @@ namespace Viper.Areas.CTS.Controllers
     public class RoleController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
 
-        public RoleController(VIPERContext context, IMapper mapper)
+        public RoleController(VIPERContext context)
         {
             this.context = context;
-            this.mapper = mapper;
         }
 
         [HttpGet]
@@ -31,7 +27,7 @@ namespace Viper.Areas.CTS.Controllers
                 rolesQuery = rolesQuery.Where(r => r.BundleRoles.Any(br => br.BundleId == bundleId));
             }
             var roles = await rolesQuery.OrderBy(r => r.RoleId).ToListAsync();
-            return mapper.Map<List<RoleDto>>(roles);
+            return CtsMapper.ToRoleDtos(roles);
         }
 
         [HttpPost]
@@ -44,11 +40,11 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Role name must be unique.");
             }
 
-            var role = mapper.Map<Role>(roleDto);
+            var role = CtsMapper.ToRole(roleDto);
             context.Add(role);
             await context.SaveChangesAsync();
 
-            return mapper.Map<RoleDto>(role);
+            return CtsMapper.ToRoleDto(role);
         }
 
         [HttpPut("{roleId}")]
@@ -70,7 +66,7 @@ namespace Viper.Areas.CTS.Controllers
             role.Name = roleDto.Name;
             context.Update(role);
             await context.SaveChangesAsync();
-            return mapper.Map<RoleDto>(role);
+            return CtsMapper.ToRoleDto(role);
         }
 
         [HttpDelete("{roleId}")]
@@ -93,7 +89,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Could not delete role. If this role has been added to a bundle, it cannot be deleted.");
             }
 
-            return mapper.Map<RoleDto>(role);
+            return CtsMapper.ToRoleDto(role);
         }
     }
 }
