@@ -36,7 +36,7 @@ function formatDateTime(d, options) {
         return ""
     }
     const dt = new Date(d)
-    return d && d !== "" && dt instanceof Date && !Number.isNaN(dt.valueOf()) ? dt.toLocaleString("en-US", options) : ""
+    return d !== "" && dt instanceof Date && !Number.isNaN(dt.valueOf()) ? dt.toLocaleString("en-US", options) : ""
 }
 
 /*
@@ -155,7 +155,7 @@ async function loadViperLeftNav() {
     qs = qs.length > 0 ? `?${qs.join("&")}` : ""
     // Fix nav not loading when the url is host/2 instead of host/2/
     // oxlint-disable-next-line no-magic-numbers -- last 2 chars of URL path
-    navLocation = globalThis.location.href.slice(-2) === "/2" ? "/2/nav" : "nav"
+    const navLocation = globalThis.location.href.slice(-2) === "/2" ? "/2/nav" : "nav"
     this.viperNavMenu = await viperFetch(this, navLocation + qs)
 }
 

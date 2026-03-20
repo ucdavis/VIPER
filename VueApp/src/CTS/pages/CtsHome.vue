@@ -67,7 +67,7 @@ async function initPage() {
                     params[key] = val
                 })
             }
-            router.push({ path: redirect.split("?")[0], query: params ?? null })
+            router.push({ path: redirect.split("?")[0], query: params })
         } else {
             loadHome.value = true
         }
