@@ -15,53 +15,48 @@ import { codecovVitePlugin } from "@codecov/vite-plugin"
 // Port constants
 const MAX_PORT = 65_535
 
-/** Get HTTPS cert paths and ensure dev certs exist (only needed for dev server) */
-function getDevServerHttps() {
-    const baseFolder = env.APPDATA && env.APPDATA !== "" ? `${env.APPDATA}/ASP.NET/https` : `${env.HOME}/.aspnet/https`
+const baseFolder = env.APPDATA && env.APPDATA !== "" ? `${env.APPDATA}/ASP.NET/https` : `${env.HOME}/.aspnet/https`
 
-    const certificateName = "VueApp"
-    const certFilePath = path.join(baseFolder, `${certificateName}.pem`)
-    const keyFilePath = path.join(baseFolder, `${certificateName}.key`)
+const certificateName = "VueApp"
+const certFilePath = path.join(baseFolder, `${certificateName}.pem`)
+const keyFilePath = path.join(baseFolder, `${certificateName}.key`)
 
-    if (!fs.existsSync(baseFolder)) {
-        fs.mkdirSync(baseFolder, { recursive: true })
-    }
+// Ensure the baseFolder exists before exporting the certificate
+if (!fs.existsSync(baseFolder)) {
+    fs.mkdirSync(baseFolder, { recursive: true })
+}
 
-    if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
-        const certResult = child_process.spawnSync(
-            "dotnet",
-            ["dev-certs", "https", "--export-path", certFilePath, "--format", "Pem", "--no-password"],
-            { encoding: "utf8" },
+if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
+    const certResult = child_process.spawnSync(
+        "dotnet",
+        ["dev-certs", "https", "--export-path", certFilePath, "--format", "Pem", "--no-password"],
+        { encoding: "utf8" },
+    )
+    if (certResult.error) {
+        console.warn(
+            `Could not run 'dotnet dev-certs' (${certResult.error.message}). HTTPS dev server will not be available.`,
         )
-        if (certResult.error) {
-            throw new Error(`Failed to run 'dotnet dev-certs': ${certResult.error.message}`)
-        }
-        if (certResult.status !== 0) {
-            throw new Error(
-                `'dotnet dev-certs' failed (exit ${certResult.status}): ${certResult.stdout || ""}${certResult.stderr || ""}`,
-            )
-        }
-    }
-
-    return {
-        key: fs.readFileSync(keyFilePath),
-        cert: fs.readFileSync(certFilePath),
+    } else if (certResult.status !== 0) {
+        console.warn(`'dotnet dev-certs' failed (exit ${certResult.status}). HTTPS dev server will not be available.`)
     }
 }
 
-function getProxyTarget() {
-    if (env.ASPNETCORE_HTTPS_PORT) {
-        return `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
-    }
-    if (env.ASPNETCORE_URLS) {
-        return env.ASPNETCORE_URLS.split(";")[0]
-    }
-    return "https://localhost:5001"
+// Read certs if available, otherwise skip HTTPS config (CI/build environments)
+const httpsConfig =
+    fs.existsSync(certFilePath) && fs.existsSync(keyFilePath)
+        ? { key: fs.readFileSync(keyFilePath), cert: fs.readFileSync(certFilePath) }
+        : undefined
+
+let target = "https://localhost:5001" // Default target
+if (env.ASPNETCORE_HTTPS_PORT) {
+    target = `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
+} else if (env.ASPNETCORE_URLS) {
+    ;[target] = env.ASPNETCORE_URLS.split(";")
 }
 
 // https://vitejs.dev/config/
 // oxlint-disable-next-line max-lines-per-function -- Vite config function handles multiple build concerns in one place
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(({ mode }) => {
     // Load environment variables from parent directory only (root of project)
     const viteEnv = loadEnv(mode, path.resolve(process.cwd(), ".."), ["VITE_"])
 
@@ -100,24 +95,41 @@ export default defineConfig(({ mode, command }) => {
         },
         server: {
             forwardConsole: true,
-            ...(command === "serve"
-                ? (() => {
-                      const target = getProxyTarget()
-                      return {
-                          proxy: {
-                              "^/CTS": { target, secure: false },
-                              "^/Computing": { target, secure: false },
-                              "^/ClinicalScheduler": { target, secure: false },
-                              "^/Students": { target, secure: false },
-                              "^/CMS": { target, secure: false },
-                              "^/CAHFS": { target, secure: false },
-                              "^/Effort": { target, secure: false },
-                              "^/api": { target, secure: false },
-                          },
-                          https: getDevServerHttps(),
-                      }
-                  })()
-                : {}),
+            proxy: {
+                "^/CTS": {
+                    target,
+                    secure: false,
+                },
+                "^/Computing": {
+                    target,
+                    secure: false,
+                },
+                "^/ClinicalScheduler": {
+                    target,
+                    secure: false,
+                },
+                "^/Students": {
+                    target,
+                    secure: false,
+                },
+                "^/CMS": {
+                    target,
+                    secure: false,
+                },
+                "^/CAHFS": {
+                    target,
+                    secure: false,
+                },
+                "^/Effort": {
+                    target,
+                    secure: false,
+                },
+                "^/api": {
+                    target,
+                    secure: false,
+                },
+            },
+            ...(httpsConfig ? { https: httpsConfig } : {}),
             port: vitePort,
             strictPort: true, // Fail immediately if port is in use instead of trying other ports
             hmr: {
