@@ -159,7 +159,5 @@ watch(
     },
 )
 
-onMounted(async () => {
-    await getLeftNav()
-})
+onMounted(() => getLeftNav())
 </script>

@@ -308,6 +308,11 @@ function clearBuildCache(projectName) {
                     fs.rmSync(artifactsDir, { recursive: true, force: true })
                 }
             }
+            // Clear ESLint cache
+            const eslintCache = path.join(process.cwd(), "VueApp", ".eslintcache")
+            if (fs.existsSync(eslintCache)) {
+                fs.unlinkSync(eslintCache)
+            }
             logger.info("🧹 Cleared all build cache")
         } catch (error) {
             logger.warning(`Could not clear build cache: ${error.message}`)

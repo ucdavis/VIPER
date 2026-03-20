@@ -40,7 +40,7 @@ const userStore = useUserStore()
 const $q = useQuasar()
 const loadHome = ref(false)
 
-onMounted(async () => {
+async function initPage() {
     $q.loading.show({
         message: "Logging in",
         delay: 250,
@@ -72,5 +72,7 @@ onMounted(async () => {
             loadHome.value = true
         }
     }
-})
+}
+
+onMounted(() => initPage())
 </script>

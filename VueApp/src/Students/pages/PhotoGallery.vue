@@ -1351,7 +1351,7 @@ async function handleStudentClickByMailId(mailId: string) {
     }, 0)
 }
 
-onMounted(async () => {
+async function initGallery() {
     await galleryStore.fetchGalleryMenu()
     await fetchClassYears()
     await fetchAvailableCourses()
@@ -1386,7 +1386,9 @@ onMounted(async () => {
     if (selectedStudentListYear.value) {
         await onStudentListYearChange(selectedStudentListYear.value)
     }
-})
+}
+
+onMounted(() => initGallery())
 
 watch(
     () => galleryStore.includeRossStudents,

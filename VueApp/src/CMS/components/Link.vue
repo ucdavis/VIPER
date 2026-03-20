@@ -45,16 +45,10 @@
 <script setup lang="ts">
 import { watch } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
-const props = defineProps({
-    link: {
-        type: Object as () => Link,
-        required: true,
-    },
-    linkCollection: {
-        type: Object as () => LinkCollection,
-        required: true,
-    },
-})
+const props = defineProps<{
+    link: Link
+    linkCollection: LinkCollection
+}>()
 
 function getLinkCollectionTagColor(order: number) {
     const colors = ["orange", "grey", "purple", "green", "blue"]

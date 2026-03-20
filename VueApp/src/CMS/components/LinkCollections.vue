@@ -95,17 +95,15 @@ import type { Link, LinkCollection, LinkTag, LinkTagFilter } from "@/CMS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { default as LinkComponent } from "@/CMS/components/Link.vue"
 
-const props = defineProps({
-    linkCollectionName: {
-        type: String,
-        required: true,
+const props = withDefaults(
+    defineProps<{
+        linkCollectionName: string
+        groupByTagCategory?: string | null
+    }>(),
+    {
+        groupByTagCategory: null,
     },
-    groupByTagCategory: {
-        type: String,
-        required: false,
-        default: null,
-    },
-})
+)
 const tagFilters: Ref<LinkTagFilter[]> = ref([])
 const linkCollection: Ref<LinkCollection | null> = ref(null)
 const search: Ref<string> = ref("")

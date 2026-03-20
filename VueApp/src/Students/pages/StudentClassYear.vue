@@ -273,6 +273,7 @@ load()
                     @click="getStudents"
                 ></q-btn>
             </div>
+            <!-- eslint-disable harlanzw/vue-no-ref-access-in-templates -- classYear is { label, value }, not a ref .value access -->
             <div class="col col-md-2 col-lg-2 offset-md-3">
                 <q-btn
                     v-if="classYear.value"
@@ -283,6 +284,7 @@ load()
                     :to="'StudentClassYearImport?classYear=' + classYear.value"
                 ></q-btn>
             </div>
+            <!-- eslint-enable harlanzw/vue-no-ref-access-in-templates -->
         </div>
     </q-form>
 

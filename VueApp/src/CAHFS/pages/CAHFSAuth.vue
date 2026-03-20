@@ -15,7 +15,7 @@ const baseUrl = inject<string>("apiURL")
 const userStore = useUserStore()
 const $q = useQuasar()
 
-onMounted(async () => {
+async function checkAuth() {
     $q.loading.show({
         message: "Checking for log in",
         delay: 250,
@@ -32,5 +32,7 @@ onMounted(async () => {
     if (userStore.isLoggedIn) {
         router.push({ name: "CAHFSHome" })
     }
-})
+}
+
+onMounted(() => checkAuth())
 </script>

@@ -13,18 +13,20 @@ interface ScheduledService {
 
 const userStore = useUserStore()
 
-defineProps({
-    forScheduledStudent: {
-        type: Boolean,
-        default: false,
+withDefaults(
+    defineProps<{
+        forScheduledStudent?: boolean
+        forScheduledInstructor?: boolean
+    }>(),
+    {
+        forScheduledStudent: false,
+        forScheduledInstructor: false,
     },
-    forScheduledInstructor: {
-        type: Boolean,
-        default: false,
-    },
-})
+)
 
-const emit = defineEmits(["serviceChange"])
+const emit = defineEmits<{
+    serviceChange: [serviceId: number]
+}>()
 const selectedService = ref({ serviceId: 0, serviceName: "" }) as Ref<ServiceSelect>
 const services = ref([]) as Ref<ServiceSelect[]>
 const baseUrl = import.meta.env.VITE_API_URL + "cts/"

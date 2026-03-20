@@ -235,13 +235,15 @@ watch(
 )
 
 // Lifecycle
-onMounted(async () => {
+async function initRotationSelector() {
     // Initialize permissions store first
     if (!permissionsStore.userPermissions) {
         await permissionsStore.initialize()
     }
     void loadRotations()
-})
+}
+
+onMounted(() => initRotationSelector())
 </script>
 
 <style scoped>

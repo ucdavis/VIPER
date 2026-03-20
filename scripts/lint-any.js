@@ -155,24 +155,25 @@ function categorizeFiles(files) {
         // Skip config files like .eslintrc.js
         if (!path.basename(file).startsWith(".eslintrc")) {
             // Categorize based on extension and location
+            // Use normalizedPath (forward slashes) so output is copy-pasteable into commands
             if (ext === ".css") {
-                categories.css.push(relativePath)
+                categories.css.push(normalizedPath)
             } else if (ext === ".vue") {
                 // Vue files can be linted by both CSS and Vue linters
-                categories.css.push(relativePath)
+                categories.css.push(normalizedPath)
                 // Only send Vue files to Vue linter if they're in VueApp directory
                 if (normalizedPath.startsWith("VueApp/")) {
-                    categories.vue.push(relativePath)
+                    categories.vue.push(normalizedPath)
                 }
             } else if ([".js", ".ts"].includes(ext)) {
                 // Send JS/TS files to Oxlint if they're in VueApp or scripts directory
                 if (normalizedPath.startsWith("VueApp/") || normalizedPath.startsWith("scripts/")) {
-                    categories.ts.push(relativePath)
+                    categories.ts.push(normalizedPath)
                 }
             } else if (ext === ".cshtml") {
-                categories.cshtml.push(relativePath)
+                categories.cshtml.push(normalizedPath)
             } else if (ext === ".cs") {
-                categories.dotnet.push(relativePath)
+                categories.dotnet.push(normalizedPath)
             }
         }
     }

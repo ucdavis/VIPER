@@ -8,12 +8,9 @@ import { useFetch } from "@/composables/ViperFetch"
 //get the api root from our application settings
 const baseUrl = inject("apiURL")
 
-const props = defineProps({
-    contentName: {
-        type: String,
-        required: true,
-    },
-})
+const props = defineProps<{
+    contentName: string
+}>()
 
 //creating a type is not necessary, but type checking can be helpful
 type ContentBlock = {

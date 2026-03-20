@@ -1279,7 +1279,7 @@ const onAddRotationSelected = (rotation: RotationWithService | null) => {
 // goToHome is now imported from usePermissionChecks composable
 
 // Lifecycle
-onMounted(async () => {
+async function initPage() {
     document.title = `VIPER - ${permissionsStore.clinicianViewLabel}`
 
     try {
@@ -1297,7 +1297,9 @@ onMounted(async () => {
     loadClinicianFromUrl().catch(() => {
         /* handle load error */
     })
-})
+}
+
+onMounted(() => initPage())
 
 // Watch for route changes to handle direct navigation
 watch(

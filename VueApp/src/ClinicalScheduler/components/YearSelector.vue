@@ -93,9 +93,7 @@ const initializeYearSelector = async () => {
     }
 }
 
-onMounted(async () => {
-    await initializeYearSelector()
-})
+onMounted(() => initializeYearSelector())
 </script>
 
 <style scoped>

@@ -4,25 +4,15 @@ import type { Level, MilestoneLevel } from "@/CTS/types"
 import { ref, watch } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 
-const props = defineProps({
-    levelType: {
-        type: String,
-        required: true,
-    },
-    clearLevel: {
-        type: Boolean,
-        default: false,
-    },
-    levelId: {
-        type: Number,
-        default: undefined,
-    },
-    milestoneLevels: {
-        type: Array<MilestoneLevel>,
-        default: () => [],
-    },
-})
-const emit = defineEmits(["levelChange"])
+const props = defineProps<{
+    levelType: string
+    clearLevel?: boolean
+    levelId?: number
+    milestoneLevels?: MilestoneLevel[]
+}>()
+const emit = defineEmits<{
+    levelChange: [levelId: number]
+}>()
 
 //levels
 const levels = ref([]) as Ref<Level[]>
@@ -35,7 +25,7 @@ async function getLevels() {
     const r = await get(baseUrl + "?" + props.levelType + "=true")
     levels.value = r.result
     if (props.levelId) {
-        const l = levels.value.find((lvl) => lvl.levelId === props.levelId)
+        const l = levels.value.find((l) => l.levelId === props.levelId)
         if (l) {
             selectedLevel.value = l
         }
@@ -50,7 +40,7 @@ watch(props, () => {
         selectedLevel.value = {} as Level
     }
     if (props.levelId) {
-        const l = levels.value.find((lvl) => lvl.levelId === props.levelId)
+        const l = levels.value.find((l) => l.levelId === props.levelId)
         if (l) {
             selectedLevel.value = l
         }
@@ -83,11 +73,11 @@ getLevels()
                 flat
                 size="md"
                 dense
-                :class="selectedLevel.levelId === level.levelId ? 'selectedLevel q-py-sm' : 'q-py-sm'"
+                :class="selectedLevel.levelId == level.levelId ? 'selectedLevel q-py-sm' : 'q-py-sm'"
                 @click="selectedLevel = level"
             >
                 <q-tooltip
-                    v-if="props.levelType === 'epa'"
+                    v-if="props.levelType == 'epa'"
                     class="text-dark bg-light-blue-3"
                 >
                     <template #default>
@@ -95,9 +85,9 @@ getLevels()
                     </template>
                 </q-tooltip>
             </q-btn>
-            <template v-if="milestoneLevels !== undefined">
+            <template v-if="milestoneLevels != undefined">
                 <div
-                    v-for="(ml, idx) in milestoneLevels.filter((m) => m.levelId === level.levelId)"
+                    v-for="(ml, idx) in milestoneLevels.filter((ml) => ml.levelId == level.levelId)"
                     :key="ml.milestoneLevelId ?? `ml-${level.levelId}-${idx}`"
                     class="q-px-sm"
                 >
@@ -119,14 +109,14 @@ getLevels()
                 no-caps
                 size="md"
                 dense
-                :class="selectedLevel.levelId === level.levelId ? 'selectedLevel' : ''"
+                :class="selectedLevel.levelId == level.levelId ? 'selectedLevel' : ''"
                 @click="selectedLevel = level"
             >
                 <template #default> {{ level.order }}. {{ level.levelName }} </template>
             </q-btn>
-            <template v-if="milestoneLevels !== undefined && selectedLevel.levelId === level.levelId">
+            <template v-if="milestoneLevels != undefined && selectedLevel.levelId == level.levelId">
                 <div
-                    v-for="(ml, idx) in milestoneLevels.filter((m) => m.levelId === level.levelId)"
+                    v-for="(ml, idx) in milestoneLevels.filter((ml) => ml.levelId == level.levelId)"
                     :key="ml.milestoneLevelId ?? `ml-${level.levelId}-${idx}`"
                     class="q-px-sm q-mb-md"
                 >
@@ -134,13 +124,19 @@ getLevels()
                 </div>
             </template>
             <q-tooltip
-                v-if="props.levelType === 'epa'"
+                v-if="props.levelType == 'epa'"
                 class="text-dark bg-light-blue-3"
             >
                 <template #default>
                     <span class="levelHover">{{ level.description }}</span>
                 </template>
             </q-tooltip>
+            <!--<template v-if="props.levelType == 'epa'">
+        <div v-if="selectedLevel.levelId == level.levelId"
+             class="q-px-sm q-mb-md">
+            {{ level.description }}
+        </div>
+    </template>-->
         </div>
     </div>
 </template>

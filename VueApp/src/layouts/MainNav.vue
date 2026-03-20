@@ -72,7 +72,5 @@ async function getTopNav() {
     }
 }
 
-onMounted(async () => {
-    await getTopNav()
-})
+onMounted(() => getTopNav())
 </script>

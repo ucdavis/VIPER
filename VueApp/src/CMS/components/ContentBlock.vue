@@ -14,12 +14,9 @@ import { ref, watch } from "vue"
 import type { ContentBlock } from "@/CMS/types"
 import { useFetch } from "@/composables/ViperFetch"
 
-const props = defineProps({
-    contentBlockName: {
-        type: String,
-        required: true,
-    },
-})
+const props = defineProps<{
+    contentBlockName: string
+}>()
 
 const contentBlock: Ref<ContentBlock | null> = ref(null)
 

@@ -1,65 +1,47 @@
 <script setup lang="ts">
-import type { Ref, PropType } from "vue"
+import type { Ref } from "vue"
 import { ref, watch } from "vue"
 import type { Student } from "@/CTS/types"
 import { useFetch } from "@/composables/ViperFetch"
 
-const props = defineProps({
-    //which filter should be selected when the component loads. this value will be assigned to studentOptionsType
-    selectedFilter: {
-        type: String as PropType<string>,
-        default: "all",
+const props = withDefaults(
+    defineProps<{
+        //which filter should be selected when the component loads. this value will be assigned to studentOptionsType
+        selectedFilter?: string
+        //this is the service id that will be used to show the students on a service option type
+        //if not provided, service studentOptionsType button will not be shown
+        serviceId?: number | null
+        //pass in clear student to force clear the selected student (for example, if some change to the parent has made the selection invalid)
+        clearStudent?: boolean
+        //the class years to show, or "all" to show all class years, or "active" to show class years with active students
+        //if not provided, class year select will not be shown
+        classYears?: string[]
+        //defines the behavior for the all students button. "active", "inactive", "all", or "hide".
+        //defaults to active. if set to hide, the all button will not be shown.
+        allStudents?: string
+        //if allStudents behavior is "all" and statusToggle is true, show active and inactive buttons, instead of the all students button
+        statusToggle?: boolean
+        //class levels to show, V1 to V4. if not provided, class level buttons will not be shown
+        classLevel?: string[]
+        //if class levels are defined, this is the term that will be used to look up class level
+        termCode?: number | null
+        //display options outlined and borderless
+        outlined?: boolean
+        borderless?: boolean
+        autoSelectStudent?: number | null
+    }>(),
+    {
+        selectedFilter: "all",
+        serviceId: null,
+        classYears: () => [],
+        allStudents: "active",
+        classLevel: () => [],
+        termCode: null,
+        outlined: true,
+        borderless: false,
+        autoSelectStudent: null,
     },
-    //this is the service id that will be used to show the students on a service option type
-    //if not provided, service studentOptionsType button will not be shown
-    serviceId: {
-        type: Number,
-        default: null,
-    },
-    //pass in clear student to force clear the selected student (for example, if some change to the parent has made the selection invalid)
-    clearStudent: {
-        type: Boolean,
-    },
-    //the class years to show, or "all" to show all class years, or "active" to show class years with active students
-    //if not provided, class year select will not be shown
-    classYears: {
-        type: Array as PropType<string[]>,
-        default: () => [],
-    },
-    //defines the behavior for the all students button. "active", "inactive", "all", or "hide".
-    //defaults to active. if set to hide, the all button will not be shown.
-    allStudents: {
-        type: String as PropType<string>,
-        default: "active",
-    },
-    //if allStudents behavior is "all" and statusToggle is true, show active and inactive buttons, instead of the all students button
-    statusToggle: {
-        type: Boolean,
-    },
-    //class levels to show, V1 to V4. if not provided, class level buttons will not be shown
-    classLevel: {
-        type: Array as PropType<string[]>,
-        default: () => [],
-    },
-    //if class levels are defined, this is the term that will be used to look up class level
-    termCode: {
-        type: Number,
-        default: null,
-    },
-    //display options outlined and borderless
-    outlined: {
-        type: Boolean,
-        default: true,
-    },
-    borderless: {
-        type: Boolean,
-        default: false,
-    },
-    autoSelectStudent: {
-        type: Number,
-        default: null,
-    },
-})
+)
 
 //use our fetch wrapper
 const { get } = useFetch()
@@ -89,7 +71,9 @@ const studentOptions = ref([]) as Ref<{ label: string; value: string }[]>
 const loading = ref(false)
 
 //we will emit an event named 'studentChange' when the selected student is changed
-const emit = defineEmits(["studentChange"])
+const emit = defineEmits<{
+    studentChange: [personId: number]
+}>()
 const handleStudentChange = () => {
     emit("studentChange", selectedStudent.value?.personId ?? 0)
 }
@@ -264,7 +248,7 @@ void getStudents()
 <template>
     <div class="row items-center">
         <div class="col-auto">
-            <!--:outlined="selectedStudent == null" :borderless="selectedStudent != null" -->
+            <!--:outlined="selectedStudent ===null" :borderless="selectedStudent !==null" -->
             <q-select
                 dense
                 options-dense
@@ -333,9 +317,9 @@ void getStudents()
                 <template #class-of>
                     <div
                         class="row items-center no-wrap"
-                        v-if="studentOptionsType == 'Class of'"
+                        v-if="studentOptionsType === 'Class of'"
                     >
-                        <!--v-if="studentOptionsType == 'Class of'"-->
+                        <!--v-if="studentOptionsType ==='Class of'"-->
                         <q-select
                             v-model="selectedClassYear"
                             dense
