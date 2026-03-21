@@ -279,7 +279,7 @@ public class InstructorService : IInstructorService
         // Search VIPER.users.Person for current employees not in effort
         var query = _viperContext.People
             .AsNoTracking()
-            .Where(p => p.CurrentEmployee && !existingPersonIds.Contains(p.PersonId));
+            .Where(p => p.CurrentEmployee && !EF.Parameter(existingPersonIds).Contains(p.PersonId));
 
         var term = searchTerm.Trim().ToLower();
         query = query.Where(p =>
@@ -311,7 +311,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Where(p => p.PersonTermCode == termCodeStr)
             .Join(
-                _aaudContext.Ids.Where(i => i.IdsMothraid != null && mothraIds.Contains(i.IdsMothraid)),
+                _aaudContext.Ids.Where(i => i.IdsMothraid != null && EF.Parameter(mothraIds).Contains(i.IdsMothraid)),
                 person => person.PersonPKey,
                 ids => ids.IdsPKey,
                 (person, ids) => new { person.PersonPKey, ids.IdsMothraid })
@@ -328,7 +328,7 @@ public class InstructorService : IInstructorService
         // Get employees by pKey (not filtered by term - confirms they have an employee record)
         var employees = await _aaudContext.Employees
             .AsNoTracking()
-            .Where(e => pKeys.Contains(e.EmpPKey))
+            .Where(e => EF.Parameter(pKeys).Contains(e.EmpPKey))
             .ToListAsync(ct);
 
         var employeeDict = employees.ToDictionary(e => e.EmpPKey, StringComparer.OrdinalIgnoreCase);
@@ -352,7 +352,7 @@ public class InstructorService : IInstructorService
                 .AsNoTracking()
                 .Where(job => job.JobTermCode == termCodeStr)
                 .Join(
-                    _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid)),
+                    _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && EF.Parameter(validMothraIds).Contains(i.IdsMothraid)),
                     job => job.JobPKey,
                     ids => ids.IdsPKey,
                     (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
@@ -793,7 +793,7 @@ public class InstructorService : IInstructorService
         // Batch-fetch AAUD IDs and employees
         var idsRecords = await _aaudContext.Ids
             .AsNoTracking()
-            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid))
+            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && EF.Parameter(validMothraIds).Contains(i.IdsMothraid))
             .Select(i => new { i.IdsMothraid, i.IdsPKey })
             .ToListAsync(ct);
 
@@ -806,7 +806,7 @@ public class InstructorService : IInstructorService
 
         var employees = await _aaudContext.Employees
             .AsNoTracking()
-            .Where(e => e.EmpTermCode == termCodeStr && pKeys.Contains(e.EmpPKey))
+            .Where(e => e.EmpTermCode == termCodeStr && EF.Parameter(pKeys).Contains(e.EmpPKey))
             .ToDictionaryAsync(e => e.EmpPKey ?? "", e => e, ct);
 
         // Batch-fetch jobs
@@ -814,7 +814,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Where(job => job.JobTermCode == termCodeStr)
             .Join(
-                _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid)),
+                _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && EF.Parameter(validMothraIds).Contains(i.IdsMothraid)),
                 job => job.JobPKey,
                 ids => ids.IdsPKey,
                 (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
@@ -940,7 +940,7 @@ public class InstructorService : IInstructorService
         var recordStats = await _context.Records
             .AsNoTracking()
             .Include(r => r.Course)
-            .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
+            .Where(r => r.TermCode == termCode && EF.Parameter(personIds).Contains(r.PersonId))
             .GroupBy(r => r.PersonId)
             .Select(g => new
             {
@@ -993,7 +993,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Include(p => p.PercentAssignType)
             .Include(p => p.Unit)
-            .Where(p => personIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIds).Contains(p.PersonId))
             .Where(p => p.StartDate < range.EndDateExclusive)
             .Where(p => p.EndDate == null || p.EndDate >= range.StartDate)
             .ToListAsync(ct);
@@ -1261,7 +1261,7 @@ public class InstructorService : IInstructorService
         var childRelationships = await _context.CourseRelationships
             .AsNoTracking()
             .Include(cr => cr.ChildCourse)
-            .Where(cr => courseIds.Contains(cr.ParentCourseId))
+            .Where(cr => EF.Parameter(courseIds).Contains(cr.ParentCourseId))
             .ToListAsync(ct);
 
         // Group child relationships by parent course ID

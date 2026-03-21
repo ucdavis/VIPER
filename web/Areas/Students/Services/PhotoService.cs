@@ -10,6 +10,7 @@ namespace Viper.Areas.Students.Services
         Task<string> GetStudentPhotoUrlAsync(string mailId);
         Task<bool> StudentPhotoExistsAsync(string mailId);
         string GetDefaultPhotoUrl();
+        Task<Dictionary<string, string>> GetStudentPhotoUrlsBatchAsync(IEnumerable<string> mailIds);
     }
 
     public class PhotoService : IPhotoService
@@ -92,6 +93,22 @@ namespace Viper.Areas.Students.Services
                 return $"/api/students/photos/student/{mailId}";
             }
             return GetDefaultPhotoUrl();
+        }
+
+        public async Task<Dictionary<string, string>> GetStudentPhotoUrlsBatchAsync(IEnumerable<string> mailIds)
+        {
+            var defaultUrl = GetDefaultPhotoUrl();
+            var distinctMailIds = mailIds.Where(m => !string.IsNullOrWhiteSpace(m)).Distinct().ToList();
+
+            var tasks = distinctMailIds.Select(async mailId =>
+            {
+                var exists = await StudentPhotoExistsAsync(mailId);
+                var url = exists ? $"/api/students/photos/student/{mailId}" : defaultUrl;
+                return (mailId, url);
+            });
+
+            var results = await Task.WhenAll(tasks);
+            return results.ToDictionary(r => r.mailId, r => r.url);
         }
 
         public async Task<bool> StudentPhotoExistsAsync(string mailId)

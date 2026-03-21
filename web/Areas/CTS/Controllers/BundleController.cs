@@ -25,6 +25,7 @@ namespace Viper.Areas.CTS.Controllers
             int? serviceId = null, int? roleId = null)
         {
             var bundleQuery = context.Bundles
+                .AsNoTracking()
                 .Include(b => b.BundleRoles)
                 .ThenInclude(br => br.Role)
                 .Include(b => b.BundleCompetencies)

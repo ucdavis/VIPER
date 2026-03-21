@@ -169,7 +169,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     .AsNoTracking()
                     .Include(i => i.Week) // Week navigation works fine
                     .Include(i => i.Person) // Person navigation for name data
-                    .Where(i => i.MothraId == mothraId && weekIds.Contains(i.WeekId))
+                    .Where(i => i.MothraId == mothraId && EF.Parameter(weekIds).Contains(i.WeekId))
                     .OrderBy(i => i.Week.DateStart)
                     .ToListAsync();
 

@@ -97,7 +97,7 @@ public class ClinicalImportService : IClinicalImportService
         // Query AAUD ids + employees for the term (same JOIN as EnsureEffortPersonAsync)
         var aaudImportInfo = await _aaudContext.Ids
             .AsNoTracking()
-            .Where(ids => ids.IdsMothraid != null && mothraIdList.Contains(ids.IdsMothraid))
+            .Where(ids => ids.IdsMothraid != null && EF.Parameter(mothraIdList).Contains(ids.IdsMothraid))
             .Where(ids => ids.IdsTermCode == termCodeStr)
             .Join(_aaudContext.Employees.Where(e => e.EmpTermCode == termCodeStr),
                 ids => ids.IdsPKey,
@@ -386,7 +386,7 @@ public class ClinicalImportService : IClinicalImportService
         // Get clinical instructor schedules with week info
         var clinicalData = await _viperContext.InstructorSchedules
             .AsNoTracking()
-            .Where(s => weekIds.Contains(s.WeekId))
+            .Where(s => EF.Parameter(weekIds).Contains(s.WeekId))
             .Where(s => !string.IsNullOrEmpty(s.SubjCode) && !string.IsNullOrEmpty(s.CrseNumb))
             .Join(_viperContext.Weeks.AsNoTracking(),
                 s => s.WeekId,

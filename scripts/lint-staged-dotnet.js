@@ -177,11 +177,11 @@ const runBuild = (projectPath) => {
         }
     }
 
-    const args = ["build", buildPath, "--artifacts-path", artifactsPath, "--no-incremental", "--verbosity", "quiet"]
+    const buildArgs = ["build", buildPath, "--artifacts-path", artifactsPath, "--verbosity", "quiet"]
 
     try {
         logger.info(`Building ${buildPath} project for code analysis...`)
-        const result = execFileSync("dotnet", args, {
+        const result = execFileSync("dotnet", buildArgs, {
             encoding: "utf8",
             timeout: 60_000, // Reduce timeout to 1 minute
             stdio: ["inherit", "pipe", "pipe"], // Suppress stdout, capture for parsing
@@ -207,8 +207,8 @@ const runBuild = (projectPath) => {
             // Store build output even for failed builds so analyzers can process it
             try {
                 markAsBuilt(projectPath, projectName, output)
-            } catch (error) {
-                logger.warning(`Failed to cache build output: ${error.message}`)
+            } catch (cacheError) {
+                logger.warning(`Failed to cache build output: ${cacheError.message}`)
             }
 
             const hasWarnings = output.includes("warning ") || output.includes(": warning")

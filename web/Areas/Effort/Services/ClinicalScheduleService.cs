@@ -101,7 +101,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
             .AsNoTracking()
             .Include(isc => isc.Rotation)
                 .ThenInclude(r => r.Service)
-            .Where(isc => weekIdList.Contains(isc.WeekId))
+            .Where(isc => EF.Parameter(weekIdList).Contains(isc.WeekId))
             .Select(isc => new
             {
                 isc.MothraId,
@@ -163,7 +163,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
         var eligibleMothraIds = (await _aaudContext.AaudUsers
             .AsNoTracking()
-            .Where(u => u.EmployeeId != null && eligibleEmplIds.Contains(u.EmployeeId))
+            .Where(u => u.EmployeeId != null && EF.Parameter(eligibleEmplIds.ToList()).Contains(u.EmployeeId))
             .Select(u => u.MothraId)
             .ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -183,7 +183,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
         var personLookup = await _clinicalContext.Persons
             .AsNoTracking()
-            .Where(p => distinctMothraIds.Contains(p.IdsMothraId))
+            .Where(p => EF.Parameter(distinctMothraIds).Contains(p.IdsMothraId))
             .ToDictionaryAsync(
                 p => p.IdsMothraId,
                 p => p.PersonDisplayLastName.TrimEnd() + ", " + p.PersonDisplayFirstName.TrimEnd(),

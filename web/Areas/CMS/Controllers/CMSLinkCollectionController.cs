@@ -23,7 +23,7 @@ namespace Viper.Areas.CMS.Controllers
         {
             var collections = await _context.LinkCollections
                 .Include(lc => lc.LinkCollectionTagCategories.OrderBy(tc => tc.SortOrder))
-                .Where(lc => linkCollectionName == null || lc.LinkCollectionName.ToLower() == linkCollectionName.ToLower())
+                .Where(lc => linkCollectionName == null || lc.LinkCollectionName == linkCollectionName)
                 .OrderBy(lc => lc.LinkCollectionName)
                 .ToListAsync();
 
@@ -47,9 +47,8 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost]
         public async Task<ActionResult<LinkCollectionDto>> PostLinkCollection(CreateLinkCollectionDto createDto)
         {
-            var dupeCheck = await _context.LinkCollections
-                .FirstOrDefaultAsync(lc => lc.LinkCollectionName.ToLower() == createDto.LinkCollection.ToLower());
-            if (dupeCheck != null)
+            if (await _context.LinkCollections
+                .AnyAsync(lc => lc.LinkCollectionName == createDto.LinkCollection))
             {
                 return BadRequest("A link collection with that name already exists.");
             }
@@ -82,10 +81,9 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
 
-            var dupeCheck = await _context.LinkCollections
-                .FirstOrDefaultAsync(lc => lc.LinkCollectionName.ToLower() == updateDto.LinkCollection.ToLower()
-                    && lc.LinkCollectionId != id);
-            if (dupeCheck != null)
+            if (await _context.LinkCollections
+                .AnyAsync(lc => lc.LinkCollectionName == updateDto.LinkCollection
+                    && lc.LinkCollectionId != id))
             {
                 return BadRequest("A link collection with that name already exists.");
             }
@@ -116,7 +114,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("{collectionId}/tags")]
         public async Task<ActionResult<IEnumerable<LinkCollectionTagCategoryDto>>> GetLinkCollectionTagCategories(int collectionId)
         {
-            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
+            if (!await _context.LinkCollections.AnyAsync(lc => lc.LinkCollectionId == collectionId))
             {
                 return NotFound();
             }
@@ -143,15 +141,14 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost("{collectionId}/tags")]
         public async Task<ActionResult<CreateLinkCollectionTagCategoryDto>> CreateLinkCollectionTagCategory(int collectionId, CreateLinkCollectionTagCategoryDto createLinkTagCategoryDto)
         {
-            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
+            if (!await _context.LinkCollections.AnyAsync(lc => lc.LinkCollectionId == collectionId))
             {
                 return NotFound();
             }
 
-            var dupeCheck = await _context.LinkCollectionTagCategories
-                .FirstOrDefaultAsync(tc => tc.LinkCollectionTagCategoryName.ToLower() == createLinkTagCategoryDto.LinkCollectionTagCategory.ToLower()
-                    && tc.LinkCollectionId == collectionId);
-            if (dupeCheck != null)
+            if (await _context.LinkCollectionTagCategories
+                .AnyAsync(tc => tc.LinkCollectionTagCategoryName == createLinkTagCategoryDto.LinkCollectionTagCategory
+                    && tc.LinkCollectionId == collectionId))
             {
                 return BadRequest("A tag category with that name already exists in this link collection.");
             }
@@ -171,7 +168,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPut("{collectionId}/tags/order")]
         public async Task<IActionResult> UpdateLinkCollectionTagCategoryOrder(int collectionId, List<UpdateLinkCollectionTagCategoryOrderDto> updateDto)
         {
-            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
+            if (!await _context.LinkCollections.AnyAsync(lc => lc.LinkCollectionId == collectionId))
             {
                 return NotFound();
             }
@@ -199,7 +196,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpDelete("{collectionId}/tags/{tagCategoryId}")]
         public async Task<IActionResult> DeleteLinkCollectionTagCategory(int collectionId, int tagCategoryId)
         {
-            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
+            if (!await _context.LinkCollections.AnyAsync(lc => lc.LinkCollectionId == collectionId))
             {
                 return NotFound();
             }

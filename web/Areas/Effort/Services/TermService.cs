@@ -35,17 +35,17 @@ public class TermService : ITermService
 
         // Get term codes that have related data (cannot be deleted)
         var termsWithPersons = await _context.Persons
-            .Where(p => termCodes.Contains(p.TermCode))
+            .Where(p => EF.Parameter(termCodes).Contains(p.TermCode))
             .Select(p => p.TermCode)
             .Distinct()
             .ToListAsync(ct);
         var termsWithCourses = await _context.Courses
-            .Where(c => termCodes.Contains(c.TermCode))
+            .Where(c => EF.Parameter(termCodes).Contains(c.TermCode))
             .Select(c => c.TermCode)
             .Distinct()
             .ToListAsync(ct);
         var termsWithRecords = await _context.Records
-            .Where(r => termCodes.Contains(r.TermCode))
+            .Where(r => EF.Parameter(termCodes).Contains(r.TermCode))
             .Select(r => r.TermCode)
             .Distinct()
             .ToListAsync(ct);
@@ -57,7 +57,7 @@ public class TermService : ITermService
 
         var termEndDates = await _viperContext.Terms
             .AsNoTracking()
-            .Where(t => termCodes.Contains(t.TermCode))
+            .Where(t => EF.Parameter(termCodes).Contains(t.TermCode))
             .ToDictionaryAsync(t => t.TermCode, t => t.EndDate, ct);
 
         return terms.Select(t =>
@@ -396,7 +396,7 @@ public class TermService : ITermService
         var availableTerms = await _viperContext.Terms
             .AsNoTracking()
             .Where(t => t.StartDate > DateTime.Today)
-            .Where(t => !existingTermCodes.Contains(t.TermCode))
+            .Where(t => !EF.Parameter(existingTermCodes).Contains(t.TermCode))
             .Where(t => t.TermCode != Viper.Models.VIPER.Term.FacilityScheduleTermCode)
             .OrderBy(t => t.TermCode)
             .Select(t => new AvailableTermDto

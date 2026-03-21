@@ -268,7 +268,7 @@ public class EffortAuditService : IEffortAuditService
         var changedByIds = audits.Select(a => a.ChangedBy).Distinct().ToList();
         var userNames = await _context.ViperPersons
             .AsNoTracking()
-            .Where(p => changedByIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(changedByIds).Contains(p.PersonId))
             .ToDictionaryAsync(p => p.PersonId, p => p.LastName + ", " + p.FirstName, ct);
 
         var results = audits.Select(audit =>
@@ -357,7 +357,7 @@ public class EffortAuditService : IEffortAuditService
 
         var modifiers = await _context.ViperPersons
             .AsNoTracking()
-            .Where(p => modifierIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(modifierIds).Contains(p.PersonId))
             .Select(p => new ModifierInfo
             {
                 PersonId = p.PersonId,
@@ -463,7 +463,7 @@ public class EffortAuditService : IEffortAuditService
         // Get all person records for the matching PersonIds, then group in memory
         var personRecords = await _context.Persons
             .AsNoTracking()
-            .Where(p => allPersonIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(allPersonIds).Contains(p.PersonId))
             .Select(p => new { p.PersonId, p.LastName, p.FirstName, p.TermCode })
             .ToListAsync(ct);
 
@@ -546,7 +546,7 @@ public class EffortAuditService : IEffortAuditService
         var auditRecordIds = auditEntries.Select(a => a.RecordId).Distinct().ToList();
         var existingPercentages = await _context.Percentages
             .AsNoTracking()
-            .Where(p => auditRecordIds.Contains(p.Id))
+            .Where(p => EF.Parameter(auditRecordIds).Contains(p.Id))
             .Select(p => new { p.Id, p.PersonId, p.PercentAssignTypeId })
             .ToDictionaryAsync(p => p.Id, ct);
 
@@ -1007,7 +1007,7 @@ public class EffortAuditService : IEffortAuditService
             .AsNoTracking()
             .Include(r => r.Course)
             .Include(r => r.Person)
-            .Where(r => recordIds.Contains(r.Id))
+            .Where(r => EF.Parameter(recordIds).Contains(r.Id))
             .ToDictionaryAsync(r => r.Id, ct);
 
         foreach (var (row, audit) in items)
@@ -1034,7 +1034,7 @@ public class EffortAuditService : IEffortAuditService
     {
         var personRecords = await _context.Persons
             .AsNoTracking()
-            .Where(p => personIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIds).Contains(p.PersonId))
             .ToListAsync(ct);
 
         var mostRecentPersons = personRecords
@@ -1060,7 +1060,7 @@ public class EffortAuditService : IEffortAuditService
     {
         var courses = await _context.Courses
             .AsNoTracking()
-            .Where(c => courseIds.Contains(c.Id))
+            .Where(c => EF.Parameter(courseIds).Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, ct);
 
         foreach (var (row, audit) in items)
@@ -1082,7 +1082,7 @@ public class EffortAuditService : IEffortAuditService
     {
         var percentages = await _context.Percentages
             .AsNoTracking()
-            .Where(p => percentageIds.Contains(p.Id))
+            .Where(p => EF.Parameter(percentageIds).Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, ct);
 
         var personIds = percentages.Values.Select(p => p.PersonId).Distinct().ToList();
@@ -1102,7 +1102,7 @@ public class EffortAuditService : IEffortAuditService
 
         var personRecords = await _context.Persons
             .AsNoTracking()
-            .Where(p => personIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIds).Contains(p.PersonId))
             .ToListAsync(ct);
 
         var mostRecentPersons = personRecords

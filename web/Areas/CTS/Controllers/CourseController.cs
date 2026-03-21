@@ -413,7 +413,7 @@ namespace Viper.Areas.CTS.Controllers
         private async Task<List<CourseDto>> GetCourses(string? termCode = null, string? subjectCode = null, string? courseNum = null, int? courseId = null)
         {
             //get list of all courses matching criteria
-            var courses = context.Courses.AsQueryable();
+            var courses = context.Courses.AsNoTracking().AsQueryable();
             if (termCode != null)
             {
                 courses = courses.Where(c => c.AcademicYear == termCode);
@@ -446,14 +446,16 @@ namespace Viper.Areas.CTS.Controllers
 
             var courseDtos = CtsMapper.ToCourseDtos(courseList);
 
+            var courseIds = courseDtos.Select(c => c.CourseId).ToList();
+            var competencyCounts = await context.SessionCompetencies
+                .Where(sc => EF.Parameter(courseIds).Contains(sc.Session.CourseId))
+                .GroupBy(sc => sc.Session.CourseId)
+                .Select(g => new { CourseId = g.Key, Count = g.Select(sc => sc.CompetencyId).Distinct().Count() })
+                .ToDictionaryAsync(x => x.CourseId, x => x.Count);
+
             foreach (var c in courseDtos)
             {
-                c.CompetencyCount = await context.SessionCompetencies
-                    .Include(sc => sc.Session)
-                    .Where(sc => sc.Session.CourseId == c.CourseId)
-                    .Select(sc => sc.CompetencyId)
-                    .Distinct()
-                    .CountAsync();
+                c.CompetencyCount = competencyCounts.GetValueOrDefault(c.CourseId, 0);
             }
 
             return courseDtos;

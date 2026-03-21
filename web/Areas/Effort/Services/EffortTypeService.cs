@@ -51,7 +51,7 @@ public class EffortTypeService : IEffortTypeService
         // Get usage counts for all effort types
         var effortTypeIds = effortTypes.Select(s => s.Id).ToList();
         var usageCounts = await _context.Records
-            .Where(r => effortTypeIds.Contains(r.EffortTypeId))
+            .Where(r => EF.Parameter(effortTypeIds).Contains(r.EffortTypeId))
             .GroupBy(r => r.EffortTypeId)
             .Select(g => new { EffortTypeId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.EffortTypeId, x => x.Count, ct);

@@ -41,6 +41,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .Include(s => s.Week)
                     .Include(s => s.Service)
                     .Include(s => s.Rotation)
+                    .AsNoTracking()
                     .AsQueryable();
 
                 // Apply filters
