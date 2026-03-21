@@ -2,7 +2,7 @@
 
 const fs = require("node:fs")
 const path = require("node:path")
-const { spawnSync } = require("node:child_process")
+const { spawn, spawnSync } = require("node:child_process")
 
 const { env } = process
 
@@ -272,7 +272,7 @@ function runOxfmtCheck(files, fix) {
 }
 
 /**
- * Run a linter script with files
+ * Run a linter script with files (sync — used within sequential groups)
  * @param {string} script - Script name (e.g., 'lint-staged-css.js')
  * @param {string[]} files - Array of file paths
  * @param {string} description - Description for logging
@@ -306,8 +306,52 @@ function runLinter(script, files, description, fix, clearCache) {
     }
 }
 
+/**
+ * Run a linter script with files (async — for parallel execution)
+ */
+function runLinterAsync(script, files, description, fix, clearCache) {
+    if (files.length === 0) {
+        return Promise.resolve()
+    }
+
+    console.log(`\n🔍 ${description} (${files.length} files)`)
+
+    const scriptPath = path.join(__dirname, script)
+    const scriptArgs = [...files]
+    if (fix) {
+        scriptArgs.push("--fix")
+    }
+    if (clearCache) {
+        scriptArgs.push("--clear-cache")
+    }
+
+    return new Promise((resolve) => {
+        const child = spawn("node", [scriptPath, ...scriptArgs], {
+            stdio: "inherit",
+            cwd: projectRoot,
+            env,
+        })
+
+        child.on("close", () => resolve())
+        child.on("error", (err) => {
+            console.error(`❌ Failed to run ${script}:`, err.message)
+            resolve()
+        })
+    })
+}
+
+/**
+ * Run frontend linters sequentially (they may share .vue files in --fix mode)
+ */
+async function runFrontendLinters(categories, fix, clearCache) {
+    runLinter("lint-staged-css.js", categories.css, "CSS/Stylelint - Accessibility & Style", fix, clearCache)
+    runLinter("lint-staged-vue.js", categories.vue, "Vue ESLint - Security & Quality", fix, clearCache)
+    runLinter("lint-staged-ts.js", categories.ts, "JS/TS Oxlint - Security & Quality", fix, clearCache)
+    runLinter("lint-staged-cshtml.js", categories.cshtml, "CSHTML - Security & Accessibility", fix, clearCache)
+}
+
 // Main execution
-try {
+async function main() {
     console.log("🚀 Smart Linter - Analyzing files and routing to appropriate linters...\n")
 
     // Expand inputs to actual files
@@ -352,31 +396,19 @@ try {
 
     const oxfmtPassed = runOxfmtCheck(oxfmtFiles, shouldFix)
 
-    // Run each linter with its files
-    runLinter(
-        "lint-staged-css.js",
-        categories.css,
-        "CSS/Stylelint - Accessibility & Style",
-        shouldFix,
-        shouldClearCache,
-    )
-    runLinter("lint-staged-vue.js", categories.vue, "Vue ESLint - Security & Quality", shouldFix, shouldClearCache)
-    runLinter("lint-staged-ts.js", categories.ts, "JS/TS Oxlint - Security & Quality", shouldFix, shouldClearCache)
-    // Route CSHTML files through the dedicated ESLint-based CSHTML linter (security + accessibility)
-    runLinter(
-        "lint-staged-cshtml.js",
-        categories.cshtml,
-        "CSHTML - Security & Accessibility",
-        shouldFix,
-        shouldClearCache,
-    )
-    runLinter(
-        "lint-staged-dotnet.js",
-        categories.dotnet,
-        ".NET/SonarAnalyzer - Security & Quality",
-        shouldFix,
-        shouldClearCache,
-    )
+    // Run frontend linters and dotnet linter in parallel
+    // Frontend linters run sequentially among themselves (they share .vue files in --fix mode)
+    // Dotnet linter is independent and runs concurrently
+    await Promise.all([
+        runFrontendLinters(categories, shouldFix, shouldClearCache),
+        runLinterAsync(
+            "lint-staged-dotnet.js",
+            categories.dotnet,
+            ".NET/SonarAnalyzer - Security & Quality",
+            shouldFix,
+            shouldClearCache,
+        ),
+    ])
 
     console.log("\n✅ Smart linting complete!")
 
@@ -385,7 +417,9 @@ try {
         console.log("   npm run lint -- --fix <files>")
         process.exit(1)
     }
-} catch (error) {
+}
+
+main().catch((error) => {
     console.error("❌ Unexpected error:", error.message)
     process.exit(1)
-}
+})

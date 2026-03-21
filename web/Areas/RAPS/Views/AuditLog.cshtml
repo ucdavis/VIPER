@@ -116,6 +116,7 @@
                     this.auditTable.load(this)
                 },
                 addAuditCriteria: function(paramName, paramValue) {
+                    if (!Object.hasOwn(this.auditForm, paramName)) return
                     this.auditForm[paramName] = paramValue
                     this.getAudit()
                 }

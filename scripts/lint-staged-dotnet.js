@@ -185,6 +185,7 @@ const runBuild = (projectPath) => {
             encoding: "utf8",
             timeout: 60_000, // Reduce timeout to 1 minute
             stdio: ["inherit", "pipe", "pipe"], // Suppress stdout, capture for parsing
+            env: { ...process.env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
 
         // Store successful build in cache
@@ -227,7 +228,7 @@ const runBuild = (projectPath) => {
 const applyFormatFixes = (projectPath, relativePaths) => {
     logger.info(`🔧 Attempting to fix formatting issues in ${relativePaths.length} file(s)...`)
 
-    const fixArgs = ["format", `${projectPath}/`, "--severity", "warn"]
+    const fixArgs = ["format", `${projectPath}/`, "--severity", "warn", "--no-restore"]
     for (const p of relativePaths) {
         fixArgs.push("--include", p)
     }
@@ -238,6 +239,7 @@ const applyFormatFixes = (projectPath, relativePaths) => {
             encoding: "utf8",
             timeout: 180_000,
             stdio: ["inherit", "pipe", "pipe"],
+            env: { ...process.env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
 
         // Check if fixes were actually applied
@@ -323,7 +325,7 @@ const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
         return cached
     }
 
-    const verifyArgs = ["format", `${projectPath}/`, "--verify-no-changes", "--severity", "warn"]
+    const verifyArgs = ["format", `${projectPath}/`, "--verify-no-changes", "--severity", "warn", "--no-restore"]
     for (const p of relativePaths) {
         verifyArgs.push("--include", p)
     }
@@ -333,6 +335,7 @@ const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
             encoding: "utf8",
             timeout: 180_000,
             stdio: ["inherit", "pipe", "pipe"],
+            env: { ...process.env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
         return handleVerifySuccess(result, afterFix, absolutePaths, cacheKey, projectPath)
     } catch (error) {
