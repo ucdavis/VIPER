@@ -37,7 +37,7 @@ public class UnitService : IUnitService
         // Get usage counts for all units
         var unitIds = units.Select(u => u.Id).ToList();
         var usageCounts = await _context.Percentages
-            .Where(p => p.UnitId != null && unitIds.Contains(p.UnitId.Value))
+            .Where(p => p.UnitId != null && EF.Parameter(unitIds).Contains(p.UnitId.Value))
             .GroupBy(p => p.UnitId)
             .Select(g => new { UnitId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.UnitId!.Value, x => x.Count, ct);

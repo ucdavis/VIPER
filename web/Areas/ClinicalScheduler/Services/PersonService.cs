@@ -114,14 +114,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Get person data from vPerson view
                 var persons = await _context.Persons
                     .AsNoTracking()
-                    .Where(p => mothraIds.Contains(p.IdsMothraId))
+                    .Where(p => EF.Parameter(mothraIds).Contains(p.IdsMothraId))
                     .ToListAsync(cancellationToken);
 
+                var personById = persons.ToDictionary(p => p.IdsMothraId, p => p);
                 var clinicians = instructorSchedules
                     .GroupBy(i => i.MothraId)
                     .Select(g =>
                     {
-                        var person = persons.FirstOrDefault(p => p.IdsMothraId == g.Key);
+                        personById.TryGetValue(g.Key, out var person);
                         return new ClinicianYearSummary
                         {
                             MothraId = g.Key,
@@ -175,7 +176,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Step 2: Fetch person details
                 var persons = await _context.Persons
                     .AsNoTracking()
-                    .Where(p => mothraIds.Contains(p.IdsMothraId))
+                    .Where(p => EF.Parameter(mothraIds).Contains(p.IdsMothraId))
                     .ToListAsync(cancellationToken);
 
                 // Step 3: Build clinician summaries with dictionary lookup

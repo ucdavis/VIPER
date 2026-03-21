@@ -528,7 +528,7 @@ public class HarvestService : IHarvestService
         var personIdsToLookup = existingPersonIds.Select(p => p.PersonId).ToList();
         var personIdToMothraId = await _viperContext.People
             .AsNoTracking()
-            .Where(p => personIdsToLookup.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIdsToLookup).Contains(p.PersonId))
             .Select(p => new { p.PersonId, p.MothraId })
             .ToDictionaryAsync(p => p.PersonId, p => p.MothraId ?? "", ct);
 

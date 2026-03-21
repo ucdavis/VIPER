@@ -202,7 +202,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // Get all necessary data
                 var weekIds = vWeeks.Select(w => w.WeekId).ToList();
                 var allInstructorSchedules = await GetInstructorSchedulesForWeeksAsync(id, weekIds);
-                var recentCliniciansData = await GetRecentCliniciansAsync(id, targetYear, targetYear - 1);
+                var recentCliniciansData = await GetRecentCliniciansAsync(id, vWeeks, targetYear - 1);
 
                 // Get rotation weekly preferences (closed status)
                 var rotationWeeklyPrefs = await GetRotationWeeklyPrefsAsync(id, weekIds);
@@ -280,7 +280,6 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 var rotationsWithSchedules = await _context.Rotations.AsNoTracking()
                     .Where(r => rotationIdsWithSchedules.Contains(r.RotId))
-                    .Include(r => r.Service)
                     .OrderBy(r => r.Service.ServiceName ?? r.Name)
                     .ThenBy(r => r.Name)
                     .Select(r => new RotationDto
@@ -415,16 +414,15 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             return await _context.InstructorSchedules
                 .AsNoTracking()
                 .Include(i => i.Week)
-                .Where(i => i.RotationId == rotationId && weekIds.Contains(i.WeekId))
+                .Where(i => i.RotationId == rotationId && EF.Parameter(weekIds).Contains(i.WeekId))
                 .ToListAsync();
         }
 
         /// <summary>
         /// Gets recent clinicians data for a rotation from current and previous year
         /// </summary>
-        private async Task<List<RecentClinicianData>> GetRecentCliniciansAsync(int rotationId, int currentYear, int previousYear)
+        private async Task<List<RecentClinicianData>> GetRecentCliniciansAsync(int rotationId, List<WeekDto> currentYearWeeks, int previousYear)
         {
-            var currentYearWeeks = await _weekService.GetWeeksAsync(currentYear, includeExtendedRotation: true);
             var previousYearWeeks = await _weekService.GetWeeksAsync(previousYear, includeExtendedRotation: true);
             var allYearWeekIds = currentYearWeeks.Select(w => w.WeekId)
                 .Concat(previousYearWeeks.Select(w => w.WeekId))
@@ -432,8 +430,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             var recentClinicians = await _context.InstructorSchedules
                 .AsNoTracking()
-                .Include(i => i.Week)
-                .Where(i => i.RotationId == rotationId && allYearWeekIds.Contains(i.WeekId))
+                .Where(i => i.RotationId == rotationId && EF.Parameter(allYearWeekIds).Contains(i.WeekId))
                 .Select(i => new { i.MothraId, i.Week.DateStart })
                 .Distinct()
                 .ToListAsync();
@@ -453,7 +450,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             var distinctMothraIds = mothraIds.Distinct().ToList();
             return await _context.Persons
                 .AsNoTracking()
-                .Where(p => distinctMothraIds.Contains(p.IdsMothraId))
+                .Where(p => EF.Parameter(distinctMothraIds).Contains(p.IdsMothraId))
                 .ToDictionaryAsync(p => p.IdsMothraId, p => p);
         }
 
@@ -467,7 +464,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             var prefs = await _context.RotationWeeklyPrefs
                 .AsNoTracking()
-                .Where(p => p.RotId == rotationId && weekIds.Contains(p.WeekId))
+                .Where(p => p.RotId == rotationId && EF.Parameter(weekIds).Contains(p.WeekId))
                 .ToDictionaryAsync(p => p.WeekId, p => p.Closed);
             return prefs;
         }

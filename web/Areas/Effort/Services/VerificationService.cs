@@ -612,7 +612,7 @@ public class VerificationService : IVerificationService
         var senderIds = audits.Select(a => a.ChangedBy).Distinct().ToList();
         var senderNames = await _viperContext.People
             .AsNoTracking()
-            .Where(p => senderIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(senderIds).Contains(p.PersonId))
             .ToDictionaryAsync(p => p.PersonId, p => p.FullName, ct);
 
         var result = new List<EmailHistoryDto>();
@@ -711,7 +711,7 @@ public class VerificationService : IVerificationService
         return await _context.CourseRelationships
             .AsNoTracking()
             .Include(r => r.ChildCourse)
-            .Where(r => parentCourseIds.Contains(r.ParentCourseId))
+            .Where(r => EF.Parameter(parentCourseIds).Contains(r.ParentCourseId))
             .ToListAsync(ct);
     }
 

@@ -61,7 +61,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
         var termCodes = await GetTermCodesForAcademicYearAsync(startYear, ct);
         var departmentJoin = await _context.ViperPersons
             .AsNoTracking()
-            .Where(vp => mothraIds.Contains(vp.MothraId))
+            .Where(vp => EF.Parameter(mothraIds).Contains(vp.MothraId))
             .Join(_context.Persons.AsNoTracking()
                     .Where(ep => termCodes.Contains(ep.TermCode)),
                 vp => vp.PersonId,
@@ -162,7 +162,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
         var personIds = percentRecords.Select(p => p.PersonId).Distinct().ToList();
         var personMothraMap = await _context.ViperPersons
             .AsNoTracking()
-            .Where(vp => personIds.Contains(vp.PersonId))
+            .Where(vp => EF.Parameter(personIds).Contains(vp.PersonId))
             .ToDictionaryAsync(vp => vp.PersonId, vp => vp.MothraId, ct);
 
         var fiscalStartDt = startDate.ToDateTime(TimeOnly.MinValue);

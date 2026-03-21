@@ -48,6 +48,7 @@ namespace Viper.Areas.Students.Services
                 .Include(q => q.ClassYearLeftReason)
                 .Include(q => q.Student)
                 .ThenInclude(q => q!.StudentInfo)
+                .AsNoTracking()
                 .Where(q => includeRoss || !q.Ross);
 
             //include only the active class year for this student
@@ -114,7 +115,7 @@ namespace Viper.Areas.Students.Services
                 .ToListAsync();
             //Get students based on AAUD Student info for the given term
             var students = _context.People
-                .Where(p => p.SpridenId != null && studentsByTerm.Contains(p.SpridenId))
+                .Where(p => p.SpridenId != null && EF.Parameter(studentsByTerm).Contains(p.SpridenId))
                 .OrderBy(p => p.LastName)
                 .ThenBy(p => p.FirstName);
             var studentList = await students
@@ -124,7 +125,7 @@ namespace Viper.Areas.Students.Services
             var studentIds = studentList.Select(s => s.PersonId).ToList();
             var gradYears = await _context.StudentClassYears
                 .Include(s => s.ClassYearLeftReason)
-                .Where(s => studentIds.Contains(s.PersonId))
+                .Where(s => EF.Parameter(studentIds).Contains(s.PersonId))
                 .OrderBy(g => g.Active ? 0 : 1)
                 .ThenByDescending(g => g.ClassYear)
                 .AsNoTracking()

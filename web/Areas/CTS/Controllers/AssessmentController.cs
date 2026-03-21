@@ -54,6 +54,7 @@ namespace Viper.Areas.CTS.Controllers
             }
 
             var assessments = context.Encounters
+                .AsNoTracking()
                 .Include(e => e.Epa)
                 .Include(e => e.Level)
                 .Include(e => e.EnteredByPerson)
@@ -254,16 +255,30 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(e => e.PersonId)
                 .ToListAsync();
 
-            //for each evaluatee, get the epas for this service that are dated within the block start/end, and mark that an EPA has been done or not done
-            foreach (var e in evaluatees)
+            if (evaluatees.Count > 0)
             {
-                var epaAssessments = await context.Encounters
+                var personIds = evaluatees.Select(e => e.PersonId).Distinct().ToList();
+                var serviceIds = evaluatees.Select(e => e.ServiceId).Distinct().ToList();
+                var minDate = evaluatees.Min(e => e.StartDate);
+                var maxDate = evaluatees.Max(e => e.EndDate);
+
+                var epaEncounters = await context.Encounters
                     .Where(enc => enc.EncounterType == (int)EncounterCreationService.EncounterType.Epa)
-                    .Where(enc => enc.EncounterDate >= e.StartDate && enc.EncounterDate <= e.EndDate)
-                    .Where(enc => enc.Student.PersonId == e.PersonId)
-                    .Where(enc => enc.ServiceId == e.ServiceId)
-                    .CountAsync();
-                evaluateesWithCompletion.Add(new(e, epaAssessments > 0));
+                    .Where(enc => personIds.Contains(enc.StudentUserId))
+                    .Where(enc => enc.ServiceId != null && serviceIds.Contains((int)enc.ServiceId))
+                    .Where(enc => enc.EncounterDate >= minDate && enc.EncounterDate <= maxDate)
+                    .Select(enc => new { enc.StudentUserId, enc.ServiceId, enc.EncounterDate })
+                    .ToListAsync();
+
+                foreach (var e in evaluatees)
+                {
+                    var hasEpa = epaEncounters.Any(enc =>
+                        enc.StudentUserId == e.PersonId
+                        && enc.ServiceId == e.ServiceId
+                        && enc.EncounterDate >= e.StartDate
+                        && enc.EncounterDate <= e.EndDate);
+                    evaluateesWithCompletion.Add(new(e, hasEpa));
+                }
             }
 
             return evaluateesWithCompletion;

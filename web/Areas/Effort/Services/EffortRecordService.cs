@@ -464,8 +464,10 @@ public class EffortRecordService : IEffortRecordService
         // but always include them in "Existing Courses" if instructor has effort on them
         var childCourseIds = await _context.CourseRelationships
             .AsNoTracking()
-            .Where(cr => _context.Courses.Any(c => c.Id == cr.ChildCourseId && c.TermCode == termCode))
-            .Select(cr => cr.ChildCourseId)
+            .Join(_context.Courses.Where(c => c.TermCode == termCode),
+                cr => cr.ChildCourseId,
+                c => c.Id,
+                (cr, c) => cr.ChildCourseId)
             .Distinct()
             .ToListAsync(ct);
 
