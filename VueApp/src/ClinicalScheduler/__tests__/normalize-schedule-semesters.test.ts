@@ -1,10 +1,9 @@
-import { describe, it, expect } from "vitest"
 import { normalizeScheduleSemesters } from "../composables/use-schedule-normalization"
 import type { ScheduleSemester } from "../components/ScheduleView.vue"
 
-describe("normalizeScheduleSemesters", () => {
+describe(normalizeScheduleSemesters, () => {
     it("should return empty array when input is undefined", () => {
-        const result = normalizeScheduleSemesters()
+        const result = normalizeScheduleSemesters(undefined)
         expect(result).toEqual([])
     })
 
@@ -14,7 +13,7 @@ describe("normalizeScheduleSemesters", () => {
     })
 
     it("should normalize weeks in each semester", () => {
-        const semesters: ScheduleSemester[] = [
+        const semesters = [
             {
                 semester: "Fall 2024",
                 weeks: [
@@ -30,7 +29,7 @@ describe("normalizeScheduleSemesters", () => {
                     { weekId: 5, dateEnd: "2025-01-14" },
                 ],
             },
-        ]
+        ] as any as ScheduleSemester[]
 
         const result = normalizeScheduleSemesters(semesters)
 
@@ -116,7 +115,7 @@ describe("normalizeScheduleSemesters", () => {
     })
 
     it("should handle complex nested week structures", () => {
-        const semesters: ScheduleSemester[] = [
+        const semesters = [
             {
                 semester: "Fall 2024",
                 weeks: [
@@ -131,11 +130,11 @@ describe("normalizeScheduleSemesters", () => {
                     },
                 ],
             },
-        ]
+        ] as any as ScheduleSemester[]
 
         const result = normalizeScheduleSemesters(semesters)
 
-        expect(result[0].weeks[0]).toEqual({
+        expect(result[0]!.weeks[0]).toEqual({
             weekId: 1,
             dateEnd: "",
             instructors: [{ name: "Dr. Smith", isPrimary: true }],

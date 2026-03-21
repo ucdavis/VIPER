@@ -1,11 +1,8 @@
-﻿using NuGet.Protocol.Plugins;
-using Viper.Models.RAPS;
-
 namespace Viper.Areas.RAPS.Models
 {
     public class MemberCloneObjects
     {
-        public List<RoleClone> Roles = new();
-        public List<PermissionClone> Permissions = new();
+        public List<RoleClone> Roles { get; set; } = new();
+        public List<PermissionClone> Permissions { get; set; } = new();
     }
 }

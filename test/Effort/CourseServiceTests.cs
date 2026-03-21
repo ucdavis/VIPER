@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -18,9 +18,9 @@ namespace Viper.test.Effort;
 public sealed class CourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
+    private readonly IEffortAuditService _auditServiceMock;
     private readonly ICourseClassificationService _classificationService;
-    private readonly Mock<ILogger<CourseService>> _loggerMock;
+    private readonly ILogger<CourseService> _loggerMock;
     private readonly CourseService _courseService;
 
     public CourseServiceTests()
@@ -31,15 +31,15 @@ public sealed class CourseServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
         _classificationService = new CourseClassificationService();
-        _loggerMock = new Mock<ILogger<CourseService>>();
+        _loggerMock = Substitute.For<ILogger<CourseService>>();
 
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
-            .Setup(s => s.AddCourseChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+            .AddCourseChangeAudit(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _courseService = new CourseService(_context, _auditServiceMock.Object, _classificationService, _loggerMock.Object);
+        _courseService = new CourseService(_context, _auditServiceMock, _classificationService, _loggerMock);
     }
 
     public void Dispose()
@@ -268,14 +268,12 @@ public sealed class CourseServiceTests : IDisposable
         await _courseService.CreateCourseAsync(request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddCourseChangeAudit(
-                It.IsAny<int>(),
+        _auditServiceMock.Received(1).AddCourseChangeAudit(
+                Arg.Any<int>(),
                 202410,
                 "CreateCourse",
-                null,
-                It.IsAny<object>()),
-            Times.Once);
+                Arg.Is<object?>(x => x == null),
+                Arg.Any<object>());
     }
 
     #endregion
@@ -363,14 +361,12 @@ public sealed class CourseServiceTests : IDisposable
         await _courseService.UpdateCourseAsync(1, request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddCourseChangeAudit(
+        _auditServiceMock.Received(1).AddCourseChangeAudit(
                 1,
                 202410,
                 "UpdateCourse",
-                It.IsAny<object>(), // Old values
-                It.IsAny<object>()), // New values
-            Times.Once);
+                Arg.Any<object>(), // Old values
+                Arg.Any<object>()); // New values
     }
 
     #endregion
@@ -478,14 +474,12 @@ public sealed class CourseServiceTests : IDisposable
         await _courseService.DeleteCourseAsync(1);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddCourseChangeAudit(
+        _auditServiceMock.Received(1).AddCourseChangeAudit(
                 1,
                 202410,
                 "DeleteCourse",
-                It.IsAny<object>(), // Course info
-                null),
-            Times.Once);
+                Arg.Any<object>(), // Course info
+                Arg.Is<object?>(x => x == null));
     }
 
     #endregion

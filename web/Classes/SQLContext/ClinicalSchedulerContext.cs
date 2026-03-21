@@ -21,14 +21,6 @@ public class ClinicalSchedulerContext : DbContext
     public virtual DbSet<VWeek> VWeeks { get; set; }
     public virtual DbSet<RotationWeeklyPref> RotationWeeklyPrefs { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:ClinicalScheduler"]);
-        }
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

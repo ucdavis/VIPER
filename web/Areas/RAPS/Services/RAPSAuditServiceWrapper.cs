@@ -1,9 +1,9 @@
-﻿using Viper.Models.RAPS;
+using Viper.Models.RAPS;
 using static Viper.Areas.RAPS.Services.RAPSAuditService;
 
 namespace Viper.Areas.RAPS.Services
 {
-    public class RAPSAuditServiceWrapper : IRAPSAuditServiceWrapper 
+    public class RAPSAuditServiceWrapper : IRAPSAuditServiceWrapper
     {
         private readonly RAPSAuditService _RAPSAuditService;
 

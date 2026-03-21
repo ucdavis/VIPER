@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.Entities;
@@ -15,8 +15,8 @@ namespace Viper.test.Effort;
 public sealed class RCourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<ILogger<RCourseService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly ILogger<RCourseService> _loggerMock;
     private readonly RCourseService _service;
 
     private const int TestTermCode = 202410;
@@ -31,13 +31,13 @@ public sealed class RCourseServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _loggerMock = new Mock<ILogger<RCourseService>>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _loggerMock = Substitute.For<ILogger<RCourseService>>();
 
         _service = new RCourseService(
             _context,
-            _auditServiceMock.Object,
-            _loggerMock.Object);
+            _auditServiceMock,
+            _loggerMock);
 
         SeedTestData();
     }
@@ -96,12 +96,12 @@ public sealed class RCourseServiceTests : IDisposable
         Assert.Equal(course.Id, persisted.Id);
 
         // Verify audit was logged
-        _auditServiceMock.Verify(s => s.AddCourseChangeAudit(
+        _auditServiceMock.Received(1).AddCourseChangeAudit(
             course.Id,
             TestTermCode,
             EffortAuditActions.CreateCourse,
-            null,
-            It.IsAny<object>()), Times.Once);
+            Arg.Is<object?>(x => x == null),
+            Arg.Any<object>());
     }
 
     [Fact]
@@ -130,12 +130,12 @@ public sealed class RCourseServiceTests : IDisposable
         Assert.Equal(existingCourse.Id, course.Id);
 
         // Verify audit was NOT logged (no new course created)
-        _auditServiceMock.Verify(s => s.AddCourseChangeAudit(
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<string>(),
-            It.IsAny<object?>(),
-            It.IsAny<object?>()), Times.Never);
+        _auditServiceMock.DidNotReceive().AddCourseChangeAudit(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<string>(),
+            Arg.Any<object?>(),
+            Arg.Any<object?>());
     }
 
     [Fact]

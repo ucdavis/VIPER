@@ -1,10 +1,10 @@
-import { useUserStore } from '@/store/UserStore'
+import { useUserStore } from "@/store/UserStore"
 
-export default function checkHasOnePermission(permissions: string[]): boolean {
+export function checkHasOnePermission(permissions: string[]): boolean {
     const userStore = useUserStore()
     const userPermissions = userStore.userInfo.permissions
     for (const p of permissions) {
-        if (userPermissions.indexOf(p) >= 0) {
+        if (userPermissions.includes(p)) {
             return true
         }
     }

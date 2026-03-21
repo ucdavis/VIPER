@@ -425,14 +425,11 @@ public class DashboardService : IDashboardService
     /// Builds a courses query for the term, excluding R-courses (course number ends with "R")
     /// and optionally filtering by department.
     /// </summary>
-    // S6610: EF Core LINQ-to-SQL doesn't support EndsWith(char), only EndsWith(string)
-    // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
-#pragma warning disable S6610
     private IQueryable<EffortCourse> GetNonRCoursesQuery(int termCode, List<string>? departmentCodes)
     {
         var query = _context.Courses
             .Where(c => c.TermCode == termCode)
-            .Where(c => !c.CrseNumb.Trim().EndsWith("R"));
+            .Where(c => !c.CrseNumb.Trim().EndsWith('R'));
 
         if (departmentCodes != null && departmentCodes.Count > 0)
         {
@@ -441,5 +438,4 @@ public class DashboardService : IDashboardService
 
         return query;
     }
-#pragma warning restore S6610
 }

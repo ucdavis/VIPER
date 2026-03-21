@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.RAPS;
@@ -8,8 +8,6 @@ using Microsoft.IdentityModel.Tokens;
 using Viper.Classes;
 using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Data;
-using Viper.Classes.Utilities;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -20,8 +18,7 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
         private readonly RAPSSecurityService _securityService;
-        private readonly IWebHostEnvironment _environment;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         public int Count { get; set; }
         public string? UserName { get; set; }
@@ -30,7 +27,6 @@ namespace Viper.Areas.RAPS.Controllers
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
-            _environment = environment;
             UserHelper = new UserHelper();
         }
 
@@ -79,11 +75,11 @@ namespace Viper.Areas.RAPS.Controllers
 
             return instance.ToUpper() switch
             {
-                "VIPER" => await Task.Run(() => Redirect(string.Format("~/raps/VIPER/rolelist"))),
-                "VMACS.VMTH" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMTH/rolelist"))),
-                "VMACS.VMLF" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.VMLF/rolelist"))),
-                "VMACS.UCVMCSD" => await Task.Run(() => Redirect(string.Format("~/raps/VMACS.UCVMCSD/rolelist"))),
-                "VIPERFORMS" => await Task.Run(() => Redirect(string.Format("~/raps/ViperForms/rolelist"))),
+                "VIPER" => await Task.Run(() => Redirect("~/raps/VIPER/rolelist")),
+                "VMACS.VMTH" => await Task.Run(() => Redirect("~/raps/VMACS.VMTH/rolelist")),
+                "VMACS.VMLF" => await Task.Run(() => Redirect("~/raps/VMACS.VMLF/rolelist")),
+                "VMACS.UCVMCSD" => await Task.Run(() => Redirect("~/raps/VMACS.UCVMCSD/rolelist")),
+                "VIPERFORMS" => await Task.Run(() => Redirect("~/raps/ViperForms/rolelist")),
                 _ => await Task.Run(() => View("~/Views/Home/403.cshtml")),
             };
         }
@@ -92,29 +88,26 @@ namespace Viper.Areas.RAPS.Controllers
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
-            VwAaudUser? selecteduser = (memberId != null) ? _RAPSContext.VwAaudUser.Single(r => r.MothraId == memberId) : null;
+            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.SingleAsync(r => r.MothraId == memberId) : null;
 
             var nav = new List<NavMenuItem>
             {
                 new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
             };
             //Links to instances
-            foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }))
+            var universalPages = new List<string>()
             {
-                if (_securityService.IsAllowedTo("AccessInstance", inst))
-                {
-                    var universalPages = new List<string>()
-                    {
-                        "RolePermissionsComparison",
-                        "RoleTemplateList",
-                        "PerimissionList",
-                        "UserClone",
-                        "UserSearch",
-                        "AuditTrail"
-                    };
-                    var usePage = universalPages.Contains(page);
-                    nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
-                }
+                "RolePermissionsComparison",
+                "RoleTemplateList",
+                "PerimissionList",
+                "UserClone",
+                "UserSearch",
+                "AuditTrail"
+            };
+            foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }).Where(inst => _securityService.IsAllowedTo("AccessInstance", inst)))
+            {
+                var usePage = universalPages.Contains(page);
+                nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
             }
             nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
             nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
@@ -126,7 +119,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
-            if (selectedRole != null && _securityService.RoleBelongsToInstance(instance, selectedRole))
+            if (selectedRole != null && RAPSSecurityService.RoleBelongsToInstance(instance, selectedRole))
             {
                 if ((selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                     || _securityService.IsAllowedTo("EditRoleMembership"))
@@ -589,7 +582,7 @@ namespace Viper.Areas.RAPS.Controllers
         [SupportedOSPlatform("windows")]
         public async Task<IActionResult> GroupSync(int groupId)
         {
-            OuGroup? group = _RAPSContext.OuGroups.Find(groupId);
+            OuGroup? group = await _RAPSContext.OuGroups.FindAsync(groupId);
             if (group != null)
             {
                 _ = new OuGroupService(_RAPSContext).Sync(groupId, group.Name);

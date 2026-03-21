@@ -654,7 +654,7 @@ const scheduleRotationToWeek = async (week: WeekItem) => {
                     selectedNewRotationId.value = null
                 },
                 onError: (error) => {
-                    let userMessage = "Failed to schedule rotation"
+                    let userMessage
                     if (error.includes("already scheduled") || error.includes("already exists")) {
                         userMessage = `${selectedRotation.value!.name} is already scheduled for this week`
                     } else if (error.includes("permission")) {
@@ -1279,7 +1279,7 @@ const onAddRotationSelected = (rotation: RotationWithService | null) => {
 // goToHome is now imported from usePermissionChecks composable
 
 // Lifecycle
-onMounted(async () => {
+async function initPage() {
     document.title = `VIPER - ${permissionsStore.clinicianViewLabel}`
 
     try {
@@ -1297,7 +1297,9 @@ onMounted(async () => {
     loadClinicianFromUrl().catch(() => {
         /* handle load error */
     })
-})
+}
+
+onMounted(() => initPage())
 
 // Watch for route changes to handle direct navigation
 watch(

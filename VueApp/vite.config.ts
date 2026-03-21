@@ -3,14 +3,13 @@ import { fileURLToPath, URL } from "node:url"
 
 import { defineConfig, loadEnv } from "vite"
 import plugin from "@vitejs/plugin-vue"
-import Inspector from "vite-plugin-vue-inspector"
+
 import fs from "node:fs"
 import path, { resolve } from "node:path"
 // oxlint-disable-next-line import/max-dependencies -- Vite config requires multiple build tool integrations
 import child_process from "node:child_process"
 import { env } from "node:process"
 import { quasar } from "@quasar/vite-plugin"
-import { visualizer } from "rollup-plugin-visualizer"
 import { codecovVitePlugin } from "@codecov/vite-plugin"
 
 // Port constants
@@ -34,14 +33,19 @@ if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
         { encoding: "utf8" },
     )
     if (certResult.error) {
-        throw new Error(`Failed to run 'dotnet dev-certs': ${certResult.error.message}`)
-    }
-    if (certResult.status !== 0) {
-        throw new Error(
-            `'dotnet dev-certs' failed (exit ${certResult.status}): ${certResult.stdout || ""}${certResult.stderr || ""}`,
+        console.warn(
+            `Could not run 'dotnet dev-certs' (${certResult.error.message}). HTTPS dev server will not be available.`,
         )
+    } else if (certResult.status !== 0) {
+        console.warn(`'dotnet dev-certs' failed (exit ${certResult.status}). HTTPS dev server will not be available.`)
     }
 }
+
+// Read certs if available, otherwise skip HTTPS config (CI/build environments)
+const httpsConfig =
+    fs.existsSync(certFilePath) && fs.existsSync(keyFilePath)
+        ? { key: fs.readFileSync(keyFilePath), cert: fs.readFileSync(certFilePath) }
+        : undefined
 
 let target = "https://localhost:5001" // Default target
 if (env.ASPNETCORE_HTTPS_PORT) {
@@ -75,45 +79,22 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             plugin(),
-            // Vue Inspector - enables clicking components in browser to open in IDE (dev mode only)
-            // Toggle with Ctrl+Shift, supports VS Code and Visual Studio
-            mode === "development" &&
-                // oxlint-disable-next-line new-cap -- Inspector is a factory function from vite-plugin-vue-inspector
-                Inspector({
-                    toggleButtonVisibility: "active", // Show toggle button when inspector is active
-                    toggleComboKey: "control-shift", // Keyboard shortcut to toggle inspector
-                    launchEditor:
-                        viteEnv.VITE_EDITOR === "visual-studio"
-                            ? path.resolve(process.cwd(), "..", "visualstudio.bat") // Use batch file wrapper for Visual Studio
-                            : viteEnv.VITE_EDITOR || "code", // Default to VS Code, or use VITE_EDITOR setting
-                }),
             // @quasar/plugin-vite options list:
             // https://github.com/quasarframework/quasar/blob/dev/vite-plugin/index.d.ts
-            //quasar({
-            //   sassVariables: 'src/quasar-variables.sass'
-            //})
             quasar(),
-            // Set ANALYZE=true to generate bundle-stats.html
-            // PowerShell: $env:ANALYZE='true'; npm run build-only-dev
-            // CMD: set ANALYZE=true && npm run build-only-dev
-            process.env.ANALYZE === "true" &&
-                visualizer({
-                    filename: "bundle-stats.html",
-                    open: false,
-                    gzipSize: true,
-                }),
             codecovVitePlugin({
-                enableBundleAnalysis: !!process.env.CODECOV_TOKEN,
+                enableBundleAnalysis: Boolean(process.env.CODECOV_TOKEN),
                 bundleName: "viper-frontend",
                 uploadToken: process.env.CODECOV_TOKEN,
             }),
         ].filter(Boolean),
         resolve: {
             alias: {
-                "@": fileURLToPath(new URL("./src", import.meta.url)),
+                "@": fileURLToPath(new URL("src", import.meta.url)),
             },
         },
         server: {
+            forwardConsole: true,
             proxy: {
                 "^/CTS": {
                     target,
@@ -148,12 +129,9 @@ export default defineConfig(({ mode }) => {
                     secure: false,
                 },
             },
+            ...(httpsConfig ? { https: httpsConfig } : {}),
             port: vitePort,
             strictPort: true, // Fail immediately if port is in use instead of trying other ports
-            https: {
-                key: fs.readFileSync(keyFilePath),
-                cert: fs.readFileSync(certFilePath),
-            },
             hmr: {
                 overlay: false,
                 protocol: "wss", // Use secure WebSocket since we're on HTTPS
@@ -166,16 +144,16 @@ export default defineConfig(({ mode }) => {
             minify: true,
             outDir: "../web/wwwroot/vue",
             emptyOutDir: true,
-            rollupOptions: {
+            rolldownOptions: {
                 input: {
-                    main: resolve(__dirname, "index.html"),
-                    cts: resolve(__dirname, "src/CTS/index.html"),
-                    computing: resolve(__dirname, "src/Computing/index.html"),
-                    students: resolve(__dirname, "src/Students/index.html"),
-                    cms: resolve(__dirname, "src/CMS/index.html"),
-                    cahfs: resolve(__dirname, "src/CAHFS/index.html"),
-                    clinicalscheduler: resolve(__dirname, "src/ClinicalScheduler/index.html"),
-                    effort: resolve(__dirname, "src/Effort/index.html"),
+                    main: resolve(import.meta.dirname, "index.html"),
+                    cts: resolve(import.meta.dirname, "src/CTS/index.html"),
+                    computing: resolve(import.meta.dirname, "src/Computing/index.html"),
+                    students: resolve(import.meta.dirname, "src/Students/index.html"),
+                    cms: resolve(import.meta.dirname, "src/CMS/index.html"),
+                    cahfs: resolve(import.meta.dirname, "src/CAHFS/index.html"),
+                    clinicalscheduler: resolve(import.meta.dirname, "src/ClinicalScheduler/index.html"),
+                    effort: resolve(import.meta.dirname, "src/Effort/index.html"),
                 },
                 output: {
                     manualChunks(id) {
@@ -192,6 +170,9 @@ export default defineConfig(({ mode }) => {
             __VUE_PROD_DEVTOOLS__: mode === "development",
         },
         base: "/2/vue/",
+        experimental: {
+            bundledDev: true,
+        },
         test: {
             environment: "happy-dom",
             globals: true,

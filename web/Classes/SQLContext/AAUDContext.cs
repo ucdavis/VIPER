@@ -1,5 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.AAUD;
 
@@ -152,7 +150,7 @@ public partial class AAUDContext : DbContext
 
     public virtual DbSet<VwEmployeesForAaud> VwEmployeesForAauds { get; set; }
 
-    public virtual DbSet<VwException> VwExceptions { get; set; }
+    public virtual DbSet<VwAaudExemption> VwAaudExemptions { get; set; }
 
     public virtual DbSet<VwJobsForAaud> VwJobsForAauds { get; set; }
 
@@ -185,14 +183,6 @@ public partial class AAUDContext : DbContext
     public virtual DbSet<VwVmthStudent> VwVmthStudents { get; set; }
 
     public virtual DbSet<VwVmthStudentsForPerfectForm> VwVmthStudentsForPerfectForms { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:AAUD"]);
-        }
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -3658,7 +3648,7 @@ public partial class AAUDContext : DbContext
                 .HasColumnName("WOSEMP");
         });
 
-        modelBuilder.Entity<VwException>(entity =>
+        modelBuilder.Entity<VwAaudExemption>(entity =>
         {
             entity
                 .HasNoKey()

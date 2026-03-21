@@ -8,6 +8,7 @@ import quasarEslint from "@quasar/app-vite/eslint"
 import tsParser from "@typescript-eslint/parser"
 import vueParser from "vue-eslint-parser"
 import tseslint from "@typescript-eslint/eslint-plugin"
+import { plugin as harlanzw } from "eslint-plugin-harlanzw"
 
 export default [
     // Global ignores - Exclude .ts and .js files since we use oxlint for TypeScript and JavaScript
@@ -30,6 +31,7 @@ export default [
         plugins: {
             "vuejs-accessibility": a11y,
             "@typescript-eslint": tseslint,
+            "harlanzw": harlanzw,
         },
         languageOptions: {
             parser: vueParser,
@@ -95,6 +97,18 @@ export default [
             "no-eq-null": "off", // Vue.js community standard - != null is widely accepted
             "no-undefined": "off", // Vue.js apps commonly check for undefined explicitly
             "vue/multi-word-component-names": "off", // Allow single-word area components
+
+            // Vue reactivity & composable quality (eslint-plugin-harlanzw)
+            "harlanzw/vue-no-async-lifecycle-hook": "warn",
+            "harlanzw/vue-no-faux-composables": "warn",
+            "harlanzw/vue-no-nested-reactivity": "warn",
+            "harlanzw/vue-no-passing-refs-as-props": "warn",
+            "harlanzw/vue-no-reactive-destructuring": "warn",
+            "harlanzw/vue-no-reactivity-after-await": "warn",
+            "harlanzw/vue-no-ref-access-in-templates": "warn",
+            "harlanzw/vue-no-resolve-component-in-composables": "warn",
+            "harlanzw/vue-no-torefs-on-props": "warn",
+            "harlanzw/vue-require-composable-prefix": "warn",
         },
     },
 

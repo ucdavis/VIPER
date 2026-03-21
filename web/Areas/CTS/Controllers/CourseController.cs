@@ -1,18 +1,10 @@
-﻿using Amazon.SimpleSystemsManagement.Model;
-using AutoMapper;
-using Microsoft.AspNetCore.JsonPatch.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Polly.Caching;
-using System.Data;
 using Viper.Areas.CTS.Models;
-using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -27,20 +19,16 @@ namespace Viper.Areas.CTS.Controllers
     [Permission(Allow = "SVMSecure.CTS", Deny = "SVMSecure.CTS.Student")]
     public class CourseController : ApiController
     {
-        private readonly CrestCourseService courseService;
         private readonly RAPSContext rapsContext;
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
         private readonly List<string> CompetencySupportedSessionTypes = new List<string>()
         {
             "Lab", "L/D", "Dis","Exm","AUT","JLC","PRS","CBL","PBL","D/L","TBL","ACT"
         };
 
-        public CourseController(IMapper mapper, VIPERContext context, RAPSContext rapsContext)
+        public CourseController(VIPERContext context, RAPSContext rapsContext)
         {
-            this.mapper = mapper;
             this.context = context;
-            courseService = new(context);
             this.rapsContext = rapsContext;
         }
 
@@ -52,7 +40,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Term code or course ID is required.");
             }
             var courses = await GetCourses(termCode, subjectCode, courseNum, courseId);
-            return mapper.Map<List<CourseDto>>(courses);
+            return courses;
         }
 
         [HttpGet("{courseId}")]
@@ -84,7 +72,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Select(cr => cr.Role)
                 .OrderBy(r => r.Name)
                 .ToListAsync();
-            return mapper.Map<List<RoleDto>>(roles);
+            return CtsMapper.ToRoleDtos(roles);
         }
 
         [HttpPut("{courseId}/roles")]
@@ -99,7 +87,7 @@ namespace Viper.Areas.CTS.Controllers
 
             try
             {
-                using var trans = context.Database.BeginTransaction();
+                using var trans = await context.Database.BeginTransactionAsync();
                 foreach (var r in toRemove)
                 {
                     context.Remove(r);
@@ -126,7 +114,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Select(cr => cr.Role)
                 .OrderBy(r => r.Name)
                 .ToListAsync();
-            return mapper.Map<List<RoleDto>>(rolesUpdated);
+            return CtsMapper.ToRoleDtos(rolesUpdated);
         }
 
         /* 
@@ -152,7 +140,7 @@ namespace Viper.Areas.CTS.Controllers
                 .OrderBy(c => c.PaceOrder)
                 .ThenBy(c => c.SessionId)
                 .ToListAsync();
-            return mapper.Map<List<SessionDto>>(sessions);
+            return CtsMapper.ToSessionDtos(sessions);
         }
 
         [HttpGet("{courseId}/sessions/{sessionId}")]
@@ -169,7 +157,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 return NotFound();
             }
-            return mapper.Map<SessionDto>(session);
+            return CtsMapper.ToSessionDto(session);
         }
 
         /*
@@ -204,16 +192,16 @@ namespace Viper.Areas.CTS.Controllers
             int lastComp = 0;
             int? lastRole = 0;
             SessionCompetencyDto? current = null;
-            foreach(var sessionCompetency in sessionComps)
+            foreach (var sessionCompetency in sessionComps)
             {
                 if (lastComp != sessionCompetency.CompetencyId || lastRole != sessionCompetency.RoleId)
                 {
-                    current = mapper.Map<SessionCompetencyDto>(sessionCompetency);
+                    current = CtsMapper.ToSessionCompetencyDto(sessionCompetency);
                     scs.Add(current);
                     lastComp = sessionCompetency.CompetencyId;
                     lastRole = sessionCompetency.RoleId;
                 }
-                if(current != null)
+                if (current != null)
                 {
                     current.Levels.Add(new LevelIdAndNameDto()
                     {
@@ -255,7 +243,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(sc => sc.CompetencyId == sessionComp.CompetencyId)
                 .ToListAsync();
 
-            return mapper.Map<List<SessionCompetencyDto>>(sessionComps);
+            return CtsMapper.ToSessionCompetencyDtos(sessionComps);
         }
 
         [HttpPut("{courseId}/sessions/{sessionId}/competencies")]
@@ -277,7 +265,7 @@ namespace Viper.Areas.CTS.Controllers
 
             try
             {
-                using var trans = context.Database.BeginTransaction();
+                using var trans = await context.Database.BeginTransactionAsync();
                 foreach (var r in toRemove)
                 {
                     context.Remove(r);
@@ -306,7 +294,7 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(sc => sc.SessionId == sessionComp.SessionId)
                 .Where(sc => sc.CompetencyId == sessionComp.CompetencyId)
                 .ToListAsync();
-            return mapper.Map<List<SessionCompetencyDto>>(existing);
+            return CtsMapper.ToSessionCompetencyDtos(existing);
         }
 
         [HttpDelete("{courseId}/sessions/{sessionId}/competencies/{competencyId}")]
@@ -319,16 +307,16 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(rc => rc.RoleId == roleId)
                 .ToListAsync();
 
-            if(comps.Count == 0)
+            if (comps.Count == 0)
             {
                 return NotFound();
             }
 
-            foreach(var sc in comps)
+            foreach (var sc in comps)
             {
                 context.Remove(sc);
             }
-            
+
             await context.SaveChangesAsync();
             return NoContent();
         }
@@ -447,7 +435,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ToListAsync();
 
             //get allowed courses per term
-            var allTerms = courseList.Select(c => c.AcademicYear).ToList().Distinct();
+            var allTerms = courseList.Select(c => c.AcademicYear).Distinct();
             List<int> validCourseIds = new List<int>();
             foreach (var t in allTerms)
             {
@@ -456,8 +444,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             courseList = courseList.Where(c => validCourseIds.Contains(c.CourseId)).ToList();
 
-            //var courses = await courseService.GetCourses(termCode: termCode, subjectCode: subjectCode, courseNum: courseNum);
-            var courseDtos = mapper.Map<List<CourseDto>>(courseList);
+            var courseDtos = CtsMapper.ToCourseDtos(courseList);
 
             foreach (var c in courseDtos)
             {

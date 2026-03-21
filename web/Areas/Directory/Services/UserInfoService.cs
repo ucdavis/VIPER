@@ -222,7 +222,7 @@ namespace Viper.Areas.Directory.Services
         /// </summary>
         private async Task PopulateDirectoryInfoAsync(UserInfoResult result)
         {
-            var ldapUser = new LdapService().GetUserByID(result.IamId);
+            var ldapUser = LdapService.GetUserByID(result.IamId);
             if (ldapUser != null)
             {
                 result.Title = ldapUser.Title;

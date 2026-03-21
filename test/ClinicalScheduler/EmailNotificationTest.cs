@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
@@ -17,14 +18,14 @@ namespace Viper.test.ClinicalScheduler
     /// </summary>
     public class EmailNotificationTest : IDisposable
     {
-        private readonly Mock<IScheduleAuditService> _mockAuditService;
-        private readonly Mock<ILogger<ScheduleEditService>> _mockLogger;
-        private readonly Mock<IEmailService> _mockEmailService;
-        private readonly Mock<IOptions<EmailNotificationSettings>> _mockEmailNotificationOptions;
-        private readonly Mock<IGradYearService> _mockGradYearService;
-        private readonly Mock<IPermissionValidator> _mockPermissionValidator;
-        private readonly Mock<IUserHelper> _mockUserHelper;
-        private readonly Mock<IEmailTemplateRenderer> _mockEmailTemplateRenderer;
+        private readonly IScheduleAuditService _mockAuditService;
+        private readonly ILogger<ScheduleEditService> _mockLogger;
+        private readonly IEmailService _mockEmailService;
+        private readonly IOptions<EmailNotificationSettings> _mockEmailNotificationOptions;
+        private readonly IGradYearService _mockGradYearService;
+        private readonly IPermissionValidator _mockPermissionValidator;
+        private readonly IUserHelper _mockUserHelper;
+        private readonly IEmailTemplateRenderer _mockEmailTemplateRenderer;
         private readonly TestableScheduleEditService _service;
         private readonly ClinicalSchedulerContext _context;
 
@@ -38,13 +39,13 @@ namespace Viper.test.ClinicalScheduler
 
             _context = new ClinicalSchedulerContext(options);
 
-            _mockAuditService = new Mock<IScheduleAuditService>();
-            _mockLogger = new Mock<ILogger<ScheduleEditService>>();
-            _mockEmailService = new Mock<IEmailService>();
-            _mockEmailNotificationOptions = new Mock<IOptions<EmailNotificationSettings>>();
-            _mockPermissionValidator = new Mock<IPermissionValidator>();
-            _mockUserHelper = new Mock<IUserHelper>();
-            _mockEmailTemplateRenderer = new Mock<IEmailTemplateRenderer>();
+            _mockAuditService = Substitute.For<IScheduleAuditService>();
+            _mockLogger = Substitute.For<ILogger<ScheduleEditService>>();
+            _mockEmailService = Substitute.For<IEmailService>();
+            _mockEmailNotificationOptions = Substitute.For<IOptions<EmailNotificationSettings>>();
+            _mockPermissionValidator = Substitute.For<IPermissionValidator>();
+            _mockUserHelper = Substitute.For<IUserHelper>();
+            _mockEmailTemplateRenderer = Substitute.For<IEmailTemplateRenderer>();
 
             // Setup default email notification configuration for tests
             var emailNotificationSettings = new EmailNotificationSettings
@@ -55,44 +56,45 @@ namespace Viper.test.ClinicalScheduler
                     From = "testfrom@ucdavis.edu"
                 }
             };
-            _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
+            _mockEmailNotificationOptions.Value.Returns(emailNotificationSettings);
 
             // Setup email template renderer to return HTML content based on view model
-            _mockEmailTemplateRenderer.Setup(x => x.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
-                It.IsAny<string>(),
-                It.IsAny<PrimaryEvaluatorRemovedViewModel>(),
-                It.IsAny<Dictionary<string, object>?>()))
-                .Returns((string templatePath, PrimaryEvaluatorRemovedViewModel vm, Dictionary<string, object>? viewData) =>
+            _mockEmailTemplateRenderer.RenderAsync<PrimaryEvaluatorRemovedViewModel>(
+                Arg.Any<string>(),
+                Arg.Any<PrimaryEvaluatorRemovedViewModel>(),
+                Arg.Any<Dictionary<string, object>?>())
+                .Returns(callInfo =>
                 {
+                    var vm = callInfo.ArgAt<PrimaryEvaluatorRemovedViewModel>(1);
                     return Task.FromResult($"<html><body><h1>Primary Evaluator Removed</h1>" +
                         $"<p>{vm.InstructorName}</p><p>{vm.RotationName}</p><p>Week {vm.WeekNumber}</p>" +
                         $"<p>{vm.ModifierName}</p></body></html>");
                 });
 
-            _mockGradYearService = new Mock<IGradYearService>();
+            _mockGradYearService = Substitute.For<IGradYearService>();
             // Set up default for grad year service - use current year for testing
             var currentYear = DateTime.Now.Year;
-            _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync())
-                .ReturnsAsync(currentYear);
+            _mockGradYearService.GetCurrentGradYearAsync()
+                .Returns(currentYear);
 
             // Setup email settings
-            var mockEmailSettingsOptions = new Mock<IOptions<EmailSettings>>();
-            mockEmailSettingsOptions.Setup(x => x.Value).Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+            var mockEmailSettingsOptions = Substitute.For<IOptions<EmailSettings>>();
+            mockEmailSettingsOptions.Value.Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
 
             // Setup audit service
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit { ScheduleAuditId = 1 });
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit { ScheduleAuditId = 1 });
 
             _service = new TestableScheduleEditService(
                 _context,
-                _mockAuditService.Object,
-                _mockLogger.Object,
-                _mockEmailService.Object,
-                _mockEmailNotificationOptions.Object,
-                mockEmailSettingsOptions.Object,
-                _mockGradYearService.Object,
-                _mockPermissionValidator.Object,
-                _mockEmailTemplateRenderer.Object);
+                _mockAuditService,
+                _mockLogger,
+                _mockEmailService,
+                _mockEmailNotificationOptions,
+                mockEmailSettingsOptions,
+                _mockGradYearService,
+                _mockPermissionValidator,
+                _mockEmailTemplateRenderer);
         }
 
         private async Task AddTestPersonAsync(string mothraId, string firstName = "Test", string lastName = "User")
@@ -176,15 +178,15 @@ namespace Viper.test.ClinicalScheduler
                 .FirstAsync(s => s.MothraId == mothraId && s.RotationId == rotationId && s.WeekId == weekId);
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Act
             var result = await _service.RemoveInstructorScheduleAsync(savedPrimarySchedule.InstructorScheduleId);
@@ -193,21 +195,21 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify email was sent with correct content (now HTML format)
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Primary Evaluator Removed - Cardiology Rotation - Week 15"),
-                It.Is<string>(body => body.Contains("Primary Evaluator Removed") &&
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test@ucdavis.edu"),
+                Arg.Is<string>(subject => subject == "Primary Evaluator Removed - Cardiology Rotation - Week 15"),
+                Arg.Is<string>(body => body.Contains("Primary Evaluator Removed") &&
                                       body.Contains("Doe, John") &&
                                       body.Contains("Cardiology Rotation") &&
                                       body.Contains("Week 15") &&
                                       body.Contains("</html>")),
-                It.Is<bool>(isHtml => isHtml),
-                It.Is<string>(from => from == "testfrom@ucdavis.edu")
-            ), Times.Once);
+                Arg.Is<bool>(isHtml => isHtml),
+                Arg.Is<string>(from => from == "testfrom@ucdavis.edu")
+            );
 
             // Verify audit logs were created
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId,
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId,
+                user.MothraId, Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -256,18 +258,14 @@ namespace Viper.test.ClinicalScheduler
                 .FirstAsync(s => s.MothraId == "test123" && s.RotationId == rotationId && s.WeekId == 1 && !s.Evaluator);
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
+            _mockUserHelper.GetCurrentUser().Returns(user);
 
-            // Setup permission validator with more specific logging
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user)
-                .Callback<int, string, CancellationToken>((rotId, mothraId, token) =>
-                {
-                    System.Console.WriteLine($"Permission validator called with: rotationId={rotId}, mothraId={mothraId}");
-                });
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            // Setup permission validator
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Debug: Try the same query that RemoveInstructorScheduleAsync uses
             var debugSchedule = await _context.InstructorSchedules
@@ -303,17 +301,17 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify NO email was sent
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Never);
+            await _mockEmailService.DidNotReceive().SendEmailAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
             // Verify removal was still logged
-            _mockAuditService.Verify(x => x.LogInstructorRemovedAsync("test123", 1, 1,
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            await _mockAuditService.Received(1).LogInstructorRemovedAsync("test123", 1, 1,
+                user.MothraId, Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -336,24 +334,24 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Setup email service to throw exception
-            _mockEmailService.Setup(x => x.SendEmailAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()))
-                .ThrowsAsync(new Exception("Email service unavailable"));
+            _mockEmailService.SendEmailAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>())
+                .Throws(new Exception("Email service unavailable"));
 
             // Act
             var result = await _service.RemoveInstructorScheduleAsync(primarySchedule.InstructorScheduleId);
@@ -364,17 +362,17 @@ namespace Viper.test.ClinicalScheduler
             Assert.Null(removedSchedule);
 
             // Verify email was attempted
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Once);
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
             // Verify audit logs were still created
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId,
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId,
+                user.MothraId, Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -441,15 +439,15 @@ namespace Viper.test.ClinicalScheduler
                 .FirstAsync(s => s.MothraId == mothraId && s.RotationId == rotationId && s.WeekId == weekId && s.Evaluator);
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Debug: Check the same query that the service uses
             var debugSchedule = await _context.InstructorSchedules
@@ -481,16 +479,16 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify email was sent with fallback to "Unknown Instructor" format (HTML)
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Primary Evaluator Removed - Internal Medicine - Week 20"),
-                It.Is<string>(body => body.Contains("Unknown Instructor") &&
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test@ucdavis.edu"),
+                Arg.Is<string>(subject => subject == "Primary Evaluator Removed - Internal Medicine - Week 20"),
+                Arg.Is<string>(body => body.Contains("Unknown Instructor") &&
                                       body.Contains("Internal Medicine") &&
                                       body.Contains("Week 20") &&
                                       body.Contains("</html>")), // HTML format with graceful fallback
-                It.Is<bool>(isHtml => isHtml),
-                It.Is<string>(from => from == "testfrom@ucdavis.edu")
-            ), Times.Once);
+                Arg.Is<bool>(isHtml => isHtml),
+                Arg.Is<string>(from => from == "testfrom@ucdavis.edu")
+            );
         }
 
         [Fact]
@@ -514,15 +512,15 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Act
             var result = await _service.RemoveInstructorScheduleAsync(primarySchedule.InstructorScheduleId);
@@ -531,16 +529,16 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify email was sent with weekId as fallback (HTML format)
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Primary Evaluator Removed - Surgery Rotation - Week 99"),
-                It.Is<string>(body => body.Contains("Smith, Jane") &&
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test@ucdavis.edu"),
+                Arg.Is<string>(subject => subject == "Primary Evaluator Removed - Surgery Rotation - Week 99"),
+                Arg.Is<string>(body => body.Contains("Smith, Jane") &&
                                       body.Contains("Surgery Rotation") &&
                                       body.Contains("Week 99") && // Uses weekId as fallback
                                       body.Contains("</html>")),
-                It.Is<bool>(isHtml => isHtml),
-                It.Is<string>(from => from == "testfrom@ucdavis.edu")
-            ), Times.Once);
+                Arg.Is<bool>(isHtml => isHtml),
+                Arg.Is<string>(from => from == "testfrom@ucdavis.edu")
+            );
         }
 
         [Fact]
@@ -560,21 +558,21 @@ namespace Viper.test.ClinicalScheduler
                     From = "test-sender@test.edu"
                 }
             };
-            _mockEmailNotificationOptions.Setup(x => x.Value).Returns(emailNotificationSettings);
-            var mockEmailSettingsOptions = new Mock<IOptions<EmailSettings>>();
-            mockEmailSettingsOptions.Setup(x => x.Value).Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+            _mockEmailNotificationOptions.Value.Returns(emailNotificationSettings);
+            var mockEmailSettingsOptions = Substitute.For<IOptions<EmailSettings>>();
+            mockEmailSettingsOptions.Value.Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
 
             // Create a new service instance with the updated configuration
             var serviceWithMultipleRecipients = new TestableScheduleEditService(
                 _context,
-                _mockAuditService.Object,
-                _mockLogger.Object,
-                _mockEmailService.Object,
-                _mockEmailNotificationOptions.Object,
-                mockEmailSettingsOptions.Object,
-                _mockGradYearService.Object,
-                _mockPermissionValidator.Object,
-                _mockEmailTemplateRenderer.Object);
+                _mockAuditService,
+                _mockLogger,
+                _mockEmailService,
+                _mockEmailNotificationOptions,
+                mockEmailSettingsOptions,
+                _mockGradYearService,
+                _mockPermissionValidator,
+                _mockEmailTemplateRenderer);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
             await AddTestWeekGradYearAsync(weekId, 2025);
@@ -588,15 +586,15 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogInstructorRemovedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Act
             var result = await serviceWithMultipleRecipients.RemoveInstructorScheduleAsync(primarySchedule.InstructorScheduleId);
@@ -605,38 +603,38 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify email was sent to all three recipients
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test-recipient1@test.edu"),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Once);
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test-recipient1@test.edu"),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test-recipient2@test.edu"),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Once);
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test-recipient2@test.edu"),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test-recipient3@test.edu"),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Once);
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test-recipient3@test.edu"),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
             // Verify total of 3 email calls
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Exactly(3));
+            await _mockEmailService.Received(3).SendEmailAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
         }
 
         [Fact]
@@ -675,15 +673,15 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorSetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Act - Set new instructor as primary evaluator (should NOT trigger email for replacement)
             var result = await _service.SetPrimaryEvaluatorAsync(newInstructorSchedule.InstructorScheduleId, true);
@@ -692,19 +690,19 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify NO email was sent for primary evaluator replacement
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Never);
+            await _mockEmailService.DidNotReceive().SendEmailAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
             // Verify audit logs were still created for both unset and set
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekId,
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekId,
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekId,
+                user.MothraId, Arg.Any<CancellationToken>());
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekId,
+                user.MothraId, Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -742,18 +740,18 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogInstructorAddedAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorSetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogInstructorAddedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
+            _mockAuditService.LogPrimaryEvaluatorSetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Act - Add new instructor as primary evaluator (should NOT trigger email for replacement)
             var result = await _service.AddInstructorAsync(newPrimaryMothraId, rotationId, weekIds, testYear, true);
@@ -762,19 +760,19 @@ namespace Viper.test.ClinicalScheduler
             Assert.NotEmpty(result);
 
             // Verify NO email was sent for primary evaluator replacement
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<string>()
-            ), Times.Never);
+            await _mockEmailService.DidNotReceive().SendEmailAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<string>()
+            );
 
             // Verify audit logs were still created
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekIds[0],
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekIds[0],
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorUnsetAsync(oldPrimaryMothraId, rotationId, weekIds[0],
+                user.MothraId, Arg.Any<CancellationToken>());
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorSetAsync(newPrimaryMothraId, rotationId, weekIds[0],
+                user.MothraId, Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -811,12 +809,12 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var user = TestDataBuilder.CreateUser("currentuser");
-            _mockUserHelper.Setup(x => x.GetCurrentUser()).Returns(user);
-            _mockPermissionValidator.Setup(x => x.ValidateEditPermissionAndGetUserAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(user);
-            _mockAuditService.Setup(x => x.LogPrimaryEvaluatorUnsetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ScheduleAudit());
+            _mockUserHelper.GetCurrentUser().Returns(user);
+            _mockPermissionValidator.ValidateEditPermissionAndGetUserAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(user);
+            _mockAuditService.LogPrimaryEvaluatorUnsetAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(new ScheduleAudit());
 
             // Act - Unset primary evaluator (no replacement)
             var result = await _service.SetPrimaryEvaluatorAsync(primarySchedule.InstructorScheduleId, false);
@@ -825,23 +823,23 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.success);
 
             // Verify removal-only email was sent (HTML format, without replacement)
-            _mockEmailService.Verify(x => x.SendEmailAsync(
-                It.Is<string>(to => to == "test@ucdavis.edu"),
-                It.Is<string>(subject => subject == "Primary Evaluator Removed - Neurology Rotation - Week 15"),
-                It.Is<string>(body => body.Contains("Primary Evaluator Removed") &&
+            await _mockEmailService.Received(1).SendEmailAsync(
+                Arg.Is<string>(to => to == "test@ucdavis.edu"),
+                Arg.Is<string>(subject => subject == "Primary Evaluator Removed - Neurology Rotation - Week 15"),
+                Arg.Is<string>(body => body.Contains("Primary Evaluator Removed") &&
                                       body.Contains("Brown, Charlie") &&
                                       body.Contains("Neurology Rotation") &&
                                       body.Contains("Week 15") &&
                                       !body.Contains("Replaced by:") &&
                                       body.Contains("Current User") &&
                                       body.Contains("</html>")),
-                It.Is<bool>(isHtml => isHtml),
-                It.Is<string>(from => from == "testfrom@ucdavis.edu")
-            ), Times.Once);
+                Arg.Is<bool>(isHtml => isHtml),
+                Arg.Is<string>(from => from == "testfrom@ucdavis.edu")
+            );
 
             // Verify audit log was created
-            _mockAuditService.Verify(x => x.LogPrimaryEvaluatorUnsetAsync(primaryMothraId, rotationId, weekId,
-                user.MothraId, It.IsAny<CancellationToken>()), Times.Once);
+            await _mockAuditService.Received(1).LogPrimaryEvaluatorUnsetAsync(primaryMothraId, rotationId, weekId,
+                user.MothraId, Arg.Any<CancellationToken>());
         }
 
         public void Dispose()

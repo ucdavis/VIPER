@@ -1,5 +1,5 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 
 namespace Viper.Areas.Effort.Services;
@@ -7,12 +7,10 @@ namespace Viper.Areas.Effort.Services;
 public class PercentAssignTypeService : IPercentAssignTypeService
 {
     private readonly EffortDbContext _context;
-    private readonly IMapper _mapper;
 
-    public PercentAssignTypeService(EffortDbContext context, IMapper mapper)
+    public PercentAssignTypeService(EffortDbContext context)
     {
         _context = context;
-        _mapper = mapper;
     }
 
     public async Task<List<PercentAssignTypeDto>> GetPercentAssignTypesAsync(bool activeOnly = false, CancellationToken ct = default)
@@ -44,7 +42,7 @@ public class PercentAssignTypeService : IPercentAssignTypeService
 
         return types.Select(t =>
         {
-            var dto = _mapper.Map<PercentAssignTypeDto>(t);
+            var dto = EffortMapper.ToPercentAssignTypeDto(t);
             dto.InstructorCount = instructorCounts.GetValueOrDefault(t.Id, 0);
             return dto;
         }).ToList();
@@ -58,7 +56,7 @@ public class PercentAssignTypeService : IPercentAssignTypeService
 
         if (type == null) return null;
 
-        return _mapper.Map<PercentAssignTypeDto>(type);
+        return EffortMapper.ToPercentAssignTypeDto(type);
     }
 
     public async Task<List<string>> GetPercentAssignTypeClassesAsync(CancellationToken ct = default)

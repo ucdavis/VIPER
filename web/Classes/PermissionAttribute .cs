@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Classes.SQLContext;
@@ -9,75 +9,61 @@ namespace Web.Authorization
 {
     /// <summary>
     /// Use this on classes or methods to require one or more specific permission settings
-    /// Usage: 
-    ///     if you want to list many permisions where only one has to apply use: 
-    ///         [Permission(Allow = "Item1,Item2", Deny = "SomeBadRole")] 
+    /// Usage:
+    ///     if you want to list many permisions where only one has to apply use:
+    ///         [Permission(Allow = "Item1,Item2", Deny = "SomeBadRole")]
     ///     if you want to list many permissions where all must applu use:
-    ///         [Permission(Allow = "Item1")] 
-    ///         [Permission(Allow = "Item2")]          
+    ///         [Permission(Allow = "Item1")]
+    ///         [Permission(Allow = "Item2")]
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
     public class PermissionAttribute : AuthorizeAttribute, IAuthorizationFilter
     {
         public string? Allow { get; set; }
-		public string? Deny { get; set; }
+        public string? Deny { get; set; }
 
         public void OnAuthorization(AuthorizationFilterContext context)
         {
             var user = context.HttpContext.User;
 
-            if (user.Identity != null)
+            if (user.Identity != null
+                && user.Identity.IsAuthenticated
+                && context.HttpContext.RequestServices.GetService(typeof(RAPSContext)) is RAPSContext rapsContext
+                && context.HttpContext.RequestServices.GetService(typeof(AAUDContext)) is AAUDContext aaudContext)
             {
-                if (user.Identity.IsAuthenticated)
+                IUserHelper UserHelper = new UserHelper();
+                AaudUser? aaudUser = UserHelper.GetByLoginId(aaudContext, user.Identity.Name);
+
+                if (aaudUser != null)
                 {
-                    if (context.HttpContext.RequestServices.GetService(typeof(RAPSContext)) is RAPSContext rapsContext 
-                        && context.HttpContext.RequestServices.GetService(typeof(AAUDContext)) is AAUDContext aaudContext)
+                    if (Deny != null)
                     {
-
-                        IUserHelper UserHelper = new UserHelper();
-                        AaudUser? aaudUser = UserHelper.GetByLoginId(aaudContext, user.Identity.Name);
-
-                        if (aaudUser != null)
+                        var denyPolicies = Deny.Split(",").ToList();
+                        foreach (var policy in denyPolicies)
                         {
-
-                            if (Deny != null)
+                            bool found = UserHelper.HasPermission(rapsContext, aaudUser, policy);
+                            if (found)
                             {
-                                var denyPolicies = Deny.Split(",").ToList();
-                                foreach (var policy in denyPolicies)
-                                {
-                                    bool found = UserHelper.HasPermission(rapsContext, aaudUser, policy);
-                                    if (found)
-                                    {
-                                        context.Result = new ForbidResult();
-                                    }
-
-                                }
-
+                                context.Result = new ForbidResult();
                             }
-
-                            if (Allow != null)
-                            {
-                                var allowPolicies = Allow.Split(",").ToList();
-                                foreach (var policy in allowPolicies)
-                                {
-                                    bool authorized = UserHelper.HasPermission(rapsContext, aaudUser, policy);
-                                    if (authorized)
-                                    {
-                                        return;
-                                    }
-
-                                }
-
-                            }
-
-                            context.Result = new ForbidResult();
-
                         }
-
                     }
 
-                }
+                    if (Allow != null)
+                    {
+                        var allowPolicies = Allow.Split(",").ToList();
+                        foreach (var policy in allowPolicies)
+                        {
+                            bool authorized = UserHelper.HasPermission(rapsContext, aaudUser, policy);
+                            if (authorized)
+                            {
+                                return;
+                            }
+                        }
+                    }
 
+                    context.Result = new ForbidResult();
+                }
             }
 
             context.Result = new ForbidResult();

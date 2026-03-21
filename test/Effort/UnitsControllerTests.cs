@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -16,18 +17,18 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class UnitsControllerTests
 {
-    private readonly Mock<IUnitService> _unitServiceMock;
-    private readonly Mock<ILogger<UnitsController>> _loggerMock;
+    private readonly IUnitService _unitServiceMock;
+    private readonly ILogger<UnitsController> _loggerMock;
     private readonly UnitsController _controller;
 
     public UnitsControllerTests()
     {
-        _unitServiceMock = new Mock<IUnitService>();
-        _loggerMock = new Mock<ILogger<UnitsController>>();
+        _unitServiceMock = Substitute.For<IUnitService>();
+        _loggerMock = Substitute.For<ILogger<UnitsController>>();
 
         _controller = new UnitsController(
-            _unitServiceMock.Object,
-            _loggerMock.Object);
+            _unitServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -55,8 +56,7 @@ public sealed class UnitsControllerTests
             new UnitDto { Id = 1, Name = "Unit A", IsActive = true, UsageCount = 0, CanDelete = true },
             new UnitDto { Id = 2, Name = "Unit B", IsActive = false, UsageCount = 5, CanDelete = false }
         };
-        _unitServiceMock.Setup(s => s.GetUnitsAsync(false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(units);
+        _unitServiceMock.GetUnitsAsync(false, Arg.Any<CancellationToken>()).Returns(units);
 
         // Act
         var result = await _controller.GetUnits();
@@ -75,8 +75,7 @@ public sealed class UnitsControllerTests
         {
             new UnitDto { Id = 1, Name = "Active Unit", IsActive = true, UsageCount = 0, CanDelete = true }
         };
-        _unitServiceMock.Setup(s => s.GetUnitsAsync(true, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(units);
+        _unitServiceMock.GetUnitsAsync(true, Arg.Any<CancellationToken>()).Returns(units);
 
         // Act
         var result = await _controller.GetUnits(activeOnly: true);
@@ -85,7 +84,7 @@ public sealed class UnitsControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedUnits = Assert.IsAssignableFrom<IEnumerable<UnitDto>>(okResult.Value);
         Assert.Single(returnedUnits);
-        _unitServiceMock.Verify(s => s.GetUnitsAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        await _unitServiceMock.Received(1).GetUnitsAsync(true, Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -97,8 +96,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var unit = new UnitDto { Id = 1, Name = "Test Unit", IsActive = true, UsageCount = 0, CanDelete = true };
-        _unitServiceMock.Setup(s => s.GetUnitAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(unit);
+        _unitServiceMock.GetUnitAsync(1, Arg.Any<CancellationToken>()).Returns(unit);
 
         // Act
         var result = await _controller.GetUnit(1, CancellationToken.None);
@@ -113,8 +111,7 @@ public sealed class UnitsControllerTests
     public async Task GetUnit_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _unitServiceMock.Setup(s => s.GetUnitAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UnitDto?)null);
+        _unitServiceMock.GetUnitAsync(999, Arg.Any<CancellationToken>()).Returns((UnitDto?)null);
 
         // Act
         var result = await _controller.GetUnit(999, CancellationToken.None);
@@ -133,8 +130,7 @@ public sealed class UnitsControllerTests
         // Arrange
         var request = new CreateUnitRequest { Name = "New Unit" };
         var createdUnit = new UnitDto { Id = 1, Name = "New Unit", IsActive = true, UsageCount = 0, CanDelete = true };
-        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdUnit);
+        _unitServiceMock.CreateUnitAsync(request, Arg.Any<CancellationToken>()).Returns(createdUnit);
 
         // Act
         var result = await _controller.CreateUnit(request, CancellationToken.None);
@@ -151,8 +147,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new CreateUnitRequest { Name = "Existing Unit" };
-        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("A unit with name 'Existing Unit' already exists"));
+        _unitServiceMock.CreateUnitAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("A unit with name 'Existing Unit' already exists"));
 
         // Act
         var result = await _controller.CreateUnit(request, CancellationToken.None);
@@ -167,8 +162,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new CreateUnitRequest { Name = "Race Condition Unit" };
-        _unitServiceMock.Setup(s => s.CreateUnitAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Constraint violation"));
+        _unitServiceMock.CreateUnitAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Constraint violation"));
 
         // Act
         var result = await _controller.CreateUnit(request, CancellationToken.None);
@@ -188,8 +182,7 @@ public sealed class UnitsControllerTests
         // Arrange
         var request = new UpdateUnitRequest { Name = "Updated Unit", IsActive = false };
         var updatedUnit = new UnitDto { Id = 1, Name = "Updated Unit", IsActive = false, UsageCount = 0, CanDelete = true };
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedUnit);
+        _unitServiceMock.UpdateUnitAsync(1, request, Arg.Any<CancellationToken>()).Returns(updatedUnit);
 
         // Act
         var result = await _controller.UpdateUnit(1, request, CancellationToken.None);
@@ -206,8 +199,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Updated Unit", IsActive = true };
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(999, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UnitDto?)null);
+        _unitServiceMock.UpdateUnitAsync(999, request, Arg.Any<CancellationToken>()).Returns((UnitDto?)null);
 
         // Act
         var result = await _controller.UpdateUnit(999, request, CancellationToken.None);
@@ -221,8 +213,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Existing Unit", IsActive = true };
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("A unit with name 'Existing Unit' already exists"));
+        _unitServiceMock.UpdateUnitAsync(1, request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("A unit with name 'Existing Unit' already exists"));
 
         // Act
         var result = await _controller.UpdateUnit(1, request, CancellationToken.None);
@@ -237,8 +228,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Race Condition", IsActive = true };
-        _unitServiceMock.Setup(s => s.UpdateUnitAsync(1, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Constraint violation"));
+        _unitServiceMock.UpdateUnitAsync(1, request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Constraint violation"));
 
         // Act
         var result = await _controller.UpdateUnit(1, request, CancellationToken.None);
@@ -256,8 +246,7 @@ public sealed class UnitsControllerTests
     public async Task DeleteUnit_ReturnsNoContent_OnSuccess()
     {
         // Arrange
-        _unitServiceMock.Setup(s => s.DeleteUnitAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _unitServiceMock.DeleteUnitAsync(1, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.DeleteUnit(1, CancellationToken.None);
@@ -270,8 +259,7 @@ public sealed class UnitsControllerTests
     public async Task DeleteUnit_ReturnsBadRequest_WhenInUse()
     {
         // Arrange
-        _unitServiceMock.Setup(s => s.DeleteUnitAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _unitServiceMock.DeleteUnitAsync(1, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.DeleteUnit(1, CancellationToken.None);
@@ -285,8 +273,7 @@ public sealed class UnitsControllerTests
     public async Task DeleteUnit_ReturnsBadRequest_OnDbUpdateException()
     {
         // Arrange
-        _unitServiceMock.Setup(s => s.DeleteUnitAsync(1, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Foreign key constraint"));
+        _unitServiceMock.DeleteUnitAsync(1, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Foreign key constraint"));
 
         // Act
         var result = await _controller.DeleteUnit(1, CancellationToken.None);
@@ -304,8 +291,7 @@ public sealed class UnitsControllerTests
     public async Task CanDeleteUnit_ReturnsUsageInfo()
     {
         // Arrange
-        _unitServiceMock.Setup(s => s.GetUsageCountAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(5);
+        _unitServiceMock.GetUsageCountAsync(1, Arg.Any<CancellationToken>()).Returns(5);
 
         // Act
         var result = await _controller.CanDeleteUnit(1, CancellationToken.None);
@@ -322,8 +308,7 @@ public sealed class UnitsControllerTests
     public async Task CanDeleteUnit_ReturnsCanDeleteTrue_WhenZeroUsage()
     {
         // Arrange
-        _unitServiceMock.Setup(s => s.GetUsageCountAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
+        _unitServiceMock.GetUsageCountAsync(1, Arg.Any<CancellationToken>()).Returns(0);
 
         // Act
         var result = await _controller.CanDeleteUnit(1, CancellationToken.None);

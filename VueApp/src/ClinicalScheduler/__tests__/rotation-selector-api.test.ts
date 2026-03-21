@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { RotationService } from "../services/rotation-service"
 import { createComponentLogic } from "./rotation-selector-helpers.test"
 
@@ -35,7 +34,7 @@ describe("RotationSelector - Service API", () => {
         const result = await RotationService.getRotations({
             serviceId: null,
             includeService: true,
-        })
+        } as any)
 
         expect(RotationService.getRotations).toHaveBeenCalledWith({
             serviceId: null,
@@ -49,7 +48,7 @@ describe("RotationSelector - Service API", () => {
         const result = await RotationService.getRotationsWithScheduledWeeks({
             year: 2024,
             includeService: true,
-        })
+        } as any)
 
         expect(RotationService.getRotationsWithScheduledWeeks).toHaveBeenCalledWith({
             year: 2024,
@@ -69,7 +68,7 @@ describe("RotationSelector - Service API", () => {
         const result = await RotationService.getRotations({
             serviceId: null,
             includeService: true,
-        })
+        } as any)
 
         expect(result.success).toBeFalsy()
         expect(result.errors).toContain("Failed to fetch rotations")
@@ -82,7 +81,7 @@ describe("RotationSelector - Service API", () => {
             RotationService.getRotations({
                 serviceId: null,
                 includeService: true,
-            }),
+            } as any),
         ).rejects.toThrow("Network error")
     })
 })

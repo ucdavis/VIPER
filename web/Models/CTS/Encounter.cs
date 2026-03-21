@@ -1,4 +1,3 @@
-﻿using Viper.Areas.CTS.Models;
 using Viper.Models.VIPER;
 
 namespace Viper.Models.CTS
@@ -11,7 +10,7 @@ namespace Viper.Models.CTS
         public DateTime EncounterDate { get; set; }
         public DateTime EnteredOn { get; set; }
         public int EnteredBy { get; set; }
-        public int? RoleId {  get; set; }
+        public int? RoleId { get; set; }
         public int? OfferingId { get; set; }
         public int? ServiceId { get; set; }
         public int? PatientId { get; set; }

@@ -1,4 +1,4 @@
-﻿using Viper.Classes;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.CMS.Services
@@ -23,7 +23,7 @@ namespace Viper.Areas.CMS.Services
             {
                 nav.Add(new NavMenuItem() { MenuItemText = "Manage Link Collections", MenuItemURL = "ManageLinkCollections" });
             }
-            
+
             return new NavMenu("Content Management System", nav);
         }
     }

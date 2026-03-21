@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Models.ClinicalScheduler;
 
@@ -12,17 +12,17 @@ namespace Viper.test.ClinicalScheduler.Integration
     /// </summary>
     public class PermissionServiceIntegrationTest : IntegrationTestBase
     {
-        private readonly Mock<ILogger<SchedulePermissionService>> _mockLogger;
+        private readonly ILogger<SchedulePermissionService> _mockLogger;
         private readonly SchedulePermissionService _permissionService;
 
         public PermissionServiceIntegrationTest()
         {
-            _mockLogger = new Mock<ILogger<SchedulePermissionService>>();
+            _mockLogger = Substitute.For<ILogger<SchedulePermissionService>>();
             _permissionService = new SchedulePermissionService(
                 Context,
                 RapsContext,
-                _mockLogger.Object,
-                MockUserHelper.Object
+                _mockLogger,
+                MockUserHelper
             );
         }
 

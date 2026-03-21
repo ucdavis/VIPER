@@ -3,6 +3,7 @@ import eslint from "@eslint/js"
 import security from "eslint-plugin-security"
 import html from "eslint-plugin-html"
 
+// oxlint-disable-next-line import/no-default-export, import/no-anonymous-default-export -- ESLint flat config requires default export
 export default [
     // Global ignores
     {

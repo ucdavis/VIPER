@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -22,7 +22,7 @@ namespace Viper.test.ClinicalScheduler
         {
             return new ServiceCollection()
                 .AddSingleton(context)
-                .AddSingleton<RAPSContext>(new Mock<RAPSContext>().Object)
+                .AddSingleton(Substitute.For<RAPSContext>())
                 .BuildServiceProvider();
         }
 

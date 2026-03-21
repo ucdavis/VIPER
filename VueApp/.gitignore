@@ -30,3 +30,4 @@ bundle-stats.html
 *.sw?
 
 *.tsbuildinfo
+.eslintcache

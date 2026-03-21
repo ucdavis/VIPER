@@ -1,4 +1,3 @@
-﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
@@ -14,12 +13,10 @@ namespace Viper.Areas.CTS.Controllers
     public class LegacyCompetenciesController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
 
-        public LegacyCompetenciesController(VIPERContext context, IMapper mapper)
+        public LegacyCompetenciesController(VIPERContext context)
         {
             this.context = context;
-            this.mapper = mapper;
         }
 
         [HttpGet]
@@ -30,7 +27,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenInclude(e => e.Competency)
                 .ToListAsync();
 
-            return mapper.Map<List<LegacyCompetencyDto>>(legacyComps);
+            return CtsMapper.ToLegacyCompetencyDtos(legacyComps);
         }
 
         [HttpGet("session/{sessionId}")]
@@ -70,7 +67,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 if (sessionCompetency.DvmCompetencyId != null && lastComp != sessionCompetency.DvmCompetencyId || lastRole != sessionCompetency.DvmRoleId)
                 {
-                    current = mapper.Map<LegacySessionCompetencyDto>(sessionCompetency);
+                    current = CtsMapper.ToLegacySessionCompetencyDto(sessionCompetency);
                     lscs.Add(current);
                     lastComp = (int)sessionCompetency.DvmCompetencyId!;
                     lastRole = sessionCompetency.DvmRoleId;
@@ -96,7 +93,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(l => l.PaceOrder)
                 .ThenBy(l => l.SessionCompetencyOrder)
                 .ToListAsync();
-            return mapper.Map<List<LegacySessionCompetencyDto>>(comps);
+            return CtsMapper.ToLegacySessionCompetencyDtos(comps);
         }
     }
 }

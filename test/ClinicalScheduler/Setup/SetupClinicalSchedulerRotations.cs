@@ -1,5 +1,5 @@
-using MockQueryable.Moq;
-using Moq;
+using MockQueryable.NSubstitute;
+using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 
@@ -66,8 +66,8 @@ namespace Viper.test.ClinicalScheduler.Setup
 
         private static List<WeekGradYear> GetTestWeekGradYearsInternal()
         {
-            var baseDate = new DateTime(TestYear, 6, 1);
-            var prevYearBaseDate = new DateTime(TestYear - 1, 6, 1);
+            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Local);
+            var prevYearBaseDate = new DateTime(TestYear - 1, 6, 1, 0, 0, 0, DateTimeKind.Local);
 
             return new List<WeekGradYear>
             {
@@ -141,28 +141,28 @@ namespace Viper.test.ClinicalScheduler.Setup
         /// <summary>
         /// Sets up the Rotations DbSet mock with test data
         /// </summary>
-        public static void SetupRotationsTable(Mock<ClinicalSchedulerContext> mockContext)
+        public static void SetupRotationsTable(ClinicalSchedulerContext mockContext)
         {
-            var mockDbSet = TestRotations.AsQueryable().BuildMockDbSet();
-            mockContext.Setup(c => c.Rotations).Returns(mockDbSet.Object);
+            var mockDbSet = TestRotations.BuildMockDbSet();
+            mockContext.Rotations.Returns(mockDbSet);
         }
 
         /// <summary>
         /// Sets up the Rotations DbSet mock with custom test data
         /// </summary>
-        public static void SetupRotationsTable(Mock<ClinicalSchedulerContext> mockContext, List<Rotation> customRotations)
+        public static void SetupRotationsTable(ClinicalSchedulerContext mockContext, List<Rotation> customRotations)
         {
-            var mockDbSet = customRotations.AsQueryable().BuildMockDbSet();
-            mockContext.Setup(c => c.Rotations).Returns(mockDbSet.Object);
+            var mockDbSet = customRotations.BuildMockDbSet();
+            mockContext.Rotations.Returns(mockDbSet);
         }
 
         /// <summary>
         /// Sets up the WeekGradYears DbSet mock with test data
         /// </summary>
-        public static void SetupWeekGradYearsTable(Mock<ClinicalSchedulerContext> mockContext)
+        public static void SetupWeekGradYearsTable(ClinicalSchedulerContext mockContext)
         {
-            var mockDbSet = TestWeekGradYears.AsQueryable().BuildMockDbSet();
-            mockContext.Setup(c => c.WeekGradYears).Returns(mockDbSet.Object);
+            var mockDbSet = TestWeekGradYears.BuildMockDbSet();
+            mockContext.WeekGradYears.Returns(mockDbSet);
         }
 
         /// <summary>

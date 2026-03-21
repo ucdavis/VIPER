@@ -157,7 +157,10 @@
                     @click="updateRecord"
                 >
                     <template #loading>
-                        <q-spinner size="1em" class="q-mr-sm" />
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
                         Save
                     </template>
                 </q-btn>

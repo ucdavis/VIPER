@@ -286,7 +286,7 @@ describe("InstructorService — departments and job groups", () => {
 
             await instructorService.getJobGroups(TEST_TERM_CODE, "VME")
 
-            const calledUrl = mockGet.mock.calls[0][0] as string
+            const calledUrl = mockGet.mock.calls[0]![0] as string
             expect(calledUrl).toContain("termCode=202410")
             expect(calledUrl).toContain("department=VME")
         })

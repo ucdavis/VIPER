@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
@@ -10,8 +10,8 @@ namespace Viper.test.ClinicalScheduler
     public class PersonServiceTest : IDisposable
     {
         private readonly ClinicalSchedulerContext _context;
-        private readonly Mock<AAUDContext> _mockAaudContext;
-        private readonly Mock<ILogger<PersonService>> _mockLogger;
+        private readonly AAUDContext _mockAaudContext;
+        private readonly ILogger<PersonService> _mockLogger;
         private readonly PersonService _personService;
 
         public PersonServiceTest()
@@ -22,9 +22,9 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
             _context = new ClinicalSchedulerContext(options);
 
-            _mockAaudContext = new Mock<AAUDContext>();
-            _mockLogger = new Mock<ILogger<PersonService>>();
-            _personService = new PersonService(_mockLogger.Object, _context, _mockAaudContext.Object);
+            _mockAaudContext = Substitute.For<AAUDContext>();
+            _mockLogger = Substitute.For<ILogger<PersonService>>();
+            _personService = new PersonService(_mockLogger, _context, _mockAaudContext);
 
             // Seed test data
             SeedTestData();

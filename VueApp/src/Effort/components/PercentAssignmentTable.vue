@@ -57,9 +57,7 @@
             >
                 <q-card-section class="q-py-sm">
                     <div class="row items-center justify-between q-mb-xs">
-                        <span class="text-weight-bold"
-                            >{{ formatTypeWithModifier(pct.typeName, pct.modifier) }}</span
-                        >
+                        <span class="text-weight-bold">{{ formatTypeWithModifier(pct.typeName, pct.modifier) }}</span>
                         <div v-if="canEdit">
                             <q-btn
                                 flat

@@ -15,6 +15,7 @@ interface Rotation {
 interface Service {
     serviceId: number
     serviceName: string
+    shortName?: string
     scheduleEditPermission?: string | null
     userCanEdit?: boolean | null
 }

@@ -36,7 +36,7 @@ async function getEpas() {
     if (serviceId.value) {
         const r = await get(baseUrl + "epas?serviceId=" + serviceId.value)
         epas.value = r.result
-        if (epas.value.length == 1) {
+        if (epas.value.length === 1) {
             epa.value = epas.value[0] ?? defaultEpa
         }
     }
@@ -50,11 +50,11 @@ async function submitEpa() {
     commentValidationMessage.value = ""
     submitErrors.value = false
 
-    if (studentEpa.value.comment == undefined || studentEpa.value.comment.length < 5) {
+    if (studentEpa.value.comment === undefined || studentEpa.value.comment.length < 5) {
         commentValidationMessage.value =
             "Please describe what the student should keep doing and how they can improve performance."
         submitErrors.value = true
-    } else if (studentEpa.value.levelId == undefined) {
+    } else if (studentEpa.value.levelId === undefined) {
         submitErrors.value = true
     } else {
         const { post } = useFetch()

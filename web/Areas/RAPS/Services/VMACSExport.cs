@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -12,7 +12,7 @@ namespace Viper.Areas.RAPS.Services
     {
         private readonly Classes.SQLContext.RAPSContext _RAPSContext;
 
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
         private readonly bool _onProduction;
         private readonly string _credentials;
         private static readonly F5HttpRequest _f5HttpRequest = new();
@@ -32,7 +32,6 @@ namespace Viper.Areas.RAPS.Services
 
         public VMACSExport(RAPSContext RAPSContext)
         {
-            //_HttpRequest = new F5HttpRequest();
             _RAPSContext = RAPSContext;
             UserHelper = new UserHelper();
 
@@ -65,12 +64,9 @@ namespace Viper.Areas.RAPS.Services
         {
             _ = mothraId ?? UserHelper.GetCurrentUser()?.MothraId;
             List<string> messages = new();
-            foreach (string instance in instances.Split(","))
+            foreach (string instance in instances.Split(",").Where(i => !string.IsNullOrEmpty(i)))
             {
-                if (!string.IsNullOrEmpty(instance))
-                {
-                    await ExportToVMACS(instance: instance, loginId: loginid, roleIds: roleIds, messages: messages, debugOnly: debugOnly);
-                }
+                await ExportToVMACS(instance: instance, loginId: loginid, roleIds: roleIds, messages: messages, debugOnly: debugOnly);
             }
             return messages;
         }
@@ -165,7 +161,7 @@ namespace Viper.Areas.RAPS.Services
                 vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
                 if (vmacsResponse == null)
                 {
-                    throw new Exception();
+                    throw new InvalidOperationException("Failed to deserialize VMACS response.");
                 }
                 else
                 {
@@ -255,11 +251,12 @@ namespace Viper.Areas.RAPS.Services
                 {
                     continue;
                 }
-                string accessCodes = "";
+                var accessCodesBuilder = new StringBuilder();
                 foreach (var rolePermission in permission.TblRolePermissions)
                 {
-                    accessCodes += rolePermission.Role.AccessCode;
+                    accessCodesBuilder.Append(rolePermission.Role.AccessCode);
                 }
+                string accessCodes = accessCodesBuilder.ToString();
 
                 var accessCodeArray = accessCodes.ToArray();
                 Array.Sort(accessCodeArray);
@@ -313,7 +310,7 @@ namespace Viper.Areas.RAPS.Services
                     lastUser = user.LoginId;
                 }
 
-                exportUsers.Last().AccessCodes += user.AccessCode;
+                exportUsers[^1].AccessCodes += user.AccessCode;
             }
 
             //alpha sort the access codes
@@ -344,7 +341,7 @@ namespace Viper.Areas.RAPS.Services
             HttpHelper.Logger.Log(NLog.LogLevel.Debug, message);
         }
 
-        private class UserList
+        private sealed class UserList
         {
             public required string LoginId { get; set; }
             public required string MothraId { get; set; }

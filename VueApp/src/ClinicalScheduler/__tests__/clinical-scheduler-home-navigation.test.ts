@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { usePermissionsStore } from "../stores/permissions"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import { setupTest, createTestWrapper, spyOnRouterPush, createMockPermissionsStore } from "./test-utils"
@@ -25,7 +24,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Click Navigation", () => {
@@ -63,7 +62,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             // Find the clinician card (second view card)
             const viewCards = wrapper.findAll(".view-card-custom")
             const [, clinicianCard] = viewCards
-            await clinicianCard.trigger("click")
+            await clinicianCard!.trigger("click")
 
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/clinician")
         })
@@ -178,7 +177,7 @@ describe("ClinicalSchedulerHome - Navigation", () => {
             await rotationCard.trigger("click")
 
             // Verify the call was made with correct parameters
-            expect(routerPush).toHaveBeenCalledTimes(1)
+            expect(routerPush).toHaveBeenCalledOnce()
             expect(routerPush).toHaveBeenCalledWith("/ClinicalScheduler/rotation")
         })
 

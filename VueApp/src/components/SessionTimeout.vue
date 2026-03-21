@@ -21,9 +21,13 @@ let sessionTimeoutCheckEventId = 0
 const sessionReloaded = ref(false)
 
 async function checkSessionTimeout() {
-	if (userStore.userInfo.loginId === undefined || userStore.userInfo.loginId === null || userStore.userInfo.loginId.length === 0) {
-		return //don't check the session if the user is not logged in
-	}
+    if (
+        userStore.userInfo.loginId === undefined ||
+        userStore.userInfo.loginId === null ||
+        userStore.userInfo.loginId.length === 0
+    ) {
+        return //don't check the session if the user is not logged in
+    }
     //try to get the session timeout from an external application
     try {
         fetch(sessionRefreshUrl)
@@ -86,7 +90,6 @@ sessionTimeoutCheckEventId = window.setTimeout(checkSessionTimeout, 60000)
         full-width
         v-model="showSessionTimeoutWarning"
         seamless
-        v-cloak
     >
         <q-card :class="'q-mx-lg ' + (sessionExpired ? 'bg-red-1' : 'bg-grey-2')">
             <q-card-section class="row items-center no-wrap">

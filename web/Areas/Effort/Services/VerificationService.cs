@@ -1,9 +1,9 @@
 using System.Text.Json;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.EmailTemplates.Models;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
@@ -26,7 +26,6 @@ public class VerificationService : IVerificationService
     private readonly ITermService _termService;
     private readonly IEmailService _emailService;
     private readonly ICourseClassificationService _classificationService;
-    private readonly IMapper _mapper;
     private readonly ILogger<VerificationService> _logger;
     private readonly EffortSettings _settings;
     private readonly EmailSettings _emailSettings;
@@ -40,7 +39,6 @@ public class VerificationService : IVerificationService
         ITermService termService,
         IEmailService emailService,
         ICourseClassificationService classificationService,
-        IMapper mapper,
         ILogger<VerificationService> logger,
         IOptions<EffortSettings> settings,
         IOptions<EmailSettings> emailSettings,
@@ -53,7 +51,6 @@ public class VerificationService : IVerificationService
         _termService = termService;
         _emailService = emailService;
         _classificationService = classificationService;
-        _mapper = mapper;
         _logger = logger;
         _settings = settings.Value;
         _emailSettings = emailSettings.Value;
@@ -90,7 +87,7 @@ public class VerificationService : IVerificationService
             .ThenBy(r => r.Course.SeqNumb)
             .ToListAsync(ct);
 
-        var recordDtos = _mapper.Map<List<InstructorEffortRecordDto>>(records);
+        var recordDtos = EffortMapper.ToInstructorEffortRecordDtos(records);
 
         // Enrich course DTOs with classification flags (not available from entity mapping)
         foreach (var course in recordDtos.Select(record => record.Course))
@@ -130,7 +127,7 @@ public class VerificationService : IVerificationService
 
         return new MyEffortDto
         {
-            Instructor = _mapper.Map<PersonDto>(instructor),
+            Instructor = EffortMapper.ToPersonDto(instructor),
             EffortRecords = recordDtos,
             CrossListedCourses = childCourses.Values.SelectMany(c => c).ToList(),
             HasZeroEffort = !hasNoZeroEffort,

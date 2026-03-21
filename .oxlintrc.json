@@ -40,12 +40,7 @@
         "no-magic-numbers": [
             "warn",
             {
-                "ignore": [
-                    -1,
-                    0,
-                    1,
-                    2
-                ], // Universal programming constants
+                "ignore": [-1, 0, 1, 2], // Universal programming constants
                 "ignoreArrayIndexes": true, // array[0] is self-documenting
                 "ignoreEnums": true // Enum values are often self-documenting sequences
             }
@@ -68,11 +63,19 @@
         "unicorn/catch-error-name": [
             "warn",
             {
-                "ignore": [
-                    "^(err|error)$"
-                ]
+                "ignore": ["^(err|error)$"]
             }
-        ]
+        ],
+        "import/no-relative-parent-imports": "off", // Standard practice in Vue/TS - stores, services, composables all import from parent dirs
+        "no-use-before-define": [
+            "error",
+            {
+                "functions": false,
+                "classes": false
+            }
+        ], // Function/class hoisting is fine in JS/TS
+        "no-inline-comments": "off", // Inline comments are more readable next to the code they explain
+        "max-statements": "off" // Redundant with max-lines-per-function (100 lines)
     },
     "overrides": [
         {
@@ -82,6 +85,7 @@
                 "no-console": "off",
                 "no-void": "off",
                 "import/no-commonjs": "off",
+                "import/no-nodejs-modules": "off",
                 "import/unambiguous": "off",
                 "import/no-default-export": "off",
                 "unicorn/prefer-module": "off",
@@ -100,6 +104,7 @@
                 "no-console": "off",
                 "no-magic-numbers": "off",
                 "import/max-dependencies": "off",
+                "import/unambiguous": "off", // Vitest always runs test files as modules
                 "max-lines-per-function": [
                     "warn",
                     {
@@ -111,7 +116,9 @@
                     {
                         "max": 500
                     }
-                ]
+                ],
+                "vitest/prefer-called-times": "off", // Conflicts with prefer-called-once; toHaveBeenCalledOnce() is more readable
+                "vitest/prefer-import-in-mock": "off" // import() form in vi.mock causes TS errors with partial class mocks
             }
         },
         {
@@ -121,17 +128,15 @@
             }
         },
         {
-            "files": [
-                "VueApp/**/*.config.*",
-                "VueApp/vite-watch.js"
-            ],
+            "files": ["VueApp/**/*.config.*", "VueApp/vite-watch.js"],
             "rules": {
                 "import/no-default-export": "off", // Config files often require default exports
                 "no-console": "off",
                 "import/max-dependencies": "off", // Build scripts may need multiple dependencies
                 "max-lines-per-function": "off", // Build scripts may have longer functions
                 "promise/prefer-await-to-callbacks": "off", // Callback pattern needed for tree-kill integration
-                "import/unambiguous": "off" // Node.js scripts don't need module indicators
+                "import/unambiguous": "off", // Node.js scripts don't need module indicators
+                "import/no-nodejs-modules": "off" // Config files run in Node, not the browser
             }
         },
         {
@@ -142,15 +147,28 @@
             }
         },
         {
+            "files": [
+                "VueApp/src/main.ts",
+                "VueApp/src/**/computing.ts",
+                "VueApp/src/**/students.ts",
+                "VueApp/src/**/cms.ts",
+                "VueApp/src/**/cts.ts",
+                "VueApp/src/**/effort.ts",
+                "VueApp/src/**/clinicalscheduler.ts",
+                "VueApp/src/**/cahfs.ts"
+            ],
+            "rules": {
+                "import/no-unassigned-import": "off" // CSS imports are side-effect only (they apply styles without exports)
+            }
+        },
+        {
             "files": ["**/stores/**/*", "**/store/**/*"],
             "rules": {
                 "import/max-dependencies": "off" // Store files naturally coordinate between many modules and services
             }
         },
         {
-            "files": [
-                "**/*.d.ts"
-            ],
+            "files": ["**/*.d.ts"],
             "rules": {
                 "import/unambiguous": "off" // TypeScript declaration files are ambient, not modules
             }
@@ -172,14 +190,34 @@
                 "VueApp/src/composables/ViperFetch.ts",
                 "VueApp/src/composables/RequireLogin.ts",
                 "VueApp/src/composables/QuasarConfig.ts",
+                "VueApp/src/composables/QuasarTableUtilities.ts",
                 "VueApp/src/composables/ErrorHandler.ts",
+                "VueApp/src/composables/DateFunctions.ts",
+                "VueApp/src/composables/CheckPagePermission.ts",
+                "VueApp/src/store/ErrorStore.ts",
                 "VueApp/src/store/UserStore.ts"
             ],
             "rules": {
                 "unicorn/filename-case": "off" // Legacy core files - keep PascalCase naming for backwards compatibility
             }
+        },
+        {
+            "files": ["web/wwwroot/js/**"],
+            "rules": {
+                "no-unused-vars": "off", // Functions are called from Razor views via <script> tags
+                "import/unambiguous": "off" // These are <script> tag files, not ES modules
+            }
         }
     ],
-    "ignore": ["node_modules/**", "bin/**", "obj/**", "dist/**", "wwwroot/**", "*.min.js", "*.bundle.js", "**/*.vue"],
-    "allowWarningErrors": false
+    "ignorePatterns": [
+        "node_modules/**",
+        "bin/**",
+        "obj/**",
+        "dist/**",
+        "web/wwwroot/vue/**",
+        "web/wwwroot/lib/**",
+        "*.min.js",
+        "*.bundle.js",
+        "**/*.vue"
+    ]
 }

@@ -1,12 +1,10 @@
-﻿using Viper.Classes;
+using Viper.Classes;
 using Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.CTS;
 using Viper.Areas.CTS.Models;
-using System.DirectoryServices.ActiveDirectory;
-using AutoMapper;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -15,12 +13,10 @@ namespace Viper.Areas.CTS.Controllers
     public class CompetencyController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
 
-        public CompetencyController(VIPERContext context, IMapper mapper)
+        public CompetencyController(VIPERContext context)
         {
             this.context = context;
-            this.mapper = mapper;
         }
 
         [HttpGet]
@@ -71,7 +67,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(c => c.Order)
                 .ToListAsync();
             var compHierarchy = new List<CompetencyHierarchyDto>();
-            var allCompDtos = mapper.Map<List<CompetencyHierarchyDto>>(comps);
+            var allCompDtos = CtsMapper.ToCompetencyHierarchyDtos(comps);
             foreach (var comp in allCompDtos)
             {
                 if (comp.ParentId == null)
@@ -80,10 +76,10 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 else
                 {
-                    var parent = allCompDtos.Where(c => c.CompetencyId == comp.ParentId).FirstOrDefault();
+                    var parent = allCompDtos.FirstOrDefault(c => c.CompetencyId == comp.ParentId);
                     if (parent != null)
                     {
-                        parent.Children.Append(comp);
+                        ((List<CompetencyHierarchyDto>)parent.Children).Add(comp);
                     }
                 }
             }

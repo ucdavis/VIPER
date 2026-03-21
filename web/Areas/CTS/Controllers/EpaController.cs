@@ -1,4 +1,4 @@
-﻿using Ganss.Xss;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
@@ -31,7 +31,7 @@ namespace Viper.Areas.CTS.Controllers
                 .OrderBy(e => e.Name)
                 .Select(e => new Models.Epa(e))
                 .ToListAsync();
-            
+
             epas.ForEach(e =>
             {
                 e.Description = e.Description != null ? sanitizer.Sanitize(e.Description) : null;
@@ -130,16 +130,13 @@ namespace Viper.Areas.CTS.Controllers
             bool modified = removed > 0;
 
             //look for services to add
-            foreach (var serviceId in serviceIds)
+            foreach (var serviceId in serviceIds.Where(id => epa.Services.Find(e => e.ServiceId == id) == null))
             {
-                if (epa.Services.Find(e => e.ServiceId == serviceId) == null)
+                var s = await context.Services.FindAsync(serviceId);
+                if (s != null)
                 {
-                    var s = await context.Services.FindAsync(serviceId);
-                    if (s != null)
-                    {
-                        epa.Services.Add(s);
-                        modified = true;
-                    }
+                    epa.Services.Add(s);
+                    modified = true;
                 }
             }
 

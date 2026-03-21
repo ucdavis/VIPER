@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -25,12 +25,12 @@ public sealed class HarvestServiceTests : IDisposable
     private readonly CrestContext _crestContext;
     private readonly AAUDContext _aaudContext;
     private readonly DictionaryContext _dictionaryContext;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<ITermService> _termServiceMock;
-    private readonly Mock<IInstructorService> _instructorServiceMock;
-    private readonly Mock<IRCourseService> _rCourseServiceMock;
-    private readonly Mock<IClinicalImportService> _clinicalImportServiceMock;
-    private readonly Mock<ILogger<HarvestService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly ITermService _termServiceMock;
+    private readonly IInstructorService _instructorServiceMock;
+    private readonly IRCourseService _rCourseServiceMock;
+    private readonly IClinicalImportService _clinicalImportServiceMock;
+    private readonly ILogger<HarvestService> _loggerMock;
     private readonly HarvestService _harvestService;
 
     private const int TestTermCode = 202410;
@@ -74,49 +74,39 @@ public sealed class HarvestServiceTests : IDisposable
         _aaudContext = new AAUDContext(aaudOptions);
         _dictionaryContext = new DictionaryContext(dictionaryOptions);
 
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _termServiceMock = new Mock<ITermService>();
-        _instructorServiceMock = new Mock<IInstructorService>();
-        _rCourseServiceMock = new Mock<IRCourseService>();
-        _loggerMock = new Mock<ILogger<HarvestService>>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _termServiceMock = Substitute.For<ITermService>();
+        _instructorServiceMock = Substitute.For<IInstructorService>();
+        _rCourseServiceMock = Substitute.For<IRCourseService>();
+        _loggerMock = Substitute.For<ILogger<HarvestService>>();
 
         // Setup default term service behavior
         _termServiceMock
-            .Setup(s => s.GetTermName(It.IsAny<int>()))
-            .Returns((int tc) => $"Term {tc}");
+            .GetTermName(Arg.Any<int>()).Returns(ci => $"Term {ci.Arg<int>()}");
 
         // Setup default instructor service behavior
         _instructorServiceMock
-            .Setup(s => s.ResolveInstructorDepartmentAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("VET");
+            .ResolveInstructorDepartmentAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns("VET");
 
         _instructorServiceMock
-            .Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Viper.Areas.Effort.Models.DTOs.Responses.TitleCodeDto>());
-
+            .GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<Viper.Areas.Effort.Models.DTOs.Responses.TitleCodeDto>());
         _instructorServiceMock
-            .Setup(s => s.GetDepartmentSimpleNameLookupAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, string>());
-
+            .GetDepartmentSimpleNameLookupAsync(Arg.Any<CancellationToken>()).Returns(new Dictionary<string, string>());
         // Setup audit service mock for harvest operations
         _auditServiceMock
-            .Setup(s => s.ClearAuditForTermAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ClearAuditForTermAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         // Create harvest phases (ClinicalHarvestPhase needs IClinicalImportService for delegation)
-        _clinicalImportServiceMock = new Mock<IClinicalImportService>();
+        _clinicalImportServiceMock = Substitute.For<IClinicalImportService>();
         _clinicalImportServiceMock
-            .Setup(s => s.ExecuteImportAsync(It.IsAny<int>(), It.IsAny<ClinicalImportMode>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ClinicalImportResultDto { Success = true });
+            .ExecuteImportAsync(Arg.Any<int>(), Arg.Any<ClinicalImportMode>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new ClinicalImportResultDto { Success = true });
         _clinicalImportServiceMock
-            .Setup(s => s.GetExistingClinicalRecordKeysAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new HashSet<string>());
-
+            .GetExistingClinicalRecordKeysAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new HashSet<string>());
         var phases = new List<IHarvestPhase>
         {
             new CrestHarvestPhase(),
             new NonCrestHarvestPhase(),
-            new ClinicalHarvestPhase(_clinicalImportServiceMock.Object)
+            new ClinicalHarvestPhase(_clinicalImportServiceMock)
         };
 
         _harvestService = new HarvestService(
@@ -127,12 +117,12 @@ public sealed class HarvestServiceTests : IDisposable
             _crestContext,
             _aaudContext,
             _dictionaryContext,
-            _auditServiceMock.Object,
-            _termServiceMock.Object,
-            _instructorServiceMock.Object,
-            _rCourseServiceMock.Object,
-            _clinicalImportServiceMock.Object,
-            _loggerMock.Object);
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            _loggerMock);
     }
 
     public void Dispose()
@@ -217,7 +207,7 @@ public sealed class HarvestServiceTests : IDisposable
 
         // Assert
         Assert.Equal($"Term {TestTermCode}", result.TermName);
-        _termServiceMock.Verify(s => s.GetTermName(TestTermCode), Times.Once);
+        _termServiceMock.Received(1).GetTermName(TestTermCode);
     }
 
     #endregion
@@ -317,12 +307,8 @@ public sealed class HarvestServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        _auditServiceMock.Verify(
-            s => s.AddTermChangeAudit(TestTermCode, It.IsAny<string>(), It.IsAny<object>(), It.IsAny<object>()),
-            Times.Once);
-        _auditServiceMock.Verify(
-            s => s.AddImportAudit(TestTermCode, It.IsAny<string>(), It.IsAny<string>()),
-            Times.Once);
+        _auditServiceMock.Received(1).AddTermChangeAudit(TestTermCode, Arg.Any<string>(), Arg.Any<object>(), Arg.Any<object>());
+        _auditServiceMock.Received(1).AddImportAudit(TestTermCode, Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -718,12 +704,12 @@ public sealed class HarvestServiceTests : IDisposable
         Assert.True(result.Success);
 
         // RCourseService should NOT be called (no eligible instructors)
-        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<RCourseCreationContext>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<RCourseCreationContext>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -753,12 +739,12 @@ public sealed class HarvestServiceTests : IDisposable
             _crestContext,
             _aaudContext,
             _dictionaryContext,
-            _auditServiceMock.Object,
-            _termServiceMock.Object,
-            _instructorServiceMock.Object,
-            _rCourseServiceMock.Object,
-            _clinicalImportServiceMock.Object,
-            _loggerMock.Object);
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            _loggerMock);
 
         // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
         var result = await harvestServiceWithTestPhase.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
@@ -767,12 +753,12 @@ public sealed class HarvestServiceTests : IDisposable
         Assert.True(result.Success);
 
         // RCourseService should be called for the eligible instructor
-        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+        await _rCourseServiceMock.Received(1).CreateRCourseEffortRecordAsync(
             100,
             TestTermCode,
             123,
             RCourseCreationContext.Harvest,
-            It.IsAny<CancellationToken>()), Times.Once);
+            Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -788,12 +774,12 @@ public sealed class HarvestServiceTests : IDisposable
             _crestContext,
             _aaudContext,
             _dictionaryContext,
-            _auditServiceMock.Object,
-            _termServiceMock.Object,
-            _instructorServiceMock.Object,
-            _rCourseServiceMock.Object,
-            _clinicalImportServiceMock.Object,
-            _loggerMock.Object);
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            _loggerMock);
     }
 
     /// <summary>

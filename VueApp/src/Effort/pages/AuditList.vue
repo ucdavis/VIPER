@@ -828,7 +828,7 @@ watch(
     },
 )
 
-onMounted(async () => {
+async function initPage() {
     const paramTermCode = route.params.termCode
     const q = route.query
     const parsedTermCode = paramTermCode
@@ -915,7 +915,9 @@ onMounted(async () => {
     } finally {
         isInitializing.value = false
     }
-})
+}
+
+onMounted(() => initPage())
 </script>
 
 <style scoped>

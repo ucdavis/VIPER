@@ -1,4 +1,4 @@
-﻿using Viper.Classes.SQLContext;
+using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.CTS.Services
 {
@@ -6,7 +6,7 @@ namespace Viper.Areas.CTS.Services
     {
         private readonly RAPSContext rapsContext;
         private readonly VIPERContext viperContext;
-        public IUserHelper userHelper;
+        public IUserHelper userHelper { get; private set; }
 
         private const string ManagerPermission = "SVMSecure.CTS.Manage";
         private const string AssessmentsViewPermission = "SVMSecure.CTS.ViewAllStudentAssessments";
@@ -69,9 +69,9 @@ namespace Viper.Areas.CTS.Services
             DateTime editCutoff = enteredDate.AddMinutes(MinutesToEditEPA);
             return userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), ManagerPermission)
                 || (
-                        userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission) 
-                    &&  enteredBy == userHelper.GetCurrentUser()?.AaudUserId
-                    &&  DateTime.Compare(DateTime.Now, editCutoff) < 1
+                        userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), AssessClinicalPermission)
+                    && enteredBy == userHelper.GetCurrentUser()?.AaudUserId
+                    && DateTime.Compare(DateTime.Now, editCutoff) < 1
                     );
         }
     }

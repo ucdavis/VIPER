@@ -1,12 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Net.Mail;
-using System.Reflection;
-using System.Net.Http;
-using System.Linq;
 using System.Text.Json;
-using System.Text;
-using System.Net;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace Viper.Classes.Utilities
 {
@@ -23,7 +15,7 @@ namespace Viper.Classes.Utilities
         private static readonly HttpClient _httpClient = new();
 
         public async Task<HttpResponseMessage> Send(HttpRequestMessage request, int attemptNumber = 0)
-        {  
+        {
             HttpResponseMessage? response;
             try
             {
@@ -35,11 +27,11 @@ namespace Viper.Classes.Utilities
             }
 
             //Did I get nothing? Return a generic error.
-            if(response == null)
+            if (response == null)
             {
                 return GetErrorResponse();
             }
-            
+
             return response;
         }
 
@@ -54,7 +46,7 @@ namespace Viper.Classes.Utilities
                     RequestUri = request.RequestUri,
                     Method = HttpMethod.Get
                 };
-                
+
                 //don't care about the response
                 await Send(newRequest);
                 return await Send(await CopyHttpRequest(request), 1);

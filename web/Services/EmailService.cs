@@ -253,16 +253,26 @@ namespace Viper.Services
 
         private string GetRequestContext()
         {
-            var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext == null) return "Background";
+            try
+            {
+                var httpContext = _httpContextAccessor.HttpContext;
+                if (httpContext == null) return "Background";
 
-            var routeData = httpContext.GetRouteData();
-            if (routeData == null) return "NonRouted";
+                var routeValues = httpContext.Request.RouteValues;
+                if (routeValues == null || routeValues.Count == 0) return "NonRouted";
 
-            var area = routeData.Values["area"]?.ToString();
-            var controller = routeData.Values["controller"]?.ToString();
+                var area = routeValues["area"]?.ToString();
+                var controller = routeValues["controller"]?.ToString();
 
-            return area != null ? $"{area}/{controller}" : controller ?? "Unknown";
+                var sanitizedArea = area != null ? LogSanitizer.SanitizeString(area) : null;
+                var sanitizedController = controller != null ? LogSanitizer.SanitizeString(controller) : null;
+
+                return sanitizedArea != null ? $"{sanitizedArea}/{sanitizedController}" : sanitizedController ?? "Unknown";
+            }
+            catch
+            {
+                return "Unknown";
+            }
         }
 
         private string? GetCurrentUserEmail()

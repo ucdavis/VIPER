@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Models.AAUD;
 
 namespace Viper.Views.Shared.Components.LeftNav
@@ -12,7 +12,7 @@ namespace Viper.Views.Shared.Components.LeftNav
 
         public async Task<IViewComponentResult> InvokeAsync(AaudUser user, int nav)
         {
-            
+
 
 
             return await Task.Run(() => View("Default", user));

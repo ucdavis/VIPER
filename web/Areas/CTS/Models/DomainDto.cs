@@ -1,4 +1,4 @@
-﻿using Viper.Models.CTS;
+using Viper.Models.CTS;
 
 namespace Viper.Areas.CTS.Models
 {

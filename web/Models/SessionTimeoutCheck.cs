@@ -1,4 +1,4 @@
-﻿namespace Viper.Models
+namespace Viper.Models
 {
     public class SessionTimeoutCheck
     {

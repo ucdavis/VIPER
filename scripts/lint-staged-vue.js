@@ -74,12 +74,9 @@ function parseESLintOutput(stdout, stderr) {
 /**
  * Handle TypeScript errors with filtering and logging
  * @param {Object} appResult - TypeScript command result
- * @param {string[]} rawFiles - Raw file paths being linted
- * @param {string} projectRoot - Project root directory
- * @param {Object} logger - Logger instance
  * @returns {boolean} - Whether type errors were found
  */
-function handleTypeScriptErrors(appResult, rawFiles, projectRoot, logger) {
+function handleTypeScriptErrors(appResult) {
     // Filter the TypeScript errors to only show those related to the files being linted
     const combinedOutput = appResult.stdout + appResult.stderr
     const filteredOutput = filterTypeScriptErrors(combinedOutput, rawFiles, projectRoot)
@@ -99,11 +96,11 @@ try {
 
     logger.info(`Running ESLint security and quality checks on ${files.length} files...`)
 
-    let allIssues = []
+    const allIssues = []
 
     // Separate Vue files from JS/TS files
     const vueFiles = files.filter((f) => f.endsWith(".vue"))
-    const jstsFiles = files.filter((f) => /\.(js|jsx|ts|tsx|mjs)$/.test(f))
+    const jstsFilesInner = files.filter((f) => /\.(js|jsx|ts|tsx|mjs)$/.test(f))
 
     // Run ESLint for Vue files
     if (vueFiles.length > 0) {
@@ -111,6 +108,11 @@ try {
         const relativeVueFiles = vueFiles.map((f) => path.relative(vueAppDir, path.resolve(projectRoot, f)))
         const vueEslintArgs = [
             ...(fixFlag ? ["--fix"] : []),
+            "--cache",
+            "--cache-strategy",
+            "content",
+            "--cache-location",
+            ".eslintcache",
             "--format",
             "json",
             "--no-warn-ignored",
@@ -136,16 +138,21 @@ try {
     }
 
     // Handle JS/TS files as backup (with warning)
-    if (jstsFiles.length > 0) {
-        logger.warning(`\nProcessing ${jstsFiles.length} JS/TS files with ESLint as fallback...`)
+    if (jstsFilesInner.length > 0) {
+        logger.warning(`\nProcessing ${jstsFilesInner.length} JS/TS files with ESLint as fallback...`)
         logger.warning("💡 For better performance, use Oxlint instead:")
         logger.warning("   npm run lint <files>  (auto-routes to Oxlint)")
         logger.warning("   OR: node scripts/lint-staged-ts.js <files>\n")
 
-        logger.plain(`Checking ${jstsFiles.length} JS/TS files with ESLint fallback...`)
-        const relativeJSTSFiles = jstsFiles.map((f) => path.relative(vueAppDir, path.resolve(projectRoot, f)))
+        logger.plain(`Checking ${jstsFilesInner.length} JS/TS files with ESLint fallback...`)
+        const relativeJSTSFiles = jstsFilesInner.map((f) => path.relative(vueAppDir, path.resolve(projectRoot, f)))
         const eslintArgs = [
             ...(fixFlag ? ["--fix"] : []),
+            "--cache",
+            "--cache-strategy",
+            "content",
+            "--cache-location",
+            ".eslintcache",
             "--config",
             "../eslint.config.mjs",
             "--format",
@@ -205,7 +212,7 @@ try {
                 vueAppDir,
             )
             if (!appResult.success) {
-                hasTypeErrors = handleTypeScriptErrors(appResult, rawFiles, projectRoot, logger)
+                hasTypeErrors = handleTypeScriptErrors(appResult)
             }
         }
 

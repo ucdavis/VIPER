@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using Viper.Models.AAUD;
 using Viper.Services;
 
@@ -14,19 +14,19 @@ namespace Viper.test.Services;
 /// </summary>
 public class EmailServiceTests
 {
-    private readonly Mock<ILogger<EmailService>> _loggerMock;
-    private readonly Mock<IHostEnvironment> _hostEnvironmentMock;
-    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
-    private readonly Mock<IUserHelper> _userHelperMock;
+    private readonly ILogger<EmailService> _loggerMock;
+    private readonly IHostEnvironment _hostEnvironmentMock;
+    private readonly IHttpContextAccessor _httpContextAccessorMock;
+    private readonly IUserHelper _userHelperMock;
 
     public EmailServiceTests()
     {
-        _loggerMock = new Mock<ILogger<EmailService>>();
-        _hostEnvironmentMock = new Mock<IHostEnvironment>();
-        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
-        _userHelperMock = new Mock<IUserHelper>();
+        _loggerMock = Substitute.For<ILogger<EmailService>>();
+        _hostEnvironmentMock = Substitute.For<IHostEnvironment>();
+        _httpContextAccessorMock = Substitute.For<IHttpContextAccessor>();
+        _userHelperMock = Substitute.For<IUserHelper>();
 
-        _hostEnvironmentMock.Setup(h => h.EnvironmentName).Returns("Development");
+        _hostEnvironmentMock.EnvironmentName.Returns("Development");
     }
 
     private EmailService CreateService(EmailSettings? settings = null)
@@ -41,10 +41,10 @@ public class EmailServiceTests
 
         return new EmailService(
             Options.Create(settings),
-            _loggerMock.Object,
-            _hostEnvironmentMock.Object,
-            _httpContextAccessorMock.Object,
-            _userHelperMock.Object);
+            _loggerMock,
+            _hostEnvironmentMock,
+            _httpContextAccessorMock,
+            _userHelperMock);
     }
 
     [Fact]
@@ -122,14 +122,14 @@ public class EmailServiceTests
             UseMailpit = true,
             RedirectToCurrentUser = true
         };
-        _userHelperMock.Setup(u => u.GetCurrentUser()).Returns((AaudUser?)null);
+        _userHelperMock.GetCurrentUser().Returns((AaudUser?)null);
         var service = CreateService(settings);
 
         // Act - should not throw, email is silently suppressed
         await service.SendEmailAsync("recipient@example.com", "Subject", "<p>Body</p>");
 
         // Assert - verify GetCurrentUser was called
-        _userHelperMock.Verify(u => u.GetCurrentUser(), Times.Once);
+        _userHelperMock.Received(1).GetCurrentUser();
     }
 
     [Fact]
@@ -144,14 +144,14 @@ public class EmailServiceTests
             RedirectToCurrentUser = true
         };
         var currentUser = new AaudUser { MailId = "testuser@ucdavis.edu" };
-        _userHelperMock.Setup(u => u.GetCurrentUser()).Returns(currentUser);
+        _userHelperMock.GetCurrentUser().Returns(currentUser);
         var service = CreateService(settings);
 
         // Act - In dev mode with Mailpit unavailable, connection failures are silently skipped
         await service.SendEmailAsync("original@example.com", "Test Subject", "<p>Body</p>");
 
         // Assert - verify redirect happened (GetCurrentUser was called)
-        _userHelperMock.Verify(u => u.GetCurrentUser(), Times.Once);
+        _userHelperMock.Received(1).GetCurrentUser();
     }
 
     [Fact]
@@ -167,14 +167,14 @@ public class EmailServiceTests
         };
         // MailId without @domain - should append @ucdavis.edu
         var currentUser = new AaudUser { MailId = "testuser" };
-        _userHelperMock.Setup(u => u.GetCurrentUser()).Returns(currentUser);
+        _userHelperMock.GetCurrentUser().Returns(currentUser);
         var service = CreateService(settings);
 
         // Act - In dev mode with Mailpit unavailable, connection failures are silently skipped
         await service.SendEmailAsync("original@example.com", "Test Subject", "<p>Body</p>");
 
         // Assert - verify GetCurrentUser was called (email would be testuser@ucdavis.edu)
-        _userHelperMock.Verify(u => u.GetCurrentUser(), Times.Once);
+        _userHelperMock.Received(1).GetCurrentUser();
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class EmailServiceTests
         await service.SendEmailAsync("recipient@example.com", "Subject", "<p>Body</p>");
 
         // Assert - GetCurrentUser should NOT be called when redirect is disabled
-        _userHelperMock.Verify(u => u.GetCurrentUser(), Times.Never);
+        _userHelperMock.DidNotReceive().GetCurrentUser();
     }
 
     [Fact]
@@ -208,13 +208,13 @@ public class EmailServiceTests
             UseMailpit = false,
             RedirectToCurrentUser = true
         };
-        _userHelperMock.Setup(u => u.GetCurrentUser()).Returns((AaudUser?)null);
+        _userHelperMock.GetCurrentUser().Returns((AaudUser?)null);
         var service = CreateService(settings);
 
         // Act - no exception should be thrown; email is suppressed before SMTP attempt
         await service.SendEmailAsync("recipient@example.com", "Subject", "<p>Body</p>");
 
         // Assert - GetCurrentUser was called (redirect logic was exercised)
-        _userHelperMock.Verify(u => u.GetCurrentUser(), Times.Once);
+        _userHelperMock.Received(1).GetCurrentUser();
     }
 }

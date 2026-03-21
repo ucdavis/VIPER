@@ -12,6 +12,7 @@ namespace Viper.Controllers
     public class LayoutController : ApiController
     {
         private readonly RAPSContext _context;
+        private readonly VIPERContext _viperContext;
 
         private readonly List<string[]> links = new()
         {
@@ -37,9 +38,10 @@ namespace Viper.Controllers
             new string[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
         };
 
-        public LayoutController(RAPSContext context)
+        public LayoutController(RAPSContext context, VIPERContext viperContext)
         {
             _context = context;
+            _viperContext = viperContext;
         }
 
         [HttpGet("topnav")]
@@ -100,7 +102,7 @@ namespace Viper.Controllers
             }
             if (menu == null)
             {
-                menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: nav)?.FirstOrDefault();
+                menu = new LeftNavMenu(_viperContext, _context).GetLeftNavMenus(friendlyName: nav)?.FirstOrDefault();
                 if (menu != null)
                 {
                     ConvertNavLinksForDevelopment(menu);

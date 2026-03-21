@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.RAPS.Models.Uinform
+namespace Viper.Areas.RAPS.Models.Uinform
 {
     public class UinformResponse<T>
     {

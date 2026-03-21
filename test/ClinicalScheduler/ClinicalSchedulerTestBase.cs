@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using MockQueryable.Moq;
-using Moq;
+using MockQueryable.NSubstitute;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
@@ -41,10 +41,10 @@ namespace Viper.test.ClinicalScheduler
         public static readonly int TestTermCode = TestYear * 100 + 1;
 
         // Shared test infrastructure
-        protected readonly Mock<ClinicalSchedulerContext> MockContext;
+        protected readonly ClinicalSchedulerContext MockContext;
         protected readonly ClinicalSchedulerContext Context; // For compatibility with existing tests
-        protected readonly Mock<RAPSContext> MockRapsContext;
-        protected readonly Mock<IUserHelper> MockUserHelper;
+        protected readonly RAPSContext MockRapsContext;
+        protected readonly IUserHelper MockUserHelper;
 
         protected ClinicalSchedulerTestBase()
         {
@@ -52,10 +52,10 @@ namespace Viper.test.ClinicalScheduler
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
-            MockContext = new Mock<ClinicalSchedulerContext>(options);
-            Context = MockContext.Object; // Provide the mock object for compatibility
-            MockRapsContext = new Mock<RAPSContext>();
-            MockUserHelper = new Mock<IUserHelper>();
+            MockContext = Substitute.For<ClinicalSchedulerContext>(options);
+            Context = MockContext; // Provide the substitute directly for compatibility
+            MockRapsContext = Substitute.For<RAPSContext>();
+            MockUserHelper = Substitute.For<IUserHelper>();
             SetupMockDbSets();
         }
 
@@ -76,7 +76,7 @@ namespace Viper.test.ClinicalScheduler
 
         private void SetupWeeks()
         {
-            var baseDate = new DateTime(TestYear, 6, 1);
+            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Local);
 
             var weeks = new List<Week>
             {
@@ -117,8 +117,8 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
 
-            var mockDbSet = weeks.AsQueryable().BuildMockDbSet();
-            MockContext.Setup(c => c.Weeks).Returns(mockDbSet.Object);
+            var mockDbSet = weeks.BuildMockDbSet();
+            MockContext.Weeks.Returns(mockDbSet);
         }
 
         /// <summary>
@@ -146,8 +146,8 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
 
-            var mockDbSet = instructorSchedules.AsQueryable().BuildMockDbSet();
-            MockContext.Setup(c => c.InstructorSchedules).Returns(mockDbSet.Object);
+            var mockDbSet = instructorSchedules.BuildMockDbSet();
+            MockContext.InstructorSchedules.Returns(mockDbSet);
         }
 
         /// <summary>
@@ -163,8 +163,8 @@ namespace Viper.test.ClinicalScheduler
                 CreateEmergencyMedicineService()
             };
 
-            var mockDbSet = services.AsQueryable().BuildMockDbSet();
-            MockContext.Setup(c => c.Services).Returns(mockDbSet.Object);
+            var mockDbSet = services.BuildMockDbSet();
+            MockContext.Services.Returns(mockDbSet);
         }
 
         /// <summary>
@@ -174,8 +174,8 @@ namespace Viper.test.ClinicalScheduler
         {
             var scheduleAudits = new List<ScheduleAudit>();
 
-            var mockDbSet = scheduleAudits.AsQueryable().BuildMockDbSet();
-            MockContext.Setup(c => c.ScheduleAudits).Returns(mockDbSet.Object);
+            var mockDbSet = scheduleAudits.BuildMockDbSet();
+            MockContext.ScheduleAudits.Returns(mockDbSet);
         }
 
         /// <summary>
@@ -195,8 +195,8 @@ namespace Viper.test.ClinicalScheduler
         {
             var testUser = CreateTestUser();
             testUser.MothraId = userMothraId;
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
-            MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, ClinicalSchedulePermissions.Manage))
+            MockUserHelper.GetCurrentUser().Returns(testUser);
+            MockUserHelper.HasPermission(MockRapsContext, testUser, ClinicalSchedulePermissions.Manage)
                 .Returns(hasPermission);
         }
 
@@ -207,18 +207,18 @@ namespace Viper.test.ClinicalScheduler
         {
             var testUser = CreateTestUser();
             testUser.MothraId = userMothraId;
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
+            MockUserHelper.GetCurrentUser().Returns(testUser);
 
             // User doesn't have manage permission
-            MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, ClinicalSchedulePermissions.Manage))
+            MockUserHelper.HasPermission(MockRapsContext, testUser, ClinicalSchedulePermissions.Manage)
                 .Returns(false);
 
             // User has permission for Cardiology only
-            MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, CardiologyEditPermission))
+            MockUserHelper.HasPermission(MockRapsContext, testUser, CardiologyEditPermission)
                 .Returns(true);
 
             // Default to false for any other permissions
-            MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, It.Is<string>(p => p != CardiologyEditPermission && p != ClinicalSchedulePermissions.Manage)))
+            MockUserHelper.HasPermission(MockRapsContext, testUser, Arg.Is<string>(p => p != CardiologyEditPermission && p != ClinicalSchedulePermissions.Manage))
                 .Returns(false);
         }
 
@@ -227,7 +227,7 @@ namespace Viper.test.ClinicalScheduler
         /// </summary>
         protected void SetupNullUser()
         {
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+            MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
         }
 
         /// <summary>
@@ -239,22 +239,22 @@ namespace Viper.test.ClinicalScheduler
         {
             if (userMothraId == null)
             {
-                MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+                MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
                 return;
             }
 
             var testUser = CreateTestUser();
             testUser.MothraId = userMothraId;
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
+            MockUserHelper.GetCurrentUser().Returns(testUser);
 
             // Default all permissions to false
-            MockUserHelper.Setup(x => x.HasPermission(It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), It.IsAny<string>()))
+            MockUserHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
                 .Returns(false);
 
             // Set up the specific permissions to return true
             foreach (var permission in permissions)
             {
-                MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, permission))
+                MockUserHelper.HasPermission(MockRapsContext, testUser, permission)
                     .Returns(true);
             }
         }
