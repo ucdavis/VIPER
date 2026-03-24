@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { useEffortPermissions, EffortPermissions } from "../composables/use-effort-permissions"
 import { useUserStore } from "@/store/UserStore"
 
-describe("useEffortPermissions", () => {
+describe("useEffortPermissions composable", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         vi.clearAllMocks()

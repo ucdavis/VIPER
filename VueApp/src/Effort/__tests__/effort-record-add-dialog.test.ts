@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest"
 import type { EffortTypeOptionDto } from "../types"
-import { filterEffortTypesByCourse, type CourseClassification } from "../utils/effort-type-filters"
+import type { CourseClassification } from "../utils/effort-type-filters"
+import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
 
 /**
  * Tests for effort type filtering (shared by both add-effort dialogs)
@@ -79,16 +79,24 @@ function validateEffortValue(val: number | null): string | true {
  * Checks if the form is valid for submission.
  * Extracted from EffortRecordAddDialog.vue isFormValid computed.
  */
-function isFormValid(
-    selectedCourse: number | null,
-    selectedEffortType: string | null,
-    selectedRole: number | null,
-    effortValue: number | null,
-): boolean {
+function isFormValid(fields: {
+    selectedCourse: number | null
+    selectedEffortType: string | null
+    selectedRole: number | null
+    effortValue: number | null
+}): boolean {
     const isValidEffortValue =
-        effortValue !== null && Number.isFinite(effortValue) && Number.isInteger(effortValue) && effortValue > 0
+        fields.effortValue !== null &&
+        Number.isFinite(fields.effortValue) &&
+        Number.isInteger(fields.effortValue) &&
+        fields.effortValue > 0
 
-    return selectedCourse !== null && selectedEffortType !== null && selectedRole !== null && isValidEffortValue
+    return (
+        fields.selectedCourse !== null &&
+        fields.selectedEffortType !== null &&
+        fields.selectedRole !== null &&
+        isValidEffortValue
+    )
 }
 
 describe("Effort Type Filtering (shared by both add-effort dialogs)", () => {
@@ -357,35 +365,53 @@ describe("EffortRecordAddDialog - Effort Value Validation", () => {
 
 describe("EffortRecordAddDialog - Form Validation", () => {
     it("returns false when course is not selected", () => {
-        expect(isFormValid(null, "LEC", 1, 10)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: null, selectedEffortType: "LEC", selectedRole: 1, effortValue: 10 }),
+        ).toBeFalsy()
     })
 
     it("returns false when effort type is not selected", () => {
-        expect(isFormValid(1, null, 1, 10)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: null, selectedRole: 1, effortValue: 10 }),
+        ).toBeFalsy()
     })
 
     it("returns false when role is not selected", () => {
-        expect(isFormValid(1, "LEC", null, 10)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: "LEC", selectedRole: null, effortValue: 10 }),
+        ).toBeFalsy()
     })
 
     it("returns false when effort value is null", () => {
-        expect(isFormValid(1, "LEC", 1, null)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: "LEC", selectedRole: 1, effortValue: null }),
+        ).toBeFalsy()
     })
 
     it("returns false when effort value is zero", () => {
-        expect(isFormValid(1, "LEC", 1, 0)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: "LEC", selectedRole: 1, effortValue: 0 }),
+        ).toBeFalsy()
     })
 
     it("returns false when effort value is negative", () => {
-        expect(isFormValid(1, "LEC", 1, -5)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: "LEC", selectedRole: 1, effortValue: -5 }),
+        ).toBeFalsy()
     })
 
     it("returns false when effort value is not an integer", () => {
-        expect(isFormValid(1, "LEC", 1, 10.5)).toBeFalsy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: "LEC", selectedRole: 1, effortValue: 10.5 }),
+        ).toBeFalsy()
     })
 
     it("returns true when all fields are valid", () => {
-        expect(isFormValid(1, "LEC", 1, 10)).toBeTruthy()
-        expect(isFormValid(2, "CLI", 2, 1)).toBeTruthy()
+        expect(
+            isFormValid({ selectedCourse: 1, selectedEffortType: "LEC", selectedRole: 1, effortValue: 10 }),
+        ).toBeTruthy()
+        expect(
+            isFormValid({ selectedCourse: 2, selectedEffortType: "CLI", selectedRole: 2, effortValue: 1 }),
+        ).toBeTruthy()
     })
 })

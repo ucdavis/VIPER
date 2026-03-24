@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest"
 import { ref } from "vue"
 import { useEffortTypeColumns, ALWAYS_SHOW } from "../composables/use-effort-type-columns"
 
-describe("useEffortTypeColumns", () => {
+// oxlint-disable-next-line eslint/max-lines-per-function -- Test suite groups related composable tests
+describe("useEffortTypeColumns composable", () => {
     describe("effortColumns", () => {
         it("generates columns from effort type list", () => {
             const effortTypes = ref(["CLI", "LEC", "LAB"])
@@ -30,7 +30,7 @@ describe("useEffortTypeColumns", () => {
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
             expect(effortColumns.value[0]!.align).toBe("right")
-            expect(effortColumns.value[0]!.sortable).toBe(false)
+            expect(effortColumns.value[0]!.sortable).toBeFalsy()
         })
 
         it("returns empty array when no effort types", () => {
@@ -60,8 +60,8 @@ describe("useEffortTypeColumns", () => {
             const lecField = effortColumns.value[0]!.field
             const cliField = effortColumns.value[1]!.field
 
-            // field is a function that extracts the value from the row
-            expect(typeof lecField).toBe("function")
+            // Field is a function that extracts the value from the row
+            expect(lecField).toBeTypeOf("function")
             expect((lecField as (row: Record<string, unknown>) => number)(row)).toBe(30)
             expect((cliField as (row: Record<string, unknown>) => number)(row)).toBe(10)
         })
@@ -228,7 +228,7 @@ describe("useEffortTypeColumns", () => {
 
             const labels = effortColumns.value.map((c) => c.label)
             // ALWAYS_SHOW types come first (11), then FLD, SEM (alphabetical)
-            const exmIdx = labels.indexOf("EXM") // last ALWAYS_SHOW
+            const exmIdx = labels.indexOf("EXM") // Last ALWAYS_SHOW
             const fldIdx = labels.indexOf("FLD")
             const semIdx = labels.indexOf("SEM")
             expect(fldIdx).toBeGreaterThan(exmIdx)
@@ -269,11 +269,11 @@ describe("useEffortTypeColumns", () => {
             // Should have all ALWAYS_SHOW columns
             expect(effortColumns.value.length).toBeGreaterThanOrEqual(ALWAYS_SHOW.length)
 
-            // format should show "0" for zero
+            // Format should show "0" for zero
             const formatFn = effortColumns.value[0]!.format!
             expect(formatFn(0, null as never)).toBe("0")
 
-            // getTotalValue should show "0" for zero
+            // GetTotalValue should show "0" for zero
             expect(getTotalValue({}, "CLI")).toBe("0")
         })
     })

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { dashboardService } from "../services/dashboard-service"
 
 /**
  * Tests for Dashboard service.
@@ -17,13 +17,9 @@ vi.mock("@/composables/ViperFetch", () => ({
     }),
 }))
 
-// Import service after mocking
-import { dashboardService } from "../services/dashboard-service"
-
-// Test data - term codes use YYYYXX format (no numeric separators)
-// oxlint-disable-next-line unicorn/numeric-separators-style
 const TEST_TERM_CODE = 202410
 
+// oxlint-disable-next-line eslint/max-lines-per-function -- Test suite groups related service tests
 describe("DashboardService", () => {
     beforeEach(() => {
         vi.clearAllMocks()
@@ -240,7 +236,7 @@ describe("DashboardService", () => {
             const result = await dashboardService.getStats(TEST_TERM_CODE)
 
             expect(result).not.toBeNull()
-            expect(result!.hasAuditAccess).toBe(true)
+            expect(result!.hasAuditAccess).toBeTruthy()
         })
 
         it("should pass through hasAuditAccess=false from API response", async () => {
@@ -255,7 +251,7 @@ describe("DashboardService", () => {
             const result = await dashboardService.getStats(TEST_TERM_CODE)
 
             expect(result).not.toBeNull()
-            expect(result!.hasAuditAccess).toBe(false)
+            expect(result!.hasAuditAccess).toBeFalsy()
         })
     })
 
@@ -264,10 +260,10 @@ describe("DashboardService", () => {
             // Simulate the loadDashboard pattern from StaffDashboard.vue
             const statsWithAccess = { hasAuditAccess: true }
             mockGet
-                .mockResolvedValueOnce({ success: true, result: statsWithAccess }) // getStats
-                .mockResolvedValueOnce({ success: true, result: [] }) // getDepartmentVerification
-                .mockResolvedValueOnce({ success: true, result: [] }) // getAllAlerts
-                .mockResolvedValueOnce({ success: true, result: [] }) // getRecentChanges
+                .mockResolvedValueOnce({ success: true, result: statsWithAccess }) // GetStats
+                .mockResolvedValueOnce({ success: true, result: [] }) // GetDepartmentVerification
+                .mockResolvedValueOnce({ success: true, result: [] }) // GetAllAlerts
+                .mockResolvedValueOnce({ success: true, result: [] }) // GetRecentChanges
 
             // Replicate loadDashboard logic
             const [statsData] = await Promise.all([
@@ -289,9 +285,9 @@ describe("DashboardService", () => {
         it("should skip getRecentChanges when hasAuditAccess is false", async () => {
             const statsNoAccess = { hasAuditAccess: false }
             mockGet
-                .mockResolvedValueOnce({ success: true, result: statsNoAccess }) // getStats
-                .mockResolvedValueOnce({ success: true, result: [] }) // getDepartmentVerification
-                .mockResolvedValueOnce({ success: true, result: [] }) // getAllAlerts
+                .mockResolvedValueOnce({ success: true, result: statsNoAccess }) // GetStats
+                .mockResolvedValueOnce({ success: true, result: [] }) // GetDepartmentVerification
+                .mockResolvedValueOnce({ success: true, result: [] }) // GetAllAlerts
 
             const [statsData] = await Promise.all([
                 dashboardService.getStats(TEST_TERM_CODE),

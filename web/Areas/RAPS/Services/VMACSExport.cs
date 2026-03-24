@@ -289,11 +289,17 @@ namespace Viper.Areas.RAPS.Services
             }
 
             string lastUser = "";
+            var accessCodesBuilder = new StringBuilder();
             foreach (var user in users)
             {
                 //loop over multiple records for each user, each row containing a different role
                 if (lastUser != user.LoginId)
                 {
+                    if (exportUsers.Count > 0)
+                    {
+                        exportUsers[^1].AccessCodes = accessCodesBuilder.ToString();
+                    }
+                    accessCodesBuilder.Clear();
                     string permissionIdList = permissionsByMemberId.ContainsKey(user.MothraId.Trim())
                         ? permissionsByMemberId[user.MothraId.Trim()]
                         : "";
@@ -310,7 +316,11 @@ namespace Viper.Areas.RAPS.Services
                     lastUser = user.LoginId;
                 }
 
-                exportUsers[^1].AccessCodes += user.AccessCode;
+                accessCodesBuilder.Append(user.AccessCode);
+            }
+            if (exportUsers.Count > 0)
+            {
+                exportUsers[^1].AccessCodes = accessCodesBuilder.ToString();
             }
 
             //alpha sort the access codes

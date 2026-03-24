@@ -59,7 +59,7 @@ export function useReportUrlParams() {
 
         // When a single term is selected, preserve the termCode in the path.
         // When academic year is selected, clear the path termCode so the left nav
-        // doesn't display a stale single-term value.
+        // Doesn't display a stale single-term value.
         const termCode = params.academicYear
             ? undefined
             : params.termCode?.toString() || (route.params.termCode as string) || undefined

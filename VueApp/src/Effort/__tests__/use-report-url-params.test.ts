@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { useReportUrlParams } from "../composables/use-report-url-params"
 
 const mockRoute = {
     query: {} as Record<string, string>,
@@ -11,9 +11,7 @@ vi.mock("vue-router", () => ({
     useRouter: () => ({ replace: mockReplace }),
 }))
 
-import { useReportUrlParams } from "../composables/use-report-url-params"
-
-describe("useReportUrlParams", () => {
+describe("useReportUrlParams composable", () => {
     beforeEach(() => {
         mockRoute.query = {}
         mockRoute.params = {}

@@ -207,7 +207,12 @@ function parseArguments() {
     const knownFlags = new Set(["--fix"])
     const args = process.argv.slice(2)
     const fixFlag = args.includes("--fix")
-    const rawFiles = args.filter((a) => !knownFlags.has(a) && !a.startsWith("--"))
+
+    // Support --files-from=<path> to avoid Windows ENAMETOOLONG
+    const filesFromArg = args.find((a) => a.startsWith("--files-from="))
+    const rawFiles = filesFromArg
+        ? fs.readFileSync(filesFromArg.slice("--files-from=".length), "utf8").split("\n").filter(Boolean)
+        : args.filter((a) => !knownFlags.has(a) && !a.startsWith("--"))
 
     return { fixFlag, rawFiles }
 }
@@ -429,7 +434,7 @@ function filterTypeScriptErrors(tscOutput, targetFiles, projectRoot) {
         } else {
             // Keep non-error lines (like summary messages) if we have any relevant errors
             // Or if this might be a continuation of an error message
-            const hasRelevantErrors = filteredLines.some((line) => line.includes("error TS"))
+            const hasRelevantErrors = filteredLines.some((l) => l.includes("error TS"))
             if (hasRelevantErrors || line.trim() === "" || line.includes("Found ")) {
                 filteredLines.push(line)
             }
