@@ -17,6 +17,9 @@ import type {
 
 const { get, put } = useFetch()
 
+/** Delay before revoking a blob URL opened in a new tab */
+const BLOB_REVOKE_DELAY_MS = 1000
+
 /**
  * Service for report API calls.
  */
@@ -228,7 +231,7 @@ class ReportService {
         }
         const url = globalThis.URL.createObjectURL(blob)
         globalThis.open(url, "_blank", "noopener")
-        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
+        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), BLOB_REVOKE_DELAY_MS)
         return true
     }
 
@@ -290,7 +293,7 @@ class ReportService {
         }
         const url = globalThis.URL.createObjectURL(blob)
         globalThis.open(url, "_blank", "noopener")
-        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
+        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), BLOB_REVOKE_DELAY_MS)
         return true
     }
 

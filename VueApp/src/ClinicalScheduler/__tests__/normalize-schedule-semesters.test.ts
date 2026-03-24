@@ -3,6 +3,7 @@ import type { ScheduleSemester } from "../components/ScheduleView.vue"
 
 describe(normalizeScheduleSemesters, () => {
     it("should return empty array when input is undefined", () => {
+        // oxlint-disable-next-line unicorn/no-useless-undefined -- Explicitly testing undefined input
         const result = normalizeScheduleSemesters(undefined)
         expect(result).toEqual([])
     })

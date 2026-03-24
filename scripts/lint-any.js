@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
 const { spawn, spawnSync } = require("node:child_process")
 
 const { env } = process
+
+// Windows command line limit is ~8191 chars. Use a conservative threshold
+// to account for the node executable path and script path overhead.
+const MAX_ARG_LENGTH = 7000
 
 /**
  * Smart linter that automatically routes files to the correct linter based on location and type
@@ -272,6 +277,44 @@ function runOxfmtCheck(files, fix) {
 }
 
 /**
+ * Build script args, using a temp file when the file list is too long for
+ * the Windows command-line limit (~8191 chars).
+ * @param {string[]} files - Array of file paths
+ * @param {boolean} fix - Whether to pass --fix
+ * @param {boolean} clearCache - Whether to pass --clear-cache
+ * @returns {{ scriptArgs: string[], tempFile: string | null }}
+ */
+function buildScriptArgs(files, fix, clearCache) {
+    const scriptArgs = []
+    let tempFile = null
+
+    const totalLength = files.reduce((sum, f) => sum + f.length + 1, 0)
+    if (totalLength > MAX_ARG_LENGTH) {
+        const RADIX = 36
+        const SUFFIX_LENGTH = 8
+        tempFile = path.join(
+            os.tmpdir(),
+            `lint-files-${Date.now()}-${Math.random()
+                .toString(RADIX)
+                .slice(2, 2 + SUFFIX_LENGTH)}.txt`,
+        )
+        fs.writeFileSync(tempFile, files.join("\n"), "utf8")
+        scriptArgs.push(`--files-from=${tempFile}`)
+    } else {
+        scriptArgs.push(...files)
+    }
+
+    if (fix) {
+        scriptArgs.push("--fix")
+    }
+    if (clearCache) {
+        scriptArgs.push("--clear-cache")
+    }
+
+    return { scriptArgs, tempFile }
+}
+
+/**
  * Run a linter script with files (sync — used within sequential groups)
  * @param {string} script - Script name (e.g., 'lint-staged-css.js')
  * @param {string[]} files - Array of file paths
@@ -287,19 +330,21 @@ function runLinter(script, files, description, fix, clearCache) {
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
     const scriptPath = path.join(__dirname, script)
-    const scriptArgs = [...files]
-    if (fix) {
-        scriptArgs.push("--fix")
-    }
-    if (clearCache) {
-        scriptArgs.push("--clear-cache")
-    }
+    const { scriptArgs, tempFile } = buildScriptArgs(files, fix, clearCache)
 
     const result = spawnSync("node", [scriptPath, ...scriptArgs], {
         stdio: "inherit",
         cwd: projectRoot,
         env,
     })
+
+    if (tempFile) {
+        try {
+            fs.unlinkSync(tempFile)
+        } catch {
+            /* Best-effort cleanup */
+        }
+    }
 
     if (result.error) {
         console.error(`❌ Failed to run ${script}:`, result.error.message)
@@ -317,13 +362,7 @@ function runLinterAsync(script, files, description, fix, clearCache) {
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
     const scriptPath = path.join(__dirname, script)
-    const scriptArgs = [...files]
-    if (fix) {
-        scriptArgs.push("--fix")
-    }
-    if (clearCache) {
-        scriptArgs.push("--clear-cache")
-    }
+    const { scriptArgs, tempFile } = buildScriptArgs(files, fix, clearCache)
 
     return new Promise((resolve) => {
         const child = spawn("node", [scriptPath, ...scriptArgs], {
@@ -332,8 +371,24 @@ function runLinterAsync(script, files, description, fix, clearCache) {
             env,
         })
 
-        child.on("close", () => resolve())
+        child.on("close", () => {
+            if (tempFile) {
+                try {
+                    fs.unlinkSync(tempFile)
+                } catch {
+                    /* Best-effort cleanup */
+                }
+            }
+            resolve()
+        })
         child.on("error", (err) => {
+            if (tempFile) {
+                try {
+                    fs.unlinkSync(tempFile)
+                } catch {
+                    /* Best-effort cleanup */
+                }
+            }
             console.error(`❌ Failed to run ${script}:`, err.message)
             resolve()
         })
@@ -343,7 +398,7 @@ function runLinterAsync(script, files, description, fix, clearCache) {
 /**
  * Run frontend linters sequentially (they may share .vue files in --fix mode)
  */
-async function runFrontendLinters(categories, fix, clearCache) {
+function runFrontendLinters(categories, fix, clearCache) {
     runLinter("lint-staged-css.js", categories.css, "CSS/Stylelint - Accessibility & Style", fix, clearCache)
     runLinter("lint-staged-vue.js", categories.vue, "Vue ESLint - Security & Quality", fix, clearCache)
     runLinter("lint-staged-ts.js", categories.ts, "JS/TS Oxlint - Security & Quality", fix, clearCache)
@@ -419,6 +474,7 @@ async function main() {
     }
 }
 
+// oxlint-disable-next-line promise/prefer-await-to-then -- Top-level entry point; async IIFE adds no value
 main().catch((error) => {
     console.error("❌ Unexpected error:", error.message)
     process.exit(1)

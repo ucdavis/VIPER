@@ -59,7 +59,7 @@ function createMockPermissionsStore() {
         isLoading: false,
         editableServiceCount: 0,
         getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-        initialize: vi.fn().mockResolvedValue(undefined),
+        initialize: vi.fn().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
     }
 }
 

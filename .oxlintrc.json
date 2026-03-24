@@ -75,7 +75,17 @@
             }
         ], // Function/class hoisting is fine in JS/TS
         "no-inline-comments": "off", // Inline comments are more readable next to the code they explain
-        "max-statements": "off" // Redundant with max-lines-per-function (100 lines)
+        "max-statements": "off", // Redundant with max-lines-per-function (100 lines)
+        "unicorn/numeric-separators-style": "off", // Our numeric literals are IDs and term codes (YYYYMM), not quantities
+        "capitalized-comments": [
+            "warn",
+            "always",
+            {
+                "line": {
+                    "ignoreConsecutiveComments": true
+                }
+            }
+        ]
     },
     "overrides": [
         {
