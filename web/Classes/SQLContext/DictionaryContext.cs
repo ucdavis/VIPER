@@ -16,14 +16,6 @@ public class DictionaryContext : DbContext
     public virtual DbSet<DvtTitle> Titles { get; set; }
     public virtual DbSet<DvtSvmUnit> SvmUnits { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null && !optionsBuilder.IsConfigured)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:Dictionary"]);
-        }
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

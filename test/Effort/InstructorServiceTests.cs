@@ -1,11 +1,9 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
-using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -22,11 +20,10 @@ public sealed class InstructorServiceTests : IDisposable
     private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
     private readonly DictionaryContext _dictionaryContext;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<ICourseClassificationService> _classificationServiceMock;
-    private readonly Mock<ILogger<InstructorService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly ICourseClassificationService _classificationServiceMock;
+    private readonly ILogger<InstructorService> _loggerMock;
     private readonly IMemoryCache _cache;
-    private readonly IMapper _mapper;
     private readonly InstructorService _instructorService;
 
     public InstructorServiceTests()
@@ -55,31 +52,23 @@ public sealed class InstructorServiceTests : IDisposable
         _viperContext = new VIPERContext(viperOptions);
         _aaudContext = new AAUDContext(aaudOptions);
         _dictionaryContext = new DictionaryContext(dictionaryOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _classificationServiceMock = new Mock<ICourseClassificationService>();
-        _loggerMock = new Mock<ILogger<InstructorService>>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _classificationServiceMock = Substitute.For<ICourseClassificationService>();
+        _loggerMock = Substitute.For<ILogger<InstructorService>>();
         _cache = new MemoryCache(new MemoryCacheOptions());
-
-        // Configure AutoMapper with the Effort profile
-        var mapperConfig = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<AutoMapperProfileEffort>();
-        });
-        _mapper = mapperConfig.CreateMapper();
 
         // Setup synchronous audit methods used within transactions
         _auditServiceMock
-            .Setup(s => s.AddPersonChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+            .AddPersonChangeAudit(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
         _instructorService = new InstructorService(
             _context,
             _viperContext,
             _aaudContext,
             _dictionaryContext,
-            _auditServiceMock.Object,
-            _classificationServiceMock.Object,
-            _mapper,
-            _loggerMock.Object,
+            _auditServiceMock,
+            _classificationServiceMock,
+            _loggerMock,
             _cache);
     }
 
@@ -385,14 +374,12 @@ public sealed class InstructorServiceTests : IDisposable
         await _instructorService.UpdateInstructorAsync(1, 202410, request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddPersonChangeAudit(
+        _auditServiceMock.Received(1).AddPersonChangeAudit(
                 1,
                 202410,
                 "UpdatePerson",
-                It.IsAny<object>(),
-                It.IsAny<object>()),
-            Times.Once);
+                Arg.Any<object>(),
+                Arg.Any<object>());
     }
 
     #endregion
@@ -457,14 +444,12 @@ public sealed class InstructorServiceTests : IDisposable
         await _instructorService.DeleteInstructorAsync(1, 202410);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddPersonChangeAudit(
+        _auditServiceMock.Received(1).AddPersonChangeAudit(
                 1,
                 202410,
                 "DeleteInstructor",
-                It.IsAny<object>(),
-                null),
-            Times.Once);
+                Arg.Any<object>(),
+                Arg.Is<object?>(x => x == null));
     }
 
     #endregion
@@ -746,7 +731,7 @@ public sealed class InstructorServiceTests : IDisposable
 
     #endregion
 
-    #region AutoMapper PersonDto Mapping Tests
+    #region PersonDto Mapping Tests
 
     [Fact]
     public async Task GetInstructorAsync_MapsVolunteerWosCorrectly()
@@ -906,8 +891,13 @@ public sealed class InstructorServiceTests : IDisposable
         {
             _context.Persons.Add(new EffortPerson
             {
-                PersonId = 100 + i, TermCode = 202410, FirstName = $"Person{i}", LastName = "Test",
-                EffortDept = "VME", EffortTitleCode = "9999", JobGroupId = unconditionalGroups[i]
+                PersonId = 100 + i,
+                TermCode = 202410,
+                FirstName = $"Person{i}",
+                LastName = "Test",
+                EffortDept = "VME",
+                EffortTitleCode = "9999",
+                JobGroupId = unconditionalGroups[i]
             });
         }
         await _context.SaveChangesAsync();
@@ -925,8 +915,13 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 1, TermCode = 202410, FirstName = "Eligible", LastName = "Prof",
-            EffortDept = "VME", EffortTitleCode = "001898", JobGroupId = "124"
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Eligible",
+            LastName = "Prof",
+            EffortDept = "VME",
+            EffortTitleCode = "001898",
+            JobGroupId = "124"
         });
         await _context.SaveChangesAsync();
 
@@ -944,8 +939,13 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 1, TermCode = 202410, FirstName = "Ineligible", LastName = "Prof",
-            EffortDept = "VME", EffortTitleCode = "005555", JobGroupId = "124"
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Ineligible",
+            LastName = "Prof",
+            EffortDept = "VME",
+            EffortTitleCode = "005555",
+            JobGroupId = "124"
         });
         await _context.SaveChangesAsync();
 
@@ -962,8 +962,13 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 1, TermCode = 202410, FirstName = "Eligible", LastName = "Prof",
-            EffortDept = "VME", EffortTitleCode = "001067", JobGroupId = "S56"
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Eligible",
+            LastName = "Prof",
+            EffortDept = "VME",
+            EffortTitleCode = "001067",
+            JobGroupId = "S56"
         });
         await _context.SaveChangesAsync();
 
@@ -981,8 +986,13 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 1, TermCode = 202410, FirstName = "Ineligible", LastName = "Prof",
-            EffortDept = "VME", EffortTitleCode = "002222", JobGroupId = "S56"
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Ineligible",
+            LastName = "Prof",
+            EffortDept = "VME",
+            EffortTitleCode = "002222",
+            JobGroupId = "S56"
         });
         await _context.SaveChangesAsync();
 
@@ -999,13 +1009,23 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 1, TermCode = 202410, FirstName = "Other", LastName = "Prof",
-            EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = "999"
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Other",
+            LastName = "Prof",
+            EffortDept = "VME",
+            EffortTitleCode = "1234",
+            JobGroupId = "999"
         });
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 2, TermCode = 202410, FirstName = "Null", LastName = "Group",
-            EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = null
+            PersonId = 2,
+            TermCode = 202410,
+            FirstName = "Null",
+            LastName = "Group",
+            EffortDept = "VME",
+            EffortTitleCode = "1234",
+            JobGroupId = null
         });
         await _context.SaveChangesAsync();
 
@@ -1022,8 +1042,13 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange — title code "1898" should be padded to "001898" and match
         _context.Persons.Add(new EffortPerson
         {
-            PersonId = 1, TermCode = 202410, FirstName = "Short", LastName = "Code",
-            EffortDept = "VME", EffortTitleCode = "1898", JobGroupId = "124"
+            PersonId = 1,
+            TermCode = 202410,
+            FirstName = "Short",
+            LastName = "Code",
+            EffortDept = "VME",
+            EffortTitleCode = "1898",
+            JobGroupId = "124"
         });
         await _context.SaveChangesAsync();
 

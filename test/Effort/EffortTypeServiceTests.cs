@@ -1,9 +1,7 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
-using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -16,8 +14,7 @@ namespace Viper.test.Effort;
 public sealed class EffortTypeServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly IMapper _mapper;
+    private readonly IEffortAuditService _auditServiceMock;
     private readonly EffortTypeService _effortTypeService;
 
     public EffortTypeServiceTests()
@@ -28,18 +25,12 @@ public sealed class EffortTypeServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-
-        var mapperConfig = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<AutoMapperProfileEffort>();
-        });
-        _mapper = mapperConfig.CreateMapper();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
 
         _auditServiceMock
-            .Setup(s => s.AddEffortTypeChangeAudit(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+            .AddEffortTypeChangeAudit(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _effortTypeService = new EffortTypeService(_context, _auditServiceMock.Object, _mapper);
+        _effortTypeService = new EffortTypeService(_context, _auditServiceMock);
     }
 
     public void Dispose()
@@ -403,13 +394,11 @@ public sealed class EffortTypeServiceTests : IDisposable
         await _effortTypeService.CreateEffortTypeAsync(request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddEffortTypeChangeAudit(
+        _auditServiceMock.Received(1).AddEffortTypeChangeAudit(
                 "AUD",
-                It.Is<string>(action => action.Contains("Create")),
-                null,
-                It.IsAny<object>()),
-            Times.Once);
+                Arg.Is<string>(action => action.Contains("Create")),
+                Arg.Is<object?>(x => x == null),
+                Arg.Any<object>());
     }
 
     [Fact]
@@ -540,13 +529,11 @@ public sealed class EffortTypeServiceTests : IDisposable
         await _effortTypeService.UpdateEffortTypeAsync("AUD", request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddEffortTypeChangeAudit(
+        _auditServiceMock.Received(1).AddEffortTypeChangeAudit(
                 "AUD",
-                It.Is<string>(action => action.Contains("Update")),
-                It.IsAny<object>(),
-                It.IsAny<object>()),
-            Times.Once);
+                Arg.Is<string>(action => action.Contains("Update")),
+                Arg.Any<object>(),
+                Arg.Any<object>());
     }
 
     [Fact]
@@ -672,13 +659,11 @@ public sealed class EffortTypeServiceTests : IDisposable
         await _effortTypeService.DeleteEffortTypeAsync("AUD");
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddEffortTypeChangeAudit(
+        _auditServiceMock.Received(1).AddEffortTypeChangeAudit(
                 "AUD",
-                It.Is<string>(action => action.Contains("Delete")),
-                It.IsAny<object>(),
-                null),
-            Times.Once);
+                Arg.Is<string>(action => action.Contains("Delete")),
+                Arg.Any<object>(),
+                Arg.Is<object?>(x => x == null));
     }
 
     [Fact]

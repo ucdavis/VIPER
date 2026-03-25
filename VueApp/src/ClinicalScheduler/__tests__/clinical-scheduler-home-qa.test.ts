@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { usePermissionsStore } from "../stores/permissions"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import { setupTest, createTestWrapper, createMockPermissionsStore } from "./test-utils"
@@ -25,7 +24,7 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Accessibility", () => {
@@ -115,8 +114,8 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
                 isLoading: false,
                 editableServiceCount: 0,
                 getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-                initialize: vi.fn().mockResolvedValue(),
-            })
+                initialize: vi.fn().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
+            } as any)
 
             // Should not throw error
             expect(() =>
@@ -177,6 +176,7 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
             for (const state of permissionStates) {
                 Object.assign(mockPermissionsStore, state)
 
+                // oxlint-disable-next-line no-loop-func -- closure invoked synchronously, no stale capture
                 expect(() =>
                     createTestWrapper({
                         component: ClinicalSchedulerHome,

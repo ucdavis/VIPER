@@ -64,7 +64,7 @@ const hasOtherMenuAccess = computed(() => {
 // Users with dashboard access should land on the dashboard
 const hasDashboardAccess = computed(() => isAdmin.value || hasViewDept.value)
 
-onMounted(async () => {
+async function initPage() {
     const termCode = route.params.termCode ? parseInt(route.params.termCode as string, 10) : null
 
     if (termCode) {
@@ -88,5 +88,7 @@ onMounted(async () => {
     } else {
         router.replace({ name: "TermSelection" })
     }
-})
+}
+
+onMounted(() => initPage())
 </script>

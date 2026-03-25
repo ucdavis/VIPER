@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 import { usePhotoGalleryGroups } from "../composables/use-photo-gallery-groups"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 
-describe("usePhotoGalleryGroups", () => {
+describe(usePhotoGalleryGroups, () => {
     beforeEach(() => {
         // Create a fresh pinia instance for each test
         setActivePinia(createPinia())
@@ -67,6 +66,12 @@ describe("usePhotoGalleryGroups", () => {
                 { label: "Twentieths", value: "twentieths" },
             ])
         })
+    })
+})
+
+describe("usePhotoGalleryGroups - groupOptions", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
     })
 
     describe("groupOptions", () => {
@@ -163,8 +168,8 @@ describe("usePhotoGalleryGroups", () => {
 
             const { groupOptions } = usePhotoGalleryGroups(selectedClassLevel, selectedGroupType)
 
-            expect(groupOptions.value[0].label).toBe("1A1 (0)")
-            expect(groupOptions.value[1].label).toBe("1A2 (0)")
+            expect(groupOptions.value[0]!.label).toBe("1A1 (0)")
+            expect(groupOptions.value[1]!.label).toBe("1A2 (0)")
         })
 
         it("should update when group type changes", () => {
@@ -184,8 +189,14 @@ describe("usePhotoGalleryGroups", () => {
             selectedGroupType.value = "twentieths"
 
             expect(groupOptions.value).toHaveLength(1) // Twentieths
-            expect(groupOptions.value[0].value).toBe("T1")
+            expect(groupOptions.value[0]!.value).toBe("T1")
         })
+    })
+})
+
+describe("usePhotoGalleryGroups - groupTypeLabel", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
     })
 
     describe("groupTypeLabel", () => {

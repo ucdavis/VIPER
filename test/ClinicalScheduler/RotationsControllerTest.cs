@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
@@ -10,22 +10,22 @@ namespace Viper.test.ClinicalScheduler
 {
     public class RotationsControllerTest : ClinicalSchedulerTestBase
     {
-        private readonly Mock<ILogger<RotationsController>> _mockLogger;
-        private readonly Mock<IGradYearService> _mockGradYearService;
-        private readonly Mock<IWeekService> _mockWeekService;
-        private readonly Mock<IRotationService> _mockRotationService;
-        private readonly Mock<ISchedulePermissionService> _mockPermissionService;
-        private readonly Mock<IEvaluationPolicyService> _mockEvaluationPolicyService;
+        private readonly ILogger<RotationsController> _mockLogger;
+        private readonly IGradYearService _mockGradYearService;
+        private readonly IWeekService _mockWeekService;
+        private readonly IRotationService _mockRotationService;
+        private readonly ISchedulePermissionService _mockPermissionService;
+        private readonly IEvaluationPolicyService _mockEvaluationPolicyService;
         private RotationsController _controller = null!;
 
         public RotationsControllerTest()
         {
-            _mockLogger = new Mock<ILogger<RotationsController>>();
-            _mockGradYearService = new Mock<IGradYearService>();
-            _mockWeekService = new Mock<IWeekService>();
-            _mockRotationService = new Mock<IRotationService>();
-            _mockPermissionService = new Mock<ISchedulePermissionService>();
-            _mockEvaluationPolicyService = new Mock<IEvaluationPolicyService>();
+            _mockLogger = Substitute.For<ILogger<RotationsController>>();
+            _mockGradYearService = Substitute.For<IGradYearService>();
+            _mockWeekService = Substitute.For<IWeekService>();
+            _mockRotationService = Substitute.For<IRotationService>();
+            _mockPermissionService = Substitute.For<ISchedulePermissionService>();
+            _mockEvaluationPolicyService = Substitute.For<IEvaluationPolicyService>();
 
             SetupDefaultMockBehavior();
             RecreateController();
@@ -35,12 +35,12 @@ namespace Viper.test.ClinicalScheduler
         {
             _controller = new RotationsController(
                 Context,
-                _mockGradYearService.Object,
-                _mockWeekService.Object,
-                _mockRotationService.Object,
-                _mockPermissionService.Object,
-                _mockEvaluationPolicyService.Object,
-                _mockLogger.Object);
+                _mockGradYearService,
+                _mockWeekService,
+                _mockRotationService,
+                _mockPermissionService,
+                _mockEvaluationPolicyService,
+                _mockLogger);
             var serviceProvider = new ServiceCollection().BuildServiceProvider();
             TestDataBuilder.SetupControllerContext(_controller, serviceProvider);
         }
@@ -56,7 +56,7 @@ namespace Viper.test.ClinicalScheduler
         private void SetupMockRotations()
         {
             // Mock data: Two test rotations for permission filtering tests
-            // - Cardiology (ID: CardiologyRotationId, Service: CardiologyServiceId) 
+            // - Cardiology (ID: CardiologyRotationId, Service: CardiologyServiceId)
             // - Surgery (ID: SurgeryRotationId, Service: SurgeryServiceId)
             // Used to test that users see only rotations they have permissions for
             var allRotations = new List<RotationDto>
@@ -76,8 +76,8 @@ namespace Viper.test.ClinicalScheduler
                     Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service" }
                 }
             };
-            _mockRotationService.Setup(s => s.GetRotationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(allRotations);
+            _mockRotationService.GetRotationsAsync(Arg.Any<CancellationToken>())
+                .Returns(allRotations);
         }
 
         private void SetupMockRotationDetails()
@@ -99,10 +99,10 @@ namespace Viper.test.ClinicalScheduler
                 Service = new ServiceDto { ServiceId = SurgeryServiceId, ServiceName = "Surgery Service" }
             };
 
-            _mockRotationService.Setup(s => s.GetRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(cardiologyRotation);
-            _mockRotationService.Setup(s => s.GetRotationAsync(SurgeryRotationId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(surgeryRotation);
+            _mockRotationService.GetRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>())
+                .Returns(cardiologyRotation);
+            _mockRotationService.GetRotationAsync(SurgeryRotationId, Arg.Any<CancellationToken>())
+                .Returns(surgeryRotation);
         }
 
         private void SetupMockWeekService()
@@ -126,24 +126,24 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
 
-            _mockWeekService.Setup(s => s.GetWeeksAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(mockWeeks);
+            _mockWeekService.GetWeeksAsync(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+                .Returns(mockWeeks);
         }
 
         private void SetupMockGradYearService()
         {
-            _mockGradYearService.Setup(s => s.GetCurrentGradYearAsync())
-                .ReturnsAsync(TestYear);
+            _mockGradYearService.GetCurrentGradYearAsync()
+                .Returns(TestYear);
         }
 
         private void SetupMockPermissions(bool hasFullPermissions = false, int? allowedServiceId = null)
         {
             if (hasFullPermissions)
             {
-                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(true);
-                _mockPermissionService.Setup(p => p.HasEditPermissionForRotationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(true);
+                _mockPermissionService.HasEditPermissionForServiceAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+                    .Returns(true);
+                _mockPermissionService.HasEditPermissionForRotationAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+                    .Returns(true);
 
                 // Mock GetUserEditableServicesAsync to return all services for full permissions
                 var allServices = new List<Viper.Models.ClinicalScheduler.Service>
@@ -151,21 +151,21 @@ namespace Viper.test.ClinicalScheduler
                     new Viper.Models.ClinicalScheduler.Service { ServiceId = CardiologyServiceId, ServiceName = "Cardiology" },
                     new Viper.Models.ClinicalScheduler.Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery" }
                 };
-                _mockPermissionService.Setup(p => p.GetUserEditableServicesAsync(It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(allServices);
+                _mockPermissionService.GetUserEditableServicesAsync(Arg.Any<CancellationToken>())
+                    .Returns(allServices);
             }
             else if (allowedServiceId.HasValue)
             {
-                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(allowedServiceId.Value, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(true);
-                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(It.Is<int>(id => id != allowedServiceId.Value), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(false);
+                _mockPermissionService.HasEditPermissionForServiceAsync(allowedServiceId.Value, Arg.Any<CancellationToken>())
+                    .Returns(true);
+                _mockPermissionService.HasEditPermissionForServiceAsync(Arg.Is<int>(id => id != allowedServiceId.Value), Arg.Any<CancellationToken>())
+                    .Returns(false);
 
                 // Setup rotation permissions - allow access to rotations in the allowed service
-                _mockPermissionService.Setup(p => p.HasEditPermissionForRotationAsync(CardiologyRotationId, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(allowedServiceId.Value == CardiologyServiceId);
-                _mockPermissionService.Setup(p => p.HasEditPermissionForRotationAsync(SurgeryRotationId, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(allowedServiceId.Value == SurgeryServiceId);
+                _mockPermissionService.HasEditPermissionForRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>())
+                    .Returns(allowedServiceId.Value == CardiologyServiceId);
+                _mockPermissionService.HasEditPermissionForRotationAsync(SurgeryRotationId, Arg.Any<CancellationToken>())
+                    .Returns(allowedServiceId.Value == SurgeryServiceId);
 
                 // Mock GetUserEditableServicesAsync to return only the allowed service
                 var allowedServices = new List<Viper.Models.ClinicalScheduler.Service>();
@@ -177,19 +177,19 @@ namespace Viper.test.ClinicalScheduler
                 {
                     allowedServices.Add(new Viper.Models.ClinicalScheduler.Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery" });
                 }
-                _mockPermissionService.Setup(p => p.GetUserEditableServicesAsync(It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(allowedServices);
+                _mockPermissionService.GetUserEditableServicesAsync(Arg.Any<CancellationToken>())
+                    .Returns(allowedServices);
             }
             else
             {
-                _mockPermissionService.Setup(p => p.HasEditPermissionForServiceAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(false);
-                _mockPermissionService.Setup(p => p.HasEditPermissionForRotationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(false);
+                _mockPermissionService.HasEditPermissionForServiceAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+                    .Returns(false);
+                _mockPermissionService.HasEditPermissionForRotationAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+                    .Returns(false);
 
                 // Mock GetUserEditableServicesAsync to return empty list for no permissions
-                _mockPermissionService.Setup(p => p.GetUserEditableServicesAsync(It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new List<Viper.Models.ClinicalScheduler.Service>());
+                _mockPermissionService.GetUserEditableServicesAsync(Arg.Any<CancellationToken>())
+                    .Returns(new List<Viper.Models.ClinicalScheduler.Service>());
             }
         }
 

@@ -10,6 +10,8 @@ const {
 } = require("./lib/lint-staged-common")
 const { createLogger } = require("./lib/script-utils")
 const { categorizeRule } = require("./lib/critical-rules")
+
+const { env } = process
 const {
     needsBuild,
     markAsBuilt,
@@ -116,7 +118,12 @@ function parseDotnetFormatOutput(output) {
 const args = process.argv.slice(2)
 const fixFlag = args.includes("--fix")
 const forceFlag = args.includes("--force")
-const rawFiles = args.filter((a) => !["--fix", "--force", "--clear-cache"].includes(a) && !a.startsWith("--"))
+
+// Support --files-from=<path> to avoid Windows ENAMETOOLONG
+const filesFromArg = args.find((a) => a.startsWith("--files-from="))
+const rawFiles = filesFromArg
+    ? fs.readFileSync(filesFromArg.slice("--files-from=".length), "utf8").split("\n").filter(Boolean)
+    : args.filter((a) => !["--fix", "--force", "--clear-cache"].includes(a) && !a.startsWith("--"))
 
 // Clear cache if requested (before any other operations)
 clearCacheIfRequested()
@@ -177,14 +184,15 @@ const runBuild = (projectPath) => {
         }
     }
 
-    const args = ["build", buildPath, "--artifacts-path", artifactsPath, "--no-incremental", "--verbosity", "quiet"]
+    const buildArgs = ["build", buildPath, "--artifacts-path", artifactsPath, "--verbosity", "quiet"]
 
     try {
         logger.info(`Building ${buildPath} project for code analysis...`)
-        const result = execFileSync("dotnet", args, {
+        const result = execFileSync("dotnet", buildArgs, {
             encoding: "utf8",
             timeout: 60_000, // Reduce timeout to 1 minute
             stdio: ["inherit", "pipe", "pipe"], // Suppress stdout, capture for parsing
+            env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
 
         // Store successful build in cache
@@ -207,8 +215,8 @@ const runBuild = (projectPath) => {
             // Store build output even for failed builds so analyzers can process it
             try {
                 markAsBuilt(projectPath, projectName, output)
-            } catch (error) {
-                logger.warning(`Failed to cache build output: ${error.message}`)
+            } catch (cacheError) {
+                logger.warning(`Failed to cache build output: ${cacheError.message}`)
             }
 
             const hasWarnings = output.includes("warning ") || output.includes(": warning")
@@ -223,14 +231,27 @@ const runBuild = (projectPath) => {
     }
 }
 
+// Windows command-line limit is ~8191 chars. When the --include args would
+// exceed this, omit them and format the whole project instead. The output is
+// already filtered to only the requested files by isRelevantIssue().
+const INCLUDE_ARG_LIMIT = 7000
+
+function appendIncludeArgs(formatArgs, relativePaths) {
+    const totalLength = relativePaths.reduce((sum, p) => sum + p.length + " --include ".length, 0)
+    if (totalLength > INCLUDE_ARG_LIMIT) {
+        return
+    }
+    for (const p of relativePaths) {
+        formatArgs.push("--include", p)
+    }
+}
+
 // Function to apply formatting fixes to a project
 const applyFormatFixes = (projectPath, relativePaths) => {
     logger.info(`🔧 Attempting to fix formatting issues in ${relativePaths.length} file(s)...`)
 
-    const fixArgs = ["format", `${projectPath}/`, "--severity", "warn"]
-    for (const p of relativePaths) {
-        fixArgs.push("--include", p)
-    }
+    const fixArgs = ["format", `${projectPath}/`, "--severity", "warn", "--no-restore"]
+    appendIncludeArgs(fixArgs, relativePaths)
 
     let fixesApplied = false
     try {
@@ -238,6 +259,7 @@ const applyFormatFixes = (projectPath, relativePaths) => {
             encoding: "utf8",
             timeout: 180_000,
             stdio: ["inherit", "pipe", "pipe"],
+            env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
 
         // Check if fixes were actually applied
@@ -260,67 +282,82 @@ const applyFormatFixes = (projectPath, relativePaths) => {
     return fixesApplied
 }
 
+// Classify output text into { hasErrors, hasWarnings }
+function classifyOutput(output) {
+    return {
+        hasWarnings: Boolean(output && (output.includes("warning ") || output.includes(": warning"))),
+        hasErrors: Boolean(output && (output.includes("error ") || output.includes(": error"))),
+    }
+}
+
+// Try to return cached format results; returns null if cache miss
+function getCachedFormatResult(afterFix, absolutePaths, cacheKey) {
+    if (afterFix || forceFlag || needsFormatCheck(absolutePaths, cacheKey)) {
+        return null
+    }
+    const cachedOutput = getCachedFormatOutput(cacheKey)
+    const { hasWarnings, hasErrors } = classifyOutput(cachedOutput)
+    return { hasErrors, hasWarnings, output: cachedOutput || "" }
+}
+
+// Handle a successful dotnet format --verify-no-changes run
+function handleVerifySuccess(result, afterFix, absolutePaths, cacheKey, projectPath) {
+    if (!afterFix) {
+        markFormatChecked(absolutePaths, cacheKey, result || "")
+    }
+    if (afterFix) {
+        logger.success(`All issues have been fixed in ${projectPath}/ files`)
+    }
+    return { hasErrors: false, hasWarnings: false, output: result || "" }
+}
+
+// Handle a failed dotnet format --verify-no-changes run
+function handleVerifyFailure(error, afterFix, absolutePaths, cacheKey, projectPath) {
+    if (error.stdout || error.stderr) {
+        const output = (error.stdout || "") + (error.stderr || "")
+        const { hasWarnings, hasErrors } = classifyOutput(output)
+
+        if (!afterFix) {
+            markFormatChecked(absolutePaths, cacheKey, output)
+        }
+        if (afterFix) {
+            const remainingCount = (output.match(/warning|error/g) || []).length
+            logger.warning(`${remainingCount} issue(s) require manual attention in ${projectPath}/ project`)
+        }
+
+        return { hasErrors, hasWarnings, output }
+    }
+    return { hasErrors: true, hasWarnings: false, output: "" }
+}
+
 // Function to verify formatting for a project
 const verifyFormatting = (projectPath, relativePaths, afterFix = false) => {
     if (afterFix) {
         logger.info(`🔍 Checking for remaining issues in ${projectPath}/ project...`)
     }
 
-    // Generate cache key based on project and files
     const cacheKey = `${projectPath}-format`
-
-    // Convert relative paths to absolute for hashing
     const absolutePaths = relativePaths.map((p) => path.resolve(process.cwd(), p))
 
     // Check if format check is needed (unless forced or after fix)
-    if (!afterFix && !forceFlag && !needsFormatCheck(absolutePaths, cacheKey)) {
-        // Return cached format output
-        const cachedOutput = getCachedFormatOutput(cacheKey)
-        const hasWarnings = cachedOutput && (cachedOutput.includes("warning ") || cachedOutput.includes(": warning"))
-        const hasErrors = cachedOutput && (cachedOutput.includes("error ") || cachedOutput.includes(": error"))
-        return { hasErrors: hasErrors, hasWarnings: hasWarnings, output: cachedOutput || "" }
+    const cached = getCachedFormatResult(afterFix, absolutePaths, cacheKey)
+    if (cached) {
+        return cached
     }
 
-    const verifyArgs = ["format", `${projectPath}/`, "--verify-no-changes", "--severity", "warn"]
-    for (const p of relativePaths) {
-        verifyArgs.push("--include", p)
-    }
+    const verifyArgs = ["format", `${projectPath}/`, "--verify-no-changes", "--severity", "warn", "--no-restore"]
+    appendIncludeArgs(verifyArgs, relativePaths)
 
     try {
         const result = execFileSync("dotnet", verifyArgs, {
             encoding: "utf8",
             timeout: 180_000,
             stdio: ["inherit", "pipe", "pipe"],
+            env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
-
-        // Cache successful format check
-        if (!afterFix) {
-            markFormatChecked(absolutePaths, cacheKey, result || "")
-        }
-
-        if (afterFix) {
-            logger.success(`All issues have been fixed in ${projectPath}/ files`)
-        }
-        return { hasErrors: false, hasWarnings: false, output: result || "" }
+        return handleVerifySuccess(result, afterFix, absolutePaths, cacheKey, projectPath)
     } catch (error) {
-        if (error.stdout || error.stderr) {
-            const output = (error.stdout || "") + (error.stderr || "")
-            const hasWarnings = output.includes("warning ") || output.includes(": warning")
-            const hasErrors = output.includes("error ") || output.includes(": error")
-
-            // Cache format check results even if there are issues
-            if (!afterFix) {
-                markFormatChecked(absolutePaths, cacheKey, output)
-            }
-
-            if (afterFix) {
-                const remainingCount = (output.match(/warning|error/g) || []).length
-                logger.warning(`${remainingCount} issue(s) require manual attention in ${projectPath}/ project`)
-            }
-
-            return { hasErrors: hasErrors, hasWarnings: hasWarnings, output }
-        }
-        return { hasErrors: true, hasWarnings: false, output: "" }
+        return handleVerifyFailure(error, afterFix, absolutePaths, cacheKey, projectPath)
     }
 }
 

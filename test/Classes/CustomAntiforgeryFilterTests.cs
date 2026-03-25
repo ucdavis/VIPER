@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
-using Moq;
+using NSubstitute;
 using System.Net;
 using Viper.Classes;
 
@@ -12,13 +12,13 @@ namespace Test.Classes
 {
     public class CustomAntiforgeryFilterTests
     {
-        private readonly Mock<IAntiforgery> _mockAntiforgery;
+        private readonly IAntiforgery _mockAntiforgery;
         private readonly CustomAntiforgeryFilter _filter;
 
         public CustomAntiforgeryFilterTests()
         {
-            _mockAntiforgery = new Mock<IAntiforgery>();
-            _filter = new CustomAntiforgeryFilter(_mockAntiforgery.Object);
+            _mockAntiforgery = Substitute.For<IAntiforgery>();
+            _filter = new CustomAntiforgeryFilter(_mockAntiforgery);
         }
 
         private static AuthorizationFilterContext CreateContext(string method)
@@ -51,9 +51,7 @@ namespace Test.Classes
 
             // Assert
             Assert.Null(context.Result);
-            _mockAntiforgery.Verify(
-                a => a.ValidateRequestAsync(It.IsAny<HttpContext>()),
-                Times.Never);
+            await _mockAntiforgery.DidNotReceive().ValidateRequestAsync(Arg.Any<HttpContext>());
         }
 
         [Theory]
@@ -66,7 +64,7 @@ namespace Test.Classes
             // Arrange
             var context = CreateContext(method);
             _mockAntiforgery
-                .Setup(a => a.ValidateRequestAsync(It.IsAny<HttpContext>()))
+                .ValidateRequestAsync(Arg.Any<HttpContext>())
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -74,9 +72,7 @@ namespace Test.Classes
 
             // Assert
             Assert.Null(context.Result);
-            _mockAntiforgery.Verify(
-                a => a.ValidateRequestAsync(It.IsAny<HttpContext>()),
-                Times.Once);
+            await _mockAntiforgery.Received(1).ValidateRequestAsync(Arg.Any<HttpContext>());
         }
 
         [Fact]
@@ -85,8 +81,8 @@ namespace Test.Classes
             // Arrange
             var context = CreateContext("POST");
             _mockAntiforgery
-                .Setup(a => a.ValidateRequestAsync(It.IsAny<HttpContext>()))
-                .ThrowsAsync(new AntiforgeryValidationException("Token invalid"));
+                .ValidateRequestAsync(Arg.Any<HttpContext>())
+                .Returns(Task.FromException(new AntiforgeryValidationException("Token invalid")));
 
             // Act
             await _filter.OnAuthorizationAsync(context);
@@ -110,7 +106,7 @@ namespace Test.Classes
             // Arrange
             var context = CreateContext("POST");
             _mockAntiforgery
-                .Setup(a => a.ValidateRequestAsync(It.IsAny<HttpContext>()))
+                .ValidateRequestAsync(Arg.Any<HttpContext>())
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -154,9 +150,7 @@ namespace Test.Classes
 
             // Assert
             Assert.Null(context.Result);
-            _mockAntiforgery.Verify(
-                a => a.ValidateRequestAsync(It.IsAny<HttpContext>()),
-                Times.Never);
+            await _mockAntiforgery.DidNotReceive().ValidateRequestAsync(Arg.Any<HttpContext>());
         }
     }
 }

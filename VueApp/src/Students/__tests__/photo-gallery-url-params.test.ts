@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from "vitest"
 import { createPinia, setActivePinia } from "pinia"
 
 /**
@@ -6,26 +5,52 @@ import { createPinia, setActivePinia } from "pinia"
  * Ensures that includeRoss parameter is only respected for V3 and V4 class levels
  * These tests verify the business logic without mounting the full component
  */
+
+/** Simulates the loadFromUrlParams logic for includeRoss parameter */
+function shouldAllowIncludeRoss(classLevel: string | undefined, includeRoss: string | undefined): boolean {
+    if (includeRoss === "true" && typeof classLevel === "string" && (classLevel === "V3" || classLevel === "V4")) {
+        return true
+    }
+    return false
+}
+
+interface ClassYearOption {
+    label: string
+    year: number
+    classLevel: string
+}
+
+/** Simulates the loadFromUrlParams logic for includeRossInList parameter */
+function shouldAllowIncludeRossInList(
+    includeRossInList: string | undefined,
+    studentListYear: string | undefined,
+    classYearOptions: ClassYearOption[],
+): boolean {
+    if (includeRossInList === "true" && typeof studentListYear === "string") {
+        const year = Number.parseInt(studentListYear, 10)
+        if (!Number.isNaN(year)) {
+            const yearOption = classYearOptions.find((cy) => cy.year === year)
+            if (yearOption && (yearOption.classLevel === "V3" || yearOption.classLevel === "V4")) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+const mockClassYearOptions: ClassYearOption[] = [
+    { label: "2029 (V1)", year: 2029, classLevel: "V1" },
+    { label: "2028 (V2)", year: 2028, classLevel: "V2" },
+    { label: "2027 (V3)", year: 2027, classLevel: "V3" },
+    { label: "2026 (V4)", year: 2026, classLevel: "V4" },
+]
+
 describe("PhotoGallery - URL Parameter Sanitization Logic", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
     })
 
     describe("includeRoss parameter sanitization for Photo Gallery tab", () => {
-        /**
-         * Simulates the loadFromUrlParams logic for includeRoss parameter
-         */
-        function shouldAllowIncludeRoss(classLevel: string | undefined, includeRoss: string | undefined): boolean {
-            if (
-                includeRoss === "true" &&
-                typeof classLevel === "string" &&
-                (classLevel === "V3" || classLevel === "V4")
-            ) {
-                return true
-            }
-            return false
-        }
-
         it("should allow includeRoss=true when classLevel=V3", () => {
             const result = shouldAllowIncludeRoss("V3", "true")
             expect(result).toBeTruthy()
@@ -63,39 +88,6 @@ describe("PhotoGallery - URL Parameter Sanitization Logic", () => {
     })
 
     describe("includeRossInList parameter sanitization for Student List tab", () => {
-        interface ClassYearOption {
-            label: string
-            year: number
-            classLevel: string
-        }
-
-        /**
-         * Simulates the loadFromUrlParams logic for includeRossInList parameter
-         */
-        function shouldAllowIncludeRossInList(
-            includeRossInList: string | undefined,
-            studentListYear: string | undefined,
-            classYearOptions: ClassYearOption[],
-        ): boolean {
-            if (includeRossInList === "true" && typeof studentListYear === "string") {
-                const year = Number.parseInt(studentListYear, 10)
-                if (!Number.isNaN(year)) {
-                    const yearOption = classYearOptions.find((cy) => cy.year === year)
-                    if (yearOption && (yearOption.classLevel === "V3" || yearOption.classLevel === "V4")) {
-                        return true
-                    }
-                }
-            }
-            return false
-        }
-
-        const mockClassYearOptions: ClassYearOption[] = [
-            { label: "2029 (V1)", year: 2029, classLevel: "V1" },
-            { label: "2028 (V2)", year: 2028, classLevel: "V2" },
-            { label: "2027 (V3)", year: 2027, classLevel: "V3" },
-            { label: "2026 (V4)", year: 2026, classLevel: "V4" },
-        ]
-
         it("should allow includeRossInList=true when V3 year is selected", () => {
             const result = shouldAllowIncludeRossInList("true", "2027", mockClassYearOptions)
             expect(result).toBeTruthy()
@@ -128,20 +120,6 @@ describe("PhotoGallery - URL Parameter Sanitization Logic", () => {
     })
 
     describe("Business rule enforcement", () => {
-        /**
-         * Helper function to simulate URL parameter logic
-         */
-        function shouldAllowIncludeRoss(classLevel: string | undefined, includeRoss: string | undefined): boolean {
-            if (
-                includeRoss === "true" &&
-                typeof classLevel === "string" &&
-                (classLevel === "V3" || classLevel === "V4")
-            ) {
-                return true
-            }
-            return false
-        }
-
         it("should document that includeRoss parameter requires V3 or V4 class level", () => {
             // This test documents the business rule
             const validClassLevelsForRoss = ["V3", "V4"]

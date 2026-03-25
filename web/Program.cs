@@ -179,80 +179,36 @@ try
     });
 
 
-    // Enable detailed errors in non-production environments.
-    void ConfigureDbContextOptions(DbContextOptionsBuilder options)
+    // Configure DbContext options with connection strings via DI
+    var enableDetailedErrors = builder.Environment.EnvironmentName != "Production";
+
+    void RegisterDbContext<TContext>(string connectionStringKey) where TContext : DbContext
     {
-        if (builder.Environment.EnvironmentName != "Production")
+        var connStr = builder.Configuration.GetConnectionString(connectionStringKey)
+            ?? throw new InvalidOperationException($"Connection string '{connectionStringKey}' not configured");
+        builder.Services.AddDbContext<TContext>(options =>
         {
-            options.EnableDetailedErrors(true);
-        }
+            // Match our SQL Server 2016 compat level (130) so EF Core 10 generates optimal SQL for our DB version
+            options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
+            if (enableDetailedErrors) options.EnableDetailedErrors(true);
+        });
     }
 
-    builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<CrestContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<DictionaryContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<ClinicalSchedulerContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<SISContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<Viper.Areas.Effort.EffortDbContext>(ConfigureDbContextOptions);
-    builder.Services.AddDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>(ConfigureDbContextOptions);
+    RegisterDbContext<AAUDContext>("AAUD");
+    RegisterDbContext<CoursesContext>("Courses");
+    RegisterDbContext<CrestContext>("CREST");
+    RegisterDbContext<DictionaryContext>("Dictionary");
+    RegisterDbContext<RAPSContext>("RAPS");
+    RegisterDbContext<VIPERContext>("VIPER");
+    RegisterDbContext<ClinicalSchedulerContext>("ClinicalScheduler");
+    RegisterDbContext<SISContext>("SIS");
+    // Effort tables are in the VIPER database's [effort] schema.
+    RegisterDbContext<Viper.Areas.Effort.EffortDbContext>("VIPER");
+    RegisterDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>("EvalHarvest");
 
-    // Clinical Scheduler services
-    builder.Services.AddScoped<Viper.Areas.Curriculum.Services.TermCodeService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IGradYearService, Viper.Areas.ClinicalScheduler.Services.GradYearService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IWeekService, Viper.Areas.ClinicalScheduler.Services.WeekService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPersonService, Viper.Areas.ClinicalScheduler.Services.PersonService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IRotationService, Viper.Areas.ClinicalScheduler.Services.RotationService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IStudentScheduleService, Viper.Areas.ClinicalScheduler.Services.StudentScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IInstructorScheduleService, Viper.Areas.ClinicalScheduler.Services.InstructorScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IClinicalScheduleService, Viper.Areas.ClinicalScheduler.Services.ClinicalScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.ISchedulePermissionService, Viper.Areas.ClinicalScheduler.Services.SchedulePermissionService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IPermissionValidator, Viper.Areas.ClinicalScheduler.Services.PermissionValidator>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleEditService, Viper.Areas.ClinicalScheduler.Services.ScheduleEditService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IScheduleAuditService, Viper.Areas.ClinicalScheduler.Services.ScheduleAuditService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Services.IEvaluationPolicyService, Viper.Areas.ClinicalScheduler.Services.EvaluationPolicyService>();
-    builder.Services.AddScoped<Viper.Areas.ClinicalScheduler.Validators.AddInstructorValidator>();
-
-    // Register UserHelper service
+    // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
 
-    // Photo Gallery services
-    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoService, Viper.Areas.Students.Services.PhotoService>();
-    builder.Services.AddScoped<Viper.Areas.Students.Services.IStudentGroupService, Viper.Areas.Students.Services.StudentGroupService>();
-    builder.Services.AddScoped<Viper.Areas.Students.Services.IPhotoExportService, Viper.Areas.Students.Services.PhotoExportService>();
-    builder.Services.AddScoped<Viper.Areas.Students.Services.ICourseService, Viper.Areas.Students.Services.CourseService>();
-
-    // Effort services
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortPermissionService, Viper.Areas.Effort.Services.EffortPermissionService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ITermService, Viper.Areas.Effort.Services.TermService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortAuditService, Viper.Areas.Effort.Services.EffortAuditService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseClassificationService, Viper.Areas.Effort.Services.CourseClassificationService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseService, Viper.Areas.Effort.Services.CourseService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ICourseRelationshipService, Viper.Areas.Effort.Services.CourseRelationshipService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IInstructorService, Viper.Areas.Effort.Services.InstructorService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortTypeService, Viper.Areas.Effort.Services.EffortTypeService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IUnitService, Viper.Areas.Effort.Services.UnitService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentAssignTypeService, Viper.Areas.Effort.Services.PercentAssignTypeService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEffortRecordService, Viper.Areas.Effort.Services.EffortRecordService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IVerificationService, Viper.Areas.Effort.Services.VerificationService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentageService, Viper.Areas.Effort.Services.PercentageService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IRCourseService, Viper.Areas.Effort.Services.RCourseService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IDashboardService, Viper.Areas.Effort.Services.DashboardService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IPercentRolloverService, Viper.Areas.Effort.Services.PercentRolloverService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalImportService, Viper.Areas.Effort.Services.ClinicalImportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvalHarvestService, Viper.Areas.Effort.Services.EvalHarvestService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ITeachingActivityService, Viper.Areas.Effort.Services.TeachingActivityService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IDeptSummaryService, Viper.Areas.Effort.Services.DeptSummaryService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ISchoolSummaryService, Viper.Areas.Effort.Services.SchoolSummaryService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritReportService, Viper.Areas.Effort.Services.MeritReportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritSummaryService, Viper.Areas.Effort.Services.MeritSummaryService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalEffortService, Viper.Areas.Effort.Services.ClinicalEffortService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IClinicalScheduleService, Viper.Areas.Effort.Services.ClinicalScheduleService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IEvaluationReportService, Viper.Areas.Effort.Services.EvaluationReportService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IMeritMultiYearService, Viper.Areas.Effort.Services.MeritMultiYearService>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.ISabbaticalService, Viper.Areas.Effort.Services.SabbaticalService>();
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
@@ -275,7 +231,24 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.IHarvestService, Viper.Areas.Effort.Services.HarvestService>();
+
+
+    // Scrutor: auto-register services and validators by convention
+    builder.Services.Scan(scan => scan
+        .FromAssemblyOf<Program>()
+        .AddClasses(classes => classes
+            .InNamespaces(
+                "Viper.Areas.ClinicalScheduler.Services",
+                "Viper.Areas.ClinicalScheduler.Validators",
+                "Viper.Areas.Students.Services",
+                "Viper.Areas.Curriculum.Services",
+                "Viper.Areas.Effort.Services"
+            )
+            .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
+        .UsingRegistrationStrategy(Scrutor.RegistrationStrategy.Skip)
+        .AsMatchingInterface()
+        .AsSelf()
+        .WithScopedLifetime());
 
     // Add in a custom ClaimsTransformer that injects user ROLES
     builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
@@ -288,9 +261,6 @@ try
 
     // Add Data Protection services (i.e. encryption)
     builder.Services.AddDataProtection();
-
-    // Add automapper
-    builder.Services.AddAutoMapper(typeof(Program));
 
     // Add email services
     builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -492,19 +462,13 @@ try
     app.UseSession();
 
     // Define the default route mapping and require authentication by default (fail safe)
-#pragma warning disable ASP0014
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapControllerRoute(
-          name: "areas",
-          pattern: "{area}/{controller=Home}/{action=Index}").RequireAuthorization();
+    app.MapControllerRoute(
+        name: "areas",
+        pattern: "{area}/{controller=Home}/{action=Index}").RequireAuthorization();
 
-        endpoints.MapControllerRoute(
-            name: "default",
-            pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
-
-    });
-#pragma warning restore ASP0014
+    app.MapControllerRoute(
+        name: "default",
+        pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
 
     // Setup the memory cache so we can use it via a simple static method
     HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());

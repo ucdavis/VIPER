@@ -73,7 +73,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from "vue"
+import { computed, ref } from "vue"
+import { useKeyModifier, useEventListener } from "@vueuse/core"
 import WeekCell from "./WeekCell.vue"
 
 export interface WeekItem {
@@ -184,7 +185,8 @@ const emit = defineEmits<{
 const selectedWeekIds = ref<Set<number>>(new Set())
 const lastSelectedWeekId = ref<number | null>(null)
 const selectionMode = ref(false)
-const isAltKeyHeld = ref(false)
+const altKeyPressed = useKeyModifier("Alt")
+const isAltKeyHeld = computed(() => altKeyPressed.value && props.enableWeekSelection)
 
 // Get all weeks in a flat array for range selection
 const allWeeks = computed(() => {
@@ -334,37 +336,11 @@ const getWeekAdditionalClasses = computed(() => {
     }
 })
 
-// Keyboard event handlers
-function handleKeyDown(event: KeyboardEvent) {
-    // Note: event.altKey detects both Alt (Windows/Linux) and Option (Mac) keys
+// Prevent default Alt key behavior (e.g., focusing menu bar) when week selection is enabled
+useEventListener(window, "keydown", (event: KeyboardEvent) => {
     if (event.altKey && props.enableWeekSelection) {
-        event.preventDefault() // Prevent default Alt key behavior
-        isAltKeyHeld.value = true
+        event.preventDefault()
     }
-}
-
-function handleKeyUp(event: KeyboardEvent) {
-    if (!event.altKey) {
-        isAltKeyHeld.value = false
-    }
-}
-
-// Also handle blur to reset when window loses focus
-function handleWindowBlur() {
-    isAltKeyHeld.value = false
-}
-
-// Set up keyboard listeners
-onMounted(() => {
-    window.addEventListener("keydown", handleKeyDown)
-    window.addEventListener("keyup", handleKeyUp)
-    window.addEventListener("blur", handleWindowBlur)
-})
-
-onUnmounted(() => {
-    window.removeEventListener("keydown", handleKeyDown)
-    window.removeEventListener("keyup", handleKeyUp)
-    window.removeEventListener("blur", handleWindowBlur)
 })
 
 // Expose methods and state for parent components

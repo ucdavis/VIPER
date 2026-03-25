@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 
@@ -8,12 +8,12 @@ namespace Viper.test.ClinicalScheduler
 {
     public class WeekServiceTest
     {
-        private readonly Mock<ILogger<WeekService>> _mockLogger;
+        private readonly ILogger<WeekService> _mockLogger;
         private readonly ClinicalSchedulerContext _context;
 
         public WeekServiceTest()
         {
-            _mockLogger = new Mock<ILogger<WeekService>>();
+            _mockLogger = Substitute.For<ILogger<WeekService>>();
 
             // Use in-memory database for testing
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
@@ -26,7 +26,7 @@ namespace Viper.test.ClinicalScheduler
         public void WeekService_CanBeCreated()
         {
             // Arrange & Act
-            var service = new WeekService(_mockLogger.Object, _context);
+            var service = new WeekService(_mockLogger, _context);
 
             // Assert
             Assert.NotNull(service);
@@ -39,7 +39,7 @@ namespace Viper.test.ClinicalScheduler
         public void WeekService_ValidGradYears_ShouldBeAccepted(int gradYear)
         {
             // Arrange
-            _ = new WeekService(_mockLogger.Object, _context);
+            _ = new WeekService(_mockLogger, _context);
 
             // Act & Assert
             Assert.True(gradYear >= 2010 && gradYear <= 2030); // Reasonable year range
@@ -51,7 +51,7 @@ namespace Viper.test.ClinicalScheduler
         public void WeekService_IncludeExtendedRotationParameter_ShouldBeHandled(bool includeExtendedRotation)
         {
             // Arrange
-            _ = new WeekService(_mockLogger.Object, _context);
+            _ = new WeekService(_mockLogger, _context);
 
             // Act & Assert
             // The parameter should be a valid boolean
@@ -63,7 +63,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange & Act & Assert
             // Service constructor should validate required context parameter
-            Assert.Throws<ArgumentNullException>(() => new WeekService(_mockLogger.Object, null!));
+            Assert.Throws<ArgumentNullException>(() => new WeekService(_mockLogger, null!));
         }
 
         [Fact]
@@ -100,7 +100,7 @@ namespace Viper.test.ClinicalScheduler
         public void WeekService_GetWeekAsync_ValidatesParameterTypes(int weekId, int? gradYear)
         {
             // Arrange
-            _ = new WeekService(_mockLogger.Object, _context);
+            _ = new WeekService(_mockLogger, _context);
 
             // Act & Assert
             // Parameters should be of correct types

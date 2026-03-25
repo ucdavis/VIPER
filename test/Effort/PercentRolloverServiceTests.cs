@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -18,8 +18,8 @@ public sealed class PercentRolloverServiceTests : IDisposable
     private const int TestUserId = 12345;
     private readonly EffortDbContext _effortContext;
     private readonly VIPERContext _viperContext;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<ILogger<PercentRolloverService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly ILogger<PercentRolloverService> _loggerMock;
     private readonly PercentRolloverService _rolloverService;
 
     public PercentRolloverServiceTests()
@@ -36,16 +36,16 @@ public sealed class PercentRolloverServiceTests : IDisposable
 
         _effortContext = new EffortDbContext(effortOptions);
         _viperContext = new VIPERContext(viperOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _loggerMock = new Mock<ILogger<PercentRolloverService>>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _loggerMock = Substitute.For<ILogger<PercentRolloverService>>();
 
         _auditServiceMock
-            .Setup(s => s.AddImportAudit(
-                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Verifiable();
+            .AddImportAudit(
+                Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>());
+
 
         _rolloverService = new PercentRolloverService(
-            _effortContext, _auditServiceMock.Object, _loggerMock.Object);
+            _effortContext, _auditServiceMock, _loggerMock);
     }
 
     public void Dispose()
@@ -556,11 +556,9 @@ public sealed class PercentRolloverServiceTests : IDisposable
         await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
 
         // Assert - rollover audit is not tied to a term
-        _auditServiceMock.Verify(
-            s => s.AddImportAudit(
-                It.Is<string>(a => a.Contains("RolloverPercentAssignments")),
-                It.Is<string>(m => m.Contains("Rolled over 1 percent assignments"))),
-            Times.Once);
+        _auditServiceMock.Received(1).AddImportAudit(
+                Arg.Is<string>(a => a.Contains("RolloverPercentAssignments")),
+                Arg.Is<string>(m => m.Contains("Rolled over 1 percent assignments")));
     }
 
     #endregion

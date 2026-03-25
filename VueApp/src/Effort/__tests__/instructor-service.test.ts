@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { instructorService } from "../services/instructor-service"
 
 /**
  * Tests for InstructorService — instructor management methods.
@@ -18,8 +18,6 @@ vi.mock("@/composables/ViperFetch", () => ({
         del: (...args: unknown[]) => mockDel(...args),
     }),
 }))
-
-import { instructorService } from "../services/instructor-service"
 
 // oxlint-disable-next-line eslint/no-underscore-dangle
 const TEST_TERM_CODE = 202_410
@@ -209,7 +207,7 @@ describe("InstructorService — create, update, delete", () => {
             const result = await instructorService.deleteInstructor(1, TEST_TERM_CODE)
 
             expect(mockDel).toHaveBeenCalledWith(expect.stringContaining("/instructors/1?termCode=202410"))
-            expect(result).toBe(true)
+            expect(result).toBeTruthy()
         })
 
         it("should return false on failed delete", async () => {
@@ -217,7 +215,7 @@ describe("InstructorService — create, update, delete", () => {
 
             const result = await instructorService.deleteInstructor(1, TEST_TERM_CODE)
 
-            expect(result).toBe(false)
+            expect(result).toBeFalsy()
         })
     })
 
@@ -286,7 +284,7 @@ describe("InstructorService — departments and job groups", () => {
 
             await instructorService.getJobGroups(TEST_TERM_CODE, "VME")
 
-            const calledUrl = mockGet.mock.calls[0][0] as string
+            const calledUrl = mockGet.mock.calls[0]![0] as string
             expect(calledUrl).toContain("termCode=202410")
             expect(calledUrl).toContain("department=VME")
         })

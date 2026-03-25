@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
@@ -10,7 +10,7 @@ namespace Viper.test.ClinicalScheduler
     public class RotationServiceTest : IDisposable
     {
         private readonly ClinicalSchedulerContext _context;
-        private readonly Mock<ILogger<RotationService>> _mockLogger;
+        private readonly ILogger<RotationService> _mockLogger;
         private readonly RotationService _rotationService;
 
         public RotationServiceTest()
@@ -22,8 +22,8 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
             _context = new ClinicalSchedulerContext(options);
 
-            _mockLogger = new Mock<ILogger<RotationService>>();
-            _rotationService = new RotationService(_mockLogger.Object, _context);
+            _mockLogger = Substitute.For<ILogger<RotationService>>();
+            _rotationService = new RotationService(_mockLogger, _context);
 
             // Seed test data
             SeedTestData();
@@ -289,7 +289,7 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
 
             using var emptyContext = new ClinicalSchedulerContext(options);
-            var emptyService = new RotationService(_mockLogger.Object, emptyContext);
+            var emptyService = new RotationService(_mockLogger, emptyContext);
 
             // Act
             var result = await emptyService.GetRotationsAsync();

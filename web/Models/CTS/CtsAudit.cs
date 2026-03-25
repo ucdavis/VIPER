@@ -1,4 +1,4 @@
-﻿using Viper.Models.VIPER;
+using Viper.Models.VIPER;
 
 namespace Viper.Models.CTS
 {
@@ -6,7 +6,7 @@ namespace Viper.Models.CTS
     {
         public int CtsAuditId { get; set; }
         public int ModifiedBy { get; set; }
-        public DateTime TimeStamp {  get; set; }
+        public DateTime TimeStamp { get; set; }
         public string Area { get; set; } = null!;
         public string Action { get; set; } = null!;
         public string? Detail { get; set; }
@@ -14,6 +14,6 @@ namespace Viper.Models.CTS
 
         public Person Modifier { get; set; } = null!;
         public Encounter? Encounter { get; set; }
-        
+
     }
 }

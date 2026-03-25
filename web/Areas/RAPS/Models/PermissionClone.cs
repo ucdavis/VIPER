@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.RAPS.Models
+namespace Viper.Areas.RAPS.Models
 {
     public class PermissionClone
     {
@@ -27,18 +27,22 @@
         {
             get
             {
-                return Source?.StartDate != null ? DateOnly.FromDateTime((System.DateTime)Source.StartDate)
-                    : Target?.StartDate != null ? DateOnly.FromDateTime((System.DateTime)Target.StartDate)
-                    : null;
+                if (Source?.StartDate != null)
+                    return DateOnly.FromDateTime((System.DateTime)Source.StartDate);
+                if (Target?.StartDate != null)
+                    return DateOnly.FromDateTime((System.DateTime)Target.StartDate);
+                return null;
             }
         }
         public DateOnly? EndDate
         {
             get
             {
-                return Source?.EndDate != null ? DateOnly.FromDateTime((System.DateTime)Source.EndDate)
-                    : Target?.EndDate != null ? DateOnly.FromDateTime((System.DateTime)Target.EndDate)
-                    : null; 
+                if (Source?.EndDate != null)
+                    return DateOnly.FromDateTime((System.DateTime)Source.EndDate);
+                if (Target?.EndDate != null)
+                    return DateOnly.FromDateTime((System.DateTime)Target.EndDate);
+                return null;
             }
         }
 

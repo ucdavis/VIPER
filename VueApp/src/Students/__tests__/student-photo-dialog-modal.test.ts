@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from "vitest"
 import { createPinia, setActivePinia } from "pinia"
 import { ref, computed } from "vue"
 
@@ -27,7 +26,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
             dialogIndex.value += 1
 
             expect(dialogIndex.value).toBe(1)
-            expect(students[dialogIndex.value].mailId).toBe("2")
+            expect(students[dialogIndex.value]!.mailId).toBe("2")
         })
 
         it("should navigate to previous student when index is decremented", () => {
@@ -37,7 +36,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
             dialogIndex.value -= 1
 
             expect(dialogIndex.value).toBe(0)
-            expect(students[dialogIndex.value].mailId).toBe("1")
+            expect(students[dialogIndex.value]!.mailId).toBe("1")
         })
 
         it("should prevent navigation past last student", () => {
@@ -150,6 +149,12 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
             expect(dialogIndex.value).toBe(1)
         })
     })
+})
+
+describe("StudentPhotoDialog - State & Regression", () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+    })
 
     describe("VPR-29 Regression: Circular dependency fix", () => {
         it("should not close dialog during URL updates", () => {
@@ -166,11 +171,9 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
 
             // Simulate watcher that checks flag
             function dialogWatcher() {
-                if (isUpdatingUrlProgrammatically.value) {
-                    // Skip updates - don't close dialog
-                    return
+                if (!isUpdatingUrlProgrammatically.value) {
+                    // Normal dialog close logic would go here
                 }
-                // Normal dialog close logic would go here
             }
 
             updateUrl()
@@ -208,7 +211,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
                 dialogIndex.value += 1
 
                 // Intentionally NOT updating URL during navigation
-                // because router.replace() would close the dialog
+                // Because router.replace() would close the dialog
                 urlUpdateCalled = false
             }
 
@@ -285,7 +288,7 @@ describe("StudentPhotoDialog - Modal Navigation Logic", () => {
 
         it("should document that Playwright tests validate actual component behavior", () => {
             // This test documents that component mounting and DOM interactions
-            // are tested via Playwright MCP tools (see SMOKETEST.md Test 10a)
+            // Are tested via Playwright MCP tools (see SMOKETEST.md Test 10a)
             const playwrightTestsValidate = [
                 "Modal opens when clicking student photo",
                 "Modal stays open (no immediate close)",

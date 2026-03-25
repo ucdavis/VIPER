@@ -1,6 +1,6 @@
 using ClosedXML.Excel;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
 
@@ -437,14 +437,14 @@ public sealed class ExcelGenerationTests
 
     private static ClinicalEffortService CreateClinicalEffortService()
     {
-        var logger = new Mock<ILogger<ClinicalEffortService>>();
-        return new ClinicalEffortService(null!, logger.Object);
+        var logger = Substitute.For<ILogger<ClinicalEffortService>>();
+        return new ClinicalEffortService(null!, logger);
     }
 
     private static MeritMultiYearService CreateMeritMultiYearService()
     {
-        var logger = new Mock<ILogger<MeritMultiYearService>>();
-        return new MeritMultiYearService(null!, logger.Object);
+        var logger = Substitute.For<ILogger<MeritMultiYearService>>();
+        return new MeritMultiYearService(null!, logger);
     }
 
     #endregion

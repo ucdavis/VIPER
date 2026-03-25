@@ -1,6 +1,6 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -14,7 +14,6 @@ namespace Viper.Areas.Effort.Services;
 public class PercentageService : IPercentageService
 {
     private readonly EffortDbContext _context;
-    private readonly IMapper _mapper;
     private readonly IEffortAuditService _auditService;
     private readonly IUserHelper _userHelper;
 
@@ -22,12 +21,10 @@ public class PercentageService : IPercentageService
 
     public PercentageService(
         EffortDbContext context,
-        IMapper mapper,
         IEffortAuditService auditService,
         IUserHelper userHelper)
     {
         _context = context;
-        _mapper = mapper;
         _auditService = auditService;
         _userHelper = userHelper;
     }
@@ -321,9 +318,9 @@ public class PercentageService : IPercentageService
         return result;
     }
 
-    private PercentageDto EnrichDto(Percentage entity)
+    private static PercentageDto EnrichDto(Percentage entity)
     {
-        var dto = _mapper.Map<PercentageDto>(entity);
+        var dto = EffortMapper.ToPercentageDto(entity);
         dto.PercentageValue = (decimal)EffortConstants.ToDisplayPercent(entity.PercentageValue);
         dto.TypeName = entity.PercentAssignType.Name;
         dto.TypeClass = entity.PercentAssignType.Class;

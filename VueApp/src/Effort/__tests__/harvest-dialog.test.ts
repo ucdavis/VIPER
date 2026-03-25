@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ref, computed } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 import type { HarvestPreviewDto, HarvestResultDto } from "../types"
@@ -20,8 +19,6 @@ vi.mock("../services/harvest-service", () => ({
     },
 }))
 
-// Test data - term codes use YYYYXX format (no numeric separators)
-// oxlint-disable-next-line unicorn/numeric-separators-style
 const TEST_TERM_CODE = 202410
 
 // Helper to create a minimal valid preview

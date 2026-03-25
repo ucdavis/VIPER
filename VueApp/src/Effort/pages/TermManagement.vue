@@ -769,9 +769,7 @@ function confirmAddTerm() {
 function startEditExpectedCloseDate(term: TermDto) {
     editingExpectedCloseTermCode.value = term.termCode
     // Convert ISO date to yyyy-MM-dd for the date input
-    editingExpectedCloseDate.value = term.expectedCloseDate
-        ? (term.expectedCloseDate.split("T")[0] ?? null)
-        : null
+    editingExpectedCloseDate.value = term.expectedCloseDate ? (term.expectedCloseDate.split("T")[0] ?? null) : null
     editingTermEndDate.value = term.termEndDate ?? null
 }
 

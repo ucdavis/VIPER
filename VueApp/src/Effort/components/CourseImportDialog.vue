@@ -74,7 +74,10 @@
                             @click="searchCourses"
                         >
                             <template #loading>
-                                <q-spinner size="1em" class="q-mr-sm" />
+                                <q-spinner
+                                    size="1em"
+                                    class="q-mr-sm"
+                                />
                                 Search
                             </template>
                         </q-btn>
@@ -178,8 +181,11 @@
                                     @click="startImport(course)"
                                 >
                                     <template #loading>
-                                        <q-spinner size="1em" class="q-mr-sm" />
-                                        {{ isSelfMode && course.alreadyImported ? 'Use Course' : 'Import' }}
+                                        <q-spinner
+                                            size="1em"
+                                            class="q-mr-sm"
+                                        />
+                                        {{ isSelfMode && course.alreadyImported ? "Use Course" : "Import" }}
                                     </template>
                                 </q-btn>
                             </div>
@@ -250,8 +256,11 @@
                                 @click="startImport(slotProps.row)"
                             >
                                 <template #loading>
-                                    <q-spinner size="1em" class="q-mr-sm" />
-                                    {{ isSelfMode && slotProps.row.alreadyImported ? 'Use Course' : 'Import' }}
+                                    <q-spinner
+                                        size="1em"
+                                        class="q-mr-sm"
+                                    />
+                                    {{ isSelfMode && slotProps.row.alreadyImported ? "Use Course" : "Import" }}
                                 </template>
                             </q-btn>
                         </q-td>
@@ -343,8 +352,11 @@
                     @click="doImport"
                 >
                     <template #loading>
-                        <q-spinner size="1em" class="q-mr-sm" />
-                        {{ isSelfMode && selectedBannerCourse?.alreadyImported ? 'Use Course' : 'Import' }}
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        {{ isSelfMode && selectedBannerCourse?.alreadyImported ? "Use Course" : "Import" }}
                     </template>
                 </q-btn>
             </q-card-actions>

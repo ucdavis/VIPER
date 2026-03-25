@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
@@ -15,8 +15,8 @@ namespace Viper.test.Effort;
 public sealed class CourseRelationshipServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<ILogger<CourseRelationshipService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly ILogger<CourseRelationshipService> _loggerMock;
     private readonly CourseRelationshipService _service;
 
     private const int TestTermCode = 202410;
@@ -32,13 +32,13 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(options);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _loggerMock = new Mock<ILogger<CourseRelationshipService>>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _loggerMock = Substitute.For<ILogger<CourseRelationshipService>>();
 
         _auditServiceMock
-            .Setup(s => s.AddCourseChangeAudit(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()));
+            .AddCourseChangeAudit(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _service = new CourseRelationshipService(_context, _auditServiceMock.Object, _loggerMock.Object);
+        _service = new CourseRelationshipService(_context, _auditServiceMock, _loggerMock);
     }
 
     public void Dispose()
@@ -297,14 +297,12 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         await _service.CreateRelationshipAsync(1, request);
 
         // Assert
-        _auditServiceMock.Verify(
-            s => s.AddCourseChangeAudit(
+        _auditServiceMock.Received(1).AddCourseChangeAudit(
                 1,
                 TestTermCode,
                 "CreateCourseRelationship",
-                null,
-                It.IsAny<object>()),
-            Times.Once);
+                Arg.Is<object?>(x => x == null),
+                Arg.Any<object>());
     }
 
     [Fact]
@@ -350,14 +348,12 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         Assert.True(result);
         Assert.Null(await _context.CourseRelationships.FindAsync(1));
 
-        _auditServiceMock.Verify(
-            s => s.AddCourseChangeAudit(
+        _auditServiceMock.Received(1).AddCourseChangeAudit(
                 1,
                 TestTermCode,
                 "DeleteCourseRelationship",
-                It.IsAny<object>(),
-                null),
-            Times.Once);
+                Arg.Any<object>(),
+                Arg.Is<object?>(x => x == null));
     }
 
     [Fact]

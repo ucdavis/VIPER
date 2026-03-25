@@ -49,7 +49,7 @@ function parseOxlintOutput(stdout, stderr) {
 
     // Parse Oxlint stylish output with file headers
     // Format typically looks like:
-    // path/to/file.ts
+    // Path/to/file.ts
     //   2:7   error  Variable 'unused' is declared but never used  eslint(no-unused-vars)
     //   5:10  warn   Console log statement  oxlint(no-console)
 

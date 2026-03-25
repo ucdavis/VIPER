@@ -1,14 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.AAUD;
-using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Directory.Models;
 using System.Runtime.Versioning;
-using System.Collections.Generic;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.Utilities;
 
@@ -19,14 +17,14 @@ namespace Viper.Areas.Directory.Controllers
     [Authorize(Roles = "VMDO SVM-IT")] //locking directory for now until it's complete
     public class DirectoryController : AreaController
     {
-        public Classes.SQLContext.AAUDContext _aaud;
+        public Classes.SQLContext.AAUDContext _aaud { get; private set; }
         private readonly RAPSContext? _rapsContext;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
-        public DirectoryController(Classes.SQLContext.RAPSContext context)
+        public DirectoryController(AAUDContext aaud, RAPSContext rapsContext)
         {
-            _aaud = new AAUDContext();
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
+            _aaud = aaud;
+            _rapsContext = rapsContext;
             UserHelper = new UserHelper();
         }
 
@@ -80,16 +78,18 @@ namespace Viper.Areas.Directory.Controllers
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             individuals.ForEach(m =>
             {
-                LdapUserContact? l = new LdapService().GetUserByID(m.IamId);
-                results.Add(hasDetailPermission
+                LdapUserContact? l = LdapService.GetUserByID(m.IamId);
+                var result = hasDetailPermission
                     ? new IndividualSearchResultWithIDs(m, l)
-                    : new IndividualSearchResult(m, l));
+                    : new IndividualSearchResult(m, l);
+                result.LookupEmailHost(_aaud);
+                results.Add(result);
 
-                var vmsearch = VMACSService.Search(results.Last().LoginId);
+                var vmsearch = VMACSService.Search(result.LoginId);
                 var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
-                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
-                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
+                if (vm != null && vm.item != null && vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
+                if (vm != null && vm.item != null && vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
+                if (vm != null && vm.item != null && vm.item.Unit != null) result.Department = vm.item.Unit[0];
 
             });
             return results;
@@ -125,16 +125,19 @@ namespace Viper.Areas.Directory.Controllers
             foreach (var l in ldap)
             {
                 AaudUser? userInfo = individuals.Find(m => m.IamId == l.IamId);
-                results.Add(hasDetailPermission
+                var result = hasDetailPermission
                     ? new IndividualSearchResultWithIDs(userInfo, l)
-                    : new IndividualSearchResult(userInfo, l));
+                    : new IndividualSearchResult(userInfo, l);
+                result.LookupEmailHost(_aaud);
+                results.Add(result);
 
-                var vmsearch = VMACSService.Search(results.Last().LoginId);
+                var vmsearch = VMACSService.Search(result.LoginId);
                 var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null) results.Last().Nextel = vm.item.Nextel[0];
-                if (vm != null && vm.item != null && vm.item.LDPager != null) results.Last().LDPager = vm.item.LDPager[0];
-                if (vm != null && vm.item != null && vm.item.Unit != null) results.Last().Department = vm.item.Unit[0];
-        };
+                if (vm != null && vm.item != null && vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
+                if (vm != null && vm.item != null && vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
+                if (vm != null && vm.item != null && vm.item.Unit != null) result.Department = vm.item.Unit[0];
+            }
+
             return results;
         }
 

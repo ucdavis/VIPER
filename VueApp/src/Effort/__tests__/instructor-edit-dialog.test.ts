@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 
@@ -21,8 +20,6 @@ vi.mock("../services/instructor-service", () => ({
     },
 }))
 
-// Test data - term codes use YYYYXX format (no numeric separators)
-// oxlint-disable-next-line unicorn/numeric-separators-style
 const TEST_TERM_CODE = 202410
 
 describe("InstructorEdit - Error Handling", () => {
@@ -73,7 +70,7 @@ describe("InstructorEdit - Error Handling", () => {
         it("should require department to be selected", () => {
             const effortDept = ref<string | null>(null)
 
-            const isValid = !!effortDept.value
+            const isValid = Boolean(effortDept.value)
 
             expect(isValid).toBeFalsy()
         })
@@ -81,7 +78,7 @@ describe("InstructorEdit - Error Handling", () => {
         it("should allow valid department selection", () => {
             const effortDept = ref<string | null>("VME")
 
-            const isValid = !!effortDept.value
+            const isValid = Boolean(effortDept.value)
 
             expect(isValid).toBeTruthy()
         })
@@ -89,7 +86,7 @@ describe("InstructorEdit - Error Handling", () => {
         it("should require title code to be selected", () => {
             const effortTitleCode = ref<string | null>(null)
 
-            const isValid = !!effortTitleCode.value
+            const isValid = Boolean(effortTitleCode.value)
 
             expect(isValid).toBeFalsy()
         })
@@ -97,7 +94,7 @@ describe("InstructorEdit - Error Handling", () => {
         it("should allow valid title code selection", () => {
             const effortTitleCode = ref<string | null>("1234")
 
-            const isValid = !!effortTitleCode.value
+            const isValid = Boolean(effortTitleCode.value)
 
             expect(isValid).toBeTruthy()
         })

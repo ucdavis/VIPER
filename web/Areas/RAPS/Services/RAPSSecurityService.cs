@@ -66,11 +66,12 @@ namespace Viper.Areas.RAPS.Services
 
         static public Expression<Func<TblPermission, bool>> FilterPermissionsToInstance(string instance)
         {
-            return p =>
-                instance.ToUpper().StartsWith("VMACS.") ? p.Permission.StartsWith("VMACS")
-                    : instance.ToUpper().StartsWith("VIPERFORMS") ? p.Permission.StartsWith("VIPERForms")
-                    : (!p.Permission.StartsWith("VMACS") && !p.Permission.StartsWith("VIPERForms"));
-
+            var upper = instance.ToUpper();
+            if (upper.StartsWith("VMACS."))
+                return p => p.Permission.StartsWith("VMACS");
+            if (upper.StartsWith("VIPERFORMS"))
+                return p => p.Permission.StartsWith("VIPERForms");
+            return p => !p.Permission.StartsWith("VMACS") && !p.Permission.StartsWith("VIPERForms");
         }
 
         /// <summary>
@@ -79,7 +80,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="instance">The instance</param>
         /// <param name="role">The role</param>
         /// <returns>true if the role belongs to the instance, false otherwise</returns>
-        public bool RoleBelongsToInstance(string instance, TblRole role)
+        public static bool RoleBelongsToInstance(string instance, TblRole role)
         {
             string roleName = role.Role.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -95,7 +96,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="instance"></param>
         /// <param name="roleTemplate"></param>
         /// <returns></returns>
-        public bool RoleTemplateBelongsToInstance(string instance, RoleTemplate roleTemplate)
+        public static bool RoleTemplateBelongsToInstance(string instance, RoleTemplate roleTemplate)
         {
             string name = roleTemplate.TemplateName.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -111,7 +112,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="instance">The instance</param>
         /// <param name="permission">The permission</param>
         /// <returns>true if the permission belongs to the instance, false otherwise</returns>
-        public bool PermissionBelongsToInstance(string instance, TblPermission permission)
+        public static bool PermissionBelongsToInstance(string instance, TblPermission permission)
         {
             string permissionName = permission.Permission.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -125,7 +126,7 @@ namespace Viper.Areas.RAPS.Services
             return permissionName.StartsWith(instance.ToUpper());
         }
 
-        public bool PermissionBelongsToInstance(string instance, string permission)
+        public static bool PermissionBelongsToInstance(string instance, string permission)
         {
             string permissionName = permission.ToUpper();
             if (instance.ToUpper() == "VIPER")

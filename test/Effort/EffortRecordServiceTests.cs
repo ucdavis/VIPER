@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
@@ -20,11 +21,11 @@ public sealed class EffortRecordServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly RAPSContext _rapsContext;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<IInstructorService> _instructorServiceMock;
-    private readonly Mock<IRCourseService> _rCourseServiceMock;
-    private readonly Mock<IUserHelper> _userHelperMock;
-    private readonly Mock<ILogger<EffortRecordService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly IInstructorService _instructorServiceMock;
+    private readonly IRCourseService _rCourseServiceMock;
+    private readonly IUserHelper _userHelperMock;
+    private readonly ILogger<EffortRecordService> _loggerMock;
     private readonly EffortRecordService _service;
 
     private const int TestTermCode = 202410;
@@ -45,33 +46,32 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         _context = new EffortDbContext(effortOptions);
         _rapsContext = new RAPSContext(rapsOptions);
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _userHelperMock = new Mock<IUserHelper>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _userHelperMock = Substitute.For<IUserHelper>();
 
         _auditServiceMock
-            .Setup(s => s.LogRecordChangeAsync(
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .LogRecordChangeAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(),
+                Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _instructorServiceMock = new Mock<IInstructorService>();
-        _rCourseServiceMock = new Mock<IRCourseService>();
-        _loggerMock = new Mock<ILogger<EffortRecordService>>();
+        _instructorServiceMock = Substitute.For<IInstructorService>();
+        _rCourseServiceMock = Substitute.For<IRCourseService>();
+        _loggerMock = Substitute.For<ILogger<EffortRecordService>>();
 
         var testUser = new AaudUser { AaudUserId = TestUserId, MothraId = "testuser" };
-        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(testUser);
+        _userHelperMock.GetCurrentUser().Returns(testUser);
 
         var courseClassificationService = new CourseClassificationService();
 
         _service = new EffortRecordService(
             _context,
             _rapsContext,
-            _auditServiceMock.Object,
-            _instructorServiceMock.Object,
+            _auditServiceMock,
+            _instructorServiceMock,
             courseClassificationService,
-            _rCourseServiceMock.Object,
-            _userHelperMock.Object,
-            _loggerMock.Object);
+            _rCourseServiceMock,
+            _userHelperMock,
+            _loggerMock);
 
         SeedTestData();
     }
@@ -324,11 +324,9 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Null(result.Weeks);
         Assert.Null(warning);
 
-        _auditServiceMock.Verify(
-            s => s.LogRecordChangeAsync(
+        await _auditServiceMock.Received(1).LogRecordChangeAsync(
                 result.Id, TestTermCode, EffortAuditActions.CreateEffort,
-                null, It.IsAny<object>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Is<object?>(x => x == null), Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -347,9 +345,9 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Set up the instructor service to throw when person not found in VIPER
         _instructorServiceMock
-            .Setup(s => s.CreateInstructorAsync(
-                It.IsAny<CreateInstructorRequest>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException($"Person with PersonId {request.PersonId} not found"));
+            .CreateInstructorAsync(
+                Arg.Any<CreateInstructorRequest>(), Arg.Any<CancellationToken>())
+            .Throws(new InvalidOperationException($"Person with PersonId {request.PersonId} not found"));
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -523,7 +521,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Mock the current user as the instructor themselves (self-edit)
         var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
-        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+        _userHelperMock.GetCurrentUser().Returns(selfUser);
 
         var request = new CreateEffortRecordRequest
         {
@@ -703,10 +701,10 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Simulate race condition: CreateInstructorAsync throws because another request already created the instructor
         _instructorServiceMock
-            .Setup(s => s.CreateInstructorAsync(
-                It.Is<CreateInstructorRequest>(r => r.PersonId == newPersonId && r.TermCode == TestTermCode),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new Areas.Effort.Exceptions.InstructorAlreadyExistsException(newPersonId, TestTermCode));
+            .CreateInstructorAsync(
+                Arg.Is<CreateInstructorRequest>(r => r.PersonId == newPersonId && r.TermCode == TestTermCode),
+                Arg.Any<CancellationToken>())
+            .Throws(new Areas.Effort.Exceptions.InstructorAlreadyExistsException(newPersonId, TestTermCode));
 
         // After the exception, the person now exists (created by the concurrent request)
         _context.Persons.Add(new EffortPerson
@@ -768,11 +766,9 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Equal("Updated notes", result.Notes);
         Assert.Null(warning);
 
-        _auditServiceMock.Verify(
-            s => s.LogRecordChangeAsync(
+        await _auditServiceMock.Received(1).LogRecordChangeAsync(
                 1, TestTermCode, EffortAuditActions.UpdateEffort,
-                It.IsAny<object>(), It.IsAny<object>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Any<object>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -922,7 +918,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Mock the current user as the instructor themselves (self-edit)
         var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
-        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+        _userHelperMock.GetCurrentUser().Returns(selfUser);
 
         var request = new UpdateEffortRecordRequest
         {
@@ -967,11 +963,9 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.True(result);
         Assert.Null(await _context.Records.FindAsync(1));
 
-        _auditServiceMock.Verify(
-            s => s.LogRecordChangeAsync(
+        await _auditServiceMock.Received(1).LogRecordChangeAsync(
                 1, TestTermCode, EffortAuditActions.DeleteEffort,
-                It.IsAny<object>(), null, It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Any<object>(), Arg.Is<object?>(x => x == null), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1035,7 +1029,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Mock the current user as the instructor themselves (self-edit)
         var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
-        _userHelperMock.Setup(x => x.GetCurrentUser()).Returns(selfUser);
+        _userHelperMock.GetCurrentUser().Returns(selfUser);
 
         // Act - pass null for originalModifiedDate (legacy record)
         await _service.DeleteEffortRecordAsync(1, null);
@@ -1389,8 +1383,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         _context.Terms.Add(closedTerm);
         await _context.SaveChangesAsync();
 
-        _userHelperMock.Setup(x => x.HasPermission(
-            It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), EffortPermissions.EditWhenClosed))
+        _userHelperMock.HasPermission(
+            Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), EffortPermissions.EditWhenClosed)
             .Returns(false);
 
         // Act
@@ -1409,8 +1403,8 @@ public sealed class EffortRecordServiceTests : IDisposable
         _context.Terms.Add(closedTerm);
         await _context.SaveChangesAsync();
 
-        _userHelperMock.Setup(x => x.HasPermission(
-            It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), EffortPermissions.EditWhenClosed))
+        _userHelperMock.HasPermission(
+            Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), EffortPermissions.EditWhenClosed)
             .Returns(true);
 
         // Act
@@ -1488,12 +1482,12 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Equal("LEC", result.EffortType);
 
         // Verify RCourseService was called to create R-course (first non-R-course triggers creation)
-        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
+        await _rCourseServiceMock.Received(1).CreateRCourseEffortRecordAsync(
             newPersonId,
             TestTermCode,
             TestUserId,
             RCourseCreationContext.OnDemand,
-            It.IsAny<CancellationToken>()), Times.Once);
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1542,12 +1536,12 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.Equal(existingPersonId, result.PersonId);
 
         // Verify RCourseService was NOT called (not the first non-R-course)
-        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<RCourseCreationContext>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<RCourseCreationContext>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1583,12 +1577,12 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.NotNull(result);
 
         // Verify RCourseService was NOT called (adding R-course doesn't trigger auto-creation)
-        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<RCourseCreationContext>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<RCourseCreationContext>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1638,12 +1632,12 @@ public sealed class EffortRecordServiceTests : IDisposable
         Assert.NotNull(result);
 
         // Verify RCourseService was NOT called (adding generic R-course doesn't trigger auto-creation)
-        _rCourseServiceMock.Verify(s => s.CreateRCourseEffortRecordAsync(
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<int>(),
-            It.IsAny<RCourseCreationContext>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<RCourseCreationContext>(),
+            Arg.Any<CancellationToken>());
     }
 
     #endregion

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -17,28 +17,28 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class VerificationControllerTests
 {
-    private readonly Mock<IVerificationService> _verificationServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<IInstructorService> _instructorServiceMock;
-    private readonly Mock<IOptions<EffortSettings>> _settingsMock;
-    private readonly Mock<ILogger<VerificationController>> _loggerMock;
+    private readonly IVerificationService _verificationServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly IInstructorService _instructorServiceMock;
+    private readonly IOptions<EffortSettings> _settingsMock;
+    private readonly ILogger<VerificationController> _loggerMock;
     private readonly VerificationController _controller;
 
     public VerificationControllerTests()
     {
-        _verificationServiceMock = new Mock<IVerificationService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _instructorServiceMock = new Mock<IInstructorService>();
-        _settingsMock = new Mock<IOptions<EffortSettings>>();
-        _settingsMock.Setup(s => s.Value).Returns(new EffortSettings());
-        _loggerMock = new Mock<ILogger<VerificationController>>();
+        _verificationServiceMock = Substitute.For<IVerificationService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _instructorServiceMock = Substitute.For<IInstructorService>();
+        _settingsMock = Substitute.For<IOptions<EffortSettings>>();
+        _settingsMock.Value.Returns(new EffortSettings());
+        _loggerMock = Substitute.For<ILogger<VerificationController>>();
 
         _controller = new VerificationController(
-            _verificationServiceMock.Object,
-            _permissionServiceMock.Object,
-            _instructorServiceMock.Object,
-            _settingsMock.Object,
-            _loggerMock.Object);
+            _verificationServiceMock,
+            _permissionServiceMock,
+            _instructorServiceMock,
+            _settingsMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -74,8 +74,7 @@ public sealed class VerificationControllerTests
             TermName = "Fall 2024",
             LastModifiedDate = DateTime.Now
         };
-        _verificationServiceMock.Setup(s => s.GetMyEffortAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(myEffort);
+        _verificationServiceMock.GetMyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns(myEffort);
 
         // Act
         var result = await _controller.GetMyEffort(202410);
@@ -91,8 +90,7 @@ public sealed class VerificationControllerTests
     public async Task GetMyEffort_ReturnsEmptyDto_WhenNoInstructorRecord()
     {
         // Arrange
-        _verificationServiceMock.Setup(s => s.GetMyEffortAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((MyEffortDto?)null);
+        _verificationServiceMock.GetMyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns((MyEffortDto?)null);
 
         // Act
         var result = await _controller.GetMyEffort(202410);
@@ -114,8 +112,7 @@ public sealed class VerificationControllerTests
     {
         // Arrange
         var result = new VerificationResult { Success = true };
-        _verificationServiceMock.Setup(s => s.VerifyEffortAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(result);
+        _verificationServiceMock.VerifyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.VerifyEffort(202410);
@@ -131,8 +128,7 @@ public sealed class VerificationControllerTests
     {
         // Arrange
         var result = new VerificationResult { Success = false, ErrorMessage = "Zero effort records exist" };
-        _verificationServiceMock.Setup(s => s.VerifyEffortAsync(202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(result);
+        _verificationServiceMock.VerifyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
         var actionResult = await _controller.VerifyEffort(202410);
@@ -156,12 +152,9 @@ public sealed class VerificationControllerTests
         var instructor = new PersonDto { PersonId = 123, EffortDept = "DVM" };
         var emailResult = new EmailSendResult { Success = true };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _verificationServiceMock.Setup(s => s.SendVerificationEmailAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(emailResult);
+        _instructorServiceMock.GetInstructorAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _verificationServiceMock.SendVerificationEmailAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(emailResult);
 
         // Act
         var result = await _controller.SendVerificationEmail(request);
@@ -178,8 +171,7 @@ public sealed class VerificationControllerTests
         // Arrange
         var request = new SendVerificationEmailRequest { PersonId = 999, TermCode = 202410 };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(999, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.SendVerificationEmail(request);
@@ -195,10 +187,8 @@ public sealed class VerificationControllerTests
         var request = new SendVerificationEmailRequest { PersonId = 123, TermCode = 202410 };
         var instructor = new PersonDto { PersonId = 123, EffortDept = "VME" };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _instructorServiceMock.GetInstructorAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.SendVerificationEmail(request);
@@ -214,10 +204,8 @@ public sealed class VerificationControllerTests
         var request = new SendVerificationEmailRequest { PersonId = 123, TermCode = 202410 };
         var instructor = new PersonDto { PersonId = 123, EffortDept = "DVM", EffortVerified = DateTime.Now };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _instructorServiceMock.GetInstructorAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.SendVerificationEmail(request);
@@ -238,10 +226,8 @@ public sealed class VerificationControllerTests
         var request = new SendBulkEmailRequest { DepartmentCode = "DVM", TermCode = 202410 };
         var bulkResult = new BulkEmailResult { TotalInstructors = 5, EmailsSent = 5, EmailsFailed = 0 };
 
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _verificationServiceMock.Setup(s => s.SendBulkVerificationEmailsAsync("DVM", 202410, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(bulkResult);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _verificationServiceMock.SendBulkVerificationEmailsAsync("DVM", 202410, false, Arg.Any<CancellationToken>()).Returns(bulkResult);
 
         // Act
         var result = await _controller.SendBulkVerificationEmails(request);
@@ -259,8 +245,7 @@ public sealed class VerificationControllerTests
         // Arrange
         var request = new SendBulkEmailRequest { DepartmentCode = "VME", TermCode = 202410 };
 
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.SendBulkVerificationEmails(request);
@@ -284,12 +269,9 @@ public sealed class VerificationControllerTests
             new() { SentDate = DateTime.Now.AddDays(-7), SentBy = "Admin" }
         };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _verificationServiceMock.Setup(s => s.GetEmailHistoryAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(history);
+        _instructorServiceMock.GetInstructorAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _verificationServiceMock.GetEmailHistoryAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(history);
 
         // Act
         var result = await _controller.GetEmailHistory(123, 202410);
@@ -304,8 +286,7 @@ public sealed class VerificationControllerTests
     public async Task GetEmailHistory_ReturnsNotFound_WhenInstructorNotFound()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(999, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.GetEmailHistory(999, 202410);
@@ -320,10 +301,8 @@ public sealed class VerificationControllerTests
         // Arrange
         var instructor = new PersonDto { PersonId = 123, EffortDept = "VME" };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _instructorServiceMock.GetInstructorAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetEmailHistory(123, 202410);
@@ -342,9 +321,8 @@ public sealed class VerificationControllerTests
         // Arrange
         var canVerifyResult = new CanVerifyResult { CanVerify = true, ZeroEffortCount = 0 };
 
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(123);
-        _verificationServiceMock.Setup(s => s.CanVerifyAsync(123, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(canVerifyResult);
+        _permissionServiceMock.GetCurrentPersonId().Returns(123);
+        _verificationServiceMock.CanVerifyAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(canVerifyResult);
 
         // Act
         var result = await _controller.CanVerify(123, 202410);
@@ -362,13 +340,10 @@ public sealed class VerificationControllerTests
         var instructor = new PersonDto { PersonId = 456, EffortDept = "DVM" };
         var canVerifyResult = new CanVerifyResult { CanVerify = false, ZeroEffortCount = 2, ZeroEffortCourses = ["DVM 443-001", "VME 200-001"] };
 
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(123); // Different person
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(456, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _verificationServiceMock.Setup(s => s.CanVerifyAsync(456, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(canVerifyResult);
+        _permissionServiceMock.GetCurrentPersonId().Returns(123); // Different person
+        _instructorServiceMock.GetInstructorAsync(456, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _verificationServiceMock.CanVerifyAsync(456, 202410, Arg.Any<CancellationToken>()).Returns(canVerifyResult);
 
         // Act
         var result = await _controller.CanVerify(456, 202410);
@@ -384,9 +359,8 @@ public sealed class VerificationControllerTests
     public async Task CanVerify_ReturnsNotFound_WhenInstructorNotFound()
     {
         // Arrange
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(123); // Different person
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(456, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PersonDto?)null);
+        _permissionServiceMock.GetCurrentPersonId().Returns(123); // Different person
+        _instructorServiceMock.GetInstructorAsync(456, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.CanVerify(456, 202410);
@@ -401,11 +375,9 @@ public sealed class VerificationControllerTests
         // Arrange
         var instructor = new PersonDto { PersonId = 456, EffortDept = "VME" };
 
-        _permissionServiceMock.Setup(s => s.GetCurrentPersonId()).Returns(123); // Different person
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(456, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.GetCurrentPersonId().Returns(123); // Different person
+        _instructorServiceMock.GetInstructorAsync(456, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.CanVerify(456, 202410);

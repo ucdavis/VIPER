@@ -410,7 +410,7 @@ watch(selectedDepartment, () => {
     loadJobGroups()
 })
 
-onMounted(async () => {
+async function initFilters() {
     await Promise.all([loadTerms(), loadDepartments()])
 
     // Set term after options are loaded so the dropdown never flashes a raw code
@@ -433,5 +433,7 @@ onMounted(async () => {
     if (props.initialFilters) {
         handleGenerate()
     }
-})
+}
+
+onMounted(() => initFilters())
 </script>

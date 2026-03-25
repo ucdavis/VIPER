@@ -207,7 +207,12 @@ function parseArguments() {
     const knownFlags = new Set(["--fix"])
     const args = process.argv.slice(2)
     const fixFlag = args.includes("--fix")
-    const rawFiles = args.filter((a) => !knownFlags.has(a) && !a.startsWith("--"))
+
+    // Support --files-from=<path> to avoid Windows ENAMETOOLONG
+    const filesFromArg = args.find((a) => a.startsWith("--files-from="))
+    const rawFiles = filesFromArg
+        ? fs.readFileSync(filesFromArg.slice("--files-from=".length), "utf8").split("\n").filter(Boolean)
+        : args.filter((a) => !knownFlags.has(a) && !a.startsWith("--"))
 
     return { fixFlag, rawFiles }
 }
@@ -264,15 +269,16 @@ function runCommand(command, args, description, cwd) {
         )
     }
 
-    const execPath = localBin
-    const finalArgs = args
-    // Windows .cmd files need shell, but use it safely with individual args
-    const useShell = IS_WINDOWS && localBin.endsWith(".cmd")
+    // Windows .cmd files need to be run via cmd.exe
+    // Use ComSpec directly instead of shell: true to avoid DEP0190 deprecation warning
+    // And ensure proper argument escaping
+    const useCmd = IS_WINDOWS && localBin.endsWith(".cmd")
+    const execPath = useCmd ? env.ComSpec : localBin
+    const finalArgs = useCmd ? ["/c", localBin, ...args] : args
 
     const result = spawnSync(execPath, finalArgs, {
         stdio: ["inherit", "pipe", "pipe"],
         cwd: cwd,
-        shell: useShell,
         encoding: "utf8",
         windowsHide: true,
     })
@@ -427,8 +433,8 @@ function filterTypeScriptErrors(tscOutput, targetFiles, projectRoot) {
             }
         } else {
             // Keep non-error lines (like summary messages) if we have any relevant errors
-            // or if this might be a continuation of an error message
-            const hasRelevantErrors = filteredLines.some((line) => line.includes("error TS"))
+            // Or if this might be a continuation of an error message
+            const hasRelevantErrors = filteredLines.some((l) => l.includes("error TS"))
             if (hasRelevantErrors || line.trim() === "" || line.includes("Found ")) {
                 filteredLines.push(line)
             }

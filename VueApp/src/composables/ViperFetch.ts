@@ -60,6 +60,27 @@ function addHeader(options: any, headerName: string, headerValue: string) {
     }
 }
 
+function extractErrorMessage(result: any): string {
+    if (result.errorMessage !== null && result.errorMessage !== undefined) {
+        return result.errorMessage
+    }
+    if (result.detail !== null && result.detail !== undefined) {
+        return result.detail
+    }
+    if (result.statusText !== null && result.statusText !== undefined) {
+        return result.statusText
+    }
+    return ""
+}
+
+function isAntiforgeryError(status: number, result: any): boolean {
+    return (
+        status === HTTP_STATUS.BAD_REQUEST &&
+        typeof result?.errorMessage === "string" &&
+        result.errorMessage.toLowerCase().includes("antiforgery")
+    )
+}
+
 async function handleViperFetchError(response: any) {
     if (!response.ok) {
         let result = null
@@ -73,20 +94,12 @@ async function handleViperFetchError(response: any) {
             }
             if (response.status === HTTP_STATUS.UNAUTHORIZED || response.status === HTTP_STATUS.FORBIDDEN) {
                 isAuthError = true
-            } else if (
-                response.status === HTTP_STATUS.BAD_REQUEST &&
-                typeof result?.errorMessage === "string" &&
-                result.errorMessage.toLowerCase().includes("antiforgery")
-            ) {
+            } else if (isAntiforgeryError(response.status, result)) {
                 // CSRF token expired or invalid - treat as auth error so user refreshes
                 isAuthError = true
                 message = result.errorMessage
-            } else if (result.errorMessage !== null && result.errorMessage !== undefined) {
-                message = result.errorMessage
-            } else if (result.detail !== null && result.detail !== undefined) {
-                message = result.detail
-            } else if (result.statusText !== null && result.statusText !== undefined) {
-                message = result.statusText
+            } else {
+                message = extractErrorMessage(result)
             }
         } catch {
             throw new Error("An error occurred")

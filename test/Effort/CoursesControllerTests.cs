@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -16,10 +17,10 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class CoursesControllerTests
 {
-    private readonly Mock<ICourseService> _courseServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<IEvalHarvestService> _evalHarvestServiceMock;
-    private readonly Mock<ILogger<CoursesController>> _loggerMock;
+    private readonly ICourseService _courseServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly IEvalHarvestService _evalHarvestServiceMock;
+    private readonly ILogger<CoursesController> _loggerMock;
     private readonly CoursesController _controller;
 
     private const int TestCourseId = 1;
@@ -29,16 +30,16 @@ public sealed class CoursesControllerTests
 
     public CoursesControllerTests()
     {
-        _courseServiceMock = new Mock<ICourseService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _evalHarvestServiceMock = new Mock<IEvalHarvestService>();
-        _loggerMock = new Mock<ILogger<CoursesController>>();
+        _courseServiceMock = Substitute.For<ICourseService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _evalHarvestServiceMock = Substitute.For<IEvalHarvestService>();
+        _loggerMock = Substitute.For<ILogger<CoursesController>>();
 
         _controller = new CoursesController(
-            _courseServiceMock.Object,
-            _permissionServiceMock.Object,
-            _evalHarvestServiceMock.Object,
-            _loggerMock.Object);
+            _courseServiceMock,
+            _permissionServiceMock,
+            _evalHarvestServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -75,10 +76,8 @@ public sealed class CoursesControllerTests
     private void SetupAuthorizedCourse(CourseDto? course = null)
     {
         course ??= CreateTestCourse();
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(course.CustDept, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(true);
     }
 
     #region GetCourses Tests
@@ -92,9 +91,8 @@ public sealed class CoursesControllerTests
             new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new CourseDto { Id = 2, TermCode = 202410, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 15, Units = 3, CustDept = "VME" }
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.GetCoursesAsync(202410, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(courses);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.GetCoursesAsync(202410, null, Arg.Any<CancellationToken>()).Returns(courses);
 
         // Act
         var result = await _controller.GetCourses(202410);
@@ -113,10 +111,9 @@ public sealed class CoursesControllerTests
         {
             new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" }
         };
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.GetCoursesAsync(202410, "DVM", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(courses);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.GetCoursesAsync(202410, "DVM", Arg.Any<CancellationToken>()).Returns(courses);
 
         // Act
         var result = await _controller.GetCourses(202410, "DVM");
@@ -136,9 +133,8 @@ public sealed class CoursesControllerTests
     {
         // Arrange
         var course = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.GetCourse(1);
@@ -153,8 +149,7 @@ public sealed class CoursesControllerTests
     public async Task GetCourse_ReturnsNotFound_WhenCourseDoesNotExist()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.GetCourse(999);
@@ -185,11 +180,10 @@ public sealed class CoursesControllerTests
         };
         var createdCourse = new CourseDto { Id = 10, TermCode = 202410, Crn = "99999", SubjCode = "TST", CrseNumb = "101", SeqNumb = "001", Enrollment = 25, Units = 4, CustDept = "DVM" };
 
-        _courseServiceMock.Setup(s => s.IsValidCustodialDepartment("DVM")).Returns(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.CourseExistsAsync(202410, "99999", 4, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _courseServiceMock.Setup(s => s.CreateCourseAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdCourse);
+        _courseServiceMock.IsValidCustodialDepartment("DVM").Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.CourseExistsAsync(202410, "99999", 4, Arg.Any<CancellationToken>()).Returns(false);
+        _courseServiceMock.CreateCourseAsync(request, Arg.Any<CancellationToken>()).Returns(createdCourse);
 
         // Act
         var result = await _controller.CreateCourse(request);
@@ -217,8 +211,8 @@ public sealed class CoursesControllerTests
             CustDept = "VME"
         };
 
-        _courseServiceMock.Setup(s => s.IsValidCustodialDepartment("VME")).Returns(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _courseServiceMock.IsValidCustodialDepartment("VME").Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.CreateCourse(request);
@@ -245,9 +239,9 @@ public sealed class CoursesControllerTests
             CustDept = "DVM"
         };
 
-        _courseServiceMock.Setup(s => s.IsValidCustodialDepartment("DVM")).Returns(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.CourseExistsAsync(202410, "99999", 4, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _courseServiceMock.IsValidCustodialDepartment("DVM").Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.CourseExistsAsync(202410, "99999", 4, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.CreateCourse(request);
@@ -274,7 +268,7 @@ public sealed class CoursesControllerTests
             CustDept = "INVALID"
         };
 
-        _courseServiceMock.Setup(s => s.IsValidCustodialDepartment("INVALID")).Returns(false);
+        _courseServiceMock.IsValidCustodialDepartment("INVALID").Returns(false);
 
         // Act
         var result = await _controller.CreateCourse(request);
@@ -301,11 +295,10 @@ public sealed class CoursesControllerTests
             CustDept = "DVM"
         };
 
-        _courseServiceMock.Setup(s => s.IsValidCustodialDepartment("DVM")).Returns(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.CourseExistsAsync(202410, "99999", 4, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _courseServiceMock.Setup(s => s.CreateCourseAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Database constraint violation"));
+        _courseServiceMock.IsValidCustodialDepartment("DVM").Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.CourseExistsAsync(202410, "99999", 4, Arg.Any<CancellationToken>()).Returns(false);
+        _courseServiceMock.CreateCourseAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Database constraint violation"));
 
         // Act
         var result = await _controller.CreateCourse(request);
@@ -333,11 +326,10 @@ public sealed class CoursesControllerTests
         };
         var updatedCourse = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 30, Units = 5, CustDept = "VME" };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.UpdateCourseAsync(1, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedCourse);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Returns(updatedCourse);
 
         // Act
         var result = await _controller.UpdateCourse(1, request);
@@ -361,9 +353,9 @@ public sealed class CoursesControllerTests
             CustDept = "VME"
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.UpdateCourse(1, request);
@@ -386,10 +378,9 @@ public sealed class CoursesControllerTests
         };
         var updatedCourse = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 30, Units = 5, CustDept = "DVM" };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.UpdateCourseAsync(1, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedCourse);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Returns(updatedCourse);
 
         // Act
         var result = await _controller.UpdateCourse(1, request);
@@ -411,7 +402,7 @@ public sealed class CoursesControllerTests
             CustDept = "VME"
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.UpdateCourse(999, request);
@@ -433,11 +424,10 @@ public sealed class CoursesControllerTests
             CustDept = "INVALID"
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("INVALID", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.UpdateCourseAsync(1, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ArgumentException("Invalid custodial department: INVALID"));
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("INVALID", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Throws(new ArgumentException("Invalid custodial department: INVALID"));
 
         // Act
         var result = await _controller.UpdateCourse(1, request);
@@ -459,11 +449,10 @@ public sealed class CoursesControllerTests
             CustDept = "VME"
         };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.UpdateCourseAsync(1, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Database constraint violation"));
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Database constraint violation"));
 
         // Act
         var result = await _controller.UpdateCourse(1, request);
@@ -485,10 +474,9 @@ public sealed class CoursesControllerTests
         var request = new UpdateEnrollmentRequest { Enrollment = 50 };
         var updatedCourse = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443R", SeqNumb = "001", Enrollment = 50, Units = 4, CustDept = "DVM" };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.UpdateCourseEnrollmentAsync(1, 50, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedCourse);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.UpdateCourseEnrollmentAsync(1, 50, Arg.Any<CancellationToken>()).Returns(updatedCourse);
 
         // Act
         var result = await _controller.UpdateCourseEnrollment(1, request);
@@ -505,7 +493,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var request = new UpdateEnrollmentRequest { Enrollment = 50 };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.UpdateCourseEnrollment(999, request);
@@ -521,10 +509,9 @@ public sealed class CoursesControllerTests
         var existingCourse = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
         var request = new UpdateEnrollmentRequest { Enrollment = 50 };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.UpdateCourseEnrollmentAsync(1, 50, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Course is not an R-course"));
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.UpdateCourseEnrollmentAsync(1, 50, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Course is not an R-course"));
 
         // Act
         var result = await _controller.UpdateCourseEnrollment(1, request);
@@ -544,10 +531,9 @@ public sealed class CoursesControllerTests
         // Arrange
         var existingCourse = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.DeleteCourseAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.DeleteCourseAsync(1, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.DeleteCourse(1);
@@ -560,7 +546,7 @@ public sealed class CoursesControllerTests
     public async Task DeleteCourse_ReturnsNotFound_WhenCourseDoesNotExist()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.DeleteCourse(999);
@@ -580,10 +566,9 @@ public sealed class CoursesControllerTests
         // Arrange
         var existingCourse = new CourseDto { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
 
-        _courseServiceMock.Setup(s => s.GetCourseAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingCourse);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("DVM", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.CanDeleteCourseAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((true, 5));
+        _courseServiceMock.GetCourseAsync(1, Arg.Any<CancellationToken>()).Returns(existingCourse);
+        _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.CanDeleteCourseAsync(1, Arg.Any<CancellationToken>()).Returns((true, 5));
 
         // Act
         var result = await _controller.CanDeleteCourse(1);
@@ -602,9 +587,8 @@ public sealed class CoursesControllerTests
     {
         // Arrange
         var departments = new List<string> { "APC", "VMB", "VME", "VSR", "PMI", "PHR", "UNK", "DVM", "VET" };
-        _courseServiceMock.Setup(s => s.GetValidCustodialDepartments())
-            .Returns(departments);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _courseServiceMock.GetValidCustodialDepartments().Returns(departments);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.GetDepartments();
@@ -631,12 +615,11 @@ public sealed class CoursesControllerTests
         var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, UnitType = "F", UnitLow = 4, UnitHigh = 4, DeptCode = "72030" };
         var importedCourse = new CourseDto { Id = 10, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "VME" };
 
-        _courseServiceMock.Setup(s => s.GetBannerCourseAsync(202410, "12345", It.IsAny<CancellationToken>())).ReturnsAsync(bannerCourse);
-        _courseServiceMock.Setup(s => s.CourseExistsAsync(202410, "12345", 4, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _courseServiceMock.Setup(s => s.GetCustodialDepartmentForBannerCode("72030")).Returns("VME");
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _courseServiceMock.Setup(s => s.ImportCourseFromBannerAsync(request, bannerCourse, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(importedCourse);
+        _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
+        _courseServiceMock.CourseExistsAsync(202410, "12345", 4, Arg.Any<CancellationToken>()).Returns(false);
+        _courseServiceMock.GetCustodialDepartmentForBannerCode("72030").Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.ImportCourseFromBannerAsync(request, bannerCourse, Arg.Any<CancellationToken>()).Returns(importedCourse);
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -657,10 +640,10 @@ public sealed class CoursesControllerTests
         };
         var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 20, UnitType = "F", UnitLow = 4, UnitHigh = 4, DeptCode = "72030" };
 
-        _courseServiceMock.Setup(s => s.GetBannerCourseAsync(202410, "12345", It.IsAny<CancellationToken>())).ReturnsAsync(bannerCourse);
-        _courseServiceMock.Setup(s => s.CourseExistsAsync(202410, "12345", 4, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _courseServiceMock.Setup(s => s.GetCustodialDepartmentForBannerCode("72030")).Returns("VME");
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
+        _courseServiceMock.CourseExistsAsync(202410, "12345", 4, Arg.Any<CancellationToken>()).Returns(false);
+        _courseServiceMock.GetCustodialDepartmentForBannerCode("72030").Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -681,8 +664,8 @@ public sealed class CoursesControllerTests
         };
         var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, UnitType = "F", UnitLow = 4, UnitHigh = 4, DeptCode = "72030" };
 
-        _courseServiceMock.Setup(s => s.GetBannerCourseAsync(202410, "12345", It.IsAny<CancellationToken>())).ReturnsAsync(bannerCourse);
-        _courseServiceMock.Setup(s => s.CourseExistsAsync(202410, "12345", 4, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
+        _courseServiceMock.CourseExistsAsync(202410, "12345", 4, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -702,7 +685,7 @@ public sealed class CoursesControllerTests
             Crn = "99999"
         };
 
-        _courseServiceMock.Setup(s => s.GetBannerCourseAsync(202410, "99999", It.IsAny<CancellationToken>())).ReturnsAsync((BannerCourseDto?)null);
+        _courseServiceMock.GetBannerCourseAsync(202410, "99999", Arg.Any<CancellationToken>()).Returns((BannerCourseDto?)null);
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -724,7 +707,7 @@ public sealed class CoursesControllerTests
         };
         var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, UnitType = "V", UnitLow = 1, UnitHigh = 4, DeptCode = "72030" };
 
-        _courseServiceMock.Setup(s => s.GetBannerCourseAsync(202410, "12345", It.IsAny<CancellationToken>())).ReturnsAsync(bannerCourse);
+        _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -746,8 +729,7 @@ public sealed class CoursesControllerTests
         {
             new BannerCourseDto { Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20 }
         };
-        _courseServiceMock.Setup(s => s.SearchBannerCoursesAsync(202410, "DVM", null, null, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(bannerCourses);
+        _courseServiceMock.SearchBannerCoursesAsync(202410, "DVM", null, null, null, Arg.Any<CancellationToken>()).Returns(bannerCourses);
 
         // Act
         var result = await _controller.SearchBannerCourses(202410, "DVM");
@@ -784,12 +766,9 @@ public sealed class CoursesControllerTests
         {
             new() { EffortId = 1, PersonId = TestPersonId, InstructorName = "Smith, John", EffortTypeId = "LEC", RoleId = 1, Hours = 40 }
         };
-        _courseServiceMock.Setup(s => s.GetCourseEffortAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(records);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _courseServiceMock.GetCourseEffortAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(records);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
@@ -811,9 +790,7 @@ public sealed class CoursesControllerTests
         var course = CreateTestCourse(parentCourseId: 99);
         SetupAuthorizedCourse(course);
 
-        _courseServiceMock.Setup(s => s.GetCourseEffortAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<CourseEffortRecordDto>());
-
+        _courseServiceMock.GetCourseEffortAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(new List<CourseEffortRecordDto>());
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
 
@@ -831,10 +808,8 @@ public sealed class CoursesControllerTests
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
 
-        _courseServiceMock.Setup(s => s.GetCourseEffortAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<CourseEffortRecordDto>());
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _courseServiceMock.GetCourseEffortAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(new List<CourseEffortRecordDto>());
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
@@ -850,8 +825,7 @@ public sealed class CoursesControllerTests
     public async Task GetCourseEffort_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
@@ -865,10 +839,8 @@ public sealed class CoursesControllerTests
     {
         // Arrange
         var course = CreateTestCourse();
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(course.CustDept, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
@@ -891,14 +863,10 @@ public sealed class CoursesControllerTests
             new() { EffortId = 1, PersonId = editablePersonId, InstructorName = "Smith, John", EffortTypeId = "LEC", RoleId = 1, Hours = 40 },
             new() { EffortId = 2, PersonId = nonEditablePersonId, InstructorName = "Doe, Jane", EffortTypeId = "LAB", RoleId = 2, Hours = 20 }
         };
-        _courseServiceMock.Setup(s => s.GetCourseEffortAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(records);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(editablePersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(nonEditablePersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _courseServiceMock.GetCourseEffortAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(records);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanEditPersonEffortAsync(editablePersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanEditPersonEffortAsync(nonEditablePersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
@@ -930,8 +898,7 @@ public sealed class CoursesControllerTests
             },
             OtherInstructors = new List<CourseInstructorOptionDto>()
         };
-        _courseServiceMock.Setup(s => s.GetPossibleInstructorsForCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructors);
+        _courseServiceMock.GetPossibleInstructorsForCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(instructors);
 
         // Act
         var result = await _controller.GetPossibleInstructors(TestCourseId);
@@ -946,8 +913,7 @@ public sealed class CoursesControllerTests
     public async Task GetPossibleInstructors_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.GetPossibleInstructors(TestCourseId);
@@ -961,10 +927,8 @@ public sealed class CoursesControllerTests
     {
         // Arrange
         var course = CreateTestCourse();
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(course.CustDept, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetPossibleInstructors(TestCourseId);
@@ -989,8 +953,7 @@ public sealed class CoursesControllerTests
             Instructors = new List<InstructorEvalStatusDto>(),
             Courses = new List<EvalCourseInfoDto>()
         };
-        _evalHarvestServiceMock.Setup(s => s.GetCourseEvaluationStatusAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(status);
+        _evalHarvestServiceMock.GetCourseEvaluationStatusAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(status);
 
         // Act
         var result = await _controller.GetCourseEvaluations(TestCourseId);
@@ -1005,8 +968,7 @@ public sealed class CoursesControllerTests
     public async Task GetCourseEvaluations_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.GetCourseEvaluations(TestCourseId);
@@ -1020,10 +982,8 @@ public sealed class CoursesControllerTests
     {
         // Arrange
         var course = CreateTestCourse();
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(course);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync(course.CustDept, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(course);
+        _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetCourseEvaluations(TestCourseId);
@@ -1042,8 +1002,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -1056,8 +1015,7 @@ public sealed class CoursesControllerTests
             Count5 = 5
         };
         var evalResult = new AdHocEvalResultDto { Success = true, QuantId = TestQuantId };
-        _evalHarvestServiceMock.Setup(s => s.CreateAdHocEvaluationAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(evalResult);
+        _evalHarvestServiceMock.CreateAdHocEvaluationAsync(request, Arg.Any<CancellationToken>()).Returns(evalResult);
 
         // Act
         var result = await _controller.CreateEvaluation(TestCourseId, request);
@@ -1075,8 +1033,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -1088,26 +1045,25 @@ public sealed class CoursesControllerTests
             Count4 = 4,
             Count5 = 5
         };
-        _evalHarvestServiceMock.Setup(s => s.CreateAdHocEvaluationAsync(
-                It.Is<CreateAdHocEvalRequest>(r => r.CourseId == TestCourseId),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdHocEvalResultDto { Success = true, QuantId = TestQuantId });
+        _evalHarvestServiceMock.CreateAdHocEvaluationAsync(
+                Arg.Is<CreateAdHocEvalRequest>(r => r.CourseId == TestCourseId),
+                Arg.Any<CancellationToken>())
+            .Returns(new AdHocEvalResultDto { Success = true, QuantId = TestQuantId });
 
         // Act
         await _controller.CreateEvaluation(TestCourseId, request);
 
         // Assert - verify the service was called with CourseId set to the route parameter
-        _evalHarvestServiceMock.Verify(s => s.CreateAdHocEvaluationAsync(
-            It.Is<CreateAdHocEvalRequest>(r => r.CourseId == TestCourseId),
-            It.IsAny<CancellationToken>()), Times.Once);
+        await _evalHarvestServiceMock.Received(1).CreateAdHocEvaluationAsync(
+            Arg.Is<CreateAdHocEvalRequest>(r => r.CourseId == TestCourseId),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task CreateEvaluation_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -1133,8 +1089,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -1161,8 +1116,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -1174,8 +1128,7 @@ public sealed class CoursesControllerTests
             Count4 = 4,
             Count5 = 5
         };
-        _evalHarvestServiceMock.Setup(s => s.CreateAdHocEvaluationAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdHocEvalResultDto { Success = false, Error = "harvested eval data exists for this course" });
+        _evalHarvestServiceMock.CreateAdHocEvaluationAsync(request, Arg.Any<CancellationToken>()).Returns(new AdHocEvalResultDto { Success = false, Error = "harvested eval data exists for this course" });
 
         // Act
         var result = await _controller.CreateEvaluation(TestCourseId, request);
@@ -1195,8 +1148,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         var request = new UpdateAdHocEvalRequest
         {
@@ -1207,8 +1159,7 @@ public sealed class CoursesControllerTests
             Count5 = 5
         };
         var evalResult = new AdHocEvalResultDto { Success = true, QuantId = TestQuantId };
-        _evalHarvestServiceMock.Setup(s => s.UpdateAdHocEvaluationAsync(TestCourseId, TestQuantId, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(evalResult);
+        _evalHarvestServiceMock.UpdateAdHocEvaluationAsync(TestCourseId, TestQuantId, request, Arg.Any<CancellationToken>()).Returns(evalResult);
 
         // Act
         var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request);
@@ -1223,8 +1174,7 @@ public sealed class CoursesControllerTests
     public async Task UpdateEvaluation_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         var request = new UpdateAdHocEvalRequest
         {
@@ -1248,8 +1198,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         var request = new UpdateAdHocEvalRequest
         {
@@ -1274,8 +1223,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         var request = new UpdateAdHocEvalRequest
         {
@@ -1285,8 +1233,7 @@ public sealed class CoursesControllerTests
             Count4 = 4,
             Count5 = 5
         };
-        _evalHarvestServiceMock.Setup(s => s.UpdateAdHocEvaluationAsync(TestCourseId, TestQuantId, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AdHocEvalResultDto { Success = false, Error = "Evaluation not found" });
+        _evalHarvestServiceMock.UpdateAdHocEvaluationAsync(TestCourseId, TestQuantId, request, Arg.Any<CancellationToken>()).Returns(new AdHocEvalResultDto { Success = false, Error = "Evaluation not found" });
 
         // Act
         var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request);
@@ -1306,10 +1253,8 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _evalHarvestServiceMock.Setup(s => s.DeleteAdHocEvaluationAsync(TestCourseId, TestQuantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _evalHarvestServiceMock.DeleteAdHocEvaluationAsync(TestCourseId, TestQuantId, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
@@ -1322,8 +1267,7 @@ public sealed class CoursesControllerTests
     public async Task DeleteEvaluation_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.Setup(s => s.GetCourseAsync(TestCourseId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
 
         // Act
         var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
@@ -1338,8 +1282,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
@@ -1355,10 +1298,8 @@ public sealed class CoursesControllerTests
         // Arrange
         var course = CreateTestCourse();
         SetupAuthorizedCourse(course);
-        _permissionServiceMock.Setup(s => s.IsTermEditableAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _evalHarvestServiceMock.Setup(s => s.DeleteAdHocEvaluationAsync(TestCourseId, TestQuantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _evalHarvestServiceMock.DeleteAdHocEvaluationAsync(TestCourseId, TestQuantId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);

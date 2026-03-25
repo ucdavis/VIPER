@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 
@@ -83,7 +82,7 @@ describe("InstructorAddDialog - Error Handling", () => {
         it("should require a person to be selected before adding", () => {
             const selectedPerson = ref<{ personId: number } | null>(null)
 
-            const canSubmit = !!selectedPerson.value
+            const canSubmit = selectedPerson.value !== null
 
             expect(canSubmit).toBeFalsy()
         })
@@ -91,7 +90,7 @@ describe("InstructorAddDialog - Error Handling", () => {
         it("should allow submission when person is selected", () => {
             const selectedPerson = ref<{ personId: number } | null>({ personId: 123 })
 
-            const canSubmit = !!selectedPerson.value
+            const canSubmit = selectedPerson.value !== null
 
             expect(canSubmit).toBeTruthy()
         })
@@ -117,7 +116,7 @@ describe("InstructorAddDialog - Error Handling", () => {
             ]
 
             expect(searchResults).toHaveLength(2)
-            expect(searchResults[0].fullName).toBe("Doe, John")
+            expect(searchResults[0]!.fullName).toBe("Doe, John")
         })
     })
 })

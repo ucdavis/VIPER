@@ -1,9 +1,9 @@
 using System.Data.Common;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
+using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
@@ -23,7 +23,6 @@ public class InstructorService : IInstructorService
     private readonly DictionaryContext _dictionaryContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
-    private readonly IMapper _mapper;
     private readonly ILogger<InstructorService> _logger;
     private readonly IMemoryCache _cache;
 
@@ -75,7 +74,6 @@ public class InstructorService : IInstructorService
         DictionaryContext dictionaryContext,
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
-        IMapper mapper,
         ILogger<InstructorService> logger,
         IMemoryCache cache)
     {
@@ -85,7 +83,6 @@ public class InstructorService : IInstructorService
         _dictionaryContext = dictionaryContext;
         _auditService = auditService;
         _classificationService = classificationService;
-        _mapper = mapper;
         _logger = logger;
         _cache = cache;
     }
@@ -115,7 +112,7 @@ public class InstructorService : IInstructorService
         if (termCode == 0)
         {
             var allPersons = await DeduplicateToLatestTermAsync(baseQuery, ct);
-            return _mapper.Map<List<PersonDto>>(allPersons);
+            return EffortMapper.ToPersonDtos(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -155,7 +152,7 @@ public class InstructorService : IInstructorService
         if (termCode == 0)
         {
             var allPersons = await DeduplicateToLatestTermAsync(baseQuery, ct);
-            return _mapper.Map<List<PersonDto>>(allPersons);
+            return EffortMapper.ToPersonDtos(allPersons);
         }
 
         var dtos = await QueryInstructorsWithSenderNamesAsync(baseQuery, ct);
@@ -233,7 +230,7 @@ public class InstructorService : IInstructorService
     /// <summary>
     /// Executes instructor query with navigation properties to resolve LastEmailedBy sender names and MailId.
     /// </summary>
-    private async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
+    private static async Task<List<PersonDto>> QueryInstructorsWithSenderNamesAsync(
         IQueryable<EffortPerson> baseQuery,
         CancellationToken ct,
         bool applyOrdering = true)
@@ -248,7 +245,7 @@ public class InstructorService : IInstructorService
         }
 
         var instructors = await query.ToListAsync(ct);
-        var dtos = _mapper.Map<List<PersonDto>>(instructors);
+        var dtos = EffortMapper.ToPersonDtos(instructors);
 
         for (int i = 0; i < dtos.Count; i++)
         {
@@ -282,7 +279,7 @@ public class InstructorService : IInstructorService
         // Search VIPER.users.Person for current employees not in effort
         var query = _viperContext.People
             .AsNoTracking()
-            .Where(p => p.CurrentEmployee && !existingPersonIds.Contains(p.PersonId));
+            .Where(p => p.CurrentEmployee && !EF.Parameter(existingPersonIds).Contains(p.PersonId));
 
         var term = searchTerm.Trim().ToLower();
         query = query.Where(p =>
@@ -314,7 +311,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Where(p => p.PersonTermCode == termCodeStr)
             .Join(
-                _aaudContext.Ids.Where(i => i.IdsMothraid != null && mothraIds.Contains(i.IdsMothraid)),
+                _aaudContext.Ids.Where(i => i.IdsMothraid != null && EF.Parameter(mothraIds).Contains(i.IdsMothraid)),
                 person => person.PersonPKey,
                 ids => ids.IdsPKey,
                 (person, ids) => new { person.PersonPKey, ids.IdsMothraid })
@@ -331,7 +328,7 @@ public class InstructorService : IInstructorService
         // Get employees by pKey (not filtered by term - confirms they have an employee record)
         var employees = await _aaudContext.Employees
             .AsNoTracking()
-            .Where(e => pKeys.Contains(e.EmpPKey))
+            .Where(e => EF.Parameter(pKeys).Contains(e.EmpPKey))
             .ToListAsync(ct);
 
         var employeeDict = employees.ToDictionary(e => e.EmpPKey, StringComparer.OrdinalIgnoreCase);
@@ -355,7 +352,7 @@ public class InstructorService : IInstructorService
                 .AsNoTracking()
                 .Where(job => job.JobTermCode == termCodeStr)
                 .Join(
-                    _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid)),
+                    _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && EF.Parameter(validMothraIds).Contains(i.IdsMothraid)),
                     job => job.JobPKey,
                     ids => ids.IdsPKey,
                     (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
@@ -501,7 +498,7 @@ public class InstructorService : IInstructorService
         _logger.LogInformation("Created instructor: {PersonId} ({LastName}, {FirstName}) for term {TermCode}",
             instructor.PersonId, LogSanitizer.SanitizeString(instructor.LastName), LogSanitizer.SanitizeString(instructor.FirstName), instructor.TermCode);
 
-        return _mapper.Map<PersonDto>(instructor);
+        return EffortMapper.ToPersonDto(instructor);
     }
 
     public async Task<PersonDto?> UpdateInstructorAsync(int personId, int termCode, UpdateInstructorRequest request, CancellationToken ct = default)
@@ -553,7 +550,7 @@ public class InstructorService : IInstructorService
 
         _logger.LogInformation("Updated instructor: {PersonId} for term {TermCode}", personId, termCode);
 
-        return _mapper.Map<PersonDto>(instructor);
+        return EffortMapper.ToPersonDto(instructor);
     }
 
     public async Task<bool> DeleteInstructorAsync(int personId, int termCode, CancellationToken ct = default)
@@ -796,7 +793,7 @@ public class InstructorService : IInstructorService
         // Batch-fetch AAUD IDs and employees
         var idsRecords = await _aaudContext.Ids
             .AsNoTracking()
-            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid))
+            .Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && EF.Parameter(validMothraIds).Contains(i.IdsMothraid))
             .Select(i => new { i.IdsMothraid, i.IdsPKey })
             .ToListAsync(ct);
 
@@ -809,7 +806,7 @@ public class InstructorService : IInstructorService
 
         var employees = await _aaudContext.Employees
             .AsNoTracking()
-            .Where(e => e.EmpTermCode == termCodeStr && pKeys.Contains(e.EmpPKey))
+            .Where(e => e.EmpTermCode == termCodeStr && EF.Parameter(pKeys).Contains(e.EmpPKey))
             .ToDictionaryAsync(e => e.EmpPKey ?? "", e => e, ct);
 
         // Batch-fetch jobs
@@ -817,7 +814,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Where(job => job.JobTermCode == termCodeStr)
             .Join(
-                _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && validMothraIds.Contains(i.IdsMothraid)),
+                _aaudContext.Ids.Where(i => i.IdsTermCode == termCodeStr && i.IdsMothraid != null && EF.Parameter(validMothraIds).Contains(i.IdsMothraid)),
                 job => job.JobPKey,
                 ids => ids.IdsPKey,
                 (job, ids) => new { ids.IdsMothraid, job.JobDepartmentCode })
@@ -943,7 +940,7 @@ public class InstructorService : IInstructorService
         var recordStats = await _context.Records
             .AsNoTracking()
             .Include(r => r.Course)
-            .Where(r => r.TermCode == termCode && personIds.Contains(r.PersonId))
+            .Where(r => r.TermCode == termCode && EF.Parameter(personIds).Contains(r.PersonId))
             .GroupBy(r => r.PersonId)
             .Select(g => new
             {
@@ -996,7 +993,7 @@ public class InstructorService : IInstructorService
             .AsNoTracking()
             .Include(p => p.PercentAssignType)
             .Include(p => p.Unit)
-            .Where(p => personIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIds).Contains(p.PersonId))
             .Where(p => p.StartDate < range.EndDateExclusive)
             .Where(p => p.EndDate == null || p.EndDate >= range.StartDate)
             .ToListAsync(ct);
@@ -1264,7 +1261,7 @@ public class InstructorService : IInstructorService
         var childRelationships = await _context.CourseRelationships
             .AsNoTracking()
             .Include(cr => cr.ChildCourse)
-            .Where(cr => courseIds.Contains(cr.ParentCourseId))
+            .Where(cr => EF.Parameter(courseIds).Contains(cr.ParentCourseId))
             .ToListAsync(ct);
 
         // Group child relationships by parent course ID

@@ -18,14 +18,6 @@ public class CrestContext : DbContext
     public virtual DbSet<EdutaskOfferPerson> EdutaskOfferPersons { get; set; }
     public virtual DbSet<EdutaskPerson> EdutaskPersons { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null && !optionsBuilder.IsConfigured)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:CREST"]);
-        }
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

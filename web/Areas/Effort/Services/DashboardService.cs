@@ -52,19 +52,24 @@ public class DashboardService : IDashboardService
             .ToListAsync(ct);
 
         var instructorsWithNoRecords = await personsQuery
-            .CountAsync(p => !personIdsWithRecords.Contains(p.PersonId), ct);
+            .CountAsync(p => !EF.Parameter(personIdsWithRecords).Contains(p.PersonId), ct);
 
         var coursesQuery = GetNonRCoursesQuery(termCode, departmentCodes);
         var totalCourses = await coursesQuery.CountAsync(ct);
+        var courseIdsWithRecords = await _context.Records
+            .Where(r => r.TermCode == termCode)
+            .Select(r => r.CourseId)
+            .Distinct()
+            .ToListAsync(ct);
         var coursesWithoutInstructors = await coursesQuery
-            .CountAsync(c => !_context.Records.Any(r => r.TermCode == termCode && r.CourseId == c.Id), ct);
+            .CountAsync(c => !EF.Parameter(courseIdsWithRecords).Contains(c.Id), ct);
 
         var recordsQuery = _context.Records.Where(r => r.TermCode == termCode);
         if (hasDeptFilter)
         {
             // Filter records by person's department
             var personIds = await personsQuery.Select(p => p.PersonId).ToListAsync(ct);
-            recordsQuery = recordsQuery.Where(r => personIds.Contains(r.PersonId));
+            recordsQuery = recordsQuery.Where(r => EF.Parameter(personIds).Contains(r.PersonId));
         }
         var totalRecords = await recordsQuery.CountAsync(ct);
 
@@ -153,8 +158,14 @@ public class DashboardService : IDashboardService
             instructorsQuery = instructorsQuery.Where(p => departmentCodes!.Contains(p.EffortDept));
         }
 
+        var personIdsWithRecords = await _context.Records
+            .Where(r => r.TermCode == termCode)
+            .Select(r => r.PersonId)
+            .Distinct()
+            .ToListAsync(ct);
+
         var instructorsNoRecords = await instructorsQuery
-            .Where(p => !_context.Records.Any(r => r.PersonId == p.PersonId && r.TermCode == termCode))
+            .Where(p => !EF.Parameter(personIdsWithRecords).Contains(p.PersonId))
             .Select(p => new { p.PersonId, p.FirstName, p.LastName, p.EffortDept })
             .ToListAsync(ct);
 
@@ -175,8 +186,14 @@ public class DashboardService : IDashboardService
         }
 
         // Get courses with no instructors
+        var courseIdsWithRecords = await _context.Records
+            .Where(r => r.TermCode == termCode)
+            .Select(r => r.CourseId)
+            .Distinct()
+            .ToListAsync(ct);
+
         var coursesNoInstructors = await GetNonRCoursesQuery(termCode, departmentCodes)
-            .Where(c => !_context.Records.Any(r => r.TermCode == termCode && r.CourseId == c.Id))
+            .Where(c => !EF.Parameter(courseIdsWithRecords).Contains(c.Id))
             .Select(c => new { c.Id, c.SubjCode, c.CrseNumb, c.SeqNumb, c.CustDept })
             .ToListAsync(ct);
 
@@ -229,7 +246,7 @@ public class DashboardService : IDashboardService
         if (hasDeptFilter)
         {
             var personIdsInDepts = await instructorsQuery.Select(p => p.PersonId).ToListAsync(ct);
-            recordsQuery = recordsQuery.Where(r => personIdsInDepts.Contains(r.PersonId));
+            recordsQuery = recordsQuery.Where(r => EF.Parameter(personIdsInDepts).Contains(r.PersonId));
         }
 
         var zeroHourRecords = await recordsQuery
@@ -425,14 +442,11 @@ public class DashboardService : IDashboardService
     /// Builds a courses query for the term, excluding R-courses (course number ends with "R")
     /// and optionally filtering by department.
     /// </summary>
-    // S6610: EF Core LINQ-to-SQL doesn't support EndsWith(char), only EndsWith(string)
-    // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
-#pragma warning disable S6610
     private IQueryable<EffortCourse> GetNonRCoursesQuery(int termCode, List<string>? departmentCodes)
     {
         var query = _context.Courses
             .Where(c => c.TermCode == termCode)
-            .Where(c => !c.CrseNumb.Trim().EndsWith("R"));
+            .Where(c => !c.CrseNumb.Trim().EndsWith('R'));
 
         if (departmentCodes != null && departmentCodes.Count > 0)
         {
@@ -441,5 +455,4 @@ public class DashboardService : IDashboardService
 
         return query;
     }
-#pragma warning restore S6610
 }

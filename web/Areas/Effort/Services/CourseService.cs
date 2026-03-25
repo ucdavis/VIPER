@@ -47,7 +47,10 @@ public class CourseService : ICourseService
         // Get parent course IDs for child courses in this term only
         var childToParentMap = await _context.CourseRelationships
             .AsNoTracking()
-            .Where(r => _context.Courses.Any(c => c.Id == r.ParentCourseId && c.TermCode == termCode))
+            .Join(_context.Courses.Where(c => c.TermCode == termCode),
+                r => r.ParentCourseId,
+                c => c.Id,
+                (r, c) => r)
             .ToDictionaryAsync(r => r.ChildCourseId, r => r.ParentCourseId, ct);
 
         var courses = await query
@@ -127,7 +130,7 @@ public class CourseService : ICourseService
         {
             var importedCourses = await _context.Courses
                 .AsNoTracking()
-                .Where(c => c.TermCode == termCode && crns.Contains(c.Crn))
+                .Where(c => c.TermCode == termCode && EF.Parameter(crns).Contains(c.Crn))
                 .Select(c => new { c.Crn, c.Units })
                 .ToListAsync(ct);
 

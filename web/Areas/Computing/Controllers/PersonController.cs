@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Computing.Model;
 using Viper.Areas.Computing.Services;
@@ -30,7 +30,7 @@ namespace Viper.Areas.Computing.Controllers
             {
                 people = people.Where(p => p.Current == 1 || p.Future == 1);
             }
-            if(name != null)
+            if (name != null)
             {
                 people = people.Where(p => p.FirstName.Contains(name) || p.LastName.Contains(name));
             }
@@ -47,7 +47,7 @@ namespace Viper.Areas.Computing.Controllers
         public async Task<ActionResult<PersonSimple>> GetPerson(int personId)
         {
             var p = await context.People.FindAsync(personId);
-            if(p == null)
+            if (p == null)
             {
                 return NotFound();
             }

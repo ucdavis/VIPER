@@ -912,7 +912,7 @@ async function loadInstructors(termCode: number) {
     }))
 }
 
-onMounted(async () => {
+async function initPage() {
     const terms = await termService.getTerms()
     allTerms.value = terms
 
@@ -934,7 +934,9 @@ onMounted(async () => {
         if (q.endYear) selectedEndYear.value = parseInt(q.endYear as string, 10)
         await generateReport()
     }
-})
+}
+
+onMounted(() => initPage())
 </script>
 
 <style>

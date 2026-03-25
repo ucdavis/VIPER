@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Models;
 using Viper.Classes;
@@ -13,11 +13,13 @@ namespace Viper.Areas.CMS.Controllers
     public class CMSContentController : ApiController
     {
         private readonly VIPERContext _context;
-        public IUserHelper UserHelper;
+        private readonly RAPSContext _rapsContext;
+        public IUserHelper UserHelper { get; private set; }
 
-        public CMSContentController(VIPERContext context)
+        public CMSContentController(VIPERContext context, RAPSContext rapsContext)
         {
             _context = context;
+            _rapsContext = rapsContext;
             UserHelper = new UserHelper();
         }
 
@@ -30,15 +32,15 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return NotFound();
             }
-            return new Data.CMS().GetContentBlocks()?.ToList() ?? new List<ContentBlock>();
+            return new Data.CMS(_context, _rapsContext).GetContentBlocks()?.ToList() ?? new List<ContentBlock>();
         }
 
         //GET: content/fn/{friendlyName}
         [HttpGet("fn/{friendlyName}")]
         public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
         {
-            var blocks = new Data.CMS().GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
-            if(blocks == null || !blocks.Any())
+            var blocks = new Data.CMS(_context, _rapsContext).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
+            if (blocks == null || !blocks.Any())
             {
                 return NotFound();
             }
@@ -52,7 +54,7 @@ namespace Viper.Areas.CMS.Controllers
         public async Task<ActionResult<ContentBlock>> UpdateContentBlock(int contentBlockId, CMSBlockAddEdit block)
         {
             //check data is valid and block is found
-            var existingBlock = _context.ContentBlocks.Find(contentBlockId);
+            var existingBlock = await _context.ContentBlocks.FindAsync(contentBlockId);
             if (existingBlock == null)
             {
                 return NotFound();
@@ -64,12 +66,12 @@ namespace Viper.Areas.CMS.Controllers
             }
 
             string inputCheck = CheckBlockForRequiredFields(block);
-            if(!string.IsNullOrEmpty(inputCheck))
+            if (!string.IsNullOrEmpty(inputCheck))
             {
                 return BadRequest(inputCheck);
             }
-            
-            var friendlyNameCheck = new Data.CMS().GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
+
+            var friendlyNameCheck = new Data.CMS(_context, _rapsContext).GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
             if (friendlyNameCheck != null && friendlyNameCheck.ContentBlockId != contentBlockId)
             {
                 return ValidationProblem("Friendly name must be unique");
@@ -95,8 +97,8 @@ namespace Viper.Areas.CMS.Controllers
 
             //save and return the saved block
             await _context.SaveChangesAsync();
-            var returnBlock = new Data.CMS().GetContentBlocks(contentBlockId: contentBlockId)?.FirstOrDefault();
-            if(returnBlock == null)
+            var returnBlock = new Data.CMS(_context, _rapsContext).GetContentBlocks(contentBlockID: contentBlockId)?.FirstOrDefault();
+            if (returnBlock == null)
             {
                 return NotFound();
             }
@@ -113,7 +115,7 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest(inputCheck);
             }
-            var friendlyNameCheck = new Data.CMS().GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
+            var friendlyNameCheck = new Data.CMS(_context, _rapsContext).GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
             if (friendlyNameCheck != null)
             {
                 return ValidationProblem("Friendly name must be unique");
@@ -125,18 +127,6 @@ namespace Viper.Areas.CMS.Controllers
             _context.ContentBlocks.Add(newBlock);
             await _context.SaveChangesAsync();
 
-            /*
-            foreach (var p in permissions)
-            {
-                block.ContentBlockToPermissions.Add(new ContentBlockToPermission
-                {
-                    Permission = p,
-                    ContentBlockId = block.ContentBlockId,
-                });
-            }
-            _context.Entry(block).State = EntityState.Modified;
-            */
-
             var contentHistory = new ContentHistory()
             {
                 ContentBlockId = block.ContentBlockId,
@@ -146,7 +136,7 @@ namespace Viper.Areas.CMS.Controllers
             };
             _context.ContentHistories.Add(contentHistory);
             await _context.SaveChangesAsync();
-            
+
             return newBlock;
         }
 
@@ -155,7 +145,7 @@ namespace Viper.Areas.CMS.Controllers
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
         public async Task<ActionResult<ContentBlock>> DeleteContentBlock(int contentBlockId)
         {
-            var block = new Data.CMS().GetContentBlocks(contentBlockId: contentBlockId)?.FirstOrDefault();
+            var block = new Data.CMS(_context, _rapsContext).GetContentBlocks(contentBlockID: contentBlockId)?.FirstOrDefault();
             if (block == null)
             {
                 return NotFound();
@@ -168,10 +158,10 @@ namespace Viper.Areas.CMS.Controllers
             return block;
         }
 
-        private string CheckBlockForRequiredFields(CMSBlockAddEdit userInput)
+        private static string CheckBlockForRequiredFields(CMSBlockAddEdit userInput)
         {
             string errors = "";
-            if(string.IsNullOrEmpty(userInput.Title))
+            if (string.IsNullOrEmpty(userInput.Title))
             {
                 errors += "Title is required. ";
             }

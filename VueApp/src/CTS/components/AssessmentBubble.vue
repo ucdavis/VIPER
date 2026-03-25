@@ -1,26 +1,22 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, watch } from "vue"
+import { ref, watch } from "vue"
 
-const props = defineProps({
-    maxValue: {
-        type: Number,
-        required: true,
+const props = withDefaults(
+    defineProps<{
+        maxValue: number
+        value: number
+        text?: string
+        id?: number
+    }>(),
+    {
+        text: undefined,
+        id: undefined,
     },
-    value: {
-        type: Number,
-        required: true,
-    },
-    text: {
-        type: String,
-        default: undefined,
-    },
-    id: {
-        type: Number,
-        default: undefined,
-    },
-})
+)
 
-const emit = defineEmits(["bubble-click"])
+const emit = defineEmits<{
+    "bubble-click": [id: number]
+}>()
 
 const classes5 = [
     "assessmentBubble5_1",

@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest"
 import { ref } from "vue"
 import { useEffortTypeColumns, ALWAYS_SHOW } from "../composables/use-effort-type-columns"
 
-describe("useEffortTypeColumns", () => {
+// oxlint-disable-next-line eslint/max-lines-per-function -- Test suite groups related composable tests
+describe("useEffortTypeColumns composable", () => {
     describe("effortColumns", () => {
         it("generates columns from effort type list", () => {
             const effortTypes = ref(["CLI", "LEC", "LAB"])
@@ -10,9 +10,9 @@ describe("useEffortTypeColumns", () => {
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
             expect(effortColumns.value).toHaveLength(3)
-            expect(effortColumns.value[0].label).toBe("CLI")
-            expect(effortColumns.value[1].label).toBe("LEC")
-            expect(effortColumns.value[2].label).toBe("LAB")
+            expect(effortColumns.value[0]!.label).toBe("CLI")
+            expect(effortColumns.value[1]!.label).toBe("LEC")
+            expect(effortColumns.value[2]!.label).toBe("LAB")
         })
 
         it("generates unique column names with effort_ prefix", () => {
@@ -20,8 +20,8 @@ describe("useEffortTypeColumns", () => {
 
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
-            expect(effortColumns.value[0].name).toBe("effort_CLI")
-            expect(effortColumns.value[1].name).toBe("effort_LEC")
+            expect(effortColumns.value[0]!.name).toBe("effort_CLI")
+            expect(effortColumns.value[1]!.name).toBe("effort_LEC")
         })
 
         it("columns are right-aligned and not sortable", () => {
@@ -29,8 +29,8 @@ describe("useEffortTypeColumns", () => {
 
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
-            expect(effortColumns.value[0].align).toBe("right")
-            expect(effortColumns.value[0].sortable).toBe(false)
+            expect(effortColumns.value[0]!.align).toBe("right")
+            expect(effortColumns.value[0]!.sortable).toBeFalsy()
         })
 
         it("returns empty array when no effort types", () => {
@@ -57,13 +57,13 @@ describe("useEffortTypeColumns", () => {
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
             const row = { effortByType: { LEC: 30, CLI: 10 } }
-            const lecField = effortColumns.value[0].field
-            const cliField = effortColumns.value[1].field
+            const lecField = effortColumns.value[0]!.field
+            const cliField = effortColumns.value[1]!.field
 
-            // field is a function that extracts the value from the row
-            expect(typeof lecField).toBe("function")
-            expect((lecField as (row: typeof row) => number)(row)).toBe(30)
-            expect((cliField as (row: typeof row) => number)(row)).toBe(10)
+            // Field is a function that extracts the value from the row
+            expect(lecField).toBeTypeOf("function")
+            expect((lecField as (row: Record<string, unknown>) => number)(row)).toBe(30)
+            expect((cliField as (row: Record<string, unknown>) => number)(row)).toBe(10)
         })
 
         it("field accessor returns 0 for missing effort type", () => {
@@ -72,8 +72,8 @@ describe("useEffortTypeColumns", () => {
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
             const row = { effortByType: { CLI: 10 } }
-            const lecField = effortColumns.value[0].field
-            expect((lecField as (row: typeof row) => number)(row)).toBe(0)
+            const lecField = effortColumns.value[0]!.field
+            expect((lecField as (row: Record<string, unknown>) => number)(row)).toBe(0)
         })
 
         it("field accessor returns 0 when effortByType is undefined", () => {
@@ -82,8 +82,8 @@ describe("useEffortTypeColumns", () => {
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
             const row = {}
-            const lecField = effortColumns.value[0].field
-            expect((lecField as (row: typeof row) => number)(row)).toBe(0)
+            const lecField = effortColumns.value[0]!.field
+            expect((lecField as (row: Record<string, unknown>) => number)(row)).toBe(0)
         })
 
         it("format function shows value when > 0", () => {
@@ -91,7 +91,7 @@ describe("useEffortTypeColumns", () => {
 
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
-            const formatFn = effortColumns.value[0].format!
+            const formatFn = effortColumns.value[0]!.format!
             expect(formatFn(30, null as never)).toBe("30")
             expect(formatFn(0.5, null as never)).toBe("0.5")
         })
@@ -101,7 +101,7 @@ describe("useEffortTypeColumns", () => {
 
             const { effortColumns } = useEffortTypeColumns(effortTypes)
 
-            const formatFn = effortColumns.value[0].format!
+            const formatFn = effortColumns.value[0]!.format!
             expect(formatFn(0, null as never)).toBe("")
         })
     })
@@ -150,7 +150,7 @@ describe("useEffortTypeColumns", () => {
 
             const { effortColumns } = useEffortTypeColumns(effortTypes, { showZero: true })
 
-            const formatFn = effortColumns.value[0].format!
+            const formatFn = effortColumns.value[0]!.format!
             expect(formatFn(0, null as never)).toBe("0")
         })
 
@@ -159,7 +159,7 @@ describe("useEffortTypeColumns", () => {
 
             const { effortColumns } = useEffortTypeColumns(effortTypes, { showZero: true })
 
-            const formatFn = effortColumns.value[0].format!
+            const formatFn = effortColumns.value[0]!.format!
             expect(formatFn(30, null as never)).toBe("30")
             expect(formatFn(0.5, null as never)).toBe("0.5")
         })
@@ -228,7 +228,7 @@ describe("useEffortTypeColumns", () => {
 
             const labels = effortColumns.value.map((c) => c.label)
             // ALWAYS_SHOW types come first (11), then FLD, SEM (alphabetical)
-            const exmIdx = labels.indexOf("EXM") // last ALWAYS_SHOW
+            const exmIdx = labels.indexOf("EXM") // Last ALWAYS_SHOW
             const fldIdx = labels.indexOf("FLD")
             const semIdx = labels.indexOf("SEM")
             expect(fldIdx).toBeGreaterThan(exmIdx)
@@ -269,11 +269,11 @@ describe("useEffortTypeColumns", () => {
             // Should have all ALWAYS_SHOW columns
             expect(effortColumns.value.length).toBeGreaterThanOrEqual(ALWAYS_SHOW.length)
 
-            // format should show "0" for zero
-            const formatFn = effortColumns.value[0].format!
+            // Format should show "0" for zero
+            const formatFn = effortColumns.value[0]!.format!
             expect(formatFn(0, null as never)).toBe("0")
 
-            // getTotalValue should show "0" for zero
+            // GetTotalValue should show "0" for zero
             expect(getTotalValue({}, "CLI")).toBe("0")
         })
     })

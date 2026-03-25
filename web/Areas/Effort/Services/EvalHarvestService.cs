@@ -74,14 +74,14 @@ public class EvalHarvestService : IEvalHarvestService
         // Get VIPER persons (for MothraId and MailId lookup)
         var viperPersons = await _viperContext.People
             .AsNoTracking()
-            .Where(p => personIds.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIds).Contains(p.PersonId))
             .Select(p => new { p.PersonId, p.MothraId, p.MailId, p.FirstName, p.LastName })
             .ToListAsync(ct);
 
         // Get effort persons for display names
         var effortPersons = await _effortContext.Persons
             .AsNoTracking()
-            .Where(p => p.TermCode == course.TermCode && personIds.Contains(p.PersonId))
+            .Where(p => p.TermCode == course.TermCode && EF.Parameter(personIds).Contains(p.PersonId))
             .ToListAsync(ct);
 
         // Query evalHarvest for all CRNs at once
@@ -111,7 +111,7 @@ public class EvalHarvestService : IEvalHarvestService
         var evalMailIds = evalData.Select(q => q.MailId!).Distinct().ToList();
         var ehPeople = await _evalContext.People
             .AsNoTracking()
-            .Where(p => evalMailIds.Contains(p.MailId) && p.TermCode == termCode)
+            .Where(p => EF.Parameter(evalMailIds).Contains(p.MailId) && p.TermCode == termCode)
             .ToListAsync(ct);
 
         // Build mothraId -> mailId lookup from evalHarvest people

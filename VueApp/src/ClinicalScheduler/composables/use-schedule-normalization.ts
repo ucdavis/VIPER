@@ -35,7 +35,7 @@ function normalizeScheduleSemesters(semesters: ScheduleSemester[] | undefined): 
     if (!semesters) {
         return []
     }
-    return semesters.map(normalizeSemesterWeeks)
+    return semesters.map((semester) => normalizeSemesterWeeks(semester))
 }
 
 /**

@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -16,21 +17,21 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class InstructorsControllerTests
 {
-    private readonly Mock<IInstructorService> _instructorServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<ILogger<InstructorsController>> _loggerMock;
+    private readonly IInstructorService _instructorServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ILogger<InstructorsController> _loggerMock;
     private readonly InstructorsController _controller;
 
     public InstructorsControllerTests()
     {
-        _instructorServiceMock = new Mock<IInstructorService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _loggerMock = new Mock<ILogger<InstructorsController>>();
+        _instructorServiceMock = Substitute.For<IInstructorService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _loggerMock = Substitute.For<ILogger<InstructorsController>>();
 
         _controller = new InstructorsController(
-            _instructorServiceMock.Object,
-            _permissionServiceMock.Object,
-            _loggerMock.Object);
+            _instructorServiceMock,
+            _permissionServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -58,9 +59,8 @@ public sealed class InstructorsControllerTests
             new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" },
             new PersonDto { PersonId = 2, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortDept = "VME" }
         };
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.GetInstructorsAsync(202410, null, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructors);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.GetInstructorsAsync(202410, null, false, Arg.Any<CancellationToken>()).Returns(instructors);
 
         // Act
         var result = await _controller.GetInstructors(202410);
@@ -79,10 +79,9 @@ public sealed class InstructorsControllerTests
         {
             new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" }
         };
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.GetInstructorsAsync(202410, "VME", false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructors);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.GetInstructorsAsync(202410, "VME", false, Arg.Any<CancellationToken>()).Returns(instructors);
 
         // Act
         var result = await _controller.GetInstructors(202410, "VME");
@@ -97,7 +96,7 @@ public sealed class InstructorsControllerTests
     public async Task GetInstructors_ReturnsEmptyList_WhenUnauthorizedForDepartment()
     {
         // Arrange
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("SECRET", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetInstructors(202410, "SECRET");
@@ -117,9 +116,8 @@ public sealed class InstructorsControllerTests
     {
         // Arrange
         var instructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" };
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.GetInstructor(1, 202410);
@@ -134,8 +132,7 @@ public sealed class InstructorsControllerTests
     public async Task GetInstructor_ReturnsNotFound_WhenInstructorDoesNotExist()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(999, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.GetInstructor(999, 202410);
@@ -149,9 +146,8 @@ public sealed class InstructorsControllerTests
     {
         // Arrange
         var instructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "SECRET" };
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("SECRET", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(instructor);
+        _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetInstructor(1, 202410);
@@ -175,11 +171,10 @@ public sealed class InstructorsControllerTests
         };
         var createdInstructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" };
 
-        _instructorServiceMock.Setup(s => s.InstructorExistsAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.CreateInstructorAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdInstructor);
+        _instructorServiceMock.InstructorExistsAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(false);
+        _instructorServiceMock.ResolveInstructorDepartmentAsync(1, 202410, Arg.Any<CancellationToken>()).Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.CreateInstructorAsync(request, Arg.Any<CancellationToken>()).Returns(createdInstructor);
 
         // Act
         var result = await _controller.CreateInstructor(request);
@@ -201,7 +196,7 @@ public sealed class InstructorsControllerTests
             TermCode = 202410
         };
 
-        _instructorServiceMock.Setup(s => s.InstructorExistsAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _instructorServiceMock.InstructorExistsAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.CreateInstructor(request);
@@ -222,11 +217,10 @@ public sealed class InstructorsControllerTests
             TermCode = 202410
         };
 
-        _instructorServiceMock.Setup(s => s.InstructorExistsAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.CreateInstructorAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Person not found in AAUD"));
+        _instructorServiceMock.InstructorExistsAsync(999, 202410, Arg.Any<CancellationToken>()).Returns(false);
+        _instructorServiceMock.ResolveInstructorDepartmentAsync(999, 202410, Arg.Any<CancellationToken>()).Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.CreateInstructorAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Person not found in AAUD"));
 
         // Act
         var result = await _controller.CreateInstructor(request);
@@ -246,11 +240,10 @@ public sealed class InstructorsControllerTests
             TermCode = 202410
         };
 
-        _instructorServiceMock.Setup(s => s.InstructorExistsAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _instructorServiceMock.Setup(s => s.ResolveInstructorDepartmentAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync("VME");
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.CreateInstructorAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("Database constraint violation"));
+        _instructorServiceMock.InstructorExistsAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(false);
+        _instructorServiceMock.ResolveInstructorDepartmentAsync(1, 202410, Arg.Any<CancellationToken>()).Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.CreateInstructorAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Database constraint violation"));
 
         // Act
         var result = await _controller.CreateInstructor(request);
@@ -277,11 +270,10 @@ public sealed class InstructorsControllerTests
         };
         var updatedInstructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "APC" };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("APC", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.UpdateInstructorAsync(1, 202410, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedInstructor);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("APC", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.UpdateInstructorAsync(1, 202410, request, Arg.Any<CancellationToken>()).Returns(updatedInstructor);
 
         // Act
         var result = await _controller.UpdateInstructor(1, 202410, request);
@@ -304,9 +296,9 @@ public sealed class InstructorsControllerTests
             VolunteerWos = false
         };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("SECRET", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.UpdateInstructor(1, 202410, request);
@@ -326,7 +318,7 @@ public sealed class InstructorsControllerTests
             VolunteerWos = false
         };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.UpdateInstructor(999, 202410, request);
@@ -347,11 +339,10 @@ public sealed class InstructorsControllerTests
             VolunteerWos = false
         };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("INVALID", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.UpdateInstructorAsync(1, 202410, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ArgumentException("Invalid department: INVALID"));
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanViewDepartmentAsync("INVALID", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.UpdateInstructorAsync(1, 202410, request, Arg.Any<CancellationToken>()).Throws(new ArgumentException("Invalid department: INVALID"));
 
         // Act
         var result = await _controller.UpdateInstructor(1, 202410, request);
@@ -371,10 +362,9 @@ public sealed class InstructorsControllerTests
         // Arrange
         var existingInstructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.DeleteInstructorAsync(1, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.DeleteInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.DeleteInstructor(1, 202410);
@@ -387,7 +377,7 @@ public sealed class InstructorsControllerTests
     public async Task DeleteInstructor_ReturnsNotFound_WhenInstructorDoesNotExist()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.DeleteInstructor(999, 202410);
@@ -402,8 +392,8 @@ public sealed class InstructorsControllerTests
         // Arrange
         var existingInstructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "SECRET" };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("SECRET", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.DeleteInstructor(1, 202410);
@@ -422,10 +412,9 @@ public sealed class InstructorsControllerTests
         // Arrange
         var existingInstructor = new PersonDto { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME" };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.CanDeleteInstructorAsync(1, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((true, 5));
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.CanDeleteInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns((true, 5));
 
         // Act
         var result = await _controller.CanDeleteInstructor(1, 202410);
@@ -449,8 +438,8 @@ public sealed class InstructorsControllerTests
             new DepartmentDto { Code = "APC", Name = "Anatomy, Physiology & Cell Biology", Group = "Academic" },
             new DepartmentDto { Code = "WHC", Name = "Wildlife Health Center", Group = "Centers" }
         };
-        _instructorServiceMock.Setup(s => s.GetDepartments()).Returns(departments);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _instructorServiceMock.GetDepartments().Returns(departments);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.GetDepartments();
@@ -471,10 +460,9 @@ public sealed class InstructorsControllerTests
             new DepartmentDto { Code = "APC", Name = "Anatomy, Physiology & Cell Biology", Group = "Academic" },
             new DepartmentDto { Code = "WHC", Name = "Wildlife Health Center", Group = "Centers" }
         };
-        _instructorServiceMock.Setup(s => s.GetDepartments()).Returns(departments);
-        _permissionServiceMock.Setup(s => s.HasFullAccessAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        _permissionServiceMock.Setup(s => s.GetAuthorizedDepartmentsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "VME" });
+        _instructorServiceMock.GetDepartments().Returns(departments);
+        _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
+        _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
 
         // Act
         var result = await _controller.GetDepartments();
@@ -499,8 +487,7 @@ public sealed class InstructorsControllerTests
             new ReportUnitDto { Abbrev = "SVM", Unit = "School of Veterinary Medicine" },
             new ReportUnitDto { Abbrev = "VMB", Unit = "Molecular Biosciences" }
         };
-        _instructorServiceMock.Setup(s => s.GetReportUnitsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(reportUnits);
+        _instructorServiceMock.GetReportUnitsAsync(Arg.Any<CancellationToken>()).Returns(reportUnits);
 
         // Act
         var result = await _controller.GetReportUnits();
@@ -525,10 +512,9 @@ public sealed class InstructorsControllerTests
             new InstructorEffortRecordDto { CourseId = 100, Weeks = 2, Course = new CourseDto { Id = 100, Crn = "12345" } }
         };
 
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(1, 202410, It.IsAny<CancellationToken>())).ReturnsAsync(existingInstructor);
-        _permissionServiceMock.Setup(s => s.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _instructorServiceMock.Setup(s => s.GetInstructorEffortRecordsAsync(1, 202410, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortRecords);
+        _instructorServiceMock.GetInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(existingInstructor);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _instructorServiceMock.GetInstructorEffortRecordsAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(effortRecords);
 
         // Act
         var result = await _controller.GetInstructorEffortRecords(1, 202410);
@@ -543,7 +529,7 @@ public sealed class InstructorsControllerTests
     public async Task GetInstructorEffortRecords_ReturnsNotFound_WhenInstructorDoesNotExist()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetInstructorAsync(999, 202410, It.IsAny<CancellationToken>())).ReturnsAsync((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
 
         // Act
         var result = await _controller.GetInstructorEffortRecords(999, 202410);
@@ -565,8 +551,7 @@ public sealed class InstructorsControllerTests
             new TitleCodeDto { Code = "000353", Name = "VETERINARIAN" },
             new TitleCodeDto { Code = "000521", Name = "PROFESSOR" }
         };
-        _instructorServiceMock.Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(titleCodes);
+        _instructorServiceMock.GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(titleCodes);
 
         // Act
         var result = await _controller.GetTitleCodes();
@@ -581,9 +566,7 @@ public sealed class InstructorsControllerTests
     public async Task GetTitleCodes_ReturnsOk_WithEmptyList_WhenNoTitleCodes()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetTitleCodesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<TitleCodeDto>());
-
+        _instructorServiceMock.GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<TitleCodeDto>());
         // Act
         var result = await _controller.GetTitleCodes();
 
@@ -606,8 +589,7 @@ public sealed class InstructorsControllerTests
             new JobGroupDto { Code = "I15", Name = "STAFF VET" },
             new JobGroupDto { Code = "B24", Name = "" } // NULL name in legacy data shows code only
         };
-        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(jobGroups);
+        _instructorServiceMock.GetJobGroupsAsync(Arg.Any<int?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(jobGroups);
 
         // Act
         var result = await _controller.GetJobGroups();
@@ -622,9 +604,7 @@ public sealed class InstructorsControllerTests
     public async Task GetJobGroups_ReturnsOk_WithEmptyList_WhenNoJobGroups()
     {
         // Arrange
-        _instructorServiceMock.Setup(s => s.GetJobGroupsAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<JobGroupDto>());
-
+        _instructorServiceMock.GetJobGroupsAsync(Arg.Any<int?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(new List<JobGroupDto>());
         // Act
         var result = await _controller.GetJobGroups();
 

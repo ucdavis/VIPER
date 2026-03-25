@@ -143,3 +143,7 @@ dotnet_style_qualification_for_field = false:silent
 dotnet_style_qualification_for_property = false:silent
 dotnet_style_qualification_for_method = false:silent
 dotnet_style_qualification_for_event = false:silent
+
+# EF Core scaffold-generated DbContext files — partial methods are intentional extension points
+[**/SQLContext/*Context.cs]
+dotnet_diagnostic.S3251.severity = none

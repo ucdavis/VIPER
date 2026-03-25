@@ -1,10 +1,10 @@
-﻿using Viper.Models;
+using Viper.Models;
 
 namespace Viper.Classes
 {
     public class ApiPaginatedResponse
     {
-        public IEnumerable<object> Data { get; set; } = new List<object>();
+        public IEnumerable<object> Data { get; set; }
         public int TotalRecords { get; set; } = 0;
         public ApiPagination Pagination { get; set; }
 

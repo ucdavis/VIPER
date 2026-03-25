@@ -1,17 +1,15 @@
 using Viper.Areas.RAPS.Controllers;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
-using Moq;
+using NSubstitute;
+using MockQueryable.NSubstitute;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Http;
 using Viper.Models.AAUD;
-using Viper.Classes;
 using Viper.Areas.RAPS.Services;
-using static Viper.Areas.RAPS.Services.RAPSAuditService;
 using Viper.Areas.RAPS.Models;
-using NLog;
 
 namespace Viper.test.RAPS
 {
@@ -26,13 +24,13 @@ namespace Viper.test.RAPS
                 .Options;
 
         /// <summary>
-        /// Use rapsContext for Moq for cases where contraints or database edits do not need to be tested 
+        /// Use rapsContext for NSubstitute for cases where contraints or database edits do not need to be tested
         /// </summary>
-        Mock<RAPSContext> rapsContext = new Mock<RAPSContext>();
+        readonly RAPSContext rapsContext = Substitute.For<RAPSContext>();
 
-        private IQueryable<TblRole> GetTestRoles()
+        private List<TblRole> GetTestRoles()
         {
-            var roles = new List<TblRole>
+            return new List<TblRole>
             {
                 new TblRole()
                 {
@@ -50,79 +48,15 @@ namespace Viper.test.RAPS
                     UpdateFreq = 1,
                     AllowAllUsers = true
                 }
-            }.AsAsyncQueryable();
-
-            return roles;
-        }
-
-        private IQueryable<TblRoleMember> GetTestRoleMembers()
-        {
-            var members = new List<TblRoleMember>
-            {
-                new TblRoleMember()
-                {
-                    RoleId = 1,
-                    MemberId = "123",
-                    Role = new TblRole()
-                        {
-                            RoleId = 1,
-                            Role = "VIPER.TestRole",
-                            Application = 1,
-                            UpdateFreq = 1,
-                            AllowAllUsers = true
-                        },
-                    AaudUser = new VwAaudUser()
-                        {
-                            AaudUserId = 1,
-                            MothraId = "123",
-                            LoginId = "alogin",
-                            DisplayFullName = "Some User",
-                            CurrentStudent = true,
-                            CurrentEmployee= true,
-                            FutureStudent= false,
-                            FutureEmployee= false,
-                            Current = true,
-                            Future = false
-                        },
-                    ViewName = null
-                },
-                new TblRoleMember()
-                {
-                    RoleId = 2,
-                    MemberId = "965",
-                    Role = new TblRole()
-                        {
-                            RoleId = 2,
-                            Role = "VIPER.AnotherTestRole",
-                            Application = 0,
-                            UpdateFreq = 1,
-                            AllowAllUsers = true
-                        },
-                    AaudUser = new VwAaudUser()
-                        {
-                            AaudUserId = 2,
-                            MothraId = "965",
-                            LoginId = "blogin",
-                            DisplayFullName = "Another User",
-                            CurrentStudent = false,
-                            CurrentEmployee= false,
-                            FutureStudent= true,
-                            FutureEmployee= true,
-                            Current = false,
-                            Future = true
-                        },
-                    ViewName = null
-                }
-            }.AsAsyncQueryable();
-
-            return members;
+            };
         }
 
         [Fact]
-        public async void ReturnNotFound_WhenNoRolesInTable()
+        public async Task ReturnNotFound_WhenNoRolesInTable()
         {
             // arrange
-            var rolesController = new RolesController(rapsContext.Object);
+            rapsContext.TblRoles.Returns((DbSet<TblRole>?)null);
+            var rolesController = new RolesController(rapsContext);
 
             // act
             var roleList = await rolesController.GetTblRoles("VIPER", null);
@@ -132,47 +66,29 @@ namespace Viper.test.RAPS
         }
 
         [Fact]
-        public async void ReturnRoles()
+        public async Task ReturnRoles()
         {
             // arrange
-            var roles = GetTestRoles();
-            var mockSet = new Mock<Microsoft.EntityFrameworkCore.DbSet<TblRole>>();
-            mockSet.As<IEnumerable<TblRole>>()
-                .Setup(m => m.GetEnumerator())
-                .Returns(roles.GetEnumerator());
+            var mockSet = GetTestRoles().BuildMockDbSet();
+            rapsContext.TblRoles.Returns(mockSet);
 
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Provider).Returns(roles.Provider);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Expression).Returns(roles.Expression);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.ElementType).Returns(roles.ElementType);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.GetEnumerator()).Returns(() => roles.GetEnumerator());
+            var mockUser = Substitute.For<IUserHelper>();
+            mockUser.GetCurrentUser().Returns(new AaudUser());
+            mockUser.HasPermission(rapsContext, Arg.Any<AaudUser>(), Arg.Any<string>()).Returns(true);
 
-            rapsContext.Setup(c => c.TblRoles).Returns(mockSet.Object);
+            var mockSecurity = Substitute.For<IRAPSSecurityServiceWrapper>();
+            mockSecurity.IsAllowedTo(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+            mockSecurity.GetControlledRoleIds(Arg.Any<string>()).Returns(new List<int> { 1, 2 });
 
-            var mockUser = new Mock<UserHelper>();
-            mockUser.As<IUserHelper>()
-                .Setup(m => m.GetCurrentUser())
-                .Returns(new AaudUser());
-            mockUser.As<IUserHelper>()
-                .Setup(m => m.HasPermission(rapsContext.Object, It.IsAny<AaudUser>(), It.IsAny<string>()))
-                .Returns(true);
-
-            var mockSecurity = new Mock<IRAPSSecurityServiceWrapper>();
-            mockSecurity.As<IRAPSSecurityServiceWrapper>()
-                .Setup(m => m.IsAllowedTo(It.IsAny<string>(), It.IsAny<string>()))
-                .Returns(true);
-            mockSecurity.As<IRAPSSecurityServiceWrapper>()
-                .Setup(m => m.GetControlledRoleIds(It.IsAny<string>()))
-                .Returns(new List<int> { 1, 2 });
-
-            var rolesController = new RolesController(rapsContext.Object);
-            rolesController.UserHelper = mockUser.Object;
-            rolesController.SecurityService = mockSecurity.Object;
+            var rolesController = new RolesController(rapsContext);
+            rolesController.UserHelper = mockUser;
+            rolesController.SecurityService = mockSecurity;
 
             // act
             var results = await rolesController.GetTblRoles("VIPER", 1);
 
             // assert
-            var actionResult = Assert.IsType<ActionResult<IEnumerable<TblRole>>>(results);
+            Assert.IsType<ActionResult<IEnumerable<TblRole>>>(results);
             Assert.NotNull(results.Value);
             Assert.Single(results.Value);
         }
@@ -181,27 +97,15 @@ namespace Viper.test.RAPS
         public void HelpDesk_AccessOnlyVMACSRoles()
         {
             // arrange
-            var roles = SetupRoles.MockRoles.AsQueryable();
-            var mockSet = new Mock<Microsoft.EntityFrameworkCore.DbSet<TblRole>>();
-            mockSet.As<IEnumerable<TblRole>>()
-                .Setup(m => m.GetEnumerator())
-                .Returns(roles.GetEnumerator());
+            var mockSet = SetupRoles.MockRoles.BuildMockDbSet();
+            rapsContext.TblRoles.Returns(mockSet);
 
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Provider).Returns(roles.Provider);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Expression).Returns(roles.Expression);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.ElementType).Returns(roles.ElementType);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.GetEnumerator()).Returns(() => roles.GetEnumerator());
-
-            rapsContext.Setup(c => c.TblRoles).Returns(mockSet.Object);
-
-            var mockUser = new Mock<UserHelper>();
-            mockUser.As<IUserHelper>()
-                .Setup(m => m.GetCurrentUser())
-                .Returns(new AaudUser());
-            mockUser.As<IUserHelper>()
-                .Setup(m => m.HasPermission(rapsContext.Object, It.IsAny<AaudUser>(), It.IsAny<string>()))
-                .Returns((RAPSContext? rc, AaudUser? user, string permission) =>
+            var mockUser = Substitute.For<IUserHelper>();
+            mockUser.GetCurrentUser().Returns(new AaudUser());
+            mockUser.HasPermission(Arg.Any<RAPSContext?>(), Arg.Any<AaudUser?>(), Arg.Any<string>())
+                .Returns(callInfo =>
                 {
+                    var permission = callInfo.ArgAt<string>(2);
                     return permission switch
                     {
                         "RAPS.Admin" => false,
@@ -210,14 +114,15 @@ namespace Viper.test.RAPS
                         _ => false,
                     };
                 });
-            
-            var rapsSec = new RAPSSecurityService(rapsContext.Object, mockUser.Object);
-            var rolesController = new RolesController(rapsContext.Object);
-            rolesController.UserHelper = mockUser.Object;
+
+            var rapsSec = new RAPSSecurityService(rapsContext, mockUser);
+            var rolesController = new RolesController(rapsContext);
+            rolesController.UserHelper = mockUser;
             rolesController.SecurityService = new RAPSSecurityServiceWrapper(rapsSec);
 
-            var vmacsRole = roles.ToList().Find(r => rapsSec.RoleBelongsToInstance("VMACS.VMTH", r));
-            var viperRole = roles.ToList().Find(r => rapsSec.RoleBelongsToInstance("VIPER", r));
+            var roles = SetupRoles.MockRoles;
+            var vmacsRole = roles.Find(r => RAPSSecurityService.RoleBelongsToInstance("VMACS.VMTH", r));
+            var viperRole = roles.Find(r => RAPSSecurityService.RoleBelongsToInstance("VIPER", r));
 
             // act
             var canViewRolePermissions = rapsSec.IsAllowedTo("ViewRolePermissions", "VMACS.VMTH", vmacsRole!);
@@ -232,20 +137,18 @@ namespace Viper.test.RAPS
 
         // TO - switch to SQLite
         [Fact]
-        public async void FindRole_WithValidId()
+        public async Task FindRole_WithValidId()
         {
-            _sqlLiteConnection.Open();
+            await _sqlLiteConnection.OpenAsync();
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (context.Database.EnsureCreated())
+            if (await context.Database.EnsureCreatedAsync())
             {
                 // arrange
-                var mockAudit = new Mock<IRAPSAuditServiceWrapper>();
-                mockAudit.As<IRAPSAuditServiceWrapper>()
-                    .Setup(m => m.AuditRoleChange(It.IsAny<TblRole>(), It.IsAny<AuditActionType>()));
+                var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
 
                 var rolesController = new RolesController(context);
-                rolesController.AuditService = mockAudit.Object;
+                rolesController.AuditService = mockAudit;
 
                 RoleCreateUpdate tblRole = new RoleCreateUpdate()
                 {
@@ -259,62 +162,50 @@ namespace Viper.test.RAPS
                 var resultFound = await rolesController.GetTblRole("VIPER", 1);
 
                 // assert
-                var actionResult = Assert.IsType<ActionResult<TblRole>>(resultFound);
+                Assert.IsType<ActionResult<TblRole>>(resultFound);
                 Assert.NotNull(resultFound.Value);
                 Assert.Equal(1, resultFound.Value.RoleId);
                 Assert.Equal("VIPER.TestRole", resultFound.Value.Role);
                 Assert.Equal(1, resultFound.Value.Application);
             }
 
-            _sqlLiteConnection.Dispose();
+            await _sqlLiteConnection.DisposeAsync();
         }
 
 
         [Fact]
-        public async void RejectFindRole_WithInvalidId()
+        public async Task RejectFindRole_WithInvalidId()
         {
             // arrange
             int RoleId = -1;
-            var roles = GetTestRoles();
-            var mockSet = new Mock<Microsoft.EntityFrameworkCore.DbSet<TblRole>>();
-            mockSet.As<IEnumerable<TblRole>>()
-                .Setup(m => m.GetEnumerator())
-                .Returns(roles.GetEnumerator());
-            mockSet.Setup(m => m.FindAsync(RoleId))
-                .ReturnsAsync(roles.Where(r => r.RoleId == RoleId).FirstOrDefault());
+            var mockSet = GetTestRoles().BuildMockDbSet();
+            mockSet.FindAsync(Arg.Any<object?[]?>()).Returns((TblRole?)null);
+            rapsContext.TblRoles.Returns(mockSet);
 
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Provider).Returns(roles.Provider);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Expression).Returns(roles.Expression);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.ElementType).Returns(roles.ElementType);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.GetEnumerator()).Returns(() => roles.GetEnumerator());
-
-            rapsContext.Setup(c => c.TblRoles).Returns(mockSet.Object);
-            var rolesController = new RolesController(rapsContext.Object);
+            var rolesController = new RolesController(rapsContext);
 
             // act
             var result = await rolesController.GetTblRole("VIPER", RoleId);
 
             // assert
-            var actionResult = Assert.IsType<ActionResult<TblRole>>(result);
+            Assert.IsType<ActionResult<TblRole>>(result);
             Assert.Null(result.Value);
         }
 
 
         [Fact]
-        public async void EditRole_WhenValid()
+        public async Task EditRole_WhenValid()
         {
-            _sqlLiteConnection.Open();
+            await _sqlLiteConnection.OpenAsync();
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (context.Database.EnsureCreated())
+            if (await context.Database.EnsureCreatedAsync())
             {
                 // arrange
-                var mockAudit = new Mock<IRAPSAuditServiceWrapper>();
-                mockAudit.As<IRAPSAuditServiceWrapper>()
-                    .Setup(m => m.AuditRoleChange(It.IsAny<TblRole>(), It.IsAny<AuditActionType>()));
+                var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
 
                 var rolesController = new RolesController(context);
-                rolesController.AuditService = mockAudit.Object;
+                rolesController.AuditService = mockAudit;
 
                 RoleCreateUpdate tblRoleI = new RoleCreateUpdate()
                 {
@@ -336,7 +227,7 @@ namespace Viper.test.RAPS
                 var resultEdited = await rolesController.GetTblRole("VIPER", 1);
 
                 // assert
-                var actionResult = Assert.IsType<ActionResult<TblRole>>(resultEdited);
+                Assert.IsType<ActionResult<TblRole>>(resultEdited);
                 Assert.NotNull(resultEdited.Value);
                 Assert.Equal(1, resultEdited.Value.RoleId);
                 Assert.Equal("VIPER.Updated", resultEdited.Value.Role);
@@ -344,29 +235,19 @@ namespace Viper.test.RAPS
                 Assert.IsType<NoContentResult>(result);
             }
 
-            _sqlLiteConnection.Dispose();
+            await _sqlLiteConnection.DisposeAsync();
         }
 
 
         [Fact]
-        public async void RejectEditRole_WhenNotFound()
+        public async Task RejectEditRole_WhenNotFound()
         {
             // arrange
-            var roles = GetTestRoles();
-            var mockSet = new Mock<Microsoft.EntityFrameworkCore.DbSet<TblRole>>();
-            mockSet.As<IEnumerable<TblRole>>()
-                .Setup(m => m.GetEnumerator())
-                .Returns(roles.GetEnumerator());
+            var mockSet = GetTestRoles().BuildMockDbSet();
+            rapsContext.TblRoles.Returns(mockSet);
+            rapsContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
 
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Provider).Returns(roles.Provider);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.Expression).Returns(roles.Expression);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.ElementType).Returns(roles.ElementType);
-            mockSet.As<IQueryable<TblRole>>().Setup(m => m.GetEnumerator()).Returns(() => roles.GetEnumerator());
-
-            rapsContext.Setup(c => c.TblRoles).Returns(mockSet.Object);
-            var rolesController = new RolesController(rapsContext.Object);
-            rapsContext.Setup(c => c.SetModified(It.IsAny<object>()));
-            rapsContext.Setup(m => m.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            var rolesController = new RolesController(rapsContext);
 
             RoleCreateUpdate tblRole = new RoleCreateUpdate
             {
@@ -383,20 +264,18 @@ namespace Viper.test.RAPS
         }
 
         [Fact]
-        public async void AddRole_WhenValid()
+        public async Task AddRole_WhenValid()
         {
-            _sqlLiteConnection.Open();
+            await _sqlLiteConnection.OpenAsync();
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (context.Database.EnsureCreated())
+            if (await context.Database.EnsureCreatedAsync())
             {
                 // arrange
-                var mockAudit = new Mock<IRAPSAuditServiceWrapper>();
-                mockAudit.As<IRAPSAuditServiceWrapper>()
-                    .Setup(m => m.AuditRoleChange(It.IsAny<TblRole>(), It.IsAny<AuditActionType>()));
+                var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
 
                 var rolesController = new RolesController(context);
-                rolesController.AuditService = mockAudit.Object;
+                rolesController.AuditService = mockAudit;
 
                 RoleCreateUpdate tblRole = new RoleCreateUpdate()
                 {
@@ -417,24 +296,22 @@ namespace Viper.test.RAPS
                 Assert.Equal(1, returnValue.Application);
             }
 
-            _sqlLiteConnection.Dispose();
+            await _sqlLiteConnection.DisposeAsync();
         }
 
         [Fact]
-        public async void RejectAddRole_WhenDuplicateRoleId()
+        public async Task RejectAddRole_WhenDuplicateRoleId()
         {
-            _sqlLiteConnection.Open();
+            await _sqlLiteConnection.OpenAsync();
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (context.Database.EnsureCreated())
+            if (await context.Database.EnsureCreatedAsync())
             {
                 // arrange
-                var mockAudit = new Mock<IRAPSAuditServiceWrapper>();
-                mockAudit.As<IRAPSAuditServiceWrapper>()
-                    .Setup(m => m.AuditRoleChange(It.IsAny<TblRole>(), It.IsAny<AuditActionType>()));
+                var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
 
                 var rolesController = new RolesController(context);
-                rolesController.AuditService = mockAudit.Object;
+                rolesController.AuditService = mockAudit;
 
                 RoleCreateUpdate tblRole = new RoleCreateUpdate
                 {
@@ -458,26 +335,24 @@ namespace Viper.test.RAPS
 
             }
 
-            _sqlLiteConnection.Dispose();
+            await _sqlLiteConnection.DisposeAsync();
         }
 
         [Fact]
-        public async void DeleteRole_WhenValid()
+        public async Task DeleteRole_WhenValid()
         {
-            _sqlLiteConnection.Open();
+            await _sqlLiteConnection.OpenAsync();
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (context.Database.EnsureCreated())
+            if (await context.Database.EnsureCreatedAsync())
             {
                 // arrange
                 int RoleId = 1;
 
-                var mockAudit = new Mock<IRAPSAuditServiceWrapper>();
-                mockAudit.As<IRAPSAuditServiceWrapper>()
-                    .Setup(m => m.AuditRoleChange(It.IsAny<TblRole>(), It.IsAny<AuditActionType>()));
+                var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
 
                 var rolesController = new RolesController(context);
-                rolesController.AuditService = mockAudit.Object;
+                rolesController.AuditService = mockAudit;
 
                 RoleCreateUpdate tblRole = new RoleCreateUpdate()
                 {
@@ -498,7 +373,7 @@ namespace Viper.test.RAPS
                 Assert.Null(resultDeleted.Value);
             }
 
-            _sqlLiteConnection.Dispose();
+            await _sqlLiteConnection.DisposeAsync();
 
         }
 

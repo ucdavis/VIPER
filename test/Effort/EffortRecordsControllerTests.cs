@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -17,9 +18,9 @@ namespace Viper.test.Effort;
 /// </summary>
 public sealed class EffortRecordsControllerTests
 {
-    private readonly Mock<IEffortRecordService> _recordServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<ILogger<EffortRecordsController>> _loggerMock;
+    private readonly IEffortRecordService _recordServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ILogger<EffortRecordsController> _loggerMock;
     private readonly EffortRecordsController _controller;
 
     private const int TestRecordId = 1;
@@ -28,14 +29,14 @@ public sealed class EffortRecordsControllerTests
 
     public EffortRecordsControllerTests()
     {
-        _recordServiceMock = new Mock<IEffortRecordService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _loggerMock = new Mock<ILogger<EffortRecordsController>>();
+        _recordServiceMock = Substitute.For<IEffortRecordService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _loggerMock = Substitute.For<ILogger<EffortRecordsController>>();
 
         _controller = new EffortRecordsController(
-            _recordServiceMock.Object,
-            _permissionServiceMock.Object,
-            _loggerMock.Object);
+            _recordServiceMock,
+            _permissionServiceMock,
+            _loggerMock);
 
         SetupControllerContext();
     }
@@ -83,10 +84,8 @@ public sealed class EffortRecordsControllerTests
     {
         // Arrange
         var record = CreateTestRecord();
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(record);
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(record);
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.GetRecord(TestRecordId);
@@ -101,8 +100,7 @@ public sealed class EffortRecordsControllerTests
     public async Task GetRecord_ReturnsNotFound_WhenRecordDoesNotExist()
     {
         // Arrange
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((InstructorEffortRecordDto?)null);
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorEffortRecordDto?)null);
 
         // Act
         var result = await _controller.GetRecord(999);
@@ -116,10 +114,8 @@ public sealed class EffortRecordsControllerTests
     {
         // Arrange
         var record = CreateTestRecord();
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(record);
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(record);
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetRecord(TestRecordId);
@@ -147,12 +143,9 @@ public sealed class EffortRecordsControllerTests
         };
         var record = CreateTestRecord();
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CreateEffortRecordAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((record, (string?)null));
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Returns((record, (string?)null));
 
         // Act
         var result = await _controller.CreateRecord(request);
@@ -177,8 +170,7 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 40
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.CreateRecord(request);
@@ -201,12 +193,9 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 40
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CreateEffortRecordAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Duplicate record"));
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Duplicate record"));
 
         // Act
         var result = await _controller.CreateRecord(request);
@@ -230,12 +219,9 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 40
         };
 
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CreateEffortRecordAsync(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateException("DB error"));
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("DB error"));
 
         // Act
         var result = await _controller.CreateRecord(request);
@@ -261,14 +247,10 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 30
         };
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.UpdateEffortRecordAsync(TestRecordId, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((existingRecord, (string?)null));
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.UpdateEffortRecordAsync(TestRecordId, request, Arg.Any<CancellationToken>()).Returns((existingRecord, (string?)null));
 
         // Act
         var result = await _controller.UpdateRecord(TestRecordId, request);
@@ -288,8 +270,7 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 30
         };
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((InstructorEffortRecordDto?)null);
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorEffortRecordDto?)null);
 
         // Act
         var result = await _controller.UpdateRecord(999, request);
@@ -310,10 +291,8 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 30
         };
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.UpdateRecord(TestRecordId, request);
@@ -335,14 +314,10 @@ public sealed class EffortRecordsControllerTests
             OriginalModifiedDate = DateTime.Now.AddHours(-1)
         };
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.UpdateEffortRecordAsync(TestRecordId, request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ConcurrencyConflictException(TestRecordId));
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.UpdateEffortRecordAsync(TestRecordId, request, Arg.Any<CancellationToken>()).Throws(new ConcurrencyConflictException(TestRecordId));
 
         // Act
         var result = await _controller.UpdateRecord(TestRecordId, request);
@@ -362,14 +337,10 @@ public sealed class EffortRecordsControllerTests
         // Arrange
         var existingRecord = CreateTestRecord();
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.DeleteEffortRecordAsync(TestRecordId, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.DeleteEffortRecordAsync(TestRecordId, Arg.Any<DateTime?>(), Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.DeleteRecord(TestRecordId, null);
@@ -382,8 +353,7 @@ public sealed class EffortRecordsControllerTests
     public async Task DeleteRecord_ReturnsNotFound_WhenRecordDoesNotExist()
     {
         // Arrange
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(999, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((InstructorEffortRecordDto?)null);
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorEffortRecordDto?)null);
 
         // Act
         var result = await _controller.DeleteRecord(999, null);
@@ -399,10 +369,8 @@ public sealed class EffortRecordsControllerTests
         // OR when term is not editable (both checked by CanEditPersonEffortAsync)
         var existingRecord = CreateTestRecord();
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.DeleteRecord(TestRecordId, null);
@@ -418,14 +386,10 @@ public sealed class EffortRecordsControllerTests
         var existingRecord = CreateTestRecord();
         var staleModifiedDate = DateTime.Now.AddHours(-1);
 
-        _recordServiceMock.Setup(s => s.GetEffortRecordAsync(TestRecordId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingRecord);
-        _permissionServiceMock.Setup(s => s.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.DeleteEffortRecordAsync(TestRecordId, staleModifiedDate, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ConcurrencyConflictException(TestRecordId));
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.DeleteEffortRecordAsync(TestRecordId, staleModifiedDate, Arg.Any<CancellationToken>()).Throws(new ConcurrencyConflictException(TestRecordId));
 
         // Act
         var result = await _controller.DeleteRecord(TestRecordId, staleModifiedDate);
@@ -451,10 +415,8 @@ public sealed class EffortRecordsControllerTests
             }
         };
 
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _recordServiceMock.Setup(s => s.GetAvailableCoursesAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(courses);
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.GetAvailableCoursesAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(courses);
 
         // Act
         var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode);
@@ -469,8 +431,7 @@ public sealed class EffortRecordsControllerTests
     public async Task GetAvailableCourses_ReturnsNotFound_WhenUserNotAuthorized()
     {
         // Arrange
-        _permissionServiceMock.Setup(s => s.CanViewPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode);
@@ -493,8 +454,7 @@ public sealed class EffortRecordsControllerTests
             new() { Id = "LAB", Description = "Laboratory" }
         };
 
-        _recordServiceMock.Setup(s => s.GetEffortTypeOptionsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(effortTypes);
+        _recordServiceMock.GetEffortTypeOptionsAsync(Arg.Any<CancellationToken>()).Returns(effortTypes);
 
         // Act
         var result = await _controller.GetEffortTypes();
@@ -519,8 +479,7 @@ public sealed class EffortRecordsControllerTests
             new() { Id = 2, Description = "Co-Instructor" }
         };
 
-        _recordServiceMock.Setup(s => s.GetRoleOptionsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
+        _recordServiceMock.GetRoleOptionsAsync(Arg.Any<CancellationToken>()).Returns(roles);
 
         // Act
         var result = await _controller.GetRoles();
@@ -539,8 +498,7 @@ public sealed class EffortRecordsControllerTests
     public async Task CanEditTerm_ReturnsTrue_WhenTermEditable()
     {
         // Arrange
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
         var result = await _controller.CanEditTerm(TestTermCode);
@@ -554,8 +512,7 @@ public sealed class EffortRecordsControllerTests
     public async Task CanEditTerm_ReturnsFalse_WhenTermNotEditable()
     {
         // Arrange
-        _recordServiceMock.Setup(s => s.CanEditTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _controller.CanEditTerm(TestTermCode);
@@ -573,8 +530,7 @@ public sealed class EffortRecordsControllerTests
     public void UsesWeeks_ReturnsCorrectValue()
     {
         // Arrange
-        _recordServiceMock.Setup(s => s.UsesWeeks("CLI", TestTermCode))
-            .Returns(true);
+        _recordServiceMock.UsesWeeks("CLI", TestTermCode).Returns(true);
 
         // Act
         var result = _controller.UsesWeeks("CLI", TestTermCode);

@@ -109,8 +109,8 @@ public class CourseRelationshipService : ICourseRelationshipService
             .AsNoTracking()
             .Where(c => c.TermCode == parentCourse.TermCode
                 && c.Id != parentCourseId
-                && !existingChildIds.Contains(c.Id)
-                && !existingParentIds.Contains(c.Id))
+                && !EF.Parameter(existingChildIds).Contains(c.Id)
+                && !EF.Parameter(existingParentIds).Contains(c.Id))
             .OrderBy(c => c.SubjCode)
             .ThenBy(c => c.CrseNumb)
             .ThenBy(c => c.SeqNumb)

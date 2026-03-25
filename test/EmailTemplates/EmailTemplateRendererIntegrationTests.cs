@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort.EmailTemplates.Models;
 using Viper.EmailTemplates.Services;
 
@@ -12,12 +12,12 @@ namespace Viper.test.EmailTemplates;
 public class EmailTemplateRendererIntegrationTests
 {
     private readonly EmailTemplateRenderer _renderer;
-    private readonly Mock<ILogger<EmailTemplateRenderer>> _loggerMock;
+    private readonly ILogger<EmailTemplateRenderer> _loggerMock;
 
     public EmailTemplateRendererIntegrationTests()
     {
-        _loggerMock = new Mock<ILogger<EmailTemplateRenderer>>();
-        _renderer = new EmailTemplateRenderer(_loggerMock.Object);
+        _loggerMock = Substitute.For<ILogger<EmailTemplateRenderer>>();
+        _renderer = new EmailTemplateRenderer(_loggerMock);
     }
 
     [Fact]

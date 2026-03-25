@@ -1,7 +1,6 @@
-import { describe, it, expect } from "vitest"
 import { normalizeWeek } from "../composables/use-schedule-normalization"
 
-describe("normalizeWeek", () => {
+describe(normalizeWeek, () => {
     it("should preserve existing dateEnd when it has a value", () => {
         const week = {
             weekId: 1,
@@ -38,7 +37,7 @@ describe("normalizeWeek", () => {
         const week = {
             weekId: 1,
             someOtherProp: "value",
-        }
+        } as any
 
         const result = normalizeWeek(week)
 

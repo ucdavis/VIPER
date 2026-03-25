@@ -108,18 +108,16 @@ namespace Viper.Areas.Students.Services
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
 
+                var mailIds = students.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
+                var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
+                var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
                 {
                     var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
 
-                    var photoUrl = string.IsNullOrWhiteSpace(student.MailId)
-                        ? string.Empty
-                        : await _photoService.GetStudentPhotoUrlAsync(student.MailId);
-                    var hasPhoto = !string.Equals(
-                        photoUrl,
-                        _photoService.GetDefaultPhotoUrl(),
-                        StringComparison.OrdinalIgnoreCase);
+                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
 
                     // Combine Eighths and Twentieths groups in format "2B1 / 1AA"
                     var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
@@ -151,7 +149,7 @@ namespace Viper.Areas.Students.Services
 
                     if (rossGradYear.HasValue)
                     {
-                        var rossStudents = await GetRossStudentsByGradYearAsync(rossGradYear.Value, classLevel);
+                        var rossStudents = await GetRossStudentsByGradYearAsync(rossGradYear.Value, classLevel, rossIamIds);
                         _logger.LogDebug("Adding {Count} Ross students to {TotalStudents} regular students",
                             rossStudents.Count, photoStudents.Count);
                         photoStudents.AddRange(rossStudents);
@@ -181,22 +179,30 @@ namespace Viper.Areas.Students.Services
         /// <param name="gradYear">The graduation year to filter Ross students</param>
         /// <param name="classLevel">The class level (V1-V4) for display purposes</param>
         /// <returns>List of StudentPhoto objects for active Ross students in the specified graduation year</returns>
-        private async Task<List<StudentPhoto>> GetRossStudentsByGradYearAsync(int gradYear, string classLevel)
+        private async Task<List<StudentPhoto>> GetRossStudentsByGradYearAsync(int gradYear, string classLevel, List<string>? existingRossIamIds = null)
         {
             try
             {
                 var currentTermInt = await GetActiveTermCodeAsync();
 
-                // Query StudentDesignation table in SIS database
-                // Filter by ClassYear1 (ClassYear2 is always NULL per database data)
-                // Also filter by StartTerm/EndTerm to only include active Ross students
-                var rossDesignations = await _sisContext.StudentDesignations
-                    .Where(sd => sd.DesignationType == "Ross" && sd.ClassYear1 == gradYear)
-                    .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
-                                (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
-                    .ToListAsync();
+                List<string> rossIamIds;
+                if (existingRossIamIds != null)
+                {
+                    rossIamIds = existingRossIamIds;
+                }
+                else
+                {
+                    // Query StudentDesignation table in SIS database
+                    // Filter by ClassYear1 (ClassYear2 is always NULL per database data)
+                    // Also filter by StartTerm/EndTerm to only include active Ross students
+                    var rossDesignations = await _sisContext.StudentDesignations
+                        .Where(sd => sd.DesignationType == "Ross" && sd.ClassYear1 == gradYear)
+                        .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
+                                    (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
+                        .ToListAsync();
 
-                var rossIamIds = rossDesignations.Select(sd => sd.IamId).ToList();
+                    rossIamIds = rossDesignations.Select(sd => sd.IamId).ToList();
+                }
 
                 if (!rossIamIds.Any())
                 {
@@ -260,18 +266,16 @@ namespace Viper.Areas.Students.Services
 
                 _logger.LogDebug("Found {Count} Ross students in AAUD using latest available records", rossStudents.Count);
 
+                var rossMailIds = rossStudents.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
+                var rossPhotoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(rossMailIds);
+                var rossDefaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in rossStudents)
                 {
                     var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
 
-                    var photoUrl = string.IsNullOrWhiteSpace(student.MailId)
-                        ? string.Empty
-                        : await _photoService.GetStudentPhotoUrlAsync(student.MailId);
-                    var hasPhoto = !string.Equals(
-                        photoUrl,
-                        _photoService.GetDefaultPhotoUrl(),
-                        StringComparison.OrdinalIgnoreCase);
+                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, rossPhotoUrls, rossDefaultPhotoUrl);
 
                     photoStudents.Add(new StudentPhoto
                     {
@@ -388,18 +392,16 @@ namespace Viper.Areas.Students.Services
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
 
+                var mailIds = students.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
+                var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
+                var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+
                 var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
                 {
                     var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
 
-                    var photoUrl = string.IsNullOrWhiteSpace(student.MailId)
-                        ? string.Empty
-                        : await _photoService.GetStudentPhotoUrlAsync(student.MailId);
-                    var hasPhoto = !string.Equals(
-                        photoUrl,
-                        _photoService.GetDefaultPhotoUrl(),
-                        StringComparison.OrdinalIgnoreCase);
+                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
 
                     // Combine Eighths and Twentieths groups in format "2B1 / 1AA"
                     var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
@@ -521,19 +523,17 @@ namespace Viper.Areas.Students.Services
                 }
 
                 var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
-                var photoStudents = new List<StudentPhoto>();
 
+                var mailIds = students.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
+                var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
+                var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+
+                var photoStudents = new List<StudentPhoto>();
                 foreach (var student in students)
                 {
                     var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
 
-                    var photoUrl = string.IsNullOrWhiteSpace(student.MailId)
-                        ? string.Empty
-                        : await _photoService.GetStudentPhotoUrlAsync(student.MailId);
-                    var hasPhoto = !string.Equals(
-                        photoUrl,
-                        _photoService.GetDefaultPhotoUrl(),
-                        StringComparison.OrdinalIgnoreCase);
+                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
 
                     // Combine Eighths and Twentieths groups
                     var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
@@ -602,14 +602,16 @@ namespace Viper.Areas.Students.Services
                             .Where(s => !string.IsNullOrEmpty(s.IdsMailid))
                             .ToList();
 
-                        // Map to StudentPhoto objects (this is in-memory, no more database calls except for photos)
+                        // Batch-load photo URLs for Ross students
+                        var rossMailIds = latestRossStudents.Where(s => !string.IsNullOrWhiteSpace(s.IdsMailid)).Select(s => s.IdsMailid!).Distinct();
+                        var rossPhotoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(rossMailIds);
+                        var rossDefaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+
+                        // Map to StudentPhoto objects (this is in-memory, no more database calls)
                         foreach (var student in latestRossStudents)
                         {
                             var displayName = FormatStudentDisplayName(student.PersonLastName, student.PersonFirstName, student.PersonMiddleName);
-                            var photoUrl = string.IsNullOrWhiteSpace(student.IdsMailid)
-                                ? string.Empty
-                                : await _photoService.GetStudentPhotoUrlAsync(student.IdsMailid);
-                            var hasPhoto = !string.Equals(photoUrl, _photoService.GetDefaultPhotoUrl(), StringComparison.OrdinalIgnoreCase);
+                            var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.IdsMailid, rossPhotoUrls, rossDefaultPhotoUrl);
 
                             photoStudents.Add(new StudentPhoto
                             {
@@ -758,6 +760,16 @@ namespace Viper.Areas.Students.Services
                 // Fallback to baseline on error
                 return new List<string> { "SA", "LA", "EQ", "LIVE", "ZOO" };
             }
+        }
+
+        private static (string photoUrl, bool hasPhoto) ResolvePhotoUrl(
+            string? mailId, Dictionary<string, string> photoUrls, string defaultPhotoUrl)
+        {
+            var photoUrl = string.IsNullOrWhiteSpace(mailId) || !photoUrls.TryGetValue(mailId, out var url)
+                ? string.Empty
+                : url;
+            var hasPhoto = !string.Equals(photoUrl, defaultPhotoUrl, StringComparison.OrdinalIgnoreCase);
+            return (photoUrl, hasPhoto);
         }
 
         private static string FormatStudentDisplayName(string lastName, string firstName, string? middleName)
