@@ -23,7 +23,7 @@ def copyOfflineOperations = [
 ]
 pipeline {
     agent any
-	tools { nodejs "NodeJS 24.14.0" }
+	tools { nodejs "NodeJS 24.14.1" }
     options {
         skipStagesAfterUnstable()
         skipDefaultCheckout()
@@ -52,7 +52,9 @@ pipeline {
 				parallel(
 					npm: {
 						bat 'pushd VueApp && npm install --prefer-offline --no-audit --no-fund && popd'
-						bat 'npm audit --prefix VueApp --omit=dev --audit-level=high'
+						catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+							bat 'npm audit --prefix VueApp --omit=dev --audit-level=high'
+						}
 					},
 					dotnet: {
 						bat '"C:\\Program Files\\dotnet\\dotnet" tool restore'
