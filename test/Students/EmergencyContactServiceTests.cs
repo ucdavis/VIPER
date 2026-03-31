@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Students.Constants;
 using Viper.Areas.Students.Models.Entities;
@@ -19,7 +20,6 @@ public sealed class EmergencyContactServiceTests : IDisposable
     private readonly SISContext _sisContext;
     private readonly RAPSContext _rapsContext;
     private readonly AAUDContext _aaudContext;
-    private readonly VIPERContext _viperContext;
 
     // IDs assigned by InMemory DB — seeded in constructor
     private readonly int _seededPermissionId;
@@ -45,12 +45,6 @@ public sealed class EmergencyContactServiceTests : IDisposable
             .Options;
         _aaudContext = new AAUDContext(aaudOptions);
 
-        var viperOptions = new DbContextOptionsBuilder<VIPERContext>()
-            .UseInMemoryDatabase(databaseName: "VIPER_" + Guid.NewGuid())
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
-        _viperContext = new VIPERContext(viperOptions);
-
         // Seed the RAPS permission and role so string-based lookups work
         var permission = new TblPermission { Permission = EmergencyContactPermissions.Student };
         _rapsContext.TblPermissions.Add(permission);
@@ -60,18 +54,6 @@ public sealed class EmergencyContactServiceTests : IDisposable
         _seededPermissionId = permission.PermissionId;
         _seededRoleId = role.RoleId;
 
-        // Seed a current term so StudentList.GetStudents() can resolve active class years
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
-        {
-            TermCode = 202610,
-            AcademicYear = 2027,
-            Description = "Fall 2026",
-            StartDate = new DateTime(2026, 9, 21),
-            EndDate = new DateTime(2026, 12, 11),
-            TermType = "Q",
-            CurrentTerm = true
-        });
-        _viperContext.SaveChanges();
     }
 
     public void Dispose()
@@ -79,7 +61,6 @@ public sealed class EmergencyContactServiceTests : IDisposable
         _sisContext.Dispose();
         _rapsContext.Dispose();
         _aaudContext.Dispose();
-        _viperContext.Dispose();
     }
 
     #region Phone Normalization Tests
@@ -217,55 +198,68 @@ public sealed class EmergencyContactServiceTests : IDisposable
     #region Student Info Completeness Tests
 
     [Fact]
-    public void CalculateStudentInfoCompleteness_AllEmpty_ReturnsZero()
+    public void GetStudentInfoMissingFields_AllEmpty_ReturnsAllMissing()
     {
         var contact = new StudentContact();
-        Assert.Equal(0, EmergencyContactService.CalculateStudentInfoCompleteness(contact));
+        var missing = EmergencyContactService.GetStudentInfoMissingFields(contact);
+        Assert.Equal(2, missing.Count);
+        Assert.Contains("Address", missing);
+        Assert.Contains("Phone", missing);
     }
 
     [Fact]
-    public void CalculateStudentInfoCompleteness_AddressOnly_ReturnsZero()
+    public void GetStudentInfoMissingFields_AddressOnly_MissingPhoneAndFullAddress()
     {
-        // Address alone is not enough; need address+city+zip for 1 point
-        var contact = new StudentContact { Address = "123 Main St" };
-        Assert.Equal(0, EmergencyContactService.CalculateStudentInfoCompleteness(contact));
+        // Address alone is not enough; need address+city+zip
+        var contact = new StudentContact { Address = "One Shields Avenue" };
+        var missing = EmergencyContactService.GetStudentInfoMissingFields(contact);
+        Assert.Contains("Address", missing);
+        Assert.Contains("Phone", missing);
     }
 
     [Fact]
-    public void CalculateStudentInfoCompleteness_AddressCityZip_ReturnsOne()
+    public void GetStudentInfoMissingFields_AddressCityZip_MissingPhone()
     {
         var contact = new StudentContact
         {
-            Address = "123 Main St",
+            Address = "One Shields Avenue",
             City = "Davis",
             Zip = "95616"
         };
-        Assert.Equal(1, EmergencyContactService.CalculateStudentInfoCompleteness(contact));
+        var missing = EmergencyContactService.GetStudentInfoMissingFields(contact);
+        Assert.DoesNotContain("Address", missing);
+        Assert.Contains("Phone", missing);
     }
 
     [Fact]
-    public void CalculateStudentInfoCompleteness_AllFields_ReturnsThree()
+    public void GetStudentInfoMissingFields_AllFields_ReturnsEmpty()
     {
         var contact = new StudentContact
         {
-            Address = "123 Main St",
+            Address = "One Shields Avenue",
             City = "Davis",
             Zip = "95616",
             HomePhone = "5305551234",
             CellPhone = "5305555678"
         };
-        Assert.Equal(3, EmergencyContactService.CalculateStudentInfoCompleteness(contact));
+        Assert.Empty(EmergencyContactService.GetStudentInfoMissingFields(contact));
     }
 
     [Fact]
-    public void CalculateStudentInfoCompleteness_OnlyPhones_ReturnsTwo()
+    public void GetStudentInfoMissingFields_CellPhoneOnly_PhoneComplete()
     {
-        var contact = new StudentContact
-        {
-            HomePhone = "5305551234",
-            CellPhone = "5305555678"
-        };
-        Assert.Equal(2, EmergencyContactService.CalculateStudentInfoCompleteness(contact));
+        var contact = new StudentContact { CellPhone = "5305555678" };
+        var missing = EmergencyContactService.GetStudentInfoMissingFields(contact);
+        Assert.DoesNotContain("Phone", missing);
+        Assert.Contains("Address", missing);
+    }
+
+    [Fact]
+    public void GetStudentInfoMissingFields_HomePhoneOnly_PhoneComplete()
+    {
+        var contact = new StudentContact { HomePhone = "5305551234" };
+        var missing = EmergencyContactService.GetStudentInfoMissingFields(contact);
+        Assert.DoesNotContain("Phone", missing);
     }
 
     #endregion
@@ -273,33 +267,37 @@ public sealed class EmergencyContactServiceTests : IDisposable
     #region Contact Completeness Tests
 
     [Fact]
-    public void CalculateContactCompleteness_NullContact_ReturnsZero()
+    public void GetContactMissingFields_NullContact_ReturnsAllMissing()
     {
-        Assert.Equal(0, EmergencyContactService.CalculateContactCompleteness(null));
+        var missing = EmergencyContactService.GetContactMissingFields(null);
+        Assert.Equal(4, missing.Count);
     }
 
     [Fact]
-    public void CalculateContactCompleteness_EmptyContact_ReturnsZero()
+    public void GetContactMissingFields_EmptyContact_ReturnsAllMissing()
     {
         var contact = new StudentEmergencyContact { Type = "local" };
-        Assert.Equal(0, EmergencyContactService.CalculateContactCompleteness(contact));
+        var missing = EmergencyContactService.GetContactMissingFields(contact);
+        Assert.Equal(4, missing.Count);
     }
 
     [Fact]
-    public void CalculateContactCompleteness_ThreeFields_ReturnsThree()
+    public void GetContactMissingFields_NameAndCellPhone_MissingRelationshipAndEmail()
     {
         var contact = new StudentEmergencyContact
         {
             Type = "emergency",
             Name = "Jane Doe",
-            Relationship = "Mother",
             CellPhone = "5305551234"
         };
-        Assert.Equal(3, EmergencyContactService.CalculateContactCompleteness(contact));
+        var missing = EmergencyContactService.GetContactMissingFields(contact);
+        Assert.Equal(2, missing.Count);
+        Assert.Contains("Relationship", missing);
+        Assert.Contains("Email", missing);
     }
 
     [Fact]
-    public void CalculateContactCompleteness_AllFields_ReturnsSix()
+    public void GetContactMissingFields_AllFields_ReturnsEmpty()
     {
         var contact = new StudentEmergencyContact
         {
@@ -307,15 +305,27 @@ public sealed class EmergencyContactServiceTests : IDisposable
             Name = "John Smith",
             Relationship = "Father",
             WorkPhone = "5305551111",
-            HomePhone = "5305552222",
-            CellPhone = "5305553333",
             Email = "john@example.com"
         };
-        Assert.Equal(6, EmergencyContactService.CalculateContactCompleteness(contact));
+        Assert.Empty(EmergencyContactService.GetContactMissingFields(contact));
     }
 
     [Fact]
-    public void CalculateContactCompleteness_WhitespaceFields_ReturnsZero()
+    public void GetContactMissingFields_OnlyWorkPhone_PhoneComplete()
+    {
+        var contact = new StudentEmergencyContact
+        {
+            Type = "emergency",
+            Name = "Jane",
+            Relationship = "Mother",
+            WorkPhone = "5305551111",
+            Email = "jane@example.com"
+        };
+        Assert.Empty(EmergencyContactService.GetContactMissingFields(contact));
+    }
+
+    [Fact]
+    public void GetContactMissingFields_WhitespaceFields_ReturnsAllMissing()
     {
         var contact = new StudentEmergencyContact
         {
@@ -324,7 +334,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             Relationship = "",
             Email = null
         };
-        Assert.Equal(0, EmergencyContactService.CalculateContactCompleteness(contact));
+        Assert.Equal(4, EmergencyContactService.GetContactMissingFields(contact).Count);
     }
 
     #endregion
@@ -408,65 +418,45 @@ public sealed class EmergencyContactServiceTests : IDisposable
     [Fact]
     public async Task ToggleIndividualAccessAsync_NewGrant_ReturnsTrue()
     {
-        await SeedCurrentStudentAsync(100, "Test", "Student");
-
-        _aaudContext.AaudUsers.Add(new AaudUser
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
         {
-            AaudUserId = 100,
-            ClientId = "UCD",
-            MothraId = "M100",
-            LoginId = "student1",
-            DisplayFullName = "Test Student",
-            DisplayFirstName = "Test",
-            DisplayLastName = "Student",
-            LastName = "Student",
-            FirstName = "Test"
-        });
-        await _aaudContext.SaveChangesAsync();
+            SeedDvmStudent(aaudContext, "M100", 100, "Student", "Test", "V1", "12100", "student1@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
 
-        var service = CreateService();
-        var result = await service.ToggleIndividualAccessAsync(100);
+            var result = await service.ToggleIndividualAccessAsync(100);
 
-        Assert.True(result);
-        Assert.True(await _rapsContext.TblMemberPermissions.AnyAsync(mp =>
-            mp.MemberId == "M100"
-            && mp.PermissionId == _seededPermissionId));
+            Assert.True(result);
+            Assert.True(await _rapsContext.TblMemberPermissions.AnyAsync(mp =>
+                mp.MemberId == "M100"
+                && mp.PermissionId == _seededPermissionId));
+        }
     }
 
     [Fact]
     public async Task ToggleIndividualAccessAsync_ExistingGrant_RemovesAndReturnsFalse()
     {
-        await SeedCurrentStudentAsync(101, "Test", "Student2");
-
-        _aaudContext.AaudUsers.Add(new AaudUser
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
         {
-            AaudUserId = 101,
-            ClientId = "UCD",
-            MothraId = "M101",
-            LoginId = "student2",
-            DisplayFullName = "Test Student 2",
-            DisplayFirstName = "Test",
-            DisplayLastName = "Student2",
-            LastName = "Student2",
-            FirstName = "Test"
-        });
-        await _aaudContext.SaveChangesAsync();
+            SeedDvmStudent(aaudContext, "M101", 101, "Student2", "Test", "V1", "12101", "student2@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
 
-        _rapsContext.TblMemberPermissions.Add(new Viper.Models.RAPS.TblMemberPermission
-        {
-            MemberId = "M101",
-            PermissionId = _seededPermissionId,
-            Access = 1
-        });
-        await _rapsContext.SaveChangesAsync();
+            _rapsContext.TblMemberPermissions.Add(new Viper.Models.RAPS.TblMemberPermission
+            {
+                MemberId = "M101",
+                PermissionId = _seededPermissionId,
+                Access = 1
+            });
+            await _rapsContext.SaveChangesAsync();
 
-        var service = CreateService();
-        var result = await service.ToggleIndividualAccessAsync(101);
+            var result = await service.ToggleIndividualAccessAsync(101);
 
-        Assert.False(result);
-        Assert.False(await _rapsContext.TblMemberPermissions.AnyAsync(mp =>
-            mp.MemberId == "M101"
-            && mp.PermissionId == _seededPermissionId));
+            Assert.False(result);
+            Assert.False(await _rapsContext.TblMemberPermissions.AnyAsync(mp =>
+                mp.MemberId == "M101"
+                && mp.PermissionId == _seededPermissionId));
+        }
     }
 
     #endregion
@@ -485,200 +475,426 @@ public sealed class EmergencyContactServiceTests : IDisposable
     [Fact]
     public async Task UpdateStudentContactAsync_CreatesNewContact()
     {
-        await SeedCurrentStudentAsync(200, "New", "Student");
-
-        // Setup AAUD user with a PIDM
-        _aaudContext.AaudUsers.Add(new AaudUser
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
         {
-            AaudUserId = 200,
-            ClientId = "UCD",
-            MothraId = "M200",
-            LoginId = "student3",
-            Pidm = "12345",
-            DisplayFullName = "New Student",
-            DisplayFirstName = "New",
-            DisplayLastName = "Student",
-            LastName = "Student",
-            FirstName = "New"
-        });
-        await _aaudContext.SaveChangesAsync();
+            SeedDvmStudent(aaudContext, "M200", 200, "Student", "New", "V1", "12345", "student3@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
 
-        var service = CreateService();
-        var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
-        {
-            StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
             {
-                Address = "456 Oak Ave",
-                City = "Davis",
-                Zip = "95616",
-                HomePhone = "(530) 555-9999",
-                CellPhone = "5305551111"
-            },
-            ContactPermanent = true,
-            LocalContact = new Viper.Areas.Students.Models.ContactInfoDto
-            {
-                Name = "Local Person",
-                Relationship = "Friend",
-                CellPhone = "5305552222"
-            },
-            EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto
-            {
-                Name = "Emergency Person",
-                Relationship = "Parent",
-                HomePhone = "(530) 555-3333",
-                Email = "parent@example.com"
-            },
-            PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
-        };
+                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                {
+                    Address = "One Shields Avenue",
+                    City = "Davis",
+                    Zip = "95616",
+                    HomePhone = "(530) 555-9999",
+                    CellPhone = "5305551111"
+                },
+                ContactPermanent = true,
+                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto
+                {
+                    Name = "Local Person",
+                    Relationship = "Friend",
+                    CellPhone = "5305552222"
+                },
+                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto
+                {
+                    Name = "Emergency Person",
+                    Relationship = "Parent",
+                    HomePhone = "(530) 555-3333",
+                    Email = "parent@example.com"
+                },
+                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+            };
 
-        await service.UpdateStudentContactAsync(200, request, "admin");
+            await service.UpdateStudentContactAsync(200, request, "admin");
 
-        var savedContact = await _sisContext.StudentContacts
-            .Include(c => c.EmergencyContacts)
-            .FirstOrDefaultAsync(c => c.Pidm == 12345);
+            var savedContact = await _sisContext.StudentContacts
+                .Include(c => c.EmergencyContacts)
+                .FirstOrDefaultAsync(c => c.Pidm == 12345);
 
-        Assert.NotNull(savedContact);
-        Assert.Equal("456 Oak Ave", savedContact.Address);
-        Assert.Equal("Davis", savedContact.City);
-        Assert.Equal("95616", savedContact.Zip);
-        Assert.Equal("5305559999", savedContact.HomePhone);
-        Assert.Equal("5305551111", savedContact.CellPhone);
-        Assert.True(savedContact.ContactPermanent);
-        Assert.Equal("admin", savedContact.UpdatedBy);
-        Assert.Equal(3, savedContact.EmergencyContacts.Count);
+            Assert.NotNull(savedContact);
+            Assert.Equal("One Shields Avenue", savedContact.Address);
+            Assert.Equal("Davis", savedContact.City);
+            Assert.Equal("95616", savedContact.Zip);
+            Assert.Equal("5305559999", savedContact.HomePhone);
+            Assert.Equal("5305551111", savedContact.CellPhone);
+            Assert.True(savedContact.ContactPermanent);
+            Assert.Equal("admin", savedContact.UpdatedBy);
+            Assert.Equal(3, savedContact.EmergencyContacts.Count);
 
-        var local = savedContact.EmergencyContacts.First(e => e.Type == "local");
-        Assert.Equal("Local Person", local.Name);
-        Assert.Equal("Friend", local.Relationship);
-        Assert.Equal("5305552222", local.CellPhone);
+            var local = savedContact.EmergencyContacts.First(e => e.Type == "local");
+            Assert.Equal("Local Person", local.Name);
+            Assert.Equal("Friend", local.Relationship);
+            Assert.Equal("5305552222", local.CellPhone);
 
-        var emergency = savedContact.EmergencyContacts.First(e => e.Type == "emergency");
-        Assert.Equal("Emergency Person", emergency.Name);
-        Assert.Equal("Parent", emergency.Relationship);
-        Assert.Equal("5305553333", emergency.HomePhone);
-        Assert.Equal("parent@example.com", emergency.Email);
+            var emergency = savedContact.EmergencyContacts.First(e => e.Type == "emergency");
+            Assert.Equal("Emergency Person", emergency.Name);
+            Assert.Equal("Parent", emergency.Relationship);
+            Assert.Equal("5305553333", emergency.HomePhone);
+            Assert.Equal("parent@example.com", emergency.Email);
+        }
     }
 
     [Fact]
     public async Task UpdateStudentContactAsync_UpdatesExistingContact()
     {
-        await SeedCurrentStudentAsync(201, "Existing", "Student");
-
-        // Setup AAUD user
-        _aaudContext.AaudUsers.Add(new AaudUser
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
         {
-            AaudUserId = 201,
-            ClientId = "UCD",
-            MothraId = "M201",
-            LoginId = "student4",
-            Pidm = "12346",
-            DisplayFullName = "Existing Student",
-            DisplayFirstName = "Existing",
-            DisplayLastName = "Student",
-            LastName = "Student",
-            FirstName = "Existing"
-        });
-        await _aaudContext.SaveChangesAsync();
+            SeedDvmStudent(aaudContext, "M201", 201, "Student", "Existing", "V1", "12346", "student4@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
 
-        // Create existing contact record
-        var existingContact = new StudentContact
-        {
-            Pidm = 12346,
-            Address = "Old Address",
-            City = "Old City",
-            Zip = "00000"
-        };
-        _sisContext.StudentContacts.Add(existingContact);
-        await _sisContext.SaveChangesAsync();
-
-        var localEc = new StudentEmergencyContact
-        {
-            StdContactId = existingContact.StdContactId,
-            Type = "local",
-            Name = "Old Name"
-        };
-        _sisContext.StudentEmergencyContacts.Add(localEc);
-        await _sisContext.SaveChangesAsync();
-
-        var service = CreateService();
-        var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
-        {
-            StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+            // Create existing contact record
+            var existingContact = new StudentContact
             {
-                Address = "New Address",
-                City = "New City",
-                Zip = "95617"
-            },
-            LocalContact = new Viper.Areas.Students.Models.ContactInfoDto
+                Pidm = 12346,
+                Address = "Old Address",
+                City = "Old City",
+                Zip = "00000"
+            };
+            _sisContext.StudentContacts.Add(existingContact);
+            await _sisContext.SaveChangesAsync();
+
+            var localEc = new StudentEmergencyContact
             {
-                Name = "Updated Name",
-                Relationship = "Spouse"
-            },
-            ContactPermanent = false,
-            EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-            PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
-        };
+                StdContactId = existingContact.StdContactId,
+                Type = "local",
+                Name = "Old Name"
+            };
+            _sisContext.StudentEmergencyContacts.Add(localEc);
+            await _sisContext.SaveChangesAsync();
 
-        await service.UpdateStudentContactAsync(201, request, "admin");
+            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
+            {
+                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                {
+                    Address = "New Address",
+                    City = "New City",
+                    Zip = "95617"
+                },
+                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto
+                {
+                    Name = "Updated Name",
+                    Relationship = "Spouse"
+                },
+                ContactPermanent = false,
+                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
+                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+            };
 
-        var savedContact = await _sisContext.StudentContacts
-            .Include(c => c.EmergencyContacts)
-            .FirstOrDefaultAsync(c => c.Pidm == 12346);
+            await service.UpdateStudentContactAsync(201, request, "admin");
 
-        Assert.NotNull(savedContact);
-        Assert.Equal("New Address", savedContact.Address);
-        Assert.Equal("New City", savedContact.City);
-        Assert.Equal("95617", savedContact.Zip);
+            var savedContact = await _sisContext.StudentContacts
+                .Include(c => c.EmergencyContacts)
+                .FirstOrDefaultAsync(c => c.Pidm == 12346);
 
-        var local = savedContact.EmergencyContacts.First(e => e.Type == "local");
-        Assert.Equal("Updated Name", local.Name);
-        Assert.Equal("Spouse", local.Relationship);
+            Assert.NotNull(savedContact);
+            Assert.Equal("New Address", savedContact.Address);
+            Assert.Equal("New City", savedContact.City);
+            Assert.Equal("95617", savedContact.Zip);
+
+            var local = savedContact.EmergencyContacts.First(e => e.Type == "local");
+            Assert.Equal("Updated Name", local.Name);
+            Assert.Equal("Spouse", local.Relationship);
+        }
     }
 
     [Fact]
     public async Task UpdateStudentContactAsync_InvalidPhone_ThrowsArgumentException()
     {
-        await SeedCurrentStudentAsync(300, "Phone", "Test");
-
-        _aaudContext.AaudUsers.Add(new AaudUser
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
         {
-            AaudUserId = 300,
-            ClientId = "UCD",
-            MothraId = "M300",
-            LoginId = "student5",
-            Pidm = "12399",
-            DisplayFullName = "Phone Test Student",
-            DisplayFirstName = "Phone",
-            DisplayLastName = "Test",
-            LastName = "Test",
-            FirstName = "Phone"
-        });
-        await _aaudContext.SaveChangesAsync();
+            SeedDvmStudent(aaudContext, "M300", 300, "Test", "Phone", "V1", "12399", "student5@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
 
-        var service = CreateService();
-        var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
-        {
-            StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
             {
-                Address = "789 Elm St",
+                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                {
+                    Address = "789 Elm St",
+                    City = "Davis",
+                    Zip = "95616",
+                    HomePhone = "12345" // invalid phone number
+                },
+                ContactPermanent = false,
+                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto(),
+                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
+                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+            };
+
+            var ex = await Assert.ThrowsAsync<ArgumentException>(
+                () => service.UpdateStudentContactAsync(300, request, "admin"));
+            Assert.Contains("Student Home Phone", ex.Message);
+
+            // Verify nothing was persisted
+            var saved = await _sisContext.StudentContacts
+                .FirstOrDefaultAsync(c => c.Pidm == 12399);
+            Assert.Null(saved);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateStudentContactAsync_UsesViewPidm_NotAaudUserPidm()
+    {
+        // Regression: AaudUsers.Pidm and VwDvmStudentsMaxTerms.IdsPidm can diverge.
+        // The detail/save path must use the view PIDM (same source as list/report).
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            // Seed with DIFFERENT PIDMs: AaudUser has stale "99999", view has correct "12700"
+            aaudContext.Set<VwDvmStudentsMaxTerm>().Add(new VwDvmStudentsMaxTerm
+            {
+                IdsMothraId = "M700",
+                PersonLastName = "Divergent",
+                PersonFirstName = "Student",
+                StudentsClassLevel = "V1",
+                IdsPidm = "12700",
+                IdsMailid = "divergent@ucdavis.edu",
+                StudentsTermCode = "202610"
+            });
+            aaudContext.AaudUsers.Add(new AaudUser
+            {
+                AaudUserId = 700,
+                ClientId = "UCD",
+                MothraId = "M700",
+                LoginId = "user700",
+                Pidm = "99999", // stale — different from view
+                DisplayFullName = "Student Divergent",
+                DisplayFirstName = "Student",
+                DisplayLastName = "Divergent",
+                LastName = "Divergent",
+                FirstName = "Student"
+            });
+            await aaudContext.SaveChangesAsync();
+
+            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
+            {
+                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                {
+                    Address = "Test Address",
+                    City = "Davis",
+                    Zip = "95616"
+                },
+                ContactPermanent = false,
+                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto(),
+                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
+                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+            };
+
+            await service.UpdateStudentContactAsync(700, request, "admin");
+
+            // Should save using the VIEW pidm (12700), not the stale AaudUser pidm (99999)
+            var correctContact = await _sisContext.StudentContacts
+                .FirstOrDefaultAsync(c => c.Pidm == 12700);
+            Assert.NotNull(correctContact);
+            Assert.Equal("Test Address", correctContact.Address);
+
+            var staleContact = await _sisContext.StudentContacts
+                .FirstOrDefaultAsync(c => c.Pidm == 99999);
+            Assert.Null(staleContact);
+        }
+    }
+
+    #endregion
+
+    #region GetStudentContactList Tests
+
+    [Fact]
+    public async Task GetStudentContactListAsync_ReturnsStudentsFromAaudView()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M500", 500, "LastA", "StudentA", "V1", "12500", "studenta@ucdavis.edu");
+            SeedDvmStudent(aaudContext, "M501", 501, "LastB", "StudentB", "V2", "12501", "studentb@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            var result = await service.GetStudentContactListAsync();
+
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, r => r.PersonId == 500 && r.FullName == "LastA, StudentA");
+            Assert.Contains(result, r => r.PersonId == 501 && r.FullName == "LastB, StudentB");
+            Assert.All(result, r =>
+            {
+                Assert.Equal(r.PersonId.ToString(), r.RowKey);
+                Assert.True(r.HasDetailRoute);
+            });
+        }
+    }
+
+    [Fact]
+    public async Task GetStudentContactListAsync_UsesClassLevelFromView()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M502", 502, "LastC", "StudentC", "V3", "12502", "studentc@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            var result = await service.GetStudentContactListAsync();
+
+            var student = Assert.Single(result);
+            Assert.Equal("V3", student.ClassLevel);
+        }
+    }
+
+    [Fact]
+    public async Task GetStudentContactListAsync_UsesEmailFromView()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M503", 503, "Doe", "Jane", "V1", "12503", "jdoe@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            var result = await service.GetStudentContactListAsync();
+
+            var student = Assert.Single(result);
+            Assert.Equal("jdoe@ucdavis.edu", student.Email);
+        }
+    }
+
+    [Fact]
+    public async Task GetStudentContactListAsync_IncludesContactCompleteness()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M504", 504, "Doe", "John", "V2", "12504", "jdoe2@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            // Seed contact data
+            var contact = new StudentContact
+            {
+                Pidm = 12504,
+                Address = "One Shields Avenue",
                 City = "Davis",
                 Zip = "95616",
-                HomePhone = "12345" // invalid phone number
-            },
-            ContactPermanent = false,
-            LocalContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-            EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-            PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
-        };
+                CellPhone = "5305551234"
+            };
+            _sisContext.StudentContacts.Add(contact);
+            await _sisContext.SaveChangesAsync();
 
-        var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => service.UpdateStudentContactAsync(300, request, "admin"));
-        Assert.Contains("Student Home Phone", ex.Message);
+            var localEc = new StudentEmergencyContact
+            {
+                StdContactId = contact.StdContactId,
+                Type = "local",
+                Name = "Jane Doe",
+                Relationship = "Friend",
+                CellPhone = "5305552222",
+                Email = "jdoe@example.com"
+            };
+            _sisContext.StudentEmergencyContacts.Add(localEc);
+            await _sisContext.SaveChangesAsync();
 
-        // Verify nothing was persisted
-        var saved = await _sisContext.StudentContacts
-            .FirstOrDefaultAsync(c => c.Pidm == 12399);
-        Assert.Null(saved);
+            var result = await service.GetStudentContactListAsync();
+
+            var student = Assert.Single(result);
+            Assert.Equal("5305551234", student.CellPhone);
+            Assert.Equal(EmergencyContactService.StudentInfoFieldCount, student.StudentInfoComplete);
+            Assert.Empty(student.StudentInfoMissing);
+            Assert.Equal(EmergencyContactService.ContactFieldCount, student.LocalContactComplete);
+        }
+    }
+
+    [Fact]
+    public async Task GetStudentContactListAsync_IncludesStudentsWithoutPersonIdMapping()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            // Add view record but no AaudUser mapping — student should still appear
+            aaudContext.VwDvmStudentsMaxTerms.Add(new VwDvmStudentsMaxTerm
+            {
+                IdsMothraId = "M999",
+                PersonLastName = "Doe",
+                PersonFirstName = "John",
+                StudentsClassLevel = "V1",
+                IdsPidm = "19999",
+                IdsMailid = "nobody@ucdavis.edu",
+                StudentsTermCode = "202610"
+            });
+            await aaudContext.SaveChangesAsync();
+
+            var result = await service.GetStudentContactListAsync();
+
+            var student = Assert.Single(result);
+            Assert.Equal(0, student.PersonId);
+            Assert.Equal("M999", student.RowKey);
+            Assert.False(student.HasDetailRoute);
+            Assert.Equal("Doe, John", student.FullName);
+        }
+    }
+
+    #endregion
+
+    #region GetStudentContactReport Tests
+
+    [Fact]
+    public async Task GetStudentContactReportAsync_ReturnsStudentsFromAaudView()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M600", 600, "Doe", "Jane", "V1", "12600", "jdoe3@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            var result = await service.GetStudentContactReportAsync();
+
+            var student = Assert.Single(result);
+            Assert.Equal(600, student.PersonId);
+            Assert.Equal("Doe, Jane", student.FullName);
+            Assert.Equal("V1", student.ClassLevel);
+        }
+    }
+
+    [Fact]
+    public async Task GetStudentContactReportAsync_IncludesContactDetails()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M601", 601, "Doe", "John", "V2", "12601", "jdoe4@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            var contact = new StudentContact
+            {
+                Pidm = 12601,
+                Address = "One Shields Avenue",
+                City = "Davis",
+                Zip = "95616",
+                HomePhone = "5305559999",
+                CellPhone = "5305558888",
+                ContactPermanent = true
+            };
+            _sisContext.StudentContacts.Add(contact);
+            await _sisContext.SaveChangesAsync();
+
+            var emergencyEc = new StudentEmergencyContact
+            {
+                StdContactId = contact.StdContactId,
+                Type = "emergency",
+                Name = "Jane Doe",
+                Relationship = "Parent",
+                HomePhone = "5305557777",
+                Email = "jdoe@example.com"
+            };
+            _sisContext.StudentEmergencyContacts.Add(emergencyEc);
+            await _sisContext.SaveChangesAsync();
+
+            var result = await service.GetStudentContactReportAsync();
+
+            var student = Assert.Single(result);
+            Assert.Equal("One Shields Avenue", student.Address);
+            Assert.Equal("Davis", student.City);
+            Assert.Equal("95616", student.Zip);
+            Assert.True(student.ContactPermanent);
+            Assert.NotNull(student.EmergencyContact);
+            Assert.Equal("Jane Doe", student.EmergencyContact!.Name);
+        }
     }
 
     #endregion
@@ -687,37 +903,101 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
     private EmergencyContactService CreateService()
     {
-        var userHelper = Substitute.For<IUserHelper>();
+        var userHelper = CreateMockUserHelper();
+        var logger = Substitute.For<ILogger<EmergencyContactService>>();
         return new EmergencyContactService(
-            _sisContext, _rapsContext, _viperContext, _aaudContext, userHelper);
+            _sisContext, _rapsContext, _aaudContext, userHelper, logger);
+    }
+
+    private static IUserHelper CreateMockUserHelper()
+    {
+        var userHelper = Substitute.For<IUserHelper>();
+        userHelper.GetCurrentUser().Returns(new AaudUser
+        {
+            AaudUserId = 1,
+            ClientId = "UCD",
+            MothraId = "TESTADM",
+            LoginId = "testadmin",
+            DisplayFullName = "Test Admin",
+            DisplayFirstName = "Test",
+            DisplayLastName = "Admin",
+            LastName = "Admin",
+            FirstName = "Test"
+        });
+        return userHelper;
     }
 
     /// <summary>
-    /// Seeds the VIPER Person + active StudentClassYear required for
-    /// IsCurrentDvmStudentAsync to pass. Term is seeded in the constructor.
+    /// Creates a service with an AAUDContext that supports adding VwDvmStudentsMaxTerm
+    /// records (overrides keyless view mapping for InMemory testing).
     /// </summary>
-    private async Task SeedCurrentStudentAsync(int personId, string firstName, string lastName)
+    private (TestableAAUDContext aaudContext, EmergencyContactService service) CreateServiceWithViewSupport()
     {
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        var aaudOptions = new DbContextOptionsBuilder<AAUDContext>()
+            .UseInMemoryDatabase(databaseName: "AAUD_View_" + Guid.NewGuid())
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+        var testAaudContext = new TestableAAUDContext(aaudOptions);
+
+        var userHelper = CreateMockUserHelper();
+        var logger = Substitute.For<ILogger<EmergencyContactService>>();
+        var service = new EmergencyContactService(
+            _sisContext, _rapsContext, testAaudContext, userHelper, logger);
+        return (testAaudContext, service);
+    }
+
+    /// <summary>
+    /// Seeds a DVM student in the AAUD view and AaudUser table.
+    /// </summary>
+    private static void SeedDvmStudent(
+        AAUDContext aaudContext, string mothraId, int personId,
+        string lastName, string firstName, string classLevel,
+        string pidm, string email)
+    {
+        aaudContext.Set<VwDvmStudentsMaxTerm>().Add(new VwDvmStudentsMaxTerm
         {
-            PersonId = personId,
+            IdsMothraId = mothraId,
+            PersonLastName = lastName,
+            PersonFirstName = firstName,
+            StudentsClassLevel = classLevel,
+            IdsPidm = pidm,
+            IdsMailid = email,
+            StudentsTermCode = "202610"
+        });
+
+        aaudContext.AaudUsers.Add(new AaudUser
+        {
+            AaudUserId = personId,
             ClientId = "UCD",
-            MothraId = $"M{personId}",
-            FirstName = firstName,
+            MothraId = mothraId,
+            LoginId = $"user{personId}",
+            Pidm = pidm,
+            DisplayFullName = $"{firstName} {lastName}",
+            DisplayFirstName = firstName,
+            DisplayLastName = lastName,
             LastName = lastName,
-            FullName = $"{lastName}, {firstName}",
-            Current = 1
+            FirstName = firstName
         });
+    }
 
-        _viperContext.StudentClassYears.Add(new Viper.Models.Students.StudentClassYear
+    /// <summary>
+    /// AAUDContext subclass that maps keyless views as tables with keys,
+    /// enabling InMemory provider to store test data.
+    /// </summary>
+    private class TestableAAUDContext : AAUDContext
+    {
+        public TestableAAUDContext(DbContextOptions<AAUDContext> options) : base(options) { }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            PersonId = personId,
-            ClassYear = 2027,
-            Active = true,
-            Added = DateTime.Now
-        });
+            base.OnModelCreating(modelBuilder);
 
-        await _viperContext.SaveChangesAsync();
+            modelBuilder.Entity<VwDvmStudentsMaxTerm>(entity =>
+            {
+                entity.HasKey(e => e.IdsMothraId);
+                entity.ToTable("VwDvmStudentsMaxTerm");
+            });
+        }
     }
 
     #endregion

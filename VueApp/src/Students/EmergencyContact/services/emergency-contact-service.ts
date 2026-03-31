@@ -88,6 +88,26 @@ class EmergencyContactService {
         return response.result as boolean
     }
 
+    downloadOverviewExcel = async (): Promise<boolean> => {
+        const { blob, filename } = await postForBlob(`${this.baseUrl}/export/overview/excel`, {})
+        if (blob.size === 0) {
+            return false
+        }
+        downloadBlob(blob, filename ?? "emergency-contact-overview.xlsx")
+        return true
+    }
+
+    openOverviewPdf = async (): Promise<boolean> => {
+        const { blob } = await postForBlob(`${this.baseUrl}/export/overview/pdf`, {})
+        if (blob.size === 0) {
+            return false
+        }
+        const url = globalThis.URL.createObjectURL(blob)
+        globalThis.open(url, "_blank", "noopener")
+        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), REVOKE_DELAY_MS)
+        return true
+    }
+
     downloadExcel = async (): Promise<boolean> => {
         const { blob, filename } = await postForBlob(`${this.baseUrl}/export/excel`, {})
         if (blob.size === 0) {

@@ -3,152 +3,54 @@ import { ref, onMounted } from "vue"
 import type { QTableProps } from "quasar"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import ExportToolbar from "../components/ExportToolbar.vue"
-import type { StudentContactReport } from "../types"
+import { formatPhone } from "../utils/phone"
+import type { StudentContactReport, ContactInfo } from "../types"
 
 const loading = ref(false)
 const rows = ref<StudentContactReport[]>([])
 const filter = ref("")
 
 const columns: QTableProps["columns"] = [
-    { name: "fullName", label: "Name", field: "fullName", align: "left", sortable: true },
     { name: "classLevel", label: "Class", field: "classLevel", align: "left", sortable: true },
-    { name: "address", label: "Address", field: "address", align: "left", sortable: true },
-    { name: "city", label: "City", field: "city", align: "left", sortable: true },
-    { name: "zip", label: "Zip", field: "zip", align: "left", sortable: true },
-    { name: "homePhone", label: "Home Phone", field: "homePhone", align: "left", sortable: true },
-    { name: "cellPhone", label: "Cell Phone", field: "cellPhone", align: "left", sortable: true },
-    // Local contact
-    { name: "localName", label: "Local Name", field: (row) => row.localContact?.name, align: "left", sortable: true },
-    {
-        name: "localRelationship",
-        label: "Local Rel.",
-        field: (row) => row.localContact?.relationship,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "localWorkPhone",
-        label: "Local Work",
-        field: (row) => row.localContact?.workPhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "localHomePhone",
-        label: "Local Home",
-        field: (row) => row.localContact?.homePhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "localCellPhone",
-        label: "Local Cell",
-        field: (row) => row.localContact?.cellPhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "localEmail",
-        label: "Local Email",
-        field: (row) => row.localContact?.email,
-        align: "left",
-        sortable: true,
-    },
-    // Emergency contact
-    {
-        name: "emergencyName",
-        label: "Emerg. Name",
-        field: (row) => row.emergencyContact?.name,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "emergencyRelationship",
-        label: "Emerg. Rel.",
-        field: (row) => row.emergencyContact?.relationship,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "emergencyWorkPhone",
-        label: "Emerg. Work",
-        field: (row) => row.emergencyContact?.workPhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "emergencyHomePhone",
-        label: "Emerg. Home",
-        field: (row) => row.emergencyContact?.homePhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "emergencyCellPhone",
-        label: "Emerg. Cell",
-        field: (row) => row.emergencyContact?.cellPhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "emergencyEmail",
-        label: "Emerg. Email",
-        field: (row) => row.emergencyContact?.email,
-        align: "left",
-        sortable: true,
-    },
-    // Permanent contact
-    {
-        name: "permanentName",
-        label: "Perm. Name",
-        field: (row) => row.permanentContact?.name,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "permanentRelationship",
-        label: "Perm. Rel.",
-        field: (row) => row.permanentContact?.relationship,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "permanentWorkPhone",
-        label: "Perm. Work",
-        field: (row) => row.permanentContact?.workPhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "permanentHomePhone",
-        label: "Perm. Home",
-        field: (row) => row.permanentContact?.homePhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "permanentCellPhone",
-        label: "Perm. Cell",
-        field: (row) => row.permanentContact?.cellPhone,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "permanentEmail",
-        label: "Perm. Email",
-        field: (row) => row.permanentContact?.email,
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "contactPermanent",
-        label: "Contact Perm?",
-        field: "contactPermanent",
-        align: "center",
-        sortable: true,
-        format: (val: boolean) => (val ? "Yes" : "No"),
-    },
+    { name: "fullName", label: "Name", field: "fullName", align: "left", sortable: true },
+    { name: "studentInfo", label: "Student Info", field: "address", align: "left" },
+    { name: "localContact", label: "Local Contact", field: (row) => row.localContact?.name, align: "left" },
+    { name: "emergencyContact", label: "Emergency Contact", field: (row) => row.emergencyContact?.name, align: "left" },
+    { name: "permanentContact", label: "Permanent Contact", field: (row) => row.permanentContact?.name, align: "left" },
 ]
+
+function infoLine(value: string | null | undefined, abbrev?: string): string {
+    if (!value) return ""
+    return abbrev ? `${abbrev}: ${value}` : value
+}
+
+function formatStudentInfo(row: StudentContactReport): string[] {
+    const lines: string[] = []
+    if (row.address) lines.push(row.address)
+    const cityZip = [row.city, row.zip].filter(Boolean).join(" ")
+    if (cityZip) lines.push(cityZip)
+    const home = infoLine(row.homePhone ? formatPhone(row.homePhone) : null, "H")
+    if (home) lines.push(home)
+    const cell = infoLine(row.cellPhone ? formatPhone(row.cellPhone) : null, "C")
+    if (cell) lines.push(cell)
+    return lines
+}
+
+function formatContact(contact: ContactInfo | null | undefined): string[] {
+    if (!contact) return []
+    const lines: string[] = []
+    if (contact.name) lines.push(contact.name)
+    if (contact.relationship) lines.push(contact.relationship)
+    const work = infoLine(contact.workPhone ? formatPhone(contact.workPhone) : null, "W")
+    if (work) lines.push(work)
+    const home = infoLine(contact.homePhone ? formatPhone(contact.homePhone) : null, "H")
+    if (home) lines.push(home)
+    const cell = infoLine(contact.cellPhone ? formatPhone(contact.cellPhone) : null, "C")
+    if (cell) lines.push(cell)
+    const email = infoLine(contact.email, "E")
+    if (email) lines.push(email)
+    return lines
+}
 
 async function handleExcelExport(): Promise<void> {
     await emergencyContactService.downloadExcel()
@@ -168,39 +70,87 @@ onMounted(load)
 </script>
 
 <template>
-    <div>
-        <div class="row items-center q-mb-md">
-            <q-btn
-                flat
-                dense
-                no-caps
-                icon="arrow_back"
-                label="Back to List"
+    <div class="q-pa-md">
+        <q-breadcrumbs class="q-mb-sm">
+            <q-breadcrumbs-el
+                label="Emergency Contacts"
                 :to="{ name: 'EmergencyContactList' }"
             />
-        </div>
+            <q-breadcrumbs-el label="Report" />
+        </q-breadcrumbs>
 
-        <div class="row items-center q-mb-md">
-            <h2 class="q-ma-none">Emergency Contact Report</h2>
-        </div>
+        <h1 class="q-ma-none q-mb-md">Emergency Contact Report</h1>
 
         <q-table
             :rows="rows"
             :columns="columns"
-            row-key="personId"
+            row-key="rowKey"
             :loading="loading"
             :filter="filter"
             :pagination="{ rowsPerPage: 25 }"
             dense
         >
             <template #top-right>
-                <ExportToolbar
-                    v-model:filter="filter"
-                    :columns="columns"
-                    :rows="rows"
-                    :excel-export="handleExcelExport"
-                    :pdf-export="handlePdfExport"
-                />
+                <div class="row items-center no-wrap">
+                    <q-btn
+                        flat
+                        dense
+                        no-caps
+                        icon="list_alt"
+                        label="Overview"
+                        class="q-mr-sm"
+                        :to="{ name: 'EmergencyContactList' }"
+                    />
+                    <ExportToolbar
+                        v-model:filter="filter"
+                        :excel-export="handleExcelExport"
+                        :pdf-export="handlePdfExport"
+                    />
+                </div>
+            </template>
+
+            <template #body-cell-studentInfo="props">
+                <q-td :props="props">
+                    <div
+                        v-for="(line, i) in formatStudentInfo(props.row)"
+                        :key="i"
+                    >
+                        {{ line }}
+                    </div>
+                </q-td>
+            </template>
+
+            <template #body-cell-localContact="props">
+                <q-td :props="props">
+                    <div
+                        v-for="(line, i) in formatContact(props.row.localContact)"
+                        :key="i"
+                    >
+                        {{ line }}
+                    </div>
+                </q-td>
+            </template>
+
+            <template #body-cell-emergencyContact="props">
+                <q-td :props="props">
+                    <div
+                        v-for="(line, i) in formatContact(props.row.emergencyContact)"
+                        :key="i"
+                    >
+                        {{ line }}
+                    </div>
+                </q-td>
+            </template>
+
+            <template #body-cell-permanentContact="props">
+                <q-td :props="props">
+                    <div
+                        v-for="(line, i) in formatContact(props.row.permanentContact)"
+                        :key="i"
+                    >
+                        {{ line }}
+                    </div>
+                </q-td>
             </template>
         </q-table>
     </div>

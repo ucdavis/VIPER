@@ -5,6 +5,8 @@ import { useQuasar } from "quasar"
 import ContactSection from "../components/ContactSection.vue"
 import PhoneInput from "../components/PhoneInput.vue"
 import { useEmergencyContact } from "../composables/use-emergency-contact"
+import { emergencyContactService } from "../services/emergency-contact-service"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
 const route = useRoute()
 const router = useRouter()
@@ -31,82 +33,96 @@ const {
 
 const canEdit = computed(() => detail.value?.canEdit ?? false)
 const isReadOnly = computed(() => !canEdit.value)
+const canManageAccess = computed(() => checkHasOnePermission(["SVMSecure.Students.EmergencyContactAdmin"]))
+
+// Access status (admin only)
+const appOpen = ref(false)
+const hasIndividualAccess = ref(false)
+const togglingAccess = ref(false)
+
+async function loadAccessStatus(): Promise<boolean> {
+    const status = await emergencyContactService.getAccessStatus()
+    if (!status) {
+        return false
+    }
+    appOpen.value = status.appOpen
+    hasIndividualAccess.value = status.individualGrants.some((g) => g.personId === personId.value)
+    return true
+}
+
+async function handleToggleIndividualAccess(): Promise<void> {
+    const studentName = detail.value?.fullName ?? "this student"
+    const granting = !hasIndividualAccess.value
+    $q.dialog({
+        title: granting ? "Grant Individual Access" : "Revoke Individual Access",
+        message: granting
+            ? `Grant individual edit access to ${studentName}?`
+            : `Remove individual edit access for ${studentName}?`,
+        cancel: { label: "Cancel", flat: true },
+        ok: { label: granting ? "Grant" : "Revoke", color: granting ? "positive" : "negative" },
+        persistent: true,
+    }).onOk(async () => {
+        togglingAccess.value = true
+        // Re-read access status to guard against concurrent changes by another admin
+        const refreshed = await loadAccessStatus()
+        if (!refreshed) {
+            togglingAccess.value = false
+            $q.notify({ type: "negative", message: "Unable to verify current access status. Please try again." })
+            return
+        }
+        if (hasIndividualAccess.value === granting) {
+            togglingAccess.value = false
+            $q.notify({
+                type: "warning",
+                message: "Access status was already changed. Please review the current state.",
+            })
+            return
+        }
+        const result = await emergencyContactService.toggleIndividualAccess(personId.value)
+        if (result !== null) {
+            hasIndividualAccess.value = result
+            $q.notify({
+                type: "positive",
+                message: result
+                    ? `Individual access granted to ${studentName}.`
+                    : `Individual access removed for ${studentName}.`,
+            })
+        }
+        togglingAccess.value = false
+    })
+}
+
+function getContactMissing(
+    contact: {
+        name?: string | null
+        relationship?: string | null
+        workPhone?: string | null
+        homePhone?: string | null
+        cellPhone?: string | null
+        email?: string | null
+    },
+    label: string,
+): string[] {
+    const missing: string[] = []
+    if (!contact.name) missing.push(`${label} name`)
+    if (!contact.relationship) missing.push(`${label} relationship`)
+    if (!contact.workPhone && !contact.homePhone && !contact.cellPhone) missing.push(`${label} phone`)
+    if (!contact.email) missing.push(`${label} email`)
+    return missing
+}
 
 const missingFields = computed(() => {
     const missing: string[] = []
     const si = studentInfo.value
-    if (!si.address) {
-        missing.push("Student local address")
+    if (!si.address || !si.city || !si.zip) {
+        missing.push("Student address")
     }
-    if (!si.city) {
-        missing.push("Student city")
+    if (!si.homePhone && !si.cellPhone) {
+        missing.push("Student phone")
     }
-    if (!si.zip) {
-        missing.push("Student zip")
-    }
-    if (!si.homePhone) {
-        missing.push("Student home phone")
-    }
-    if (!si.cellPhone) {
-        missing.push("Student cell phone")
-    }
-    const lc = localContact.value
-    if (!lc.name) {
-        missing.push("Local contact name")
-    }
-    if (!lc.relationship) {
-        missing.push("Local contact relationship")
-    }
-    if (!lc.workPhone) {
-        missing.push("Local contact work phone")
-    }
-    if (!lc.homePhone) {
-        missing.push("Local contact home phone")
-    }
-    if (!lc.cellPhone) {
-        missing.push("Local contact cell phone")
-    }
-    if (!lc.email) {
-        missing.push("Local contact email")
-    }
-    const ec = emergencyContact.value
-    if (!ec.name) {
-        missing.push("Emergency contact name")
-    }
-    if (!ec.relationship) {
-        missing.push("Emergency contact relationship")
-    }
-    if (!ec.workPhone) {
-        missing.push("Emergency contact work phone")
-    }
-    if (!ec.homePhone) {
-        missing.push("Emergency contact home phone")
-    }
-    if (!ec.cellPhone) {
-        missing.push("Emergency contact cell phone")
-    }
-    if (!ec.email) {
-        missing.push("Emergency contact email")
-    }
-    const pc = permanentContact.value
-    if (!pc.name) {
-        missing.push("Permanent contact name")
-    }
-    if (!pc.relationship) {
-        missing.push("Permanent contact relationship")
-    }
-    if (!pc.workPhone) {
-        missing.push("Permanent contact work phone")
-    }
-    if (!pc.homePhone) {
-        missing.push("Permanent contact home phone")
-    }
-    if (!pc.cellPhone) {
-        missing.push("Permanent contact cell phone")
-    }
-    if (!pc.email) {
-        missing.push("Permanent contact email")
-    }
+    missing.push(...getContactMissing(localContact.value, "Local contact"))
+    missing.push(...getContactMissing(emergencyContact.value, "Emergency contact"))
+    missing.push(...getContactMissing(permanentContact.value, "Permanent contact"))
     return missing
 })
 
@@ -121,6 +137,10 @@ function updateStudentPhone(field: "homePhone" | "cellPhone", value: string | nu
 }
 
 async function handleSave(): Promise<void> {
+    if (!isDirty.value) {
+        $q.notify({ type: "info", message: "No changes to save." })
+        return
+    }
     if (formRef.value) {
         const valid = await formRef.value.validate()
         if (!valid) {
@@ -154,10 +174,22 @@ function handleBack(): void {
     }
 }
 
-onMounted(() => {
+async function initForm(): Promise<void> {
     if (personId.value) {
-        loadDetail(personId.value)
+        await loadDetail(personId.value)
+        // Students without edit access should see the read-only view page instead
+        if (detail.value && !detail.value.canEdit && !detail.value.isAdmin) {
+            router.replace({ name: "EmergencyContactView", params: { pidm: personId.value } })
+            return
+        }
+        if (canManageAccess.value) {
+            loadAccessStatus()
+        }
     }
+}
+
+onMounted(() => {
+    initForm()
 })
 
 onBeforeRouteLeave(() => {
@@ -186,7 +218,7 @@ onBeforeRouteLeave(() => {
 </script>
 
 <template>
-    <div>
+    <div class="q-pa-md">
         <q-breadcrumbs class="q-mb-sm">
             <q-breadcrumbs-el
                 label="Emergency Contacts"
@@ -204,15 +236,63 @@ onBeforeRouteLeave(() => {
         />
 
         <template v-else-if="detail">
-            <div class="row items-baseline q-mb-md">
-                <h2 class="q-ma-none">Emergency Contact: {{ detail.fullName }}</h2>
+            <h2 class="q-ma-none q-mb-md">
+                Emergency Contact: {{ detail.fullName }}
                 <q-badge
-                    class="q-ml-md"
+                    v-if="canManageAccess"
+                    class="q-ml-sm vertical-top"
+                    :color="appOpen ? 'positive' : hasIndividualAccess ? 'warning' : 'negative'"
+                    :text-color="hasIndividualAccess && !appOpen ? 'dark' : 'white'"
+                >
+                    {{ appOpen ? "Editing open" : hasIndividualAccess ? "Editing allowed" : "Editing closed" }}
+                </q-badge>
+                <q-badge
+                    v-else
+                    class="q-ml-sm vertical-top"
                     :color="canEdit ? 'positive' : 'grey'"
                 >
                     {{ canEdit ? "Editable" : "Read Only" }}
                 </q-badge>
-            </div>
+            </h2>
+
+            <!-- Admin: individual access control -->
+            <q-banner
+                v-if="canManageAccess"
+                class="bg-info text-white q-mb-md"
+                rounded
+                style="max-width: 56rem"
+            >
+                <template #avatar>
+                    <q-icon
+                        name="person"
+                        color="white"
+                    />
+                </template>
+                <div class="q-mb-xs">
+                    Individual Access:
+                    <strong :class="hasIndividualAccess ? 'text-white text-weight-bold' : ''">
+                        {{ hasIndividualAccess ? "Granted" : "Not granted" }}
+                    </strong>
+                </div>
+                <q-btn
+                    :label="hasIndividualAccess ? 'Revoke Access' : 'Grant Access'"
+                    color="white"
+                    text-color="info"
+                    :loading="togglingAccess"
+                    dense
+                    no-caps
+                    class="access-toggle-btn"
+                    @click="handleToggleIndividualAccess"
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        {{ hasIndividualAccess ? "Revoke Access" : "Grant Access" }}
+                    </template>
+                </q-btn>
+            </q-banner>
 
             <q-banner
                 v-if="missingFields.length > 0"
@@ -452,7 +532,7 @@ onBeforeRouteLeave(() => {
                         label="Save"
                         no-caps
                         :loading="saving"
-                        :disable="!isDirty || hasValidationErrors"
+                        :disable="hasValidationErrors"
                         @click="handleSave"
                     >
                         <template #loading>
@@ -484,6 +564,10 @@ onBeforeRouteLeave(() => {
 </template>
 
 <style scoped>
+.access-toggle-btn {
+    min-width: 9rem;
+}
+
 .contact-section-fieldset {
     border: none;
     margin: 0;
