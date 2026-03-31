@@ -7,8 +7,8 @@ updates:
       interval: weekly
       day: monday
     cooldown:
-      default: 7
-      major: 14
+      default-days: 7
+      semver-major-days: 14
     groups:
       dotnet:
         patterns: ["*"]
@@ -20,8 +20,8 @@ updates:
       interval: weekly
       day: monday
     cooldown:
-      default: 7
-      major: 14
+      default-days: 7
+      semver-major-days: 14
     groups:
       npm-root:
         patterns: ["*"]
@@ -33,8 +33,8 @@ updates:
       interval: weekly
       day: monday
     cooldown:
-      default: 7
-      major: 14
+      default-days: 7
+      semver-major-days: 14
     groups:
       npm-vueapp:
         patterns: ["*"]
@@ -46,8 +46,8 @@ updates:
       interval: weekly
       day: monday
     cooldown:
-      default: 7
-      major: 14
+      default-days: 7
+      semver-major-days: 14
     groups:
       actions:
         patterns: ["*"]
