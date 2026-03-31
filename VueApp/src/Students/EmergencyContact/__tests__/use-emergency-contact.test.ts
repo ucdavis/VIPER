@@ -28,21 +28,21 @@ describe("useEmergencyContact utilities", () => {
             expect(contactCompleteness(contact)).toBe(0)
         })
 
-        it("should return 6 for fully complete contact", () => {
+        it("should return 4 for fully complete contact", () => {
             const contact: ContactInfo = {
-                name: "John",
+                name: "John Doe",
                 relationship: "Father",
                 workPhone: "5305551234",
                 homePhone: "5305551235",
                 cellPhone: "5305551236",
-                email: "john@example.com",
+                email: "jdoe@example.com",
             }
-            expect(contactCompleteness(contact)).toBe(6)
+            expect(contactCompleteness(contact)).toBe(4)
         })
 
         it("should count only non-empty fields", () => {
             const contact: ContactInfo = {
-                name: "John",
+                name: "John Doe",
                 relationship: "Father",
                 workPhone: null,
                 homePhone: null,
@@ -77,27 +77,27 @@ describe("useEmergencyContact utilities", () => {
             expect(studentInfoCompleteness(info)).toBe(0)
         })
 
-        it("should return 3 for fully complete info", () => {
+        it("should return 2 for fully complete info", () => {
             const info: StudentInfo = {
-                address: "123 Main St",
+                address: "One Shields Avenue",
                 city: "Davis",
                 zip: "95616",
                 homePhone: "5305551234",
                 cellPhone: "5305551235",
             }
-            expect(studentInfoCompleteness(info)).toBe(3)
+            expect(studentInfoCompleteness(info)).toBe(2)
         })
 
         it("should require all three address fields for 1 point", () => {
             const info: StudentInfo = {
-                address: "123 Main St",
+                address: "One Shields Avenue",
                 city: "Davis",
                 zip: null,
                 homePhone: "5305551234",
                 cellPhone: "5305551235",
             }
-            // Address group incomplete, but phones count
-            expect(studentInfoCompleteness(info)).toBe(2)
+            // Address group incomplete, but any-phone counts
+            expect(studentInfoCompleteness(info)).toBe(1)
         })
 
         it("should count address group as 0 when only some fields filled", () => {

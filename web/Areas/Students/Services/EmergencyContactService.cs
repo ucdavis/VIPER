@@ -4,6 +4,8 @@ using Viper.Areas.Students.Constants;
 using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Models.Entities;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
+using Viper.Models.AAUD;
 
 namespace Viper.Areas.Students.Services;
 
@@ -11,65 +13,72 @@ public class EmergencyContactService : IEmergencyContactService
 {
     private readonly SISContext _sisContext;
     private readonly RAPSContext _rapsContext;
-    private readonly VIPERContext _viperContext;
     private readonly AAUDContext _aaudContext;
     private readonly IUserHelper _userHelper;
+    private readonly ILogger<EmergencyContactService> _logger;
     private readonly RAPSCacheService _rapsCacheService;
+    private readonly RAPSAuditService _rapsAuditService;
 
     public EmergencyContactService(
         SISContext sisContext,
         RAPSContext rapsContext,
-        VIPERContext viperContext,
         AAUDContext aaudContext,
-        IUserHelper userHelper)
+        IUserHelper userHelper,
+        ILogger<EmergencyContactService> logger)
     {
         _sisContext = sisContext;
         _rapsContext = rapsContext;
-        _viperContext = viperContext;
         _aaudContext = aaudContext;
         _userHelper = userHelper;
+        _logger = logger;
         _rapsCacheService = new RAPSCacheService(rapsContext, aaudContext, userHelper);
+        _rapsAuditService = new RAPSAuditService(rapsContext, userHelper);
     }
 
     public async Task<List<StudentContactListItemDto>> GetStudentContactListAsync()
     {
-        var studentList = new StudentList(_viperContext);
-        var students = await studentList.GetStudents();
-
-        // Get all PIDMs for these students to batch-load contact data
-        var personIds = students.Select(s => s.PersonId).ToList();
-        var pidmMap = await GetPersonIdToPidmMapAsync(personIds);
-        var pidms = pidmMap.Values.ToList();
-
-        // Load all contact data in one query
-        var contacts = await _sisContext.StudentContacts
-            .Include(c => c.EmergencyContacts)
-            .Where(c => EF.Parameter(pidms).Contains(c.Pidm))
-            .AsNoTracking()
-            .ToListAsync();
-
-        var contactsByPidm = contacts.ToDictionary(c => c.Pidm);
+        var (dvmStudents, mothraToPersonId, contactsByPidm) = await LoadDvmStudentsWithContactsAsync();
 
         var result = new List<StudentContactListItemDto>();
-        foreach (var student in students)
+        foreach (var student in dvmStudents)
         {
+            if (!mothraToPersonId.TryGetValue(student.IdsMothraId, out var personId))
+            {
+                _logger.LogWarning(
+                    "DVM student MothraId {MothraId} has no AaudUser mapping — included with PersonId 0",
+                    LogSanitizer.SanitizeId(student.IdsMothraId));
+            }
+
             var item = new StudentContactListItemDto
             {
-                PersonId = student.PersonId,
-                FullName = student.FullName,
-                ClassLevel = student.ClassLevel ?? string.Empty
+                PersonId = personId,
+                RowKey = personId > 0 ? personId.ToString() : student.IdsMothraId,
+                HasDetailRoute = personId > 0,
+                // View already applies display name logic (display_last_name AS person_last_name)
+                FullName = $"{student.PersonLastName}, {student.PersonFirstName}",
+                ClassLevel = student.StudentsClassLevel ?? string.Empty,
+                Email = FormatEmail(student.IdsMailid)
             };
 
-            if (pidmMap.TryGetValue(student.PersonId, out var pidm)
+            if (int.TryParse(student.IdsPidm, out var pidm)
                 && contactsByPidm.TryGetValue(pidm, out var contact))
             {
-                item.StudentInfoComplete = CalculateStudentInfoCompleteness(contact);
-                item.LocalContactComplete = CalculateContactCompleteness(
+                item.CellPhone = contact.CellPhone;
+                item.StudentInfoMissing = GetStudentInfoMissingFields(contact);
+                item.StudentInfoComplete = StudentInfoFieldCount - item.StudentInfoMissing.Count;
+
+                item.LocalContactMissing = GetContactMissingFields(
                     contact.EmergencyContacts.FirstOrDefault(e => e.Type == "local"));
-                item.EmergencyContactComplete = CalculateContactCompleteness(
+                item.LocalContactComplete = ContactFieldCount - item.LocalContactMissing.Count;
+
+                item.EmergencyContactMissing = GetContactMissingFields(
                     contact.EmergencyContacts.FirstOrDefault(e => e.Type == "emergency"));
-                item.PermanentContactComplete = CalculateContactCompleteness(
+                item.EmergencyContactComplete = ContactFieldCount - item.EmergencyContactMissing.Count;
+
+                item.PermanentContactMissing = GetContactMissingFields(
                     contact.EmergencyContacts.FirstOrDefault(e => e.Type == "permanent"));
+                item.PermanentContactComplete = ContactFieldCount - item.PermanentContactMissing.Count;
+
                 item.LastUpdated = contact.LastUpdated;
             }
 
@@ -81,22 +90,30 @@ public class EmergencyContactService : IEmergencyContactService
 
     public async Task<StudentContactDetailDto?> GetStudentContactDetailAsync(int personId, bool canEdit)
     {
-        var studentList = new StudentList(_viperContext);
-        var student = await studentList.GetStudent(personId);
-        if (student == null)
+        // Use AAUD view (consistent with list/report) instead of VIPER StudentList
+        var studentInfo = await _aaudContext.AaudUsers
+            .Where(u => u.AaudUserId == personId)
+            .Join(_aaudContext.VwDvmStudentsMaxTerms,
+                u => u.MothraId,
+                s => s.IdsMothraId,
+                (u, s) => new { PersonId = u.AaudUserId, s.PersonLastName, s.PersonFirstName, s.StudentsClassLevel })
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
+
+        if (studentInfo == null)
         {
             return null;
         }
 
-        var pidm = await GetPidmForPersonIdAsync(personId);
+        var pidm = await GetCurrentDvmPidmAsync(personId);
         if (pidm == null)
         {
             // Student exists but has no PIDM mapping — return empty contact shell
             return new StudentContactDetailDto
             {
-                PersonId = student.PersonId,
-                FullName = student.FullName,
-                ClassLevel = student.ClassLevel ?? string.Empty,
+                PersonId = studentInfo.PersonId,
+                FullName = $"{studentInfo.PersonLastName}, {studentInfo.PersonFirstName}",
+                ClassLevel = studentInfo.StudentsClassLevel ?? string.Empty,
                 CanEdit = canEdit
             };
         }
@@ -108,9 +125,9 @@ public class EmergencyContactService : IEmergencyContactService
 
         var dto = new StudentContactDetailDto
         {
-            PersonId = student.PersonId,
-            FullName = student.FullName,
-            ClassLevel = student.ClassLevel ?? string.Empty,
+            PersonId = studentInfo.PersonId,
+            FullName = $"{studentInfo.PersonLastName}, {studentInfo.PersonFirstName}",
+            ClassLevel = studentInfo.StudentsClassLevel ?? string.Empty,
             CanEdit = canEdit
         };
 
@@ -139,7 +156,7 @@ public class EmergencyContactService : IEmergencyContactService
             throw new InvalidOperationException($"PersonId {personId} is not a current DVM student");
         }
 
-        var pidm = await GetPidmForPersonIdAsync(personId);
+        var pidm = await GetCurrentDvmPidmAsync(personId);
         if (pidm == null)
         {
             throw new InvalidOperationException($"No PIDM found for PersonId {personId}");
@@ -195,32 +212,27 @@ public class EmergencyContactService : IEmergencyContactService
 
     public async Task<List<StudentContactReportDto>> GetStudentContactReportAsync()
     {
-        var studentList = new StudentList(_viperContext);
-        var students = await studentList.GetStudents();
-
-        var personIds = students.Select(s => s.PersonId).ToList();
-        var pidmMap = await GetPersonIdToPidmMapAsync(personIds);
-        var pidms = pidmMap.Values.ToList();
-
-        var contacts = await _sisContext.StudentContacts
-            .Include(c => c.EmergencyContacts)
-            .Where(c => EF.Parameter(pidms).Contains(c.Pidm))
-            .AsNoTracking()
-            .ToListAsync();
-
-        var contactsByPidm = contacts.ToDictionary(c => c.Pidm);
+        var (dvmStudents, mothraToPersonId, contactsByPidm) = await LoadDvmStudentsWithContactsAsync();
 
         var result = new List<StudentContactReportDto>();
-        foreach (var student in students)
+        foreach (var student in dvmStudents)
         {
+            if (!mothraToPersonId.TryGetValue(student.IdsMothraId, out var personId))
+            {
+                _logger.LogWarning(
+                    "DVM student MothraId {MothraId} has no AaudUser mapping — included with PersonId 0",
+                    LogSanitizer.SanitizeId(student.IdsMothraId));
+            }
+
             var dto = new StudentContactReportDto
             {
-                PersonId = student.PersonId,
-                FullName = student.FullName,
-                ClassLevel = student.ClassLevel ?? string.Empty
+                PersonId = personId,
+                RowKey = personId > 0 ? personId.ToString() : student.IdsMothraId,
+                FullName = $"{student.PersonLastName}, {student.PersonFirstName}",
+                ClassLevel = student.StudentsClassLevel ?? string.Empty
             };
 
-            if (pidmMap.TryGetValue(student.PersonId, out var pidm)
+            if (int.TryParse(student.IdsPidm, out var pidm)
                 && contactsByPidm.TryGetValue(pidm, out var contact))
             {
                 var studentInfo = EmergencyContactMapper.ToStudentInfoDto(contact);
@@ -250,7 +262,8 @@ public class EmergencyContactService : IEmergencyContactService
         var appOpen = await IsAppOpenAsync();
         var permissionId = await GetStudentPermissionIdAsync();
 
-        // Get individual member permissions for the emergency contact student permission
+        // Get individual member permissions — legacy grants have null dates (created via
+        // usp_createPermissionForMemberNoDates), but filter by date window defensively
         var mothraIds = await _rapsContext.TblMemberPermissions
             .Where(mp => mp.PermissionId == permissionId
                 && mp.Access == 1
@@ -282,6 +295,7 @@ public class EmergencyContactService : IEmergencyContactService
         var permissionId = await GetStudentPermissionIdAsync();
         var roleId = await GetStudentRoleIdAsync();
         var isOpen = await IsAppOpenAsync();
+        var currentLoginId = _userHelper.GetCurrentUser()?.LoginId;
         if (isOpen)
         {
             // Close: remove all matching role-permission grants (handles duplicates)
@@ -291,6 +305,10 @@ public class EmergencyContactService : IEmergencyContactService
                 .ToListAsync();
             if (rolePermissions.Count > 0)
             {
+                foreach (var rp in rolePermissions)
+                {
+                    _rapsAuditService.AuditRolePermissionChange(rp, RAPSAuditService.AuditActionType.Delete);
+                }
                 _rapsContext.TblRolePermissions.RemoveRange(rolePermissions);
                 await _rapsContext.SaveChangesAsync();
             }
@@ -312,9 +330,11 @@ public class EmergencyContactService : IEmergencyContactService
                     RoleId = roleId,
                     PermissionId = permissionId,
                     Access = 1,
-                    ModTime = DateTime.Now
+                    ModTime = DateTime.Now,
+                    ModBy = currentLoginId
                 };
                 _rapsContext.TblRolePermissions.Add(rolePermission);
+                _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Create);
                 await _rapsContext.SaveChangesAsync();
             }
 
@@ -346,9 +366,14 @@ public class EmergencyContactService : IEmergencyContactService
                 && (mp.EndDate == null || mp.EndDate >= DateTime.Now))
             .ToListAsync();
 
+        var currentLoginId = _userHelper.GetCurrentUser()?.LoginId;
         if (existing.Count > 0)
         {
             // Remove all matching individual grants (handles duplicates)
+            foreach (var mp in existing)
+            {
+                _rapsAuditService.AuditPermissionMemberChange(mp, RAPSAuditService.AuditActionType.Delete);
+            }
             _rapsContext.TblMemberPermissions.RemoveRange(existing);
             await _rapsContext.SaveChangesAsync();
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
@@ -363,9 +388,11 @@ public class EmergencyContactService : IEmergencyContactService
                 PermissionId = permissionId,
                 Access = 1,
                 AddDate = DateTime.Now,
-                ModTime = DateTime.Now
+                ModTime = DateTime.Now,
+                ModBy = currentLoginId
             };
             _rapsContext.TblMemberPermissions.Add(memberPermission);
+            _rapsAuditService.AuditPermissionMemberChange(memberPermission, RAPSAuditService.AuditActionType.Create);
             await _rapsContext.SaveChangesAsync();
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
             return true;
@@ -433,47 +460,54 @@ public class EmergencyContactService : IEmergencyContactService
     #region Completeness Calculation
 
     /// <summary>
-    /// Student info completeness: 3 checks — (address+city+zip as 1), home phone, cell phone.
+    /// Returns labels of missing student info fields.
+    /// Checks: address group (address+city+zip), phone (home OR cell).
+    /// Total = 2.
     /// </summary>
-    public static int CalculateStudentInfoCompleteness(StudentContact contact)
+    public static List<string> GetStudentInfoMissingFields(StudentContact contact)
     {
-        int count = 0;
-        if (!string.IsNullOrWhiteSpace(contact.Address)
-            && !string.IsNullOrWhiteSpace(contact.City)
-            && !string.IsNullOrWhiteSpace(contact.Zip))
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(contact.Address)
+            || string.IsNullOrWhiteSpace(contact.City)
+            || string.IsNullOrWhiteSpace(contact.Zip))
         {
-            count++;
+            missing.Add("Address");
         }
-        if (!string.IsNullOrWhiteSpace(contact.HomePhone))
+        if (string.IsNullOrWhiteSpace(contact.HomePhone)
+            && string.IsNullOrWhiteSpace(contact.CellPhone))
         {
-            count++;
+            missing.Add("Phone");
         }
-        if (!string.IsNullOrWhiteSpace(contact.CellPhone))
-        {
-            count++;
-        }
-        return count;
+        return missing;
     }
 
     /// <summary>
-    /// Contact completeness: 6 checks — name, relationship, work phone, home phone, cell phone, email.
+    /// Returns labels of missing contact fields.
+    /// Checks: name, relationship, phone (work OR home OR cell), email.
+    /// Total = 4.
     /// </summary>
-    public static int CalculateContactCompleteness(StudentEmergencyContact? contact)
+    public static List<string> GetContactMissingFields(StudentEmergencyContact? contact)
     {
         if (contact == null)
         {
-            return 0;
+            return ["Name", "Relationship", "Phone", "Email"];
         }
 
-        int count = 0;
-        if (!string.IsNullOrWhiteSpace(contact.Name)) count++;
-        if (!string.IsNullOrWhiteSpace(contact.Relationship)) count++;
-        if (!string.IsNullOrWhiteSpace(contact.WorkPhone)) count++;
-        if (!string.IsNullOrWhiteSpace(contact.HomePhone)) count++;
-        if (!string.IsNullOrWhiteSpace(contact.CellPhone)) count++;
-        if (!string.IsNullOrWhiteSpace(contact.Email)) count++;
-        return count;
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(contact.Name)) missing.Add("Name");
+        if (string.IsNullOrWhiteSpace(contact.Relationship)) missing.Add("Relationship");
+        if (string.IsNullOrWhiteSpace(contact.WorkPhone)
+            && string.IsNullOrWhiteSpace(contact.HomePhone)
+            && string.IsNullOrWhiteSpace(contact.CellPhone))
+        {
+            missing.Add("Phone");
+        }
+        if (string.IsNullOrWhiteSpace(contact.Email)) missing.Add("Email");
+        return missing;
     }
+
+    public const int StudentInfoFieldCount = 2;
+    public const int ContactFieldCount = 4;
 
     #endregion
 
@@ -501,37 +535,64 @@ public class EmergencyContactService : IEmergencyContactService
 
     #region Private Helpers
 
-    private async Task<bool> IsCurrentDvmStudentAsync(int personId)
+    /// <summary>
+    /// Loads DVM students from the AAUD view together with their contact data,
+    /// used by both the list and report endpoints.
+    /// </summary>
+    private async Task<(List<VwDvmStudentsMaxTerm> DvmStudents, Dictionary<string, int> MothraToPersonId, Dictionary<int, StudentContact> ContactsByPidm)>
+        LoadDvmStudentsWithContactsAsync()
     {
-        var studentList = new StudentList(_viperContext);
-        var student = await studentList.GetStudent(personId);
-        return student != null;
-    }
-
-    private async Task<Dictionary<int, int>> GetPersonIdToPidmMapAsync(List<int> personIds)
-    {
-        // AaudUser.AaudUserId == Person.PersonId, and AaudUser.Pidm is the Banner PIDM (string)
-        var users = await _aaudContext.AaudUsers
-            .Where(u => EF.Parameter(personIds).Contains(u.AaudUserId) && u.Pidm != null)
-            .Select(u => new { u.AaudUserId, u.Pidm })
+        var dvmStudents = await _aaudContext.VwDvmStudentsMaxTerms
+            .AsNoTracking()
             .ToListAsync();
 
-        var map = new Dictionary<int, int>();
-        foreach (var u in users)
-        {
-            if (int.TryParse(u.Pidm, out var pidm))
-            {
-                map[u.AaudUserId] = pidm;
-            }
-        }
-        return map;
+        var mothraIds = dvmStudents.Select(s => s.IdsMothraId).ToList();
+        var mothraToPersonId = await _aaudContext.AaudUsers
+            .Where(u => EF.Parameter(mothraIds).Contains(u.MothraId))
+            .Select(u => new { u.MothraId, u.AaudUserId })
+            .AsNoTracking()
+            .ToDictionaryAsync(u => u.MothraId, u => u.AaudUserId);
+
+        var pidms = dvmStudents
+            .Select(s => int.TryParse(s.IdsPidm, out var p) ? p : 0)
+            .Where(p => p > 0)
+            .ToList();
+
+        var contacts = await _sisContext.StudentContacts
+            .Include(c => c.EmergencyContacts)
+            .Where(c => EF.Parameter(pidms).Contains(c.Pidm))
+            .AsNoTracking()
+            .ToListAsync();
+
+        var contactsByPidm = contacts.ToDictionary(c => c.Pidm);
+
+        return (dvmStudents, mothraToPersonId, contactsByPidm);
     }
 
-    private async Task<int?> GetPidmForPersonIdAsync(int personId)
+    private async Task<bool> IsCurrentDvmStudentAsync(int personId)
+    {
+        // Use AAUD view (consistent with list/report) instead of VIPER StudentList
+        return await _aaudContext.AaudUsers
+            .Where(u => u.AaudUserId == personId)
+            .Join(_aaudContext.VwDvmStudentsMaxTerms,
+                u => u.MothraId,
+                s => s.IdsMothraId,
+                (u, s) => u.AaudUserId)
+            .AnyAsync();
+    }
+
+    /// <summary>
+    /// Resolves PIDM for a person through the DVM students view, consistent with
+    /// the list/report paths that read IdsPidm from VwDvmStudentsMaxTerms.
+    /// </summary>
+    private async Task<int?> GetCurrentDvmPidmAsync(int personId)
     {
         var pidmStr = await _aaudContext.AaudUsers
             .Where(u => u.AaudUserId == personId)
-            .Select(u => u.Pidm)
+            .Join(_aaudContext.VwDvmStudentsMaxTerms,
+                u => u.MothraId,
+                s => s.IdsMothraId,
+                (_, s) => s.IdsPidm)
             .FirstOrDefaultAsync();
 
         if (pidmStr != null && int.TryParse(pidmStr, out var pidm))
@@ -581,6 +642,16 @@ public class EmergencyContactService : IEmergencyContactService
             EmergencyContactMapper.ApplyContactInfoToEntity(dto, newContact);
             contact.EmergencyContacts.Add(newContact);
         }
+    }
+
+    private static string FormatEmail(string? mailId)
+    {
+        if (string.IsNullOrEmpty(mailId))
+        {
+            return string.Empty;
+        }
+
+        return mailId.Contains('@') ? mailId : $"{mailId}@ucdavis.edu";
     }
 
     #endregion

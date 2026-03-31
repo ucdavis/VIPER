@@ -3,6 +3,7 @@ namespace Viper.Areas.Students.Models;
 public class StudentContactReportDto
 {
     public int PersonId { get; set; }
+    public string RowKey { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string ClassLevel { get; set; } = string.Empty;
     public string? Address { get; set; }

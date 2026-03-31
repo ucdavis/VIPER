@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { useVModel } from "@vueuse/core"
 import { ref } from "vue"
-import type { QTableProps } from "quasar"
-import { exportTable } from "@/composables/QuasarTableUtilities"
+import type { RouteLocationRaw } from "vue-router"
 
 const props = defineProps<{
     filter: string
-    columns?: QTableProps["columns"]
-    rows?: unknown[]
     excelExport?: () => Promise<void>
     pdfExport?: () => Promise<void>
+    reportRoute?: RouteLocationRaw
 }>()
 
 const emit = defineEmits<{
@@ -19,12 +17,6 @@ const emit = defineEmits<{
 const filterModel = useVModel(props, "filter", emit)
 const exportingExcel = ref(false)
 const exportingPdf = ref(false)
-
-function handleCsvExport(): void {
-    if (props.columns && props.rows) {
-        exportTable(props.columns, props.rows)
-    }
-}
 
 async function handleExcelExport(): Promise<void> {
     if (!props.excelExport) {
@@ -48,13 +40,14 @@ async function handlePdfExport(): Promise<void> {
 <template>
     <div class="row items-center no-wrap">
         <q-btn
+            v-if="reportRoute"
             flat
             dense
             no-caps
-            icon="description"
-            label="CSV"
+            icon="assessment"
+            label="Report"
             class="q-mr-sm"
-            @click="handleCsvExport"
+            :to="reportRoute"
         />
         <q-btn
             flat
@@ -79,7 +72,7 @@ async function handlePdfExport(): Promise<void> {
             dense
             no-caps
             icon="picture_as_pdf"
-            label="PDF"
+            label="Print/PDF"
             class="q-mr-sm"
             :loading="exportingPdf"
             @click="handlePdfExport"
@@ -89,7 +82,7 @@ async function handlePdfExport(): Promise<void> {
                     size="1em"
                     class="q-mr-sm"
                 />
-                PDF
+                Print/PDF
             </template>
         </q-btn>
         <q-input
@@ -97,7 +90,7 @@ async function handlePdfExport(): Promise<void> {
             dense
             outlined
             debounce="300"
-            placeholder="Filter results"
+            placeholder="Search"
             class="q-ml-sm"
             clearable
             clear-icon="close"
@@ -105,7 +98,7 @@ async function handlePdfExport(): Promise<void> {
             <template #append>
                 <q-icon
                     v-if="!filterModel"
-                    name="filter_alt"
+                    name="search"
                 />
             </template>
         </q-input>
