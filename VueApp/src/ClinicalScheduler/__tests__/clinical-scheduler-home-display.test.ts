@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { usePermissionsStore } from "../stores/permissions"
 import ClinicalSchedulerHome from "../pages/ClinicalSchedulerHome.vue"
 import { setupTest, createTestWrapper, createMockPermissionsStore } from "./test-utils"
@@ -25,7 +24,7 @@ describe("ClinicalSchedulerHome - Display Content", () => {
         const { router: testRouter, mockStore } = setupTest()
         router = testRouter
         mockPermissionsStore = mockStore
-        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore)
+        vi.mocked(usePermissionsStore).mockReturnValue(mockPermissionsStore as any)
     })
 
     describe("Content Display", () => {

@@ -1,29 +1,21 @@
 #!/usr/bin/env node
+// Environment variables loaded via --env-file-if-exists=.env.local in package.json
 
-require("dotenv").config({ path: ".env.local" })
-const { spawn } = require("node:child_process")
+const { env: processEnv } = process
+const { spawn, execFileSync } = require("node:child_process")
 const fs = require("node:fs")
 const path = require("node:path")
+const http = require("node:http")
 const https = require("node:https")
 const net = require("node:net")
 const crypto = require("node:crypto")
 const yauzl = require("yauzl")
-
-// Dynamic import for ES modules
-let fkill = null
-async function getFkill() {
-    if (!fkill) {
-        const fkillModule = await import("fkill")
-        fkill = fkillModule.default
-    }
-    return fkill
-}
+const { killProcess } = require("./lib/script-utils")
 
 // Configuration constants
-const MAILPIT_VERSION = "1.27.5"
-const MAILPIT_URL = `https://github.com/axllent/mailpit/releases/download/v${MAILPIT_VERSION}/mailpit-windows-amd64.zip`
-const MAILPIT_SHA256 = "47b88b210474ca7b6884d6b186453787e8c4c0a21e29aeb0b83c378160f6ee73"
-const INSTALL_DIR = process.env.MAILPIT_INSTALL_DIR || String.raw`C:\Tools\mailpit`
+const GITHUB_API_LATEST = "https://api.github.com/repos/axllent/mailpit/releases/latest"
+const ASSET_NAME = "mailpit-windows-amd64.zip"
+const INSTALL_DIR = processEnv.MAILPIT_INSTALL_DIR || String.raw`C:\Tools\mailpit`
 const MAILPIT_EXE = path.join(INSTALL_DIR, "mailpit.exe")
 
 // Get environment variables with defaults
@@ -45,25 +37,100 @@ const HTTP_STATUS_MOVED = 301
 const HTTP_STATUS_FOUND = 302
 const BYTES_PER_MB = 1_048_576
 
+// Promise-based delay to avoid no-promise-executor-return lint warnings
+function delay(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}
+
+// Fetch JSON from a URL (follows redirects)
+function fetchJson(url) {
+    return new Promise((resolve, reject) => {
+        const options = { headers: { "User-Agent": "VIPER-Mailpit-Installer" } }
+        https
+            .get(url, options, (res) => {
+                if (res.statusCode === HTTP_STATUS_MOVED || res.statusCode === HTTP_STATUS_FOUND) {
+                    resolve(fetchJson(res.headers.location))
+                    return
+                }
+                if (res.statusCode !== HTTP_STATUS_OK) {
+                    reject(new Error(`HTTP ${res.statusCode} fetching ${url}`))
+                    return
+                }
+                let data = ""
+                res.on("data", (chunk) => {
+                    data += chunk
+                })
+                res.on("end", () => {
+                    try {
+                        resolve(JSON.parse(data))
+                    } catch (error) {
+                        reject(error)
+                    }
+                })
+            })
+            .on("error", reject)
+    })
+}
+
+// Get latest Mailpit release info from GitHub
+async function getLatestRelease() {
+    logInfo("Checking GitHub for latest Mailpit release...")
+    const release = await fetchJson(GITHUB_API_LATEST)
+    const version = release.tag_name.replace(/^v/, "")
+    const zipUrl = `https://github.com/axllent/mailpit/releases/download/${release.tag_name}/${ASSET_NAME}`
+
+    // Get SHA256 digest from GitHub's release asset metadata
+    const asset = release.assets.find((a) => a.name === ASSET_NAME)
+    if (!asset) {
+        throw new Error(`Asset ${ASSET_NAME} not found in release ${release.tag_name}`)
+    }
+
+    // GitHub provides digest as "sha256:<hex>"
+    const sha256 = asset.digest.replace(/^sha256:/, "").toLowerCase()
+
+    logInfo(`Latest version: ${version}`)
+    return { version, zipUrl, sha256 }
+}
+
+// Get currently installed version from the binary
+function getInstalledVersion() {
+    try {
+        const output = execFileSync(MAILPIT_EXE, ["version"], { encoding: "utf8", timeout: 5000 })
+        const match = output.match(/v(\d+\.\d+\.\d+)/)
+        return match ? match[1] : null
+    } catch {
+        return null
+    }
+}
+
 // Check if a port is in use
 function checkPort(port) {
     return new Promise((resolve) => {
         const server = net.createServer()
+        let resolved = false
+        const safeResolve = (value) => {
+            if (!resolved) {
+                resolved = true
+                resolve(value)
+            }
+        }
         const timeout = setTimeout(() => {
             server.close()
             logWarning(`Port ${port} check timed out`)
-            resolve(false)
+            safeResolve(false)
         }, STARTUP_DELAY)
 
         server.listen(port, () => {
             clearTimeout(timeout)
-            server.once("close", () => resolve(false))
+            server.once("close", () => safeResolve(false))
             server.close()
         })
 
         server.on("error", () => {
             clearTimeout(timeout)
-            resolve(true)
+            safeResolve(true)
         })
     })
 }
@@ -71,7 +138,7 @@ function checkPort(port) {
 // Check if Mailpit web interface is responding
 function checkMailpitWeb() {
     return new Promise((resolve) => {
-        const req = require("node:http").get(`http://localhost:${WEB_PORT}`, { timeout: NETWORK_TIMEOUT }, (res) => {
+        const req = http.get(`http://localhost:${WEB_PORT}`, { timeout: NETWORK_TIMEOUT }, (res) => {
             resolve(res.statusCode === HTTP_STATUS_OK)
         })
 
@@ -132,7 +199,7 @@ function extractZip(zipPath, extractPath) {
                 return
             }
 
-            let extractedFiles = []
+            const extractedFiles = []
 
             zipfile.readEntry()
 
@@ -169,29 +236,31 @@ function extractZip(zipPath, extractPath) {
                         fs.mkdirSync(fileDir, { recursive: true })
                     }
 
-                    zipfile.openReadStream(entry, (err, readStream) => {
-                        if (err) {
-                            logError(`Failed to read entry ${entry.fileName}: ${err.message}`)
-                            reject(err)
+                    zipfile.openReadStream(entry, (streamErr, readStream) => {
+                        if (streamErr) {
+                            logError(`Failed to read entry ${entry.fileName}: ${streamErr.message}`)
+                            reject(streamErr)
                             return
                         }
 
                         const writeStream = fs.createWriteStream(filePath)
 
-                        readStream.on("end", () => {
+                        // Wait for writeStream close (not readStream end) to ensure
+                        // Data is fully flushed to disk before processing next entry
+                        writeStream.on("close", () => {
                             extractedFiles.push(entry.fileName)
                             logInfo(`Extracted: ${entry.fileName}`)
                             zipfile.readEntry()
                         })
 
-                        readStream.on("error", (err) => {
-                            logError(`Error reading ${entry.fileName}: ${err.message}`)
-                            reject(err)
+                        readStream.on("error", (readErr) => {
+                            logError(`Error reading ${entry.fileName}: ${readErr.message}`)
+                            reject(readErr)
                         })
 
-                        writeStream.on("error", (err) => {
-                            logError(`Error writing ${filePath}: ${err.message}`)
-                            reject(err)
+                        writeStream.on("error", (writeErr) => {
+                            logError(`Error writing ${filePath}: ${writeErr.message}`)
+                            reject(writeErr)
                         })
 
                         readStream.pipe(writeStream)
@@ -207,9 +276,9 @@ function extractZip(zipPath, extractPath) {
                 resolve()
             })
 
-            zipfile.on("error", (err) => {
-                logError(`ZIP extraction error: ${err.message}`)
-                reject(err)
+            zipfile.on("error", (zipErr) => {
+                logError(`ZIP extraction error: ${zipErr.message}`)
+                reject(zipErr)
             })
         })
     })
@@ -285,7 +354,7 @@ function checkInstallPermissions() {
     }
 }
 
-// Install Mailpit
+// Install Mailpit (fetches latest version from GitHub)
 async function installMailpit() {
     try {
         logInfo("Installing Mailpit...")
@@ -295,17 +364,21 @@ async function installMailpit() {
             return false
         }
 
-        logInfo(`Downloading from: ${MAILPIT_URL}`)
+        // Fetch latest release info from GitHub
+        const { version, zipUrl, sha256 } = await getLatestRelease()
+
+        logInfo(`Downloading v${version} from: ${zipUrl}`)
 
         const zipPath = path.join(INSTALL_DIR, "mailpit.zip")
 
         // Download ZIP file
-        await downloadFile(MAILPIT_URL, zipPath)
+        await downloadFile(zipUrl, zipPath)
 
-        // Verify download integrity
+        // Verify download integrity against SHA256 from GitHub API
         logInfo("Verifying download integrity...")
-        const hashValid = await verifyFileHash(zipPath, MAILPIT_SHA256)
+        const hashValid = await verifyFileHash(zipPath, sha256)
         if (!hashValid) {
+            fs.unlinkSync(zipPath)
             throw new Error(
                 "Downloaded file failed hash verification. This could indicate a corrupted download or security issue.",
             )
@@ -350,7 +423,7 @@ async function installMailpit() {
             logWarning(`Could not delete ZIP file: ${zipPath}`)
         }
 
-        logSuccess(`Mailpit installed to: ${MAILPIT_EXE}`)
+        logSuccess(`Mailpit v${version} installed to: ${MAILPIT_EXE}`)
         return true
     } catch (error) {
         logError(`Failed to install Mailpit: ${error.message}`)
@@ -363,7 +436,7 @@ function isMailpitInstalled() {
     return fs.existsSync(MAILPIT_EXE)
 }
 
-// Check if Mailpit installation is valid (YAGNI: simple file existence check)
+// Check if Mailpit installation is valid
 function getMailpitStatus() {
     const installed = isMailpitInstalled()
     if (!installed) {
@@ -372,8 +445,9 @@ function getMailpitStatus() {
 
     try {
         const stats = fs.statSync(MAILPIT_EXE)
-        logInfo(`Mailpit installed: ${Math.round(stats.size / BYTES_PER_MB)}MB`)
-        return { installed: true, verified: true }
+        const version = getInstalledVersion()
+        logInfo(`Mailpit installed: v${version || "unknown"} (${Math.round(stats.size / BYTES_PER_MB)}MB)`)
+        return { installed: true, verified: true, version }
     } catch (error) {
         return { installed: false, error: error.message }
     }
@@ -486,17 +560,15 @@ function sendTestEmail() {
     })
 }
 
-// Find and kill existing Mailpit processes
+// Find and kill existing Mailpit processes (reuses killProcess from script-utils)
 async function killExistingMailpit() {
-    try {
-        const fkillFn = await getFkill()
-        await fkillFn("mailpit", { force: true })
-        logInfo("Stopped existing Mailpit processes")
-        return true
-    } catch {
-        // Process not running - this is fine
-        return false
+    const stopped = await killProcess("mailpit")
+    if (stopped) {
+        logSuccess("Stopped existing Mailpit processes")
+    } else {
+        logInfo("No running Mailpit processes found")
     }
+    return stopped
 }
 
 // Main management function
@@ -513,7 +585,22 @@ async function manageMailpit() {
 
         // Check if Mailpit is installed
         const status = getMailpitStatus()
-        if (!status.installed) {
+        if (status.installed) {
+            // Already installed — check for updates
+            try {
+                const { version: latest } = await getLatestRelease()
+                if (status.version && status.version !== latest) {
+                    logWarning(`Update available: v${status.version} → v${latest}`)
+                    logInfo("Stopping Mailpit for update...")
+                    await killExistingMailpit()
+                    await delay(NETWORK_TIMEOUT)
+                    await installMailpit()
+                }
+            } catch (error) {
+                // GitHub API unavailable — continue with existing install
+                logWarning(`Could not check for updates: ${error.message}`)
+            }
+        } else {
             logWarning("Mailpit not found, installing...")
             const installed = await installMailpit()
             if (!installed) {
@@ -533,7 +620,7 @@ async function manageMailpit() {
             await killExistingMailpit()
 
             // Wait a moment for processes to fully terminate
-            await new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT))
+            await delay(NETWORK_TIMEOUT)
         }
 
         // Start Mailpit
@@ -566,7 +653,7 @@ async function main() {
             const running = await isMailpitRunning()
             const status = getMailpitStatus()
 
-            logInfo(`Installed: ${status.installed ? "✅" : "❌"}`)
+            logInfo(`Installed: ${status.installed ? `✅ v${status.version || "unknown"}` : "❌"}`)
             logInfo(`Running: ${running ? "✅" : "❌"}`)
 
             if (running) {

@@ -173,7 +173,7 @@ const navigateToClinicianView = () => {
 }
 
 // Lifecycle
-onMounted(async () => {
+async function initPage() {
     // Set page title
     document.title = "VIPER - Clinical Scheduler"
 
@@ -185,7 +185,9 @@ onMounted(async () => {
             // Handle initialization errors gracefully - component will fall back to default state
         }
     }
-})
+}
+
+onMounted(() => initPage())
 </script>
 
 <style scoped>

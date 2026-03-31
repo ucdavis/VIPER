@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
@@ -13,10 +13,10 @@ namespace Viper.test.ClinicalScheduler
     public class CliniciansControllerTest : ClinicalSchedulerTestBase
     {
         private readonly AAUDContext _aaudContext;
-        private readonly Mock<ILogger<CliniciansController>> _mockLogger;
-        private readonly Mock<IGradYearService> _mockGradYearService;
-        private readonly Mock<IWeekService> _mockWeekService;
-        private readonly Mock<IPersonService> _mockPersonService;
+        private readonly ILogger<CliniciansController> _mockLogger;
+        private readonly IGradYearService _mockGradYearService;
+        private readonly IWeekService _mockWeekService;
+        private readonly IPersonService _mockPersonService;
         private CliniciansController _controller = null!;
 
         public CliniciansControllerTest()
@@ -26,10 +26,10 @@ namespace Viper.test.ClinicalScheduler
                 .Options;
             _aaudContext = new AAUDContext(aaudOptions);
 
-            _mockLogger = new Mock<ILogger<CliniciansController>>();
-            _mockGradYearService = new Mock<IGradYearService>();
-            _mockWeekService = new Mock<IWeekService>();
-            _mockPersonService = new Mock<IPersonService>();
+            _mockLogger = Substitute.For<ILogger<CliniciansController>>();
+            _mockGradYearService = Substitute.For<IGradYearService>();
+            _mockWeekService = Substitute.For<IWeekService>();
+            _mockPersonService = Substitute.For<IPersonService>();
 
             SetupDefaultMockBehavior();
             RecreateController();
@@ -39,15 +39,15 @@ namespace Viper.test.ClinicalScheduler
         {
             _controller = new CliniciansController(
                 Context,
-                _mockLogger.Object,
-                _mockGradYearService.Object,
-                _mockWeekService.Object,
-                _mockPersonService.Object,
-                MockUserHelper.Object);
+                _mockLogger,
+                _mockGradYearService,
+                _mockWeekService,
+                _mockPersonService,
+                MockUserHelper);
 
             var serviceProvider = new ServiceCollection()
                 .AddSingleton(Context)
-                .AddSingleton(MockRapsContext.Object)
+                .AddSingleton(MockRapsContext)
                 .AddSingleton(_aaudContext)
                 .BuildServiceProvider();
             TestDataBuilder.SetupControllerContext(_controller, serviceProvider);
@@ -55,26 +55,26 @@ namespace Viper.test.ClinicalScheduler
 
         private void SetupDefaultMockBehavior()
         {
-            _mockGradYearService.Setup(x => x.GetCurrentGradYearAsync()).ReturnsAsync(2024);
+            _mockGradYearService.GetCurrentGradYearAsync().Returns(2024);
 
             var defaultClinicians = new List<ClinicianSummary>
             {
                 new ClinicianSummary { MothraId = TestUserMothraId, FullName = "Test User" },
                 new ClinicianSummary { MothraId = "67890", FullName = "Dr. Jane Doe" }
             };
-            _mockPersonService.Setup(x => x.GetCliniciansByGradYearRangeAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(defaultClinicians);
+            _mockPersonService.GetCliniciansByGradYearRangeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+                .Returns(defaultClinicians);
             var defaultCliniciansByYear = new List<ClinicianYearSummary>
             {
                 new ClinicianYearSummary { MothraId = TestUserMothraId, FullName = "Test User" },
                 new ClinicianYearSummary { MothraId = "67890", FullName = "Dr. Jane Doe" }
             };
-            _mockPersonService.Setup(x => x.GetCliniciansByYearAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(defaultCliniciansByYear);
+            _mockPersonService.GetCliniciansByYearAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+                .Returns(defaultCliniciansByYear);
 
             // Setup WeekService to return empty list by default to avoid NullReferenceException
-            _mockWeekService.Setup(x => x.GetWeeksAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<WeekDto>());
+            _mockWeekService.GetWeeksAsync(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+                .Returns(new List<WeekDto>());
         }
 
         [Fact]

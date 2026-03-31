@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
-import routes from "./routes"
+import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
-import checkHasOnePermission from "@/composables/CheckPagePermission"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -16,7 +16,7 @@ router.beforeEach(async (to) => {
     if (loginResult !== undefined && !loginResult) {
         return false
     }
-    if (to.meta.permissions != undefined) {
+    if (to.meta.permissions !== undefined) {
         const hasPerm = checkHasOnePermission(to.meta.permissions as string[])
         if (!hasPerm) {
             return { name: "CAHFSAuth" }

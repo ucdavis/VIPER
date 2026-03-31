@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.IAM
+namespace Viper.Models.IAM
 {
     public class DirectoryAssociation : IIamData
     {
@@ -6,7 +6,7 @@
         public string? DeptCode { get; set; }
         public string? DeptOfficialName { get; set; }
         public string? DeptDisplayName { get; set; }
-        public string? DeptAbbrev {  get; set; }
+        public string? DeptAbbrev { get; set; }
         public bool IsUCDHS { get; set; }
         public string? AssocRank { get; set; }
         public DateTime? AssocStartDate { get; set; }

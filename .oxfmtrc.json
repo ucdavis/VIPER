@@ -1,0 +1,32 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "semi": false,
+    "printWidth": 120,
+    "tabWidth": 4,
+    "useTabs": false,
+    "endOfLine": "crlf",
+    "singleAttributePerLine": true,
+    "sortPackageJson": false,
+    "ignorePatterns": [
+        "**",
+        ".*",
+        "!*/",
+        "!*.json",
+        "!*.md",
+        "!*.mjs",
+        "!**/*.css",
+        "!**/*.htm",
+        "!**/*.html",
+        "!**/*.js",
+        "!**/*.json",
+        "!**/*.md",
+        "!**/*.mjs",
+        "!**/*.ts",
+        "!**/*.vue",
+        "*.min.js",
+        "*.min.css",
+        "*.bundle.js",
+        "*.bundle.css",
+        "package-lock.json"
+    ]
+}

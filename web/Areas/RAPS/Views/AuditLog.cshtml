@@ -69,6 +69,7 @@
 @section Scripts{
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
+        /* global createVueApp, quasarTable, formatDateTime, viperFetch, getItemFromStorage, putItemInStorage */
         createVueApp({
             data() {
                 return {
@@ -102,13 +103,13 @@
                 getAudit: function() {
                     var params = []
                     for (const [key, value] of Object.entries(this.auditForm)) {
-                        if(key == "role" && value != null && (value.roleId ?? "") != "") {
+                        if(key === "role" && value !== null && (value.roleId ?? "") !== "") {
                             params.push("roleId=" + value.roleId)
                         }
-                        else if(key == "modBy" && value != null && (value.loginId ?? "") != "") {
+                        else if(key === "modBy" && value !== null && (value.loginId ?? "") !== "") {
                             params.push("modBy=" + value.loginId)
                         }
-                        else if(value != null && value !="") {
+                        else if(value !== null && value !=="") {
                             params.push(key + "=" + value)
                         }
                     }
@@ -116,7 +117,13 @@
                     this.auditTable.load(this)
                 },
                 addAuditCriteria: function(paramName, paramValue) {
-                    this.auditForm[paramName] = paramValue
+                    if (!Object.hasOwn(this.auditForm, paramName)) { return }
+                    Object.defineProperty(this.auditForm, paramName, {
+                        value: paramValue,
+                        writable: true,
+                        enumerable: true,
+                        configurable: true
+                    })
                     this.getAudit()
                 }
             },

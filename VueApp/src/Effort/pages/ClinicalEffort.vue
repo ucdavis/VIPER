@@ -301,7 +301,7 @@ async function handleExcelDownload() {
     }
 }
 
-onMounted(async () => {
+async function initPage() {
     // Build academic year options from available terms
     const terms = await termService.getTerms()
     if (terms) {
@@ -331,7 +331,9 @@ onMounted(async () => {
     if (tc) {
         selectedYear.value = getAcademicYear(parseInt(tc as string, 10))
     }
-})
+}
+
+onMounted(() => initPage())
 </script>
 
 <style>

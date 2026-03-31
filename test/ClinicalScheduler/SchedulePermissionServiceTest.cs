@@ -1,18 +1,18 @@
 using Microsoft.Extensions.Logging;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 
 namespace Viper.test.ClinicalScheduler
 {
     public class SchedulePermissionServiceTest : ClinicalSchedulerTestBase
     {
-        private readonly Mock<ILogger<SchedulePermissionService>> _mockLogger;
+        private readonly ILogger<SchedulePermissionService> _mockLogger;
         private readonly SchedulePermissionService _permissionService;
 
         public SchedulePermissionServiceTest()
         {
-            _mockLogger = new Mock<ILogger<SchedulePermissionService>>();
-            _permissionService = new SchedulePermissionService(Context, MockRapsContext.Object, _mockLogger.Object, MockUserHelper.Object);
+            _mockLogger = Substitute.For<ILogger<SchedulePermissionService>>();
+            _permissionService = new SchedulePermissionService(Context, MockRapsContext, _mockLogger, MockUserHelper);
         }
 
         [Fact]
@@ -413,52 +413,52 @@ namespace Viper.test.ClinicalScheduler
         private void SetupUserWithAdminPermission(string mothraId)
         {
             var user = TestDataBuilder.CreateUser(mothraId);
-            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(true);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+            MockUserHelper.GetCurrentUser().Returns(user);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Admin).Returns(true);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Manage).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditClnSchedules).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule).Returns(false);
         }
 
         private void SetupUserWithEditClnSchedulesPermission(string mothraId)
         {
             var user = TestDataBuilder.CreateUser(mothraId);
-            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(true);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+            MockUserHelper.GetCurrentUser().Returns(user);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Admin).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Manage).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditClnSchedules).Returns(true);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule).Returns(false);
         }
 
         private void SetupUserWithServiceSpecificPermission(string mothraId, string specificPermission)
         {
             var user = TestDataBuilder.CreateUser(mothraId);
-            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, specificPermission)).Returns(true);
+            MockUserHelper.GetCurrentUser().Returns(user);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Admin).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Manage).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditClnSchedules).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, specificPermission).Returns(true);
         }
 
         private void SetupUserWithEditOwnSchedulePermission(string mothraId)
         {
             var user = TestDataBuilder.CreateUser(mothraId);
-            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(true);
+            MockUserHelper.GetCurrentUser().Returns(user);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Admin).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Manage).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditClnSchedules).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule).Returns(true);
         }
 
         private void SetupUserWithoutEditOwnSchedulePermission(string mothraId)
         {
             var user = TestDataBuilder.CreateUser(mothraId);
-            MockUserHelper.Setup(u => u.GetCurrentUser()).Returns(user);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Admin)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.Manage)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditClnSchedules)).Returns(false);
-            MockUserHelper.Setup(u => u.HasPermission(MockRapsContext.Object, user, ClinicalSchedulePermissions.EditOwnSchedule)).Returns(false);
+            MockUserHelper.GetCurrentUser().Returns(user);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Admin).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.Manage).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditClnSchedules).Returns(false);
+            MockUserHelper.HasPermission(MockRapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule).Returns(false);
         }
     }
 }

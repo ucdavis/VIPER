@@ -30,16 +30,16 @@ async function getAssessments() {
     const params = route.query
 
     let studentUserId = userStore.userInfo.userId
-    if (params.student != null) {
+    if (params.student !== undefined && params.student !== null) {
         const studentParam = parseInt(params.student.toString())
-        if (studentParam != undefined && userStore.userInfo.permissions.includes("SVMSecure.CTS.StudentAssessments")) {
+        if (studentParam !== undefined && userStore.userInfo.permissions.includes("SVMSecure.CTS.StudentAssessments")) {
             studentUserId = studentParam
         }
     }
 
     const r = await get(assessmentURL + "?studentUserId=" + studentUserId)
     epaAssessments.value = r.result.sort((e1: Assessment, e2: Assessment) => {
-        if (e1.epaName == null || e2.epaName == null || e1.epaName == e2.epaName) {
+        if (e1.epaName === null || e2.epaName === null || e1.epaName === e2.epaName) {
             return new Date(e2.encounterDate).getTime() - new Date(e1.encounterDate).getTime()
         }
         return e1.epaName.localeCompare(e2.epaName)
@@ -47,7 +47,7 @@ async function getAssessments() {
 }
 
 function getAssessmentsForEpa(epaId: number | null) {
-    return epaAssessments.value.filter((e) => e.epaId == epaId)
+    return epaAssessments.value.filter((e) => e.epaId === epaId)
 }
 
 getEpas()

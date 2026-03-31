@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -43,8 +43,8 @@ namespace Viper.test.ClinicalScheduler
         protected readonly ClinicalSchedulerContext Context;
         protected readonly AAUDContext AaudContext;
         protected readonly RAPSContext RapsContext;
-        protected readonly Mock<RAPSContext> MockRapsContext;
-        protected readonly Mock<IUserHelper> MockUserHelper;
+        protected readonly RAPSContext MockRapsContext;
+        protected readonly IUserHelper MockUserHelper;
 
         protected IntegrationTestBase()
         {
@@ -57,10 +57,10 @@ namespace Viper.test.ClinicalScheduler
             // Create pre-configured contexts with standard test data
             AaudContext = TestDataBuilder.IntegrationHelpers.CreateAAUDContext();
             RapsContext = TestDataBuilder.IntegrationHelpers.CreateRAPSContext();
-            MockRapsContext = new Mock<RAPSContext>();
+            MockRapsContext = Substitute.For<RAPSContext>();
 
             // Setup UserHelper mock
-            MockUserHelper = new Mock<IUserHelper>();
+            MockUserHelper = Substitute.For<IUserHelper>();
 
             // Seed basic test data
             SeedBasicTestData();
@@ -130,25 +130,25 @@ namespace Viper.test.ClinicalScheduler
         {
             if (userMothraId == null)
             {
-                MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+                MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
                 return;
             }
 
             var testUser = CreateTestUser();
             testUser.MothraId = userMothraId;
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
+            MockUserHelper.GetCurrentUser().Returns(testUser);
 
             // Default all permissions to false for any context
-            MockUserHelper.Setup(x => x.HasPermission(It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), It.IsAny<string>()))
+            MockUserHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
                 .Returns(false);
 
             // Set up the specific permissions to return true for the real RapsContext
             foreach (var permission in permissions)
             {
-                MockUserHelper.Setup(x => x.HasPermission(RapsContext, testUser, permission))
+                MockUserHelper.HasPermission(RapsContext, testUser, permission)
                     .Returns(true);
                 // Also set up for the MockRapsContext for backward compatibility
-                MockUserHelper.Setup(x => x.HasPermission(MockRapsContext.Object, testUser, permission))
+                MockUserHelper.HasPermission(MockRapsContext, testUser, permission)
                     .Returns(true);
             }
         }
@@ -238,7 +238,7 @@ namespace Viper.test.ClinicalScheduler
         /// </summary>
         protected void SetupNullUser()
         {
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+            MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
         }
 
         public void Dispose()

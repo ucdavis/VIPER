@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Areas.CMS.Data;
 using Viper.Classes;
+using Viper.Classes.SQLContext;
 using Web.Authorization;
 
 namespace Viper.Areas.Students.Controllers
@@ -13,8 +14,13 @@ namespace Viper.Areas.Students.Controllers
     [Permission(Allow = "SVMSecure.Students")]
     public class StudentsController : AreaController
     {
-        public StudentsController()
+        private readonly VIPERContext _viperContext;
+        private readonly RAPSContext _rapsContext;
+
+        public StudentsController(VIPERContext viperContext, RAPSContext rapsContext)
         {
+            _viperContext = viperContext;
+            _rapsContext = rapsContext;
         }
 
         /// <summary>
@@ -34,7 +40,7 @@ namespace Viper.Areas.Students.Controllers
 
         public NavMenu Nav()
         {
-            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-students")?.FirstOrDefault();
+            var menu = new LeftNavMenu(_viperContext, _rapsContext).GetLeftNavMenus(friendlyName: "viper-students")?.FirstOrDefault();
             if (menu != null)
             {
                 ConvertNavLinksForDevelopment(menu);

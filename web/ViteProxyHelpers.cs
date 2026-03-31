@@ -31,20 +31,9 @@ namespace Web;
 /// </remarks>
 internal static partial class ViteProxyHelpers
 {
-    // Base path for Vite assets - make configurable for maintainability
-    private const string ViteAssetsBasePath = "/2/vue/assets/";
-
     // Regex patterns for better maintainability and testability
-    private const string AssetHashPattern = @".*-[A-Za-z0-9_-]{6,}\.";
-    private const string SupportedAssetExtensions = @"(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)";
     private const string VueAppRoutePattern = @"^/({0})(/.*)?$";
     private const string VueAppAssetPattern = @"^/({0})/.*\.(js|ts|css|map|vue|json)$|^/({0})\.(js|ts|css|map|vue|json)$";
-
-    // Regex for built asset files with Vite hashes (used to skip proxying built assets)
-    private static readonly Regex AssetHashRegex = new Regex(
-        $@"{Regex.Escape(ViteAssetsBasePath)}{AssetHashPattern}{SupportedAssetExtensions}$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
 
     // Cached compiled regexes - initialized once at startup
     private static Regex? _vueAppRouteRegex;
@@ -90,12 +79,6 @@ internal static partial class ViteProxyHelpers
     public static bool ShouldProxyToVite(HttpContext context, string[] vueAppNames)
     {
         var path = context.Request.Path;
-
-        // Skip proxying built asset files with hashes - serve as static files
-        if (path.HasValue && AssetHashRegex.IsMatch(path.Value))
-        {
-            return false;
-        }
 
         // Proxy if path starts with /vue or /2/vue (Vite base paths)
         if (path.StartsWithSegments("/vue") || path.StartsWithSegments("/2/vue"))
@@ -211,31 +194,27 @@ internal static partial class ViteProxyHelpers
 
         // Only copy request body for methods that typically support it
         var method = context.Request.Method.ToUpperInvariant();
-        if (method != "GET" && method != "HEAD")
+        if (method != "GET" && method != "HEAD"
+            && ((context.Request.ContentLength.HasValue && context.Request.ContentLength > 0) ||
+                (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead)))
         {
-            if ((context.Request.ContentLength.HasValue && context.Request.ContentLength > 0) ||
-                (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead))
-            {
-                requestMessage.Content = new StreamContent(context.Request.Body);
+            requestMessage.Content = new StreamContent(context.Request.Body);
 
-                // Copy content-specific headers to Content.Headers after creating StreamContent
-                // Exclude headers that should be handled automatically by HttpClient
-                var forbiddenContentHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    "Content-Length",
-                    "Content-Type",
-                    "Content-Encoding",
-                    "Content-Disposition",
-                    "Content-Range"
-                };
-                foreach (var header in context.Request.Headers)
-                {
-                    if (header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
-                        !forbiddenContentHeaders.Contains(header.Key))
-                    {
-                        requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-                    }
-                }
+            // Copy content-specific headers to Content.Headers after creating StreamContent
+            // Exclude headers that should be handled automatically by HttpClient
+            var forbiddenContentHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Content-Length",
+                "Content-Type",
+                "Content-Encoding",
+                "Content-Disposition",
+                "Content-Range"
+            };
+            foreach (var header in context.Request.Headers
+                .Where(h => h.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+                    !forbiddenContentHeaders.Contains(h.Key)))
+            {
+                requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
             }
         }
 
@@ -246,15 +225,13 @@ internal static partial class ViteProxyHelpers
             "proxy-connection", "host", "te"
         };
 
-        foreach (var header in context.Request.Headers)
+        // Skip HTTP/2 pseudo-headers, content headers (already handled above), and hop-by-hop headers
+        foreach (var header in context.Request.Headers
+            .Where(h => !h.Key.StartsWith(':') &&
+                !h.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+                !requestHeaderSkip.Contains(h.Key)))
         {
-            // Skip HTTP/2 pseudo-headers, content headers (already handled above), and hop-by-hop headers
-            if (!header.Key.StartsWith(':') &&
-                !header.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
-                !requestHeaderSkip.Contains(header.Key))
-            {
-                requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-            }
+            requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
         }
 
         return requestMessage;
@@ -277,22 +254,20 @@ internal static partial class ViteProxyHelpers
             };
 
             // Copy response headers
-            foreach (var header in response.Headers.Concat(response.Content.Headers))
+            foreach (var header in response.Headers.Concat(response.Content.Headers)
+                .Where(h => !headersToSkip.Contains(h.Key)))
             {
-                if (!headersToSkip.Contains(header.Key))
+                try
                 {
-                    try
-                    {
-                        context.Response.Headers[header.Key] = header.Value.ToArray();
-                    }
-                    catch (Exception headerEx)
-                    {
-                        // Use structured logging for header errors
-                        var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
-                        context.RequestServices.GetRequiredService<ILoggerFactory>()
-                            .CreateLogger("ViteProxyHelpers")
-                            .LogWarning(headerEx, "Failed to set header '{HeaderKey}' in proxy response.", safeHeaderKey);
-                    }
+                    context.Response.Headers[header.Key] = header.Value.ToArray();
+                }
+                catch (Exception headerEx)
+                {
+                    // Use structured logging for header errors
+                    var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
+                    context.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("ViteProxyHelpers")
+                        .LogWarning(headerEx, "Failed to set header '{HeaderKey}' in proxy response.", safeHeaderKey);
                 }
             }
         }

@@ -1194,7 +1194,7 @@ watch(
 )
 
 // Lifecycle
-onMounted(async () => {
+async function initPage() {
     // Set page title
     document.title = "VIPER - Schedule by Rotation"
 
@@ -1223,7 +1223,9 @@ onMounted(async () => {
     if (selectedRotationId.value && rotations.value.length > 0) {
         onRotationChange()
     }
-})
+}
+
+onMounted(() => initPage())
 </script>
 
 <style scoped>

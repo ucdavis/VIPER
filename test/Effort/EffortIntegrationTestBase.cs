@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.Entities;
@@ -36,7 +36,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
 
     protected readonly EffortDbContext EffortContext;
     protected readonly RAPSContext RapsContext;
-    protected readonly Mock<IUserHelper> MockUserHelper;
+    protected readonly IUserHelper MockUserHelper;
 
     protected EffortIntegrationTestBase()
     {
@@ -51,7 +51,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
         RapsContext = CreateRAPSContext();
 
         // Setup UserHelper mock
-        MockUserHelper = new Mock<IUserHelper>();
+        MockUserHelper = Substitute.For<IUserHelper>();
 
         // Seed basic test data
         SeedBasicTestData();
@@ -329,8 +329,8 @@ public abstract class EffortIntegrationTestBase : IDisposable
     protected void SetupUserWithNoPermissions()
     {
         var testUser = CreateTestUser();
-        MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
-        MockUserHelper.Setup(x => x.HasPermission(It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), It.IsAny<string>()))
+        MockUserHelper.GetCurrentUser().Returns(testUser);
+        MockUserHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
             .Returns(false);
     }
 
@@ -339,7 +339,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
     /// </summary>
     protected void SetupNullUser()
     {
-        MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+        MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
     }
 
     /// <summary>
@@ -349,21 +349,21 @@ public abstract class EffortIntegrationTestBase : IDisposable
     {
         if (userMothraId == null)
         {
-            MockUserHelper.Setup(x => x.GetCurrentUser()).Returns((AaudUser?)null);
+            MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
             return;
         }
 
         var testUser = CreateTestUser(userMothraId, aaudUserId);
-        MockUserHelper.Setup(x => x.GetCurrentUser()).Returns(testUser);
+        MockUserHelper.GetCurrentUser().Returns(testUser);
 
         // Default all permissions to false
-        MockUserHelper.Setup(x => x.HasPermission(It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), It.IsAny<string>()))
+        MockUserHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
             .Returns(false);
 
         // Set up the specific permissions to return true
         foreach (var permission in permissions)
         {
-            MockUserHelper.Setup(x => x.HasPermission(RapsContext, testUser, permission))
+            MockUserHelper.HasPermission(RapsContext, testUser, permission)
                 .Returns(true);
         }
     }

@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils"
 import { setActivePinia, createPinia } from "pinia"
 import { Quasar } from "quasar"
-import { vi } from "vitest"
+
 import ClinicianSelector from "../components/ClinicianSelector.vue"
 import { ClinicianService } from "../services/clinician-service"
 
@@ -45,7 +45,7 @@ function setupTest() {
 /**
  * Mounts the ClinicianSelector component with given props.
  */
-function createWrapper(props = {}) {
+function createWrapper(props = {}): ReturnType<typeof mount> {
     return mount(ClinicianSelector, {
         props,
         global: {

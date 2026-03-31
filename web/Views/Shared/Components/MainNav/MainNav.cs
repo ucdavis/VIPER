@@ -50,12 +50,9 @@ namespace Viper.Views.Shared.Components.MainNav
             //for local development in debugging mode, turn the absolute links to external localhost links to use port 80
             if (HttpHelper.Environment?.EnvironmentName == "Development")
             {
-                foreach (var link in userLinks)
+                foreach (var link in userLinks.Where(l => l[0].Substring(0, 1) == "/"))
                 {
-                    if (link[0].Substring(0, 1) == "/")
-                    {
-                        link[0] = "http://localhost" + link[0];
-                    }
+                    link[0] = "http://localhost" + link[0];
                 }
             }
 

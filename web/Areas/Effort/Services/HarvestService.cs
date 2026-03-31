@@ -354,9 +354,7 @@ public class HarvestService : IHarvestService
                   r => r.CourseId,
                   c => c.Id,
                   (r, c) => new { r.PersonId, c.CrseNumb })
-#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
-            .Where(x => x.CrseNumb == null || !x.CrseNumb.EndsWith("R")) // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
-#pragma warning restore S6610
+            .Where(x => x.CrseNumb == null || !x.CrseNumb.EndsWith('R'))
             .Select(x => x.PersonId)
             .Distinct()
             .ToListAsync(ct);
@@ -530,7 +528,7 @@ public class HarvestService : IHarvestService
         var personIdsToLookup = existingPersonIds.Select(p => p.PersonId).ToList();
         var personIdToMothraId = await _viperContext.People
             .AsNoTracking()
-            .Where(p => personIdsToLookup.Contains(p.PersonId))
+            .Where(p => EF.Parameter(personIdsToLookup).Contains(p.PersonId))
             .Select(p => new { p.PersonId, p.MothraId })
             .ToDictionaryAsync(p => p.PersonId, p => p.MothraId ?? "", ct);
 

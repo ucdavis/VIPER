@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
 
@@ -157,7 +156,7 @@ describe("CourseEditDialog - Error Handling", () => {
         })
 
         it("should handle null course gracefully", () => {
-            const course = null
+            const course = null as { enrollment: number; units: number; custDept: string } | null
             const formData = ref({
                 enrollment: 0,
                 units: 0,

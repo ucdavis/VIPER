@@ -49,13 +49,13 @@ export function usePhotoGalleryOptions(classYears: Ref<ClassYear[]>, availableCo
 
         // Add courses with term section header
         if (availableCourses.value.length > 0) {
-            const firstCourse = availableCourses.value[0]
+            const [firstCourse] = availableCourses.value
             if (!firstCourse) {
                 return options
             }
 
             // All courses are from the same term, so use the first course's term description
-            const termDescription = firstCourse.termDescription
+            const { termDescription } = firstCourse
 
             // Add term section header (e.g., "Fall Semester 2025")
             options.push({

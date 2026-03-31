@@ -14,31 +14,18 @@ namespace Viper.test
         [InlineData("/ClinicalScheduler/schedule", true)]
         [InlineData("/vue/assets/main.js", true)]
         [InlineData("/2/vue/src/CTS/index.html", true)]
+        [InlineData("/2/vue/assets/main-abc123.js", true)]
+        [InlineData("/2/vue/assets/styles-def456.css", true)]
         [InlineData("/CTS/component.vue", true)]
         [InlineData("/cts.ts", true)]
         [InlineData("/computing.js", true)]
-        public void ShouldProxyToVite_AllowedPaths_ReturnsTrue(string path, bool expected)
-        {
-            // Arrange
-            var context = CreateHttpContext(path);
-
-            // Act
-            var result = ViteProxyHelpers.ShouldProxyToVite(context, _vueAppNames);
-
-            // Assert
-            Assert.Equal(expected, result);
-        }
-
-        [Theory]
         [InlineData("/api/cts/students", false)]
         [InlineData("/admin", false)]
-        [InlineData("/2/vue/assets/main-abc123.js", false)]
-        [InlineData("/2/vue/assets/styles-def456.css", false)]
         [InlineData("/favicon.ico", false)]
         [InlineData("/robots.txt", false)]
         [InlineData("/unknown/path", false)]
         [InlineData("/malicious/../../../etc/passwd", false)]
-        public void ShouldProxyToVite_DeniedPaths_ReturnsFalse(string path, bool expected)
+        public void ShouldProxyToVite_ReturnsExpectedResult(string path, bool expected)
         {
             // Arrange
             var context = CreateHttpContext(path);

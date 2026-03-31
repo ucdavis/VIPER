@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { useScheduleUpdatesWithRollback } from "../composables/use-optimistic-schedule-updates"
 import { InstructorScheduleService } from "../services/instructor-schedule-service"
 
@@ -38,7 +37,7 @@ describe("useScheduleUpdatesWithRollback - Operation Queue", () => {
         const { addScheduleWithRollback } = useScheduleUpdatesWithRollback()
         const onSuccess = vi.fn()
 
-        let callOrder: number[] = []
+        const callOrder: number[] = []
         let callIndex = 0
 
         // Mock API calls to track order
@@ -119,14 +118,14 @@ describe("useScheduleUpdatesWithRollback - Operation Queue", () => {
             })
         })
 
-        vi.mocked(InstructorScheduleService.removeInstructor).mockImplementation(() => {
+        vi.mocked(InstructorScheduleService.removeInstructor).mockImplementation((() => {
             operationLog.push("remove")
             return Promise.resolve({
                 success: true,
                 result: null,
                 errors: [],
             })
-        })
+        }) as any)
 
         // Queue mixed operations
         addScheduleWithRollback({
@@ -250,7 +249,7 @@ describe("useScheduleUpdatesWithRollback - Error Handling", () => {
         })
 
         // First operation should have failed, other two should succeed
-        expect(onError).toHaveBeenCalledTimes(1)
+        expect(onError).toHaveBeenCalledOnce()
         expect(onError).toHaveBeenCalledWith("API Error")
         expect(onSuccess).toHaveBeenCalledTimes(2)
     })

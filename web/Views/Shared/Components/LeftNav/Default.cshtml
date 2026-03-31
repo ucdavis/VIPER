@@ -10,7 +10,7 @@
     // Pre-compute which item to highlight. When multiple items resolve to the same
     // path (e.g. instance link "~/raps/Viper/RoleList" and page link "Rolelist"),
     // prefer relative page links over tilde-prefixed instance links.
-    var items = leftNav?.MenuItems ?? new List<NavMenuItem>();
+    var items = leftNav.MenuItems ?? new List<NavMenuItem>();
     int activeIndex = -1;
     bool activeIsTilde = false;
     for (int i = 0; i < items.Count; i++)
@@ -20,13 +20,13 @@
         var rawUrl = item.MenuItemURL.Split('?')[0].TrimEnd('/');
         if (rawUrl.StartsWith("http")) { continue; }
 
-        bool isTilde = rawUrl.StartsWith("~");
+        bool isTilde = rawUrl.StartsWith('~');
         string resolvedPath;
         if (isTilde)
         {
             resolvedPath = Url.Content(rawUrl).TrimEnd('/');
         }
-        else if (rawUrl.StartsWith("/"))
+        else if (rawUrl.StartsWith('/'))
         {
             resolvedPath = rawUrl;
         }
@@ -35,14 +35,12 @@
             resolvedPath = basePath + rawUrl;
         }
 
-        if (string.Equals(currentPath, resolvedPath, StringComparison.Ordinal))
+        // Prefer relative/page links over tilde-prefixed instance links
+        if (string.Equals(currentPath, resolvedPath, StringComparison.Ordinal)
+            && (activeIndex < 0 || (activeIsTilde && !isTilde)))
         {
-            // Prefer relative/page links over tilde-prefixed instance links
-            if (activeIndex < 0 || (activeIsTilde && !isTilde))
-            {
-                activeIndex = i;
-                activeIsTilde = isTilde;
-            }
+            activeIndex = i;
+            activeIsTilde = isTilde;
         }
     }
     int renderIndex = 0;

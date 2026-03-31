@@ -1,7 +1,7 @@
 /*
  * Javascript to use the Vue variables defined in _VIPERLayout.html, but in a way that "looks" more like
  * typical Vue documentation and examples.
- * 
+ *
  * To use, call the createVueApp function in the "Scripts" section, for example:
  * <script asp-add-nonce="true">
  *      createVueApp({
@@ -21,8 +21,9 @@
  *      })
  *  </script>
  */
-let vueApps = []
+const vueApps = []
 function createVueApp(vueAppConfig) {
+    // oxlint-disable-next-line new-cap -- renaming class would require updating all Razor views
     vueApps.push(new vueApp(vueAppConfig))
 }
 
@@ -31,9 +32,9 @@ class vueApp {
         Object.assign(this, config)
     }
 
-    //add each of the options to the Viper Vue variables
+    // Add each of the options to the Viper Vue variables
     create() {
-        //options that are objects, or return objects
+        // Options that are objects, or return objects
         if (this.data !== undefined) {
             Object.assign(vueObjects, this.data())
         }
@@ -53,7 +54,7 @@ class vueApp {
             Object.assign(computed, this.computed)
         }
 
-        //vue lifecycle methods
+        // Vue lifecycle methods
         if (this.setup !== undefined) {
             vueSetupActions.push(this.setup)
         }

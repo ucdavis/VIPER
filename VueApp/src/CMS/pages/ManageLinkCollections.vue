@@ -87,42 +87,43 @@
                         />
                     </div>
 
-                    <draggable
-                        :list="collectionTags"
-                        item-key="linkCollectionTagCategoryId"
+                    <VueDraggable
+                        v-model="collectionTags"
                         @end="onDragEnd"
                         class="list-group"
                     >
-                        <template #item="{ element }">
-                            <div class="row items-center q-col-gutter-sm">
-                                <div class="col-auto">
-                                    <q-icon
-                                        class="handle"
-                                        name="drag_handle"
-                                    />
-                                </div>
-                                <div class="col">
-                                    <q-input
-                                        dense
-                                        readonly
-                                        v-model="element.linkCollectionTagCategory"
-                                    />
-                                </div>
-                                <div class="col-auto">
-                                    <q-btn
-                                        flat
-                                        label="Delete"
-                                        dense
-                                        no-caps
-                                        color="red-5"
-                                        class="q-ml-lg q-pr-md"
-                                        icon="delete"
-                                        @click="deleteTag(element.linkCollectionTagCategoryId)"
-                                    />
-                                </div>
+                        <div
+                            v-for="element in collectionTags"
+                            :key="element.linkCollectionTagCategoryId"
+                            class="row items-center q-col-gutter-sm"
+                        >
+                            <div class="col-auto">
+                                <q-icon
+                                    class="handle"
+                                    name="drag_handle"
+                                />
                             </div>
-                        </template>
-                    </draggable>
+                            <div class="col">
+                                <q-input
+                                    dense
+                                    readonly
+                                    v-model="element.linkCollectionTagCategory"
+                                />
+                            </div>
+                            <div class="col-auto">
+                                <q-btn
+                                    flat
+                                    label="Delete"
+                                    dense
+                                    no-caps
+                                    color="red-5"
+                                    class="q-ml-lg q-pr-md"
+                                    icon="delete"
+                                    @click="deleteTag(element.linkCollectionTagCategoryId)"
+                                />
+                            </div>
+                        </div>
+                    </VueDraggable>
                 </q-card-section>
 
                 <q-card-actions
@@ -261,78 +262,77 @@
                     <div class="col-12 col-md-6 col-lg-4">Description</div>
                     <div class="col-12 col-lg-3">Tags</div>
                 </div>
-                <draggable
-                    :list="links"
-                    item-key="linkId"
+                <VueDraggable
+                    v-model="links"
                     @end="linkOrder"
                     handle=".handle"
                 >
-                    <template #item="{ element }">
-                        <div class="row link-row items-start q-col-gutter-sm link-card link-grid">
-                            <div class="col-12 col-md-auto link-actions q-gutter-xs">
-                                <div class="action-buttons">
-                                    <q-icon
-                                        class="handle"
-                                        name="drag_handle"
-                                    />
-                                    <q-btn
-                                        dense
-                                        no-caps
-                                        size="sm"
-                                        color="secondary"
-                                        icon="edit"
-                                        @click="clickLink(element)"
-                                    />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-3 col-lg-2 link-field url-field">
-                                <div class="field-label">URL</div>
-                                <div class="link-url">{{ element.url }}</div>
-                            </div>
-                            <div class="col-12 col-md-3 col-lg-2 link-field title-field">
-                                <div class="field-label">Title</div>
-                                <div>{{ element.title }}</div>
-                            </div>
-                            <div class="col-12 col-md-6 col-lg-4 link-field desc-field">
-                                <div class="field-label">Description</div>
-                                <div>{{ element.description }}</div>
-                            </div>
-                            <div class="col-12 col-lg-3 tag-field">
-                                <template
-                                    v-for="tag in collectionTags"
-                                    :key="tag.linkCollectionTagCategoryId"
-                                >
-                                    <div
-                                        v-if="element.tags !== undefined"
-                                        class="row tag-row q-col-gutter-xs"
-                                    >
-                                        <div class="tag-row-inner">
-                                            <div class="field-label">{{ tag.linkCollectionTagCategory }}</div>
-                                            <div class="tag-chips">
-                                                <q-chip
-                                                    dense
-                                                    square
-                                                    color="primary"
-                                                    text-color="white"
-                                                    v-for="t in getTagsForCategory(
-                                                        element,
-                                                        tag.linkCollectionTagCategoryId,
-                                                    )"
-                                                    :key="
-                                                        tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()
-                                                    "
-                                                    class="q-mr-xs q-mb-xs"
-                                                >
-                                                    {{ t }}
-                                                </q-chip>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
+                    <div
+                        v-for="element in links"
+                        :key="element.linkId"
+                        class="row link-row items-start q-col-gutter-sm link-card link-grid"
+                    >
+                        <div class="col-12 col-md-auto link-actions q-gutter-xs">
+                            <div class="action-buttons">
+                                <q-icon
+                                    class="handle"
+                                    name="drag_handle"
+                                />
+                                <q-btn
+                                    dense
+                                    no-caps
+                                    size="sm"
+                                    color="secondary"
+                                    icon="edit"
+                                    @click="clickLink(element)"
+                                />
                             </div>
                         </div>
-                    </template>
-                </draggable>
+                        <div class="col-12 col-md-3 col-lg-2 link-field url-field">
+                            <div class="field-label">URL</div>
+                            <div class="link-url">{{ element.url }}</div>
+                        </div>
+                        <div class="col-12 col-md-3 col-lg-2 link-field title-field">
+                            <div class="field-label">Title</div>
+                            <div>{{ element.title }}</div>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-4 link-field desc-field">
+                            <div class="field-label">Description</div>
+                            <div>{{ element.description }}</div>
+                        </div>
+                        <div class="col-12 col-lg-3 tag-field">
+                            <template
+                                v-for="tag in collectionTags"
+                                :key="tag.linkCollectionTagCategoryId"
+                            >
+                                <div
+                                    v-if="element.tags !== undefined"
+                                    class="row tag-row q-col-gutter-xs"
+                                >
+                                    <div class="tag-row-inner">
+                                        <div class="field-label">{{ tag.linkCollectionTagCategory }}</div>
+                                        <div class="tag-chips">
+                                            <q-chip
+                                                dense
+                                                square
+                                                color="primary"
+                                                text-color="white"
+                                                v-for="t in getTagsForCategory(
+                                                    element,
+                                                    tag.linkCollectionTagCategoryId,
+                                                )"
+                                                :key="tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()"
+                                                class="q-mr-xs q-mb-xs"
+                                            >
+                                                {{ t }}
+                                            </q-chip>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </VueDraggable>
             </div>
         </template>
     </div>
@@ -342,7 +342,7 @@
 import { ref, inject, watch } from "vue"
 import { useQuasar } from "quasar"
 import type { Ref } from "vue"
-import draggable from "vuedraggable"
+import { VueDraggable } from "vue-draggable-plus"
 import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from "@/CMS/types/"
 import { useFetch } from "@/composables/ViperFetch"
 
@@ -375,14 +375,14 @@ async function loadCollections() {
 }
 
 async function saveCollection() {
-    if (collectionData.value.linkCollection == null || collectionData.value.linkCollection.trim().length == 0) {
+    if (collectionData.value.linkCollection === null || collectionData.value.linkCollection.trim().length === 0) {
         collectionNameInput.value.focus()
         return
     }
 
     const { put, post } = useFetch()
 
-    if (collection.value != null && collection.value.linkCollectionId > 0) {
+    if (collection.value !== null && collection.value.linkCollectionId > 0) {
         await put(apiURL + collection.value.linkCollectionId, { linkCollection: collectionData.value.linkCollection })
     } else {
         await post(apiURL, { linkCollection: collectionData.value.linkCollection })
@@ -450,7 +450,7 @@ function getTagsForCategory(element: LinkWithTags, categoryId: number) {
 
 async function saveLink() {
     const { post, put } = useFetch()
-    if (link.value.linkId == 0) {
+    if (link.value.linkId === 0) {
         const res = await post(apiURL + collectionId.value + "/links", {
             linkCollectionId: collectionId.value,
             url: link.value.url,
@@ -541,7 +541,7 @@ async function loadTags() {
 
 async function createTag() {
     const { post } = useFetch()
-    if (collectionId.value && addTag.value.trim() != "") {
+    if (collectionId.value && addTag.value.trim() !== "") {
         await post(apiURL + collectionId.value + "/tags", {
             linkCollectionId: collectionId.value,
             linkCollectionTagCategory: addTag.value,
@@ -577,7 +577,7 @@ function onDragEnd() {
 watch(collectionId, () => {
     loadLinks()
     loadTags()
-    collection.value = collections.value.find((c) => c.linkCollectionId == collectionId.value) || null
+    collection.value = collections.value.find((c) => c.linkCollectionId === collectionId.value) || null
     collectionData.value.linkCollection = collection.value?.linkCollection || ""
 })
 

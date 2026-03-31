@@ -464,8 +464,10 @@ public class EffortRecordService : IEffortRecordService
         // but always include them in "Existing Courses" if instructor has effort on them
         var childCourseIds = await _context.CourseRelationships
             .AsNoTracking()
-            .Where(cr => _context.Courses.Any(c => c.Id == cr.ChildCourseId && c.TermCode == termCode))
-            .Select(cr => cr.ChildCourseId)
+            .Join(_context.Courses.Where(c => c.TermCode == termCode),
+                cr => cr.ChildCourseId,
+                c => c.Id,
+                (cr, c) => cr.ChildCourseId)
             .Distinct()
             .ToListAsync(ct);
 
@@ -693,9 +695,7 @@ public class EffortRecordService : IEffortRecordService
                   r => r.CourseId,
                   c => c.Id,
                   (r, c) => c.CrseNumb)
-#pragma warning disable S6610 // "EndsWith" overloads that take a "char" should be used
-            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith("R"), ct); // TODO(VPR-41): EF Core 10 supports char overload, remove pragma
-#pragma warning restore S6610
+            .CountAsync(crseNumb => crseNumb == null || !crseNumb.EndsWith('R'), ct);
 
         // Only proceed if this is the instructor's first non-R-course record (count = 1, the one we just created)
         if (nonRCourseCount != 1)

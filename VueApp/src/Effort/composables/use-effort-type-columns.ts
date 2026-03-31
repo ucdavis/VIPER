@@ -35,7 +35,10 @@ async function loadEffortTypeLabels(): Promise<void> {
 
 function getEffortTypeLabel(code: string): string {
     // Lazily kick off the load on first use (no-op if already started)
-    void loadEffortTypeLabels().catch(() => {})
+    // oxlint-disable-next-line promise/prefer-await-to-then -- Fire-and-forget in sync function
+    loadEffortTypeLabels().catch(() => {
+        /* Label load is best-effort */
+    })
     return effortTypeLabelCache?.[code] ?? code
 }
 
@@ -86,7 +89,7 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
         }
 
         // Legacy column order: ALWAYS_SHOW types first (in defined order),
-        // then remaining types that appear in effortTypes, alphabetically
+        // Then remaining types that appear in effortTypes, alphabetically
         const inputSet = new Set(effortTypes.value)
         const ordered: string[] = [...ALWAYS_SHOW]
 

@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { RotationService } from "../services/rotation-service"
 import { createComponentLogic } from "./rotation-selector-helpers.test"
 
@@ -34,18 +33,18 @@ describe("RotationSelector", () => {
 
     describe("API Integration", () => {
         it("fetches all rotations successfully", async () => {
-            const result = await RotationService.getRotations({ includeService: true })
+            const result = await RotationService.getRotations({ includeService: true } as any)
 
             expect(result.success).toBeTruthy()
             expect(result.result).toHaveLength(4)
-            expect(result.result[0].name).toBe("Anatomic Pathology (Advanced)")
+            expect(result.result[0]!.name).toBe("Anatomic Pathology (Advanced)")
         })
 
         it("fetches rotations with scheduled weeks", async () => {
             const result = await RotationService.getRotationsWithScheduledWeeks({
                 year: 2024,
                 includeService: true,
-            })
+            } as any)
 
             expect(result.success).toBeTruthy()
             expect(result.result).toHaveLength(2)
@@ -58,7 +57,7 @@ describe("RotationSelector", () => {
                 errors: ["Network error"],
             })
 
-            const result = await RotationService.getRotations({ includeService: true })
+            const result = await RotationService.getRotations({ includeService: true } as any)
 
             expect(result.success).toBeFalsy()
             expect(result.errors).toContain("Network error")
@@ -68,7 +67,7 @@ describe("RotationSelector", () => {
     describe("Helper Functions", () => {
         it("formats rotation display names correctly", () => {
             const [rotation] = componentLogic.mockRotationsResponse
-            const displayName = componentLogic.getRotationDisplayName(rotation)
+            const displayName = componentLogic.getRotationDisplayName(rotation!)
 
             expect(displayName).toBe("Anatomic Pathology")
         })
@@ -77,21 +76,21 @@ describe("RotationSelector", () => {
             const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "cardio")
 
             expect(filtered).toHaveLength(1)
-            expect(filtered[0].name).toBe("Cardiology")
+            expect(filtered[0]!.name).toBe("Cardiology")
         })
 
         it("filters rotations by service name", () => {
             const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "behavior")
 
             expect(filtered).toHaveLength(1)
-            expect(filtered[0].name).toBe("Behavior")
+            expect(filtered[0]!.name).toBe("Behavior")
         })
 
         it("filters rotations by abbreviation", () => {
             const filtered = componentLogic.filterRotations(componentLogic.mockRotationsResponse, "card")
 
             expect(filtered).toHaveLength(1)
-            expect(filtered[0].abbreviation).toBe("Card")
+            expect(filtered[0]!.abbreviation).toBe("Card")
         })
 
         it("returns empty array when no matches found", () => {
@@ -112,12 +111,12 @@ describe("RotationSelector", () => {
 
     describe("Data Transformation", () => {
         it("sorts rotations alphabetically by display name", () => {
-            const sorted = [...componentLogic.mockRotationsResponse].sort((a, b) =>
+            const sorted = componentLogic.mockRotationsResponse.toSorted((a, b) =>
                 componentLogic.getRotationDisplayName(a).localeCompare(componentLogic.getRotationDisplayName(b)),
             )
 
-            expect(componentLogic.getRotationDisplayName(sorted[0])).toBe("Anatomic Pathology")
-            expect(componentLogic.getRotationDisplayName(sorted[2])).toBe("Behavior")
+            expect(componentLogic.getRotationDisplayName(sorted[0]!)).toBe("Anatomic Pathology")
+            expect(componentLogic.getRotationDisplayName(sorted[2]!)).toBe("Behavior")
         })
 
         it("excludes specified rotation names", () => {
@@ -127,7 +126,7 @@ describe("RotationSelector", () => {
             })
 
             expect(excluded).toHaveLength(1)
-            expect(excluded[0].name).toBe("Behavior")
+            expect(excluded[0]!.name).toBe("Behavior")
         })
 
         it("handles rotations without service data", () => {
@@ -136,7 +135,7 @@ describe("RotationSelector", () => {
                 service: undefined,
             }
 
-            const displayName = componentLogic.getRotationDisplayName(rotationWithoutService)
+            const displayName = componentLogic.getRotationDisplayName(rotationWithoutService as any)
             expect(displayName).toBe("Anatomic Pathology")
         })
     })
@@ -159,7 +158,7 @@ describe("RotationSelector", () => {
         })
 
         it("returns empty array when no services are allowed", () => {
-            const allowedServiceIds: number[] = new Set([])
+            const allowedServiceIds = new Set<number>()
             const filtered = componentLogic.mockRotationsResponse.filter((r) => allowedServiceIds.has(r.serviceId))
 
             expect(filtered).toHaveLength(0)

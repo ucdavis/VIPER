@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import { effortRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
-import checkHasOnePermission from "@/composables/CheckPagePermission"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
 
@@ -34,7 +34,7 @@ router.beforeEach(async (to, from) => {
 
     // Skip re-authentication for in-app navigations (tab switches, course-to-course).
     // The user is already logged in and permissions are loaded; re-calling requireLogin
-    // would overwrite the permission array and cause a visible flash.
+    // Would overwrite the permission array and cause a visible flash.
     const isInternalNavigation = from.matched.length > 0 && userStore.isLoggedIn
     if (!isInternalNavigation) {
         const { requireLogin } = useRequireLogin(to)

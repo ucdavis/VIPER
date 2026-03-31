@@ -1351,7 +1351,7 @@ async function handleStudentClickByMailId(mailId: string) {
     }, 0)
 }
 
-onMounted(async () => {
+async function initGallery() {
     await galleryStore.fetchGalleryMenu()
     await fetchClassYears()
     await fetchAvailableCourses()
@@ -1386,7 +1386,9 @@ onMounted(async () => {
     if (selectedStudentListYear.value) {
         await onStudentListYearChange(selectedStudentListYear.value)
     }
-})
+}
+
+onMounted(() => initGallery())
 
 watch(
     () => galleryStore.includeRossStudents,
@@ -1589,8 +1591,6 @@ watch(selectedStudentIndex, (newIndex) => {
     .q-page {
         margin: 0 !important;
         padding: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
         max-width: 100% !important;
         width: 100% !important;
         min-height: auto !important;

@@ -1,9 +1,8 @@
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.EmailTemplates.Models;
@@ -23,15 +22,14 @@ public sealed class VerificationServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
     private readonly VIPERContext _viperContext;
-    private readonly Mock<IEffortAuditService> _auditServiceMock;
-    private readonly Mock<IEffortPermissionService> _permissionServiceMock;
-    private readonly Mock<ITermService> _termServiceMock;
-    private readonly Mock<IEmailService> _emailServiceMock;
-    private readonly Mock<ICourseClassificationService> _classificationServiceMock;
-    private readonly Mock<IMapper> _mapperMock;
-    private readonly Mock<ILogger<VerificationService>> _loggerMock;
+    private readonly IEffortAuditService _auditServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ITermService _termServiceMock;
+    private readonly IEmailService _emailServiceMock;
+    private readonly ICourseClassificationService _classificationServiceMock;
+    private readonly ILogger<VerificationService> _loggerMock;
     private readonly EffortSettings _settings;
-    private readonly Mock<IEmailTemplateRenderer> _emailTemplateRendererMock;
+    private readonly IEmailTemplateRenderer _emailTemplateRendererMock;
     private readonly VerificationService _service;
 
     private const int TestTermCode = 202410;
@@ -52,13 +50,12 @@ public sealed class VerificationServiceTests : IDisposable
         _context = new EffortDbContext(effortOptions);
         _viperContext = new VIPERContext(viperOptions);
 
-        _auditServiceMock = new Mock<IEffortAuditService>();
-        _permissionServiceMock = new Mock<IEffortPermissionService>();
-        _termServiceMock = new Mock<ITermService>();
-        _emailServiceMock = new Mock<IEmailService>();
-        _classificationServiceMock = new Mock<ICourseClassificationService>();
-        _mapperMock = new Mock<IMapper>();
-        _loggerMock = new Mock<ILogger<VerificationService>>();
+        _auditServiceMock = Substitute.For<IEffortAuditService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _termServiceMock = Substitute.For<ITermService>();
+        _emailServiceMock = Substitute.For<IEmailService>();
+        _classificationServiceMock = Substitute.For<ICourseClassificationService>();
+        _loggerMock = Substitute.For<ILogger<VerificationService>>();
 
         _settings = new EffortSettings
         {
@@ -73,39 +70,38 @@ public sealed class VerificationServiceTests : IDisposable
         };
         var emailSettingsOptions = Options.Create(emailSettings);
 
-        _emailTemplateRendererMock = new Mock<IEmailTemplateRenderer>();
+        _emailTemplateRendererMock = Substitute.For<IEmailTemplateRenderer>();
         _emailTemplateRendererMock
-            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
-                It.IsAny<string>(),
-                It.IsAny<VerificationReminderViewModel>(),
-                It.IsAny<Dictionary<string, object>?>()))
-            .ReturnsAsync("<html>Mock email body</html>");
+            .RenderAsync<VerificationReminderViewModel>(
+                Arg.Any<string>(),
+                Arg.Any<VerificationReminderViewModel>(),
+                Arg.Any<Dictionary<string, object>?>())
+            .Returns("<html>Mock email body</html>");
 
         _auditServiceMock
-            .Setup(s => s.LogPersonChangeAsync(
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .LogPersonChangeAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(),
+                Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         _auditServiceMock
-            .Setup(s => s.LogRecordChangeAsync(
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(),
-                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .LogRecordChangeAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(),
+                Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         _service = new VerificationService(
             _context,
             _viperContext,
-            _auditServiceMock.Object,
-            _permissionServiceMock.Object,
-            _termServiceMock.Object,
-            _emailServiceMock.Object,
-            _classificationServiceMock.Object,
-            _mapperMock.Object,
-            _loggerMock.Object,
+            _auditServiceMock,
+            _permissionServiceMock,
+            _termServiceMock,
+            _emailServiceMock,
+            _classificationServiceMock,
+            _loggerMock,
             settingsOptions,
             emailSettingsOptions,
-            _emailTemplateRendererMock.Object);
+            _emailTemplateRendererMock);
 
         SeedTestData();
     }
@@ -172,7 +168,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task GetMyEffortAsync_ReturnsNull_WhenUserNotLoggedIn()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(0);
+        _permissionServiceMock.GetCurrentPersonId().Returns(0);
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -185,7 +181,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task GetMyEffortAsync_ReturnsNull_WhenNoInstructorRecord()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(9999);
+        _permissionServiceMock.GetCurrentPersonId().Returns(9999);
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -198,21 +194,13 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task GetMyEffortAsync_ReturnsDto_WhenInstructorExists()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
-        _permissionServiceMock.Setup(p => p.HasSelfServiceAccessAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
+        _permissionServiceMock.HasSelfServiceAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // OpenedDate makes status "Opened"
-        _termServiceMock.Setup(t => t.GetTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
-
-        _mapperMock.Setup(m => m.Map<PersonDto>(It.IsAny<EffortPerson>()))
-            .Returns(new PersonDto { PersonId = TestPersonId, FirstName = "Test", LastName = "Instructor" });
-        _mapperMock.Setup(m => m.Map<List<InstructorEffortRecordDto>>(It.IsAny<List<EffortRecord>>()))
-            .Returns(new List<InstructorEffortRecordDto>());
+        _termServiceMock.GetTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -240,31 +228,13 @@ public sealed class VerificationServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
-        _permissionServiceMock.Setup(p => p.HasSelfServiceAccessAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.CanEditPersonEffortAsync(TestPersonId, TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
+        _permissionServiceMock.HasSelfServiceAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // OpenedDate makes status "Opened"
-        _termServiceMock.Setup(t => t.GetTermAsync(TestTermCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
-
-        _mapperMock.Setup(m => m.Map<PersonDto>(It.IsAny<EffortPerson>()))
-            .Returns(new PersonDto { PersonId = TestPersonId });
-        _mapperMock.Setup(m => m.Map<List<InstructorEffortRecordDto>>(It.IsAny<List<EffortRecord>>()))
-            .Returns(new List<InstructorEffortRecordDto>
-            {
-                new()
-                {
-                    Id = 1,
-                    CourseId = TestCourseId,
-                    Hours = 0,
-                    EffortType = "LEC",
-                    Course = new CourseDto { SubjCode = "VET", CrseNumb = "410" }
-                }
-            });
+        _termServiceMock.GetTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(new TermDto { TermCode = TestTermCode, OpenedDate = DateTime.Now });
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
         var result = await _service.GetMyEffortAsync(TestTermCode);
@@ -284,7 +254,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task VerifyEffortAsync_ReturnsError_WhenNotLoggedIn()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(0);
+        _permissionServiceMock.GetCurrentPersonId().Returns(0);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
@@ -298,7 +268,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task VerifyEffortAsync_ReturnsError_WhenNoInstructorRecord()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(9999);
+        _permissionServiceMock.GetCurrentPersonId().Returns(9999);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
@@ -316,7 +286,7 @@ public sealed class VerificationServiceTests : IDisposable
         person.EffortVerified = DateTime.Now.AddDays(-1);
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
@@ -343,7 +313,7 @@ public sealed class VerificationServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
@@ -359,7 +329,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task VerifyEffortAsync_Succeeds_WhenNoEffortRecords()
     {
         // Arrange - Instructors with no records can verify "no effort" for the term
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
@@ -371,11 +341,9 @@ public sealed class VerificationServiceTests : IDisposable
         var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
         Assert.NotNull(person.EffortVerified);
 
-        _auditServiceMock.Verify(
-            a => a.LogPersonChangeAsync(
+        await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifiedEffort,
-                It.IsAny<object?>(), It.Is<object>(o => o.ToString()!.Contains("VerifiedNoEffort")), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Any<object?>(), Arg.Is<object>(o => o.ToString()!.Contains("VerifiedNoEffort")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -394,7 +362,7 @@ public sealed class VerificationServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
         var result = await _service.VerifyEffortAsync(TestTermCode);
@@ -406,11 +374,9 @@ public sealed class VerificationServiceTests : IDisposable
         var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
         Assert.NotNull(person.EffortVerified);
 
-        _auditServiceMock.Verify(
-            a => a.LogPersonChangeAsync(
+        await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifiedEffort,
-                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -463,7 +429,7 @@ public sealed class VerificationServiceTests : IDisposable
 
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(TestPersonId);
+        _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Verify initial state - generic R-course record exists
         var recordCountBefore = await _context.Records
@@ -493,22 +459,17 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.Equal(TestCourseId, remainingRecord[0].CourseId);
 
         // Assert: Audit entry for RCourseAutoDeleted is created
-        _auditServiceMock.Verify(
-            a => a.LogRecordChangeAsync(
+        await _auditServiceMock.Received(1).LogRecordChangeAsync(
                 100,
                 TestTermCode,
                 EffortAuditActions.RCourseAutoDeleted,
-                It.IsAny<object?>(),
-                It.IsAny<object?>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-
+                Arg.Any<object?>(),
+                Arg.Any<object?>(),
+                Arg.Any<CancellationToken>());
         // Assert: Audit entry for VerifiedEffort is also created
-        _auditServiceMock.Verify(
-            a => a.LogPersonChangeAsync(
+        await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifiedEffort,
-                It.IsAny<object?>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -652,7 +613,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendVerificationEmailAsync_ReturnsError_WhenInstructorNotFound()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         // Act
         var result = await _service.SendVerificationEmailAsync(9999, TestTermCode);
@@ -666,7 +627,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendVerificationEmailAsync_ReturnsError_WhenNoSenderEmail()
     {
         // Arrange: Current user has no email
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns((string?)null);
+        _permissionServiceMock.GetCurrentUserEmail().Returns((string?)null);
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -680,7 +641,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendVerificationEmailAsync_ReturnsError_WhenNoRecipientEmailAddress()
     {
         // Arrange: Current user has email, but recipient doesn't
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         var person = await _viperContext.People.FirstAsync(p => p.PersonId == TestPersonId);
         person.MailId = null;
@@ -693,11 +654,9 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal("No email address found", result.Error);
 
-        _auditServiceMock.Verify(
-            a => a.LogPersonChangeAsync(
+        await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifyEmail,
-                null, It.Is<object>(o => o.ToString()!.Contains("Failed")), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Is<object?>(x => x == null), Arg.Is<object>(o => o.ToString()!.Contains("Failed")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -717,18 +676,17 @@ public sealed class VerificationServiceTests : IDisposable
         var serviceWithBadConfig = new VerificationService(
             _context,
             _viperContext,
-            _auditServiceMock.Object,
-            _permissionServiceMock.Object,
-            _termServiceMock.Object,
-            _emailServiceMock.Object,
-            _classificationServiceMock.Object,
-            _mapperMock.Object,
-            _loggerMock.Object,
+            _auditServiceMock,
+            _permissionServiceMock,
+            _termServiceMock,
+            _emailServiceMock,
+            _classificationServiceMock,
+            _loggerMock,
             Options.Create(badSettings),
             Options.Create(badEmailSettings),
-            _emailTemplateRendererMock.Object);
+            _emailTemplateRendererMock);
 
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         // Act
         var result = await serviceWithBadConfig.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -738,16 +696,11 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.Equal("Email system configuration error. Please contact support.", result.Error);
 
         // Verify audit was logged for the configuration failure
-        _auditServiceMock.Verify(
-            a => a.LogPersonChangeAsync(
+        await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifyEmail,
-                null, It.Is<object>(o => o.ToString()!.Contains("Configuration error")), It.IsAny<CancellationToken>()),
-            Times.Once);
-
+                Arg.Is<object?>(x => x == null), Arg.Is<object>(o => o.ToString()!.Contains("Configuration error")), Arg.Any<CancellationToken>());
         // Verify no email was attempted
-        _emailServiceMock.Verify(
-            e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()),
-            Times.Never);
+        await _emailServiceMock.DidNotReceive().SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -766,15 +719,14 @@ public sealed class VerificationServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -783,20 +735,16 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.True(result.Success);
 
         // Verify email sent from current user (sender), not a static address
-        _emailServiceMock.Verify(
-            e => e.SendEmailAsync(
+        await _emailServiceMock.Received(1).SendEmailAsync(
                 "testuser@ucdavis.edu",
                 _settings.VerificationEmailSubject,
-                It.IsAny<string>(),
+                Arg.Any<string>(),
                 true,
-                "sender@ucdavis.edu"),
-            Times.Once);
+                "sender@ucdavis.edu");
 
-        _auditServiceMock.Verify(
-            a => a.LogPersonChangeAsync(
+        await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifyEmail,
-                null, It.Is<object>(o => o.ToString()!.Contains("Success")), It.IsAny<CancellationToken>()),
-            Times.Once);
+                Arg.Is<object?>(x => x == null), Arg.Is<object>(o => o.ToString()!.Contains("Success")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -804,16 +752,15 @@ public sealed class VerificationServiceTests : IDisposable
     {
         // Arrange
         var senderPersonId = 999;
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(senderPersonId);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentPersonId().Returns(senderPersonId);
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Verify initial state - no LastEmailed data
         var personBefore = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
@@ -836,16 +783,15 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendVerificationEmailAsync_SetsLastEmailedByToNull_WhenSenderIdIsZero()
     {
         // Arrange: Sender ID of 0 means user not found - should set LastEmailedBy to null to avoid FK violation
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
-        _permissionServiceMock.Setup(p => p.GetCurrentPersonId()).Returns(0);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentPersonId().Returns(0);
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -862,26 +808,27 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendVerificationEmailAsync_UsesFallbackDueDate_WhenNoExpectedCloseDate()
     {
         // Arrange: Term without ExpectedCloseDate - should fall back to Now + 7 days
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Capture the view model passed to the template renderer
         VerificationReminderViewModel? capturedViewModel = null;
         _emailTemplateRendererMock
-            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
-                It.IsAny<string>(),
-                It.IsAny<VerificationReminderViewModel>(),
-                It.IsAny<Dictionary<string, object>?>()))
-            .Callback<string, VerificationReminderViewModel, Dictionary<string, object>?>(
-                (_, vm, _) => capturedViewModel = vm)
-            .ReturnsAsync("<html>Mock email body</html>");
+            .RenderAsync<VerificationReminderViewModel>(
+                Arg.Any<string>(),
+                Arg.Any<VerificationReminderViewModel>(),
+                Arg.Any<Dictionary<string, object>?>())
+            .Returns(callInfo =>
+            {
+                capturedViewModel = callInfo.ArgAt<VerificationReminderViewModel>(1);
+                return "<html>Mock email body</html>";
+            });
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -905,26 +852,27 @@ public sealed class VerificationServiceTests : IDisposable
         effortTerm!.ExpectedCloseDate = expectedCloseDate;
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Capture the view model passed to the template renderer
         VerificationReminderViewModel? capturedViewModel = null;
         _emailTemplateRendererMock
-            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
-                It.IsAny<string>(),
-                It.IsAny<VerificationReminderViewModel>(),
-                It.IsAny<Dictionary<string, object>?>()))
-            .Callback<string, VerificationReminderViewModel, Dictionary<string, object>?>(
-                (_, vm, _) => capturedViewModel = vm)
-            .ReturnsAsync("<html>Mock email body</html>");
+            .RenderAsync<VerificationReminderViewModel>(
+                Arg.Any<string>(),
+                Arg.Any<VerificationReminderViewModel>(),
+                Arg.Any<Dictionary<string, object>?>())
+            .Returns(callInfo =>
+            {
+                capturedViewModel = callInfo.ArgAt<VerificationReminderViewModel>(1);
+                return "<html>Mock email body</html>";
+            });
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -949,26 +897,27 @@ public sealed class VerificationServiceTests : IDisposable
         effortTerm!.ExpectedCloseDate = expectedCloseDate;
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Capture the view model passed to the template renderer
         VerificationReminderViewModel? capturedViewModel = null;
         _emailTemplateRendererMock
-            .Setup(r => r.RenderAsync<VerificationReminderViewModel>(
-                It.IsAny<string>(),
-                It.IsAny<VerificationReminderViewModel>(),
-                It.IsAny<Dictionary<string, object>?>()))
-            .Callback<string, VerificationReminderViewModel, Dictionary<string, object>?>(
-                (_, vm, _) => capturedViewModel = vm)
-            .ReturnsAsync("<html>Mock email body</html>");
+            .RenderAsync<VerificationReminderViewModel>(
+                Arg.Any<string>(),
+                Arg.Any<VerificationReminderViewModel>(),
+                Arg.Any<Dictionary<string, object>?>())
+            .Returns(callInfo =>
+            {
+                capturedViewModel = callInfo.ArgAt<VerificationReminderViewModel>(1);
+                return "<html>Mock email body</html>";
+            });
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
@@ -991,8 +940,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_ReturnsError_WhenNoPermission()
     {
         // Arrange
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1045,17 +993,15 @@ public sealed class VerificationServiceTests : IDisposable
         });
         await _viperContext.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1065,12 +1011,8 @@ public sealed class VerificationServiceTests : IDisposable
         Assert.Equal(1, result.EmailsSent);
         Assert.Equal(0, result.EmailsFailed);
 
-        _emailServiceMock.Verify(
-            e => e.SendEmailAsync("testuser@ucdavis.edu", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()),
-            Times.Once);
-        _emailServiceMock.Verify(
-            e => e.SendEmailAsync("verified@ucdavis.edu", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()),
-            Times.Never);
+        await _emailServiceMock.Received(1).SendEmailAsync("testuser@ucdavis.edu", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>());
+        await _emailServiceMock.DidNotReceive().SendEmailAsync("verified@ucdavis.edu", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -1081,8 +1023,7 @@ public sealed class VerificationServiceTests : IDisposable
         person!.LastEmailed = DateTime.Now.AddDays(-3); // 3 days ago, within 7-day window
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act: Call without includeRecentlyEmailed (defaults to false)
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1100,17 +1041,15 @@ public sealed class VerificationServiceTests : IDisposable
         person!.LastEmailed = DateTime.Now.AddDays(-3); // 3 days ago, within 7-day window
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Call with includeRecentlyEmailed = true
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, includeRecentlyEmailed: true);
@@ -1128,17 +1067,15 @@ public sealed class VerificationServiceTests : IDisposable
         person!.LastEmailed = DateTime.Now.AddDays(-10); // 10 days ago, outside 7-day window
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .SendEmailAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
 
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Call without includeRecentlyEmailed (defaults to false)
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1154,18 +1091,22 @@ public sealed class VerificationServiceTests : IDisposable
         // Arrange
         _context.Records.Add(new EffortRecord
         {
-            Id = 100, CourseId = TestCourseId, PersonId = TestPersonId,
-            TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Hours = 10, Crn = "12345"
+            Id = 100,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 10,
+            Crn = "12345"
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+            .SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1185,8 +1126,7 @@ public sealed class VerificationServiceTests : IDisposable
         person!.LastEmailed = DateTime.Now.AddDays(-3);
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act: Before deadline → all emailed instructors are "recently emailed"
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1208,18 +1148,22 @@ public sealed class VerificationServiceTests : IDisposable
 
         _context.Records.Add(new EffortRecord
         {
-            Id = 100, CourseId = TestCourseId, PersonId = TestPersonId,
-            TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Hours = 10, Crn = "12345"
+            Id = 100,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 10,
+            Crn = "12345"
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+            .SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Past deadline → all instructors eligible for resend
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
@@ -1239,18 +1183,22 @@ public sealed class VerificationServiceTests : IDisposable
 
         _context.Records.Add(new EffortRecord
         {
-            Id = 100, CourseId = TestCourseId, PersonId = TestPersonId,
-            TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Hours = 10, Crn = "12345"
+            Id = 100,
+            CourseId = TestCourseId,
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            Hours = 10,
+            Crn = "12345"
         });
         await _context.SaveChangesAsync();
 
-        _permissionServiceMock.Setup(p => p.CanViewDepartmentAsync("VME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _permissionServiceMock.Setup(p => p.GetCurrentUserEmail()).Returns("sender@ucdavis.edu");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
         _emailServiceMock
-            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
-        _termServiceMock.Setup(t => t.GetTermName(TestTermCode)).Returns("Fall 2024");
+            .SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(Task.CompletedTask);
+        _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Before deadline but never emailed → should still be included
         var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);

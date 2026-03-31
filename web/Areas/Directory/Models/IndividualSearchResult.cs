@@ -112,18 +112,25 @@ namespace Viper.Areas.Directory.Models
             }
 
 
-            using (var context = new Classes.SQLContext.AAUDContext())
+        }
+
+        /// <summary>
+        /// Looks up the email host from the Mothra linked server using the MailId.
+        /// Must be called after construction with an injected AAUDContext.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        public void LookupEmailHost(Classes.SQLContext.AAUDContext context)
+        {
+            if (MailId != null)
             {
-                if (MailId != null)
+                // Sanitize MailId to prevent SQL injection in OPENQUERY (which doesn't support parameters)
+                var safeMailId = MailId.Replace("'", "''");
+                var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{safeMailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')";
+                var results = context.Database.SqlQueryRaw<string>(query).ToList();
+                foreach (var r in results)
                 {
-                    // Sanitize MailId to prevent SQL injection in OPENQUERY (which doesn't support parameters)
-                    var safeMailId = MailId.Replace("'", "''");
-                    var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{safeMailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')";
-                    var results = context.Database.SqlQueryRaw<string>(query).ToList();
-                    foreach (var r in results)
-                    {
-                        EmailHost = r.Split("@")[^1];
-                    }
+                    var parts = r.Split("@");
+                    EmailHost = parts[^1];
                 }
             }
         }

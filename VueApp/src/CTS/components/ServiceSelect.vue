@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
-import { ref, defineProps, watch } from "vue"
+import { ref, watch } from "vue"
 import type { ServiceSelect } from "@/CTS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
@@ -13,18 +13,20 @@ interface ScheduledService {
 
 const userStore = useUserStore()
 
-defineProps({
-    forScheduledStudent: {
-        type: Boolean,
-        default: false,
+withDefaults(
+    defineProps<{
+        forScheduledStudent?: boolean
+        forScheduledInstructor?: boolean
+    }>(),
+    {
+        forScheduledStudent: false,
+        forScheduledInstructor: false,
     },
-    forScheduledInstructor: {
-        type: Boolean,
-        default: false,
-    },
-})
+)
 
-const emit = defineEmits(["serviceChange"])
+const emit = defineEmits<{
+    serviceChange: [serviceId: number]
+}>()
 const selectedService = ref({ serviceId: 0, serviceName: "" }) as Ref<ServiceSelect>
 const services = ref([]) as Ref<ServiceSelect[]>
 const baseUrl = import.meta.env.VITE_API_URL + "cts/"
@@ -50,22 +52,22 @@ async function getServices() {
         (s: ScheduledService) => today >= new Date(s.dateStart) && today <= new Date(s.dateEnd),
     )
     const schedLastWeek = scheduledServices.find(
-        (s: ScheduledService) => new Date(s.dateEnd).getTime() == sunday.getTime(),
+        (s: ScheduledService) => new Date(s.dateEnd).getTime() === sunday.getTime(),
     )
 
     services.value.forEach((s) => {
-        s.thisWeek = !!(schedThisWeek && schedThisWeek.serviceId == s.serviceId)
-        s.lastWeek = !!(schedLastWeek && schedLastWeek.serviceId == s.serviceId)
-        s.scheduled = !!scheduledServices.find((ss: ScheduledService) => ss.serviceId == s.serviceId)
+        s.thisWeek = !!(schedThisWeek && schedThisWeek.serviceId === s.serviceId)
+        s.lastWeek = !!(schedLastWeek && schedLastWeek.serviceId === s.serviceId)
+        s.scheduled = !!scheduledServices.find((ss: ScheduledService) => ss.serviceId === s.serviceId)
     })
 
     //auto select a service - this week, then last week
     if (schedThisWeek) {
         selectedService.value =
-            services.value.find((s: ServiceSelect) => s.serviceId == schedThisWeek.serviceId) ?? ({} as ServiceSelect)
+            services.value.find((s: ServiceSelect) => s.serviceId === schedThisWeek.serviceId) ?? ({} as ServiceSelect)
     } else if (schedLastWeek) {
         selectedService.value =
-            services.value.find((s: ServiceSelect) => s.serviceId == schedLastWeek.serviceId) ?? ({} as ServiceSelect)
+            services.value.find((s: ServiceSelect) => s.serviceId === schedLastWeek.serviceId) ?? ({} as ServiceSelect)
     }
 }
 

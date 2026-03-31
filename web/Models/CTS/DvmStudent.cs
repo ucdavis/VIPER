@@ -1,6 +1,3 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace Viper.Models.CTS
 {
     public class DvmStudent

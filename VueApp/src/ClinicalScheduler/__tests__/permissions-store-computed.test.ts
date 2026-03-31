@@ -1,18 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { setActivePinia, createPinia } from "pinia"
 import { usePermissionsStore } from "../stores/permissions"
 import { createMockUserPermissions } from "./test-utils"
-import { permissionService } from "../services/permission-service"
+import { PermissionService } from "../services/permission-service"
 
 // Mock the permission service
 vi.mock("../services/permission-service", () => ({
-    permissionService: {
+    PermissionService: {
         getUserPermissions: vi.fn(),
         getPermissionSummary: vi.fn(),
         canEditService: vi.fn(),
         canEditRotation: vi.fn(),
         canEditOwnSchedule: vi.fn(),
     },
+    permissionService: {},
 }))
 
 describe("Permissions Store - Permission Level Detection", () => {
@@ -37,7 +37,7 @@ describe("Permissions Store - Permission Level Detection", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
 
             // Trigger the fetch
             await store.fetchUserPermissions()
@@ -60,7 +60,7 @@ describe("Permissions Store - Permission Level Detection", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
 
             // Trigger the fetch
             await store.fetchUserPermissions()
@@ -83,7 +83,7 @@ describe("Permissions Store - Permission Level Detection", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
 
             // Trigger the fetch
             await store.fetchUserPermissions()
@@ -128,7 +128,7 @@ describe("Permissions Store - Service-Specific Permissions", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
 
             // Trigger the fetch
             await store.fetchUserPermissions()
@@ -163,7 +163,7 @@ describe("Permissions Store - Own Schedule Permissions", () => {
             })
 
             // Mock the API call
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
 
             // Trigger the fetch
             await store.fetchUserPermissions()
@@ -207,14 +207,14 @@ describe("Permissions Store - General Permission Detection", () => {
             })
 
             // Mock the API call for service permissions
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(serviceSpecificPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(serviceSpecificPermissions)
             await store.fetchUserPermissions()
             expect(store.hasAnyEditPermission).toBeTruthy()
 
             // Test with no permissions - create new store instance
             const storeNoPerms = usePermissionsStore()
             const noPermissions = createMockUserPermissions()
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(noPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(noPermissions)
             await storeNoPerms.fetchUserPermissions()
             expect(storeNoPerms.hasAnyEditPermission).toBeFalsy()
         })
@@ -242,7 +242,7 @@ describe("Permissions Store - Clinician View Access", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.canAccessClinicianView).toBeTruthy()
         })
@@ -260,7 +260,7 @@ describe("Permissions Store - Clinician View Access", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.canAccessClinicianView).toBeTruthy()
         })
@@ -285,7 +285,7 @@ describe("Permissions Store - Clinician View Access", () => {
                 ],
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.canAccessClinicianView).toBeFalsy()
         })
@@ -313,7 +313,7 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.hasClinicianViewReadOnly).toBeFalsy()
         })
@@ -331,7 +331,7 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.hasClinicianViewReadOnly).toBeFalsy()
         })
@@ -349,7 +349,7 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.hasClinicianViewReadOnly).toBeFalsy()
         })
@@ -374,7 +374,7 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
                 ],
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.hasClinicianViewReadOnly).toBeTruthy()
         })
@@ -399,7 +399,7 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
                 ],
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.hasClinicianViewReadOnly).toBeFalsy()
         })
@@ -417,7 +417,7 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
                 },
             })
 
-            vi.mocked(permissionService.getUserPermissions).mockResolvedValue(mockPermissions)
+            vi.mocked(PermissionService.getUserPermissions).mockResolvedValue(mockPermissions)
             await store.fetchUserPermissions()
             expect(store.hasClinicianViewReadOnly).toBeFalsy()
         })

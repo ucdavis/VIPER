@@ -8,7 +8,6 @@
         no-mini-animation
         :width="300"
         id="mainLeftDrawer"
-        v-cloak
         class="no-print"
     >
         <div

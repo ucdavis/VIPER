@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { reportService } from "../services/report-service"
 
 /**
  * Tests for Report service.
@@ -19,11 +19,6 @@ vi.mock("@/composables/ViperFetch", () => ({
     downloadBlob: (...args: unknown[]) => mockDownloadBlob(...args),
 }))
 
-// Import service after mocking
-import { reportService } from "../services/report-service"
-
-// Test data - term codes use YYYYXX format (no numeric separators)
-// oxlint-disable-next-line unicorn/numeric-separators-style
 const TEST_TERM_CODE = 202410
 
 const mockReport = {
@@ -47,20 +42,21 @@ const mockReport = {
                             courseId: 1,
                             course: "VME 400-001",
                             crn: "40076",
-                            units: 4.0,
+                            units: 4,
                             enrollment: 25,
                             roleId: "Instructor",
-                            effortByType: { LEC: 30.0, CLI: 10.0 },
+                            effortByType: { LEC: 30, CLI: 10 },
                         },
                     ],
-                    instructorTotals: { LEC: 30.0, CLI: 10.0 },
+                    instructorTotals: { LEC: 30, CLI: 10 },
                 },
             ],
-            departmentTotals: { LEC: 30.0, CLI: 10.0 },
+            departmentTotals: { LEC: 30, CLI: 10 },
         },
     ],
 }
 
+// oxlint-disable-next-line eslint/max-lines-per-function -- Test suite groups related service tests
 describe("ReportService", () => {
     beforeEach(() => {
         vi.clearAllMocks()
@@ -136,7 +132,7 @@ describe("ReportService", () => {
                 title: "REG",
             })
 
-            const calledUrl = mockGet.mock.calls[0][0] as string
+            const calledUrl = mockGet.mock.calls[0]![0] as string
             expect(calledUrl).toContain(`termCode=${TEST_TERM_CODE}`)
             expect(calledUrl).toContain("department=VME")
             expect(calledUrl).toContain("personId=123")
@@ -149,7 +145,7 @@ describe("ReportService", () => {
 
             await reportService.getTeachingActivityGrouped({ termCode: TEST_TERM_CODE })
 
-            const calledUrl = mockGet.mock.calls[0][0] as string
+            const calledUrl = mockGet.mock.calls[0]![0] as string
             expect(calledUrl).toContain(`termCode=${TEST_TERM_CODE}`)
             expect(calledUrl).not.toContain("department=")
             expect(calledUrl).not.toContain("personId=")
@@ -195,7 +191,7 @@ describe("ReportService", () => {
 
             const result = await reportService.downloadExcel("teaching/grouped/excel", { termCode: TEST_TERM_CODE })
 
-            expect(result).toBe(true)
+            expect(result).toBeTruthy()
             expect(mockDownloadBlob).toHaveBeenCalledWith(expect.any(Blob), "teaching-activity.xlsx")
         })
 
@@ -204,7 +200,7 @@ describe("ReportService", () => {
 
             const result = await reportService.downloadExcel("teaching/grouped/excel", { termCode: TEST_TERM_CODE })
 
-            expect(result).toBe(false)
+            expect(result).toBeFalsy()
             expect(mockDownloadBlob).not.toHaveBeenCalled()
         })
 
@@ -229,7 +225,7 @@ describe("ReportService", () => {
 
             const result = await reportService.downloadClinicalEffortExcel("2024-2025", 1)
 
-            expect(result).toBe(true)
+            expect(result).toBeTruthy()
             expect(mockPostForBlob).toHaveBeenCalledWith(
                 expect.stringContaining("merit/clinical/excel"),
                 expect.objectContaining({ academicYear: "2024-2025", clinicalType: 1 }),
@@ -242,7 +238,7 @@ describe("ReportService", () => {
 
             const result = await reportService.downloadClinicalEffortExcel("2024-2025", 1)
 
-            expect(result).toBe(false)
+            expect(result).toBeFalsy()
             expect(mockDownloadBlob).not.toHaveBeenCalled()
         })
     })
@@ -260,7 +256,7 @@ describe("ReportService", () => {
                 endYear: 2024,
             })
 
-            expect(result).toBe(true)
+            expect(result).toBeTruthy()
             expect(mockPostForBlob).toHaveBeenCalledWith(
                 expect.stringContaining("merit/multiyear/excel"),
                 expect.objectContaining({ personId: 123, startYear: 2020, endYear: 2024 }),
@@ -277,7 +273,7 @@ describe("ReportService", () => {
                 endYear: 2024,
             })
 
-            expect(result).toBe(false)
+            expect(result).toBeFalsy()
             expect(mockDownloadBlob).not.toHaveBeenCalled()
         })
     })

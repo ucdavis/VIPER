@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.IAM
+namespace Viper.Models.IAM
 {
     public class SisAssociation : IIamData
     {
@@ -9,7 +9,7 @@
         public string? ClassName { get; set; }
         public string? CollegeCode { get; set; }
         public string? CollegeName { get; set; }
-        public string? AssocRank {  get; set; }
+        public string? AssocRank { get; set; }
         public string? AssocEndDate { get; set; }
         public string? MajorCode { get; set; }
         public string? MajorName { get; set; }

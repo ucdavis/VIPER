@@ -2,12 +2,10 @@
 /* oxlint-disable no-await-in-loop -- Polling requires sequential await */
 
 // Shared utilities for Node.js scripts (cross-platform)
+// Environment variables loaded via --env-file-if-exists=.env.local in package.json
 
 const { exec, execFileSync } = require("node:child_process")
 const { promisify } = require("node:util")
-const dotenv = require("dotenv")
-const path = require("node:path")
-const fs = require("node:fs")
 const os = require("node:os")
 
 const execAsync = promisify(exec)
@@ -107,17 +105,13 @@ function createLogger(prefix) {
     }
 }
 
-// Get development server environment variables from .env.local or defaults
+// Get development server environment variables from process.env or defaults
+// Environment is loaded via Node's --env-file-if-exists=.env.local flag
 function getDevServerEnv() {
-    // Always look for .env.local in the project root (where package.json is)
-    const projectRoot = path.resolve(__dirname, "../..")
-    const envPath = path.join(projectRoot, ".env.local")
-    const envConfig = fs.existsSync(envPath) ? dotenv.config({ path: envPath }).parsed || {} : {}
-
     const mergedEnv = { ...DEFAULT_ENV_VARS }
     for (const key in DEFAULT_ENV_VARS) {
         if (Object.hasOwn(DEFAULT_ENV_VARS, key)) {
-            const value = Number.parseInt(envConfig[key] || env[key], 10)
+            const value = Number.parseInt(env[key], 10)
             if (!Number.isNaN(value)) {
                 mergedEnv[key] = value
             }
@@ -161,13 +155,13 @@ async function killProcess(name) {
         return true
     } catch (error) {
         // If the process doesn't exist, an error is thrown. We can ignore it.
-        // pkill exits with code 1 when no processes match, kill exits with an error
-        // taskkill includes "not found" in its error message
+        // Pkill exits with code 1 when no processes match, kill exits with an error
+        // Taskkill includes "not found" in its error message
         if (
             error.message.includes("not found") ||
             error.message.includes("No such process") ||
             error.message.includes("ERROR: The process") ||
-            error.code === 1 // pkill returns exit code 1 when no processes match
+            error.code === 1 // Pkill returns exit code 1 when no processes match
         ) {
             return false
         }
@@ -212,7 +206,7 @@ const MAX_PORT_NUMBER = 65_535
 async function killProcessOnPort(port) {
     const n = Number(port)
     if (!Number.isInteger(n) || n < 1 || n > MAX_PORT_NUMBER) {
-        return false // invalid port
+        return false // Invalid port
     }
 
     try {
@@ -243,7 +237,7 @@ async function killProcessOnPort(port) {
                     await waitForProcessTermination(pid, KILL_TERMINATION_WAIT_MS)
                     return true
                 } catch (error) {
-                    // taskkill throws an error if the process doesn't exist, which is fine.
+                    // Taskkill throws an error if the process doesn't exist, which is fine.
                     if (!error.message.includes("not found") && !error.message.includes("ERROR: The process")) {
                         throw error // Re-throw unexpected errors
                     }
