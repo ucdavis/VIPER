@@ -153,12 +153,14 @@ const currentYear = new Date().getFullYear()
         </q-header>
 
         <q-page-container id="mainLayoutBody">
-            <div
-                class="q-pa-md"
-                v-show="userStore.isLoggedIn"
-            >
-                <router-view></router-view>
-            </div>
+            <main>
+                <div
+                    class="q-pa-md"
+                    v-show="userStore.isLoggedIn"
+                >
+                    <router-view></router-view>
+                </div>
+            </main>
         </q-page-container>
 
         <q-footer

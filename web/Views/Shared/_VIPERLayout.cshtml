@@ -28,7 +28,6 @@
     <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet" type="text/css">
     <script src="~/js/ucdavis-colors.js"></script>
     <script asp-add-nonce="true">
-        /* global window, document */
         // Apply UC Davis brand colors immediately to prevent flash
         // Must run after Quasar CSS loads but before page content renders
         (function() {
@@ -80,7 +79,7 @@
                 </div>
             </div>
             <q-toolbar v-cloak class="items-end">
-                <img src="@Url.Content("~/images/")UCDSVMLogo.png" height="50" />
+                <img src="@Url.Content("~/images/")UCDSVMLogo.png" height="50" alt="UC Davis School of Veterinary Medicine Logo" />
 
                 <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
@@ -143,32 +142,34 @@
         )
 
         <q-page-container id="mainLayoutBody">
-            @{
-                var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
-            }
-            @if (UserHelper.GetCurrentUser() != null || allowAnonymousContent)
-            {
-                <div class="q-pa-md" v-cloak>
-                @RenderBody()
-                </div>
-            }
-            else
-            {
-                IgnoreBody();
-                <div class="q-pa-xl flex flex-center" v-cloak>
-                    <q-card class="text-center" style="max-width: 400px">
-                        <q-card-section>
-                            <div class="text-h6">Welcome to VIPER</div>
-                            <div class="text-body1 q-mt-sm text-grey-7">
-                                Please log in to access this application.
-                            </div>
-                        </q-card-section>
-                        <q-card-actions align="center" class="q-pb-md">
-                            <q-btn color="primary" label="Log In" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
-                        </q-card-actions>
-                    </q-card>
-                </div>
-            }
+            <main>
+                @{
+                    var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
+                }
+                @if (UserHelper.GetCurrentUser() != null || allowAnonymousContent)
+                {
+                    <div class="q-pa-md" v-cloak>
+                    @RenderBody()
+                    </div>
+                }
+                else
+                {
+                    IgnoreBody();
+                    <div class="q-pa-xl flex flex-center" v-cloak>
+                        <q-card class="text-center" style="max-width: 400px">
+                            <q-card-section>
+                                <div class="text-h6">Welcome to VIPER</div>
+                                <div class="text-body1 q-mt-sm text-grey-7">
+                                    Please log in to access this application.
+                                </div>
+                            </q-card-section>
+                            <q-card-actions align="center" class="q-pb-md">
+                                <q-btn color="primary" label="Log In" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
+                            </q-card-actions>
+                        </q-card>
+                    </div>
+                }
+            </main>
         </q-page-container>
 
         <q-footer elevated class="bg-white" v-cloak>

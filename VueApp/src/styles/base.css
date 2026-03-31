@@ -240,6 +240,16 @@ div.breadcrumbs {
 }
 
 /* Heading Styles */
+.q-dialog h1,
+.q-dialog text-h1,
+.q-page-container h1,
+.q-page-container .text-h1 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
 .q-dialog h2,
 .q-dialog text-h2,
 .q-page-container h2,

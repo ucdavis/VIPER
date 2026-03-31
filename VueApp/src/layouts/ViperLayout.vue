@@ -158,37 +158,39 @@
         </slot>
 
         <q-page-container id="mainLayoutBody">
-            <div
-                class="q-pa-md"
-                v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
-            >
-                <router-view></router-view>
-            </div>
-            <div
-                v-show="!userStore.isLoggedIn"
-                class="q-pa-xl flex flex-center"
-            >
-                <q-card
-                    class="text-center"
-                    style="max-width: 400px"
+            <main>
+                <div
+                    class="q-pa-md"
+                    v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
                 >
-                    <q-card-section>
-                        <div class="text-h6">Welcome to VIPER</div>
-                        <div class="text-body1 q-mt-sm text-grey-7">Please log in to access this application.</div>
-                    </q-card-section>
-                    <q-card-actions
-                        align="center"
-                        class="q-pb-md"
+                    <router-view></router-view>
+                </div>
+                <div
+                    v-show="!userStore.isLoggedIn"
+                    class="q-pa-xl flex flex-center"
+                >
+                    <q-card
+                        class="text-center"
+                        style="max-width: 400px"
                     >
-                        <q-btn
-                            color="primary"
-                            label="Log In"
-                            :href="loginHref"
-                            no-caps
-                        />
-                    </q-card-actions>
-                </q-card>
-            </div>
+                        <q-card-section>
+                            <div class="text-h6">Welcome to VIPER</div>
+                            <div class="text-body1 q-mt-sm text-grey-7">Please log in to access this application.</div>
+                        </q-card-section>
+                        <q-card-actions
+                            align="center"
+                            class="q-pb-md"
+                        >
+                            <q-btn
+                                color="primary"
+                                label="Log In"
+                                :href="loginHref"
+                                no-caps
+                            />
+                        </q-card-actions>
+                    </q-card>
+                </div>
+            </main>
         </q-page-container>
 
         <q-footer
