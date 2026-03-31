@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue"
 import type { QTableProps } from "quasar"
 import { emergencyContactService } from "../services/emergency-contact-service"
-import ExportToolbar from "../components/ExportToolbar.vue"
+import ExportToolbar from "@/components/ExportToolbar.vue"
 import { formatPhone } from "../utils/phone"
 import type { StudentContactReport, ContactInfo } from "../types"
 
@@ -91,22 +91,13 @@ onMounted(load)
             dense
         >
             <template #top-right>
-                <div class="row items-center no-wrap">
-                    <q-btn
-                        flat
-                        dense
-                        no-caps
-                        icon="list_alt"
-                        label="Overview"
-                        class="q-mr-sm"
-                        :to="{ name: 'EmergencyContactList' }"
-                    />
-                    <ExportToolbar
-                        v-model:filter="filter"
-                        :excel-export="handleExcelExport"
-                        :pdf-export="handlePdfExport"
-                    />
-                </div>
+                <ExportToolbar
+                    v-model:filter="filter"
+                    show-search
+                    :excel-export="handleExcelExport"
+                    :pdf-export="handlePdfExport"
+                    :overview-route="{ name: 'EmergencyContactList' }"
+                />
             </template>
 
             <template #body-cell-studentInfo="props">
