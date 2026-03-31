@@ -223,6 +223,44 @@ public class EmergencyContactController : ApiController
     }
 
     /// <summary>
+    /// Export the overview (completeness summary) as an Excel file.
+    /// </summary>
+    [HttpPost("export/overview/excel")]
+    [Permission(Allow = "SVMSecure.Students.EmergencyContactAdmin,SVMSecure.SIS.AllStudents")]
+    public async Task<ActionResult> ExportOverviewExcel()
+    {
+        var data = await _service.GetStudentContactListAsync();
+        if (data.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var stream = _exportService.GenerateOverviewExcel(data);
+        var filename = ExcelHelper.BuildExportFilename(new ExportFilenameOptions
+        {
+            ReportName = "EmergencyContactOverview"
+        });
+        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
+    /// <summary>
+    /// Export the overview (completeness summary) as a PDF file.
+    /// </summary>
+    [HttpPost("export/overview/pdf")]
+    [Permission(Allow = "SVMSecure.Students.EmergencyContactAdmin,SVMSecure.SIS.AllStudents")]
+    public async Task<ActionResult> ExportOverviewPdf()
+    {
+        var data = await _service.GetStudentContactListAsync();
+        if (data.Count == 0)
+        {
+            return NoContent();
+        }
+
+        var pdfBytes = _exportService.GenerateOverviewPdf(data);
+        return File(pdfBytes, "application/pdf", $"EmergencyContactOverview_{DateTime.Now:yyyyMMdd}.pdf");
+    }
+
+    /// <summary>
     /// Export all emergency contacts as an Excel file.
     /// </summary>
     [HttpPost("export/excel")]

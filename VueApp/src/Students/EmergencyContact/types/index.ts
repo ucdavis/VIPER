@@ -17,16 +17,24 @@ type StudentInfo = {
 
 type StudentContactListItem = {
     personId: number
+    rowKey: string
+    hasDetailRoute: boolean
     fullName: string
     classLevel: string
+    email: string
+    cellPhone: string | null
     studentInfoComplete: number
     studentInfoTotal: number
+    studentInfoMissing: string[]
     localContactComplete: number
     localContactTotal: number
+    localContactMissing: string[]
     emergencyContactComplete: number
     emergencyContactTotal: number
+    emergencyContactMissing: string[]
     permanentContactComplete: number
     permanentContactTotal: number
+    permanentContactMissing: string[]
     lastUpdated: string | null
     completenessStatus: string
 }
@@ -56,6 +64,7 @@ type UpdateStudentContactRequest = {
 
 type StudentContactReport = {
     personId: number
+    rowKey: string
     fullName: string
     classLevel: string
     address: string | null

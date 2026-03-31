@@ -45,7 +45,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div>
+    <div class="q-pa-md">
         <q-breadcrumbs class="q-mb-sm">
             <q-breadcrumbs-el
                 label="Emergency Contacts"
@@ -63,8 +63,8 @@ onMounted(() => {
         />
 
         <template v-else-if="detail">
-            <div class="row items-baseline q-mb-md">
-                <h2 class="q-ma-none">Emergency Contact: {{ detail.fullName }}</h2>
+            <h2 class="q-ma-none q-mb-md">
+                Emergency Contact: {{ detail.fullName }}
                 <q-btn
                     v-if="detail.canEdit"
                     flat
@@ -72,11 +72,11 @@ onMounted(() => {
                     no-caps
                     icon="edit"
                     label="Edit"
-                    class="q-ml-md"
+                    class="q-ml-sm edit-btn"
                     color="primary"
                     @click="handleEdit"
                 />
-            </div>
+            </h2>
 
             <div style="max-width: 56rem">
                 <!-- Student Info Section -->
@@ -266,3 +266,9 @@ onMounted(() => {
         </q-banner>
     </div>
 </template>
+
+<style scoped>
+.edit-btn {
+    vertical-align: middle;
+}
+</style>
