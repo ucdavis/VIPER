@@ -25,7 +25,7 @@ function emptyStudentInfo(): StudentInfo {
 }
 
 /**
- * Counts non-empty fields in a ContactInfo (6 fields total).
+ * Counts non-empty fields in a ContactInfo (4 checks: name, relationship, any phone, email).
  */
 function contactCompleteness(contact: ContactInfo): number {
     let count = 0
@@ -35,13 +35,7 @@ function contactCompleteness(contact: ContactInfo): number {
     if (contact.relationship) {
         count += 1
     }
-    if (contact.workPhone) {
-        count += 1
-    }
-    if (contact.homePhone) {
-        count += 1
-    }
-    if (contact.cellPhone) {
+    if (contact.workPhone || contact.homePhone || contact.cellPhone) {
         count += 1
     }
     if (contact.email) {
@@ -51,17 +45,14 @@ function contactCompleteness(contact: ContactInfo): number {
 }
 
 /**
- * Counts student info completeness (3 checks: address+city+zip as 1, home phone, cell phone).
+ * Counts student info completeness (2 checks: address+city+zip as 1, any phone).
  */
 function studentInfoCompleteness(info: StudentInfo): number {
     let count = 0
     if (info.address && info.city && info.zip) {
         count += 1
     }
-    if (info.homePhone) {
-        count += 1
-    }
-    if (info.cellPhone) {
+    if (info.homePhone || info.cellPhone) {
         count += 1
     }
     return count

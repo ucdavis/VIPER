@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-const props = defineProps<{
-    complete: string | number
-    total: string | number
-}>()
+const props = withDefaults(
+    defineProps<{
+        complete: string | number
+        total: string | number
+        missing?: string[]
+        label?: string
+    }>(),
+    { missing: () => [], label: "" },
+)
 
 const completeNum = computed(() => Number(props.complete))
 const totalNum = computed(() => Number(props.total))
@@ -29,7 +34,18 @@ const iconColor = computed(() => {
     return "warning"
 })
 
-const tooltipText = computed(() => `${completeNum.value} of ${totalNum.value} complete`)
+const tooltipText = computed(() => {
+    if (completeNum.value >= totalNum.value) {
+        return "Complete"
+    }
+    if (completeNum.value === 0) {
+        return props.label ? `Missing ${props.label}` : "Missing"
+    }
+    if (props.missing.length > 0) {
+        return `Missing: ${props.missing.join(", ")}`
+    }
+    return `${completeNum.value} of ${totalNum.value} complete`
+})
 </script>
 
 <template>
