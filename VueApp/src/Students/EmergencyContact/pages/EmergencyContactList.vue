@@ -5,7 +5,7 @@ import { useQuasar } from "quasar"
 import type { QTableProps } from "quasar"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import CompletenessIcon from "../components/CompletenessIcon.vue"
-import ExportToolbar from "../components/ExportToolbar.vue"
+import ExportToolbar from "@/components/ExportToolbar.vue"
 import AppAccessControls from "../components/AppAccessControls.vue"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { formatPhone } from "../utils/phone"
@@ -148,6 +148,7 @@ onMounted(load)
             <template #top-right>
                 <ExportToolbar
                     v-model:filter="filter"
+                    show-search
                     :excel-export="handleExcelExport"
                     :pdf-export="handlePdfExport"
                     :report-route="{ name: 'EmergencyContactReport' }"

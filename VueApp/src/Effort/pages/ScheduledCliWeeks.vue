@@ -8,45 +8,7 @@
             :initial-filters="initialFilters"
             :visible-fields="[]"
             @generate="generateReport"
-        >
-            <template #actions>
-                <q-btn
-                    v-if="report"
-                    outline
-                    dense
-                    icon="print"
-                    label="Print/PDF"
-                    :loading="printLoading"
-                    @click="handlePrint"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Print/PDF
-                    </template>
-                </q-btn>
-                <q-btn
-                    v-if="report"
-                    outline
-                    dense
-                    icon="grid_on"
-                    label="Excel"
-                    :loading="excelLoading"
-                    class="q-ml-sm"
-                    @click="handleExcelDownload"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Excel
-                    </template>
-                </q-btn>
-            </template>
-        </ReportFilterForm>
+        />
 
         <!-- Loading state -->
         <div
@@ -64,12 +26,21 @@
         <!-- Report content -->
         <template v-else-if="report">
             <q-banner
-                class="bg-info text-white q-my-md"
+                class="bg-info text-white q-mb-md"
                 rounded
             >
                 The following data is based on the instructor schedule pulled live from the Clinical Scheduler. It does
                 not contain the verified effort entered by faculty and departments.
             </q-banner>
+            <div class="row items-center q-pa-sm q-mb-md bg-grey-2 rounded-borders">
+                <div class="col text-h6">Scheduled Clinical Weeks</div>
+                <div class="col-auto no-print">
+                    <ExportToolbar
+                        :pdf-export="handlePrint"
+                        :excel-export="handleExcelDownload"
+                    />
+                </div>
+            </div>
 
             <template v-if="report.instructors.length === 0">
                 <div
@@ -110,25 +81,17 @@
 import { computed } from "vue"
 import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
+import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import type { ScheduledCliWeeksReport } from "../types"
 import type { QTableColumn } from "quasar"
 
-const {
-    termCode,
-    loading,
-    report,
-    printLoading,
-    excelLoading,
-    initialFilters,
-    generateReport,
-    handlePrint,
-    handleExcelDownload,
-} = useReportPage<ScheduledCliWeeksReport>({
-    fetchReport: (params) => reportService.getScheduledCliWeeks(params),
-    fetchPdf: (params) => reportService.openPdf("clinical-schedule/pdf", params),
-    fetchExcel: (params) => reportService.downloadExcel("clinical-schedule/excel", params),
-})
+const { termCode, loading, report, initialFilters, generateReport, handlePrint, handleExcelDownload } =
+    useReportPage<ScheduledCliWeeksReport>({
+        fetchReport: (params) => reportService.getScheduledCliWeeks(params),
+        fetchPdf: (params) => reportService.openPdf("clinical-schedule/pdf", params),
+        fetchExcel: (params) => reportService.downloadExcel("clinical-schedule/excel", params),
+    })
 
 type CliWeeksRow = {
     mothraId: string

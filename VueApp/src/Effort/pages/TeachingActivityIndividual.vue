@@ -7,45 +7,7 @@
             :loading="loading"
             :initial-filters="initialFilters"
             @generate="generateReport"
-        >
-            <template #actions>
-                <q-btn
-                    v-if="report"
-                    outline
-                    dense
-                    icon="print"
-                    label="Print/PDF"
-                    :loading="printLoading"
-                    @click="handlePrint"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Print/PDF
-                    </template>
-                </q-btn>
-                <q-btn
-                    v-if="report"
-                    outline
-                    dense
-                    icon="grid_on"
-                    label="Excel"
-                    :loading="excelLoading"
-                    class="q-ml-sm"
-                    @click="handleExcelDownload"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Excel
-                    </template>
-                </q-btn>
-            </template>
-        </ReportFilterForm>
+        />
 
         <!-- Loading state -->
         <div
@@ -63,7 +25,13 @@
         <!-- Report content -->
         <ReportLayout v-else-if="report">
             <template #header>
-                <div class="text-h6">{{ report.termName }} - Teaching Activity (Individual)</div>
+                <div class="col text-h6">{{ report.termName }} - Teaching Activity (Individual)</div>
+                <div class="col-auto no-print">
+                    <ExportToolbar
+                        :pdf-export="handlePrint"
+                        :excel-export="handleExcelDownload"
+                    />
+                </div>
             </template>
 
             <template v-if="allInstructors.length === 0">
@@ -199,6 +167,7 @@
 import { computed } from "vue"
 import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
+import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import type { TeachingActivityReport, TeachingActivityInstructorGroup } from "../types"
@@ -207,8 +176,6 @@ const {
     termCode,
     loading,
     report,
-    printLoading,
-    excelLoading,
     initialFilters,
     orderedEffortTypes,
     getTotalValue,
