@@ -75,6 +75,8 @@ onMounted(loadAccessStatus)
     <q-banner
         class="bg-info text-white q-mb-md"
         rounded
+        role="status"
+        aria-live="polite"
     >
         <template #avatar>
             <q-icon

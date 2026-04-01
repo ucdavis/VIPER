@@ -303,6 +303,102 @@ public class EmergencyContactControllerTests
 
     #endregion
 
+    #region Export Tests
+
+    [Fact]
+    public async Task ExportOverviewExcel_WithData_ReturnsFile()
+    {
+        var data = new List<StudentContactListItemDto> { new() { PersonId = 1 } };
+        _service.GetStudentContactListAsync().Returns(data);
+        _exportService.GenerateOverviewExcel(data).Returns(new MemoryStream(new byte[] { 1 }));
+
+        var result = await _controller.ExportOverviewExcel();
+
+        var fileResult = Assert.IsType<FileStreamResult>(result);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileResult.ContentType);
+    }
+
+    [Fact]
+    public async Task ExportOverviewExcel_Empty_ReturnsNoContent()
+    {
+        _service.GetStudentContactListAsync().Returns(new List<StudentContactListItemDto>());
+
+        var result = await _controller.ExportOverviewExcel();
+
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task ExportOverviewPdf_WithData_ReturnsFile()
+    {
+        var data = new List<StudentContactListItemDto> { new() { PersonId = 1 } };
+        _service.GetStudentContactListAsync().Returns(data);
+        _exportService.GenerateOverviewPdf(data).Returns(new byte[] { 1 });
+
+        var result = await _controller.ExportOverviewPdf();
+
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", fileResult.ContentType);
+    }
+
+    [Fact]
+    public async Task ExportOverviewPdf_Empty_ReturnsNoContent()
+    {
+        _service.GetStudentContactListAsync().Returns(new List<StudentContactListItemDto>());
+
+        var result = await _controller.ExportOverviewPdf();
+
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task ExportExcel_WithData_ReturnsFile()
+    {
+        var data = new List<StudentContactReportDto> { new() { PersonId = 1 } };
+        _service.GetStudentContactReportAsync().Returns(data);
+        _exportService.GenerateExcel(data).Returns(new MemoryStream(new byte[] { 1 }));
+
+        var result = await _controller.ExportExcel();
+
+        var fileResult = Assert.IsType<FileStreamResult>(result);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileResult.ContentType);
+    }
+
+    [Fact]
+    public async Task ExportExcel_Empty_ReturnsNoContent()
+    {
+        _service.GetStudentContactReportAsync().Returns(new List<StudentContactReportDto>());
+
+        var result = await _controller.ExportExcel();
+
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task ExportPdf_WithData_ReturnsFile()
+    {
+        var data = new List<StudentContactReportDto> { new() { PersonId = 1 } };
+        _service.GetStudentContactReportAsync().Returns(data);
+        _exportService.GeneratePdf(data).Returns(new byte[] { 1 });
+
+        var result = await _controller.ExportPdf();
+
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", fileResult.ContentType);
+    }
+
+    [Fact]
+    public async Task ExportPdf_Empty_ReturnsNoContent()
+    {
+        _service.GetStudentContactReportAsync().Returns(new List<StudentContactReportDto>());
+
+        var result = await _controller.ExportPdf();
+
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    #endregion
+
     #region Route Attribute Tests
 
     [Fact]
