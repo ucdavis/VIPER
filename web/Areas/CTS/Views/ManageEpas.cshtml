@@ -67,7 +67,7 @@
             <template v-slot:default>
                 <span class="row fit">
                     <span class="col">
-                        <q-btn dense no-caps size="md" icon="edit" color="primary" aria-label="Edit EPA" @@click="selectEpa(epa)"></q-btn>
+                        <q-btn dense no-caps size="md" icon="edit" color="primary" :aria-label="'Edit EPA: ' + epa.name" @@click="selectEpa(epa)"></q-btn>
                     </span>
                     <span class="col">
                         <q-icon :name="epa.active ? 'check' : 'close'" :color="epa.active ? 'green' : 'red'" size="md"></q-icon>
