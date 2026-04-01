@@ -69,35 +69,32 @@
     border: 1px solid #fff;
 }
 
-.directory h1,
-.directory h2,
-.directory h3,
-.directory h4,
-.directory h5,
-.directory h6,
-.directory h7,
-.directory h8 {
+.directory .directory-name,
+.directory .directory-username,
+.directory .directory-detail,
+.directory .directory-level,
+.directory .directory-tag {
     line-height: 1.5;
     margin: 0;
     padding: 0;
 }
-.directory h1 {
+.directory .directory-name {
     font-size: 15px;
     font-weight: 600;
 }
-.directory h2 {
+.directory .directory-detail {
     font-size: 12px;
     font-weight: 400;
 }
-.directory h3 {
+.directory .directory-level {
     font-size: 12px;
 }
-.directory h4 {
+.directory .directory-tag {
     font-size: 11px;
     color: #868e96;
     font-weight: bold;
 }
-.directory h5 {
+.directory .directory-username {
     font-size: 10px;
 }
 .directory .top_button {

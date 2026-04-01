@@ -11,6 +11,7 @@
                     <q-img
                         :src="getPhotoUrl(student)"
                         spinner-color="primary"
+                        :alt="`${student.firstName} ${student.lastName}'s photo`"
                     >
                         <template #error>
                             <div class="absolute-full flex flex-center bg-grey-3">

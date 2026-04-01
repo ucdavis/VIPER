@@ -37,6 +37,7 @@
                             <q-btn
                                 flat
                                 icon="grid_view"
+                                aria-label="Grid View"
                                 :color="galleryStore.galleryView === 'grid' ? 'primary' : 'grey'"
                                 @click="setView('grid')"
                             >
@@ -45,6 +46,7 @@
                             <q-btn
                                 flat
                                 icon="list"
+                                aria-label="List View"
                                 :color="galleryStore.galleryView === 'list' ? 'primary' : 'grey'"
                                 @click="setView('list')"
                             >
@@ -53,6 +55,7 @@
                             <q-btn
                                 flat
                                 icon="print"
+                                aria-label="Print Sheet"
                                 :color="galleryStore.galleryView === 'sheet' ? 'primary' : 'grey'"
                                 @click="setView('sheet')"
                             >
