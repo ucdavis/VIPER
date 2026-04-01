@@ -131,6 +131,8 @@ function validate(): boolean {
         isValid.value = false
         return false
     }
+    isValid.value = true
+    rawDigits.value = d
     return true
 }
 
