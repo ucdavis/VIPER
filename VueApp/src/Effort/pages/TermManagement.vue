@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Term Management</h2>
+        <h1>Term Management</h1>
 
         <div
             v-if="isLoading"

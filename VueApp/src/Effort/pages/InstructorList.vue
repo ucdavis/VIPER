@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Instructor List for {{ currentTermName }}</h2>
+        <h1>Instructor List for {{ currentTermName }}</h1>
 
         <!-- Term selector and filters -->
         <div class="row q-col-gutter-sm q-mb-md items-center">

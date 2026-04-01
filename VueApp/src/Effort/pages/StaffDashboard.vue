@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Effort Dashboard</h2>
+        <h1>Effort Dashboard</h1>
 
         <!-- Loading state -->
         <div

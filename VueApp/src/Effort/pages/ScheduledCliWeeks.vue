@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Scheduled Clinical Weeks</h2>
+        <h1>Merit &amp; Promotion Report - Scheduled Clinical Weeks</h1>
 
         <ReportFilterForm
             :term-code="termCode"

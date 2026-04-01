@@ -84,7 +84,21 @@
                             <div class="text-body2 q-mb-xs">
                                 {{ record.effortTypeDescription }} ({{ record.effortTypeId }}) &bull;
                                 <span :class="{ 'zero-effort-text': record.effortValue === 0 }">
+                                    <q-icon
+                                        v-if="record.effortValue === 0"
+                                        name="report_problem"
+                                        color="amber-8"
+                                        size="1rem"
+                                        class="q-mr-xs"
+                                        aria-hidden="true"
+                                    />
                                     {{ record.effortValue }} {{ record.effortLabel }}
+                                    <span
+                                        v-if="record.effortValue === 0"
+                                        class="sr-only"
+                                    >
+                                        (zero effort)
+                                    </span>
                                 </span>
                             </div>
                             <div
@@ -217,8 +231,22 @@
 
                             <!-- Effort cell with unit label -->
                             <template v-else-if="col.name === 'effort'">
+                                <q-icon
+                                    v-if="slotProps.row.effortValue === 0"
+                                    name="report_problem"
+                                    color="amber-8"
+                                    size="1rem"
+                                    class="q-mr-xs"
+                                    aria-hidden="true"
+                                />
                                 {{ slotProps.row.effortValue }}
                                 {{ slotProps.row.effortLabel }}
+                                <span
+                                    v-if="slotProps.row.effortValue === 0"
+                                    class="sr-only"
+                                >
+                                    (zero effort)
+                                </span>
                             </template>
 
                             <!-- Actions cell -->

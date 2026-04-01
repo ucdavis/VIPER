@@ -22,7 +22,7 @@
         </div>
 
         <template v-else-if="typeData">
-            <h2>Instructors tagged with {{ typeData.typeName }} ({{ typeData.typeClass }})</h2>
+            <h1>Instructors tagged with {{ typeData.typeName }} ({{ typeData.typeClass }})</h1>
 
             <q-table
                 :rows="typeData.instructors"
