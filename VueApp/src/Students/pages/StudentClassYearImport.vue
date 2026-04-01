@@ -60,7 +60,7 @@ load()
 <template>
     <div class="row">
         <div class="col">
-            <h2>Student Class Year Import</h2>
+            <h1>Student Class Year Import</h1>
         </div>
     </div>
 
@@ -151,7 +151,7 @@ load()
                                     viperUrl + 'public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId
                                 "
                                 class="smallPhoto"
-                                alt="Student photo"
+                                :alt="`${student.firstName} ${student.lastName}'s photo`"
                             />
                         </q-avatar>
                     </q-item-section>
