@@ -24,8 +24,8 @@ const columns = computed<NonNullable<QTableProps["columns"]>>(() => [
     ...(isAdmin.value
         ? [{ name: "access", label: "Access", field: () => null, align: "center" as const, style: "width: 4rem" }]
         : []),
+    { name: "classLevel", label: "Class", field: "classLevel", align: "center" as const, sortable: true },
     { name: "fullName", label: "Name", field: "fullName", align: "left" as const, sortable: true },
-    { name: "classLevel", label: "Class Level", field: "classLevel", align: "left" as const, sortable: true },
     { name: "email", label: "Email", field: "email", align: "left" as const, sortable: true },
     {
         name: "cellPhone",
@@ -197,9 +197,21 @@ onMounted(load)
                             color="orange"
                             class="q-ml-xs"
                         >
-                            <q-tooltip>No AAUD mapping — record cannot be opened</q-tooltip>
+                            <q-tooltip>No AAUD mapping, record cannot be opened</q-tooltip>
                         </q-icon>
                     </span>
+                </q-td>
+            </template>
+
+            <template #body-cell-email="props">
+                <q-td :props="props">
+                    <a
+                        v-if="props.row.email"
+                        :href="`mailto:${props.row.email}`"
+                        class="text-primary"
+                    >
+                        {{ props.row.email }}
+                    </a>
                 </q-td>
             </template>
 
@@ -293,7 +305,7 @@ onMounted(load)
                                         color="orange"
                                         class="q-ml-xs"
                                     >
-                                        <q-tooltip>No AAUD mapping — record cannot be opened</q-tooltip>
+                                        <q-tooltip>No AAUD mapping, record cannot be opened</q-tooltip>
                                     </q-icon>
                                 </span>
                                 <q-space />

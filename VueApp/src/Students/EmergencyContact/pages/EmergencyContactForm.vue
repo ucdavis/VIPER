@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, nextTick } from "vue"
+import { ref, reactive, onMounted, computed, nextTick, provide } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import ContactSection from "../components/ContactSection.vue"
@@ -7,6 +7,7 @@ import PhoneInput from "../components/PhoneInput.vue"
 import { useEmergencyContact } from "../composables/use-emergency-contact"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
+import { phoneErrorsKey } from "../utils/phone-errors-key"
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,10 @@ const $q = useQuasar()
 const formRef = ref<{ validate: () => Promise<boolean> } | null>(null)
 
 const personId = computed(() => Number(route.params.pidm))
+
+// Phone validation error tracking — PhoneInput instances register/deregister via inject
+const phoneErrors = reactive(new Set<symbol>())
+provide(phoneErrorsKey, phoneErrors)
 
 const {
     loading,
@@ -260,7 +265,6 @@ onBeforeRouteLeave(() => {
                 v-if="canManageAccess"
                 class="bg-info text-white q-mb-md"
                 rounded
-                style="max-width: 56rem"
             >
                 <template #avatar>
                     <q-icon
@@ -310,10 +314,7 @@ onBeforeRouteLeave(() => {
                 </ul>
             </q-banner>
 
-            <div
-                class="text-body2 text-grey-8 q-mb-md"
-                style="max-width: 56rem"
-            >
+            <div class="form-content text-body2 text-grey-8 q-mb-md">
                 The School of Veterinary Medicine collects your personal contact information to be used for academic
                 purposes to locate you in the event of an emergency, as well as for any academic issues including your
                 VMTH rotations. It is important that we have other individuals who you feel we should contact in case we
@@ -338,8 +339,7 @@ onBeforeRouteLeave(() => {
 
             <q-form
                 ref="formRef"
-                class="emergency-contact-form"
-                style="max-width: 56rem"
+                class="emergency-contact-form compact-form form-content"
             >
                 <!-- Student Information -->
                 <q-card
@@ -532,7 +532,7 @@ onBeforeRouteLeave(() => {
                         label="Save"
                         no-caps
                         :loading="saving"
-                        :disable="hasValidationErrors"
+                        :disable="hasValidationErrors || phoneErrors.size > 0"
                         @click="handleSave"
                     >
                         <template #loading>
@@ -564,6 +564,10 @@ onBeforeRouteLeave(() => {
 </template>
 
 <style scoped>
+.form-content {
+    max-width: 56rem;
+}
+
 .access-toggle-btn {
     min-width: 9rem;
 }
@@ -600,42 +604,7 @@ onBeforeRouteLeave(() => {
 }
 </style>
 
-<!-- Unscoped so error chip styles apply to q-field children in nested components -->
+<!-- Shared compact form + error chip styles (unscoped, applied via .compact-form class) -->
 <style>
-/* Compact field bottom area — no reserved space for errors */
-.emergency-contact-form .q-field.q-field--with-bottom {
-    padding-bottom: 0;
-}
-
-.emergency-contact-form .q-field .q-field__bottom {
-    position: relative;
-    min-height: 0;
-    padding-top: 0;
-    transform: none;
-}
-
-/* Error chip styling matching Effort system */
-.emergency-contact-form .q-field--error .q-field__bottom {
-    padding-top: 0.25rem;
-}
-
-.emergency-contact-form .q-field--error .q-field__messages {
-    display: inline-flex;
-    align-items: center;
-    background: var(--q-negative);
-    color: white !important;
-    flex: none;
-    width: fit-content;
-    padding: 0.25rem 0.5rem;
-    border-radius: 1rem;
-    font-size: 0.75rem;
-    gap: 0.125rem;
-}
-
-.emergency-contact-form .q-field--error .q-field__messages::before {
-    content: "error";
-    font-family: "Material Icons";
-    font-size: 1rem;
-    line-height: 1;
-}
+@import "@/styles/compact-form.css";
 </style>

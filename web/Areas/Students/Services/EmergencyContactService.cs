@@ -63,7 +63,7 @@ public class EmergencyContactService : IEmergencyContactService
             if (int.TryParse(student.IdsPidm, out var pidm)
                 && contactsByPidm.TryGetValue(pidm, out var contact))
             {
-                item.CellPhone = contact.CellPhone;
+                item.CellPhone = contact.CellPhone ?? contact.HomePhone;
                 item.StudentInfoMissing = GetStudentInfoMissingFields(contact);
                 item.StudentInfoComplete = StudentInfoFieldCount - item.StudentInfoMissing.Count;
 
@@ -294,53 +294,40 @@ public class EmergencyContactService : IEmergencyContactService
     {
         var permissionId = await GetStudentPermissionIdAsync();
         var roleId = await GetStudentRoleIdAsync();
-        var isOpen = await IsAppOpenAsync();
         var currentLoginId = _userHelper.GetCurrentUser()?.LoginId;
-        if (isOpen)
-        {
-            // Close: remove all matching role-permission grants (handles duplicates)
-            var rolePermissions = await _rapsContext.TblRolePermissions
-                .Where(rp => rp.RoleId == roleId
-                    && rp.PermissionId == permissionId)
-                .ToListAsync();
-            if (rolePermissions.Count > 0)
-            {
-                foreach (var rp in rolePermissions)
-                {
-                    _rapsAuditService.AuditRolePermissionChange(rp, RAPSAuditService.AuditActionType.Delete);
-                }
-                _rapsContext.TblRolePermissions.RemoveRange(rolePermissions);
-                await _rapsContext.SaveChangesAsync();
-            }
 
-            ClearCacheForRoleMembers(roleId);
-            return false;
-        }
-        else
-        {
-            // Open: add the role-permission grant only if not already present
-            var alreadyExists = await _rapsContext.TblRolePermissions
-                .AnyAsync(rp => rp.RoleId == roleId
-                    && rp.PermissionId == permissionId
-                    && rp.Access == 1);
-            if (!alreadyExists)
-            {
-                var rolePermission = new Viper.Models.RAPS.TblRolePermission
-                {
-                    RoleId = roleId,
-                    PermissionId = permissionId,
-                    Access = 1,
-                    ModTime = DateTime.Now,
-                    ModBy = currentLoginId
-                };
-                _rapsContext.TblRolePermissions.Add(rolePermission);
-                _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Create);
-                await _rapsContext.SaveChangesAsync();
-            }
+        // Find existing role-permission row (keep it permanently, just flip Access)
+        var rolePermission = await _rapsContext.TblRolePermissions
+            .FirstOrDefaultAsync(rp => rp.RoleId == roleId
+                && rp.PermissionId == permissionId);
 
+        if (rolePermission == null)
+        {
+            // Ensure role has the permission — create with Access = 1 (open)
+            rolePermission = new Viper.Models.RAPS.TblRolePermission
+            {
+                RoleId = roleId,
+                PermissionId = permissionId,
+                Access = 1,
+                ModTime = DateTime.Now,
+                ModBy = currentLoginId
+            };
+            _rapsContext.TblRolePermissions.Add(rolePermission);
+            _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Create);
+            await _rapsContext.SaveChangesAsync();
             ClearCacheForRoleMembers(roleId);
             return true;
         }
+
+        // Toggle Access between 1 (open) and 0 (closed)
+        var nowOpen = rolePermission.Access != 1;
+        rolePermission.Access = (byte)(nowOpen ? 1 : 0);
+        rolePermission.ModTime = DateTime.Now;
+        rolePermission.ModBy = currentLoginId;
+        _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Update);
+        await _rapsContext.SaveChangesAsync();
+        ClearCacheForRoleMembers(roleId);
+        return nowOpen;
     }
 
     public async Task<bool> ToggleIndividualAccessAsync(int personId)
