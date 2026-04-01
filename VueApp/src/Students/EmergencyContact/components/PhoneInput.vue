@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from "vue"
+import { ref, watch, computed, nextTick, inject, onUnmounted } from "vue"
 import { useFormChild } from "quasar"
 import { stripToDigits, formatPhone, isValidPhone } from "../utils/phone"
+import { phoneErrorsKey } from "../utils/phone-errors-key"
 
 const props = defineProps<{
     modelValue: string | null
@@ -19,6 +20,18 @@ const inputValue = ref("")
 const useMask = ref(true)
 const touched = ref(false)
 const isValid = ref(true)
+
+// Report phone errors to parent form via provide/inject
+const phoneInputId = Symbol()
+const phoneErrors = inject(phoneErrorsKey, undefined)
+
+watch(isValid, (valid) => {
+    if (!phoneErrors) return
+    if (!valid) phoneErrors.add(phoneInputId)
+    else phoneErrors.delete(phoneInputId)
+})
+
+onUnmounted(() => phoneErrors?.delete(phoneInputId))
 
 const inputMask = computed(() => (useMask.value ? "(###) ###-####" : ""))
 

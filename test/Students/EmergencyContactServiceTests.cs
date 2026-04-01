@@ -365,27 +365,43 @@ public sealed class EmergencyContactServiceTests : IDisposable
         Assert.True(result);
     }
 
+    [Fact]
+    public async Task IsAppOpenAsync_AccessZero_ReturnsFalse()
+    {
+        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 0
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        var result = await service.IsAppOpenAsync();
+        Assert.False(result);
+    }
+
     #endregion
 
     #region ToggleAppAccess Tests
 
     [Fact]
-    public async Task ToggleAppAccessAsync_WhenClosed_OpensAndReturnsTrue()
+    public async Task ToggleAppAccessAsync_WhenNoRowExists_CreatesWithAccessOne()
     {
         var service = CreateService();
 
         var result = await service.ToggleAppAccessAsync();
 
         Assert.True(result);
-        Assert.True(await _rapsContext.TblRolePermissions.AnyAsync(rp =>
+        var rp = await _rapsContext.TblRolePermissions.SingleAsync(rp =>
             rp.RoleId == _seededRoleId
-            && rp.PermissionId == _seededPermissionId));
+            && rp.PermissionId == _seededPermissionId);
+        Assert.Equal(1, rp.Access);
     }
 
     [Fact]
-    public async Task ToggleAppAccessAsync_WhenOpen_ClosesAndReturnsFalse()
+    public async Task ToggleAppAccessAsync_WhenOpen_SetsAccessZero()
     {
-        // Open first
         _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
         {
             RoleId = _seededRoleId,
@@ -398,9 +414,31 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var result = await service.ToggleAppAccessAsync();
 
         Assert.False(result);
-        Assert.False(await _rapsContext.TblRolePermissions.AnyAsync(rp =>
+        var rp = await _rapsContext.TblRolePermissions.SingleAsync(rp =>
             rp.RoleId == _seededRoleId
-            && rp.PermissionId == _seededPermissionId));
+            && rp.PermissionId == _seededPermissionId);
+        Assert.Equal(0, rp.Access);
+    }
+
+    [Fact]
+    public async Task ToggleAppAccessAsync_WhenClosed_SetsAccessOne()
+    {
+        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 0
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        var result = await service.ToggleAppAccessAsync();
+
+        Assert.True(result);
+        var rp = await _rapsContext.TblRolePermissions.SingleAsync(rp =>
+            rp.RoleId == _seededRoleId
+            && rp.PermissionId == _seededPermissionId);
+        Assert.Equal(1, rp.Access);
     }
 
     #endregion
@@ -457,6 +495,209 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 mp.MemberId == "M101"
                 && mp.PermissionId == _seededPermissionId));
         }
+    }
+
+    #endregion
+
+    #region CanEdit Tests
+
+    [Fact]
+    public async Task CanEditAsync_NullLoginId_ReturnsFalse()
+    {
+        var service = CreateService();
+        var result = await service.CanEditAsync(1, null);
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_EmptyLoginId_ReturnsFalse()
+    {
+        var service = CreateService();
+        var result = await service.CanEditAsync(1, "");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_UnknownUser_ReturnsFalse()
+    {
+        var service = CreateService();
+        var result = await service.CanEditAsync(1, "nonexistent");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_Admin_ReturnsTrue()
+    {
+        var service = CreateServiceWithPermissions(EmergencyContactPermissions.Admin);
+        _aaudContext.AaudUsers.Add(CreateTestUser(200, "admin200"));
+        await _aaudContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(999, "admin200");
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_SisUser_ReturnsFalse()
+    {
+        var service = CreateServiceWithPermissions(EmergencyContactPermissions.SISAllStudents);
+        _aaudContext.AaudUsers.Add(CreateTestUser(201, "sis201"));
+        await _aaudContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(201, "sis201");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_StudentOwnRecord_AppOpen_ReturnsTrue()
+    {
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(CreateTestUser(202, "stu202"));
+        await _aaudContext.SaveChangesAsync();
+
+        // Open the app
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(202, "stu202");
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_StudentOwnRecord_IndividualGrant_ReturnsTrue()
+    {
+        var user = CreateTestUser(203, "stu203");
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(user);
+        await _aaudContext.SaveChangesAsync();
+
+        // App closed, but individual grant exists
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = user.MothraId,
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(203, "stu203");
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_StudentOwnRecord_AppClosed_NoGrant_ReturnsFalse()
+    {
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(CreateTestUser(204, "stu204"));
+        await _aaudContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(204, "stu204");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_StudentOtherRecord_ReturnsFalse()
+    {
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(CreateTestUser(205, "stu205"));
+        await _aaudContext.SaveChangesAsync();
+
+        // Open the app — but student tries to edit someone else's record
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(999, "stu205");
+        Assert.False(result);
+    }
+
+    #endregion
+
+    #region GetAccessStatus Tests
+
+    [Fact]
+    public async Task GetAccessStatusAsync_AppOpen_ReturnsTrue()
+    {
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        var status = await service.GetAccessStatusAsync();
+
+        Assert.True(status.AppOpen);
+    }
+
+    [Fact]
+    public async Task GetAccessStatusAsync_AppClosed_ReturnsFalse()
+    {
+        var service = CreateService();
+        var status = await service.GetAccessStatusAsync();
+
+        Assert.False(status.AppOpen);
+    }
+
+    [Fact]
+    public async Task GetAccessStatusAsync_WithIndividualGrants_ReturnsGrantedStudents()
+    {
+        _aaudContext.AaudUsers.Add(CreateTestUser(300, "stu300"));
+        await _aaudContext.SaveChangesAsync();
+
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = "M300",
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        var status = await service.GetAccessStatusAsync();
+
+        Assert.Single(status.IndividualGrants);
+        Assert.Equal(300, status.IndividualGrants[0].PersonId);
+    }
+
+    [Fact]
+    public async Task GetAccessStatusAsync_ExpiredGrant_Excluded()
+    {
+        _aaudContext.AaudUsers.Add(CreateTestUser(301, "stu301"));
+        await _aaudContext.SaveChangesAsync();
+
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = "M301",
+            PermissionId = _seededPermissionId,
+            Access = 1,
+            EndDate = DateTime.Now.AddDays(-1)
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        var status = await service.GetAccessStatusAsync();
+
+        Assert.Empty(status.IndividualGrants);
+    }
+
+    [Fact]
+    public async Task GetAccessStatusAsync_NoGrants_ReturnsEmptyList()
+    {
+        var service = CreateService();
+        var status = await service.GetAccessStatusAsync();
+
+        Assert.Empty(status.IndividualGrants);
     }
 
     #endregion
@@ -925,6 +1166,38 @@ public sealed class EmergencyContactServiceTests : IDisposable
             FirstName = "Test"
         });
         return userHelper;
+    }
+
+    /// <summary>
+    /// Creates a service with a mock IUserHelper that grants specified permissions.
+    /// No permissions granted by default (simulates a regular student).
+    /// </summary>
+    private EmergencyContactService CreateServiceWithPermissions(params string[] grantedPermissions)
+    {
+        var userHelper = CreateMockUserHelper();
+        foreach (var perm in grantedPermissions)
+        {
+            userHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), perm).Returns(true);
+        }
+        var logger = Substitute.For<ILogger<EmergencyContactService>>();
+        return new EmergencyContactService(
+            _sisContext, _rapsContext, _aaudContext, userHelper, logger);
+    }
+
+    private static AaudUser CreateTestUser(int personId, string loginId)
+    {
+        return new AaudUser
+        {
+            AaudUserId = personId,
+            ClientId = "UCD",
+            MothraId = $"M{personId}",
+            LoginId = loginId,
+            DisplayFullName = $"Test User {personId}",
+            DisplayFirstName = "Test",
+            DisplayLastName = $"User{personId}",
+            LastName = $"User{personId}",
+            FirstName = "Test"
+        };
     }
 
     /// <summary>

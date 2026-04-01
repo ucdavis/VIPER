@@ -78,7 +78,7 @@ onMounted(() => {
                 />
             </h2>
 
-            <div style="max-width: 56rem">
+            <div class="form-content">
                 <!-- Student Info Section -->
                 <q-card
                     flat
@@ -268,6 +268,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.form-content {
+    max-width: 56rem;
+}
+
 .edit-btn {
     vertical-align: middle;
 }

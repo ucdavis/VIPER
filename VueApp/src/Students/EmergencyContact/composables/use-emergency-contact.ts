@@ -84,7 +84,8 @@ function useEmergencyContact() {
         })
     }
 
-    const isDirty = computed(() => initialSnapshot.value !== takeSnapshot())
+    const currentSnapshot = computed(() => takeSnapshot())
+    const isDirty = computed(() => initialSnapshot.value !== currentSnapshot.value)
 
     const studentInfoComplete = computed(() => studentInfoCompleteness(studentInfo.value))
     const localContactComplete = computed(() => contactCompleteness(localContact.value))
