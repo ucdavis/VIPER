@@ -3,7 +3,7 @@ import { ref } from "vue"
 const student = ref("")
 </script>
 <template>
-    <h2>Students for VET430 Lab 1 Challenging Communication - Simulated Lab with Actors and Video</h2>
+    <h1>Students for VET430 Lab 1 Challenging Communication - Simulated Lab with Actors and Video</h1>
 
     <h3>Add Student(s)</h3>
     <div class="row q-mb-md">
