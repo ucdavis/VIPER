@@ -21,7 +21,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
     public MemoryStream GenerateOverviewExcel(List<StudentContactListItemDto> data)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Emergency Contact Overview");
 
         ws.Cell(1, 1).Value = GeneratedLabel;
@@ -142,7 +142,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
     public MemoryStream GenerateExcel(List<StudentContactReportDto> data)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Emergency Contact Report");
 
         ws.Cell(1, 1).Value = GeneratedLabel;
