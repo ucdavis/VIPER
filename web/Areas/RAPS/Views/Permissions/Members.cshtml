@@ -1,4 +1,4 @@
-﻿<h2>User Permissions for {{permission.permission}}</h2>
+﻿<h1>User Permissions for {{permission.permission}}</h1>
 <p>
     {{permission.description}}
 </p>
@@ -129,7 +129,7 @@
                             this.rows = data.map(pm => ({
                                 ...pm,
                                 memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
-                                active: pm?.member?.current == 1 ? "Y" : "N",
+                                active: pm?.member?.current === 1 ? "Y" : "N",
                                 lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
                             }))
                         },
@@ -138,7 +138,7 @@
                             return {
                                 memberId: object.member?.value,
                                 permissionId: v.urlParams.get("permissionId"),
-                                access: object.access == 1 ? 1 : 0,
+                                access: object.access === 1 ? 1 : 0,
                                 startDate: object?.startDate,
                                 endDate: object?.endDate
                             }
@@ -149,7 +149,7 @@
                                 permissionId: object.permissionId,
                                 startDate: formatDateForDateInput(object.startDate),
                                 endDate: formatDateForDateInput(object.endDate),
-                                access: object.access == 1 ? 1 : 0,
+                                access: object.access === 1 ? 1 : 0,
                                 member: {
                                     label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
                                     value: object.memberId
@@ -172,7 +172,7 @@
                     }
 
                     update(() => {
-                        var res = fetch("Members?search=" + val)
+                        fetch("Members?search=" + val)
                             .then(r => r.json())
                             .then(data =>
                                 this.memberSearchResults = data

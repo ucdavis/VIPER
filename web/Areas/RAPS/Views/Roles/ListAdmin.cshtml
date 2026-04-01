@@ -1,4 +1,4 @@
-﻿<h2>Roles</h2>
+﻿<h1>Roles</h1>
 <q-dialog v-model="rolesTable.showForm" @@hide="rolesTable.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="rolesTable.submit(this)" v-model="rolesTable.object">
@@ -75,7 +75,7 @@
         </template>
         <template v-slot:body-cell-edit="props">
             <q-td :props="props">
-                <q-btn :props="props" outline dense color="primary" size="sm" icon="edit" padding="xs sm" @@click="rolesTable.selectRow(props.row)"></q-btn>
+                <q-btn :props="props" outline dense color="primary" size="sm" icon="edit" padding="xs sm" aria-label="Edit role" @@click="rolesTable.selectRow(props.row)"></q-btn>
             </q-td>
         </template>
     </q-table>
@@ -104,11 +104,11 @@
                             var obj = {
                                 roleId: data.roleId,
                                 role: data.role,
-                                application: data.application == 1 ? 1 : 0,
+                                application: data.application === 1 ? 1 : 0,
                                 description: data.description,
                                 viewName: data.viewName,
                             }
-                            if(this.inVMACSInstance || (data.accessCode != null && data.accessCode != "")) {
+                            if(this.inVMACSInstance || (data.accessCode !== null && data.accessCode !== "")) {
                                 obj.accessCode = data.accessCode
                             }
                             return obj

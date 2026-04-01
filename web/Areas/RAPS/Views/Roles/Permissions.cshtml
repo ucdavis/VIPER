@@ -1,4 +1,4 @@
-﻿<h2>Permissions for Role {{role.role}}</h2>
+﻿<h1>Permissions for Role {{role.role}}</h1>
 <q-table
     dense
     row-key="permissionId"
@@ -15,7 +15,7 @@
     </template>
     <template v-slot:body-cell-remove="props">
         <q-td :props="props">
-            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteRolePermission(props.row)"></q-btn>
+            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" aria-label="Remove permission from role" @@click="deleteRolePermission(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -67,7 +67,7 @@
                             this.rows = data.map(rp => ({
                                 ...rp,
                                 permissionId: rp.permissionId,
-                                accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                                accessDescription: rp.access === 1 ? "Allow" : "Deny",
                                 permissionName: rp.permission?.permission
                             }))
                         },
@@ -110,7 +110,7 @@
                                     return result
                                 }, [])
                             this.rows = data.filter(p =>
-                                existingPermissions.indexOf(p.permissionId) == -1
+                                existingPermissions.indexOf(p.permissionId) === -1
                             )
                         },
                         pagination: { rowsPerPage: 15 }

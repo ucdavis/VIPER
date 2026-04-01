@@ -1,4 +1,4 @@
-﻿<h2>Roles for Permission {{permission.permission}}</h2>
+﻿<h1>Roles for Permission {{permission.permission}}</h1>
 <q-table dense
          row-key="roleId"
          :loading="rolePermissionTable.loading"
@@ -14,7 +14,7 @@
     </template>
     <template v-slot:body-cell-remove="props">
         <q-td :props="props">
-            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteRolePermission(props.row)"></q-btn>
+            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" aria-label="Remove role from permission" @@click="deleteRolePermission(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -65,9 +65,9 @@
                             this.rows = data.map(rp => ({
                                 ...rp,
                                 permissionId: rp.permissionId,
-                                accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                                accessDescription: rp.access === 1 ? "Allow" : "Deny",
                                 permissionName: rp.permission?.permission,
-                                roleName: rp.role?.displayName != null ? rp.role.displayName : rp.role.role
+                                roleName: rp.role?.displayName !== null ? rp.role.displayName : rp.role.role
                             }))
                         },
                         pagination: { rowsPerPage: 0 }
@@ -86,7 +86,7 @@
                                     return result
                                 }, [])
                             this.rows = data.filter(r =>
-                                existingRoles.indexOf(r.roleId) == -1
+                                existingRoles.indexOf(r.roleId) === -1
                             )
                             this.rows = this.rows.map(r => ({
                                 ...r,
@@ -112,7 +112,6 @@
                 updateEachRolePermission: async function(allowAccess = 1) {
                     await Promise.all(
                         this.selectedPermissions.map(async sp => {
-                            let rolePermission = { roleId: sp.roleId, permissionId: this.permissionId, access: allowAccess }
                             await viperFetch(this,
                                 "Permissions/" + this.permissionId + "/Roles/",
                                 {
