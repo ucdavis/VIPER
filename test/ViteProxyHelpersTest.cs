@@ -14,8 +14,8 @@ namespace Viper.test
         [InlineData("/ClinicalScheduler/schedule", true)]
         [InlineData("/vue/assets/main.js", true)]
         [InlineData("/2/vue/src/CTS/index.html", true)]
-        [InlineData("/2/vue/assets/main-abc123.js", true)]
-        [InlineData("/2/vue/assets/styles-def456.css", true)]
+        [InlineData("/2/vue/assets/main-abc123.js", false)] // Hashed assets served as static files, not proxied
+        [InlineData("/2/vue/assets/styles-def456.css", false)] // Hashed assets served as static files, not proxied
         [InlineData("/CTS/component.vue", true)]
         [InlineData("/cts.ts", true)]
         [InlineData("/computing.js", true)]
