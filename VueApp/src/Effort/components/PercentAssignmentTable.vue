@@ -57,7 +57,16 @@
             >
                 <q-card-section class="q-py-sm">
                     <div class="row items-center justify-between q-mb-xs">
-                        <span class="text-weight-bold">{{ formatTypeWithModifier(pct.typeName, pct.modifier) }}</span>
+                        <span class="text-weight-bold">
+                            {{ formatTypeWithModifier(pct.typeName, pct.modifier) }}
+                            <q-badge
+                                v-if="!pct.isActive"
+                                color="grey-5"
+                                text-color="grey-9"
+                                label="Inactive"
+                                class="q-ml-sm"
+                            />
+                        </span>
                         <div v-if="canEdit">
                             <q-btn
                                 flat
@@ -99,7 +108,21 @@
                             {{ pct.endDate ? formatDate(pct.endDate) : "Present" }}</span
                         >
                         <span :class="{ 'text-warning text-weight-bold': pct.percentageValue > 100 }">
+                            <q-icon
+                                v-if="pct.percentageValue > 100"
+                                name="warning"
+                                color="warning"
+                                size="1rem"
+                                class="q-mr-xs"
+                                aria-hidden="true"
+                            />
                             {{ pct.percentageValue.toFixed(1) }}%
+                            <span
+                                v-if="pct.percentageValue > 100"
+                                class="sr-only"
+                            >
+                                (exceeds 100%)
+                            </span>
                         </span>
                         <span v-if="pct.compensated">
                             <q-icon
@@ -146,6 +169,13 @@
                             :color="getTypeClassColor(bodyProps.row.typeClass)"
                             :label="bodyProps.row.typeClass"
                         />
+                        <q-badge
+                            v-if="!bodyProps.row.isActive"
+                            color="grey-5"
+                            text-color="grey-9"
+                            label="Inactive"
+                            class="q-ml-xs"
+                        />
                     </q-td>
                     <q-td
                         key="typeName"
@@ -174,8 +204,23 @@
                     <q-td
                         key="percentageValue"
                         :props="bodyProps"
+                        :class="{ 'text-warning text-weight-bold': bodyProps.row.percentageValue > 100 }"
                     >
+                        <q-icon
+                            v-if="bodyProps.row.percentageValue > 100"
+                            name="warning"
+                            color="warning"
+                            size="1rem"
+                            class="q-mr-xs"
+                            aria-hidden="true"
+                        />
                         {{ bodyProps.row.percentageValue.toFixed(1) }}%
+                        <span
+                            v-if="bodyProps.row.percentageValue > 100"
+                            class="sr-only"
+                        >
+                            (exceeds 100%)
+                        </span>
                     </q-td>
                     <q-td
                         key="comment"

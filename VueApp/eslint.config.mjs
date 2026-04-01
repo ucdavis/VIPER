@@ -50,6 +50,16 @@ export default [
             },
         },
         rules: {
+            // Quasar components are auto-imported by the vite plugin — flag explicit imports for cleanup
+            "no-restricted-imports": ["warn", {
+                patterns: [{
+                    group: ["quasar"],
+                    importNamePattern: "^Q[A-Z]",
+                    allowTypeImports: true,
+                    message: "Quasar components are auto-imported — remove explicit imports (QBtn, QTable, etc.). Utilities like setCssVar, useQuasar, Notify are fine.",
+                }],
+            }],
+
             // Disable the base rule and enable TypeScript-aware version
             "no-unused-vars": "off",
             "@typescript-eslint/no-unused-vars": ["error", {

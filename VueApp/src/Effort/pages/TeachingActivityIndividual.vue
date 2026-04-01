@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Teaching Activity Report - Individual</h2>
+        <h1>Teaching Activity Report - Individual</h1>
 
         <ReportFilterForm
             :term-code="termCode"

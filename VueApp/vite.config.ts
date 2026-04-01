@@ -93,7 +93,9 @@ export default defineConfig(({ mode }) => {
                 }),
             // @quasar/plugin-vite options list:
             // https://github.com/quasarframework/quasar/blob/dev/vite-plugin/index.d.ts
-            quasar(),
+            quasar({
+                sassVariables: false,
+            }),
             codecovVitePlugin({
                 enableBundleAnalysis: Boolean(process.env.CODECOV_TOKEN),
                 bundleName: "viper-frontend",

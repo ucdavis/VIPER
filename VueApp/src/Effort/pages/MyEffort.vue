@@ -52,7 +52,7 @@
         <template v-else-if="myEffort">
             <!-- Header -->
             <div class="q-mb-md row items-center justify-between">
-                <h2 class="q-my-none header-title">
+                <h1 class="q-my-none header-title">
                     My Effort<template v-if="myEffort.termName"> for {{ myEffort.termName }}</template>
                     <a
                         href="https://ucdsvm.knowledgeowl.com/help/how-do-i-update-and-verify-my-teaching-effort"
@@ -66,7 +66,7 @@
                             size="xs"
                         />
                     </a>
-                </h2>
+                </h1>
                 <a
                     href="https://ucdsvm.knowledgeowl.com/help/how-do-i-update-and-verify-my-teaching-effort"
                     target="_blank"
