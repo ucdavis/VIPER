@@ -215,7 +215,7 @@
                 //load epas and auto select if there's only one
                 getEpas: async function () {
                     this.selectedEpa = ""
-                    if (this.service !== '') {
+                    if (this.service > 0) {
                         await viperFetch(this, "epas?serviceId=" + this.service)
                             .then(data => this.epas = data.map(d => ({ label: d.name, value: d.epaId })))
                         if (this.epas.length === 1) {
