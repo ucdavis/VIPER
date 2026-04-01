@@ -101,7 +101,7 @@ async function createMilestone() {
 load()
 </script>
 <template>
-    <h2>Edit Milestones</h2>
+    <h1>Edit Milestones</h1>
 
     <q-form @submit="createMilestone">
         <div class="row items-center">

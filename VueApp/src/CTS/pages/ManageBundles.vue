@@ -82,7 +82,7 @@ async function removeBundle() {
 load()
 </script>
 <template>
-    <h2>Manage Bundles</h2>
+    <h1>Manage Bundles</h1>
     <q-card flat>
         <q-form @submit="save()">
             <h3>{{ bundle?.bundleId == null ? "Add Bundle" : "Update Bundle" }}</h3>
@@ -176,6 +176,7 @@ load()
                     dense
                     size="sm"
                     icon="edit"
+                    aria-label="Edit bundle"
                     @click="selectBundle(props.row)"
                     color="primary"
                 ></q-btn>
@@ -199,6 +200,7 @@ load()
                     class="q-mr-md"
                     icon="list"
                     color="primary"
+                    aria-label="View competencies"
                     :to="'ManageBundleCompetencies?bundleId=' + props.row.bundleId"
                 ></q-btn>
                 {{ props.row.competencyCount }}

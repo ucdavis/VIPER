@@ -102,7 +102,7 @@ loadLevels()
 </script>
 
 <template>
-    <h2>Manage Levels</h2>
+    <h1>Manage Levels</h1>
     <q-form
         action=""
         @submit="submitLevel"
@@ -216,6 +216,7 @@ loadLevels()
                         size="md"
                         color="primary"
                         icon="edit"
+                        aria-label="Edit level"
                         @click="editLevel(l)"
                     ></q-btn>
                 </q-item-section>

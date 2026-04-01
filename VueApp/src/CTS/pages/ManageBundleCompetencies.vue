@@ -199,7 +199,7 @@ load()
 </script>
 <template>
     <div v-if="bundle != null">
-        <h2>Competencies for Bundle {{ bundle?.name }}</h2>
+        <h1>Competencies for Bundle {{ bundle?.name }}</h1>
         <q-btn
             dense
             no-caps

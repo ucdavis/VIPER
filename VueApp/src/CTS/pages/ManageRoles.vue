@@ -36,7 +36,7 @@ function clearRole() {
 load()
 </script>
 <template>
-    <h2>Add/Edit Roles</h2>
+    <h1>Add/Edit Roles</h1>
     <q-form
         @submit="save()"
         class="q-mb-md"
@@ -89,6 +89,7 @@ load()
             size="sm"
             icon="edit"
             color="primary"
+            aria-label="Edit role"
             @click="role = r"
             class="q-mt-xs q-mr-md"
         ></q-btn>
