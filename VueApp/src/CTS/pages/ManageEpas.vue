@@ -75,12 +75,13 @@ getEpas()
 </script>
 
 <template>
+    <h1>Manage EPAs</h1>
     <q-form
         @submit="submitEpa"
         v-if="showForm"
         class="q-mb-md"
     >
-        <h1>{{ epa.epaId ? "Updating EPA" : "Creating EPA" }}</h1>
+        <h2>{{ epa.epaId ? "Updating EPA" : "Creating EPA" }}</h2>
 
         <div class="row">
             <q-input
