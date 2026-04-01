@@ -1,4 +1,4 @@
-﻿<h2>User with Permission {{permission.permission}}</h2>
+﻿<h1>User with Permission {{permission.permission}}</h1>
 <p>
     {{permission.description}}
 </p>
@@ -44,7 +44,7 @@
                             this.rows = data.map(pm => ({
                                 ...pm,
                                 memberName: pm?.displayLastName + ", " + pm?.displayFirstName,
-                                active: pm?.current == 1 ? "Y" : "N"
+                                active: pm?.current === 1 ? "Y" : "N"
                             }))
                         },
                         pagination: { rowsPerPage: 0 }

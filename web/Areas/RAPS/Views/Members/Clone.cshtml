@@ -1,4 +1,4 @@
-﻿<h2>Select source and target users</h2>
+﻿<h1>Select source and target users</h1>
 <q-form @@submit="return false;">
     <div class="row q-mb-sm">
         <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3"
@@ -92,16 +92,17 @@
                         return
                     }
                     update(() => {
-                        var res = viperFetch(this, "Members?active=recent&search=" + val)
+                        viperFetch(this, "Members?active=recent&search=" + val)
                             .then(data => {
                                 data = data.map(m => ({
                                     label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
                                     value: m.memberId
                                 }))
-                                if (target)
+                                if (target) {
                                     this.targetUserResults = data
-                                else
+                                } else {
                                     this.sourceUserResults = data
+                                }
                             })
 
                     })
@@ -149,7 +150,7 @@
                 //if both source and target user are selected, load the roles/permissions to clone
                 checkUsersSelected: function () {
                     if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
-                        var res = viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
+                        viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
                             .then(data => {
                                 this.cloneObject = data
                                 this.dataLoaded = true
