@@ -121,7 +121,7 @@ loadAreas()
 </script>
 
 <template>
-    <h2>View Audit Log</h2>
+    <h1>View Audit Log</h1>
     <q-form>
         <div class="row">
             <div class="col-12 col-md-6 col-lg-3">

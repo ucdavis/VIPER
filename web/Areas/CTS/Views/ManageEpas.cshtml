@@ -1,4 +1,4 @@
-﻿
+﻿<h1>Manage EPAs</h1>
 <q-form @@submit="submitEpa()" v-if="showForm" class="q-mb-md">
     <h2>{{epa?.epaId ? 'Updating EPA' : 'Creating EPA'}}</h2>
     <div class="row">
@@ -67,7 +67,7 @@
             <template v-slot:default>
                 <span class="row fit">
                     <span class="col">
-                        <q-btn dense no-caps size="md" icon="edit" color="primary" @@click="selectEpa(epa)"></q-btn>
+                        <q-btn dense no-caps size="md" icon="edit" color="primary" aria-label="Edit EPA" @@click="selectEpa(epa)"></q-btn>
                     </span>
                     <span class="col">
                         <q-icon :name="epa.active ? 'check' : 'close'" :color="epa.active ? 'green' : 'red'" size="md"></q-icon>

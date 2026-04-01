@@ -111,7 +111,7 @@ watch(
 load()
 </script>
 <template>
-    <h2>Manage Competencies</h2>
+    <h1>Manage Competencies</h1>
     <q-dialog
         v-model="showForm"
         @hide="clearComp()"

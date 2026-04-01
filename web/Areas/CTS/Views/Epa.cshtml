@@ -2,6 +2,7 @@
     IUserHelper UserHelper = new UserHelper();
     var siteRootUrl = Url.Content("~/");
 }
+<h1>EPA Assessment</h1>
 <div class="row epa justify-center items-start content-start">
     <div style="max-width: 1200px" class="col">
         @*
@@ -198,25 +199,26 @@
                     var sunday = new Date(today)
                     sunday.setDate(sunday.getDate() - sunday.getDay())
                     var schedThisWeek = scheduledServices.find(s => today >= new Date(s.dateStart) && today <= new Date(s.dateEnd))
-                    var schedLastWeek = scheduledServices.find(s => new Date(s.dateEnd).getTime() == sunday.getTime())
+                    var schedLastWeek = scheduledServices.find(s => new Date(s.dateEnd).getTime() === sunday.getTime())
                     this.serviceThisWeek = schedThisWeek ? schedThisWeek.serviceId : 0
-                    this.serviceLastWeek = schedLastWeek && schedLastWeek.serviceId != this.serviceThisWeek ? schedLastWeek.serviceId : 0
+                    this.serviceLastWeek = schedLastWeek && schedLastWeek.serviceId !== this.serviceThisWeek ? schedLastWeek.serviceId : 0
                     this.servicesScheduled = scheduledServices.map(s => s.serviceID)
 
                     //auto select a service - this week, then last week
-                    if (this.serviceThisWeek > 0)
+                    if (this.serviceThisWeek > 0) {
                         this.service = this.serviceThisWeek
-                    else if (this.serviceLastWeek > 0)
+                    } else if (this.serviceLastWeek > 0) {
                         this.service = this.serviceLastWeek
+                    }
                 },
 
                 //load epas and auto select if there's only one
                 getEpas: async function () {
                     this.selectedEpa = ""
-                    if (this.service != '') {
+                    if (this.service !== '') {
                         await viperFetch(this, "epas?serviceId=" + this.service)
                             .then(data => this.epas = data.map(d => ({ label: d.name, value: d.epaId })))
-                        if (this.epas.length == 1) {
+                        if (this.epas.length === 1) {
                             this.selectedEpa = this.epas[0]
                         }
                     }
@@ -224,14 +226,14 @@
                 //students
                 getStudents: async function () {
                     //load all students and students on service, if necessary
-                    if (this.allStudents.length == 0) {
+                    if (this.allStudents.length === 0) {
                         await viperFetch(this, "@siteRootUrl" + "students/dvm")
                             .then(data => this.allStudents = data.map(s => ({
                                 label: s.lastName + ", " + s.firstName, mailId: s.mailId, value: s.personId, classLevel: s.classLevel
                             })))
                     }
 
-                    if (this.service && this.service != this.studentsLoadedForService) {
+                    if (this.service && this.service !== this.studentsLoadedForService) {
                         var d = new Date().toJSON().split("T")[0]
                         await viperFetch(this, "../api/cts/clinicalschedule/student?serviceId=" + this.service + "&startDate=" + d + "&endDate=" + d)
                             .then(data => this.studentsOnService = data.map(s => ({
@@ -245,7 +247,7 @@
                             this.students = this.studentsOnService
                             break;
                         case "V4":
-                            this.students = this.allStudents.filter(s => s.classLevel == 'V4')
+                            this.students = this.allStudents.filter(s => s.classLevel === 'V4')
                             break;
                         default:
                             this.students = this.allStudents
@@ -282,7 +284,7 @@
                         this.success = true
                     }
                 },
-                studentSearch: function (val, update, abort) {
+                studentSearch: function (val, update, _abort) {
                     if (val === '') {
                         update(() => this.getStudents())
                         return
@@ -298,8 +300,9 @@
                 this.getLevels()
 
                 var selectedService = getItemFromStorage("Cts_Epa_ServiceId")
-                if(selectedService != null)
+                if(selectedService !== null) {
                     this.service = selectedService
+                }
             },
             watch: {
                 //when service is updated, reload epa list and student list
@@ -312,14 +315,15 @@
                 },
                 //set student list when student type is selected
                 studentOptionsType: {
-                    handler(v) {
+                    handler(_v) {
                         this.getStudents()
                     }
                 },
                 selectedStudent: {
                     handler(v) {
-                        if(v != null)
+                        if(v !== null) {
                             this.success = false
+                        }
                     }
                 }
             }

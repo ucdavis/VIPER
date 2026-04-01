@@ -80,7 +80,7 @@ getEpas()
         v-if="showForm"
         class="q-mb-md"
     >
-        <h2>{{ epa.epaId ? "Updating EPA" : "Creating EPA" }}</h2>
+        <h1>{{ epa.epaId ? "Updating EPA" : "Creating EPA" }}</h1>
 
         <div class="row">
             <q-input
@@ -226,6 +226,7 @@ getEpas()
                                 size="md"
                                 icon="edit"
                                 color="primary"
+                                aria-label="Edit EPA"
                                 @click="selectEpa(epaItem)"
                             />
                         </span>

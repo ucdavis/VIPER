@@ -109,6 +109,7 @@ getStudentEpa()
                                     class="smallPhoto rounded-borders"
                                     loading="eager"
                                     :no-spinner="true"
+                                    :alt="`${studentEpa.studentName}'s photo`"
                                 ></q-img>
                             </q-avatar>
                         </div>
