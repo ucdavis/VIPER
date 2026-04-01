@@ -21,6 +21,11 @@ const currentYear = new Date().getFullYear()
 </script>
 
 <template>
+    <a
+        href="#main-content"
+        class="skip-to-content"
+        >Skip to main content</a
+    >
     <q-layout view="hHh lpr fff">
         <q-header
             elevated
@@ -153,7 +158,7 @@ const currentYear = new Date().getFullYear()
         </q-header>
 
         <q-page-container id="mainLayoutBody">
-            <main>
+            <main id="main-content">
                 <div
                     class="q-pa-md"
                     v-show="userStore.isLoggedIn"

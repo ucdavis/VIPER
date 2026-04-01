@@ -172,7 +172,7 @@ const BRAND_COLORS = {
     // Status colors (UC Davis secondary palette)
     positive: "#266041", // Redwood
     negative: "#79242F", // Merlot
-    info: "#008EAA", // Putah Creek
+    info: "#6FCFEB", // Rec Pool
 
     // Dark theme
     dark: "#1d1d1d",

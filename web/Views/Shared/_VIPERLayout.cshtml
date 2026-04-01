@@ -56,6 +56,7 @@
 
 </head>
 <body>
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
     <q-layout view="hHh lpR fFf">
         <q-header elevated id="mainLayoutHeader" height-hint="98">
             <div v-show="false" id="headerPlaceholder">
@@ -142,7 +143,7 @@
         )
 
         <q-page-container id="mainLayoutBody">
-            <main>
+            <main id="main-content">
                 @{
                     var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
                 }
@@ -176,18 +177,21 @@
             <div class="q-py-sm q-px-md q-gutter-xs text-caption row" id="footerNavLinks">
                 <div class="col-12 col-md q-pl-md">
                     <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="help_center" size="xs"></q-icon>
+                        <q-icon color="primary" name="help_center" size="xs" aria-hidden="true"></q-icon>
                         SVM-IT ServiceDesk
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a href="http://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="navigation" size="xs"></q-icon>
+                        <q-icon color="primary" name="navigation" size="xs" aria-hidden="true"></q-icon>
                         SVM Home
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a href="http://www.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="school" size="xs"></q-icon>
+                        <q-icon color="primary" name="school" size="xs" aria-hidden="true"></q-icon>
                         UC Davis
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                 </div>
                 <div class="col-12 col-md-auto gt-sm">

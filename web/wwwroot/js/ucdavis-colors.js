@@ -19,7 +19,7 @@ globalThis.UCDavisBrandColors = {
     // Status colors (UC Davis secondary palette)
     positive: "#266041", // Redwood - green for success states
     negative: "#79242F", // Merlot - red for error states
-    info: "#008EAA", // Putah Creek - teal for informational states
+    info: "#6FCFEB", // Rec Pool - light blue for informational states
     warning: "#ffc519", // Gold for warning states (same as accent)
 
     // Dark theme colors

@@ -23,6 +23,7 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
     <q-layout view="hHh lpr fff">
         <q-header elevated id="simplifiedLayoutHeader" height-hint="98" class="bg-white text-dark">
             <div v-show="false" id="headerPlaceholder">
@@ -79,7 +80,7 @@
         </q-header>
 
         <q-page-container id="mainLayoutBody">
-            <main>
+            <main id="main-content">
                 <div class="q-pa-md" v-cloak>
                     @RenderBody()
                 </div>
