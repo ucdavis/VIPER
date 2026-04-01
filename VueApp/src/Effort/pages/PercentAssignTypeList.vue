@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Percent Assignment Types</h2>
+        <h1>Percent Assignment Types</h1>
 
         <div
             v-if="isLoading"

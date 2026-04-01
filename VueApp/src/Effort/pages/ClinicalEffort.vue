@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Clinical Effort</h2>
+        <h1>Merit &amp; Promotion Report - Clinical Effort</h1>
 
         <!-- Custom filter form — academic year + clinical type only -->
         <div class="filter-form q-mb-md">
