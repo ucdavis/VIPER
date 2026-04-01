@@ -227,7 +227,7 @@ getEpas()
                                 size="md"
                                 icon="edit"
                                 color="primary"
-                                aria-label="Edit EPA"
+                                :aria-label="`Edit EPA: ${epaItem.name}`"
                                 @click="selectEpa(epaItem)"
                             />
                         </span>

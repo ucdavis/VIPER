@@ -89,7 +89,7 @@ load()
             size="sm"
             icon="edit"
             color="primary"
-            aria-label="Edit role"
+            :aria-label="`Edit role: ${r.name}`"
             @click="role = r"
             class="q-mt-xs q-mr-md"
         ></q-btn>
