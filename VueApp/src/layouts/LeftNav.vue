@@ -76,6 +76,7 @@
                         <q-item
                             v-else
                             :class="menuItem.displayClass"
+                            role="none"
                         >
                             <q-item-section>
                                 <q-item-label lines="1">
