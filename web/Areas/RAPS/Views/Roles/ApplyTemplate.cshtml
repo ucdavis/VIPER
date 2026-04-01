@@ -56,11 +56,11 @@
             methods: {
                 send: async function(url, data) {
                     return await fetch(url, data)
-                        .then(r => r.ok && r.status !== "204" ? r.json() : r)
+                        .then(r => r.ok && r.status !== 204 ? r.json() : r)
                         .then(r => r.success !== undefined ? r.result : null)
                 },
                 getApplyUrl: function(memberId, loginId) {
-                    return memberId !== null
+                    return memberId !== null && memberId !== undefined
                         ? `RoleTemplates/${this.roleTemplateId}/Apply/${memberId}`
                         : `RoleTemplates/${this.roleTemplateId}/Apply/loginid:${loginId}`
                 },
@@ -68,7 +68,7 @@
                     this.previewApplyTemplate()
                 },
                 loginidsUpdate: async function() {
-                    if (this.userSearch?.value === null || this.userSearch.value.length === 0) {
+                    if ((this.userSearch?.value?.length ?? 0) === 0) {
                         this.previewApplyTemplate()
                     }
                 },
@@ -78,7 +78,7 @@
                         headers: { "Content-Type": "application/json" }
                     }
                     //use the single user search box
-                    if (this.userSearch?.value !== null && this.userSearch.value.length > 0) {
+                    if ((this.userSearch?.value?.length ?? 0) > 0) {
                         await this.send(this.getApplyUrl(this.userSearch.value), options)
                     }
                     //use the loginids text box
@@ -100,7 +100,7 @@
                 previewApplyTemplate: async function() {
                     this.members = null
                     //use the single user search box
-                    if (this.userSearch?.value !== null && this.userSearch.value.length > 0) {
+                    if ((this.userSearch?.value?.length ?? 0) > 0) {
                         this.loginids = ""
                         this.members = []
                         var result = await this.send(this.getApplyUrl(this.userSearch.value))
