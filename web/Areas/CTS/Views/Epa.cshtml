@@ -202,7 +202,7 @@
                     var schedLastWeek = scheduledServices.find(s => new Date(s.dateEnd).getTime() === sunday.getTime())
                     this.serviceThisWeek = schedThisWeek ? schedThisWeek.serviceId : 0
                     this.serviceLastWeek = schedLastWeek && schedLastWeek.serviceId !== this.serviceThisWeek ? schedLastWeek.serviceId : 0
-                    this.servicesScheduled = scheduledServices.map(s => s.serviceID)
+                    this.servicesScheduled = scheduledServices.map(s => s.serviceId)
 
                     //auto select a service - this week, then last week
                     if (this.serviceThisWeek > 0) {
