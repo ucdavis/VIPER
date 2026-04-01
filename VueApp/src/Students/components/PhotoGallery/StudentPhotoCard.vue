@@ -7,6 +7,7 @@
             spinner-color="primary"
             no-default-spinner
             class="cursor-pointer"
+            :alt="`${student.firstName} ${student.lastName}'s photo`"
             @click="handleClick"
         >
             <template #error>
