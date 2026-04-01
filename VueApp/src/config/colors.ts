@@ -172,7 +172,7 @@ const BRAND_COLORS = {
     // Status colors (UC Davis secondary palette)
     positive: "#266041", // Redwood
     negative: "#79242F", // Merlot
-    info: "#6FCFEB", // Rec Pool
+    info: "#00B2E3", // Tahoe
 
     // Dark theme
     dark: "#1d1d1d",
