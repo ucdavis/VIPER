@@ -176,7 +176,7 @@ load()
                     dense
                     size="sm"
                     icon="edit"
-                    aria-label="Edit bundle"
+                    :aria-label="`Edit bundle: ${props.row.name}`"
                     @click="selectBundle(props.row)"
                     color="primary"
                 ></q-btn>
@@ -200,7 +200,7 @@ load()
                     class="q-mr-md"
                     icon="list"
                     color="primary"
-                    aria-label="View competencies"
+                    :aria-label="`View competencies for ${props.row.name}`"
                     :to="'ManageBundleCompetencies?bundleId=' + props.row.bundleId"
                 ></q-btn>
                 {{ props.row.competencyCount }}
