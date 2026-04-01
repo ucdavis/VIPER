@@ -216,7 +216,7 @@ loadLevels()
                         size="md"
                         color="primary"
                         icon="edit"
-                        aria-label="Edit level"
+                        :aria-label="`Edit level: ${l.levelName}`"
                         @click="editLevel(l)"
                     ></q-btn>
                 </q-item-section>

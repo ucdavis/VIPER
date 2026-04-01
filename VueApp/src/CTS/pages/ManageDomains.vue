@@ -142,7 +142,7 @@ getDomains()
                         dense
                         flat
                         class="secondary"
-                        aria-label="Edit domain"
+                        :aria-label="`Edit domain: ${d.name}`"
                         @click="domain = d"
                     ></q-btn>
                 </q-item-section>
