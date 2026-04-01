@@ -3,7 +3,7 @@ import { fileURLToPath, URL } from "node:url"
 
 import { defineConfig, loadEnv } from "vite"
 import plugin from "@vitejs/plugin-vue"
-
+import Inspector from "vite-plugin-vue-inspector"
 import fs from "node:fs"
 import path, { resolve } from "node:path"
 // oxlint-disable-next-line import/max-dependencies -- Vite config requires multiple build tool integrations
@@ -79,6 +79,18 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             plugin(),
+            // Vue Inspector - enables clicking components in browser to open in IDE (dev mode only)
+            // Toggle with Ctrl+Shift, supports VS Code and Visual Studio
+            mode === "development" &&
+                // oxlint-disable-next-line new-cap -- Inspector is a factory function from vite-plugin-vue-inspector
+                Inspector({
+                    toggleButtonVisibility: "active", // Show toggle button when inspector is active
+                    toggleComboKey: "control-shift", // Keyboard shortcut to toggle inspector
+                    launchEditor:
+                        viteEnv.VITE_EDITOR === "visual-studio"
+                            ? path.resolve(process.cwd(), "..", "visualstudio.bat") // Use batch file wrapper for Visual Studio
+                            : viteEnv.VITE_EDITOR || "code", // Default to VS Code, or use VITE_EDITOR setting
+                }),
             // @quasar/plugin-vite options list:
             // https://github.com/quasarframework/quasar/blob/dev/vite-plugin/index.d.ts
             quasar(),
@@ -170,9 +182,6 @@ export default defineConfig(({ mode }) => {
             __VUE_PROD_DEVTOOLS__: mode === "development",
         },
         base: "/2/vue/",
-        experimental: {
-            bundledDev: true,
-        },
         test: {
             environment: "happy-dom",
             globals: true,
