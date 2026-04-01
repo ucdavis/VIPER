@@ -169,10 +169,10 @@ const BRAND_COLORS = {
     "ucdavis-gold-100": "#FFBF00", // Primary Aggie Gold
     "ucdavis-gold-90": "#FFC519",
 
-    // Status colors
-    positive: "#226e34",
-    negative: "#6e2222",
-    info: "#289094",
+    // Status colors (UC Davis secondary palette)
+    positive: "#266041", // Redwood
+    negative: "#79242F", // Merlot
+    info: "#008EAA", // Putah Creek
 
     // Dark theme
     dark: "#1d1d1d",
