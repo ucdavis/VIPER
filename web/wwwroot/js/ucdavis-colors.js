@@ -16,10 +16,10 @@ globalThis.UCDavisBrandColors = {
     secondary: "#4b6983", // UC Davis Blue 70
     accent: "#ffc519", // UC Davis Gold 90
 
-    // Status colors
-    positive: "#226e34", // Green for success states
-    negative: "#6e2222", // Red for error states
-    info: "#289094", // Teal for informational states
+    // Status colors (UC Davis secondary palette)
+    positive: "#266041", // Redwood - green for success states
+    negative: "#79242F", // Merlot - red for error states
+    info: "#6FCFEB", // Rec Pool - light blue for informational states
     warning: "#ffc519", // Gold for warning states (same as accent)
 
     // Dark theme colors

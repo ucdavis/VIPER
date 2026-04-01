@@ -184,7 +184,55 @@ html {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Screen reader only — visually hidden but accessible to assistive technology */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Skip to content link — visible on focus for keyboard users */
+.skip-to-content {
+    position: absolute;
+    top: -2.5rem;
+    left: 0.5rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--q-primary);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-weight: 600;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* Override Quasar grey to UC Davis Black 60 for AA contrast compliance */
+.text-grey {
+    color: var(--ucdavis-black-60);
+}
+
+.bg-grey {
+    background-color: var(--ucdavis-black-60);
+}
+
 /* Heading Styles */
+.q-page-container h1,
+.q-page-container .text-h1 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
 .q-page-container h2,
 .q-page-container .text-h2 {
     font-size: 1.2rem;

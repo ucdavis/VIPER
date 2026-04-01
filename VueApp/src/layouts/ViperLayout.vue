@@ -1,5 +1,10 @@
 <template>
     <div id="pageTop"></div>
+    <a
+        href="#main-content"
+        class="skip-to-content"
+        >Skip to main content</a
+    >
     <q-layout view="hHh lpR fFf">
         <q-header
             elevated
@@ -55,6 +60,7 @@
                     flat
                     dense
                     icon="menu"
+                    aria-label="Navigation menu"
                     class="q-mr-xs lt-md"
                 >
                     <MiniNav v-if="userStore.isLoggedIn"></MiniNav>
@@ -63,6 +69,7 @@
                     flat
                     dense
                     icon="list"
+                    aria-label="Toggle sidebar"
                     class="q-mr-xs lt-md"
                     @click="mainLeftDrawer = !mainLeftDrawer"
                 ></q-btn>
@@ -158,37 +165,39 @@
         </slot>
 
         <q-page-container id="mainLayoutBody">
-            <div
-                class="q-pa-md"
-                v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
-            >
-                <router-view></router-view>
-            </div>
-            <div
-                v-show="!userStore.isLoggedIn"
-                class="q-pa-xl flex flex-center"
-            >
-                <q-card
-                    class="text-center"
-                    style="max-width: 400px"
+            <main id="main-content">
+                <div
+                    class="q-pa-md"
+                    v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
                 >
-                    <q-card-section>
-                        <div class="text-h6">Welcome to VIPER</div>
-                        <div class="text-body1 q-mt-sm text-grey-7">Please log in to access this application.</div>
-                    </q-card-section>
-                    <q-card-actions
-                        align="center"
-                        class="q-pb-md"
+                    <router-view></router-view>
+                </div>
+                <div
+                    v-show="!userStore.isLoggedIn"
+                    class="q-pa-xl flex flex-center"
+                >
+                    <q-card
+                        class="text-center"
+                        style="max-width: 400px"
                     >
-                        <q-btn
-                            color="primary"
-                            label="Log In"
-                            :href="loginHref"
-                            no-caps
-                        />
-                    </q-card-actions>
-                </q-card>
-            </div>
+                        <q-card-section>
+                            <div class="text-h6">Welcome to VIPER</div>
+                            <div class="text-body1 q-mt-sm text-grey-7">Please log in to access this application.</div>
+                        </q-card-section>
+                        <q-card-actions
+                            align="center"
+                            class="q-pb-md"
+                        >
+                            <q-btn
+                                color="primary"
+                                label="Log In"
+                                :href="loginHref"
+                                no-caps
+                            />
+                        </q-card-actions>
+                    </q-card>
+                </div>
+            </main>
         </q-page-container>
 
         <q-footer
@@ -210,8 +219,10 @@
                             color="primary"
                             name="help_center"
                             size="xs"
+                            aria-hidden="true"
                         ></q-icon>
                         SVM-IT ServiceDesk
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a
@@ -224,8 +235,10 @@
                             color="primary"
                             name="navigation"
                             size="xs"
+                            aria-hidden="true"
                         ></q-icon>
                         SVM Home
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a
@@ -238,8 +251,10 @@
                             color="primary"
                             name="school"
                             size="xs"
+                            aria-hidden="true"
                         ></q-icon>
                         UC Davis
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                 </div>
                 <div class="col-12 col-md-auto gt-sm text-black">

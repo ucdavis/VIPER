@@ -21,6 +21,7 @@
                     unelevated
                     color="secondary"
                     icon="close"
+                    aria-label="Close menu"
                     class="float-right lt-md"
                     @click="myMainLeftDrawer = false"
                 />
@@ -30,6 +31,7 @@
                 <q-list
                     dense
                     separator
+                    role="presentation"
                 >
                     <template
                         v-for="(menuItem, index) in menuItems"
@@ -41,6 +43,7 @@
                             :v-ripple="menuItem.clickable"
                             :to="menuItem.routeTo"
                             :class="menuItem.displayClass"
+                            role="none"
                         >
                             <q-item-section>
                                 <q-item-label lines="1">
@@ -55,10 +58,18 @@
                             :href="menuItem.menuItemUrl"
                             target="_blank"
                             :class="menuItem.displayClass"
+                            role="none"
                         >
                             <q-item-section>
                                 <q-item-label lines="1">
                                     {{ menuItem.menuItemText }}
+                                    <q-icon
+                                        name="open_in_new"
+                                        size="xs"
+                                        class="q-ml-xs"
+                                        aria-hidden="true"
+                                    />
+                                    <span class="sr-only">(opens in new window)</span>
                                 </q-item-label>
                             </q-item-section>
                         </q-item>
