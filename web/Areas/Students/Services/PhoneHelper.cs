@@ -35,7 +35,7 @@ public static partial class PhoneHelper
     /// </summary>
     public static string? FormatPhone(string? input)
     {
-        if (string.IsNullOrEmpty(input))
+        if (string.IsNullOrWhiteSpace(input))
         {
             return null;
         }

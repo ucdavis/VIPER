@@ -170,6 +170,7 @@ async function handleWordExport(): Promise<void> {
             outlined
             debounce="300"
             placeholder="Search"
+            aria-label="Search"
             class="q-ml-sm bg-white"
             clearable
             clear-icon="close"
