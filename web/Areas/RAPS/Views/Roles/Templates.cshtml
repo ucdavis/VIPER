@@ -1,4 +1,4 @@
-﻿<h2>Role Templates</h2>
+﻿<h1>Role Templates</h1>
 <q-dialog v-model="templates.showForm" @@hide="templates.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="templates.submit(this)" v-model="templates.object">
@@ -70,7 +70,7 @@
         {
             <template v-slot:body-cell-action="props">
                 <q-td :props="props">
-                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" @@click="templates.selectRow(props.row)"></q-btn>
+                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" aria-label="Edit template" @@click="templates.selectRow(props.row)"></q-btn>
                 </q-td>
             </template>
         }
@@ -127,12 +127,12 @@
             },
             methods: {
                 toggleRoles: function (roleTemplateId) {
-                    this.viewRoleTemplateId = (this.viewRoleTemplateId == roleTemplateId) ? 0 : roleTemplateId;
+                    this.viewRoleTemplateId = (this.viewRoleTemplateId === roleTemplateId) ? 0 : roleTemplateId;
                 },
-                filterTemplates: function (rows, terms, cols, getCellValue) {
+                filterTemplates: function (rows, terms) {
                     return rows.reduce((result, row) => {
-                        if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) != -1
-                            || row.description.toLowerCase().indexOf(terms.toLowerCase()) != -1) {
+                        if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) !== -1
+                            || row.description.toLowerCase().indexOf(terms.toLowerCase()) !== -1) {
                             result.push(row)
                         }
                         return result

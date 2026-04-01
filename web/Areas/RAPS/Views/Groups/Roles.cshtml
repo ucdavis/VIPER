@@ -1,4 +1,4 @@
-﻿<h2>Roles for group {{group.name}}</h2>
+﻿<h1>Roles for group {{group.name}}</h1>
 <q-table
     dense
     row-key="roleId"
@@ -18,7 +18,7 @@
     </template>
     <template v-slot:body-cell-remove="props">
         <q-td>
-            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteGroupRole(props.row)" v-if="!props.row.isGroupRole"></q-btn>
+            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" aria-label="Remove role from group" @@click="deleteGroupRole(props.row)" v-if="!props.row.isGroupRole"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -41,7 +41,7 @@
     </template>
     <template v-slot:body-cell-links="props">
         <q-td>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Role Members" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-add="props">
@@ -54,14 +54,6 @@
 @section Scripts {
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        function getInstance(roleName) {
-            if(roleName.substr(0, 5) == "VMACS") {
-                var sp = roleName.split(".");
-                return sp[0] + "." + sp[1];
-            }
-            return roleName.substr(0, 10).toLowerCase() == "viperforms" ? "VIPERForms" : "VIPER";
-        }
-
         createVueApp({
             data() {
                 return {
@@ -94,7 +86,7 @@
                                     return result
                                 }, [])
                             this.rows = data.filter(r =>
-                                existingRoles.indexOf(r.roleId) == -1
+                                existingRoles.indexOf(r.roleId) === -1
                             )
                         },
                         selectable: true

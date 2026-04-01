@@ -1,4 +1,5 @@
-﻿<q-btn-group outline rounded class="q-mt-sm">
+﻿<h1>Permissions for {{member.displayFirstName}} {{member.displayLastName}}</h1>
+<q-btn-group outline rounded class="q-mt-sm">
     <q-btn no-caps color="primary" class="q-mb-sm" label="View existing permissions" icon="view_list"
            :outline="showWhich != 'Existing'" @@click="showWhich='Existing'"></q-btn>
     <q-btn no-caps color="primary" class="q-mb-sm" label="Add Permissions" icon="add"
@@ -85,7 +86,7 @@
         </template>
         <template v-slot:body-cell-actions="props">
             <q-td :props="props">
-                <q-btn outline size="sm" icon="edit" padding="xs md" :props="props" color="primary" @@click="memberPermissionsTable.selectRow(props.row)"></q-btn>
+                <q-btn outline size="sm" icon="edit" padding="xs md" :props="props" color="primary" aria-label="Edit permission" @@click="memberPermissionsTable.selectRow(props.row)"></q-btn>
             </q-td>
         </template>
     </q-table>
@@ -156,7 +157,7 @@
                             { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
                         ],
                         //after loading member permissions, set last modified
-                        onLoad: function (data, vueApp) {
+                        onLoad: function (data) {
                             this.rows = data.map(rp => ({
                                 ...rp,
                                 permission: rp.permission.permission,
@@ -172,7 +173,7 @@
                             return {
                                 memberId: v.urlParams.get("memberId"),
                                 permissionId: object.permissionId,
-                                access: object.access == 1 ? 1 : 0,
+                                access: object.access === 1 ? 1 : 0,
                                 startDate: object?.startDate,
                                 endDate: object?.endDate
                             }
@@ -181,7 +182,7 @@
                         selectObject: function (object) {
                             this.object = {
                                 permissionId: object.permissionId,
-                                access: object.access == 1 ? 1 : 0,
+                                access: object.access === 1 ? 1 : 0,
                                 startDate: formatDateForDateInput(object.startDate),
                                 endDate: formatDateForDateInput(object.endDate),
                                 memberId: object.memberId
@@ -197,13 +198,13 @@
                             { name: "description", label: "Description", field: "description", align: "left", sortable: true }
                         ],
                         onLoad: function (data) {
-                            existingPermissions = this.vueApp._.data.memberPermissionsTable.rows
+                            const existingPermissions = this.vueApp._.data.memberPermissionsTable.rows
                                 .reduce((result, rp) => {
                                     result.push(rp.permissionId)
                                     return result
                                 }, [])
                             this.rows = data.filter(r =>
-                                existingPermissions.indexOf(r.permissionId) == -1
+                                existingPermissions.indexOf(r.permissionId) === -1
                             )
                         },
                         pagination: { rowsPerPage: 15 }
@@ -212,7 +213,7 @@
             },
             methods: {
                 addSelectedPermissions: function(access) {
-                    this.selectedPermissions.forEach((value, index) => {
+                    this.selectedPermissions.forEach((value) => {
                         var permissionMember = { permissionId: value.permissionId, memberId: this.memberId, access: access }
                         if (this.memberPermissionParams.startDate.length) {
                             permissionMember.startDate = this.memberPermissionParams.startDate
