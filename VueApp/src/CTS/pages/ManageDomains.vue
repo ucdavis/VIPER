@@ -51,7 +51,7 @@ getDomains()
 </script>
 
 <template>
-    <h2>Manage Domains</h2>
+    <h1>Manage Domains</h1>
     <q-form
         method="post"
         @submit="save"
@@ -142,6 +142,7 @@ getDomains()
                         dense
                         flat
                         class="secondary"
+                        aria-label="Edit domain"
                         @click="domain = d"
                     ></q-btn>
                 </q-item-section>

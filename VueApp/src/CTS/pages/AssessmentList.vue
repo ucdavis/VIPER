@@ -138,7 +138,7 @@ loadPageData()
 </script>
 
 <template>
-    <h2>View Assessments</h2>
+    <h1>View Assessments</h1>
 
     <q-form>
         <div class="row">

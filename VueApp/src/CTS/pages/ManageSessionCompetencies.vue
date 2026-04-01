@@ -177,7 +177,7 @@ if (!courseId || !sessionId) {
 }
 </script>
 <template>
-    <h2>Competencies for {{ session.courseTitle }} {{ session.type }} {{ session.typeOrder }} {{ session.title }}</h2>
+    <h1>Competencies for {{ session.courseTitle }} {{ session.type }} {{ session.typeOrder }} {{ session.title }}</h1>
 
     <q-dialog v-model="showCompForm">
         <q-card
