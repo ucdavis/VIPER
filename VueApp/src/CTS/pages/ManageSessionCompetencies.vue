@@ -184,7 +184,20 @@ if (!courseId || !sessionId) {
             style="width: 800px; max-width: 80vw"
             class="q-pa-md"
         >
-            <h3>{{ compAddUpdate?.sessionCompetencyId ? "Update" : "Add" }} Session Competency</h3>
+            <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">
+                    {{ compAddUpdate?.sessionCompetencyId ? "Update" : "Add" }} Session Competency
+                </div>
+                <q-space />
+                <q-btn
+                    icon="close"
+                    flat
+                    round
+                    dense
+                    aria-label="Close dialog"
+                    v-close-popup
+                />
+            </q-card-section>
             <q-form @submit="submitSessionComp">
                 <div class="row">
                     <div class="col-12">
