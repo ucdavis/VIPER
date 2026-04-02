@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, inject } from "vue"
 import type { Ref } from "vue"
-import type { QTableProps } from "quasar"
+import { useQuasar, type QTableProps } from "quasar"
 import { useRoute } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
 import type {
@@ -14,6 +14,7 @@ import type {
     Role,
 } from "@/CTS/types"
 
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 const apiUrl = inject("apiURL")
 const route = useRoute()
@@ -140,11 +141,18 @@ async function updateBundleCompetency() {
         clearComp()
     }
 }
-async function removeBundleCompetency(comp: BundleCompetency) {
-    var result = await del(apiUrl + "cts/bundles/" + bundleId + "/competencies/" + comp.bundleCompetencyId)
-    if (result.success) {
-        loadBundleComps()
-    }
+function removeBundleCompetency(comp: BundleCompetency) {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to remove this competency from the bundle?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        var result = await del(apiUrl + "cts/bundles/" + bundleId + "/competencies/" + comp.bundleCompetencyId)
+        if (result.success) {
+            loadBundleComps()
+        }
+    })
 }
 function clearComp() {
     bundleCompetency.value = structuredClone(defaultBundleCompetency)
@@ -185,14 +193,23 @@ function editGroup(group: BundleCompetencyGroup) {
     bundleCompetencyGroup.value = group
     showGroupForm.value = true
 }
-async function removeBundleCompetencyGroup() {
-    let success = (
-        await del(apiUrl + "cts/bundles/" + bundleId + "/groups/" + bundleCompetencyGroup.value.bundleCompetencyGroupId)
-    ).success
-    if (success) {
-        loadBundleComps()
-        clearBundleCompetencyGroup()
-    }
+function removeBundleCompetencyGroup() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to remove this competency group from the bundle?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        let success = (
+            await del(
+                apiUrl + "cts/bundles/" + bundleId + "/groups/" + bundleCompetencyGroup.value.bundleCompetencyGroupId,
+            )
+        ).success
+        if (success) {
+            loadBundleComps()
+            clearBundleCompetencyGroup()
+        }
+    })
 }
 
 load()
@@ -314,6 +331,18 @@ load()
     <q-dialog v-model="showCompForm">
         <q-card class="q-pa-lg">
             <q-form @submit="updateBundleCompetency()">
+                <q-card-section class="row items-center q-pb-none">
+                    <div class="text-h6">Edit Competency</div>
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
+                </q-card-section>
                 <q-card-section>
                     <div class="row">
                         <div class="col-12">

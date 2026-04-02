@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import type { Epa, Service } from "@/CTS/types"
+
+const $q = useQuasar()
 
 const showForm = ref(false)
 const epas = ref([]) as Ref<Epa[]>
@@ -58,12 +61,19 @@ async function submitEpa() {
         getEpas()
     }
 }
-async function deleteEpa() {
-    const { del } = useFetch()
-    const r = await del(epaUrl + "/" + epa.value.epaId)
-    if (r.success) {
-        getEpas()
-    }
+function deleteEpa() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this EPA?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(epaUrl + "/" + epa.value.epaId)
+        if (r.success) {
+            getEpas()
+        }
+    })
 }
 async function clearEpa() {
     epa.value = { epaId: null, order: null, name: "", description: "", active: false, services: [] }

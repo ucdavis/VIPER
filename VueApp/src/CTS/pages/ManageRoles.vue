@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, inject } from "vue"
 import type { Ref } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 
 const apiUrl = inject("apiURL")
@@ -22,11 +25,18 @@ async function save() {
     }
 }
 
-async function removeRole() {
-    let r = await del(apiUrl + "cts/roles/" + role.value.roleId)
-    if (r.success) {
-        clearRole()
-    }
+function removeRole() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this role?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        let r = await del(apiUrl + "cts/roles/" + role.value.roleId)
+        if (r.success) {
+            clearRole()
+        }
+    })
 }
 
 function clearRole() {

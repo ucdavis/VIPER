@@ -119,8 +119,19 @@ load()
 
         <q-dialog v-model="showAssessmentDetail">
             <q-card style="width: 700px; max-width: 80vw">
-                <q-card-section>
+                <q-card-section class="row items-center q-pb-none">
                     <div class="text-h6">Assessment Details</div>
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
+                </q-card-section>
+                <q-card-section>
                     <div class="row">
                         <div class="col-12"><strong>EPA:</strong> {{ epaAssessment.epaName }}</div>
                     </div>
