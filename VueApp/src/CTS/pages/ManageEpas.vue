@@ -152,7 +152,7 @@ getEpas()
                 no-caps
                 type="button"
                 label="Delete EPA"
-                color="red"
+                color="negative"
                 @click="deleteEpa()"
                 v-if="epa?.epaId"
                 class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"
@@ -166,7 +166,7 @@ getEpas()
             no-caps
             size="md"
             label="Add EPA"
-            color="green"
+            color="positive"
             @click="showForm = true"
         />
     </div>

@@ -150,7 +150,7 @@ load()
                     v-if="bundle?.bundleId"
                     type="button"
                     @click="removeBundle()"
-                    color="red-5"
+                    color="negative"
                     dense
                     class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                     label="Delete"
@@ -211,7 +211,7 @@ load()
                 <q-icon
                     v-if="props.row.clinical"
                     name="check"
-                    color="green"
+                    color="positive"
                 />
             </q-td>
         </template>
@@ -220,7 +220,7 @@ load()
                 <q-icon
                     v-if="props.row.assessment"
                     name="check"
-                    color="green"
+                    color="positive"
                 />
             </q-td>
         </template>
@@ -229,7 +229,7 @@ load()
                 <q-icon
                     v-if="props.row.milestone"
                     name="check"
-                    color="green"
+                    color="positive"
                 />
             </q-td>
         </template>
