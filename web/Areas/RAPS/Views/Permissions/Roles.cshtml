@@ -129,18 +129,25 @@
                 denyRolePermissions: async function () {
                     this.updateRolePermissions(0)
                 },
-                deleteRolePermission: async function (rolePermission) {
-                    await viperFetch(this,
-                        "Permissions/" + this.permissionId + "/Roles/" + rolePermission.roleId,
-                        {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" }
-                        },
-                        [this.loadTables]
-                    )
-                    if(this.VMACSPush) {
-                        this.pushToVMACS([rolePermission.roleId])
-                    }
+                deleteRolePermission: function (rolePermission) {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this role from the permission?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(async () => {
+                        await viperFetch(this,
+                            "Permissions/" + this.permissionId + "/Roles/" + rolePermission.roleId,
+                            {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadTables]
+                        )
+                        if(this.VMACSPush) {
+                            this.pushToVMACS([rolePermission.roleId])
+                        }
+                    })
                 },
                 //Load data
                 loadTables: async function () {

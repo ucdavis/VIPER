@@ -107,15 +107,22 @@
                         [this.loadTables]
                     )
                 },
-                deleteGroupRole: async function (groupRole) {
-                    viperFetch(this,
-                        "Groups/" + this.groupId + "/Roles/" + groupRole.roleId,
-                        {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" }
-                        },
-                        [this.loadTables]
-                    )
+                deleteGroupRole: function (groupRole) {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this role from the group?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(() => {
+                        viperFetch(this,
+                            "Groups/" + this.groupId + "/Roles/" + groupRole.roleId,
+                            {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadTables]
+                        )
+                    })
                 },
                 loadTables: async function () {
                     await this.groupRoles.load(this)

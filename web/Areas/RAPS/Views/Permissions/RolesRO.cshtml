@@ -12,11 +12,6 @@
             <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View permissions granted by this role" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
         </q-td>
     </template>
-    <template v-slot:body-cell-remove="props">
-        <q-td :props="props">
-            <q-btn no-caps size="sm" :props="props" color="negative" icon="delete" aria-label="Remove role from permission" @@click="deleteRolePermission(props.row)"></q-btn>
-        </q-td>
-    </template>
 </q-table>
 
 @section Scripts {
@@ -53,7 +48,6 @@
                 loadPermission: async function () {
                     this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
                 },
-                //Load data
                 loadTables: async function () {
                     await this.rolePermissionTable.load(this)
                 }
