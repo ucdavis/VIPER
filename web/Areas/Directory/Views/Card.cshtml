@@ -18,19 +18,13 @@
              autofocus>
     </q-input>
     <q-toggle v-model="ucd"
-              color="green"
+              color="positive"
               label="Search all of UCD">
     </q-toggle>
     <q-toggle v-model="ids"
-              color="blue"
+              color="primary"
               label="Display IDs">
     </q-toggle>
-    <!--
-    <q-toggle v-model="debug"
-              color="red"
-              label="Display debugging">
-    </q-toggle>
-    -->
     <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
