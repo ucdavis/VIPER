@@ -43,7 +43,6 @@
                     :value="importProgress"
                     size="25px"
                     color="info"
-                    text-color="dark"
                     class="q-mb-md"
                 >
                     <div class="absolute-full flex flex-center">
@@ -92,7 +91,6 @@
                             v-model="selectedMode"
                             :options="modeOptions"
                             color="info"
-                            text-color="dark"
                             :inline="$q.screen.gt.xs"
                             @update:model-value="onModeChange"
                         />
@@ -141,7 +139,6 @@
                             <q-icon
                                 name="warning"
                                 color="warning"
-                                text-color="dark"
                                 size="sm"
                                 class="q-mr-sm"
                             />
@@ -219,7 +216,6 @@
                             <q-icon
                                 name="info"
                                 color="warning"
-                                text-color="dark"
                                 size="sm"
                                 class="q-mr-sm"
                             />
@@ -253,7 +249,6 @@
                     <q-btn
                         label="Confirm Import"
                         color="info"
-                        text-color="dark"
                         :disable="totalChanges === 0 || isCommitting"
                         @click="confirmImport"
                     />

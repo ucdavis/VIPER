@@ -117,7 +117,6 @@
                             <q-icon
                                 name="warning"
                                 color="warning"
-                                text-color="dark"
                                 size="sm"
                                 class="q-mr-sm"
                             />
