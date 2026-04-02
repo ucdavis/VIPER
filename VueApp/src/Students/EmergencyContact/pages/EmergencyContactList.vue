@@ -81,9 +81,11 @@ const columns = computed<NonNullable<QTableProps["columns"]>>(() => [
     },
 ])
 
+const detailRoute = computed(() => (isAdmin.value ? "EmergencyContactEdit" : "EmergencyContactView"))
+
 function navigateToStudent(row: StudentContactListItem): void {
     if (row.hasDetailRoute) {
-        router.push({ name: "EmergencyContactEdit", params: { pidm: row.personId } })
+        router.push({ name: detailRoute.value, params: { pidm: row.personId } })
     }
 }
 
@@ -174,13 +176,13 @@ onMounted(load)
                 <q-td :props="props">
                     <router-link
                         v-if="props.row.hasDetailRoute"
-                        :to="{ name: 'EmergencyContactEdit', params: { pidm: props.row.personId } }"
+                        :to="{ name: detailRoute, params: { pidm: props.row.personId } }"
                         class="text-primary"
-                        :aria-label="`Edit ${props.row.fullName}`"
+                        :aria-label="`${isAdmin ? 'Edit' : 'View'} ${props.row.fullName}`"
                     >
                         {{ props.row.fullName }}
                         <q-icon
-                            name="edit"
+                            :name="isAdmin ? 'edit' : 'visibility'"
                             size="0.875rem"
                             class="q-ml-xs"
                             aria-hidden="true"
@@ -282,13 +284,13 @@ onMounted(load)
                                 </q-icon>
                                 <router-link
                                     v-if="props.row.hasDetailRoute"
-                                    :to="{ name: 'EmergencyContactEdit', params: { pidm: props.row.personId } }"
+                                    :to="{ name: detailRoute, params: { pidm: props.row.personId } }"
                                     class="text-primary text-weight-medium"
-                                    :aria-label="`Edit ${props.row.fullName}`"
+                                    :aria-label="`${isAdmin ? 'Edit' : 'View'} ${props.row.fullName}`"
                                 >
                                     {{ props.row.fullName }}
                                     <q-icon
-                                        name="edit"
+                                        :name="isAdmin ? 'edit' : 'visibility'"
                                         size="0.875rem"
                                         class="q-ml-xs"
                                         aria-hidden="true"
