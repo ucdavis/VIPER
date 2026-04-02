@@ -1,4 +1,26 @@
 /*
+ * Plain DOM status toast. Quasar.Notify.create() does not render in the UMD/CDN
+ * setup because the app mounts on <body> and Notify's teleport container ends up
+ * outside Vue's reactive scope, so notifications are silently dropped.
+ */
+function showStatusNotification(message) {
+    const el = document.createElement("div")
+    el.setAttribute("role", "status")
+    el.setAttribute("aria-live", "polite")
+    el.className = "viper-status-notification"
+    el.textContent = message
+    document.body.appendChild(el)
+    // Trigger reflow so the CSS transition activates
+    void el.offsetHeight
+    el.classList.add("viper-status-notification--visible")
+    // oxlint-disable-next-line no-magic-numbers -- notification display duration in ms
+    setTimeout(() => {
+        el.classList.remove("viper-status-notification--visible")
+        el.addEventListener("transitionend", () => el.remove())
+    }, 3000)
+}
+
+/*
  * QuasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
 quasarTableDefaultConfig = {
@@ -140,7 +162,7 @@ class quasarTable {
     }
 
     async create(vueApp, bodyObject) {
-        await viperFetch(
+        const result = await viperFetch(
             vueApp,
             this.urlBase,
             {
@@ -151,10 +173,13 @@ class quasarTable {
             [() => this.load(this)],
             this.errors,
         )
+        if (result !== undefined) {
+            showStatusNotification("Item created")
+        }
     }
 
     async update(vueApp, bodyObject) {
-        await viperFetch(
+        const result = await viperFetch(
             vueApp,
             this.getUpdateURL(),
             {
@@ -165,11 +190,42 @@ class quasarTable {
             [() => this.load(this)],
             this.errors,
         )
+        if (result !== undefined) {
+            showStatusNotification("Item updated")
+        }
     }
 
-    // Delete the selected item
+    // Delete the selected item (with confirmation dialog)
     async delete(vueApp) {
-        await viperFetch(vueApp, this.getUpdateURL(), { method: "DELETE" }, [() => this.load(this)], this.errors)
+        return new Promise((resolve) => {
+            vueApp.$q.dialog({
+                title: "Confirm Delete",
+                message: "Are you sure you want to delete this item?",
+                cancel: true,
+                persistent: true,
+            })
+                .onOk(async () => {
+                    try {
+                        const result = await viperFetch(
+                            vueApp,
+                            this.getUpdateURL(),
+                            { method: "DELETE" },
+                            [() => this.load(this)],
+                            this.errors,
+                        )
+                        if (result !== undefined) {
+                            showStatusNotification("Item deleted")
+                        }
+                        resolve(true)
+                    } catch (error) {
+                        showViperFetchError(vueApp, error, this.errors)
+                        resolve(false)
+                    }
+                })
+                .onCancel(() => {
+                    resolve(false)
+                })
+        })
     }
 
     // Get the URL to create or update the item

@@ -46,7 +46,10 @@
                             role="none"
                         >
                             <q-item-section>
-                                <q-item-label lines="1">
+                                <q-item-label
+                                    v-overflow-title
+                                    lines="1"
+                                >
                                     {{ menuItem.menuItemText }}
                                 </q-item-label>
                             </q-item-section>
@@ -61,15 +64,22 @@
                             role="none"
                         >
                             <q-item-section>
-                                <q-item-label lines="1">
+                                <q-item-label
+                                    v-overflow-title
+                                    lines="1"
+                                >
                                     {{ menuItem.menuItemText }}
-                                    <q-icon
-                                        name="open_in_new"
-                                        size="xs"
-                                        class="q-ml-xs"
-                                        aria-hidden="true"
-                                    />
-                                    <span class="sr-only">(opens in new window)</span>
+                                    <template v-if="menuItem.isExternalSite">
+                                        <q-icon
+                                            name="open_in_new"
+                                            size="xs"
+                                            class="q-ml-xs"
+                                            aria-hidden="true"
+                                        >
+                                            <q-tooltip>Opens in new window</q-tooltip>
+                                        </q-icon>
+                                        <span class="sr-only">(opens in new window)</span>
+                                    </template>
                                 </q-item-label>
                             </q-item-section>
                         </q-item>
@@ -79,7 +89,10 @@
                             role="none"
                         >
                             <q-item-section>
-                                <q-item-label lines="1">
+                                <q-item-label
+                                    v-overflow-title
+                                    lines="1"
+                                >
                                     {{ menuItem.menuItemText }}
                                 </q-item-label>
                             </q-item-section>
@@ -95,12 +108,24 @@
 import { ref, watch, onMounted } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 
+// Sets title attribute only when text is truncated by ellipsis
+const vOverflowTitle = {
+    mounted(el: HTMLElement) {
+        if (el.scrollWidth > el.clientWidth) {
+            const text = el.firstChild?.textContent?.trim() ?? ""
+            const hasExternal = el.querySelector(".sr-only") !== null
+            el.title = hasExternal ? `${text} (opens in new window)` : text
+        }
+    },
+}
+
 interface MenuItem {
     menuItemUrl: string | undefined
     routeTo: string | null
     menuItemText: string
     clickable: boolean
     displayClass: string
+    isExternalSite: boolean
 }
 
 const props = defineProps<{
@@ -135,6 +160,16 @@ async function getLeftNav() {
             const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.startsWith("http")
             const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith("/")
 
+            // VIPER1 links share the same hostname — only show external icon for truly external sites
+            let isExternalSite = false
+            if (isExternalUrl) {
+                try {
+                    isExternalSite = new URL(r.menuItemURL).hostname !== window.location.hostname
+                } catch {
+                    isExternalSite = true
+                }
+            }
+
             let routeToUrl = null
             if (!isExternalUrl && r.menuItemURL.length > 0) {
                 if (isRelativeUrl && props.navarea && props.nav) {
@@ -149,6 +184,7 @@ async function getLeftNav() {
                 routeTo: routeToUrl,
                 menuItemText: r.menuItemText,
                 clickable: r.menuItemURL.length > 0,
+                isExternalSite,
                 displayClass: r.menuItemURL.length
                     ? "leftNavLink"
                     : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
