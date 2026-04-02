@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 
 type Level = {
     levelId: number
@@ -68,12 +71,19 @@ async function submitLevel() {
     }
 }
 
-async function deleteLevel() {
-    const { del } = useFetch()
-    const r = await del(levelUrl + "/" + level.value.levelId)
-    if (r.success) {
-        loadLevels()
-    }
+function deleteLevel() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this level?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(levelUrl + "/" + level.value.levelId)
+        if (r.success) {
+            loadLevels()
+        }
+    })
 }
 
 function filterLevels() {

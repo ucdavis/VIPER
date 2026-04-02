@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { inject, ref, watch } from "vue"
 import type { Ref } from "vue"
-import type { QTreeNode } from "quasar"
+import { useQuasar, type QTreeNode } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import type { Competency, Domain } from "@/CTS/types"
 
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 const apiUrl = inject("apiURL")
 const domains = ref([]) as Ref<Domain[]>
@@ -60,12 +61,19 @@ async function submitComp() {
     }
 }
 
-async function deleteComp() {
-    const r = await del(apiUrl + "cts/competencies/" + selectedComp.value.competencyId, selectedComp.value)
-    if (r.success) {
-        await load()
-        clearComp()
-    }
+function deleteComp() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this competency?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const r = await del(apiUrl + "cts/competencies/" + selectedComp.value.competencyId, selectedComp.value)
+        if (r.success) {
+            await load()
+            clearComp()
+        }
+    })
 }
 
 function addChild(comp: Competency) {
@@ -120,6 +128,18 @@ load()
             style="width: 500px; max-width: 80vw"
             class="q-pa-sm"
         >
+            <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">{{ selectedComp?.competencyId ? "Edit" : "Add" }} Competency</div>
+                <q-space />
+                <q-btn
+                    icon="close"
+                    flat
+                    round
+                    dense
+                    aria-label="Close dialog"
+                    v-close-popup
+                />
+            </q-card-section>
             <q-form
                 @submit="submitComp"
                 v-model="selectedComp"
