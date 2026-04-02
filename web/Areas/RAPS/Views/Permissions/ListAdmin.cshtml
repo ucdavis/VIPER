@@ -3,9 +3,13 @@
     <q-dialog v-model="permissionTable.showForm" @@hide="permissionTable.clear(this)">
         <q-card style="width: 500px; max-width: 80vw;">
             <q-form @@submit="permissionTable.submit(this)" v-bind="permissionTable.object">
-                <q-card-section>
+                <q-card-section class="row items-center q-pb-none">
                     <div class="text-h6">{{permissionTable.editing ? "Edit" : "Create"}} Permission</div>
-                    <div class="bg-negative text-white q-pa-sm rounded" v-if="permissionTable.errors?.message?.length > 0">{{permissionTable.errors.message}}</div>
+                    <q-space></q-space>
+                    <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                </q-card-section>
+                <q-card-section v-if="permissionTable.errors?.message?.length > 0">
+                    <div class="bg-negative text-white q-pa-sm rounded">{{permissionTable.errors.message}}</div>
                 </q-card-section>
 
                 <q-card-section>

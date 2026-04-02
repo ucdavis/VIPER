@@ -2,9 +2,13 @@
 <q-dialog v-model="templates.showForm" @@hide="templates.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="templates.submit(this)" v-model="templates.object">
-            <q-card-section>
+            <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">{{templates.editing ? "Edit" : "Create"}} Role Template</div>
-                <div class="bg-negative text-white q-pa-sm rounded" v-if="templates.errors?.message?.length > 0">{{templates.errors.message}}</div>
+                <q-space></q-space>
+                <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+            </q-card-section>
+            <q-card-section v-if="templates.errors?.message?.length > 0">
+                <div class="bg-negative text-white q-pa-sm rounded">{{templates.errors.message}}</div>
             </q-card-section>
             <q-card-section>
                 <q-input outlined v-model="templates.object.templateName" label="Role"
