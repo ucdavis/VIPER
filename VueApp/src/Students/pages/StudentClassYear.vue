@@ -235,7 +235,7 @@ load()
                         type="button"
                         padding="xs md"
                         @click="deleteStudentClassYear"
-                        color="red"
+                        color="negative"
                     ></q-btn>
                 </q-card-actions>
             </q-form>
@@ -351,12 +351,13 @@ load()
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
@@ -382,12 +383,13 @@ load()
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
