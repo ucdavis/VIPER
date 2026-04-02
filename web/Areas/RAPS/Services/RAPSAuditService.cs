@@ -19,9 +19,14 @@ namespace Viper.Areas.RAPS.Services
         private readonly RAPSSecurityService _securityService;
 
         public RAPSAuditService(RAPSContext context)
+            : this(context, new UserHelper())
+        {
+        }
+
+        public RAPSAuditService(RAPSContext context, IUserHelper userHelper)
         {
             _context = context;
-            UserHelper = new UserHelper();
+            UserHelper = userHelper;
             _securityService = new(_context);
         }
 
