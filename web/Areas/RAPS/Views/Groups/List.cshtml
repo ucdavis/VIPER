@@ -5,9 +5,13 @@
                 <q-card-section>
                     <q-btn href="CreateADGroup" no-caps label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
                 </q-card-section>
-                <q-card-section>
+                <q-card-section class="row items-center q-pb-none">
                     <div class="text-h6">{{groupTable.editing ? "Edit" : "Add OU"}} Group</div>
-                    <div class="bg-negative text-white q-pa-sm rounded" v-if="groupTable.errors?.message?.length > 0">{{groupTable.errors.message}}</div>
+                    <q-space></q-space>
+                    <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                </q-card-section>
+                <q-card-section v-if="groupTable.errors?.message?.length > 0">
+                    <div class="bg-negative text-white q-pa-sm rounded">{{groupTable.errors.message}}</div>
                 </q-card-section>
                 <q-card-section>
                     <q-select outlined dense options-dense use-input input-debounce="0"
@@ -91,7 +95,7 @@
                                 })
                             )
                         },
-                        selectObject: function (object) {
+                        selectObject: function (_object) {
                             this.object = {
                                 ...this.object,
                                 group: {
@@ -134,7 +138,7 @@
 
                 this.adGroups = await viperFetch(this, "Groups/AD")
                 this.adGroups = this.adGroups
-                    .map(g => ({ label: "AD: " + g.displayName ?? g.samAccountName, value: g.distinguishedName }))
+                    .map(g => ({ label: "AD: " + (g.displayName ?? g.samAccountName), value: g.distinguishedName }))
 
                 this.allGroups = [
                     { label: "AD3", children: this.adGroups },

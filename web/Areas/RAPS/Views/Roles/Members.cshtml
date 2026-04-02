@@ -21,9 +21,13 @@
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
                     <q-form @@submit="addUpdateMember();" v-bind="membersTable.object">
-                        <q-card-section>
+                        <q-card-section class="row items-center q-pb-none">
                             <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
-                            <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
+                            <q-space></q-space>
+                            <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                        </q-card-section>
+                        <q-card-section v-if="membersTable.errors?.message?.length > 0">
+                            <div class="bg-negative text-white q-pa-sm rounded">{{membersTable.errors.message}}</div>
                         </q-card-section>
 
                         <q-card-section>
@@ -186,16 +190,23 @@
                         Quasar.Loading.hide()
                     }
                 },
-                deleteMember: async function () {
-                    this.disableMemberUpdate = true
-                    var oldBase = this.membersTable.urlBase
-                    this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
+                deleteMember: function () {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this member from the role?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(async () => {
+                        this.disableMemberUpdate = true
+                        var oldBase = this.membersTable.urlBase
+                        this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
 
-                    const deleted = await this.membersTable.delete(this)
-                    this.membersTable.urlBase = oldBase
-                    if (deleted) { this.pushMemberToVMACS() }
-                    
-                    this.disableMemberUpdate = false
+                        const deleted = await this.membersTable.delete(this)
+                        this.membersTable.urlBase = oldBase
+                        if (deleted) { this.pushMemberToVMACS() }
+
+                        this.disableMemberUpdate = false
+                    })
                 },
                 addUpdateMember: async function () {
                     this.disableMemberUpdate = true

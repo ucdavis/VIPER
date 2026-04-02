@@ -2,9 +2,13 @@
 <q-dialog v-model="rolesTable.showForm" @@hide="rolesTable.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="rolesTable.submit(this)" v-model="rolesTable.object">
-            <q-card-section>
+            <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">{{rolesTable.editing ? "Edit" : "Create"}} Role</div>
-                <div class="bg-negative text-white q-pa-sm rounded" v-if="rolesTable.errors?.message?.length > 0">{{rolesTable.errors.message}}</div>
+                <q-space></q-space>
+                <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+            </q-card-section>
+            <q-card-section v-if="rolesTable.errors?.message?.length > 0">
+                <div class="bg-negative text-white q-pa-sm rounded">{{rolesTable.errors.message}}</div>
             </q-card-section>
             <q-card-section>
                 <div class="row">
@@ -62,7 +66,7 @@
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <q-badge :props="props" v-if="props.row.application == 1" transparent icon="supervisor_account" color="amber-7" text-color="dark" class="q-mr-2">Delegate</q-badge>
+                <q-badge v-if="props.row.application == 1" transparent icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
                 {{props.row.friendlyName}}
                 <br />     
                 <span style="font-size:.9em">{{props.row.description}}</span>
