@@ -411,21 +411,6 @@ onMounted(loadData)
     align-items: center;
 }
 
-@media screen and (prefers-reduced-motion: reduce) {
-    .help-link {
-        margin-left: 8px;
-        display: inline-flex;
-        align-items: center;
-        text-decoration: none;
-        font-size: 0.9rem;
-        font-weight: normal;
-        gap: 4px;
-        padding: 6px 12px;
-        border-radius: 4px;
-        transition: none;
-    }
-}
-
 .help-link {
     margin-left: 8px;
     display: inline-flex;
@@ -442,5 +427,11 @@ onMounted(loadData)
 .help-link:hover,
 .help-link:focus {
     background-color: rgb(0 95 153 / 10%);
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .help-link {
+        transition: none;
+    }
 }
 </style>

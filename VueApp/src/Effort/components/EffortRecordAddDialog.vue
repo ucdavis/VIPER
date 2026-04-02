@@ -34,7 +34,6 @@
                             <q-icon
                                 name="info"
                                 color="warning"
-                                text-color="dark"
                             />
                         </template>
                         <span class="text-orange-9">
