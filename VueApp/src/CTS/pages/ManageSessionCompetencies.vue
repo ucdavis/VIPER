@@ -276,7 +276,7 @@ if (!courseId || !sessionId) {
             <q-btn
                 dense
                 no-caps
-                color="green"
+                color="positive"
                 icon="add"
                 label="Add Competency"
                 class="q-px-md"
@@ -325,7 +325,7 @@ if (!courseId || !sessionId) {
                                 <td>
                                     <q-icon
                                         name="check"
-                                        color="green"
+                                        color="positive"
                                         v-if="lc.levels.findIndex((l: Level) => l.levelName == level) >= 0"
                                     ></q-icon>
                                 </td>
@@ -346,7 +346,7 @@ if (!courseId || !sessionId) {
                             <td class="text-center">
                                 <q-icon
                                     name="check"
-                                    color="green"
+                                    color="positive"
                                     v-if="c.levels.findIndex((l: Level) => l.levelName == level) >= 0"
                                 ></q-icon>
                             </td>
@@ -364,7 +364,7 @@ if (!courseId || !sessionId) {
                                 dense
                                 size="sm"
                                 icon="delete"
-                                color="red-5"
+                                color="negative"
                                 @click="delComp(c)"
                             ></q-btn>
                         </td>

@@ -107,7 +107,7 @@ getDomains()
                 label="Delete"
                 no-caps
                 dense
-                color="red-7"
+                color="negative"
                 class="col col-4 col-lg-1 q-ml-md"
             ></q-btn>
             <q-btn
@@ -117,6 +117,7 @@ getDomains()
                 no-caps
                 dense
                 color="info"
+                text-color="dark"
                 class="col col-4 col-lg-1 q-ml-md"
             ></q-btn>
         </div>

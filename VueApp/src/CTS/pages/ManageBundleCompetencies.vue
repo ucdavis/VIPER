@@ -206,7 +206,7 @@ load()
             label="Add Group"
             @click="showGroupForm = true"
             class="q-mt-lg q-px-sm"
-            color="green"
+            color="positive"
             icon="add"
         ></q-btn>
         <div
@@ -253,7 +253,7 @@ load()
                         v-if="bundleCompetencyGroup?.bundleCompetencyGroupId"
                         type="button"
                         @click="removeBundleCompetencyGroup()"
-                        color="red-5"
+                        color="negative"
                         dense
                         class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                         label="Delete"
@@ -304,7 +304,7 @@ load()
                     type="submit"
                     label="Add"
                     icon="add"
-                    color="green"
+                    color="positive"
                     class="col-auto q-ml-md q-px-sm"
                 ></q-btn>
             </div>
@@ -423,7 +423,7 @@ load()
                 <q-icon
                     v-if="props.row.levels.findIndex((l: any) => l.levelId === level.levelId) > -1"
                     name="check"
-                    color="green"
+                    color="positive"
                 ></q-icon>
             </q-td>
         </template>
@@ -441,7 +441,7 @@ load()
                     dense
                     size="sm"
                     icon="delete"
-                    color="red-5"
+                    color="negative"
                     @click="removeBundleCompetency(props.row)"
                 ></q-btn>
             </q-td>
