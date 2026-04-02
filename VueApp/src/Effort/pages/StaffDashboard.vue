@@ -797,6 +797,7 @@
                                         <q-icon
                                             name="schedule"
                                             color="info"
+                                            text-color="dark"
                                         />
                                     </q-item-section>
                                     <q-item-section>

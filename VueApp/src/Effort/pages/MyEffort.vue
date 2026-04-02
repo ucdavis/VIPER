@@ -22,9 +22,9 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
+            type="error"
         >
             {{ loadError }}
             <template #action>
@@ -34,19 +34,16 @@
                     :to="{ name: 'EffortHomeWithTerm', params: { termCode } }"
                 />
             </template>
-        </q-banner>
+        </StatusBanner>
 
         <!-- No instructor record for this term (empty DTO returned) -->
-        <q-banner
+        <StatusBanner
             v-else-if="myEffort && myEffort.effortRecords.length === 0 && !myEffort.instructor.personId"
-            class="bg-info text-white q-mb-md"
-            rounded
+            type="info"
+            icon="school"
         >
-            <template #avatar>
-                <q-icon name="school" />
-            </template>
             No effort records found for you in this term.
-        </q-banner>
+        </StatusBanner>
 
         <!-- Content when loaded -->
         <template v-else-if="myEffort">
@@ -90,16 +87,12 @@
             />
 
             <!-- Already verified banner -->
-            <q-banner
+            <StatusBanner
                 v-if="myEffort.instructor.isVerified"
-                class="bg-positive text-white q-mb-md"
-                rounded
+                type="success"
             >
-                <template #avatar>
-                    <q-icon name="check_circle" />
-                </template>
                 Your effort was verified on {{ formatEffortDate(myEffort.instructor.effortVerified) }}
-            </q-banner>
+            </StatusBanner>
 
             <!-- Zero effort warning -->
             <ZeroEffortBanner
@@ -116,19 +109,15 @@
             </p>
 
             <!-- No records message with verification option -->
-            <q-banner
+            <StatusBanner
                 v-if="myEffort.effortRecords.length === 0 && !myEffort.instructor.isVerified"
-                class="bg-info text-white q-mb-md"
-                rounded
+                type="info"
             >
-                <template #avatar>
-                    <q-icon name="info" />
-                </template>
                 <div>
                     No effort records found for you in this term. If this is correct, you can verify that you had no
                     teaching effort for {{ myEffort.termName }}.
                 </div>
-            </q-banner>
+            </StatusBanner>
 
             <!-- No records message (already verified) -->
             <div
@@ -256,6 +245,7 @@ import { recordService } from "../services/record-service"
 import { useEffortRecordManagement, formatEffortDate } from "../composables/use-effort-record-management"
 import type { MyEffortDto, EffortTypeOptionDto, InstructorEffortRecordDto } from "../types"
 import { VerificationErrorCodes } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
@@ -421,6 +411,21 @@ onMounted(loadData)
     align-items: center;
 }
 
+@media screen and (prefers-reduced-motion: reduce) {
+    .help-link {
+        margin-left: 8px;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: normal;
+        gap: 4px;
+        padding: 6px 12px;
+        border-radius: 4px;
+        transition: none;
+    }
+}
+
 .help-link {
     margin-left: 8px;
     display: inline-flex;
@@ -434,7 +439,8 @@ onMounted(loadData)
     transition: background-color 0.2s ease;
 }
 
-.help-link:hover {
-    background-color: rgba(0, 95, 153, 0.1);
+.help-link:hover,
+.help-link:focus {
+    background-color: rgb(0 95 153 / 10%);
 }
 </style>

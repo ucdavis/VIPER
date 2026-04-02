@@ -33,7 +33,8 @@
                     <template #avatar>
                         <q-icon
                             name="warning"
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                         />
                     </template>
                     <div class="text-weight-medium text-orange-9">Unusual Timing</div>
@@ -147,7 +148,8 @@
                         <template #avatar>
                             <q-icon
                                 name="warning"
-                                color="orange"
+                                color="warning"
+                                text-color="dark"
                             />
                         </template>
                         <div class="text-weight-medium">No assignments to roll forward</div>
@@ -167,7 +169,8 @@
                             <div class="row items-center full-width">
                                 <q-icon
                                     name="event_repeat"
-                                    color="cyan-8"
+                                    color="info"
+                                    text-color="dark"
                                     size="24px"
                                     class="q-mr-sm"
                                 />
@@ -224,7 +227,8 @@
                             <div class="row items-center full-width">
                                 <q-icon
                                     name="block"
-                                    color="orange"
+                                    color="warning"
+                                    text-color="dark"
                                     size="24px"
                                     class="q-mr-sm"
                                 />
@@ -247,7 +251,8 @@
                                 <template #avatar>
                                     <q-icon
                                         name="info"
-                                        color="orange"
+                                        color="warning"
+                                        text-color="dark"
                                     />
                                 </template>
                                 These assignments will not be rolled forward because someone manually edited or deleted

@@ -23,9 +23,9 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
+            type="error"
         >
             {{ loadError }}
             <template #action>
@@ -35,7 +35,7 @@
                     :to="{ name: 'CourseList', params: { termCode } }"
                 />
             </template>
-        </q-banner>
+        </StatusBanner>
 
         <!-- Course content -->
         <template v-else-if="course">
@@ -69,17 +69,13 @@
             </div>
 
             <!-- R-Course Notice -->
-            <q-banner
+            <StatusBanner
                 v-if="isResidentCourse"
-                class="bg-info text-white q-mb-md"
-                rounded
+                type="info"
             >
-                <template #avatar>
-                    <q-icon name="info" />
-                </template>
                 The Resident (R) course was added automatically to allow recording of resident teaching effort. If left
                 with 0 effort and verified, it will be automatically removed.
-            </q-banner>
+            </StatusBanner>
 
             <!-- Course Info (hidden for resident teaching course) -->
             <div
@@ -388,6 +384,7 @@ import type {
     CourseEvaluationStatusDto,
     CourseEvalEntryDto,
 } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseLinkDialog from "../components/CourseLinkDialog.vue"
 import CourseEffortTable from "../components/CourseEffortTable.vue"
