@@ -9,7 +9,7 @@ import { nextTick } from "vue"
 export function useRouteFocus(router: Router) {
     router.afterEach(() => {
         nextTick(() => {
-            const main = document.querySelector("main") || document.querySelector("#app")
+            const main = document.querySelector("#main-content") || document.querySelector("main")
             if (main instanceof HTMLElement) {
                 // Set tabindex temporarily so the element can receive focus
                 // without permanently joining the tab order
