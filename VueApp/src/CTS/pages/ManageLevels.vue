@@ -186,7 +186,7 @@ loadLevels()
                     no-caps
                     type="button"
                     label="Delete Level"
-                    color="red"
+                    color="negative"
                     class="q-mt-sm q-ml-lg col col-4 col-md-1"
                     @click="deleteLevel"
                 ></q-btn>

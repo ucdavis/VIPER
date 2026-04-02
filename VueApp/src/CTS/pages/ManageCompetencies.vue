@@ -210,7 +210,7 @@ load()
                         no-caps
                         label="Delete"
                         v-if="selectedComp.competencyId != null"
-                        color="red-5"
+                        color="negative"
                         class="q-px-md q-mx-md col"
                         @click="deleteComp()"
                     ></q-btn>
@@ -254,7 +254,7 @@ load()
                 dense
                 no-caps
                 class="q-px-sm q-ml-md"
-                color="green"
+                color="positive"
                 icon="add"
                 label="Add Competency"
                 @click="showForm = true"
@@ -280,7 +280,7 @@ load()
                         flat
                         size="sm"
                         icon="add"
-                        color="green"
+                        color="positive"
                         @click="addChild(prop.node.comp)"
                         title="Add child of this competency"
                     ></q-btn>
@@ -305,7 +305,7 @@ load()
                     }}</span>
                     <q-icon
                         name="school"
-                        color="green"
+                        color="positive"
                         v-if="prop.node.comp.canLinkToStudent"
                         class="q-ml-md"
                     ></q-icon>

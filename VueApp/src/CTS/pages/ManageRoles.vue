@@ -71,7 +71,7 @@ load()
                 v-if="role?.roleId"
                 type="button"
                 @click="removeRole()"
-                color="red-5"
+                color="negative"
                 dense
                 class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                 label="Delete"

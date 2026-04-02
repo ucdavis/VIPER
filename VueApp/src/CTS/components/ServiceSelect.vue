@@ -95,13 +95,13 @@ void getServices()
                     side
                     v-if="scope.opt.thisWeek"
                 >
-                    <q-badge color="green"> This Week </q-badge>
+                    <q-badge color="positive"> This Week </q-badge>
                 </q-item-section>
                 <q-item-section
                     side
                     v-if="scope.opt.lastWeek && !scope.opt.thisWeek"
                 >
-                    <q-badge color="blue"> Last Week </q-badge>
+                    <q-badge color="primary"> Last Week </q-badge>
                 </q-item-section>
                 <q-item-section
                     side

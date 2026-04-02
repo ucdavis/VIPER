@@ -125,7 +125,7 @@ load()
                     icon="add"
                     label="Add Milestone"
                     type="submit"
-                    color="green"
+                    color="positive"
                 ></q-btn>
             </div>
         </div>
