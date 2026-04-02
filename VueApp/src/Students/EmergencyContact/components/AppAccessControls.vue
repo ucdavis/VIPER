@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue"
 import { inflect } from "inflection"
 import { useQuasar } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import type { IndividualAccess } from "../types"
 
@@ -72,18 +73,10 @@ onMounted(loadAccessStatus)
 </script>
 
 <template>
-    <q-banner
-        class="bg-info text-white q-mb-md"
-        rounded
-        role="status"
-        aria-live="polite"
+    <StatusBanner
+        type="info"
+        :icon="appOpen ? 'edit_note' : 'edit_off'"
     >
-        <template #avatar>
-            <q-icon
-                :name="appOpen ? 'edit_note' : 'edit_off'"
-                color="white"
-            />
-        </template>
         <div class="q-mb-xs">
             Student editing is <strong>{{ appOpen ? "open" : "closed" }}</strong>
         </div>
@@ -93,8 +86,7 @@ onMounted(loadAccessStatus)
         </div>
         <q-btn
             :label="appOpen ? 'Disable Editing' : 'Enable Editing'"
-            color="white"
-            text-color="info"
+            color="primary"
             :loading="toggling"
             dense
             no-caps
@@ -109,7 +101,7 @@ onMounted(loadAccessStatus)
                 {{ appOpen ? "Disable Editing" : "Enable Editing" }}
             </template>
         </q-btn>
-    </q-banner>
+    </StatusBanner>
 
     <q-inner-loading :showing="loading" />
 </template>

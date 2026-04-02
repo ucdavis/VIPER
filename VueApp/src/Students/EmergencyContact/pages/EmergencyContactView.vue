@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { stripToDigits, formatPhone } from "../utils/phone"
 import type { StudentContactDetail } from "../types"
@@ -257,13 +258,12 @@ onMounted(() => {
             </div>
         </template>
 
-        <q-banner
+        <div
             v-else
-            class="bg-warning q-mt-md"
-            rounded
+            class="q-mt-md"
         >
-            Student contact record not found.
-        </q-banner>
+            <StatusBanner type="warning"> Student contact record not found. </StatusBanner>
+        </div>
     </div>
 </template>
 
