@@ -10,20 +10,12 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
-            rounded
-            role="alert"
+            type="error"
         >
-            <template #avatar>
-                <q-icon
-                    name="error"
-                    color="white"
-                />
-            </template>
             {{ loadError }}
-        </q-banner>
+        </StatusBanner>
 
         <template v-else-if="records.length > 0">
             <!-- Mobile Card View -->
@@ -307,6 +299,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 import type { QTableColumn } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { CourseEffortRecordDto } from "../types"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import "../effort-record-table.css"

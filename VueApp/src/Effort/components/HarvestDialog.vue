@@ -116,7 +116,8 @@
                         <div class="row items-center q-mb-xs">
                             <q-icon
                                 name="warning"
-                                color="orange"
+                                color="warning"
+                                text-color="dark"
                                 size="sm"
                                 class="q-mr-sm"
                             />

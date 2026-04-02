@@ -60,7 +60,7 @@
 
         <!-- Error state -->
         <template v-else>
-            <q-banner class="bg-negative text-white q-mb-md">
+            <StatusBanner type="error">
                 Percent assignment type not found.
                 <template #action>
                     <q-btn
@@ -69,7 +69,7 @@
                         :to="backLink"
                     />
                 </template>
-            </q-banner>
+            </StatusBanner>
         </template>
     </div>
 </template>
@@ -77,6 +77,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useRoute } from "vue-router"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { percentAssignTypeService } from "../services/percent-assign-type-service"
 import type { InstructorsByPercentAssignTypeResponseDto, InstructorByPercentAssignTypeDto } from "../types"
 import type { QTableColumn } from "quasar"
