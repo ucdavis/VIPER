@@ -7,7 +7,10 @@ type DomainData = {
 }
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 
 const domain = ref({
     domainId: 0,
@@ -38,13 +41,20 @@ async function save() {
 function clearDomain() {
     domain.value = { domainId: 0, order: null, name: "", description: "" }
 }
-async function deleteDomain() {
-    const { del } = useFetch()
-    const r = await del(baseUrl + "/" + domain.value.domainId)
-    if (r.success) {
-        clearDomain()
-        await getDomains()
-    }
+function deleteDomain() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this domain?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(baseUrl + "/" + domain.value.domainId)
+        if (r.success) {
+            clearDomain()
+            await getDomains()
+        }
+    })
 }
 
 getDomains()

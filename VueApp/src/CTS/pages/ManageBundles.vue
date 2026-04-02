@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, inject } from "vue"
 import type { Ref } from "vue"
-import type { QTableProps } from "quasar"
+import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 
 import type { Bundle, Role } from "@/CTS/types"
@@ -72,11 +73,18 @@ function clearBundle() {
     load()
 }
 
-async function removeBundle() {
-    let r = await del(apiUrl + "cts/bundles/" + bundle.value.bundleId)
-    if (r.success) {
-        clearBundle()
-    }
+function removeBundle() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this bundle?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        let r = await del(apiUrl + "cts/bundles/" + bundle.value.bundleId)
+        if (r.success) {
+            clearBundle()
+        }
+    })
 }
 
 load()
