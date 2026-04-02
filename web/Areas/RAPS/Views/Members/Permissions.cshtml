@@ -59,7 +59,7 @@
 
                             <q-card-actions align="evenly">
                                 <q-btn no-caps :label="memberPermissionsTable.editing ? 'Update Permission for User' : 'Add Permission for User'" type="submit" padding="xs sm" color="primary"></q-btn>
-                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="memberPermissionsTable.delete(this)" color="red" v-if="memberPermissionsTable.editing"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="memberPermissionsTable.delete(this)" color="negative" v-if="memberPermissionsTable.editing"></q-btn>
                             </q-card-actions>
                         </q-form>
                     </q-card>
@@ -101,7 +101,7 @@
             <q-input type="date" outlined dense v-model="memberPermissionParams.startDate" label="Start Date"></q-input>
             <q-input type="date" outlined dense v-model="memberPermissionParams.endDate" label="End Date" class="q-ml-md"></q-input>
             <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Grant Checked Permissions" type="button" color="primary" @@click="grantPermissions"></q-btn>
-            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Deny Checked Permissions" type="button" color="red" @@click="denyPermissions"></q-btn>
+            <q-btn sm dense no-caps class="q-px-sm q-ml-md" label="Deny Checked Permissions" type="button" color="negative" @@click="denyPermissions"></q-btn>
         </div>
         <div class="row q-pt-sm q-mb-sm">
             
