@@ -34,7 +34,6 @@
                         <q-icon
                             name="warning"
                             color="warning"
-                            text-color="dark"
                         />
                     </template>
                     <div class="text-weight-medium text-orange-9">Unusual Timing</div>
@@ -149,7 +148,6 @@
                             <q-icon
                                 name="warning"
                                 color="warning"
-                                text-color="dark"
                             />
                         </template>
                         <div class="text-weight-medium">No assignments to roll forward</div>
@@ -170,7 +168,6 @@
                                 <q-icon
                                     name="event_repeat"
                                     color="info"
-                                    text-color="dark"
                                     size="24px"
                                     class="q-mr-sm"
                                 />
@@ -228,7 +225,6 @@
                                 <q-icon
                                     name="block"
                                     color="warning"
-                                    text-color="dark"
                                     size="24px"
                                     class="q-mr-sm"
                                 />
@@ -252,7 +248,6 @@
                                     <q-icon
                                         name="info"
                                         color="warning"
-                                        text-color="dark"
                                     />
                                 </template>
                                 These assignments will not be rolled forward because someone manually edited or deleted

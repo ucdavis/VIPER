@@ -149,7 +149,6 @@
                                     v-else-if="instructor.isVerified && instructor.recordCount === 0"
                                     name="check"
                                     color="info"
-                                    text-color="dark"
                                     size="sm"
                                     class="q-mr-sm"
                                 >
@@ -172,7 +171,6 @@
                                     <q-badge
                                         v-if="instructor.recordCount === 0"
                                         color="warning"
-                                        text-color="dark"
                                     >
                                         No Effort
                                     </q-badge>
@@ -436,7 +434,6 @@
                                 v-else-if="props.row.isVerified && props.row.recordCount === 0"
                                 name="check"
                                 color="info"
-                                text-color="dark"
                                 size="xs"
                             >
                                 <q-tooltip>Verified no effort</q-tooltip>
@@ -461,7 +458,6 @@
                                 <q-badge
                                     v-if="props.row.recordCount === 0"
                                     color="warning"
-                                    text-color="dark"
                                     class="no-effort-badge"
                                 >
                                     No Effort
