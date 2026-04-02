@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted, computed, nextTick, provide } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import ContactSection from "../components/ContactSection.vue"
 import PhoneInput from "../components/PhoneInput.vue"
 import { useEmergencyContact } from "../composables/use-emergency-contact"
@@ -261,27 +262,18 @@ onBeforeRouteLeave(() => {
             </h2>
 
             <!-- Admin: individual access control -->
-            <q-banner
+            <StatusBanner
                 v-if="canManageAccess"
-                class="bg-info text-white q-mb-md"
-                rounded
+                type="info"
+                icon="person"
             >
-                <template #avatar>
-                    <q-icon
-                        name="person"
-                        color="white"
-                    />
-                </template>
                 <div class="q-mb-xs">
                     Individual Access:
-                    <strong :class="hasIndividualAccess ? 'text-white text-weight-bold' : ''">
-                        {{ hasIndividualAccess ? "Granted" : "Not granted" }}
-                    </strong>
+                    <strong>{{ hasIndividualAccess ? "Granted" : "Not granted" }}</strong>
                 </div>
                 <q-btn
                     :label="hasIndividualAccess ? 'Revoke Access' : 'Grant Access'"
-                    color="white"
-                    text-color="info"
+                    color="primary"
                     :loading="togglingAccess"
                     dense
                     no-caps
@@ -296,12 +288,11 @@ onBeforeRouteLeave(() => {
                         {{ hasIndividualAccess ? "Revoke Access" : "Grant Access" }}
                     </template>
                 </q-btn>
-            </q-banner>
+            </StatusBanner>
 
-            <q-banner
+            <StatusBanner
                 v-if="missingFields.length > 0"
-                class="bg-warning text-dark q-mb-md"
-                rounded
+                type="warning"
             >
                 <div class="text-weight-bold q-mb-xs">Missing or incomplete information:</div>
                 <ul class="q-ma-none q-pl-md">
@@ -312,7 +303,7 @@ onBeforeRouteLeave(() => {
                         {{ field }}
                     </li>
                 </ul>
-            </q-banner>
+            </StatusBanner>
 
             <div class="form-content text-body2 text-grey-8 q-mb-md">
                 The School of Veterinary Medicine collects your personal contact information to be used for academic
@@ -322,12 +313,9 @@ onBeforeRouteLeave(() => {
                 necessary throughout the year as this is very important.
             </div>
 
-            <q-banner
+            <StatusBanner
                 v-if="saveErrors.length > 0"
-                class="bg-negative text-white q-mb-md"
-                rounded
-                role="alert"
-                aria-live="assertive"
+                type="error"
             >
                 <div
                     v-for="(error, idx) in saveErrors"
@@ -335,7 +323,7 @@ onBeforeRouteLeave(() => {
                 >
                     {{ error }}
                 </div>
-            </q-banner>
+            </StatusBanner>
 
             <q-form
                 ref="formRef"
@@ -553,13 +541,12 @@ onBeforeRouteLeave(() => {
             </q-form>
         </template>
 
-        <q-banner
+        <div
             v-else
-            class="bg-warning q-mt-md"
-            rounded
+            class="q-mt-md"
         >
-            Student contact record not found.
-        </q-banner>
+            <StatusBanner type="warning"> Student contact record not found. </StatusBanner>
+        </div>
     </div>
 </template>
 
@@ -594,5 +581,5 @@ onBeforeRouteLeave(() => {
 
 <!-- Shared compact form + error chip styles (unscoped, applied via .compact-form class) -->
 <style>
-@import "@/styles/compact-form.css";
+@import url("@/styles/compact-form.css");
 </style>
