@@ -24,9 +24,13 @@
                 <q-dialog v-model="memberPermissionsTable.showForm" @@hide="memberPermissionsTable.clear(this)">
                     <q-card>
                         <q-form @@submit="memberPermissionsTable.submit(this)" v-bind="memberPermissionsTable.object">
-                            <q-card-section>
+                            <q-card-section class="row items-center q-pb-none">
                                 <div class="text-h6">{{memberPermissionsTable.editing >= 0 ? "Edit" : "Create"}} Permission Membership</div>
-                                <div class="bg-negative text-white q-pa-sm rounded" v-if="memberPermissionsTable.errors?.message?.length > 0">{{memberPermissionsTable.errors.message}}</div>
+                                <q-space></q-space>
+                                <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                            </q-card-section>
+                            <q-card-section v-if="memberPermissionsTable.errors?.message?.length > 0">
+                                <div class="bg-negative text-white q-pa-sm rounded">{{memberPermissionsTable.errors.message}}</div>
                             </q-card-section>
 
                             <q-card-section>
