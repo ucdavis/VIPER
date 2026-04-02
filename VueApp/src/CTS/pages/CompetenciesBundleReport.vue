@@ -238,7 +238,7 @@ onMounted(() => {
                                     v-for="bundle in props.value"
                                     :key="bundle.bundleId"
                                     color="info"
-                                    text-color="white"
+                                    text-color="dark"
                                     size="sm"
                                     dense
                                     class="q-ma-xs"
@@ -301,7 +301,7 @@ onMounted(() => {
                                             v-for="bundle in props.row.bundles"
                                             :key="bundle.bundleId"
                                             color="info"
-                                            text-color="white"
+                                            text-color="dark"
                                             size="sm"
                                             dense
                                         >

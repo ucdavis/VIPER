@@ -60,7 +60,7 @@ const student = ref("")
                             <q-btn
                                 dense
                                 icon="delete"
-                                color="red-5"
+                                color="negative"
                                 flat
                                 size="sm"
                             ></q-btn>
@@ -90,7 +90,7 @@ const student = ref("")
                             <q-btn
                                 dense
                                 icon="delete"
-                                color="red-5"
+                                color="negative"
                                 flat
                                 size="sm"
                             ></q-btn>
@@ -120,7 +120,7 @@ const student = ref("")
                             <q-btn
                                 dense
                                 icon="delete"
-                                color="red-5"
+                                color="negative"
                                 flat
                                 size="sm"
                             ></q-btn>
