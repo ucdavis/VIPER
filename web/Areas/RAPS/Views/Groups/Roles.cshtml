@@ -18,7 +18,7 @@
     </template>
     <template v-slot:body-cell-remove="props">
         <q-td>
-            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" aria-label="Remove role from group" @@click="deleteGroupRole(props.row)" v-if="!props.row.isGroupRole"></q-btn>
+            <q-btn no-caps size="sm" :props="props" color="negative" icon="delete" aria-label="Remove role from group" @@click="deleteGroupRole(props.row)" v-if="!props.row.isGroupRole"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -46,7 +46,7 @@
     </template>
     <template v-slot:body-cell-add="props">
         <q-td>
-            <q-btn no-caps :props="props" color="green" padding="xs md" label="Add" @@click="addGroupRole(props.row)"></q-btn>
+            <q-btn no-caps :props="props" color="positive" padding="xs md" label="Add" @@click="addGroupRole(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>

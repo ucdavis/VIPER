@@ -28,7 +28,7 @@
     </div>
 </q-form>
 
-<q-banner v-if="auditTable.rows.length == 1000" rounded dense class="bg-warning q-my-md">
+<q-banner v-if="auditTable.rows.length === 1000" rounded dense class="bg-warning text-dark q-my-md" role="status">
     Only the most recent 1000 records that match the criteria above will be displayed. To return all records, use additional criteria to limit the results.
 </q-banner>
 

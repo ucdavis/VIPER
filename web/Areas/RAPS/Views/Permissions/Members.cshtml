@@ -11,7 +11,7 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true;membersTable.object.access = 1;" no-caps></q-btn>
+        <q-btn color="positive" label="Add Member" @@click="membersTable.showForm = true;membersTable.object.access = 1;" no-caps></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
@@ -62,7 +62,7 @@
 
                         <q-card-actions align="evenly">
                             <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="red" v-if="membersTable.editing"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="negative" v-if="membersTable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>

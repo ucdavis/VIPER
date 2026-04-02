@@ -14,7 +14,7 @@
             </q-card-section>
             <q-card-actions align="evenly">
                 <q-btn no-caps :label="templates.editing ? 'Update Role Template' : 'Add Role Template'" type="submit" padding="xs sm" color="primary"></q-btn>
-                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="templates.delete(this)" color="red" v-if="templates.editing"></q-btn>
+                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="templates.delete(this)" color="negative" v-if="templates.editing"></q-btn>
             </q-card-actions>
         </q-form>
     </q-card>
@@ -32,7 +32,7 @@
         @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
         {
             <template v-slot:top-left="props">
-                <q-btn no-caps color="green" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
+                <q-btn no-caps color="positive" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
             </template>
         }
         <template v-slot:top-right="props">
