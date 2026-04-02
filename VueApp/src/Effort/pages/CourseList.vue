@@ -158,8 +158,8 @@
                                 </q-badge>
                                 <q-badge
                                     v-if="props.row.enrollment === 0 && !props.row.isRCourse"
-                                    color="orange-8"
-                                    text-color="white"
+                                    color="warning"
+                                    text-color="dark"
                                 >
                                     0 Enrollment
                                     <q-tooltip>This course has zero enrollment</q-tooltip>
@@ -225,16 +225,10 @@
             <div class="dept-header text-white q-pa-sm row items-center">
                 <span class="text-weight-bold">Resident Teaching (R-Course) ({{ residentCourses.length }})</span>
             </div>
-            <q-banner
-                class="bg-info text-white q-mb-none"
-                square
-            >
-                <template #avatar>
-                    <q-icon name="info" />
-                </template>
+            <StatusBanner type="info">
                 The Resident (R) course was added automatically to allow recording of resident teaching effort. If left
                 with 0 effort and verified, it will be automatically removed.
-            </q-banner>
+            </StatusBanner>
             <q-table
                 :rows="residentCourses"
                 :columns="rCourseColumns"
@@ -316,6 +310,7 @@ import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, TermDto } from "../types"
 import type { QTableColumn } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"

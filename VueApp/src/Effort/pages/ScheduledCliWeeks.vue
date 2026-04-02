@@ -63,13 +63,13 @@
 
         <!-- Report content -->
         <template v-else-if="report">
-            <q-banner
-                class="bg-info text-white q-my-md"
-                rounded
+            <StatusBanner
+                type="info"
+                class="q-mt-md"
             >
                 The following data is based on the instructor schedule pulled live from the Clinical Scheduler. It does
                 not contain the verified effort entered by faculty and departments.
-            </q-banner>
+            </StatusBanner>
 
             <template v-if="report.instructors.length === 0">
                 <div
@@ -108,6 +108,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
