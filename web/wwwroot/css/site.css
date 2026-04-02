@@ -81,6 +81,10 @@ html {
 }
 
 /*Left Nav styles*/
+#leftNavMenu {
+    overflow-x: hidden;
+}
+
 #leftNavMenu h2 {
     font-size: 1.2rem;
     margin: 0;
@@ -215,13 +219,44 @@ html {
     top: 0;
 }
 
-/* Override Quasar grey to UC Davis Black 60 for AA contrast compliance */
+/* Status notification toast — accessible via role="status" */
+.viper-status-notification {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(1rem);
+    padding: 0.75rem 1.5rem;
+    background: var(--q-positive, #266041);
+    color: #fff;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transition:
+        opacity 0.3s,
+        transform 0.3s;
+    pointer-events: none;
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
+}
+
+.viper-status-notification--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Quasar palette AA contrast overrides (!important required to override Quasar's !important) */
 .text-grey {
-    color: var(--ucdavis-black-60);
+    color: var(--ucdavis-black-60) !important;
 }
 
 .bg-grey {
-    background-color: var(--ucdavis-black-60);
+    background-color: var(--ucdavis-black-60) !important;
+}
+
+/* TODO: Remove when color="green" is migrated to color="positive" */
+.bg-green {
+    background-color: #266041 !important;
 }
 
 /* Heading Styles */

@@ -82,14 +82,14 @@
             <q-toolbar v-cloak class="items-end">
                 <img src="@Url.Content("~/images/")UCDSVMLogo.png" height="50" alt="UC Davis School of Veterinary Medicine Logo" />
 
-                <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
+                <q-btn flat dense icon="menu" aria-label="Navigation menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
                     user = UserHelper.GetCurrentUser()
                     }
                     )
                 </q-btn>
-                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
+                <q-btn flat dense icon="list" aria-label="Toggle sidebar" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
                 <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
 
                 <q-btn flat dense no-caps class="gt-sm text-white q-py-none q-ml-md self-end" href="@Url.Content("~/")">
