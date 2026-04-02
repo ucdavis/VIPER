@@ -8,7 +8,7 @@ namespace Viper.Areas.Students.Services;
 /// </summary>
 public static partial class PhoneHelper
 {
-    [GeneratedRegex(@"\D")]
+    [GeneratedRegex(@"[^0-9]")]
     private static partial Regex NonDigitRegex();
 
     private static string StripToDigits(string input) => NonDigitRegex().Replace(input, "");
