@@ -1,11 +1,11 @@
-﻿<h2>Compare permissions for two roles</h2>
+﻿<h1>Compare permissions for two roles</h1>
 <q-form @@submit="return false;">
     <div class="row">
-        <q-select v-model="role1" :options="role1Roles"
+        <q-select v-model="role1" :options="role1Roles" label="Role 1"
                   dense options-dense outlined class="col-sm-6 col-md-4"
                   use-input hide-selected fill-input input-debounce="0" @@filter="role1Search">
         </q-select>
-        <q-select v-model="role2" :options="role2Roles"
+        <q-select v-model="role2" :options="role2Roles" label="Role 2"
                   dense options-dense outlined class="col-sm-6 col-md-4"
                   use-input hide-selected fill-input input-debounce="0" @@filter="role2Search">
         </q-select>
@@ -80,13 +80,13 @@
                         this.showComparison = true
                     }
                 },
-                role1Search: function (val, update, abort) {
+                role1Search: function (val, update) {
                     update(() => {
                         const needle = val.toLowerCase()
                         this.role1Roles = this.roles.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
                     })
                 },
-                role2Search: function (val, update, abort) {
+                role2Search: function (val, update) {
                     update(() => {
                         const needle = val.toLowerCase()
                         this.role2Roles = this.roles.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
