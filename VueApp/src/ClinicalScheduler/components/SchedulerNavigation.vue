@@ -14,7 +14,6 @@
             label="Home"
             to="/ClinicalScheduler/"
             :exact="true"
-            :aria-controls="`home-panel`"
             :id="`home-tab`"
             role="tab"
         />
@@ -24,7 +23,6 @@
             label="Schedule by Rotation"
             :to="{ name: 'RotationSchedule' }"
             :class="rotationTabClass"
-            :aria-controls="`rotation-panel`"
             :id="`rotation-tab`"
             role="tab"
         />
@@ -34,7 +32,6 @@
             :label="permissionsStore.clinicianViewLabel"
             :to="{ name: 'ClinicianSchedule' }"
             :class="clinicianTabClass"
-            :aria-controls="`clinician-panel`"
             :id="`clinician-tab`"
             role="tab"
         />

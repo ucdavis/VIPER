@@ -21,7 +21,7 @@
                 </div>
                 <div class="col-auto">
                     <q-btn
-                        color="green"
+                        color="positive"
                         icon="add"
                         label="New Collection"
                         no-caps
@@ -80,7 +80,7 @@
                             label="Add"
                             dense
                             no-caps
-                            color="green"
+                            color="positive"
                             class="q-ml-lg q-pr-md"
                             icon="add"
                             @click="createTag"
@@ -116,7 +116,7 @@
                                     label="Delete"
                                     dense
                                     no-caps
-                                    color="red-5"
+                                    color="negative"
                                     class="q-ml-lg q-pr-md"
                                     icon="delete"
                                     @click="deleteTag(element.linkCollectionTagCategoryId)"
@@ -150,7 +150,7 @@
                         @click="deleteCollection"
                         dense
                         no-caps
-                        color="red-5"
+                        color="negative"
                         class="q-pr-md"
                     />
                 </q-card-actions>
@@ -161,7 +161,7 @@
             <h2 class="text-primary q-mt-lg q-mb-sm">Links in {{ collection?.linkCollection }}</h2>
             <q-btn
                 dense
-                color="green"
+                color="positive"
                 icon="add"
                 label="Add Link"
                 @click="showLinkDialog = true"
@@ -235,7 +235,7 @@
                             @click="deleteLink"
                             dense
                             no-caps
-                            color="red-5"
+                            color="negative"
                             class="q-pr-md"
                         />
                     </q-card-actions>

@@ -2,7 +2,12 @@
     <q-card
         :class="cardClasses"
         clickable
+        tabindex="0"
+        role="button"
+        :aria-label="`Week ${week.weekNumber} starting ${formatDate(week.dateStart)}, ${assignments.length} ${inflect('assignment', assignments.length)}`"
         @click="handleClick"
+        @keyup.enter.self.prevent="handleClick"
+        @keyup.space.self.prevent="handleClick"
         @touchstart="handleTouchStart"
         @touchend="handleTouchEnd"
         @touchmove="handleTouchMove"
@@ -151,6 +156,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { useTimeoutFn } from "@vueuse/core"
+import { inflect } from "inflection"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import { ANIMATIONS } from "../constants/app-constants"
 
