@@ -205,22 +205,17 @@ class quasarTable {
                 persistent: true,
             })
                 .onOk(async () => {
-                    try {
-                        const result = await viperFetch(
-                            vueApp,
-                            this.getUpdateURL(),
-                            { method: "DELETE" },
-                            [() => this.load(this)],
-                            this.errors,
-                        )
-                        if (result !== undefined) {
-                            showStatusNotification("Item deleted")
-                        }
-                        resolve(result !== undefined)
-                    } catch (error) {
-                        showViperFetchError(vueApp, error, this.errors)
-                        resolve(false)
+                    const result = await viperFetch(
+                        vueApp,
+                        this.getUpdateURL(),
+                        { method: "DELETE" },
+                        [() => this.load(this)],
+                        this.errors,
+                    )
+                    if (result !== undefined) {
+                        showStatusNotification("Item deleted")
                     }
+                    resolve(result !== undefined)
                 })
                 .onCancel(() => {
                     resolve(false)

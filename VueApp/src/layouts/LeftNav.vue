@@ -108,14 +108,42 @@
 import { ref, watch, onMounted } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 
-// Sets title attribute only when text is truncated by ellipsis
+type OverflowTitleElement = HTMLElement & {
+    _overflowTitleObserver?: ResizeObserver
+}
+
+function updateOverflowTitle(el: HTMLElement) {
+    const text = el.firstChild?.textContent?.trim() ?? ""
+    if (!text) {
+        el.removeAttribute("title")
+        return
+    }
+    if (el.scrollWidth > el.clientWidth) {
+        const hasExternal = el.querySelector(".sr-only") !== null
+        el.title = hasExternal ? `${text} (opens in new window)` : text
+    } else {
+        el.removeAttribute("title")
+    }
+}
+
+// Sets title attribute only when text is truncated by ellipsis.
+// Uses ResizeObserver to update when drawer toggles or window resizes.
 const vOverflowTitle = {
-    mounted(el: HTMLElement) {
-        if (el.scrollWidth > el.clientWidth) {
-            const text = el.firstChild?.textContent?.trim() ?? ""
-            const hasExternal = el.querySelector(".sr-only") !== null
-            el.title = hasExternal ? `${text} (opens in new window)` : text
+    mounted(el: OverflowTitleElement) {
+        updateOverflowTitle(el)
+        if (typeof ResizeObserver !== "undefined") {
+            el._overflowTitleObserver = new ResizeObserver(() => {
+                updateOverflowTitle(el)
+            })
+            el._overflowTitleObserver.observe(el)
         }
+    },
+    updated(el: OverflowTitleElement) {
+        updateOverflowTitle(el)
+    },
+    unmounted(el: OverflowTitleElement) {
+        el._overflowTitleObserver?.disconnect()
+        delete el._overflowTitleObserver
     },
 }
 
