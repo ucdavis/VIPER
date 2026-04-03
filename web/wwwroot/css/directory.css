@@ -91,7 +91,7 @@
 }
 .directory .directory-tag {
     font-size: 11px;
-    color: #868e96;
+    color: var(--ucdavis-black-60);
     font-weight: bold;
 }
 .directory .directory-username {
