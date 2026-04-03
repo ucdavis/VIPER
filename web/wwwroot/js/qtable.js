@@ -216,7 +216,7 @@ class quasarTable {
                         if (result !== undefined) {
                             showStatusNotification("Item deleted")
                         }
-                        resolve(true)
+                        resolve(result !== undefined)
                     } catch (error) {
                         showViperFetchError(vueApp, error, this.errors)
                         resolve(false)
