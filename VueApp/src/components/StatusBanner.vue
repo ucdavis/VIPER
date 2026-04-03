@@ -40,7 +40,7 @@ type BannerType = "success" | "error" | "warning" | "info"
 
 const {
     type,
-    icon = "",
+    icon,
     dismissible = false,
 } = defineProps<{
     type: BannerType
