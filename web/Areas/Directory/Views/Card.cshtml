@@ -74,7 +74,7 @@
             <q-card-section class="row">
                 <q-card-section class="col photo">
                     <q-avatar size="87px" square class="text-right photo_avatar">
-                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar" :alt="user.name + '\'s photo'">
+                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" :alt="user.name + '\'s photo'">
                     </q-avatar>
                 </q-card-section>
                 <q-card-section class="col">
