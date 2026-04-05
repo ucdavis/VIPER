@@ -1,4 +1,4 @@
-﻿<h2>Roles for Permission {{permission.permission}}</h2>
+﻿<h1>Roles for Permission {{permission.permission}}</h1>
 <q-table dense
          row-key="roleId"
          :loading="rolePermissionTable.loading"
@@ -14,7 +14,7 @@
     </template>
     <template v-slot:body-cell-remove="props">
         <q-td :props="props">
-            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteRolePermission(props.row)"></q-btn>
+            <q-btn no-caps size="sm" :props="props" color="negative" icon="delete" aria-label="Remove role from permission" @@click="deleteRolePermission(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -38,7 +38,7 @@
     </template>
 </q-table>
 <q-btn sm dense no-caps class="q-px-sm" label="Allow Checked" type="button" color="primary" @@click="allowRolePermissions"></q-btn>
-<q-btn sm dense no-caps class="q-ml-md q-px-sm" label="Deny Checked" type="button" color="red" @@click="denyRolePermissions"></q-btn>
+<q-btn sm dense no-caps class="q-ml-md q-px-sm" label="Deny Checked" type="button" color="negative" @@click="denyRolePermissions"></q-btn>
 
 @section Scripts {
     <script src="~/js/qtable.js"></script>
@@ -65,9 +65,9 @@
                             this.rows = data.map(rp => ({
                                 ...rp,
                                 permissionId: rp.permissionId,
-                                accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                                accessDescription: rp.access === 1 ? "Allow" : "Deny",
                                 permissionName: rp.permission?.permission,
-                                roleName: rp.role?.displayName != null ? rp.role.displayName : rp.role.role
+                                roleName: rp.role?.displayName !== null ? rp.role.displayName : rp.role.role
                             }))
                         },
                         pagination: { rowsPerPage: 0 }
@@ -86,7 +86,7 @@
                                     return result
                                 }, [])
                             this.rows = data.filter(r =>
-                                existingRoles.indexOf(r.roleId) == -1
+                                existingRoles.indexOf(r.roleId) === -1
                             )
                             this.rows = this.rows.map(r => ({
                                 ...r,
@@ -112,7 +112,6 @@
                 updateEachRolePermission: async function(allowAccess = 1) {
                     await Promise.all(
                         this.selectedPermissions.map(async sp => {
-                            let rolePermission = { roleId: sp.roleId, permissionId: this.permissionId, access: allowAccess }
                             await viperFetch(this,
                                 "Permissions/" + this.permissionId + "/Roles/",
                                 {
@@ -130,18 +129,25 @@
                 denyRolePermissions: async function () {
                     this.updateRolePermissions(0)
                 },
-                deleteRolePermission: async function (rolePermission) {
-                    await viperFetch(this,
-                        "Permissions/" + this.permissionId + "/Roles/" + rolePermission.roleId,
-                        {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" }
-                        },
-                        [this.loadTables]
-                    )
-                    if(this.VMACSPush) {
-                        this.pushToVMACS([rolePermission.roleId])
-                    }
+                deleteRolePermission: function (rolePermission) {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this role from the permission?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(async () => {
+                        await viperFetch(this,
+                            "Permissions/" + this.permissionId + "/Roles/" + rolePermission.roleId,
+                            {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadTables]
+                        )
+                        if(this.VMACSPush) {
+                            this.pushToVMACS([rolePermission.roleId])
+                        }
+                    })
                 },
                 //Load data
                 loadTables: async function () {

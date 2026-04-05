@@ -1,4 +1,4 @@
-﻿<h2>User Permissions for {{permission.permission}}</h2>
+﻿<h1>User Permissions for {{permission.permission}}</h1>
 <p>
     {{permission.description}}
 </p>
@@ -11,14 +11,18 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true;membersTable.object.access = 1;" no-caps></q-btn>
+        <q-btn color="positive" label="Add Member" @@click="membersTable.showForm = true;membersTable.object.access = 1;" no-caps></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
                     <q-form @@submit="membersTable.submit(this)" v-bind="membersTable.object">
-                        <q-card-section>
+                        <q-card-section class="row items-center q-pb-none">
                             <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Permission Member</div>
-                            <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
+                            <q-space></q-space>
+                            <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                        </q-card-section>
+                        <q-card-section v-if="membersTable.errors?.message?.length > 0">
+                            <div class="bg-negative text-white q-pa-sm rounded">{{membersTable.errors.message}}</div>
                         </q-card-section>
 
                         <q-card-section>
@@ -62,7 +66,7 @@
 
                         <q-card-actions align="evenly">
                             <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="red" v-if="membersTable.editing"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="membersTable.delete(this)" color="negative" v-if="membersTable.editing"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -129,7 +133,7 @@
                             this.rows = data.map(pm => ({
                                 ...pm,
                                 memberName: pm.member?.displayLastName + ", " + pm?.member?.displayFirstName,
-                                active: pm?.member?.current == 1 ? "Y" : "N",
+                                active: pm?.member?.current === 1 ? "Y" : "N",
                                 lastModified: formatDate(pm.modTime) + " (" + pm.modBy.trim() + ")"
                             }))
                         },
@@ -138,7 +142,7 @@
                             return {
                                 memberId: object.member?.value,
                                 permissionId: v.urlParams.get("permissionId"),
-                                access: object.access == 1 ? 1 : 0,
+                                access: object.access === 1 ? 1 : 0,
                                 startDate: object?.startDate,
                                 endDate: object?.endDate
                             }
@@ -149,7 +153,7 @@
                                 permissionId: object.permissionId,
                                 startDate: formatDateForDateInput(object.startDate),
                                 endDate: formatDateForDateInput(object.endDate),
-                                access: object.access == 1 ? 1 : 0,
+                                access: object.access === 1 ? 1 : 0,
                                 member: {
                                     label: object?.member?.displayLastName + ", " + object?.member?.displayFirstName,
                                     value: object.memberId
@@ -172,7 +176,7 @@
                     }
 
                     update(() => {
-                        var res = fetch("Members?search=" + val)
+                        fetch("Members?search=" + val)
                             .then(r => r.json())
                             .then(data =>
                                 this.memberSearchResults = data

@@ -1,4 +1,4 @@
-﻿<h2>Add roles to template {{roleTemplate.templateName}}</h2>
+﻿<h1>Add roles to template {{roleTemplate.templateName}}</h1>
 <q-table dense
          row-key="roleId"
          selection="multiple"
@@ -40,7 +40,7 @@
                 loadRoles: async function () {
                     var templateRoles = await viperFetch(this, "RoleTemplates/" + + this.urlParams.get("roleTemplateId") + "/Roles")
                     var allRoles = (await viperFetch(this, "Roles?Application=0"))
-                        .filter(r => templateRoles.find(tr => tr.roleId == r.roleId) === undefined)
+                        .filter(r => templateRoles.find(tr => tr.roleId === r.roleId) === undefined)
                     this.selectedRoles = templateRoles;
                     this.roles = templateRoles.concat(allRoles)
                     this.filter = ""

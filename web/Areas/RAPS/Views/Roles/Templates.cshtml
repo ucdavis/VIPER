@@ -1,10 +1,14 @@
-﻿<h2>Role Templates</h2>
+﻿<h1>Role Templates</h1>
 <q-dialog v-model="templates.showForm" @@hide="templates.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="templates.submit(this)" v-model="templates.object">
-            <q-card-section>
+            <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">{{templates.editing ? "Edit" : "Create"}} Role Template</div>
-                <div class="bg-negative text-white q-pa-sm rounded" v-if="templates.errors?.message?.length > 0">{{templates.errors.message}}</div>
+                <q-space></q-space>
+                <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+            </q-card-section>
+            <q-card-section v-if="templates.errors?.message?.length > 0">
+                <div class="bg-negative text-white q-pa-sm rounded">{{templates.errors.message}}</div>
             </q-card-section>
             <q-card-section>
                 <q-input outlined v-model="templates.object.templateName" label="Role"
@@ -14,7 +18,7 @@
             </q-card-section>
             <q-card-actions align="evenly">
                 <q-btn no-caps :label="templates.editing ? 'Update Role Template' : 'Add Role Template'" type="submit" padding="xs sm" color="primary"></q-btn>
-                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="templates.delete(this)" color="red" v-if="templates.editing"></q-btn>
+                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="templates.delete(this)" color="negative" v-if="templates.editing"></q-btn>
             </q-card-actions>
         </q-form>
     </q-card>
@@ -32,7 +36,7 @@
         @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
         {
             <template v-slot:top-left="props">
-                <q-btn no-caps color="green" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
+                <q-btn no-caps color="positive" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
             </template>
         }
         <template v-slot:top-right="props">
@@ -70,7 +74,7 @@
         {
             <template v-slot:body-cell-action="props">
                 <q-td :props="props">
-                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" @@click="templates.selectRow(props.row)"></q-btn>
+                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" aria-label="Edit template" @@click="templates.selectRow(props.row)"></q-btn>
                 </q-td>
             </template>
         }
@@ -127,12 +131,12 @@
             },
             methods: {
                 toggleRoles: function (roleTemplateId) {
-                    this.viewRoleTemplateId = (this.viewRoleTemplateId == roleTemplateId) ? 0 : roleTemplateId;
+                    this.viewRoleTemplateId = (this.viewRoleTemplateId === roleTemplateId) ? 0 : roleTemplateId;
                 },
-                filterTemplates: function (rows, terms, cols, getCellValue) {
+                filterTemplates: function (rows, terms) {
                     return rows.reduce((result, row) => {
-                        if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) != -1
-                            || row.description.toLowerCase().indexOf(terms.toLowerCase()) != -1) {
+                        if (row.templateName.toLowerCase().indexOf(terms.toLowerCase()) !== -1
+                            || row.description.toLowerCase().indexOf(terms.toLowerCase()) !== -1) {
                             result.push(row)
                         }
                         return result

@@ -1,4 +1,4 @@
-﻿<h2>Permissions for Role {{role.role}}</h2>
+﻿<h1>Permissions for Role {{role.role}}</h1>
 <q-table
     dense
     row-key="permissionId"
@@ -15,7 +15,7 @@
     </template>
     <template v-slot:body-cell-remove="props">
         <q-td :props="props">
-            <q-btn no-caps size="sm" :props="props" color="red" icon="delete" @@click="deleteRolePermission(props.row)"></q-btn>
+            <q-btn no-caps size="sm" :props="props" color="negative" icon="delete" aria-label="Remove permission from role" @@click="deleteRolePermission(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -40,7 +40,7 @@
     </template>
 </q-table>
 <q-btn sm dense no-caps class="q-px-sm" label="Allow Checked" type="button" color="primary" @@click="allowRolePermissions"></q-btn>
-<q-btn sm dense no-caps class="q-ml-md q-px-sm" label="Deny Checked" type="button" color="red" @@click="denyRolePermissions"></q-btn>
+<q-btn sm dense no-caps class="q-ml-md q-px-sm" label="Deny Checked" type="button" color="negative" @@click="denyRolePermissions"></q-btn>
 
 @section Scripts {
     <script src="~/js/qtable.js"></script>
@@ -67,7 +67,7 @@
                             this.rows = data.map(rp => ({
                                 ...rp,
                                 permissionId: rp.permissionId,
-                                accessDescription: rp.access == 1 ? "Allow" : "Deny",
+                                accessDescription: rp.access === 1 ? "Allow" : "Deny",
                                 permissionName: rp.permission?.permission
                             }))
                         },
@@ -110,7 +110,7 @@
                                     return result
                                 }, [])
                             this.rows = data.filter(p =>
-                                existingPermissions.indexOf(p.permissionId) == -1
+                                existingPermissions.indexOf(p.permissionId) === -1
                             )
                         },
                         pagination: { rowsPerPage: 15 }
@@ -146,18 +146,25 @@
                 denyRolePermissions: async function () {
                     this.updateRolePermissions(0)
                 },
-                deleteRolePermission: async function (rolePermission) {
-                    viperFetch(this,
-                        "Roles/" + this.roleId + "/Permissions/" + rolePermission.permissionId,
-                        {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" }
-                        },
-                        [this.loadRolePermissions,this.loadPermissions]
-                    )
-                    if(this.VMACSPush) {
-                        this.pushToVMACS()
-                    }
+                deleteRolePermission: function (rolePermission) {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this permission from the role?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(async () => {
+                        await viperFetch(this,
+                            "Roles/" + this.roleId + "/Permissions/" + rolePermission.permissionId,
+                            {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" }
+                            },
+                            [this.loadRolePermissions,this.loadPermissions]
+                        )
+                        if(this.VMACSPush) {
+                            this.pushToVMACS()
+                        }
+                    })
                 },
                 loadPermissions: async function () {
                     this.permissionTable.load(this)

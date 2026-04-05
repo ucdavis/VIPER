@@ -1,4 +1,5 @@
-﻿<q-btn-group outline rounded class="q-mt-sm">
+﻿<h1>Roles for {{member.displayFirstName}} {{member.displayLastName}}</h1>
+<q-btn-group outline rounded class="q-mt-sm">
     <q-btn no-caps color="primary" class="q-mb-sm" label="View existing roles" icon="view_list"
            :outline="showWhich != 'Existing'" @@click="showWhich='Existing'"></q-btn>
     <q-btn no-caps color="primary" class="q-mb-sm" label="Add Roles" icon="add"
@@ -25,9 +26,13 @@
                 <q-dialog v-model="memberRolesTable.showForm" @@hide="memberRolesTable.clear(this)">
                     <q-card>
                         <q-form @@submit="addUpdateRoleMember();" v-bind="memberRolesTable.object">
-                            <q-card-section>
+                            <q-card-section class="row items-center q-pb-none">
                                 <div class="text-h6">{{memberRolesTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
-                                <div class="bg-negative text-white q-pa-sm rounded" v-if="memberRolesTable.errors?.message?.length > 0">{{memberRolesTable.errors.message}}</div>
+                                <q-space></q-space>
+                                <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                            </q-card-section>
+                            <q-card-section v-if="memberRolesTable.errors?.message?.length > 0">
+                                <div class="bg-negative text-white q-pa-sm rounded">{{memberRolesTable.errors.message}}</div>
                             </q-card-section>
 
                             <q-card-section>
@@ -49,7 +54,7 @@
 
                             <q-card-actions align="evenly">
                                 <q-btn no-caps :label="memberRolesTable.editing ? 'Update Role for User' : 'Add Role for User'" type="submit" padding="xs sm" color="primary"></q-btn>
-                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteRoleMember();" color="red" v-if="memberRolesTable.editing"></q-btn>
+                                <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteRoleMember();" color="negative" v-if="memberRolesTable.editing"></q-btn>
                             </q-card-actions>
                         </q-form>
                     </q-card>
@@ -74,7 +79,7 @@
         </template>
         <template v-slot:body-cell-actions="props">
             <q-td :props="props">
-                <q-btn dense outline size="sm" icon="edit" padding="xs md" 
+                <q-btn dense outline size="sm" icon="edit" padding="xs md" aria-label="Edit role"
                     v-if="props.row.viewName == null"
                     :props="props" color="primary" @@click="memberRolesTable.selectRow(props.row)"></q-btn>
                 <span v-else>{{ props.row.viewName }}</span>
@@ -145,7 +150,7 @@
                         onLoad: function (data) {
                             this.rows = data.map(rm => ({
                                 ...rm,
-                                lastModified: formatDate(rm.modTime) + (rm.modBy != null ? (" (" + rm.modBy.trim() + ")") : "")
+                                lastModified: formatDate(rm.modTime) + (rm.modBy !== null ? (" (" + rm.modBy.trim() + ")") : "")
                             }))
                             if (this.editing) {
                                 this.vueApp._.data.rolesTable.load()
@@ -182,13 +187,13 @@
                             { name: "description", label: "Description", field: "description", align: "left", sortable: true }
                         ],
                         onLoad: function (data) {
-                            existingRoles = this.vueApp._.data.memberRolesTable.rows
+                            const existingRoles = this.vueApp._.data.memberRolesTable.rows
                                 .reduce((result, rm) => {
                                     result.push(rm.roleId)
                                     return result
                                 }, [])
                             this.rows = data.filter(r =>
-                                existingRoles.indexOf(r.roleId) == -1
+                                existingRoles.indexOf(r.roleId) === -1
                             )
                             this.rows = this.rows.map(r => ({
                                 roleId: r.roleId,
@@ -227,12 +232,19 @@
                     this.loadTables()
                     this.pushToVMACS(false)
                 },
-                deleteRoleMember: async function () {
-                    var oldBase = this.memberRolesTable.urlBase
-                    this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
-                    const deleted = await this.memberRolesTable.delete(this)
-                    this.memberRolesTable.urlBase = oldBase
-                    if (deleted) { this.pushToVMACS() }
+                deleteRoleMember: function () {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this role from the user?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(async () => {
+                        var oldBase = this.memberRolesTable.urlBase
+                        this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
+                        const deleted = await this.memberRolesTable.delete(this)
+                        this.memberRolesTable.urlBase = oldBase
+                        if (deleted) { this.pushToVMACS() }
+                    })
                 },
                 addUpdateRoleMember: async function () {
                     var oldBase = this.memberRolesTable.urlBase
