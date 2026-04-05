@@ -3,6 +3,8 @@
  * setup because the app mounts on <body> and Notify's teleport container ends up
  * outside Vue's reactive scope, so notifications are silently dropped.
  */
+const STATUS_NOTIFICATION_DISPLAY_MS = 3000
+const STATUS_NOTIFICATION_FADE_MS = 350
 function showStatusNotification(message) {
     const el = document.createElement("div")
     el.setAttribute("role", "status")
@@ -13,11 +15,10 @@ function showStatusNotification(message) {
     // Trigger reflow so the CSS transition activates
     void el.offsetHeight
     el.classList.add("viper-status-notification--visible")
-    // oxlint-disable-next-line no-magic-numbers -- notification display duration in ms
     setTimeout(() => {
         el.classList.remove("viper-status-notification--visible")
-        el.addEventListener("transitionend", () => el.remove(), { once: true })
-    }, 3000)
+        setTimeout(() => el.remove(), STATUS_NOTIFICATION_FADE_MS)
+    }, STATUS_NOTIFICATION_DISPLAY_MS)
 }
 
 /*
