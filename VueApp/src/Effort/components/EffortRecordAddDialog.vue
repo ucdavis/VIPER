@@ -33,7 +33,7 @@
                         <template #avatar>
                             <q-icon
                                 name="info"
-                                color="orange-9"
+                                color="warning"
                             />
                         </template>
                         <span class="text-orange-9">

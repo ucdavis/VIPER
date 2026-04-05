@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Evaluation Report - Summary</h2>
+        <h1>Evaluation Report - Summary</h1>
 
         <ReportFilterForm
             :term-code="termCode"

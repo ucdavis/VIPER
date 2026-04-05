@@ -42,13 +42,13 @@
                 <q-linear-progress
                     :value="importProgress"
                     size="25px"
-                    color="teal-8"
+                    color="info"
                     class="q-mb-md"
                 >
                     <div class="absolute-full flex flex-center">
                         <q-badge
                             color="white"
-                            text-color="teal-8"
+                            text-color="info"
                             :label="`${Math.round(importProgress * 100)}%`"
                         />
                     </div>
@@ -90,7 +90,7 @@
                         <q-option-group
                             v-model="selectedMode"
                             :options="modeOptions"
-                            color="teal-8"
+                            color="info"
                             :inline="$q.screen.gt.xs"
                             @update:model-value="onModeChange"
                         />
@@ -138,7 +138,7 @@
                         <div class="row items-center q-mb-xs">
                             <q-icon
                                 name="warning"
-                                color="orange"
+                                color="warning"
                                 size="sm"
                                 class="q-mr-sm"
                             />
@@ -215,7 +215,7 @@
                         <div class="row items-center q-mb-xs">
                             <q-icon
                                 name="info"
-                                color="orange"
+                                color="warning"
                                 size="sm"
                                 class="q-mr-sm"
                             />
@@ -248,7 +248,7 @@
                     />
                     <q-btn
                         label="Confirm Import"
-                        color="teal-8"
+                        color="info"
                         :disable="totalChanges === 0 || isCommitting"
                         @click="confirmImport"
                     />

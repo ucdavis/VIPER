@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Audit Trail</h2>
+        <h1>Audit Trail</h1>
 
         <!-- Filter Panel - Collapsible on mobile, always visible on desktop -->
         <q-expansion-item

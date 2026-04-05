@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Term Management</h2>
+        <h1>Term Management</h1>
 
         <div
             v-if="isLoading"
@@ -31,8 +31,8 @@
                 <q-btn
                     icon="event_repeat"
                     label="Percent Rollover"
-                    color="cyan-8"
-                    :text-color="showRolloverForm ? undefined : 'white'"
+                    color="info"
+                    :text-color="showRolloverForm ? undefined : 'dark'"
                     dense
                     no-caps
                     :outline="showRolloverForm"
@@ -86,8 +86,8 @@
                         <q-btn
                             icon="event_repeat"
                             label="Preview Rollover"
-                            color="cyan-8"
-                            text-color="white"
+                            color="info"
+                            text-color="dark"
                             dense
                             no-caps
                             :disable="!rolloverYear || rolloverYear < 2020 || rolloverYear > currentYear"
@@ -194,7 +194,7 @@
                                     icon="cloud_download"
                                     :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
                                     color="info"
-                                    text-color="white"
+                                    text-color="dark"
                                     dense
                                     no-caps
                                     size="sm"
@@ -212,8 +212,8 @@
                                     v-if="props.row.canImportClinical"
                                     icon="medical_services"
                                     label="Import Clinical"
-                                    color="teal-8"
-                                    text-color="white"
+                                    color="info"
+                                    text-color="dark"
                                     dense
                                     no-caps
                                     size="sm"
@@ -450,7 +450,7 @@
                                 icon="cloud_download"
                                 :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
                                 color="info"
-                                text-color="white"
+                                text-color="dark"
                                 dense
                                 no-caps
                                 size="sm"
@@ -464,8 +464,8 @@
                                 v-if="term.canImportClinical"
                                 icon="medical_services"
                                 label="Import Clinical"
-                                color="teal-8"
-                                text-color="white"
+                                color="info"
+                                text-color="dark"
                                 dense
                                 no-caps
                                 size="sm"

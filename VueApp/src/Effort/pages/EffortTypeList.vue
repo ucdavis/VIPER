@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h2 class="q-ma-none">Manage Effort Types</h2>
+            <h1 class="q-ma-none">Manage Effort Types</h1>
             <q-space />
             <q-btn
                 label="Add Effort Type"
@@ -143,6 +143,7 @@
                             <q-toggle
                                 :model-value="props.row.usesWeeks"
                                 dense
+                                :aria-label="`${props.row.description} uses weeks`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'usesWeeks')"
                             >
@@ -160,6 +161,7 @@
                             <q-toggle
                                 :model-value="props.row.isActive"
                                 dense
+                                :aria-label="`${props.row.description} active`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'isActive')"
                             />
@@ -173,6 +175,7 @@
                             <q-toggle
                                 :model-value="props.row.facultyCanEnter"
                                 dense
+                                :aria-label="`${props.row.description} faculty can enter`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'facultyCanEnter')"
                             />
@@ -186,6 +189,7 @@
                             <q-toggle
                                 :model-value="props.row.allowedOnDvm"
                                 dense
+                                :aria-label="`${props.row.description} allowed on DVM`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'allowedOnDvm')"
                             />
@@ -199,6 +203,7 @@
                             <q-toggle
                                 :model-value="props.row.allowedOn199299"
                                 dense
+                                :aria-label="`${props.row.description} allowed on 199/299`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'allowedOn199299')"
                             />
@@ -212,6 +217,7 @@
                             <q-toggle
                                 :model-value="props.row.allowedOnRCourses"
                                 dense
+                                :aria-label="`${props.row.description} allowed on R courses`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'allowedOnRCourses')"
                             />

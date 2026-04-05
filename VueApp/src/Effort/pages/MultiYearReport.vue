@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Multi-Year</h2>
+        <h1>Merit &amp; Promotion Report - Multi-Year</h1>
 
         <!-- Step 1: Select Instructor (shown when no instructor selected) -->
         <div
