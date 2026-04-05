@@ -16,7 +16,7 @@ function showStatusNotification(message) {
     // oxlint-disable-next-line no-magic-numbers -- notification display duration in ms
     setTimeout(() => {
         el.classList.remove("viper-status-notification--visible")
-        el.addEventListener("transitionend", () => el.remove())
+        el.addEventListener("transitionend", () => el.remove(), { once: true })
     }, 3000)
 }
 

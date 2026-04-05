@@ -165,7 +165,10 @@
         </slot>
 
         <q-page-container id="mainLayoutBody">
-            <main id="main-content">
+            <main
+                id="main-content"
+                tabindex="-1"
+            >
                 <div
                     class="q-pa-md"
                     v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"

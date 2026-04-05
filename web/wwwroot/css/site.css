@@ -247,11 +247,11 @@ html {
 
 /* Quasar palette AA contrast overrides (!important required to override Quasar's !important) */
 .text-grey {
-    color: var(--ucdavis-black-60) !important;
+    color: var(--ucdavis-black-60, #666666) !important;
 }
 
 .bg-grey {
-    background-color: var(--ucdavis-black-60) !important;
+    background-color: var(--ucdavis-black-60, #666666) !important;
 }
 
 /* TODO: Remove when color="green" is migrated to color="positive" */
