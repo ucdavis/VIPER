@@ -170,7 +170,7 @@ class quasarTable {
                 body: JSON.stringify(bodyObject),
                 headers: { "Content-Type": "application/json" },
             },
-            [() => this.load(this)],
+            [() => this.load(vueApp)],
             this.errors,
         )
         if (result !== undefined) {
@@ -187,7 +187,7 @@ class quasarTable {
                 body: JSON.stringify(bodyObject),
                 headers: { "Content-Type": "application/json" },
             },
-            [() => this.load(this)],
+            [() => this.load(vueApp)],
             this.errors,
         )
         if (result !== undefined) {
@@ -209,7 +209,7 @@ class quasarTable {
                         vueApp,
                         this.getUpdateURL(),
                         { method: "DELETE" },
-                        [() => this.load(this)],
+                        [() => this.load(vueApp)],
                         this.errors,
                     )
                     if (result !== undefined) {

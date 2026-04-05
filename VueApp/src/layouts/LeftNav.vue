@@ -60,6 +60,7 @@
                             v-ripple
                             :href="menuItem.menuItemUrl"
                             target="_blank"
+                            rel="noopener noreferrer"
                             :class="menuItem.displayClass"
                             role="none"
                         >
