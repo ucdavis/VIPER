@@ -1,6 +1,6 @@
 ﻿<div class="row q-mb-sm">
     <div class="col">
-        <h2>Student Class Years</h2>
+        <h1>Student Class Years</h1>
     </div>
 </div>
 
@@ -25,7 +25,7 @@
             </q-card-section>
             <q-card-actions align="evenly">
                 <q-btn no-caps label="Save" type="submit" padding="xs sm" color="primary"></q-btn>
-                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="deleteStudentClassYear(this)" color="red"></q-btn>
+                <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="deleteStudentClassYear(this)" color="negative"></q-btn>
             </q-card-actions>
         </q-form>
     </q-card>
@@ -68,7 +68,7 @@
     <template v-slot:body-cell-avatar="props">
         <q-td :props="props">
             <q-avatar square>
-                <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + props.row.mailId" class="smallPhoto" />
+                <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + props.row.mailId" class="smallPhoto" :alt="props.row.firstName + ' ' + props.row.lastName + '\'s photo'" />
             </q-avatar>
         </q-td>
     </template>
@@ -84,8 +84,8 @@
             <span v-for="classYear in props.row.classYears">
                 <q-btn dense no-caps :label="classYear.classYear" v-if="classYear.active" color="primary"
                        class="q-px-sm" @@click="selectStudent(props.row, classYear)">
-                    <q-badge v-if="classYear.ross" color="red" class="q-mx-sm">Ross</q-badge>
-                    <q-badge color="orange" class="q-mx-sm" v-if="classYear.leftReason">{{classYear.leftReasonText}}</q-badge>
+                    <q-badge v-if="classYear.ross" color="negative" class="q-mx-sm">Ross</q-badge>
+                    <q-badge color="warning" text-color="dark" class="q-mx-sm" v-if="classYear.leftReason">{{classYear.leftReasonText}}</q-badge>
                 </q-btn>
             </span>
         </q-td>
@@ -95,8 +95,8 @@
             <span v-for="classYear in props.row.classYears">
                 <q-btn dense no-caps :label="classYear.classYear" v-if="!classYear.active" color="secondary"
                        class="q-px-sm" @@click="selectStudent(props.row, classYear)">
-                    <q-badge v-if="classYear.ross" color="red" class="q-mx-sm">Ross</q-badge>
-                    <q-badge color="orange" class="q-mx-sm" v-if="classYear.leftReason">{{classYear.leftReasonText}}</q-badge>
+                    <q-badge v-if="classYear.ross" color="negative" class="q-mx-sm">Ross</q-badge>
+                    <q-badge color="warning" text-color="dark" class="q-mx-sm" v-if="classYear.leftReason">{{classYear.leftReasonText}}</q-badge>
                 </q-btn>
             </span>
         </q-td>

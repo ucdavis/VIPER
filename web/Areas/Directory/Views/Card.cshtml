@@ -5,7 +5,7 @@
     IUserHelper UserHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
-<h2>Directory</h2>
+<h1>Directory</h1>
 <q-form @@submit="return false;">
     <q-input class="q-ml-xs q-mr-xs"
              dense
@@ -18,19 +18,13 @@
              autofocus>
     </q-input>
     <q-toggle v-model="ucd"
-              color="green"
+              color="positive"
               label="Search all of UCD">
     </q-toggle>
     <q-toggle v-model="ids"
-              color="blue"
+              color="primary"
               label="Display IDs">
     </q-toggle>
-    <!--
-    <q-toggle v-model="debug"
-              color="red"
-              label="Display debugging">
-    </q-toggle>
-    -->
     <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
@@ -80,16 +74,16 @@
             <q-card-section class="row">
                 <q-card-section class="col photo">
                     <q-avatar size="87px" square class="text-right photo_avatar">
-                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar">
+                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" :alt="user.name + '\'s photo'">
                     </q-avatar>
                 </q-card-section>
                 <q-card-section class="col">
-                    <h5 v-if="user.userName">{{user.userName}}</h5>
-                    <h1>{{user.name}}</h1>
-                    <h2 v-if="user.title">{{user.title}}</h2>
-                    <h2 v-if="user.department">{{user.department}}</h2>
-                    <h3 v-if="user.ucdStudentLevel">{{user.ucdStudentLevel}}</h3>
-                    <h4 v-if="user.svm && ucd">SVM</h4>
+                    <div v-if="user.userName" class="directory-username">{{user.userName}}</div>
+                    <h2 class="directory-name">{{user.name}}</h2>
+                    <div v-if="user.title" class="directory-detail">{{user.title}}</div>
+                    <div v-if="user.department" class="directory-detail">{{user.department}}</div>
+                    <div v-if="user.ucdStudentLevel" class="directory-level">{{user.ucdStudentLevel}}</div>
+                    <div v-if="user.svm && ucd" class="directory-tag">SVM</div>
                     <div class="contact">
                         <div class="mail" v-if="user.email"><a :href="'mailto:' + user.email">{{user.email}}</a></div>
                         <div class="host" v-if="ids && user.emailHost">[{{user.emailHost}}]</div>

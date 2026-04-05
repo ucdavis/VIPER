@@ -5,7 +5,7 @@
     IUserHelper UserHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
-<h2>Directory</h2>
+<h1>Directory</h1>
 <q-form @@submit="return false;">
     <q-input class="q-ml-xs q-mr-xs"
              dense
@@ -18,11 +18,11 @@
              autofocus>
     </q-input>
     <q-toggle v-model="ucd"
-              color="green"
+              color="positive"
               label="Search all of UCD">
     </q-toggle>
     <q-toggle v-model="ids"
-              color="blue"
+              color="primary"
               label="Show IDs">
     </q-toggle>
 </q-form>
