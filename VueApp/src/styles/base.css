@@ -113,7 +113,7 @@ div.breadcrumbs {
 
 /*Left Nav styles*/
 #leftNavMenu {
-    /*background-color: #E5E5E5;*/
+    overflow-x: hidden;
 }
 
 #leftNavMenu h2 {
@@ -240,8 +240,18 @@ div.breadcrumbs {
 }
 
 /* Heading Styles */
+.q-dialog h1,
+.q-dialog .text-h1,
+.q-page-container h1,
+.q-page-container .text-h1 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
 .q-dialog h2,
-.q-dialog text-h2,
+.q-dialog .text-h2,
 .q-page-container h2,
 .q-page-container .text-h2 {
     font-size: 1.2rem;
@@ -251,7 +261,7 @@ div.breadcrumbs {
 }
 
 .q-dialog h3,
-.q-dialog text-h3,
+.q-dialog .text-h3,
 .q-page-container h3,
 .q-page-container .text-h3 {
     font-size: 1.2rem;
@@ -261,7 +271,7 @@ div.breadcrumbs {
 }
 
 .q-dialog h4,
-.q-dialog text-h4,
+.q-dialog .text-h4,
 .q-page-container h4,
 .q-page-container .text-h4 {
     font-size: 1.1rem;
@@ -271,7 +281,7 @@ div.breadcrumbs {
 }
 
 .q-dialog h5,
-.q-dialog text-h5,
+.q-dialog .text-h5,
 .q-page-container h5,
 .q-page-container .text-h5 {
     font-size: 1rem;
@@ -281,7 +291,7 @@ div.breadcrumbs {
 }
 
 .q-dialog h6,
-.q-dialog text-h6,
+.q-dialog .text-h6,
 .q-page-container h6,
 .q-page-container .text-h6 {
     font-size: 1rem;
@@ -302,6 +312,24 @@ div#directoryResults .q-avatar {
 header .q-avatar {
     height: 40px !important;
     width: 31px !important;
+}
+
+/* Skip to content link — visible on focus for keyboard users */
+.skip-to-content {
+    position: absolute;
+    top: -2.5rem;
+    left: 0.5rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--q-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-weight: 600;
+}
+
+.skip-to-content:focus {
+    top: 0;
 }
 
 /* Screen reader only — visually hidden but accessible to assistive technology */

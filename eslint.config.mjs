@@ -43,12 +43,47 @@ export default [
         },
     },
 
+    // Exclude cshtml files with Razor syntax (@Url.Content, ~) inside <script> blocks
+    // that breaks the JS parser — no rules can run on these anyway
+    {
+        ignores: [
+            "web/Areas/Directory/Views/Card.cshtml",
+            "web/Areas/Directory/Views/Table.cshtml",
+            "web/Areas/Students/Views/StudentClassYear.cshtml",
+            "web/Areas/Students/Views/StudentClassYearImport.cshtml",
+        ],
+    },
+
     // Configuration for CSHTML files (JavaScript in <script> tags)
     {
         files: ["web/**/*.cshtml"],
         plugins: {
             html,
             security,
+        },
+        languageOptions: {
+            globals: {
+                // Browser globals (cshtml scripts run in browser context)
+                fetch: "readonly",
+                URL: "readonly",
+                URLSearchParams: "readonly",
+                location: "readonly",
+                history: "readonly",
+                window: "readonly",
+                document: "readonly",
+                console: "readonly",
+                setTimeout: "readonly",
+                setInterval: "readonly",
+                // Project globals (loaded via shared script tags in _VIPERLayout.cshtml)
+                createVueApp: "readonly",
+                viperFetch: "readonly",
+                quasarTable: "readonly",
+                formatDate: "readonly",
+                formatDateForDateInput: "readonly",
+                getItemFromStorage: "readonly",
+                putItemInStorage: "readonly",
+                Quasar: "readonly",
+            },
         },
         settings: {
             "html/html-extensions": [".cshtml"],

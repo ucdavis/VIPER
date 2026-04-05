@@ -1,12 +1,10 @@
 <template>
-    <main>
-        <component
-            :is="$route.meta.layout || 'div'"
-            nav="viper-clinical-scheduler"
-            :navarea="true"
-            highlighted-top-nav="ClinicalScheduler"
-        />
-    </main>
+    <component
+        :is="$route.meta.layout || 'div'"
+        nav="viper-clinical-scheduler"
+        :navarea="true"
+        highlighted-top-nav="ClinicalScheduler"
+    />
     <GenericError />
 </template>
 

@@ -1,14 +1,12 @@
 <template>
-    <main>
-        <component
-            :is="$route.meta.layout || 'div'"
-            nav="cms"
-            :navarea="true"
-            highlighted-top-nav="Viper Home"
-            :breadcrumbs="$route.meta?.breadcrumbs"
-        >
-        </component>
-    </main>
+    <component
+        :is="$route.meta.layout || 'div'"
+        nav="cms"
+        :navarea="true"
+        highlighted-top-nav="Viper Home"
+        :breadcrumbs="$route.meta?.breadcrumbs"
+    >
+    </component>
     <GenericError />
 </template>
 

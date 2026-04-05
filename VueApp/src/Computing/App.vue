@@ -1,13 +1,11 @@
 <template>
-    <main>
-        <component
-            :is="$route.meta.layout || 'div'"
-            nav="viper-cats"
-            :navarea="true"
-            highlighted-top-nav="Computing"
-        >
-        </component>
-    </main>
+    <component
+        :is="$route.meta.layout || 'div'"
+        nav="viper-cats"
+        :navarea="true"
+        highlighted-top-nav="Computing"
+    >
+    </component>
     <GenericError />
 </template>
 

@@ -230,9 +230,9 @@
                 deleteRoleMember: async function () {
                     var oldBase = this.memberRolesTable.urlBase
                     this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
-                    await this.memberRolesTable.delete(this)
+                    const deleted = await this.memberRolesTable.delete(this)
                     this.memberRolesTable.urlBase = oldBase
-                    this.pushToVMACS()
+                    if (deleted) { this.pushToVMACS() }
                 },
                 addUpdateRoleMember: async function () {
                     var oldBase = this.memberRolesTable.urlBase
