@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router"
 import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
+import { useRouteFocus } from "@/composables/use-route-focus"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -23,5 +24,7 @@ router.beforeEach(async (to) => {
         }
     }
 })
+
+useRouteFocus(router)
 
 export { router }

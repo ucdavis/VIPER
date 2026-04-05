@@ -7,7 +7,10 @@ type DomainData = {
 }
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 
 const domain = ref({
     domainId: 0,
@@ -38,20 +41,27 @@ async function save() {
 function clearDomain() {
     domain.value = { domainId: 0, order: null, name: "", description: "" }
 }
-async function deleteDomain() {
-    const { del } = useFetch()
-    const r = await del(baseUrl + "/" + domain.value.domainId)
-    if (r.success) {
-        clearDomain()
-        await getDomains()
-    }
+function deleteDomain() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this domain?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(baseUrl + "/" + domain.value.domainId)
+        if (r.success) {
+            clearDomain()
+            await getDomains()
+        }
+    })
 }
 
 getDomains()
 </script>
 
 <template>
-    <h2>Manage Domains</h2>
+    <h1>Manage Domains</h1>
     <q-form
         method="post"
         @submit="save"
@@ -107,7 +117,7 @@ getDomains()
                 label="Delete"
                 no-caps
                 dense
-                color="red-7"
+                color="negative"
                 class="col col-4 col-lg-1 q-ml-md"
             ></q-btn>
             <q-btn
@@ -117,6 +127,7 @@ getDomains()
                 no-caps
                 dense
                 color="info"
+                text-color="dark"
                 class="col col-4 col-lg-1 q-ml-md"
             ></q-btn>
         </div>
@@ -142,6 +153,7 @@ getDomains()
                         dense
                         flat
                         class="secondary"
+                        :aria-label="`Edit domain: ${d.name}`"
                         @click="domain = d"
                     ></q-btn>
                 </q-item-section>

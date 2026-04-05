@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, inject } from "vue"
 import type { Ref } from "vue"
-import type { QTableProps } from "quasar"
+import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 
 import type { Bundle, Role } from "@/CTS/types"
@@ -72,17 +73,24 @@ function clearBundle() {
     load()
 }
 
-async function removeBundle() {
-    let r = await del(apiUrl + "cts/bundles/" + bundle.value.bundleId)
-    if (r.success) {
-        clearBundle()
-    }
+function removeBundle() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this bundle?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        let r = await del(apiUrl + "cts/bundles/" + bundle.value.bundleId)
+        if (r.success) {
+            clearBundle()
+        }
+    })
 }
 
 load()
 </script>
 <template>
-    <h2>Manage Bundles</h2>
+    <h1>Manage Bundles</h1>
     <q-card flat>
         <q-form @submit="save()">
             <h3>{{ bundle?.bundleId == null ? "Add Bundle" : "Update Bundle" }}</h3>
@@ -150,7 +158,7 @@ load()
                     v-if="bundle?.bundleId"
                     type="button"
                     @click="removeBundle()"
-                    color="red-5"
+                    color="negative"
                     dense
                     class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                     label="Delete"
@@ -176,6 +184,7 @@ load()
                     dense
                     size="sm"
                     icon="edit"
+                    :aria-label="`Edit bundle: ${props.row.name}`"
                     @click="selectBundle(props.row)"
                     color="primary"
                 ></q-btn>
@@ -199,6 +208,7 @@ load()
                     class="q-mr-md"
                     icon="list"
                     color="primary"
+                    :aria-label="`View competencies for ${props.row.name}`"
                     :to="'ManageBundleCompetencies?bundleId=' + props.row.bundleId"
                 ></q-btn>
                 {{ props.row.competencyCount }}
@@ -209,7 +219,7 @@ load()
                 <q-icon
                     v-if="props.row.clinical"
                     name="check"
-                    color="green"
+                    color="positive"
                 />
             </q-td>
         </template>
@@ -218,7 +228,7 @@ load()
                 <q-icon
                     v-if="props.row.assessment"
                     name="check"
-                    color="green"
+                    color="positive"
                 />
             </q-td>
         </template>
@@ -227,7 +237,7 @@ load()
                 <q-icon
                     v-if="props.row.milestone"
                     name="check"
-                    color="green"
+                    color="positive"
                 />
             </q-td>
         </template>

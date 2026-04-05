@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 
 type Level = {
     levelId: number
@@ -68,12 +71,19 @@ async function submitLevel() {
     }
 }
 
-async function deleteLevel() {
-    const { del } = useFetch()
-    const r = await del(levelUrl + "/" + level.value.levelId)
-    if (r.success) {
-        loadLevels()
-    }
+function deleteLevel() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this level?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(levelUrl + "/" + level.value.levelId)
+        if (r.success) {
+            loadLevels()
+        }
+    })
 }
 
 function filterLevels() {
@@ -102,7 +112,7 @@ loadLevels()
 </script>
 
 <template>
-    <h2>Manage Levels</h2>
+    <h1>Manage Levels</h1>
     <q-form
         action=""
         @submit="submitLevel"
@@ -186,7 +196,7 @@ loadLevels()
                     no-caps
                     type="button"
                     label="Delete Level"
-                    color="red"
+                    color="negative"
                     class="q-mt-sm q-ml-lg col col-4 col-md-1"
                     @click="deleteLevel"
                 ></q-btn>
@@ -216,6 +226,7 @@ loadLevels()
                         size="md"
                         color="primary"
                         icon="edit"
+                        :aria-label="`Edit level: ${l.levelName}`"
                         @click="editLevel(l)"
                     ></q-btn>
                 </q-item-section>

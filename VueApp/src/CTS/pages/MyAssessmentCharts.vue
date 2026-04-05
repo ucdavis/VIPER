@@ -108,7 +108,7 @@ ChartJS.register(CategoryScale, LinearScale, LineElement, Title, Tooltip, Legend
 </script>
 <template>
     <div v-if="epaAssessments.length">
-        <h2>Assessments for {{ epaAssessments[0]?.studentName }}</h2>
+        <h1>Assessments for {{ epaAssessments[0]?.studentName }}</h1>
         <div class="row">
             <div class="col-12 col-lg-2"><strong>EPA</strong></div>
             <div class="col-12 col-lg-4"><strong>Level</strong></div>

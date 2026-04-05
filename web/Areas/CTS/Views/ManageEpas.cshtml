@@ -1,4 +1,4 @@
-﻿
+﻿<h1>Manage EPAs</h1>
 <q-form @@submit="submitEpa()" v-if="showForm" class="q-mb-md">
     <h2>{{epa?.epaId ? 'Updating EPA' : 'Creating EPA'}}</h2>
     <div class="row">
@@ -33,7 +33,7 @@
                v-if="epa?.epaId"
                class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"
 ></q-btn>
-        <q-btn dense no-caps type="button" label="Delete EPA" color="red" @@click="deleteEpa()"
+        <q-btn dense no-caps type="button" label="Delete EPA" color="negative" @@click="deleteEpa()"
                v-if="epa?.epaId"
                class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"
 ></q-btn>
@@ -43,7 +43,7 @@
 
 <h3>
     Add New EPA
-    <q-btn no-caps size="md" label="Add EPA" color="green" @@click="this.showForm=true" class="q-ml-sm"></q-btn>
+    <q-btn no-caps size="md" label="Add EPA" color="positive" @@click="this.showForm=true" class="q-ml-sm"></q-btn>
 </h3>
 
 <q-list separator>
@@ -67,7 +67,7 @@
             <template v-slot:default>
                 <span class="row fit">
                     <span class="col">
-                        <q-btn dense no-caps size="md" icon="edit" color="primary" @@click="selectEpa(epa)"></q-btn>
+                        <q-btn dense no-caps size="md" icon="edit" color="primary" :aria-label="'Edit EPA: ' + epa.name" @@click="selectEpa(epa)"></q-btn>
                     </span>
                     <span class="col">
                         <q-icon :name="epa.active ? 'check' : 'close'" :color="epa.active ? 'green' : 'red'" size="md"></q-icon>
@@ -94,7 +94,6 @@
 
 @section Scripts {
     <script asp-add-nonce="true">
-        /* global createVueApp, viperFetch */
         createVueApp({
             data() {
                 return {
