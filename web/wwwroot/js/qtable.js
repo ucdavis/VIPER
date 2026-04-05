@@ -16,7 +16,7 @@ function showStatusNotification(message) {
     // oxlint-disable-next-line no-magic-numbers -- notification display duration in ms
     setTimeout(() => {
         el.classList.remove("viper-status-notification--visible")
-        el.addEventListener("transitionend", () => el.remove())
+        el.addEventListener("transitionend", () => el.remove(), { once: true })
     }, 3000)
 }
 
@@ -170,7 +170,7 @@ class quasarTable {
                 body: JSON.stringify(bodyObject),
                 headers: { "Content-Type": "application/json" },
             },
-            [() => this.load(this)],
+            [() => this.load(vueApp)],
             this.errors,
         )
         if (result !== undefined) {
@@ -187,7 +187,7 @@ class quasarTable {
                 body: JSON.stringify(bodyObject),
                 headers: { "Content-Type": "application/json" },
             },
-            [() => this.load(this)],
+            [() => this.load(vueApp)],
             this.errors,
         )
         if (result !== undefined) {
@@ -205,22 +205,17 @@ class quasarTable {
                 persistent: true,
             })
                 .onOk(async () => {
-                    try {
-                        const result = await viperFetch(
-                            vueApp,
-                            this.getUpdateURL(),
-                            { method: "DELETE" },
-                            [() => this.load(this)],
-                            this.errors,
-                        )
-                        if (result !== undefined) {
-                            showStatusNotification("Item deleted")
-                        }
-                        resolve(result !== undefined)
-                    } catch (error) {
-                        showViperFetchError(vueApp, error, this.errors)
-                        resolve(false)
+                    const result = await viperFetch(
+                        vueApp,
+                        this.getUpdateURL(),
+                        { method: "DELETE" },
+                        [() => this.load(vueApp)],
+                        this.errors,
+                    )
+                    if (result !== undefined) {
+                        showStatusNotification("Item deleted")
                     }
+                    resolve(result !== undefined)
                 })
                 .onCancel(() => {
                     resolve(false)

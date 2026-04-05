@@ -314,6 +314,24 @@ header .q-avatar {
     width: 31px !important;
 }
 
+/* Skip to content link — visible on focus for keyboard users */
+.skip-to-content {
+    position: absolute;
+    top: -2.5rem;
+    left: 0.5rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--q-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-weight: 600;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
 /* Screen reader only — visually hidden but accessible to assistive technology */
 .sr-only {
     position: absolute;
