@@ -9,6 +9,7 @@
             <q-icon
                 :name="resolvedIcon"
                 :class="iconClass"
+                aria-hidden="true"
             />
         </template>
         <div class="text-body2">
