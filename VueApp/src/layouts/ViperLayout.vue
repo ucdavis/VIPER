@@ -229,7 +229,7 @@
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a
-                        href="http://www.vetmed.ucdavis.edu/"
+                        href="https://www.vetmed.ucdavis.edu/"
                         target="_blank"
                         rel="noopener"
                         class="text-primary"
@@ -245,7 +245,7 @@
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a
-                        href="http://www.ucdavis.edu/"
+                        href="https://www.ucdavis.edu/"
                         target="_blank"
                         rel="noopener"
                         class="text-primary"
