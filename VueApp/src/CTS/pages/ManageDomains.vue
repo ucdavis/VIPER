@@ -66,7 +66,7 @@ getDomains()
         method="post"
         @submit="save"
     >
-        <q-label class="row items-center">
+        <div class="row items-center">
             <span class="col col-md-2 col-lg-1">Domain:</span>
             <q-input
                 outlined
@@ -78,8 +78,8 @@ getDomains()
                 maxlength="250"
                 class="col col-md-5 col-lg-3"
             />
-        </q-label>
-        <q-label class="row items-center">
+        </div>
+        <div class="row items-center">
             <span class="col col-md-2 col-lg-1">Order:</span>
             <q-input
                 outlined
@@ -90,8 +90,8 @@ getDomains()
                 step="1"
                 class="col col-1"
             />
-        </q-label>
-        <q-label class="row items-start">
+        </div>
+        <div class="row items-start">
             <span class="col col-md-2 col-lg-1 q-pt-sm">Description:</span>
             <q-input
                 outlined
@@ -101,7 +101,7 @@ getDomains()
                 v-model="domain.description"
                 class="col col-md-5 col-lg-3"
             ></q-input>
-        </q-label>
+        </div>
         <div class="row q-mt-sm">
             <q-btn
                 type="submit"

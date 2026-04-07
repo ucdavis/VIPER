@@ -8,7 +8,7 @@ const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 
 const apiUrl = inject("apiURL")
-const role = ref({}) as Ref<any>
+const role = ref({ roleId: 0, name: "" }) as Ref<any>
 const roles = ref([]) as Ref<any[]>
 
 async function load() {
@@ -40,7 +40,7 @@ function removeRole() {
 }
 
 function clearRole() {
-    role.value = {}
+    role.value = { roleId: 0, name: "" }
 }
 
 load()

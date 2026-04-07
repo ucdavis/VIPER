@@ -143,14 +143,14 @@ getLevels()
 
 <style scoped>
 div.levelSelection button {
-    border: 1px solid rgb(30 136 229);
-    color: rgb(30 136 229);
+    border: 1px solid var(--q-secondary);
+    color: var(--q-secondary);
     width: 100%;
     margin-bottom: 0.2rem;
 }
 
 div.levelSelection button.selectedLevel {
-    background-color: rgb(30 136 229);
+    background-color: var(--q-secondary);
     color: white;
 }
 

@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import LevelSelect from "@/CTS/components/LevelSelect.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 
 const { formatDateForDateInput } = useDateFunctions()
 const route = useRoute()
@@ -73,21 +74,13 @@ getStudentEpa()
             class="col"
             v-show="studentEpa.encounterId"
         >
-            <q-banner
-                inline-actions
-                rounded
+            <StatusBanner
                 v-if="success"
-                class="bg-green text-white q-mb-md"
+                type="success"
+                dismissible
             >
                 EPA Saved
-                <template #action>
-                    <q-btn
-                        flat
-                        label="Dismiss"
-                        @click="success = false"
-                    ></q-btn>
-                </template>
-            </q-banner>
+            </StatusBanner>
             <div class="row justify-between items-end q-mb-lg">
                 <div class="col-12 col-md-6 col-lg-5">
                     <h2 class="epa">{{ studentEpa.epaName }}</h2>

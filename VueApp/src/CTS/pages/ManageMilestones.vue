@@ -74,6 +74,7 @@ async function createMilestone() {
                 clinical: false,
                 milestone: true,
                 name: "Milestone " + comp.number + " " + comp.name,
+                competencyCount: 0,
                 roles: [],
             }
             let r = await post(apiUrl + "cts/bundles/", bundle)
