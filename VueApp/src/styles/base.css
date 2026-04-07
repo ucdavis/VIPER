@@ -332,6 +332,12 @@ header .q-avatar {
     top: 0;
 }
 
+/* Suppress focus outline on main content — useRouteFocus sets focus
+   programmatically for screen reader announcements only */
+#main-content:focus {
+    outline: none;
+}
+
 /* Screen reader only — visually hidden but accessible to assistive technology */
 .sr-only {
     position: absolute;

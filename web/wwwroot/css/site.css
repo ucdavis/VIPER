@@ -219,6 +219,12 @@ html {
     top: 0;
 }
 
+/* Suppress focus outline on main content — skip link and programmatic
+   focus target for screen readers, not an interactive element */
+#main-content:focus {
+    outline: none;
+}
+
 /* Status notification toast — accessible via role="status" */
 .viper-status-notification {
     position: fixed;

@@ -214,9 +214,11 @@ async function getLeftNav() {
                 menuItemText: r.menuItemText,
                 clickable: r.menuItemURL.length > 0,
                 isExternalSite,
-                displayClass: r.menuItemURL.length
-                    ? "leftNavLink"
-                    : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
+                displayClass:
+                    (r.menuItemURL.length
+                        ? "leftNavLink"
+                        : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : "")) +
+                    (r.indentLevel > 0 ? ` leftNavIndent${r.indentLevel}` : ""),
             }
         })
     } catch (_e) {
