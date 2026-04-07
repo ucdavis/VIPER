@@ -31,12 +31,15 @@ const showDescriptions = ref(false)
 const tree = ref(null) as Ref<any>
 
 async function load() {
-    Promise.resolve([
+    const [, , hierarchyResult] = await Promise.all([
         get(apiUrl + "cts/domains").then((r) => (domains.value = r.result)),
         get(apiUrl + "cts/competencies").then((r) => (competencies.value = r.result)),
+        get(apiUrl + "cts/competencies/hierarchy"),
     ])
-    await get(apiUrl + "cts/competencies/hierarchy").then((r) => (competencyHierachy.value = r.result))
-    treeNodes.value = competencyHierachy.value.map(createTreeNode)
+    if (hierarchyResult?.result) {
+        competencyHierachy.value = hierarchyResult.result
+        treeNodes.value = competencyHierachy.value.map(createTreeNode)
+    }
     loaded.value = true
 }
 
