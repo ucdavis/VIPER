@@ -113,11 +113,13 @@
                                     dense
                                     inline-actions
                                     class="text-primary bg-primary-1 rounded-borders"
+                                    role="status"
                                 >
                                     <template #avatar>
                                         <q-icon
                                             name="info"
                                             size="14px"
+                                            aria-hidden="true"
                                         />
                                     </template>
                                     <span class="text-caption">Your schedule only</span>
