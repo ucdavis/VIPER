@@ -32,7 +32,7 @@
                     icon="event_repeat"
                     label="Percent Rollover"
                     color="info"
-                    :text-color="showRolloverForm ? undefined : 'dark'"
+                    text-color="dark"
                     dense
                     no-caps
                     :outline="showRolloverForm"
