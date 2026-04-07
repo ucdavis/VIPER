@@ -99,7 +99,7 @@ async function handleWordExport(): Promise<void> {
             no-caps
             icon="table_chart"
             label="Excel"
-            class="q-mr-sm"
+            class="q-mr-sm export-excel"
             :disable="isBusy"
             :loading="exportingExcel"
             @click="handleExcelExport"
@@ -119,7 +119,7 @@ async function handleWordExport(): Promise<void> {
             no-caps
             icon="description"
             label="Word"
-            class="q-mr-sm"
+            class="q-mr-sm export-word"
             :disable="isBusy"
             :loading="exportingWord"
             @click="handleWordExport"
@@ -139,7 +139,7 @@ async function handleWordExport(): Promise<void> {
             no-caps
             icon="picture_as_pdf"
             label="Print/PDF"
-            class="q-mr-sm"
+            class="q-mr-sm export-pdf"
             :disable="isBusy"
             :loading="exportingPdf"
             @click="handlePdfExport"
@@ -159,7 +159,7 @@ async function handleWordExport(): Promise<void> {
             no-caps
             icon="print"
             label="Print"
-            class="q-mr-sm"
+            class="q-mr-sm export-print"
             @click="printAction"
         />
         <slot name="append" />
@@ -184,3 +184,21 @@ async function handleWordExport(): Promise<void> {
         </q-input>
     </div>
 </template>
+
+<style scoped>
+.export-pdf {
+    color: #b30b00;
+}
+
+.export-excel {
+    color: #217346;
+}
+
+.export-word {
+    color: #2b579a;
+}
+
+.export-print {
+    color: var(--q-primary);
+}
+</style>
