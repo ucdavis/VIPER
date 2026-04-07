@@ -463,6 +463,8 @@ watch(
         if (isOpen) {
             resetForm()
             await loadOptions()
+            syncFormData()
+            setInitialState()
         }
     },
 )
@@ -489,7 +491,6 @@ function resetForm() {
     errorMessage.value = ""
     warningMessage.value = ""
     syncFormData()
-    setInitialState()
     formRef.value?.resetValidation()
 }
 
