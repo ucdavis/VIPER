@@ -175,6 +175,7 @@
                                 round
                                 size="sm"
                                 class="q-ml-sm"
+                                aria-label="Delete term"
                                 @click="confirmDeleteTerm(props.row)"
                                 @keyup.enter="confirmDeleteTerm(props.row)"
                                 @keyup.space="confirmDeleteTerm(props.row)"
@@ -331,6 +332,7 @@
                                     round
                                     size="sm"
                                     class="q-ml-xs"
+                                    aria-label="Save expected close date"
                                     @click="saveExpectedCloseDate(props.row)"
                                 >
                                     <q-tooltip>Save</q-tooltip>
@@ -342,6 +344,7 @@
                                     flat
                                     round
                                     size="sm"
+                                    aria-label="Cancel editing"
                                     @click="cancelEditExpectedCloseDate"
                                 >
                                     <q-tooltip>Cancel</q-tooltip>
@@ -357,6 +360,7 @@
                                     round
                                     size="sm"
                                     color="grey-7"
+                                    aria-label="Edit expected close date"
                                     @click="startEditExpectedCloseDate(props.row)"
                                     @keyup.enter="startEditExpectedCloseDate(props.row)"
                                     @keyup.space="startEditExpectedCloseDate(props.row)"
@@ -428,6 +432,7 @@
                                 flat
                                 round
                                 size="sm"
+                                aria-label="Save expected close date"
                                 @click="saveExpectedCloseDate(term)"
                             >
                                 <q-tooltip>Save</q-tooltip>
@@ -439,6 +444,7 @@
                                 flat
                                 round
                                 size="sm"
+                                aria-label="Cancel editing"
                                 @click="cancelEditExpectedCloseDate"
                             >
                                 <q-tooltip>Cancel</q-tooltip>
