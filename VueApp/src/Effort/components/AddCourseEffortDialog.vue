@@ -122,36 +122,20 @@
                     />
 
                     <!-- Warning Message -->
-                    <q-banner
+                    <StatusBanner
                         v-if="warningMessage"
-                        class="bg-warning"
-                        rounded
-                        role="alert"
+                        type="warning"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="warning"
-                                color="dark"
-                            />
-                        </template>
                         {{ warningMessage }}
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Error Message -->
-                    <q-banner
+                    <StatusBanner
                         v-if="errorMessage"
-                        class="bg-negative text-white"
-                        rounded
-                        role="alert"
+                        type="error"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="error"
-                                color="white"
-                            />
-                        </template>
                         {{ errorMessage }}
-                    </q-banner>
+                    </StatusBanner>
                 </q-form>
             </q-card-section>
 
@@ -187,6 +171,7 @@ import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
 import type { CourseInstructorOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
 import "../effort-dialogs.css"

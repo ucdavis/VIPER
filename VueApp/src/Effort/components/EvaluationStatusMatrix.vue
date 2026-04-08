@@ -10,20 +10,12 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
-            rounded
-            role="alert"
+            type="error"
         >
-            <template #avatar>
-                <q-icon
-                    name="error"
-                    color="white"
-                />
-            </template>
             {{ loadError }}
-        </q-banner>
+        </StatusBanner>
 
         <!-- Matrix content -->
         <template v-else-if="evaluationData.instructors.length > 0">
@@ -138,6 +130,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { QTableColumn } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { CourseEvaluationStatusDto, InstructorEvalStatusDto, CourseEvalEntryDto } from "../types"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import EvalStatusCell from "./EvalStatusCell.vue"

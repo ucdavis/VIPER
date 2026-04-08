@@ -97,17 +97,11 @@
             </div>
 
             <!-- Parent Relationship Banner -->
-            <q-banner
+            <StatusBanner
                 v-if="parentRelationship"
-                class="bg-blue-1 q-mb-md"
-                rounded
+                type="info"
+                icon="subdirectory_arrow_right"
             >
-                <template #avatar>
-                    <q-icon
-                        name="subdirectory_arrow_right"
-                        color="primary"
-                    />
-                </template>
                 This course is a
                 <q-badge
                     :color="parentRelationship.relationshipType === 'CrossList' ? 'positive' : 'info'"
@@ -126,7 +120,7 @@
                     {{ parentRelationship.parentCourse.courseCode }}-{{ parentRelationship.parentCourse.seqNumb }}
                 </router-link>
                 <span v-else>Course {{ parentRelationship.parentCourseId }}</span>
-            </q-banner>
+            </StatusBanner>
 
             <!-- Child Relationships Section -->
             <div

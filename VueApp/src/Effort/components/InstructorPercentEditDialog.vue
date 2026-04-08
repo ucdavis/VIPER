@@ -79,13 +79,12 @@
                             @filter="filterTitleCodes"
                         >
                             <template #before-options>
-                                <q-banner
+                                <StatusBanner
                                     v-if="isOrphanedTitleCode"
-                                    class="bg-warning text-white q-mb-sm"
-                                    dense
+                                    type="warning"
                                 >
                                     Current value "{{ form.effortTitleCode }}" is not in the standard list
-                                </q-banner>
+                                </StatusBanner>
                             </template>
                             <template #no-option>
                                 <q-item>
@@ -108,13 +107,12 @@
                             clearable
                         >
                             <template #before-options>
-                                <q-banner
+                                <StatusBanner
                                     v-if="isOrphanedJobGroup"
-                                    class="bg-warning text-white q-mb-sm"
-                                    dense
+                                    type="warning"
                                 >
                                     Current value "{{ form.jobGroupId }}" is not in the standard list
-                                </q-banner>
+                                </StatusBanner>
                             </template>
                         </q-select>
 
@@ -140,19 +138,12 @@
                             </span>
                         </q-checkbox>
 
-                        <q-banner
+                        <StatusBanner
                             v-if="settingsErrorMessage"
-                            class="bg-negative text-white"
-                            rounded
+                            type="error"
                         >
-                            <template #avatar>
-                                <q-icon
-                                    name="error"
-                                    color="white"
-                                />
-                            </template>
                             {{ settingsErrorMessage }}
-                        </q-banner>
+                        </StatusBanner>
 
                         <div class="row justify-end">
                             <q-btn
@@ -256,6 +247,7 @@ import { useQuasar, QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { requiredRule } from "../validation"
 import "../effort-forms.css"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { instructorService } from "../services/instructor-service"
 import { percentageService } from "../services/percentage-service"
 import { percentAssignTypeService } from "../services/percent-assign-type-service"

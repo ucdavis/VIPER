@@ -97,10 +97,7 @@
                     </div>
 
                     <!-- Summary Banner -->
-                    <q-banner
-                        class="bg-blue-1 q-mb-md"
-                        rounded
-                    >
+                    <StatusBanner type="info">
                         <div class="row q-col-gutter-md">
                             <div class="col-6 col-sm-3 text-center">
                                 <div class="text-h5 text-positive">{{ preview.addCount }}</div>
@@ -127,21 +124,14 @@
                         <div class="text-caption text-grey-7 q-mt-sm text-center">
                             Data as of {{ formatPreviewDateTime(preview.previewGeneratedAt) }}
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Warnings Section -->
-                    <q-banner
+                    <StatusBanner
                         v-if="preview.warnings.length > 0"
-                        class="bg-orange-1 q-mb-md"
-                        rounded
+                        type="warning"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="warning"
-                                color="warning"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium">
                                 {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
                             </span>
@@ -154,21 +144,15 @@
                                 {{ warning }}
                             </li>
                         </ul>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Delete Warning for Sync Mode with Empty Source -->
-                    <q-banner
+                    <StatusBanner
                         v-if="selectedMode === 'Sync' && preview.addCount === 0 && preview.deleteCount > 0"
-                        class="bg-red-1 q-mb-md"
-                        rounded
+                        type="error"
+                        icon="dangerous"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="dangerous"
-                                color="negative"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium text-negative"
                                 >Sync will delete ALL clinical effort records</span
                             >
@@ -177,21 +161,14 @@
                             The source returned 0 records. Syncing will delete all {{ preview.deleteCount }} existing
                             clinical effort records for this term.
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Delete Warning Banner -->
-                    <q-banner
+                    <StatusBanner
                         v-else-if="preview.deleteCount > 0"
-                        class="bg-red-1 q-mb-md"
-                        rounded
+                        type="error"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="warning"
-                                color="negative"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium text-negative">
                                 {{ preview.deleteCount }} {{ inflect("record", preview.deleteCount) }} will be deleted
                             </span>
@@ -204,27 +181,20 @@
                                 Sync mode will remove clinical records that no longer exist in the source.
                             </template>
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Nothing to Import Warning -->
-                    <q-banner
+                    <StatusBanner
                         v-if="totalChanges === 0"
-                        class="bg-orange-1 q-mb-md"
-                        rounded
+                        type="warning"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="info"
-                                color="warning"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium">Nothing to import</span>
                         </div>
                         <div class="text-caption text-grey-7">
                             There are no changes to make with the selected import mode.
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Preview Table -->
                     <ClinicalEffortPreviewTable
@@ -264,6 +234,7 @@ import { useQuasar } from "quasar"
 import { clinicalService } from "../services/clinical-service"
 import type { ClinicalImportPreviewDto, ClinicalImportMode } from "../types"
 import { inflect } from "inflection"
+import StatusBanner from "@/components/StatusBanner.vue"
 import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
 
 const props = defineProps<{

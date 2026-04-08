@@ -1,15 +1,8 @@
 <template>
-    <q-banner
+    <StatusBanner
         v-if="show"
-        class="bg-warning q-mb-md"
-        rounded
+        type="warning"
     >
-        <template #avatar>
-            <q-icon
-                name="warning"
-                color="dark"
-            />
-        </template>
         <div v-if="mode === 'self'">
             <strong>You have effort items with ZERO effort.</strong>
             You will not be able to verify your effort until these items have been updated to document hours/weeks or
@@ -19,10 +12,12 @@
             NOTE: This instructor has one or more effort items documented as ZERO effort. Effort cannot be verified
             until these items have been updated or removed.
         </template>
-    </q-banner>
+    </StatusBanner>
 </template>
 
 <script setup lang="ts">
+import StatusBanner from "@/components/StatusBanner.vue"
+
 defineProps<{
     show: boolean
     mode: "self" | "staff"
