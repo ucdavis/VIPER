@@ -66,7 +66,7 @@
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <q-badge v-if="props.row.application == 1" transparent icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
+                <q-badge v-if="props.row.application == 1" icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
                 {{props.row.friendlyName}}
                 <br />     
                 <span style="font-size:.9em">{{props.row.description}}</span>
