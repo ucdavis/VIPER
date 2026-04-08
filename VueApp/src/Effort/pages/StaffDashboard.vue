@@ -498,6 +498,7 @@
                                 dense
                                 size="sm"
                                 :label="showIgnoredAlerts ? 'Hide Ignored' : 'Show Ignored'"
+                                tabindex="-1"
                                 @click.stop="showIgnoredAlerts = !showIgnoredAlerts"
                             />
                         </q-item-section>
@@ -507,7 +508,7 @@
                             <div class="text-grey-6 text-center q-pa-md">No alerts to display</div>
                         </template>
 
-                        <q-list
+                        <div
                             v-else
                             class="alert-sections"
                         >
@@ -857,7 +858,7 @@
                                     </q-item>
                                 </q-list>
                             </q-expansion-item>
-                        </q-list>
+                        </div>
                     </q-card-section>
                 </q-expansion-item>
             </q-card>
