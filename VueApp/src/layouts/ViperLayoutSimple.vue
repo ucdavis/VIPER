@@ -65,15 +65,15 @@ const currentYear = new Date().getFullYear()
                             <span class="mainLayoutViper">VIPER 2.0</span>
                             <q-badge
                                 v-if="environment == 'DEVELOPMENT'"
-                                color="warning"
-                                text-color="dark"
+                                color="negative"
+                                role="presentation"
                                 class="mainLayoutViperMode"
                                 >Development</q-badge
                             >
                             <q-badge
                                 v-if="environment == 'TEST'"
-                                color="warning"
-                                text-color="dark"
+                                color="negative"
+                                role="presentation"
                                 class="mainLayoutViperMode"
                                 >Test</q-badge
                             >
