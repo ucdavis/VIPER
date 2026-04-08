@@ -30,6 +30,7 @@
                                 size="12px"
                                 class="q-mb-sm"
                                 rounded
+                                aria-label="Overall verification progress"
                             />
                             <div class="text-caption text-grey-7">
                                 {{ stats.verifiedInstructors }} of {{ stats.totalInstructors }} instructors verified
@@ -287,8 +288,9 @@
                                                     size="8px"
                                                     class="dept-bar"
                                                     rounded
+                                                    :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-6">
+                                                <span class="dept-count text-caption text-grey-8">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -335,8 +337,9 @@
                                                     size="8px"
                                                     class="dept-bar"
                                                     rounded
+                                                    :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-6">
+                                                <span class="dept-count text-caption text-grey-8">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -377,8 +380,9 @@
                                                 size="8px"
                                                 class="dept-bar"
                                                 rounded
+                                                :aria-label="dept.departmentName + ' verification progress'"
                                             />
-                                            <span class="dept-count text-caption text-grey-6">
+                                            <span class="dept-count text-caption text-grey-8">
                                                 ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                             </span>
                                         </div>

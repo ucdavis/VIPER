@@ -458,6 +458,7 @@
                                 <q-badge
                                     v-if="props.row.recordCount === 0"
                                     color="warning"
+                                    text-color="dark"
                                     class="no-effort-badge"
                                 >
                                     No Effort
