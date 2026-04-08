@@ -63,15 +63,19 @@ const currentYear = new Date().getFullYear()
                                 >home</i
                             >
                             <span class="mainLayoutViper">VIPER 2.0</span>
-                            <span
+                            <q-badge
                                 v-if="environment == 'DEVELOPMENT'"
+                                color="warning"
+                                text-color="dark"
                                 class="mainLayoutViperMode"
-                                >Development</span
+                                >Development</q-badge
                             >
-                            <span
+                            <q-badge
                                 v-if="environment == 'TEST'"
+                                color="warning"
+                                text-color="dark"
                                 class="mainLayoutViperMode"
-                                >Test</span
+                                >Test</q-badge
                             >
                         </span>
                     </a>
@@ -102,15 +106,19 @@ const currentYear = new Date().getFullYear()
                     :href="viperHome"
                 >
                     <span class="mainLayoutViper">VIPER 2.0</span>
-                    <span
+                    <q-badge
                         v-if="environment == 'DEVELOPMENT'"
+                        color="warning"
+                        text-color="dark"
                         class="mainLayoutViperMode"
-                        >Development</span
+                        >Development</q-badge
                     >
-                    <span
+                    <q-badge
                         v-if="environment == 'TEST'"
+                        color="warning"
+                        text-color="dark"
                         class="mainLayoutViperMode"
-                        >Test</span
+                        >Test</q-badge
                     >
                 </q-btn>
 
