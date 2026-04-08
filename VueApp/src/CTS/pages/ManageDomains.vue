@@ -66,41 +66,34 @@ getDomains()
         method="post"
         @submit="save"
     >
-        <div class="row items-center">
-            <span class="col col-md-2 col-lg-1">Domain:</span>
+        <div class="row q-gutter-sm q-mb-sm">
             <q-input
                 outlined
                 dense
-                type="text"
-                name="name"
+                label="Domain"
                 v-model="domain.name"
-                size="30"
                 maxlength="250"
-                class="col col-md-5 col-lg-3"
+                class="col-12 col-md-5 col-lg-3"
             />
-        </div>
-        <div class="row items-center">
-            <span class="col col-md-2 col-lg-1">Order:</span>
             <q-input
                 outlined
                 dense
+                label="Order"
                 type="number"
-                name="order"
                 v-model="domain.order"
                 step="1"
-                class="col col-1"
+                class="col-4 col-md-1"
             />
         </div>
-        <div class="row items-start">
-            <span class="col col-md-2 col-lg-1 q-pt-sm">Description:</span>
+        <div class="row q-mb-sm">
             <q-input
                 outlined
                 dense
+                label="Description"
                 type="textarea"
-                name="description"
                 v-model="domain.description"
-                class="col col-md-5 col-lg-3"
-            ></q-input>
+                class="col-12 col-md-5 col-lg-3"
+            />
         </div>
         <div class="row q-mt-sm">
             <q-btn
