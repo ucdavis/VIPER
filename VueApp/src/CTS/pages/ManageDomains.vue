@@ -127,32 +127,30 @@ getDomains()
     </q-form>
 
     <div class="row">
-        <q-list class="col col-12 col-md-10 col-lg-6">
-            <q-item-label
-                header
-                class="text-primary"
-                ><h3>Domains</h3></q-item-label
-            >
-            <q-item
-                v-for="d in domains"
-                :key="d.domainId"
-            >
-                <q-item-section
-                    top
-                    side
+        <div class="col col-12 col-md-10 col-lg-6">
+            <h3 class="text-primary q-px-md">Domains</h3>
+            <q-list>
+                <q-item
+                    v-for="d in domains"
+                    :key="d.domainId"
                 >
-                    <q-btn
-                        icon="edit"
-                        dense
-                        flat
-                        class="secondary"
-                        :aria-label="`Edit domain: ${d.name}`"
-                        @click="domain = d"
-                    ></q-btn>
-                </q-item-section>
-                <q-item-section top>{{ d.order }}. {{ d.name }}</q-item-section>
-                <q-item-section>{{ d.description }}</q-item-section>
-            </q-item>
-        </q-list>
+                    <q-item-section
+                        top
+                        side
+                    >
+                        <q-btn
+                            icon="edit"
+                            dense
+                            flat
+                            class="secondary"
+                            :aria-label="`Edit domain: ${d.name}`"
+                            @click="domain = d"
+                        ></q-btn>
+                    </q-item-section>
+                    <q-item-section top>{{ d.order }}. {{ d.name }}</q-item-section>
+                    <q-item-section>{{ d.description }}</q-item-section>
+                </q-item>
+            </q-list>
+        </div>
     </div>
 </template>
