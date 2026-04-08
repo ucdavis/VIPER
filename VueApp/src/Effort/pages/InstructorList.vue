@@ -105,6 +105,7 @@
                         size="0.75rem"
                         color="white"
                         no-caps
+                        tabindex="-1"
                         :disable="sendingEmailDepts.has(deptGroup.dept)"
                         :loading="sendingEmailDepts.has(deptGroup.dept)"
                         @click.stop="confirmBulkEmail(deptGroup)"
