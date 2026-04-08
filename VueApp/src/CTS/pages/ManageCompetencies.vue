@@ -284,12 +284,19 @@ load()
             ></q-btn>
         </span>
     </h3>
+    <div
+        v-if="loaded && treeNodes.length === 0"
+        class="text-grey-8 q-pa-md"
+        role="status"
+    >
+        No competencies found.
+    </div>
     <q-tree
         :nodes="treeNodes"
         node-key="competencyId"
         v-model:expanded="expanded"
         dense
-        v-if="loaded"
+        v-if="loaded && treeNodes.length > 0"
         ref="tree"
     >
         <template #default-header="prop">
