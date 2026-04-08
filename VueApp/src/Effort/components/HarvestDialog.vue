@@ -87,10 +87,7 @@
             <template v-else-if="preview">
                 <q-card-section class="q-pt-sm">
                     <!-- Summary Banner -->
-                    <q-banner
-                        class="bg-blue-1 q-mb-md"
-                        rounded
-                    >
+                    <StatusBanner type="info">
                         <div class="row q-col-gutter-md">
                             <div class="col-6 col-sm-4 text-center">
                                 <div class="text-h5">{{ preview.summary.totalInstructors }}</div>
@@ -105,21 +102,14 @@
                                 <div class="text-caption">Effort Records</div>
                             </div>
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Warnings -->
-                    <q-banner
+                    <StatusBanner
                         v-if="preview.warnings.length > 0"
-                        class="bg-orange-1 q-mb-md"
-                        rounded
+                        type="warning"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="warning"
-                                color="warning"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium">
                                 {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
                             </span>
@@ -144,21 +134,14 @@
                         >
                             ...and {{ preview.warnings.length - 5 }} more
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Errors -->
-                    <q-banner
+                    <StatusBanner
                         v-if="preview.errors.length > 0"
-                        class="bg-red-1 q-mb-md"
-                        rounded
+                        type="error"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="error"
-                                color="negative"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium text-negative">
                                 {{ preview.errors.length }} {{ inflect("Error", preview.errors.length) }} - Harvest may
                                 fail
@@ -172,21 +155,15 @@
                                 {{ error.phase }}: {{ error.message }}
                             </li>
                         </ul>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Removed Items Warning -->
-                    <q-banner
+                    <StatusBanner
                         v-if="hasRemovedItems"
-                        class="bg-purple-1 q-mb-md"
-                        rounded
+                        type="warning"
+                        icon="person_remove"
                     >
                         <div class="row items-center q-mb-xs">
-                            <q-icon
-                                name="person_remove"
-                                color="purple"
-                                size="sm"
-                                class="q-mr-sm"
-                            />
                             <span class="text-weight-medium">Items that will be removed</span>
                         </div>
                         <div class="text-caption text-grey-7">
@@ -223,7 +200,7 @@
                                 }}{{ preview.removedCourses.length > 3 ? "..." : "" }})
                             </span>
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Tabs -->
                     <q-tabs
@@ -621,6 +598,7 @@ import { useQuasar } from "quasar"
 import { harvestService } from "../services/harvest-service"
 import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { inflect } from "inflection"
 import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
 

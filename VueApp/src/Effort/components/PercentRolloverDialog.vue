@@ -26,22 +26,13 @@
                 v-if="isOutsideIdealMonths && !isLoading"
                 class="q-py-sm"
             >
-                <q-banner
-                    class="bg-orange-1"
-                    rounded
-                >
-                    <template #avatar>
-                        <q-icon
-                            name="warning"
-                            color="warning"
-                        />
-                    </template>
-                    <div class="text-weight-medium text-orange-9">Unusual Timing</div>
+                <StatusBanner type="warning">
+                    <div class="text-weight-medium">Unusual Timing</div>
                     <div class="text-caption text-grey-8">
                         Percent rollover is typically performed in June or July at the academic year boundary. The
                         current month is {{ currentMonthName }}.
                     </div>
-                </q-banner>
+                </StatusBanner>
             </q-card-section>
 
             <!-- Loading State (Preview) -->
@@ -108,16 +99,7 @@
             <template v-else-if="preview">
                 <q-card-section class="q-pt-sm">
                     <!-- Summary Banner -->
-                    <q-banner
-                        class="bg-blue-1 q-mb-md"
-                        rounded
-                    >
-                        <template #avatar>
-                            <q-icon
-                                name="info"
-                                color="primary"
-                            />
-                        </template>
+                    <StatusBanner type="info">
                         <div class="row q-col-gutter-md">
                             <div class="col-4 text-center">
                                 <div class="text-h5">{{ preview.assignments.length }}</div>
@@ -136,26 +118,19 @@
                             Rolling from {{ preview.sourceAcademicYearDisplay }} to
                             {{ preview.targetAcademicYearDisplay }}
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Warning when nothing to rollover -->
-                    <q-banner
+                    <StatusBanner
                         v-if="preview.assignments.length === 0"
-                        class="bg-orange-1 q-mb-md"
-                        rounded
+                        type="warning"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="warning"
-                                color="warning"
-                            />
-                        </template>
                         <div class="text-weight-medium">No assignments to roll forward</div>
                         <div class="text-caption text-grey-7">
                             There are no percent assignments ending on {{ formatDate(preview.oldEndDate) }} that need to
                             be rolled forward.
                         </div>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Will be Rolled Forward Section (cyan, expanded by default) -->
                     <q-expansion-item
@@ -239,20 +214,10 @@
                             </div>
                         </template>
                         <div class="bg-orange-1 q-pa-sm">
-                            <q-banner
-                                class="bg-orange-2 q-mb-sm"
-                                rounded
-                                dense
-                            >
-                                <template #avatar>
-                                    <q-icon
-                                        name="info"
-                                        color="warning"
-                                    />
-                                </template>
+                            <StatusBanner type="warning">
                                 These assignments will not be rolled forward because someone manually edited or deleted
                                 a percent assignment of the same type for this instructor after the term was harvested.
-                            </q-banner>
+                            </StatusBanner>
                             <RolloverAssignmentTable :rows="preview.excludedByAudit" />
                         </div>
                     </q-expansion-item>
@@ -285,6 +250,7 @@ import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
 import { rolloverService } from "../services/rollover-service"
 import type { PercentRolloverPreviewDto } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { inflect } from "inflection"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import RolloverAssignmentTable from "./RolloverAssignmentTable.vue"
