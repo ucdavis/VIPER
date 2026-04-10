@@ -1,4 +1,7 @@
-﻿<h1>Manage Levels</h1>
+﻿@{
+    ViewData["Title"] = "Manage Levels";
+}
+<h1>Manage Levels</h1>
 <q-form action="" @@submit="submitLevel">
     <div class="row items-start">
         <q-btn-toggle name="type" v-model="type" :options="levelTypes" size="large" outlined no-caps push toggle-color="primary" class="q-mb-md"></q-btn-toggle>
@@ -37,7 +40,7 @@
                 <q-btn dense no-caps size="md" color="primary" icon="edit" :aria-label="'Edit level: ' + l.levelName" @@click="selectLevel(l)"></q-btn>
             </q-item-section>
             <q-item-section side top>
-                <q-icon :name="l.active ? 'check' : 'close'" :color="l.active ? 'green' : 'red'"></q-icon>
+                <q-icon :name="l.active ? 'check' : 'close'" :color="l.active ? 'positive' : 'negative'"></q-icon>
             </q-item-section>
             <q-item-section side top>
                 {{l.order}}

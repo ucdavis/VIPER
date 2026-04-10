@@ -49,7 +49,12 @@ function getSessions() {
 function getTerms() {
     get(apiUrl + "curriculum/terms")
         .then((r) => (terms.value = r.result))
-        .then(() => (selectedTerm.value = storedTerm.value || terms.value[0]))
+        .then(() => {
+            const stored = storedTerm.value
+            selectedTerm.value =
+                (stored?.termCode ? terms.value.find((t: Term) => t.termCode === stored.termCode) : null) ||
+                terms.value[0]
+        })
 }
 
 function getRoles() {

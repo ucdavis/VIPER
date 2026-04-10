@@ -72,7 +72,7 @@ load()
                 v-if="role?.roleId"
                 type="button"
                 @click="clearRole()"
-                color="primary"
+                color="secondary"
                 dense
                 class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                 label="Cancel"

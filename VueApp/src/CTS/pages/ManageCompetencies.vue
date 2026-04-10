@@ -302,31 +302,33 @@ load()
         <template #default-header="prop">
             <div class="row full-width items-center">
                 <div
-                    :class="'col-auto q-mr-sm ' + (prop.node.children.length == 0 ? 'q-ml-sm' : '')"
+                    :class="'col-auto q-mr-xs ' + (prop.node.children.length == 0 ? 'q-ml-sm' : '')"
                     @click.stop
                 >
                     <q-btn
                         dense
                         flat
-                        size="sm"
+                        size="1.4rem"
                         icon="add"
-                        color="positive"
+                        color="secondary"
                         @click="addChild(prop.node.comp)"
                         title="Add child of this competency"
+                        aria-label="Add child of this competency"
                     ></q-btn>
                 </div>
                 <div
-                    class="col-auto q-mr-sm"
+                    class="col-auto q-mr-xs"
                     @click.stop
                 >
                     <q-btn
                         dense
                         flat
-                        size="sm"
+                        size="1.2rem"
                         icon="edit"
-                        color="grey"
+                        color="secondary"
                         @click="editComp(prop.node.comp)"
-                        title="Edit"
+                        title="Edit competency"
+                        aria-label="Edit competency"
                     ></q-btn>
                 </div>
                 <div class="col-9 col-sm-10">

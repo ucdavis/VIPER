@@ -15,7 +15,7 @@ const milestoneLevels = ref([]) as Ref<MilestoneLevel[]>
 const loaded = ref(false)
 
 async function load() {
-    await Promise.resolve([
+    await Promise.all([
         get(apiUrl + "cts/levels?milestone=true").then((r) => (levels.value = r.result)),
         get(apiUrl + "cts/milestones").then((r) => (milestones.value = r.result)),
         get(apiUrl + "cts/competencies").then((r) => (competencies.value = r.result)),

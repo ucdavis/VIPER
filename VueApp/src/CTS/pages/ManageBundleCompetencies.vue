@@ -41,7 +41,7 @@ const columns = ref([
     { name: "order", label: "Order", field: "order", align: "left", sortable: true },
     { name: "competencyname", label: "Competency", field: "competencyName", align: "left", sortable: true },
     { name: "role", label: "Role", field: "roleName", align: "left", sortable: true },
-    { name: "action", label: "", field: "", align: "left" },
+    { name: "action", label: "Actions", field: "", align: "left" },
 ]) as Ref<QTableProps["columns"]>
 const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 0 }) as Ref<any>
 

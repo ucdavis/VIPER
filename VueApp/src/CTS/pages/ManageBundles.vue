@@ -27,7 +27,7 @@ const bundleRoles = ref([]) as Ref<number[]>
 const bundles = ref([]) as Ref<Bundle[]>
 const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 0 }) as Ref<any>
 const columns: QTableProps["columns"] = [
-    { name: "action", label: "", field: "id", align: "left" },
+    { name: "action", label: "Actions", field: "id", align: "left" },
     { name: "name", label: "Name", field: "name", align: "left", sortable: true },
     { name: "compcount", label: "Competency Count", field: "competencyCount", align: "left", sortable: true },
     { name: "roles", label: "Roles", field: "roles", align: "left", sortable: true },
@@ -149,7 +149,7 @@ load()
                     v-if="bundle?.bundleId"
                     type="button"
                     @click="clearBundle()"
-                    color="primary"
+                    color="secondary"
                     dense
                     class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                     label="Cancel"

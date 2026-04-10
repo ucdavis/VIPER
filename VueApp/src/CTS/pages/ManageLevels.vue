@@ -108,6 +108,11 @@ function editLevel(l: Level) {
     showForm.value = true
 }
 
+function clearLevel() {
+    level.value = structuredClone(emptyLevel) as Level
+    showForm.value = false
+}
+
 loadLevels()
 </script>
 
@@ -192,6 +197,17 @@ loadLevels()
                     class="q-mt-sm col col-4 col-md-1"
                 ></q-btn>
                 <q-btn
+                    v-if="level?.levelId"
+                    dense
+                    no-caps
+                    type="button"
+                    label="Cancel"
+                    color="secondary"
+                    class="q-mt-sm q-ml-lg col col-4 col-md-1"
+                    @click="clearLevel"
+                ></q-btn>
+                <q-btn
+                    v-if="level?.levelId"
                     dense
                     no-caps
                     type="button"
@@ -223,7 +239,6 @@ loadLevels()
                     <q-btn
                         dense
                         no-caps
-                        size="md"
                         color="primary"
                         icon="edit"
                         :aria-label="`Edit level: ${l.levelName}`"
@@ -236,7 +251,7 @@ loadLevels()
                 >
                     <q-icon
                         :name="l.active ? 'check' : 'close'"
-                        :color="l.active ? 'green' : 'red'"
+                        :color="l.active ? 'positive' : 'negative'"
                     ></q-icon>
                 </q-item-section>
                 <q-item-section
