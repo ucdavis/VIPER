@@ -51,7 +51,7 @@ const props = defineProps<{
 }>()
 
 function getLinkCollectionTagColor(order: number) {
-    const colors = ["orange", "grey", "purple", "green", "blue"]
+    const colors = ["warning", "secondary", "negative", "positive", "info"]
     return colors.length >= order ? colors[order - 1] : colors[colors.length - 1]
 }
 

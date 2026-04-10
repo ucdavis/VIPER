@@ -3,7 +3,7 @@
         :class="cardClasses"
         clickable
         tabindex="0"
-        role="button"
+        role="group"
         :aria-label="`Week ${week.weekNumber} starting ${formatDate(week.dateStart)}, ${assignments.length} ${inflect('assignment', assignments.length)}`"
         @click="handleClick"
         @keyup.enter.self.prevent="handleClick"
@@ -99,8 +99,8 @@
                                 dense
                                 icon="star"
                                 size="sm"
-                                color="amber"
-                                class="week-cell__primary-btn"
+                                color="warning"
+                                class="week-cell__primary-btn week-cell__star-outlined"
                                 aria-label="Primary evaluator"
                                 :disable="true"
                             >
@@ -113,8 +113,11 @@
                                 dense
                                 :icon="assignment.isPrimary ? 'star' : 'star_outline'"
                                 size="sm"
-                                :color="assignment.isPrimary ? 'amber' : 'grey-5'"
-                                class="week-cell__primary-btn"
+                                :color="assignment.isPrimary ? 'warning' : 'grey-8'"
+                                :class="[
+                                    'week-cell__primary-btn',
+                                    assignment.isPrimary ? 'week-cell__star-outlined' : '',
+                                ]"
                                 :aria-label="
                                     assignment.isPrimary
                                         ? 'Primary evaluator. Click another clinician\'s star to transfer primary status.'
@@ -456,6 +459,12 @@ const cardClasses = computed(() => {
     flex-shrink: 0;
 }
 
+/* Dark outline on gold star icons for WCAG contrast on white backgrounds */
+.week-cell__star-outlined :deep(.q-icon) {
+    -webkit-text-stroke: 1px var(--ucdavis-black-80);
+    paint-order: stroke fill;
+}
+
 .week-cell__empty {
     display: flex;
     align-items: center;
@@ -465,7 +474,7 @@ const cardClasses = computed(() => {
 
 .week-cell__empty-text {
     font-size: 12px;
-    color: var(--ucdavis-black-40);
+    color: var(--ucdavis-black-60);
     font-style: italic;
 }
 

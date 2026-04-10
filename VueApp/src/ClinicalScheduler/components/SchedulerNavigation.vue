@@ -1,7 +1,7 @@
 <template>
     <!-- Navigation tabs with proper active state for parameterized routes -->
     <q-tabs
-        class="text-grey q-mb-md"
+        class="text-grey-8 tabs-no-fade q-mb-md"
         active-color="primary"
         indicator-color="primary"
         align="left"
