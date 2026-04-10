@@ -7,6 +7,7 @@
             spinner-color="primary"
             no-default-spinner
             class="cursor-pointer"
+            :alt="`${student.firstName} ${student.lastName}'s photo`"
             @click="handleClick"
         >
             <template #error>
@@ -26,7 +27,7 @@
             <div
                 v-for="(line, index) in student.secondaryTextLines"
                 :key="index"
-                class="text-caption text-grey"
+                class="text-caption text-grey-7"
             >
                 {{ line }}
             </div>
