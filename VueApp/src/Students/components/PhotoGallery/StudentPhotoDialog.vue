@@ -26,6 +26,7 @@
                         :ratio="3 / 4"
                         fit="contain"
                         :style="photoStyle"
+                        :alt="currentStudent ? `${currentStudent.fullName}'s photo` : 'Student photo'"
                     >
                         <template #error>
                             <div class="absolute-full flex flex-center bg-grey-3">

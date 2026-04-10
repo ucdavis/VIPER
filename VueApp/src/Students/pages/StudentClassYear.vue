@@ -151,7 +151,7 @@ load()
 <template>
     <div class="row q-mb-sm">
         <div class="col">
-            <h2>Student Class Years</h2>
+            <h1>Student Class Years</h1>
         </div>
     </div>
 
@@ -235,7 +235,7 @@ load()
                         type="button"
                         padding="xs md"
                         @click="deleteStudentClassYear"
-                        color="red"
+                        color="negative"
                     ></q-btn>
                 </q-card-actions>
             </q-form>
@@ -324,7 +324,7 @@ load()
                     <img
                         :src="viperUrl + 'public/utilities/getbase64image.cfm?altphoto=1&mailId=' + props.row.mailId"
                         class="smallPhoto"
-                        alt="Student photo"
+                        :alt="`${props.row.firstName} ${props.row.lastName}'s photo`"
                     />
                 </q-avatar>
             </q-td>
@@ -351,12 +351,13 @@ load()
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
@@ -382,12 +383,13 @@ load()
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge

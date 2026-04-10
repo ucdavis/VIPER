@@ -37,6 +37,7 @@
                             <q-btn
                                 flat
                                 icon="grid_view"
+                                aria-label="Grid View"
                                 :color="galleryStore.galleryView === 'grid' ? 'primary' : 'grey'"
                                 @click="setView('grid')"
                             >
@@ -45,6 +46,7 @@
                             <q-btn
                                 flat
                                 icon="list"
+                                aria-label="List View"
                                 :color="galleryStore.galleryView === 'list' ? 'primary' : 'grey'"
                                 @click="setView('list')"
                             >
@@ -53,6 +55,7 @@
                             <q-btn
                                 flat
                                 icon="print"
+                                aria-label="Print Sheet"
                                 :color="galleryStore.galleryView === 'sheet' ? 'primary' : 'grey'"
                                 @click="setView('sheet')"
                             >
@@ -227,12 +230,9 @@
                         v-else-if="galleryStore.error"
                         class="q-mt-lg"
                     >
-                        <q-banner class="bg-negative text-white">
-                            <template #avatar>
-                                <q-icon name="warning" />
-                            </template>
+                        <StatusBanner type="error">
                             {{ galleryStore.error }}
-                        </q-banner>
+                        </StatusBanner>
                     </div>
 
                     <div
@@ -412,8 +412,8 @@
                                         color="grey-5"
                                     />
                                     <div class="text-center">
-                                        <div class="text-h6 text-grey">No photos to display</div>
-                                        <div class="text-subtitle2 text-grey">
+                                        <div class="text-h6 text-grey-8">No photos to display</div>
+                                        <div class="text-subtitle2 text-grey-8">
                                             {{
                                                 photoFilter.trim()
                                                     ? `No students found matching "${photoFilter}"`
@@ -439,7 +439,7 @@
 
                     <div
                         v-else
-                        class="q-mt-lg text-center text-grey"
+                        class="q-mt-lg text-center text-grey-8"
                     >
                         <q-icon
                             name="photo_library"
@@ -508,12 +508,9 @@
                         v-else-if="studentListError"
                         class="q-mt-lg"
                     >
-                        <q-banner class="bg-negative text-white">
-                            <template #avatar>
-                                <q-icon name="warning" />
-                            </template>
+                        <StatusBanner type="error">
                             {{ studentListError }}
-                        </q-banner>
+                        </StatusBanner>
                     </div>
 
                     <div
@@ -568,7 +565,7 @@
 
                     <div
                         v-else
-                        class="q-mt-lg text-center text-grey"
+                        class="q-mt-lg text-center text-grey-8"
                     >
                         <q-icon
                             name="people"
@@ -602,6 +599,7 @@ import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import { getPhotoUrl } from "../composables/use-photo-url"
 import { groupStudentsByType, getStudentGroupValue } from "../stores/photo-gallery-helpers"
+import StatusBanner from "@/components/StatusBanner.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
