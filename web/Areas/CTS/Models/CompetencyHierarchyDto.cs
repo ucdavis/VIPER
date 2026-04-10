@@ -11,7 +11,7 @@ namespace Viper.Areas.CTS.Models
         public bool CanLinkToStudent { get; set; }
         public string? DomainName { get; set; }
         public int? DomainOrder { get; set; }
-        public IEnumerable<CompetencyHierarchyDto> Children { get; set; } = new List<CompetencyHierarchyDto>();
+        public List<CompetencyHierarchyDto> Children { get; set; } = [];
         public string Type
         {
             get

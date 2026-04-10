@@ -1,6 +1,6 @@
 <template>
     <div v-if="loadHome">
-        <h2>Competency Tracking System (CTS)</h2>
+        <h1>Competency Tracking System (CTS)</h1>
         <p>
             The Council on Education has mandated that veterinary graduates must have the basic scientific knowledge,
             skills and values to practice veterinary medicine, independently, at the time of graduation. At a minimum,

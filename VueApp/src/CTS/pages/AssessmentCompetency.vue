@@ -63,7 +63,7 @@ const milestoneLevels = ref([
 function submitMilestone() {}
 </script>
 <template>
-    <h2>Competency Assessment</h2>
+    <h1>Competency Assessment</h1>
     <div class="row justify-between items-center q-mb-lg">
         <div class="col-12 col-md-6">
             <h2 class="epa text-weight-regular">{{ competency.number }} {{ competency.name }}</h2>
