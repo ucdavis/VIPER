@@ -4,6 +4,6 @@ const route = useRoute()
 </script>
 
 <template>
-    <h2>Error 404 - not found</h2>
+    <h1>Error 404 - not found</h1>
     <p>The page at {{ route.path }} could not be found.</p>
 </template>

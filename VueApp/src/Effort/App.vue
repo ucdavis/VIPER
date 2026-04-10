@@ -1,12 +1,10 @@
 <template>
-    <main>
-        <component
-            :is="$route.meta.layout || 'div'"
-            nav="viper-effort"
-            :navarea="true"
-            highlighted-top-nav="Faculty"
-        />
-    </main>
+    <component
+        :is="$route.meta.layout || 'div'"
+        nav="viper-effort"
+        :navarea="true"
+        highlighted-top-nav="Faculty"
+    />
     <GenericError />
 </template>
 

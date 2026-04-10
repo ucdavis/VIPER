@@ -21,59 +21,84 @@
                     unelevated
                     color="secondary"
                     icon="close"
+                    aria-label="Close menu"
                     class="float-right lt-md"
                     @click="myMainLeftDrawer = false"
                 />
                 <h2 v-if="navHeader.length">
                     {{ navHeader }}
                 </h2>
-                <q-list
-                    dense
-                    separator
-                >
-                    <template
-                        v-for="(menuItem, index) in menuItems"
-                        :key="index"
+                <nav :aria-label="navHeader || 'Section navigation'">
+                    <q-list
+                        dense
+                        separator
+                        role="list"
                     >
-                        <q-item
-                            v-if="menuItem.routeTo != null"
-                            :clickable="menuItem.clickable"
-                            :v-ripple="menuItem.clickable"
-                            :to="menuItem.routeTo"
-                            :class="menuItem.displayClass"
+                        <template
+                            v-for="(menuItem, index) in menuItems"
+                            :key="index"
                         >
-                            <q-item-section>
-                                <q-item-label lines="1">
-                                    {{ menuItem.menuItemText }}
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                        <q-item
-                            v-else-if="menuItem.menuItemUrl"
-                            clickable
-                            v-ripple
-                            :href="menuItem.menuItemUrl"
-                            target="_blank"
-                            :class="menuItem.displayClass"
-                        >
-                            <q-item-section>
-                                <q-item-label lines="1">
-                                    {{ menuItem.menuItemText }}
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                        <q-item
-                            v-else
-                            :class="menuItem.displayClass"
-                        >
-                            <q-item-section>
-                                <q-item-label lines="1">
-                                    {{ menuItem.menuItemText }}
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-                </q-list>
+                            <q-item
+                                v-if="menuItem.routeTo != null"
+                                :clickable="menuItem.clickable"
+                                :v-ripple="menuItem.clickable"
+                                :to="menuItem.routeTo"
+                                :class="menuItem.displayClass"
+                            >
+                                <q-item-section>
+                                    <q-item-label
+                                        v-overflow-title
+                                        lines="1"
+                                    >
+                                        {{ menuItem.menuItemText }}
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item
+                                v-else-if="menuItem.menuItemUrl"
+                                clickable
+                                v-ripple
+                                :href="menuItem.menuItemUrl"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                :class="menuItem.displayClass"
+                            >
+                                <q-item-section>
+                                    <q-item-label
+                                        v-overflow-title
+                                        lines="1"
+                                    >
+                                        {{ menuItem.menuItemText }}
+                                        <template v-if="menuItem.isExternalSite">
+                                            <q-icon
+                                                name="open_in_new"
+                                                size="xs"
+                                                class="q-ml-xs"
+                                                aria-hidden="true"
+                                            >
+                                                <q-tooltip>Opens in new window</q-tooltip>
+                                            </q-icon>
+                                            <span class="sr-only">(opens in new window)</span>
+                                        </template>
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item
+                                v-else
+                                :class="menuItem.displayClass"
+                            >
+                                <q-item-section>
+                                    <q-item-label
+                                        v-overflow-title
+                                        lines="1"
+                                    >
+                                        {{ menuItem.menuItemText }}
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-list>
+                </nav>
             </div>
         </template>
     </q-drawer>
@@ -83,12 +108,52 @@
 import { ref, watch, onMounted } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 
+type OverflowTitleElement = HTMLElement & {
+    _overflowTitleObserver?: ResizeObserver
+}
+
+function updateOverflowTitle(el: HTMLElement) {
+    const text = el.firstChild?.textContent?.trim() ?? ""
+    if (!text) {
+        el.removeAttribute("title")
+        return
+    }
+    if (el.scrollWidth > el.clientWidth) {
+        const hasExternal = el.querySelector(".sr-only") !== null
+        el.title = hasExternal ? `${text} (opens in new window)` : text
+    } else {
+        el.removeAttribute("title")
+    }
+}
+
+// Sets title attribute only when text is truncated by ellipsis.
+// Uses ResizeObserver to update when drawer toggles or window resizes.
+const vOverflowTitle = {
+    mounted(el: OverflowTitleElement) {
+        updateOverflowTitle(el)
+        if (typeof ResizeObserver !== "undefined") {
+            el._overflowTitleObserver = new ResizeObserver(() => {
+                updateOverflowTitle(el)
+            })
+            el._overflowTitleObserver.observe(el)
+        }
+    },
+    updated(el: OverflowTitleElement) {
+        updateOverflowTitle(el)
+    },
+    unmounted(el: OverflowTitleElement) {
+        el._overflowTitleObserver?.disconnect()
+        delete el._overflowTitleObserver
+    },
+}
+
 interface MenuItem {
     menuItemUrl: string | undefined
     routeTo: string | null
     menuItemText: string
     clickable: boolean
     displayClass: string
+    isExternalSite: boolean
 }
 
 const props = defineProps<{
@@ -123,6 +188,16 @@ async function getLeftNav() {
             const isExternalUrl = r.menuItemURL.length > 4 && r.menuItemURL.startsWith("http")
             const isRelativeUrl = r.menuItemURL.length > 0 && !isExternalUrl && !r.menuItemURL.startsWith("/")
 
+            // VIPER1 links share the same hostname — only show external icon for truly external sites
+            let isExternalSite = false
+            if (isExternalUrl) {
+                try {
+                    isExternalSite = new URL(r.menuItemURL).hostname !== window.location.hostname
+                } catch {
+                    isExternalSite = true
+                }
+            }
+
             let routeToUrl = null
             if (!isExternalUrl && r.menuItemURL.length > 0) {
                 if (isRelativeUrl && props.navarea && props.nav) {
@@ -137,9 +212,12 @@ async function getLeftNav() {
                 routeTo: routeToUrl,
                 menuItemText: r.menuItemText,
                 clickable: r.menuItemURL.length > 0,
-                displayClass: r.menuItemURL.length
-                    ? "leftNavLink"
-                    : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : ""),
+                isExternalSite,
+                displayClass:
+                    (r.menuItemURL.length
+                        ? "leftNavLink"
+                        : (r.isHeader ? "leftNavHeader" : "") + (r.menuItemText === "" ? " leftNavSpacer" : "")) +
+                    (r.indentLevel > 0 ? ` leftNavIndent${r.indentLevel}` : ""),
             }
         })
     } catch (_e) {

@@ -61,9 +61,7 @@ html {
 
 .mainLayoutViperMode {
     margin-left: 0.6em;
-    margin-top: 0.4em;
-    color: red;
-    vertical-align: bottom;
+    vertical-align: middle;
 }
 
 #topPlaceholder {
@@ -81,6 +79,10 @@ html {
 }
 
 /*Left Nav styles*/
+#leftNavMenu {
+    overflow-x: hidden;
+}
+
 #leftNavMenu h2 {
     font-size: 1.2rem;
     margin: 0;
@@ -184,7 +186,97 @@ html {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Screen reader only — visually hidden but accessible to assistive technology */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Skip to content link — visible on focus for keyboard users */
+.skip-to-content {
+    position: absolute;
+    top: -2.5rem;
+    left: 0.5rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--q-primary);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-weight: 600;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* Suppress focus outline on main content — skip link and programmatic
+   focus target for screen readers, not an interactive element */
+#main-content:focus {
+    outline: none;
+}
+
+/* Override Quasar's 0.6 opacity on input clear buttons */
+.q-field .q-field__focusable-action {
+    opacity: 1;
+}
+
+/* Status notification toast — accessible via role="status" */
+.viper-status-notification {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(1rem);
+    padding: 0.75rem 1.5rem;
+    background: var(--q-positive, #266041);
+    color: #fff;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transition:
+        opacity 0.3s,
+        transform 0.3s;
+    pointer-events: none;
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
+}
+
+.viper-status-notification--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Quasar palette AA contrast overrides (!important required to override Quasar's !important) */
+.text-grey {
+    color: var(--ucdavis-black-60, #666666) !important;
+}
+
+.bg-grey {
+    background-color: var(--ucdavis-black-60, #666666) !important;
+}
+
+/* TODO: Remove when color="green" is migrated to color="positive" */
+.bg-green {
+    background-color: #266041 !important;
+}
+
 /* Heading Styles */
+.q-page-container h1,
+.q-page-container .text-h1 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
 .q-page-container h2,
 .q-page-container .text-h2 {
     font-size: 1.2rem;
