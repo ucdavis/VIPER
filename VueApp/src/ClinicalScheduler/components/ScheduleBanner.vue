@@ -2,10 +2,14 @@
     <q-banner
         v-if="shouldShow"
         :class="bannerClass"
+        :role="type === 'error' ? 'alert' : 'status'"
         rounded
     >
         <template #avatar>
-            <q-icon :name="iconName" />
+            <q-icon
+                :name="iconName"
+                aria-hidden="true"
+            />
         </template>
         <div class="text-body2">
             <strong v-if="title">{{ title }}</strong>
