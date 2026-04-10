@@ -22,6 +22,7 @@
             <q-card-section
                 class="scroll"
                 style="max-height: calc(90vh - 120px)"
+                tabindex="0"
             >
                 <!-- Read-only instructor info header -->
                 <div class="q-mb-md q-pa-sm bg-grey-2 rounded-borders">

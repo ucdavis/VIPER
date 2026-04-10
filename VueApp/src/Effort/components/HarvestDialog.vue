@@ -207,7 +207,7 @@
                         v-model="activeTab"
                         dense
                         align="left"
-                        class="text-grey"
+                        class="text-grey-8 tabs-no-fade"
                         active-color="primary"
                         indicator-color="primary"
                         narrow-indicator

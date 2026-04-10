@@ -137,7 +137,7 @@
                         <div class="col-12 text-right">
                             <q-btn
                                 label="Clear Filters"
-                                color="grey"
+                                color="secondary"
                                 dense
                                 flat
                                 @click="clearFilter"
@@ -552,7 +552,8 @@ function getActionColor(action: string): string {
     if (action.startsWith("Open") || action.startsWith("Reopen")) return "secondary"
     if (action.startsWith("Close")) return "warning"
     if (action.startsWith("Import")) return "info"
-    return "grey"
+    if (action.startsWith("Verify")) return "positive"
+    return "grey-8"
 }
 
 function filterModifiers(val: string, update: (fn: () => void) => void) {

@@ -225,7 +225,7 @@
                     active-color="primary"
                     indicator-color="primary"
                     no-caps
-                    class="text-grey-7"
+                    class="text-grey-8 tabs-no-fade"
                 >
                     <q-tab
                         name="effort"
@@ -561,7 +561,7 @@ const childColumns = computed<QTableColumn[]>(() => [
     },
     {
         name: "actions",
-        label: "",
+        label: "Actions",
         field: "actions",
         align: "center",
     },

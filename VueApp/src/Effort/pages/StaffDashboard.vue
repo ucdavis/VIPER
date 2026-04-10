@@ -900,7 +900,10 @@
                     />
                 </q-card-section>
                 <q-separator />
-                <q-card-section style="max-height: 70vh; overflow: auto">
+                <q-card-section
+                    style="max-height: 70vh; overflow: auto"
+                    tabindex="0"
+                >
                     <template v-if="allAlerts.length === 0">
                         <div class="text-grey-6 text-center q-pa-md">No alerts</div>
                     </template>

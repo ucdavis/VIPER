@@ -433,7 +433,7 @@ const columns: QTableColumn[] = [
     { name: "enrollment", label: "Enrollment", field: "enrollment", align: "center" },
     { name: "units", label: "Units", field: "unitLow", align: "center" },
     { name: "status", label: "Status", field: "alreadyImported", align: "center" },
-    { name: "actions", label: "", field: "actions", align: "center" },
+    { name: "actions", label: "Actions", field: "actions", align: "center" },
 ]
 
 // Reset search when dialog opens

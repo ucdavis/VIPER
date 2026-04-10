@@ -59,7 +59,7 @@
                                 dense
                                 no-caps
                                 size="sm"
-                                color="grey-7"
+                                color="secondary"
                                 @click="rolloverYearOverride = true"
                             />
                         </template>
@@ -79,7 +79,7 @@
                                 dense
                                 no-caps
                                 size="sm"
-                                color="grey-7"
+                                color="secondary"
                                 @click="resetRolloverYear"
                             />
                         </template>
