@@ -47,42 +47,6 @@
                         Generate Report
                     </template>
                 </q-btn>
-                <q-space />
-                <q-btn
-                    v-if="report"
-                    outline
-                    dense
-                    icon="print"
-                    label="Print/PDF"
-                    :loading="printLoading"
-                    @click="handlePrint"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Print/PDF
-                    </template>
-                </q-btn>
-                <q-btn
-                    v-if="report"
-                    outline
-                    dense
-                    icon="grid_on"
-                    label="Excel"
-                    :loading="excelLoading"
-                    class="q-ml-sm"
-                    @click="handleExcelDownload"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Excel
-                    </template>
-                </q-btn>
             </div>
         </div>
 
@@ -101,7 +65,15 @@
 
         <!-- Report content -->
         <ReportLayout v-else-if="report">
-            <template #header />
+            <template #header>
+                <div class="col text-h6">Clinical Effort</div>
+                <div class="col-auto no-print">
+                    <ExportToolbar
+                        :pdf-export="handlePrint"
+                        :excel-export="handleExcelDownload"
+                    />
+                </div>
+            </template>
 
             <template v-if="report.jobGroups.length === 0">
                 <div
@@ -205,6 +177,7 @@ import { reportService } from "../services/report-service"
 import { postForBlob } from "@/composables/ViperFetch"
 import { termService } from "../services/term-service"
 import { useEffortTypeColumns, getEffortTypeLabel, loadEffortTypeLabels } from "../composables/use-effort-type-columns"
+import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import type { ClinicalEffortReport } from "../types"
 

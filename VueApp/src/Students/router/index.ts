@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router"
 import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { useRouteFocus } from "@/composables/use-route-focus"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -10,9 +11,19 @@ const router = createRouter({
     routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
     const { requireLogin } = useRequireLogin(to)
-    return requireLogin(true, "SVMSecure.Students")
+    const loginResult = await requireLogin(true, "SVMSecure.Students")
+    if (!loginResult) {
+        return false
+    }
+
+    if (to.meta.permissions !== undefined) {
+        const hasPerm = checkHasOnePermission(to.meta.permissions as string[])
+        if (!hasPerm) {
+            return { name: "StudentsHome" }
+        }
+    }
 })
 
 useRouteFocus(router)
