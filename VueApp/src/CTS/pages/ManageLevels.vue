@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 
 type Level = {
     levelId: number
@@ -68,12 +71,19 @@ async function submitLevel() {
     }
 }
 
-async function deleteLevel() {
-    const { del } = useFetch()
-    const r = await del(levelUrl + "/" + level.value.levelId)
-    if (r.success) {
-        loadLevels()
-    }
+function deleteLevel() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this level?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(levelUrl + "/" + level.value.levelId)
+        if (r.success) {
+            loadLevels()
+        }
+    })
 }
 
 function filterLevels() {
@@ -98,11 +108,16 @@ function editLevel(l: Level) {
     showForm.value = true
 }
 
+function clearLevel() {
+    level.value = structuredClone(emptyLevel) as Level
+    showForm.value = false
+}
+
 loadLevels()
 </script>
 
 <template>
-    <h2>Manage Levels</h2>
+    <h1>Manage Levels</h1>
     <q-form
         action=""
         @submit="submitLevel"
@@ -182,11 +197,22 @@ loadLevels()
                     class="q-mt-sm col col-4 col-md-1"
                 ></q-btn>
                 <q-btn
+                    v-if="level?.levelId"
+                    dense
+                    no-caps
+                    type="button"
+                    label="Cancel"
+                    color="secondary"
+                    class="q-mt-sm q-ml-lg col col-4 col-md-1"
+                    @click="clearLevel"
+                ></q-btn>
+                <q-btn
+                    v-if="level?.levelId"
                     dense
                     no-caps
                     type="button"
                     label="Delete Level"
-                    color="red"
+                    color="negative"
                     class="q-mt-sm q-ml-lg col col-4 col-md-1"
                     @click="deleteLevel"
                 ></q-btn>
@@ -213,9 +239,9 @@ loadLevels()
                     <q-btn
                         dense
                         no-caps
-                        size="md"
                         color="primary"
                         icon="edit"
+                        :aria-label="`Edit level: ${l.levelName}`"
                         @click="editLevel(l)"
                     ></q-btn>
                 </q-item-section>
@@ -225,7 +251,7 @@ loadLevels()
                 >
                     <q-icon
                         :name="l.active ? 'check' : 'close'"
-                        :color="l.active ? 'green' : 'red'"
+                        :color="l.active ? 'positive' : 'negative'"
                     ></q-icon>
                 </q-item-section>
                 <q-item-section

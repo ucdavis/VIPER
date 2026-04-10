@@ -79,7 +79,7 @@ namespace Viper.Areas.CTS.Controllers
                     var parent = allCompDtos.FirstOrDefault(c => c.CompetencyId == comp.ParentId);
                     if (parent != null)
                     {
-                        ((List<CompetencyHierarchyDto>)parent.Children).Add(comp);
+                        parent.Children.Add(comp);
                     }
                 }
             }

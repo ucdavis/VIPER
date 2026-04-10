@@ -15,7 +15,7 @@ const milestoneLevels = ref([]) as Ref<MilestoneLevel[]>
 const loaded = ref(false)
 
 async function load() {
-    await Promise.resolve([
+    await Promise.all([
         get(apiUrl + "cts/levels?milestone=true").then((r) => (levels.value = r.result)),
         get(apiUrl + "cts/milestones").then((r) => (milestones.value = r.result)),
         get(apiUrl + "cts/competencies").then((r) => (competencies.value = r.result)),
@@ -74,6 +74,7 @@ async function createMilestone() {
                 clinical: false,
                 milestone: true,
                 name: "Milestone " + comp.number + " " + comp.name,
+                competencyCount: 0,
                 roles: [],
             }
             let r = await post(apiUrl + "cts/bundles/", bundle)
@@ -101,7 +102,7 @@ async function createMilestone() {
 load()
 </script>
 <template>
-    <h2>Edit Milestones</h2>
+    <h1>Edit Milestones</h1>
 
     <q-form @submit="createMilestone">
         <div class="row items-center">
@@ -125,7 +126,7 @@ load()
                     icon="add"
                     label="Add Milestone"
                     type="submit"
-                    color="green"
+                    color="positive"
                 ></q-btn>
             </div>
         </div>

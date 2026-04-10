@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import { ref, inject } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import type { Epa, Service } from "@/CTS/types"
+
+const $q = useQuasar()
 
 const showForm = ref(false)
 const epas = ref([]) as Ref<Epa[]>
@@ -58,12 +61,19 @@ async function submitEpa() {
         getEpas()
     }
 }
-async function deleteEpa() {
-    const { del } = useFetch()
-    const r = await del(epaUrl + "/" + epa.value.epaId)
-    if (r.success) {
-        getEpas()
-    }
+function deleteEpa() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this EPA?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const { del } = useFetch()
+        const r = await del(epaUrl + "/" + epa.value.epaId)
+        if (r.success) {
+            getEpas()
+        }
+    })
 }
 async function clearEpa() {
     epa.value = { epaId: null, order: null, name: "", description: "", active: false, services: [] }
@@ -75,6 +85,7 @@ getEpas()
 </script>
 
 <template>
+    <h1>Manage EPAs</h1>
     <q-form
         @submit="submitEpa"
         v-if="showForm"
@@ -151,7 +162,7 @@ getEpas()
                 no-caps
                 type="button"
                 label="Delete EPA"
-                color="red"
+                color="negative"
                 @click="deleteEpa()"
                 v-if="epa?.epaId"
                 class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"
@@ -165,7 +176,7 @@ getEpas()
             no-caps
             size="md"
             label="Add EPA"
-            color="green"
+            color="positive"
             @click="showForm = true"
         />
     </div>
@@ -226,13 +237,14 @@ getEpas()
                                 size="md"
                                 icon="edit"
                                 color="primary"
+                                :aria-label="`Edit EPA: ${epaItem.name}`"
                                 @click="selectEpa(epaItem)"
                             />
                         </span>
                         <span class="col">
                             <q-icon
                                 :name="epaItem.active ? 'check' : 'close'"
-                                :color="epaItem.active ? 'green' : 'red'"
+                                :color="epaItem.active ? 'positive' : 'negative'"
                                 size="md"
                             />
                         </span>
