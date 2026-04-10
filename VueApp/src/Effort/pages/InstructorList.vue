@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Instructor List for {{ currentTermName }}</h2>
+        <h1>Instructor List for {{ currentTermName }}</h1>
 
         <!-- Term selector and filters -->
         <div class="row q-col-gutter-sm q-mb-md items-center">
@@ -105,6 +105,7 @@
                         size="0.75rem"
                         color="white"
                         no-caps
+                        tabindex="-1"
                         :disable="sendingEmailDepts.has(deptGroup.dept)"
                         :loading="sendingEmailDepts.has(deptGroup.dept)"
                         @click.stop="confirmBulkEmail(deptGroup)"
@@ -170,8 +171,7 @@
                                     </router-link>
                                     <q-badge
                                         v-if="instructor.recordCount === 0"
-                                        color="orange-8"
-                                        text-color="white"
+                                        color="warning"
                                     >
                                         No Effort
                                     </q-badge>
@@ -458,8 +458,8 @@
                                 </router-link>
                                 <q-badge
                                     v-if="props.row.recordCount === 0"
-                                    color="orange-8"
-                                    text-color="white"
+                                    color="warning"
+                                    text-color="dark"
                                     class="no-effort-badge"
                                 >
                                     No Effort

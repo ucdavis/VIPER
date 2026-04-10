@@ -25,22 +25,13 @@
                     greedy
                 >
                     <!-- Verification Warning -->
-                    <q-banner
+                    <StatusBanner
                         v-if="props.isVerified"
-                        class="bg-orange-2"
-                        rounded
+                        type="warning"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="info"
-                                color="orange-9"
-                            />
-                        </template>
-                        <span class="text-orange-9">
-                            This instructor's effort has been verified. Adding a new record will clear the verification
-                            status and require re-verification.
-                        </span>
-                    </q-banner>
+                        This instructor's effort has been verified. Adding a new record will clear the verification
+                        status and require re-verification.
+                    </StatusBanner>
 
                     <!-- Course Selection -->
                     <q-select
@@ -169,34 +160,20 @@
                     />
 
                     <!-- Warning Message -->
-                    <q-banner
+                    <StatusBanner
                         v-if="warningMessage"
-                        class="bg-warning"
-                        rounded
+                        type="warning"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="warning"
-                                color="dark"
-                            />
-                        </template>
                         {{ warningMessage }}
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Error Message -->
-                    <q-banner
+                    <StatusBanner
                         v-if="errorMessage"
-                        class="bg-negative text-white"
-                        rounded
+                        type="error"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="error"
-                                color="white"
-                            />
-                        </template>
                         {{ errorMessage }}
-                    </q-banner>
+                    </StatusBanner>
                 </q-form>
             </q-card-section>
 
@@ -229,6 +206,7 @@
 import { ref, computed, watch } from "vue"
 import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { recordService } from "../services/record-service"
 import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
 import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
@@ -463,6 +441,8 @@ watch(
         if (isOpen) {
             resetForm()
             await loadOptions()
+            syncFormData()
+            setInitialState()
         }
     },
 )
@@ -489,7 +469,6 @@ function resetForm() {
     errorMessage.value = ""
     warningMessage.value = ""
     syncFormData()
-    setInitialState()
     formRef.value?.resetValidation()
 }
 

@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Select a Term</h2>
+        <h1>Select a Term</h1>
 
         <div
             v-if="isLoading"

@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Effort Dashboard</h2>
+        <h1>Effort Dashboard</h1>
 
         <!-- Loading state -->
         <div
@@ -30,6 +30,7 @@
                                 size="12px"
                                 class="q-mb-sm"
                                 rounded
+                                aria-label="Overall verification progress"
                             />
                             <div class="text-caption text-grey-7">
                                 {{ stats.verifiedInstructors }} of {{ stats.totalInstructors }} instructors verified
@@ -287,8 +288,9 @@
                                                     size="8px"
                                                     class="dept-bar"
                                                     rounded
+                                                    :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-6">
+                                                <span class="dept-count text-caption text-grey-8">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -335,8 +337,9 @@
                                                     size="8px"
                                                     class="dept-bar"
                                                     rounded
+                                                    :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-6">
+                                                <span class="dept-count text-caption text-grey-8">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -377,8 +380,9 @@
                                                 size="8px"
                                                 class="dept-bar"
                                                 rounded
+                                                :aria-label="dept.departmentName + ' verification progress'"
                                             />
-                                            <span class="dept-count text-caption text-grey-6">
+                                            <span class="dept-count text-caption text-grey-8">
                                                 ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                             </span>
                                         </div>
@@ -494,6 +498,7 @@
                                 dense
                                 size="sm"
                                 :label="showIgnoredAlerts ? 'Hide Ignored' : 'Show Ignored'"
+                                tabindex="-1"
                                 @click.stop="showIgnoredAlerts = !showIgnoredAlerts"
                             />
                         </q-item-section>
@@ -503,7 +508,7 @@
                             <div class="text-grey-6 text-center q-pa-md">No alerts to display</div>
                         </template>
 
-                        <q-list
+                        <div
                             v-else
                             class="alert-sections"
                         >
@@ -853,7 +858,7 @@
                                     </q-item>
                                 </q-list>
                             </q-expansion-item>
-                        </q-list>
+                        </div>
                     </q-card-section>
                 </q-expansion-item>
             </q-card>
@@ -895,7 +900,10 @@
                     />
                 </q-card-section>
                 <q-separator />
-                <q-card-section style="max-height: 70vh; overflow: auto">
+                <q-card-section
+                    style="max-height: 70vh; overflow: auto"
+                    tabindex="0"
+                >
                     <template v-if="allAlerts.length === 0">
                         <div class="text-grey-6 text-center q-pa-md">No alerts</div>
                     </template>

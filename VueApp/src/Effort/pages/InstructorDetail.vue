@@ -22,9 +22,9 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
+            type="error"
         >
             {{ loadError }}
             <template #action>
@@ -34,7 +34,7 @@
                     :to="{ name: 'InstructorList', params: { termCode } }"
                 />
             </template>
-        </q-banner>
+        </StatusBanner>
 
         <!-- Instructor content -->
         <template v-else-if="instructor">
@@ -136,6 +136,7 @@ import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import { useEffortRecordManagement, formatEffortDate } from "../composables/use-effort-record-management"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"

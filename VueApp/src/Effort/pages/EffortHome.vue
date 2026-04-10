@@ -11,7 +11,7 @@
             <div class="q-mt-md text-body1">Loading...</div>
         </div>
         <template v-else>
-            <h2 class="text-grey-7">Select your action from the menu</h2>
+            <h1 class="text-grey-7">Select your action from the menu</h1>
         </template>
     </div>
 </template>

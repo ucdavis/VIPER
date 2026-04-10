@@ -184,17 +184,10 @@
                     />
 
                     <!-- Post-save Warning Banner -->
-                    <q-banner
+                    <StatusBanner
                         v-if="warningMessage"
-                        class="bg-warning q-mb-md"
-                        rounded
+                        type="warning"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="info"
-                                color="dark"
-                            />
-                        </template>
                         <div><strong>Saved with notice:</strong> {{ warningMessage }}</div>
                         <template #action>
                             <q-btn
@@ -204,22 +197,15 @@
                                 @click="acknowledgeWarning"
                             />
                         </template>
-                    </q-banner>
+                    </StatusBanner>
 
                     <!-- Error Banner -->
-                    <q-banner
+                    <StatusBanner
                         v-if="errorMessage"
-                        class="bg-negative text-white q-mb-md"
-                        rounded
+                        type="error"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="error"
-                                color="white"
-                            />
-                        </template>
                         {{ errorMessage }}
-                    </q-banner>
+                    </StatusBanner>
                 </q-form>
             </q-card-section>
 
@@ -252,6 +238,7 @@
 import { ref, computed, watch } from "vue"
 import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { percentageService } from "../services/percentage-service"
 import { usePercentageForm } from "../composables/use-percentage-form"
 import { requiredRule, percentRule } from "../validation"
