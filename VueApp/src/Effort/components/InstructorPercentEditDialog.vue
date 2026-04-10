@@ -27,7 +27,7 @@
                 <!-- Read-only instructor info header -->
                 <div class="q-mb-md q-pa-sm bg-grey-2 rounded-borders">
                     <div class="text-subtitle2">{{ instructor?.fullName }}</div>
-                    <div class="text-caption text-grey-7">
+                    <div class="text-caption text-grey-8">
                         Person ID: {{ instructor?.personId }} | Dept: {{ instructor?.effortDept }}
                     </div>
                 </div>
