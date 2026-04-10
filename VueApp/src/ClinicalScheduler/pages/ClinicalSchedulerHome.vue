@@ -66,7 +66,7 @@
                                         class="opacity-70"
                                     />
                                 </div>
-                                <p class="text-grey-7 q-mb-sm">Schedule clinicians for a specific rotation</p>
+                                <p class="text-grey-8 q-mb-sm">Schedule clinicians for a specific rotation</p>
                             </q-card-section>
                         </q-card>
                     </div>
@@ -107,17 +107,19 @@
                                         class="opacity-70"
                                     />
                                 </div>
-                                <p class="text-grey-7 q-mb-sm">Schedule rotations for a specific clinician</p>
+                                <p class="text-grey-8 q-mb-sm">Schedule rotations for a specific clinician</p>
                                 <q-banner
                                     v-if="permissionsStore.hasOnlyOwnSchedulePermission"
                                     dense
                                     inline-actions
                                     class="text-primary bg-primary-1 rounded-borders"
+                                    role="status"
                                 >
                                     <template #avatar>
                                         <q-icon
                                             name="info"
                                             size="14px"
+                                            aria-hidden="true"
                                         />
                                     </template>
                                     <span class="text-caption">Your schedule only</span>

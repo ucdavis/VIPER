@@ -37,9 +37,8 @@
                         <q-chip
                             v-for="item in items"
                             :key="getItemKey(item)"
-                            :color="isItemSelected(item) ? 'primary' : undefined"
+                            :color="isItemSelected(item) ? 'primary' : 'grey-4'"
                             :text-color="isItemSelected(item) ? 'white' : 'dark'"
-                            :outline="!isItemSelected(item)"
                             clickable
                             size="sm"
                             class="q-mr-xs"

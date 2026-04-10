@@ -1,7 +1,7 @@
 <template>
     <!-- Navigation tabs with proper active state for parameterized routes -->
     <q-tabs
-        class="text-grey q-mb-md"
+        class="text-grey-8 tabs-no-fade q-mb-md"
         active-color="primary"
         indicator-color="primary"
         align="left"
@@ -14,7 +14,6 @@
             label="Home"
             to="/ClinicalScheduler/"
             :exact="true"
-            :aria-controls="`home-panel`"
             :id="`home-tab`"
             role="tab"
         />
@@ -24,7 +23,6 @@
             label="Schedule by Rotation"
             :to="{ name: 'RotationSchedule' }"
             :class="rotationTabClass"
-            :aria-controls="`rotation-panel`"
             :id="`rotation-tab`"
             role="tab"
         />
@@ -34,7 +32,6 @@
             :label="permissionsStore.clinicianViewLabel"
             :to="{ name: 'ClinicianSchedule' }"
             :class="clinicianTabClass"
-            :aria-controls="`clinician-panel`"
             :id="`clinician-tab`"
             role="tab"
         />
