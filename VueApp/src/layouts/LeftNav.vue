@@ -28,78 +28,77 @@
                 <h2 v-if="navHeader.length">
                     {{ navHeader }}
                 </h2>
-                <q-list
-                    dense
-                    separator
-                    role="presentation"
-                >
-                    <template
-                        v-for="(menuItem, index) in menuItems"
-                        :key="index"
+                <nav :aria-label="navHeader || 'Section navigation'">
+                    <q-list
+                        dense
+                        separator
+                        role="list"
                     >
-                        <q-item
-                            v-if="menuItem.routeTo != null"
-                            :clickable="menuItem.clickable"
-                            :v-ripple="menuItem.clickable"
-                            :to="menuItem.routeTo"
-                            :class="menuItem.displayClass"
-                            role="none"
+                        <template
+                            v-for="(menuItem, index) in menuItems"
+                            :key="index"
                         >
-                            <q-item-section>
-                                <q-item-label
-                                    v-overflow-title
-                                    lines="1"
-                                >
-                                    {{ menuItem.menuItemText }}
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                        <q-item
-                            v-else-if="menuItem.menuItemUrl"
-                            clickable
-                            v-ripple
-                            :href="menuItem.menuItemUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            :class="menuItem.displayClass"
-                            role="none"
-                        >
-                            <q-item-section>
-                                <q-item-label
-                                    v-overflow-title
-                                    lines="1"
-                                >
-                                    {{ menuItem.menuItemText }}
-                                    <template v-if="menuItem.isExternalSite">
-                                        <q-icon
-                                            name="open_in_new"
-                                            size="xs"
-                                            class="q-ml-xs"
-                                            aria-hidden="true"
-                                        >
-                                            <q-tooltip>Opens in new window</q-tooltip>
-                                        </q-icon>
-                                        <span class="sr-only">(opens in new window)</span>
-                                    </template>
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                        <q-item
-                            v-else
-                            :class="menuItem.displayClass"
-                            role="none"
-                        >
-                            <q-item-section>
-                                <q-item-label
-                                    v-overflow-title
-                                    lines="1"
-                                >
-                                    {{ menuItem.menuItemText }}
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </template>
-                </q-list>
+                            <q-item
+                                v-if="menuItem.routeTo != null"
+                                :clickable="menuItem.clickable"
+                                :v-ripple="menuItem.clickable"
+                                :to="menuItem.routeTo"
+                                :class="menuItem.displayClass"
+                            >
+                                <q-item-section>
+                                    <q-item-label
+                                        v-overflow-title
+                                        lines="1"
+                                    >
+                                        {{ menuItem.menuItemText }}
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item
+                                v-else-if="menuItem.menuItemUrl"
+                                clickable
+                                v-ripple
+                                :href="menuItem.menuItemUrl"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                :class="menuItem.displayClass"
+                            >
+                                <q-item-section>
+                                    <q-item-label
+                                        v-overflow-title
+                                        lines="1"
+                                    >
+                                        {{ menuItem.menuItemText }}
+                                        <template v-if="menuItem.isExternalSite">
+                                            <q-icon
+                                                name="open_in_new"
+                                                size="xs"
+                                                class="q-ml-xs"
+                                                aria-hidden="true"
+                                            >
+                                                <q-tooltip>Opens in new window</q-tooltip>
+                                            </q-icon>
+                                            <span class="sr-only">(opens in new window)</span>
+                                        </template>
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                            <q-item
+                                v-else
+                                :class="menuItem.displayClass"
+                            >
+                                <q-item-section>
+                                    <q-item-label
+                                        v-overflow-title
+                                        lines="1"
+                                    >
+                                        {{ menuItem.menuItemText }}
+                                    </q-item-label>
+                                </q-item-section>
+                            </q-item>
+                        </template>
+                    </q-list>
+                </nav>
             </div>
         </template>
     </q-drawer>
