@@ -1,5 +1,5 @@
 <template>
-    <q-page padding>
+    <div class="q-pa-md">
         <q-card>
             <q-tabs
                 class="no-print"
@@ -27,7 +27,7 @@
             <q-card-section class="no-print">
                 <div class="row items-center">
                     <div class="col">
-                        <div class="text-h5">{{ pageMainTitle }}</div>
+                        <h1 class="text-h5 q-ma-none">{{ pageMainTitle }}</h1>
                     </div>
                     <div
                         v-if="activeTab === 'photos'"
@@ -177,40 +177,6 @@
                         </div>
                     </div>
 
-                    <!-- Export Controls -->
-                    <div
-                        v-if="galleryStore.hasStudents && galleryStore.galleryView !== 'sheet'"
-                        class="row q-mt-md q-gutter-sm no-print"
-                    >
-                        <q-btn
-                            color="primary"
-                            icon="description"
-                            label="Export to Word"
-                            :loading="galleryStore.exportInProgress"
-                            @click="handleExportToWord"
-                        />
-                        <q-btn
-                            color="primary"
-                            icon="picture_as_pdf"
-                            label="Export to PDF"
-                            :loading="galleryStore.exportInProgress"
-                            @click="handleExportToPDF"
-                        />
-                    </div>
-
-                    <!-- Print Button for Sheet View -->
-                    <div
-                        v-if="galleryStore.hasStudents && galleryStore.galleryView === 'sheet'"
-                        class="row q-mt-md no-print"
-                    >
-                        <q-btn
-                            color="primary"
-                            icon="print"
-                            label="Print"
-                            @click="handlePrint"
-                        />
-                    </div>
-
                     <!-- Photo Display Area -->
                     <div
                         v-if="galleryStore.loading"
@@ -239,29 +205,29 @@
                         v-else-if="galleryStore.hasStudents"
                         class="q-mt-lg"
                     >
+                        <!-- Title bar with export toolbar -->
+                        <div class="row items-center q-mb-md q-pa-sm bg-grey-2 rounded-borders no-print">
+                            <div class="col">
+                                <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <ExportToolbar
+                                    v-if="galleryStore.galleryView !== 'sheet'"
+                                    v-model:filter="photoFilter"
+                                    show-search
+                                    :busy="galleryStore.exportInProgress"
+                                    :pdf-export="handleExportToPDF"
+                                    :word-export="handleExportToWord"
+                                />
+                                <ExportToolbar
+                                    v-else
+                                    :print-action="handlePrint"
+                                />
+                            </div>
+                        </div>
+
                         <!-- Grid view with group headers -->
                         <div v-if="galleryStore.galleryView === 'grid'">
-                            <div class="row items-center q-mb-md">
-                                <div class="col">
-                                    <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
-                                </div>
-                                <div class="col-auto">
-                                    <q-input
-                                        v-model="photoFilter"
-                                        dense
-                                        outlined
-                                        debounce="300"
-                                        placeholder="Filter students"
-                                        clearable
-                                        class="q-mr-sm"
-                                    >
-                                        <template #append>
-                                            <q-icon name="search" />
-                                        </template>
-                                    </q-input>
-                                </div>
-                            </div>
-
                             <!-- Render groups with headers -->
                             <template
                                 v-for="[groupName, students] in groupedStudents"
@@ -301,33 +267,12 @@
                             row-key="mailId"
                             :pagination="{ rowsPerPage: 0 }"
                             hide-header
+                            hide-top
                             :loading="galleryStore.loading"
                             separator="cell"
                             bordered
                             class="photo-gallery-table"
                         >
-                            <!-- Filter input in top-right corner -->
-                            <template #top-right>
-                                <q-input
-                                    v-model="photoFilter"
-                                    dense
-                                    outlined
-                                    debounce="300"
-                                    placeholder="Filter students"
-                                    clearable
-                                    class="q-mr-sm"
-                                >
-                                    <template #append>
-                                        <q-icon name="search" />
-                                    </template>
-                                </q-input>
-                            </template>
-
-                            <!-- Title in top-left -->
-                            <template #top-left>
-                                <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
-                            </template>
-
                             <!-- List view: Use body slot for table mode with group headers -->
                             <template #body="props">
                                 <!-- Group header row (only if this is the start of a new group) -->
@@ -589,7 +534,7 @@
             :initial-index="selectedStudentIndex"
             @update:index="selectedStudentIndex = $event"
         />
-    </q-page>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -602,6 +547,7 @@ import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import { getPhotoUrl } from "../composables/use-photo-url"
 import { groupStudentsByType, getStudentGroupValue } from "../stores/photo-gallery-helpers"
+import ExportToolbar from "@/components/ExportToolbar.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
