@@ -1,5 +1,5 @@
 <template>
-    <q-page padding>
+    <div class="q-pa-md">
         <q-card>
             <q-tabs
                 class="no-print"
@@ -27,7 +27,7 @@
             <q-card-section class="no-print">
                 <div class="row items-center">
                     <div class="col">
-                        <div class="text-h5">{{ pageMainTitle }}</div>
+                        <h1 class="text-h5 q-ma-none">{{ pageMainTitle }}</h1>
                     </div>
                     <div
                         v-if="activeTab === 'photos'"
@@ -534,7 +534,7 @@
             :initial-index="selectedStudentIndex"
             @update:index="selectedStudentIndex = $event"
         />
-    </q-page>
+    </div>
 </template>
 
 <script setup lang="ts">
