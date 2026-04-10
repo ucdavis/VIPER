@@ -1,4 +1,7 @@
-﻿<div class="row q-mb-sm">
+﻿@{
+    ViewData["Title"] = "Student Class Year";
+}
+<div class="row q-mb-sm">
     <div class="col">
         <h1>Student Class Years</h1>
     </div>
@@ -114,7 +117,7 @@
 
                     //students table
                     cols: [
-                        { name: "avatar", label: "", field: "", align: "left", style: "width:75px;" },
+                        { name: "avatar", label: "Photo", field: "", align: "left", style: "width:75px;" },
                         { name: "name", label: "Student", field: "", align: "left", sortable: true },
                         { name: "classyear", label: "Class Year", field: "personId", align: "left", sortable: true },
                         { name: "previousyears", label: "Prev Years", field: "firstName", align: "left", sortable: true },
