@@ -338,6 +338,22 @@ header .q-avatar {
     outline: none;
 }
 
+/* Prevent Quasar from fading inactive tab text below WCAG contrast */
+.q-tabs.tabs-no-fade .q-tab.q-tab--inactive {
+    opacity: 1;
+}
+
+/* Override Quasar's 0.6 opacity on input clear buttons */
+.q-field .q-field__focusable-action {
+    opacity: 1;
+}
+
+/* Ensure q-tree expand/collapse arrows meet WCAG contrast requirements */
+.q-tree .q-tree__arrow {
+    color: var(--ucdavis-blue-70);
+    font-size: 1.4rem;
+}
+
 /* Screen reader only — visually hidden but accessible to assistive technology */
 .sr-only {
     position: absolute;

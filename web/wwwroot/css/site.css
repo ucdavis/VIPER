@@ -223,6 +223,11 @@ html {
     outline: none;
 }
 
+/* Override Quasar's 0.6 opacity on input clear buttons */
+.q-field .q-field__focusable-action {
+    opacity: 1;
+}
+
 /* Status notification toast — accessible via role="status" */
 .viper-status-notification {
     position: fixed;
