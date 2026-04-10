@@ -1,13 +1,20 @@
-﻿<div class="q-pa-sm q-gutter-sm">
+﻿@{
+    ViewData["Title"] = "Groups";
+}
+<div class="q-pa-sm q-gutter-sm">
     <q-dialog v-model="groupTable.showForm" @@hide="groupTable.clear(this)">
         <q-card style="width: 500px; max-width: 80vw;">
             <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
                 <q-card-section>
                     <q-btn href="CreateADGroup" no-caps label="Create AD Group" dense flat square color="primary" padding="xs sm"></q-btn>
                 </q-card-section>
-                <q-card-section>
+                <q-card-section class="row items-center q-pb-none">
                     <div class="text-h6">{{groupTable.editing ? "Edit" : "Add OU"}} Group</div>
-                    <div class="bg-negative text-white q-pa-sm rounded" v-if="groupTable.errors?.message?.length > 0">{{groupTable.errors.message}}</div>
+                    <q-space></q-space>
+                    <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                </q-card-section>
+                <q-card-section v-if="groupTable.errors?.message?.length > 0">
+                    <div class="bg-negative text-white q-pa-sm rounded">{{groupTable.errors.message}}</div>
                 </q-card-section>
                 <q-card-section>
                     <q-select outlined dense options-dense use-input input-debounce="0"
@@ -24,7 +31,7 @@
 
                 <q-card-actions align="evenly">
                     <q-btn no-caps :label="groupTable.editing ? 'Update Group' : 'Add Group'" type="submit" padding="xs sm" color="primary"></q-btn>
-                    <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="groupTable.delete(this)" color="red" v-if="groupTable.editing"></q-btn>
+                    <q-btn no-caps label="Delete" type="button" padding="xs md" @@click="groupTable.delete(this)" color="negative" v-if="groupTable.editing"></q-btn>
                 </q-card-actions>
             </q-form>
         </q-card>
@@ -39,7 +46,7 @@
          :filter="groupTable.filter"
          :pagination="groupTable.pagination">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="green" class="q-px-md" @@click="groupTable.showForm = true" label="Add Group"></q-btn>
+        <q-btn dense no-caps color="positive" class="q-px-md" @@click="groupTable.showForm = true" label="Add Group"></q-btn>
     </template>
     <template v-slot:top-right>
         <q-input v-model="groupTable.filter" dense outlined debounce="300" placeholder="Filter results" class="q-ml-xs q-mr-xs">
@@ -81,7 +88,7 @@
                             { name: "count", label: "Members", field: "groupRoleMemberCount", sortable: true, align: "left", style: "width:75px;" },
                             { name: "box", label: "Box Enabled?", field: "boxSyncEnabled", sortable: true, align: "left", style: "width:75px;" },
                             { name: "sync", label: "Sync", field: "", sortable: true, style: "width:75px;" },
-                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                            { name: "edit", label: "Actions", field: "", style: "width: 100px;" }
                         ],
                         onLoad: function (data) {
                             this.rows = data.map(
@@ -91,7 +98,7 @@
                                 })
                             )
                         },
-                        selectObject: function (object) {
+                        selectObject: function (_object) {
                             this.object = {
                                 ...this.object,
                                 group: {
@@ -134,7 +141,7 @@
 
                 this.adGroups = await viperFetch(this, "Groups/AD")
                 this.adGroups = this.adGroups
-                    .map(g => ({ label: "AD: " + g.displayName ?? g.samAccountName, value: g.distinguishedName }))
+                    .map(g => ({ label: "AD: " + (g.displayName ?? g.samAccountName), value: g.distinguishedName }))
 
                 this.allGroups = [
                     { label: "AD3", children: this.adGroups },

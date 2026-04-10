@@ -1,4 +1,7 @@
-﻿<h2>Audit Trail</h2>
+﻿@{
+    ViewData["Title"] = "Audit Log";
+}
+<h1>Audit Trail</h1>
 <q-form v-bind="auditForm" @@submit="getAudit(this)">
     <div class="row q-mb-sm q-gutter-sm">
         <q-input outlined dense label="Start Date" class="col col-md-3 col-lg-2"
@@ -28,7 +31,7 @@
     </div>
 </q-form>
 
-<q-banner v-if="auditTable.rows.length == 1000" rounded dense class="bg-warning q-my-md">
+<q-banner v-if="auditTable.rows.length === 1000" rounded dense class="bg-warning text-dark q-my-md" role="status">
     Only the most recent 1000 records that match the criteria above will be displayed. To return all records, use additional criteria to limit the results.
 </q-banner>
 
@@ -42,20 +45,20 @@
     <template v-slot:body-cell-detail="props">
         <q-td :props="props">
             <div v-if="props.row.memberName ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" @@click="addAuditCriteria('modifiedUser', props.row.memberId)"></q-btn>
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by user" @@click="addAuditCriteria('modifiedUser', props.row.memberId)"></q-btn>
                 User:
                 {{props.row.memberName}}
                 <br/>
             </div>
             <div v-if="props.row.roleId ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" 
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by role"
                     @@click="addAuditCriteria('role', {'roleId': props.row.roleId, 'friendlyName': props.row.role ?? 'Deleted role'})"></q-btn>
                 Role:
                 {{props.row.role ?? 'Deleted role'}}
                 <br />
             </div>
             <div v-if="props.row.permissionId ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt"
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by permission"
                        @@click="addAuditCriteria('permissionId', props.row.permissionId)"></q-btn>
                 Permission:
                 {{props.row.permission ?? 'Deleted permission'}}
@@ -69,7 +72,7 @@
 @section Scripts{
     <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
-        /* global createVueApp, quasarTable, formatDateTime, viperFetch, getItemFromStorage, putItemInStorage */
+        /* global formatDateTime */
         createVueApp({
             data() {
                 return {
@@ -92,7 +95,7 @@
                         columns: [
                             { name: "detail", field: "", label: "Object / Detail", align: "left" },
                             { name: "auditType", label: "AuditType", field: "audit", sortable: true, align: "left" },
-                            { name: "comment", label: "Comment", field: "Comment", sortable: true, align: "left" },
+                            { name: "comment", label: "Comment", field: "comment", sortable: true, align: "left" },
                             { name: "modBy", label: "Mod By", field: "modByUserName", sortable: true, align: "left" },
                             { name: "modTime", label: "Mod Time", field: "modTime", sortable: true, align: "left", format: v => formatDateTime(v) }
                         ]

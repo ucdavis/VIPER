@@ -1,4 +1,7 @@
-﻿<div class="q-pa-sm q-gutter-sm row">
+﻿@{
+    ViewData["Title"] = "Create AD Group";
+}
+<div class="q-pa-sm q-gutter-sm row">
     <div class="col-lg-4">
         <q-form @@submit="submitGroup(this)" v-bind="newGroup">
             <div class="text-h6">Add uInform Managed Group Group</div>

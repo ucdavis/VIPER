@@ -1,4 +1,7 @@
-﻿<h2>Members for group {{group.name}}</h2>
+﻿@{
+    ViewData["Title"] = "Group Members";
+}
+<h1>Members for group {{group.name}}</h1>
 <q-dialog v-model="syncing">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-card-section>
@@ -16,12 +19,12 @@
          :pagination="groupMembers.pagination">
     <template v-slot:body-cell-active="props">
         <q-td>
-            <q-icon size="sm" :name="props.row.current ? 'check' : 'close'" :color="props.row.current ? 'green' : 'red'"></q-icon>
+            <q-icon size="sm" :name="props.row.current ? 'check' : 'close'" :color="props.row.current ? 'positive' : 'negative'"></q-icon>
         </q-td>
     </template>
     <template v-slot:body-cell-ingroup="props">
         <q-td>
-            <q-icon size="sm" :name="props.row.isInGroup ? 'check' : 'close'" :color="props.row.isInGroup ? 'green' : 'red'"></q-icon>
+            <q-icon size="sm" :name="props.row.isInGroup ? 'check' : 'close'" :color="props.row.isInGroup ? 'positive' : 'negative'"></q-icon>
         </q-td>
     </template>
     <template v-slot:body-cell-member="props">
