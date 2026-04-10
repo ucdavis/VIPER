@@ -1,4 +1,7 @@
-﻿<h1>Members of {{ role.friendlyName }}</h1>
+﻿@{
+    ViewData["Title"] = "Role Members";
+}
+<h1>Members of {{ role.friendlyName }}</h1>
 
 <p>
     {{ role.description }}
@@ -111,7 +114,7 @@
                         keys: ["memberId"],
                         urlBase: "Roles",
                         columns: [
-                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "memberid", label: "Actions", field: "memberId", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "userName", align: "left", sortable: true },
                             { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },

@@ -1,4 +1,7 @@
-﻿<h1>Combined Permissions for {{member.displayFirstName}} {{member.displayLastName}}</h1>
+﻿@{
+    ViewData["Title"] = "RSOP";
+}
+<h1>Combined Permissions for {{member.displayFirstName}} {{member.displayLastName}}</h1>
 
 <q-table 
     dense
@@ -16,7 +19,7 @@
     </template>
     <template v-slot:body-cell-access="props">
         <q-td :props="props">
-            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
+            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'positive' : 'negative'"></q-icon>
         </q-td>
     </template>
 

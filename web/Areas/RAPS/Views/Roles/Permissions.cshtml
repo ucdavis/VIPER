@@ -1,4 +1,7 @@
-﻿<h1>Permissions for Role {{role.role}}</h1>
+﻿@{
+    ViewData["Title"] = "Role Permissions";
+}
+<h1>Permissions for Role {{role.role}}</h1>
 <q-table
     dense
     row-key="permissionId"
@@ -56,7 +59,7 @@
                         keys: ["permissionId"],
                         urlBase: "Roles",
                         columns: [
-                            { name: "links", label: "", field: "", align: "left", style: "width:75px;" },
+                            { name: "links", label: "Actions", field: "", align: "left", style: "width:75px;" },
                             { name: "permission", label: "Permission", field: "permissionName", align: "left", sortable: true },
                             { name: "access", label: "Access", field: "accessDescription", align: "left", sortable: true },
                             { name: "lastModified", label: "Last Modified Date", field: "modTime", align: "left", sortable: true, format: v => formatDate(v) },

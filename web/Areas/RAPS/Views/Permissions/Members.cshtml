@@ -1,4 +1,7 @@
-﻿<h1>User Permissions for {{permission.permission}}</h1>
+﻿@{
+    ViewData["Title"] = "Permission Members";
+}
+<h1>User Permissions for {{permission.permission}}</h1>
 <p>
     {{permission.description}}
 </p>
@@ -46,7 +49,7 @@
                                          :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDate?.startDate?.message"></q-input>
                             </div>
                             <div class="row q-pt-sm">
-                                <q-btn-toggle no-caps outlined dense :toggle-color="membersTable.object.access == 0 ? 'red' : 'green'" 
+                                <q-btn-toggle no-caps outlined dense :toggle-color="membersTable.object.access == 0 ? 'negative' : 'positive'" 
                                     v-model="membersTable.object.access" :options="allowDenyOptions">
                                     <template v-slot:allow>
                                         <div class="q-px-lg" align="evenly">
@@ -82,7 +85,7 @@
     </template>
     <template v-slot:body-cell-access="props">
         <q-td :props="props">
-            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
+            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'positive' : 'negative'"></q-icon>
         </q-td>
     </template>
     <template v-slot:body-cell-memberid="props">
@@ -116,8 +119,8 @@
                         keys: ["memberId"],
                         urlBase: "Permissions",
                         columns: [
-                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-                            { name: "access", label: "", field: "access", align: "left", style: "width:75px;" },
+                            { name: "memberid", label: "Actions", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "access", label: "Access", field: "access", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },

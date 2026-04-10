@@ -1,4 +1,7 @@
-﻿<h1>Role Templates</h1>
+﻿@{
+    ViewData["Title"] = "Templates";
+}
+<h1>Role Templates</h1>
 <q-dialog v-model="templates.showForm" @@hide="templates.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="templates.submit(this)" v-model="templates.object">
@@ -113,10 +116,10 @@
                         keys: "roleTemplateId",
                         urlBase: "RoleTemplates",
                         columns: [
-                            { name: "links", label: "", field: "", style: "width:75px;" },
+                            { name: "links", label: "Actions", field: "", style: "width:75px;" },
                             { name: "roletemplate", label: "Template", field: "", sortable: true, align: "left" },
-                            { name: "roles", label: "", align: "left" },
-                            { name: "action", label: "", field: "" }
+                            { name: "roles", label: "Roles", align: "left" },
+                            { name: "action", label: "Actions", field: "" }
                         ],
                         pagination: { rowsPerPage: 0 },
                         createBody: function (vueApp, data) {

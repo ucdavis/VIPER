@@ -1,4 +1,7 @@
-﻿<h1>Compare permissions for two roles</h1>
+﻿@{
+    ViewData["Title"] = "Permission Comparison";
+}
+<h1>Compare permissions for two roles</h1>
 <q-form @@submit="return false;">
     <div class="row">
         <q-select v-model="role1" :options="role1Roles" label="Role 1"
@@ -28,7 +31,7 @@
             <tbody>
                 <tr v-for="(permission, index) in comparison.role1Permissions">
                     <td>
-                        <q-icon name="check" color="green" v-if="permission.isInOtherList"></q-icon>
+                        <q-icon name="check" color="positive" v-if="permission.isInOtherList"></q-icon>
                     </td>
                     <td>{{permission.name}}</td>
                 </tr>
@@ -49,7 +52,7 @@
             <tbody>
                 <tr v-for="(permission, index) in comparison.role2Permissions">
                     <td>
-                        <q-icon name="check" color="green" v-if="permission.isInOtherList"></q-icon>
+                        <q-icon name="check" color="positive" v-if="permission.isInOtherList"></q-icon>
                     </td>
                     <td>{{permission.name}}</td>
                 </tr>

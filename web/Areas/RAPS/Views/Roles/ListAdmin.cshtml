@@ -1,4 +1,7 @@
-﻿<h1>Roles</h1>
+﻿@{
+    ViewData["Title"] = "Roles";
+}
+<h1>Roles</h1>
 <q-dialog v-model="rolesTable.showForm" @@hide="rolesTable.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="rolesTable.submit(this)" v-model="rolesTable.object">
@@ -66,7 +69,7 @@
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <q-badge v-if="props.row.application == 1" icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
+                <q-badge v-if="props.row.application == 1" transparent icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
                 {{props.row.friendlyName}}
                 <br />     
                 <span style="font-size:.9em">{{props.row.description}}</span>
@@ -97,11 +100,11 @@
                         keys: "roleId",
                         urlBase: "Roles",
                         columns: [
-                            { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+                            { name: "roleid", label: "Actions", field: "roleId", align: "left", style: "width:50px;" },
                             { name: "role", label: "Role", field: "role", align: "left", sortable: true },
                             { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
                             { name: "members", label: "Explicit Members", field: "", align: "left", sortable: true },
-                            { name: "edit", label: "", field: "" }
+                            { name: "edit", label: "Actions", field: "" }
                         ],
                         //create object with limited properties to do insert/update
                         createBody: function (vueApp, data) {

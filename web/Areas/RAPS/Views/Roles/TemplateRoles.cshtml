@@ -1,4 +1,7 @@
-﻿<h1>Add roles to template {{roleTemplate.templateName}}</h1>
+﻿@{
+    ViewData["Title"] = "Template Roles";
+}
+<h1>Add roles to template {{roleTemplate.templateName}}</h1>
 <q-table dense
          row-key="roleId"
          selection="multiple"
