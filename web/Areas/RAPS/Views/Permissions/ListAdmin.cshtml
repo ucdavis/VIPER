@@ -1,4 +1,7 @@
-﻿<h1>Permissions</h1>
+﻿@{
+    ViewData["Title"] = "Permissions Admin";
+}
+<h1>Permissions</h1>
 <div class="q-pa-sm q-gutter-sm">
     <q-dialog v-model="permissionTable.showForm" @@hide="permissionTable.clear(this)">
         <q-card style="width: 500px; max-width: 80vw;">
@@ -70,11 +73,11 @@
                         keys: "permissionId",
                         urlBase: "Permissions",
                         columns: [
-                            { name: "action", field: "permissionId", align: "left", style: "width:75px;" },
+                            { name: "action", label: "Actions", field: "permissionId", align: "left", style: "width:75px;" },
                             { name: "permission", label: "Permission", field: "permission", sortable: true, align: "left" },
                             { name: "description", label: "Description", field: "description", sortable: false, align: "left" },
                             { name: "count", label: "Members", field: "count", sortable: true, align: "left", style: "width:75px;" },
-                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                            { name: "edit", label: "Actions", field: "", style: "width: 100px;" }
                         ],
                         onLoad: function (data) {
                             this.rows = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))

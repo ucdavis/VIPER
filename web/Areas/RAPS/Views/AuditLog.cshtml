@@ -1,4 +1,7 @@
-﻿<h1>Audit Trail</h1>
+﻿@{
+    ViewData["Title"] = "Audit Log";
+}
+<h1>Audit Trail</h1>
 <q-form v-bind="auditForm" @@submit="getAudit(this)">
     <div class="row q-mb-sm q-gutter-sm">
         <q-input outlined dense label="Start Date" class="col col-md-3 col-lg-2"
@@ -92,7 +95,7 @@
                         columns: [
                             { name: "detail", field: "", label: "Object / Detail", align: "left" },
                             { name: "auditType", label: "AuditType", field: "audit", sortable: true, align: "left" },
-                            { name: "comment", label: "Comment", field: "Comment", sortable: true, align: "left" },
+                            { name: "comment", label: "Comment", field: "comment", sortable: true, align: "left" },
                             { name: "modBy", label: "Mod By", field: "modByUserName", sortable: true, align: "left" },
                             { name: "modTime", label: "Mod Time", field: "modTime", sortable: true, align: "left", format: v => formatDateTime(v) }
                         ]

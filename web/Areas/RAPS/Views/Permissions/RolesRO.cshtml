@@ -1,4 +1,7 @@
-﻿<h1>Roles for Permission {{permission.permission}}</h1>
+﻿@{
+    ViewData["Title"] = "Permission Roles";
+}
+<h1>Roles for Permission {{permission.permission}}</h1>
 <q-table dense
          row-key="roleId"
          :loading="rolePermissionTable.loading"

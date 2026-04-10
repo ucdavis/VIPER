@@ -1,4 +1,7 @@
-﻿<h1>Search for a user</h1>
+﻿@{
+    ViewData["Title"] = "Members";
+}
+<h1>Search for a user</h1>
 <q-form @@submit="return false;">
     <div class="row">
         <q-input 
@@ -72,7 +75,7 @@
                         keys: ["memberId"],
                         urlBase: "Members",
                         columns: [
-                            { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
+                            { name: "links", label: "Actions", field: "", align: "left", style: "width:100px;" },
                             { name: "member", label: "Member", field: "", align: "left", sortable: true },
                             { name: "active", label: "Active", field: "current", align: "left", sortable: true },
                             { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
@@ -84,10 +87,12 @@
             },
             methods: {
                 findUsers: async function () {
-                    this.members.urlBase = "Members?search=" + this.userSearch + "&active=" + (this.includeInactive ? "all" : "active")
-                    if (this.userSearch.trim().length >= 2) {
-                        this.members.load(this)
+                    if (!this.userSearch || this.userSearch.trim().length < 2) {
+                        this.members.rows = []
+                        return
                     }
+                    this.members.urlBase = "Members?search=" + this.userSearch + "&active=" + (this.includeInactive ? "all" : "active")
+                    this.members.load(this)
                 }
             },
             mounted() {

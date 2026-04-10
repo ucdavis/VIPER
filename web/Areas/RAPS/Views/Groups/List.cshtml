@@ -1,4 +1,7 @@
-﻿<div class="q-pa-sm q-gutter-sm">
+﻿@{
+    ViewData["Title"] = "Groups";
+}
+<div class="q-pa-sm q-gutter-sm">
     <q-dialog v-model="groupTable.showForm" @@hide="groupTable.clear(this)">
         <q-card style="width: 500px; max-width: 80vw;">
             <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
@@ -85,7 +88,7 @@
                             { name: "count", label: "Members", field: "groupRoleMemberCount", sortable: true, align: "left", style: "width:75px;" },
                             { name: "box", label: "Box Enabled?", field: "boxSyncEnabled", sortable: true, align: "left", style: "width:75px;" },
                             { name: "sync", label: "Sync", field: "", sortable: true, style: "width:75px;" },
-                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                            { name: "edit", label: "Actions", field: "", style: "width: 100px;" }
                         ],
                         onLoad: function (data) {
                             this.rows = data.map(
