@@ -129,20 +129,12 @@
                     </div>
 
                     <!-- Error Message -->
-                    <q-banner
+                    <StatusBanner
                         v-if="errorMessage"
-                        class="bg-negative text-white q-mt-sm"
-                        rounded
-                        role="alert"
+                        type="error"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="error"
-                                color="white"
-                            />
-                        </template>
                         {{ errorMessage }}
-                    </q-banner>
+                    </StatusBanner>
                 </q-form>
             </q-card-section>
 
@@ -177,6 +169,7 @@
 import { ref, computed, watch } from "vue"
 import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { courseService } from "../services/course-service"
 import type { CourseEvalEntryDto } from "../types"
 import "../effort-dialogs.css"

@@ -97,19 +97,12 @@
                     </div>
                 </div>
 
-                <q-banner
+                <StatusBanner
                     v-if="errorMessage"
-                    class="bg-negative text-white q-mb-md"
-                    rounded
+                    type="error"
                 >
-                    <template #avatar>
-                        <q-icon
-                            name="error"
-                            color="white"
-                        />
-                    </template>
                     {{ errorMessage }}
-                </q-banner>
+                </StatusBanner>
             </q-card-section>
 
             <q-card-actions align="right">
@@ -141,6 +134,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { instructorService } from "../services/instructor-service"
 import type { AaudPersonDto } from "../types"
 

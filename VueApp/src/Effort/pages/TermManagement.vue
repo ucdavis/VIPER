@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Term Management</h2>
+        <h1>Term Management</h1>
 
         <div
             v-if="isLoading"
@@ -31,8 +31,8 @@
                 <q-btn
                     icon="event_repeat"
                     label="Percent Rollover"
-                    color="cyan-8"
-                    :text-color="showRolloverForm ? undefined : 'white'"
+                    color="info"
+                    text-color="dark"
                     dense
                     no-caps
                     :outline="showRolloverForm"
@@ -59,7 +59,7 @@
                                 dense
                                 no-caps
                                 size="sm"
-                                color="grey-7"
+                                color="secondary"
                                 @click="rolloverYearOverride = true"
                             />
                         </template>
@@ -79,15 +79,15 @@
                                 dense
                                 no-caps
                                 size="sm"
-                                color="grey-7"
+                                color="secondary"
                                 @click="resetRolloverYear"
                             />
                         </template>
                         <q-btn
                             icon="event_repeat"
                             label="Preview Rollover"
-                            color="cyan-8"
-                            text-color="white"
+                            color="info"
+                            text-color="dark"
                             dense
                             no-caps
                             :disable="!rolloverYear || rolloverYear < 2020 || rolloverYear > currentYear"
@@ -175,6 +175,7 @@
                                 round
                                 size="sm"
                                 class="q-ml-sm"
+                                aria-label="Delete term"
                                 @click="confirmDeleteTerm(props.row)"
                                 @keyup.enter="confirmDeleteTerm(props.row)"
                                 @keyup.space="confirmDeleteTerm(props.row)"
@@ -194,7 +195,7 @@
                                     icon="cloud_download"
                                     :label="props.row.harvestedDate ? 'Re-Harvest' : 'Harvest'"
                                     color="info"
-                                    text-color="white"
+                                    text-color="dark"
                                     dense
                                     no-caps
                                     size="sm"
@@ -212,8 +213,8 @@
                                     v-if="props.row.canImportClinical"
                                     icon="medical_services"
                                     label="Import Clinical"
-                                    color="teal-8"
-                                    text-color="white"
+                                    color="info"
+                                    text-color="dark"
                                     dense
                                     no-caps
                                     size="sm"
@@ -331,6 +332,7 @@
                                     round
                                     size="sm"
                                     class="q-ml-xs"
+                                    aria-label="Save expected close date"
                                     @click="saveExpectedCloseDate(props.row)"
                                 >
                                     <q-tooltip>Save</q-tooltip>
@@ -342,6 +344,7 @@
                                     flat
                                     round
                                     size="sm"
+                                    aria-label="Cancel editing"
                                     @click="cancelEditExpectedCloseDate"
                                 >
                                     <q-tooltip>Cancel</q-tooltip>
@@ -357,6 +360,7 @@
                                     round
                                     size="sm"
                                     color="grey-7"
+                                    aria-label="Edit expected close date"
                                     @click="startEditExpectedCloseDate(props.row)"
                                     @keyup.enter="startEditExpectedCloseDate(props.row)"
                                     @keyup.space="startEditExpectedCloseDate(props.row)"
@@ -428,6 +432,7 @@
                                 flat
                                 round
                                 size="sm"
+                                aria-label="Save expected close date"
                                 @click="saveExpectedCloseDate(term)"
                             >
                                 <q-tooltip>Save</q-tooltip>
@@ -439,6 +444,7 @@
                                 flat
                                 round
                                 size="sm"
+                                aria-label="Cancel editing"
                                 @click="cancelEditExpectedCloseDate"
                             >
                                 <q-tooltip>Cancel</q-tooltip>
@@ -450,7 +456,7 @@
                                 icon="cloud_download"
                                 :label="term.harvestedDate ? 'Re-Harvest' : 'Harvest'"
                                 color="info"
-                                text-color="white"
+                                text-color="dark"
                                 dense
                                 no-caps
                                 size="sm"
@@ -464,8 +470,8 @@
                                 v-if="term.canImportClinical"
                                 icon="medical_services"
                                 label="Import Clinical"
-                                color="teal-8"
-                                text-color="white"
+                                color="info"
+                                text-color="dark"
                                 dense
                                 no-caps
                                 size="sm"

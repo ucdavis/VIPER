@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Evaluation Report - Summary</h2>
+        <h1>Evaluation Report - Summary</h1>
 
         <ReportFilterForm
             :term-code="termCode"
@@ -68,7 +68,7 @@
             <template v-if="report.departments.length === 0">
                 <div
                     role="status"
-                    class="text-grey-6 text-center q-pa-lg"
+                    class="text-grey-7 text-center q-pa-lg"
                 >
                     No data found for the selected filters.
                 </div>
