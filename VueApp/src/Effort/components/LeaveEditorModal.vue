@@ -12,6 +12,7 @@
             <q-card-section
                 class="q-pt-none scroll"
                 style="max-height: 60vh"
+                tabindex="0"
             >
                 <table class="leave-table">
                     <thead>

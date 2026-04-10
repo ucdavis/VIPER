@@ -3,7 +3,7 @@
         v-model="activeDept"
         dense
         align="left"
-        class="text-grey"
+        class="text-grey-8 tabs-no-fade"
         active-color="primary"
         active-bg-color="grey-2"
         indicator-color="primary"
@@ -28,6 +28,7 @@
             :key="dept.department"
             :name="idx"
             class="q-px-none"
+            tabindex="0"
         >
             <!-- Only render content for active panel to avoid browser freeze -->
             <template v-if="idx === activeDept">

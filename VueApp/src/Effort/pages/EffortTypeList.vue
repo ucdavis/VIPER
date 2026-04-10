@@ -26,7 +26,10 @@
 
         <template v-else>
             <!-- Effort Types Table - wrapped for horizontal scroll on tablets -->
-            <div class="table-scroll-container">
+            <div
+                class="table-scroll-container"
+                tabindex="0"
+            >
                 <q-table
                     :rows="effortTypes"
                     :columns="columns"
@@ -115,7 +118,7 @@
                             </template>
                             <template v-else>
                                 <div class="row items-center no-wrap">
-                                    <span :class="{ 'text-grey': !props.row.isActive }">{{
+                                    <span :class="{ 'text-strike text-grey-8': !props.row.isActive }">{{
                                         props.row.description
                                     }}</span>
                                     <q-btn
@@ -300,7 +303,7 @@
                                         <template v-else>
                                             <div
                                                 class="col text-grey-8"
-                                                :class="{ 'text-grey': !props.row.isActive }"
+                                                :class="{ 'text-strike': !props.row.isActive }"
                                             >
                                                 {{ props.row.description }}
                                             </div>
