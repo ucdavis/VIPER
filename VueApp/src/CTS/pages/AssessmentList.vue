@@ -30,7 +30,7 @@ const searchForm = ref({
     dateTo: null,
 })
 const columns: QTableProps["columns"] = [
-    { name: "action", label: "", field: "id", align: "left" },
+    { name: "action", label: "Actions", field: "id", align: "left" },
     { name: "studentName", label: "Student", field: "studentName", align: "left", sortable: true },
     { name: "epaName", label: "EPA", field: "epaName", align: "left", sortable: true },
     { name: "serviceName", label: "Service", field: "serviceName", align: "left", sortable: true },
