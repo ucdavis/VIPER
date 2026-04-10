@@ -27,7 +27,7 @@
             <div
                 v-for="(line, index) in student.secondaryTextLines"
                 :key="index"
-                class="text-caption text-grey"
+                class="text-caption text-grey-7"
             >
                 {{ line }}
             </div>

@@ -44,7 +44,7 @@
 .directory div {
 }
 .directory .card_header {
-    background-color: #adb5bd;
+    background-color: var(--ucdavis-black-60, #666);
 }
 .directory .SVM {
     background-color: #1d4776;
@@ -104,8 +104,11 @@
     height: 40px;
     width: 12%;
     max-width: 40px;
+}
+.directory .SVM .top_button {
     color: #a4b5c8;
 }
-.directory .top_button:hover {
+.directory .top_button:hover,
+.directory .SVM .top_button:hover {
     color: #fff;
 }
