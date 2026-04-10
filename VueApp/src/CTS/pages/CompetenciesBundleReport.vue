@@ -226,7 +226,7 @@ onMounted(() => {
                         <q-td :props="props">
                             <div
                                 v-if="props.value.length === 0"
-                                class="text-grey-6"
+                                class="text-grey-8"
                             >
                                 None
                             </div>
@@ -289,7 +289,7 @@ onMounted(() => {
                                     <div class="text-subtitle2 q-mb-xs">Associated Bundles:</div>
                                     <div
                                         v-if="props.row.bundles.length === 0"
-                                        class="text-grey-6"
+                                        class="text-grey-8"
                                     >
                                         None
                                     </div>

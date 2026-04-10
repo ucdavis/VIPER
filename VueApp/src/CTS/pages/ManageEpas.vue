@@ -244,7 +244,7 @@ getEpas()
                         <span class="col">
                             <q-icon
                                 :name="epaItem.active ? 'check' : 'close'"
-                                :color="epaItem.active ? 'green' : 'red'"
+                                :color="epaItem.active ? 'positive' : 'negative'"
                                 size="md"
                             />
                         </span>
