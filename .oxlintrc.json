@@ -130,7 +130,7 @@
                 "vitest/prefer-called-times": "off", // Conflicts with prefer-called-once; toHaveBeenCalledOnce() is more readable
                 "vitest/prefer-import-in-mock": "off", // import() form in vi.mock causes TS errors with partial class mocks
                 "vitest/prefer-strict-boolean-matchers": "off", // Conflicts with prefer-to-be-truthy; we use .toBeTruthy()/.toBeFalsy()
-                "vitest/require-test-timeout": "off" // Global testTimeout is set in vite.config.ts; oxlint can't see cross-file config
+                "vitest/require-test-timeout": "off" // Disabled intentionally; test files are not required to declare per-test timeouts
             }
         },
         {
