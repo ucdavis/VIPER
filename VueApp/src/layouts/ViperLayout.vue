@@ -80,15 +80,19 @@
                     class="lt-md"
                     :href="viperHome"
                 >
-                    <span
+                    <q-badge
                         v-if="environment == 'DEVELOPMENT'"
+                        color="negative"
+                        role="presentation"
                         class="mainLayoutViperMode"
-                        >Dev</span
+                        >Dev</q-badge
                     >
-                    <span
+                    <q-badge
                         v-if="environment == 'TEST'"
+                        color="negative"
+                        role="presentation"
                         class="mainLayoutViperMode"
-                        >Test</span
+                        >Test</q-badge
                     >
                 </q-btn>
 
@@ -101,15 +105,19 @@
                     :href="viperHome"
                 >
                     <span class="mainLayoutViper">VIPER 2.0</span>
-                    <span
+                    <q-badge
                         v-if="environment == 'DEVELOPMENT'"
+                        color="negative"
+                        role="presentation"
                         class="mainLayoutViperMode"
-                        >Development</span
+                        >Development</q-badge
                     >
-                    <span
+                    <q-badge
                         v-if="environment == 'TEST'"
+                        color="negative"
+                        role="presentation"
                         class="mainLayoutViperMode"
-                        >Test</span
+                        >Test</q-badge
                     >
                 </q-btn>
 

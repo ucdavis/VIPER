@@ -63,6 +63,7 @@ namespace Viper.Views.Shared.Components.MainNav
             ViewData["SelectedTopNav"] = (area.Length >= 2 ? area[1] : area[0]) switch
             {
                 "raps" => "Computing",
+                "policy" => "Policies",
                 _ => "VIPER Home",
             };
             return await Task.Run(() => View("Default", user));
