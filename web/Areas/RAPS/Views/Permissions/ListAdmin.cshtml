@@ -1,4 +1,7 @@
-﻿<h1>Permissions</h1>
+﻿@{
+    ViewData["Title"] = "Permissions Admin";
+}
+<h1>Permissions</h1>
 <div class="q-pa-sm q-gutter-sm">
     <q-dialog v-model="permissionTable.showForm" @@hide="permissionTable.clear(this)">
         <q-card style="width: 500px; max-width: 80vw;">
@@ -48,14 +51,14 @@
     </template>
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" title="Edit roles that grant this permission" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" title="Edit users individually granted this permission" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" title="View list of all users with this permission (individually or via role)" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="sm" icon="security" title="Edit roles that grant this permission" aria-label="Edit roles that grant this permission" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="sm" icon="person" title="Edit users individually granted this permission" aria-label="Edit users individually granted this permission" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="sm" icon="groups" title="View list of all users with this permission (individually or via role)" aria-label="View list of all users with this permission" :href="'AllMembersWithPermission?permissionId=' + props.row.permissionId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">
         <q-td :props="props">
-            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs md" aria-label="Edit permission" @@click="permissionTable.selectRow(props.row)"></q-btn>
+            <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="sm" aria-label="Edit permission" @@click="permissionTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -70,11 +73,11 @@
                         keys: "permissionId",
                         urlBase: "Permissions",
                         columns: [
-                            { name: "action", field: "permissionId", align: "left", style: "width:75px;" },
+                            { name: "action", label: "Actions", field: "permissionId", align: "left", style: "width:75px;" },
                             { name: "permission", label: "Permission", field: "permission", sortable: true, align: "left" },
                             { name: "description", label: "Description", field: "description", sortable: false, align: "left" },
                             { name: "count", label: "Members", field: "count", sortable: true, align: "left", style: "width:75px;" },
-                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                            { name: "edit", label: "Edit", field: "", align: "left", style: "width: 60px;" }
                         ],
                         onLoad: function (data) {
                             this.rows = data.map(p => ({ ...p, count: p.tblMemberPermissions.length }))

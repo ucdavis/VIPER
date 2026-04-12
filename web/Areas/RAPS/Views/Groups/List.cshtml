@@ -1,4 +1,7 @@
-﻿<div class="q-pa-sm q-gutter-sm">
+﻿@{
+    ViewData["Title"] = "Groups";
+}
+<div class="q-pa-sm q-gutter-sm">
     <q-dialog v-model="groupTable.showForm" @@hide="groupTable.clear(this)">
         <q-card style="width: 500px; max-width: 80vw;">
             <q-form @@submit="groupTable.submit(this)" v-bind="groupTable.object">
@@ -54,14 +57,14 @@
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="groups" title="All members of all roles linked to this group" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="person" title="Users who are explict members of this group" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
-            <q-btn :props="props" dense flat square color="primary" size="sm" padding="xs" icon="security" title="Roles linked to this group" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="sm" icon="groups" title="All members of all roles linked to this group" aria-label="All members of all roles linked to this group" :href="'GroupMembers?groupId=' + props.row.groupId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="sm" icon="person" title="Users who are explicit members of this group" aria-label="Users who are explicit members of this group" :href="'RoleMembers?roleId=' + props.row.groupRoleId"></q-btn>
+            <q-btn :props="props" dense flat square color="primary" size="sm" padding="sm" icon="security" title="Roles linked to this group" aria-label="Roles linked to this group" :href="'GroupRoles?groupId=' + props.row.groupId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-edit="props">
         <q-td :props="props">
-            <q-btn :props="props" dense outline color="primary" icon="edit" title="Edit" size="sm" padding="xs md" @@click="groupTable.selectRow(props.row)"></q-btn>
+            <q-btn :props="props" dense outline color="primary" icon="edit" title="Edit" aria-label="Edit group" size="sm" padding="sm" @@click="groupTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -79,13 +82,13 @@
                         keys: ["groupId"],
                         urlBase: "groups",
                         columns: [
-                            { name: "actions", field: "", align: "left", style: "width:75px;" },
+                            { name: "actions", label: "Actions", field: "", align: "left", style: "width:75px;" },
                             { name: "domain", label: "Domain", field: "domain", sortable: true, align: "left" },
                             { name: "name", label: "Group", field: "friendlyName", sortable: true, align: "left" },
                             { name: "count", label: "Members", field: "groupRoleMemberCount", sortable: true, align: "left", style: "width:75px;" },
                             { name: "box", label: "Box Enabled?", field: "boxSyncEnabled", sortable: true, align: "left", style: "width:75px;" },
                             { name: "sync", label: "Sync", field: "", sortable: true, style: "width:75px;" },
-                            { name: "edit", label: "", field: "", style: "width: 100px;" }
+                            { name: "edit", label: "Edit", field: "", align: "left", style: "width: 60px;" }
                         ],
                         onLoad: function (data) {
                             this.rows = data.map(
@@ -95,7 +98,7 @@
                                 })
                             )
                         },
-                        selectObject: function (_object) {
+                        selectObject: function () {
                             this.object = {
                                 ...this.object,
                                 group: {

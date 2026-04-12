@@ -1,4 +1,7 @@
-﻿<h1>User Permissions for {{permission.permission}}</h1>
+﻿@{
+    ViewData["Title"] = "Permission Members";
+}
+<h1>User Permissions for {{permission.permission}}</h1>
 <p>
     {{permission.description}}
 </p>
@@ -46,7 +49,7 @@
                                          :error="membersTable.errors?.endDate?.error" :error-message="membersTable.endDate?.startDate?.message"></q-input>
                             </div>
                             <div class="row q-pt-sm">
-                                <q-btn-toggle no-caps outlined dense :toggle-color="membersTable.object.access == 0 ? 'red' : 'green'" 
+                                <q-btn-toggle no-caps outlined dense :toggle-color="membersTable.object.access == 0 ? 'negative' : 'positive'" 
                                     v-model="membersTable.object.access" :options="allowDenyOptions">
                                     <template v-slot:allow>
                                         <div class="q-px-lg" align="evenly">
@@ -82,19 +85,19 @@
     </template>
     <template v-slot:body-cell-access="props">
         <q-td :props="props">
-            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'green' : 'red'"></q-icon>
+            <q-icon size="sm" :name="props.row.access ? 'check' : 'close'" :color="props.row.access ? 'positive' : 'negative'"></q-icon>
         </q-td>
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" title="View combined permissions for this user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="View permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="policy" title="View combined permissions for this user" aria-label="View combined permissions for this user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="View roles for this user" aria-label="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="lock" title="View permissions for this user" aria-label="View permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn no-caps outline size="sm" icon="edit" :props="props" color="primary" @@click="membersTable.selectRow(props.row)"></q-btn>
+            <q-btn dense outline size="sm" icon="edit" padding="sm" :props="props" color="primary" aria-label="Edit member" @@click="membersTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -116,8 +119,8 @@
                         keys: ["memberId"],
                         urlBase: "Permissions",
                         columns: [
-                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
-                            { name: "access", label: "", field: "access", align: "left", style: "width:75px;" },
+                            { name: "memberid", label: "Actions", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "access", label: "Access", field: "access", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "memberName", align: "left", sortable: true },
                             { name: "startdate", label: "Start Date", field: "startDate", align: "left", sortable: true, format: v => formatDate(v) },
                             { name: "enddate", label: "End Date", field: "endDate", align: "left", sortable: true, format: v => formatDate(v) },
@@ -126,7 +129,7 @@
                                 sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
                             },
                             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                            { name: "actions", label: "Edit", field: "", align: "left", sortable: false, style: "width: 60px;" }
                         ],
                         //after loading role members, add the member name and active flag
                         onLoad: function (data) {

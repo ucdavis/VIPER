@@ -1,4 +1,7 @@
-﻿<h1>Apply role template {{roleTemplate.templateName}}</h1>
+﻿@{
+    ViewData["Title"] = "Apply Template";
+}
+<h1>Apply role template {{roleTemplate.templateName}}</h1>
 
 <q-form>
     Search for a single user, or paste in multiple login ids.
@@ -25,7 +28,7 @@
             </tr>
             <tr v-for="role in member.roles">
                 <td>
-                    <q-icon :name="role.userHasRole ? 'info' : 'add'" :color="role.userHasRole ? 'blue-3' : 'green'" size="sm"></q-icon>
+                    <q-icon :name="role.userHasRole ? 'info' : 'add'" :color="role.userHasRole ? 'info' : 'positive'" size="sm"></q-icon>
                     {{role.userHasRole ? 'User has role' : 'Role will be added'}}
                 </td>
                 <td>{{role.roleName}}</td>
@@ -112,7 +115,7 @@
                     else if (this.loginids !== null && this.loginids.length > 0) {
                         this.members = []
                         for (const loginId of this.loginids.split(",")) {
-                            result = await this.send(this.getApplyUrl(null, loginId))
+                            const result = await this.send(this.getApplyUrl(null, loginId))
                             if (result !== null) {
                                 this.members.push(result)
                             }

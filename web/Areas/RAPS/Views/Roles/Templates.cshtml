@@ -1,4 +1,7 @@
-﻿<h1>Role Templates</h1>
+﻿@{
+    ViewData["Title"] = "Templates";
+}
+<h1>Role Templates</h1>
 <q-dialog v-model="templates.showForm" @@hide="templates.clear(this)">
     <q-card style="width: 500px; max-width: 80vw;">
         <q-form @@submit="templates.submit(this)" v-model="templates.object">
@@ -50,15 +53,15 @@
             <q-td :props="props">
                 @if (ViewData.ContainsKey("canApplyTemplates") && (bool)(ViewData["canApplyTemplates"] ?? false))
                 {
-                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Apply Role Template to one or more users" :href="'RoleTemplateApply?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+                    <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="person" title="Apply Role Template to one or more users" aria-label="Apply Role Template to one or more users" :href="'RoleTemplateApply?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
                 }
                 @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
                 {
-                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View Roles for this Template" :href="'RoleTemplateRoles?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
+                    <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="View Roles for this Template" aria-label="View Roles for this Template" :href="'RoleTemplateRoles?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
                 }
                 else
                 {
-                    <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="Show Roles for this template" @@click="toggleRoles(props.row.roleTemplateId)"></q-btn>
+                    <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="Show Roles for this template" aria-label="Show Roles for this template" @@click="toggleRoles(props.row.roleTemplateId)"></q-btn>
                 }
             </q-td>
         </template>
@@ -74,7 +77,7 @@
         {
             <template v-slot:body-cell-action="props">
                 <q-td :props="props">
-                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="xs sm" aria-label="Edit template" @@click="templates.selectRow(props.row)"></q-btn>
+                    <q-btn :props="props" dense outline color="primary" icon="edit" size="sm" padding="sm" aria-label="Edit template" @@click="templates.selectRow(props.row)"></q-btn>
                 </q-td>
             </template>
         }
@@ -113,10 +116,10 @@
                         keys: "roleTemplateId",
                         urlBase: "RoleTemplates",
                         columns: [
-                            { name: "links", label: "", field: "", style: "width:75px;" },
+                            { name: "links", label: "Actions", field: "", style: "width:75px;" },
                             { name: "roletemplate", label: "Template", field: "", sortable: true, align: "left" },
-                            { name: "roles", label: "", align: "left" },
-                            { name: "action", label: "", field: "" }
+                            { name: "roles", label: "Roles", align: "left" },
+                            { name: "action", label: "Edit", field: "", align: "left", style: "width: 60px;" }
                         ],
                         pagination: { rowsPerPage: 0 },
                         createBody: function (vueApp, data) {

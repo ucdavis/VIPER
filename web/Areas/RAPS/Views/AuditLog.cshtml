@@ -1,4 +1,7 @@
-﻿<h1>Audit Trail</h1>
+﻿@{
+    ViewData["Title"] = "Audit Log";
+}
+<h1>Audit Trail</h1>
 <q-form v-bind="auditForm" @@submit="getAudit(this)">
     <div class="row q-mb-sm q-gutter-sm">
         <q-input outlined dense label="Start Date" class="col col-md-3 col-lg-2"
@@ -16,10 +19,20 @@
                 type="text" v-model="auditForm.search"></q-input>
     </div>
     <div class="row q-mb-sm q-gutter-sm">
-        <q-input dense clearable borderless type="text" label="Permission" class="col col-md-3 col-lg-2" 
-            v-model="auditForm.permissionId" v-if="auditForm.permissionId != null" @@clear="getAudit(this)"></q-input>
-        <q-input dense clearable borderless type="text" label="Modified User" class="col col-md-3 col-lg-2"
-                 v-model="auditForm.modifiedUser" v-if="auditForm.modifiedUser != null" @@clear="getAudit(this)"></q-input>
+        <q-input dense borderless readonly label="Permission" class="col col-md-3 col-lg-2"
+            :model-value="auditForm.permissionName" v-if="auditForm.permissionId != null">
+            <template v-slot:append>
+                <q-icon name="cancel" class="cursor-pointer" role="button" tabindex="0" aria-label="Clear permission filter"
+                        @@click="clearPermissionFilter()" @@keyup.enter="clearPermissionFilter()" @@keyup.space="clearPermissionFilter()"></q-icon>
+            </template>
+        </q-input>
+        <q-input dense borderless readonly label="Modified User" class="col col-md-3 col-lg-2"
+            :model-value="auditForm.modifiedUserName" v-if="auditForm.modifiedUser != null">
+            <template v-slot:append>
+                <q-icon name="cancel" class="cursor-pointer" role="button" tabindex="0" aria-label="Clear modified user filter"
+                        @@click="clearModifiedUserFilter()" @@keyup.enter="clearModifiedUserFilter()" @@keyup.space="clearModifiedUserFilter()"></q-icon>
+            </template>
+        </q-input>
     </div>
     <div class="row q-mb-sm">
         <div class="col col-md-11 col-lg-8 text-center">
@@ -41,27 +54,27 @@
          :pagination="auditTable.pagination">
     <template v-slot:body-cell-detail="props">
         <q-td :props="props">
-            <div v-if="props.row.memberName ?? '' != ''">
-                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by user" @@click="addAuditCriteria('modifiedUser', props.row.memberId)"></q-btn>
+            <div v-if="props.row.memberName">
+                <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by user" @@click="addAuditCriteria({modifiedUser: props.row.memberId, modifiedUserName: props.row.memberName})"></q-btn>
                 User:
                 {{props.row.memberName}}
                 <br/>
             </div>
-            <div v-if="props.row.roleId ?? '' != ''">
+            <div v-if="props.row.roleId">
                 <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by role"
-                    @@click="addAuditCriteria('role', {'roleId': props.row.roleId, 'friendlyName': props.row.role ?? 'Deleted role'})"></q-btn>
+                    @@click="addAuditCriteria({role: {roleId: props.row.roleId, friendlyName: props.row.role ?? 'Deleted role'}})"></q-btn>
                 Role:
                 {{props.row.role ?? 'Deleted role'}}
                 <br />
             </div>
-            <div v-if="props.row.permissionId ?? '' != ''">
+            <div v-if="props.row.permissionId">
                 <q-btn dense flat square color="primary" size="sm" padding="none" icon="filter_alt" aria-label="Filter by permission"
-                       @@click="addAuditCriteria('permissionId', props.row.permissionId)"></q-btn>
+                       @@click="addAuditCriteria({permissionId: props.row.permissionId, permissionName: props.row.permission ?? 'Deleted permission'})"></q-btn>
                 Permission:
                 {{props.row.permission ?? 'Deleted permission'}}
                 <br />
             </div>
-            <span class="q-ml-lg" v-if="props.row.detail ?? '' != ''">{{props.row.detail}}</span>
+            <span class="q-ml-lg" v-if="props.row.detail">{{props.row.detail}}</span>
         </q-td>
     </template>
 </q-table>
@@ -82,9 +95,11 @@
                         auditType: null,
                         modBy: null,
                         modifiedUser: null,
+                        modifiedUserName: null,
                         role: null,
                         search: null,
-                        permissionId: null
+                        permissionId: null,
+                        permissionName: null
                     },
                     auditTable: new quasarTable({
                         keys: "auditRecordId",
@@ -92,7 +107,7 @@
                         columns: [
                             { name: "detail", field: "", label: "Object / Detail", align: "left" },
                             { name: "auditType", label: "AuditType", field: "audit", sortable: true, align: "left" },
-                            { name: "comment", label: "Comment", field: "Comment", sortable: true, align: "left" },
+                            { name: "comment", label: "Comment", field: "comment", sortable: true, align: "left" },
                             { name: "modBy", label: "Mod By", field: "modByUserName", sortable: true, align: "left" },
                             { name: "modTime", label: "Mod Time", field: "modTime", sortable: true, align: "left", format: v => formatDateTime(v) }
                         ]
@@ -101,29 +116,45 @@
             },
             methods: {
                 getAudit: function() {
+                    const displayOnlyKeys = new Set(["permissionName", "modifiedUserName"])
                     var params = []
                     for (const [key, value] of Object.entries(this.auditForm)) {
+                        if (displayOnlyKeys.has(key)) {
+                            continue
+                        }
                         if(key === "role" && value !== null && (value.roleId ?? "") !== "") {
                             params.push("roleId=" + value.roleId)
                         }
                         else if(key === "modBy" && value !== null && (value.loginId ?? "") !== "") {
                             params.push("modBy=" + value.loginId)
                         }
-                        else if(value !== null && value !=="") {
+                        else if(value !== null && value !== "") {
                             params.push(key + "=" + value)
                         }
                     }
                     this.auditTable.urlBase = 'Audit?' + params.join("&")
                     this.auditTable.load(this)
                 },
-                addAuditCriteria: function(paramName, paramValue) {
-                    if (!Object.hasOwn(this.auditForm, paramName)) { return }
-                    Object.defineProperty(this.auditForm, paramName, {
-                        value: paramValue,
-                        writable: true,
-                        enumerable: true,
-                        configurable: true
-                    })
+                addAuditCriteria: function(updates) {
+                    for (const [key, value] of Object.entries(updates)) {
+                        if (!Object.hasOwn(this.auditForm, key)) { continue }
+                        Object.defineProperty(this.auditForm, key, {
+                            value: value,
+                            writable: true,
+                            enumerable: true,
+                            configurable: true
+                        })
+                    }
+                    this.getAudit()
+                },
+                clearPermissionFilter: function() {
+                    this.auditForm.permissionId = null
+                    this.auditForm.permissionName = null
+                    this.getAudit()
+                },
+                clearModifiedUserFilter: function() {
+                    this.auditForm.modifiedUser = null
+                    this.auditForm.modifiedUserName = null
                     this.getAudit()
                 }
             },
@@ -136,7 +167,7 @@
 
                 var auditCriteria = getItemFromStorage("auditFormCriteria")
                 if(auditCriteria) {
-                    this.auditForm = auditCriteria
+                    this.auditForm = { ...this.auditForm, ...auditCriteria }
                     this.getAudit()
                 }
             },
