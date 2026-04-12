@@ -41,7 +41,7 @@
                             <q-item
                                 v-if="menuItem.routeTo != null"
                                 :clickable="menuItem.clickable"
-                                :v-ripple="menuItem.clickable"
+                                v-ripple
                                 :to="menuItem.routeTo"
                                 :class="menuItem.displayClass"
                             >
