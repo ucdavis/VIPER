@@ -76,6 +76,7 @@ getStudentEpa()
         >
             <StatusBanner
                 v-if="success"
+                v-model:visible="success"
                 type="success"
                 dismissible
             >
@@ -110,13 +111,13 @@ getStudentEpa()
                 </div>
             </div>
             <q-form @submit="submitEpa">
-                <div
-                    class="bg-red-5 text-white q-pa-sm rounded"
+                <StatusBanner
                     v-if="submitErrors?.message?.length > 0"
+                    type="error"
                 >
                     {{ submitErrors.message }}
                     Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
-                </div>
+                </StatusBanner>
                 <LevelSelect
                     level-type="epa"
                     @level-change="(selectedLevelId: number) => (levelId = selectedLevelId)"

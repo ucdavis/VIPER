@@ -5,6 +5,7 @@ import { useRoute } from "vue-router"
 import type { Competency, MilestoneLevel } from "@/CTS/types"
 import StudentSelect from "@/components/StudentSelect.vue"
 import LevelSelect from "@/CTS/components/LevelSelect.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 
 const route = useRoute()
 
@@ -84,13 +85,13 @@ function submitMilestone() {}
         v-bind="studentMilestone"
         v-show="selectedStudentId > 0"
     >
-        <div
-            class="bg-red-5 text-white q-pa-sm rounded q-mb-md"
+        <StatusBanner
             v-if="submitErrors?.message?.length > 0"
+            type="error"
         >
             {{ submitErrors.message }}
             Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
-        </div>
+        </StatusBanner>
         <LevelSelect
             level-type="milestone"
             @level-change="(selectedLevelId: number) => (levelId = selectedLevelId)"

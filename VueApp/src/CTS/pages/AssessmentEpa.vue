@@ -126,6 +126,7 @@ watch(selectedStudentId, () => {
 
             <StatusBanner
                 v-if="success"
+                v-model:visible="success"
                 type="success"
                 dismissible
             >
@@ -154,13 +155,13 @@ watch(selectedStudentId, () => {
                     v-bind="studentEpa"
                     v-show="selectedStudentId > 0"
                 >
-                    <div
-                        class="bg-red-5 text-white q-pa-sm rounded q-mb-md"
+                    <StatusBanner
                         v-if="submitErrors"
+                        type="error"
                     >
                         Please make sure you have selected a service, EPA, student, a level on the entrustment scale,
                         and entered a comment.
-                    </div>
+                    </StatusBanner>
                     <LevelSelect
                         level-type="epa"
                         @level-change="(selectedLevelId: number) => (levelId = selectedLevelId)"
