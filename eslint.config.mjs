@@ -82,6 +82,7 @@ export default [
                 formatDateForDateInput: "readonly",
                 getItemFromStorage: "readonly",
                 putItemInStorage: "readonly",
+                showStatusNotification: "readonly",
                 Quasar: "readonly",
             },
         },

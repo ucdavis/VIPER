@@ -90,14 +90,14 @@
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" title="View combined permissions for this user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="View permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="policy" title="View combined permissions for this user" aria-label="View combined permissions for this user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="View roles for this user" aria-label="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="lock" title="View permissions for this user" aria-label="View permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn no-caps outline size="sm" icon="edit" :props="props" color="primary" @@click="membersTable.selectRow(props.row)"></q-btn>
+            <q-btn dense outline size="sm" icon="edit" padding="sm" :props="props" color="primary" aria-label="Edit member" @@click="membersTable.selectRow(props.row)"></q-btn>
         </q-td>
     </template>
 </q-table>
@@ -129,7 +129,7 @@
                                 sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
                             },
                             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                            { name: "actions", label: "Edit", field: "", align: "left", sortable: false, style: "width: 60px;" }
                         ],
                         //after loading role members, add the member name and active flag
                         onLoad: function (data) {

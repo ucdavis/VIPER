@@ -115,7 +115,7 @@
                     else if (this.loginids !== null && this.loginids.length > 0) {
                         this.members = []
                         for (const loginId of this.loginids.split(",")) {
-                            result = await this.send(this.getApplyUrl(null, loginId))
+                            const result = await this.send(this.getApplyUrl(null, loginId))
                             if (result !== null) {
                                 this.members.push(result)
                             }
