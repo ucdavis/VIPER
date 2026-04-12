@@ -1,11 +1,14 @@
-﻿<div class="q-pa-md">
+﻿@{
+    ViewData["Title"] = "Roles";
+}
+<div class="q-pa-md">
     <q-table title="Roles"
             dense
             row-key="roleId"
             :loading="rolesTable.loading"
             :rows="rolesTable.rows"
             :columns="rolesTable.columns"
-            :filter="rolesTable.filter" 
+            :filter="rolesTable.filter"
             :pagination="rolesTable.pagination">
         <template v-slot:top-right="props">
             <q-input class="q-ml-xs q-mr-xs" v-model="rolesTable.filter" dense outlined debounce="300" placeholder="Filter Results">
@@ -50,7 +53,7 @@
                 return {
                     rolesTable: new quasarTable({
                         columns: [
-                            { name: "roleid", label: "", field: "roleId", align: "left", style: "width:50px;" },
+                            { name: "roleid", label: "Actions", field: "roleId", align: "left", style: "width:50px;" },
                             { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
                             { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
                             { name: "membersCount", label: "Explicit Members", field: "membersCount", align: "left", sortable: true }

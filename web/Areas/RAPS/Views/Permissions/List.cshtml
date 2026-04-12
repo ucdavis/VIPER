@@ -1,4 +1,7 @@
-﻿<h2>Permissions</h2>
+﻿@{
+    ViewData["Title"] = "Permissions";
+}
+<h1>Permissions</h1>
 <q-table title="Permissions"
          dense
          row-key="permissionId"
@@ -34,7 +37,7 @@
                         keys: "permissionId",
                         urlBase: "Permissions",
                         columns: [
-                            { name: "action", field: "permissionId", align: "left", style: "width:75px;" },
+                            { name: "action", label: "Actions", field: "permissionId", align: "left", style: "width:75px;" },
                             { name: "permission", label: "Permission", field: "permission", sortable: true, align: "left" },
                             { name: "description", label: "Description", field: "description", sortable: false, align: "left" }
                         ]
