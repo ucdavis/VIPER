@@ -82,8 +82,8 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="Roles that grant this permission" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Users granted this permission individually" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="Roles that grant this permission" aria-label="Roles that grant this permission" :href="'PermissionRoles?permissionId=' + props.row.permissionId"></q-btn>
+                <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="person" title="Users granted this permission individually" aria-label="Users granted this permission individually" :href="'PermissionMembers?permissionId=' + props.row.permissionId"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-access="props">
@@ -93,7 +93,7 @@
         </template>
         <template v-slot:body-cell-actions="props">
             <q-td :props="props">
-                <q-btn outline size="sm" icon="edit" padding="xs md" :props="props" color="primary" aria-label="Edit permission" @@click="memberPermissionsTable.selectRow(props.row)"></q-btn>
+                <q-btn dense outline size="sm" icon="edit" padding="sm" :props="props" color="primary" aria-label="Edit permission" @@click="memberPermissionsTable.selectRow(props.row)"></q-btn>
             </q-td>
         </template>
     </q-table>
@@ -161,7 +161,7 @@
                             { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", sortable: true,
                                 sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime)
                             },
-                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                            { name: "actions", label: "Edit", field: "", align: "left", sortable: false, style: "width: 60px;" }
                         ],
                         //after loading member permissions, set last modified
                         onLoad: function (data) {

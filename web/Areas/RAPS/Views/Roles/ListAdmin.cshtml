@@ -62,14 +62,14 @@
         </template>
         <template v-slot:body-cell-roleid="props">
             <q-td :props="props">
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" title="Show members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
-                <q-btn :props="props" v-if="props.row.application != 1" size="sm" padding="xs" color="primary" square flat icon="lock" title="Show permission granted by this role" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
-                <q-btn :props="props" v-if="props.row.application == 1" size="sm" padding="xs" color="primary" square flat icon="security" title="Edit which roles this role delegates access to" :href="'DelegateRoles?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="person" title="Show members of this role" aria-label="Show members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" v-if="props.row.application !== 1" size="sm" padding="sm" color="primary" square flat icon="lock" title="Show permissions granted by this role" aria-label="Show permissions granted by this role" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
+                <q-btn :props="props" v-if="props.row.application === 1" size="sm" padding="sm" color="primary" square flat icon="security" title="Edit which roles this role delegates access to" aria-label="Edit which roles this role delegates access to" :href="'DelegateRoles?roleId=' + props.row.roleId"></q-btn>
             </q-td>
         </template>
         <template v-slot:body-cell-role="props">
             <q-td :props="props">
-                <q-badge v-if="props.row.application == 1" transparent icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
+                <q-badge v-if="props.row.application === 1" transparent icon="supervisor_account" color="warning" text-color="dark" class="q-mr-2">Delegate</q-badge>
                 {{props.row.friendlyName}}
                 <br />     
                 <span style="font-size:.9em">{{props.row.description}}</span>
@@ -82,7 +82,7 @@
         </template>
         <template v-slot:body-cell-edit="props">
             <q-td :props="props">
-                <q-btn :props="props" outline dense color="primary" size="sm" icon="edit" padding="xs sm" aria-label="Edit role" @@click="rolesTable.selectRow(props.row)"></q-btn>
+                <q-btn :props="props" outline dense color="primary" size="sm" icon="edit" padding="sm" aria-label="Edit role" @@click="rolesTable.selectRow(props.row)"></q-btn>
             </q-td>
         </template>
     </q-table>
@@ -104,7 +104,7 @@
                             { name: "role", label: "Role", field: "role", align: "left", sortable: true },
                             { name: "viewname", label: "Member List", field: "viewName", align: "left", sortable: true },
                             { name: "members", label: "Explicit Members", field: "", align: "left", sortable: true },
-                            { name: "edit", label: "Actions", field: "" }
+                            { name: "edit", label: "Edit", field: "", align: "left", style: "width: 60px;" }
                         ],
                         //create object with limited properties to do insert/update
                         createBody: function (vueApp, data) {

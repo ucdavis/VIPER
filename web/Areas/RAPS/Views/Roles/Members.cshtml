@@ -80,17 +80,17 @@
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" title="Combined permissions for user" aria-label="Combined permissions for user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="View roles for this user" aria-label="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="policy" title="Combined permissions for user" aria-label="Combined permissions for user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="View roles for this user" aria-label="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
             @if (ViewData.ContainsKey("canEditPermissions") && (bool)(ViewData["canEditPermissions"] ?? false))
             {
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="View individual permissions" aria-label="View individual permissions" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+                <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="lock" title="View individual permissions" aria-label="View individual permissions" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
             }
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn size="sm" outline icon="edit" :props="props" padding="xs md" color="primary" aria-label="Edit member"
+            <q-btn dense size="sm" outline icon="edit" :props="props" padding="sm" color="primary" aria-label="Edit member"
                 v-if="props.row.viewName == null" @@click="membersTable.selectRow(props.row)"></q-btn>
             <span v-if="props.row.viewName != null">{{props.row.viewName}}</span>
         </q-td>
@@ -123,7 +123,7 @@
                             { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", 
                                 sortable: true, sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime) },
                             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                            { name: "actions", label: "Edit", field: "", align: "left", sortable: false, style: "width: 60px;" }
                         ],
                         //after loading role members, add the member name and active flag
                         onLoad: function (data) {
