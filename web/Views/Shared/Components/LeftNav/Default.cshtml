@@ -7,12 +7,13 @@
     // Base path for resolving relative URLs (e.g. "/raps/Viper/" from "/raps/Viper/Rolelist")
     var basePath = currentPath.Substring(0, currentPath.LastIndexOf('/') + 1);
 
-    // Pre-compute which item to highlight. When multiple items resolve to the same
-    // path (e.g. instance link "~/raps/Viper/RoleList" and page link "Rolelist"),
-    // prefer relative page links over tilde-prefixed instance links.
+    // Pre-compute which items to highlight. Page links (relative URLs) get the primary
+    // highlight; instance links (tilde-prefixed URLs that point to the same page in a
+    // different RAPS instance) get a secondary highlight. When only an instance link
+    // matches, it is promoted to the primary highlight.
     var items = leftNav.MenuItems ?? new List<NavMenuItem>();
-    int activeIndex = -1;
-    bool activeIsTilde = false;
+    int activePageIndex = -1;
+    int activeInstanceIndex = -1;
     for (int i = 0; i < items.Count; i++)
     {
         var item = items[i];
@@ -35,14 +36,13 @@
             resolvedPath = basePath + rawUrl;
         }
 
-        // Prefer relative/page links over tilde-prefixed instance links
-        if (string.Equals(currentPath, resolvedPath, StringComparison.OrdinalIgnoreCase)
-            && (activeIndex < 0 || (activeIsTilde && !isTilde)))
-        {
-            activeIndex = i;
-            activeIsTilde = isTilde;
-        }
+        if (!string.Equals(currentPath, resolvedPath, StringComparison.OrdinalIgnoreCase)) { continue; }
+        if (isTilde && activeInstanceIndex < 0) { activeInstanceIndex = i; }
+        else if (!isTilde && activePageIndex < 0) { activePageIndex = i; }
     }
+    // If no page link matched, promote the instance link to the primary highlight.
+    int activeIndex = activePageIndex >= 0 ? activePageIndex : activeInstanceIndex;
+    int secondaryActiveIndex = activePageIndex >= 0 ? activeInstanceIndex : -1;
     int renderIndex = 0;
 }
 <q-drawer v-model="mainLeftDrawer" show-if-above elevated side="left" :mini="!mainLeftDrawer" no-mini-animation @@click.capture="drawerClick"
@@ -64,8 +64,11 @@
                 {
                     @if(menuItem.MenuItemURL != "")
                     {
-                        var isActive = renderIndex == activeIndex;
-                        <q-item clickable v-ripple href="@Url.Content(menuItem.MenuItemURL)" class="leftNavLink@(isActive ? " leftNavActive" : "")">
+                        string activeClass;
+                        if (renderIndex == activeIndex) { activeClass = " leftNavActive"; }
+                        else if (renderIndex == secondaryActiveIndex) { activeClass = " leftNavActiveSecondary"; }
+                        else { activeClass = ""; }
+                        <q-item clickable v-ripple href="@Url.Content(menuItem.MenuItemURL)" class="leftNavLink@(activeClass)">
                             <q-item-section>
                                 <q-item-label lines="1">@menuItem.MenuItemText</q-item-label>
                             </q-item-section>
