@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuasar } from "quasar"
-import { ref, inject } from "vue"
+import { ref, computed, inject } from "vue"
 import type { Ref } from "vue"
 import { useRoute } from "vue-router"
 import { useUserStore } from "@/store/UserStore"
@@ -25,6 +25,8 @@ const loaded = ref(false)
 const showDetails = ref([]) as Ref<boolean[]>
 
 const showAssessmentDetail = ref(false)
+
+const anyExpanded = computed(() => showDetails.value.some((s) => s))
 
 async function load() {
     const $q = useQuasar()
@@ -88,16 +90,9 @@ function getText(date: Date, enteredBy: string, levelName: string, comment: stri
 }
 
 function toggleExpandAll() {
-    let anyExpanded = false
+    const expand = !anyExpanded.value
     for (let i = 0; i < showDetails.value.length; i++) {
-        if (showDetails.value[i]) {
-            anyExpanded = true
-            break
-        }
-    }
-
-    for (let i = 0; i < showDetails.value.length; i++) {
-        showDetails.value[i] = !anyExpanded
+        showDetails.value[i] = expand
     }
 }
 
@@ -110,17 +105,28 @@ load()
 </script>
 <template>
     <div v-if="loaded">
-        <h2>
+        <h1>
             <span v-if="showPersonName && person != null"
                 >Assessments for {{ person.firstName }} {{ person.lastName }}</span
             >
             <span v-else>My Assessments</span>
-        </h2>
+        </h1>
 
         <q-dialog v-model="showAssessmentDetail">
             <q-card style="width: 700px; max-width: 80vw">
-                <q-card-section>
+                <q-card-section class="row items-center q-pb-none">
                     <div class="text-h6">Assessment Details</div>
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
+                </q-card-section>
+                <q-card-section>
                     <div class="row">
                         <div class="col-12"><strong>EPA:</strong> {{ epaAssessment.epaName }}</div>
                     </div>
@@ -153,15 +159,16 @@ load()
             </q-card>
         </q-dialog>
 
-        <div class="row">
+        <div class="row items-center">
             <div class="col col-md-10 col-lg-7 q-mr-sm">
-                <h3>Entrustable Professional Activities</h3>
+                <h2>Entrustable Professional Activities</h2>
             </div>
             <div class="col-1">
                 <q-btn
                     dense
                     color="secondary"
-                    :icon="showDetails.find((s) => s) != undefined ? 'expand_less' : 'expand_more'"
+                    :icon="anyExpanded ? 'expand_less' : 'expand_more'"
+                    :aria-label="anyExpanded ? 'Collapse all EPAs' : 'Expand all EPAs'"
                     @click="toggleExpandAll()"
                 ></q-btn>
             </div>
@@ -189,6 +196,8 @@ load()
                 <q-btn
                     dense
                     :icon="showDetails[index] ? 'expand_less' : 'expand_more'"
+                    :aria-label="`${showDetails[index] ? 'Collapse' : 'Expand'} details for ${epa.name}`"
+                    :aria-expanded="showDetails[index]"
                     @click="showDetails[index] = !showDetails[index]"
                     v-if="getAssessmentsForEpa(epa.epaId).length > 0"
                 />

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, inject } from "vue"
 import type { Ref } from "vue"
+import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 
 const apiUrl = inject("apiURL")
-const role = ref({}) as Ref<any>
+const role = ref({ roleId: 0, name: "" }) as Ref<any>
 const roles = ref([]) as Ref<any[]>
 
 async function load() {
@@ -22,21 +25,28 @@ async function save() {
     }
 }
 
-async function removeRole() {
-    let r = await del(apiUrl + "cts/roles/" + role.value.roleId)
-    if (r.success) {
-        clearRole()
-    }
+function removeRole() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this role?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        let r = await del(apiUrl + "cts/roles/" + role.value.roleId)
+        if (r.success) {
+            clearRole()
+        }
+    })
 }
 
 function clearRole() {
-    role.value = {}
+    role.value = { roleId: 0, name: "" }
 }
 
 load()
 </script>
 <template>
-    <h2>Add/Edit Roles</h2>
+    <h1>Add/Edit Roles</h1>
     <q-form
         @submit="save()"
         class="q-mb-md"
@@ -62,7 +72,7 @@ load()
                 v-if="role?.roleId"
                 type="button"
                 @click="clearRole()"
-                color="primary"
+                color="secondary"
                 dense
                 class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                 label="Cancel"
@@ -71,7 +81,7 @@ load()
                 v-if="role?.roleId"
                 type="button"
                 @click="removeRole()"
-                color="red-5"
+                color="negative"
                 dense
                 class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                 label="Delete"
@@ -89,6 +99,7 @@ load()
             size="sm"
             icon="edit"
             color="primary"
+            :aria-label="`Edit role: ${r.name}`"
             @click="role = r"
             class="q-mt-xs q-mr-md"
         ></q-btn>

@@ -9,6 +9,8 @@ export type BreadCrumb = {
     name: string
 }
 
+defineOptions({ inheritAttrs: false })
+
 const props = defineProps<{
     breadcrumbs?: BreadCrumb[]
 }>()

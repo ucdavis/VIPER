@@ -6,6 +6,7 @@ import type { Epa } from "@/CTS/types"
 import StudentSelect from "@/components/StudentSelect.vue"
 import ServiceSelectBox from "@/CTS/components/ServiceSelect.vue"
 import LevelSelect from "@/CTS/components/LevelSelect.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 
 //epas
 const epas = ref([]) as Ref<Epa[]>
@@ -123,21 +124,14 @@ watch(selectedStudentId, () => {
                 </div>
             </div>
 
-            <q-banner
-                inline-actions
-                rounded
+            <StatusBanner
                 v-if="success"
-                class="bg-green text-white q-mb-md"
+                v-model:visible="success"
+                type="success"
+                dismissible
             >
                 EPA Saved
-                <template #action>
-                    <q-btn
-                        flat
-                        label="Dismiss"
-                        @click="success = false"
-                    ></q-btn>
-                </template>
-            </q-banner>
+            </StatusBanner>
 
             <div v-if="serviceId != null && epa?.epaId">
                 <div class="row justify-between items-center q-mb-lg">
@@ -161,13 +155,13 @@ watch(selectedStudentId, () => {
                     v-bind="studentEpa"
                     v-show="selectedStudentId > 0"
                 >
-                    <div
-                        class="bg-red-5 text-white q-pa-sm rounded q-mb-md"
+                    <StatusBanner
                         v-if="submitErrors"
+                        type="error"
                     >
                         Please make sure you have selected a service, EPA, student, a level on the entrustment scale,
                         and entered a comment.
-                    </div>
+                    </StatusBanner>
                     <LevelSelect
                         level-type="epa"
                         @level-change="(selectedLevelId: number) => (levelId = selectedLevelId)"

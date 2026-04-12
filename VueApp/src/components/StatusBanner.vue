@@ -4,6 +4,7 @@
         :class="bannerClass"
         :role="ariaRole"
         rounded
+        inline-actions
     >
         <template #avatar>
             <q-icon
@@ -35,13 +36,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed } from "vue"
 
 type BannerType = "success" | "error" | "warning" | "info"
 
 const {
     type,
-    icon,
+    icon = undefined,
     dismissible = false,
 } = defineProps<{
     type: BannerType
@@ -49,7 +50,7 @@ const {
     dismissible?: boolean
 }>()
 
-const visible = ref(true)
+const visible = defineModel<boolean>("visible", { default: true })
 
 const typeConfig: Record<BannerType, { icon: string; bg: string; iconCls: string }> = {
     success: { icon: "check_circle", bg: "status-banner-success", iconCls: "text-positive" },
