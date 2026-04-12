@@ -95,7 +95,7 @@
                                 {{roleTemplateRole.description}}
                             </div>
                         </div>
-                        <div v-else>
+                        <div v-if="viewRoleTemplateId != props.row.roleTemplateId">
                             {{ props.row.roles.length }} Roles
                         </div>
                     </div>

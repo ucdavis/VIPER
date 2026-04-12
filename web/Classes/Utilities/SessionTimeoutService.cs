@@ -7,6 +7,8 @@ namespace Viper.Classes.Utilities
 {
     public static class SessionTimeoutService
     {
+        private const int SessionTimeoutSeconds = (29 * 60) + 30;
+
         public static void UpdateSessionTimeout(VIPERContext context)
         {
             string loggedInUserId = GetLoggedInUserId();
@@ -18,7 +20,7 @@ namespace Viper.Classes.Utilities
                 SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);
                 if (record != null)
                 {
-                    record.SessionTimeoutDateTime = DateTime.Now.AddSeconds(29 * 60 + 30);
+                    record.SessionTimeoutDateTime = DateTime.Now.AddSeconds(SessionTimeoutSeconds);
                     context.Update(record);
                 }
                 else
@@ -26,7 +28,7 @@ namespace Viper.Classes.Utilities
                     context.Add(new SessionTimeout()
                     {
                         LoginId = loggedInUserId,
-                        SessionTimeoutDateTime = DateTime.Now.AddMinutes(29 * 60 + 30),
+                        SessionTimeoutDateTime = DateTime.Now.AddSeconds(SessionTimeoutSeconds),
                         Service = service
                     });
                 }

@@ -111,6 +111,11 @@ html {
     font-weight: 500;
 }
 
+#leftNavMenu .leftNavActiveSecondary {
+    background-color: #e6ecf2; /* lighter ucdavis-blue tint */
+    color: #022851; /* ucdavis-blue-100 */
+}
+
 /*Footer styles*/
 #footerNavLinks a {
     text-decoration: none;
