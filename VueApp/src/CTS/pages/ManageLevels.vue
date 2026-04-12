@@ -144,7 +144,7 @@ loadLevels()
                 @click="showForm = true"
             ></q-btn>
         </div>
-        <div v-if="Object.keys(level).length">
+        <div v-if="showForm">
             {{ level?.levelId ? "Update" : "Add" }} Level
             <div class="row">
                 <q-toggle

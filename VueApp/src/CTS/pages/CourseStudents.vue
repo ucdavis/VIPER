@@ -12,6 +12,7 @@ const student = ref("")
                 dense
                 options-dense
                 outlined
+                label="Student"
                 :options="['Student 1', 'Student 2']"
                 v-model="student"
             ></q-select>
@@ -28,22 +29,23 @@ const student = ref("")
             >
                 <thead>
                     <tr>
-                        <th>Assess Competency</th>
+                        <th class="text-center">Assess Competency</th>
                         <th class="text-left">Student</th>
                         <th class="text-left">Time</th>
                         <th class="text-center">Manually Added</th>
-                        <th class="text-left">Remove</th>
+                        <th class="text-center">Remove</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>
+                        <td class="text-center">
                             <q-btn
                                 dense
                                 flat
                                 icon="assignment"
                                 size="sm"
                                 color="primary"
+                                aria-label="Assess competency for Montserrat Armero"
                                 to="AssessmentCompetency?studentId=23631&sessionId="
                             ></q-btn>
                         </td>
@@ -54,26 +56,29 @@ const student = ref("")
                                 name="check"
                                 color="primary"
                                 size="sm"
+                                aria-label="Manually added"
                             ></q-icon>
                         </td>
-                        <td>
+                        <td class="text-center">
                             <q-btn
                                 dense
                                 icon="delete"
                                 color="negative"
                                 flat
                                 size="sm"
+                                aria-label="Remove Montserrat Armero"
                             ></q-btn>
                         </td>
                     </tr>
                     <tr>
-                        <td>
+                        <td class="text-center">
                             <q-btn
                                 dense
                                 flat
                                 icon="assignment"
                                 size="sm"
                                 color="primary"
+                                aria-label="Assess competency for Hailey Atwood"
                                 to="AssessmentCompetency?studentId=34123&sessionId="
                             ></q-btn>
                         </td>
@@ -84,26 +89,29 @@ const student = ref("")
                                 name="check"
                                 color="primary"
                                 size="sm"
+                                aria-label="Manually added"
                             ></q-icon>
                         </td>
-                        <td>
+                        <td class="text-center">
                             <q-btn
                                 dense
                                 icon="delete"
                                 color="negative"
                                 flat
                                 size="sm"
+                                aria-label="Remove Hailey Atwood"
                             ></q-btn>
                         </td>
                     </tr>
                     <tr>
-                        <td>
+                        <td class="text-center">
                             <q-btn
                                 dense
                                 flat
                                 icon="assignment"
                                 size="sm"
                                 color="primary"
+                                aria-label="Assess competency for Xander Avila"
                                 to="AssessmentCompetency?studentId=34158&sessionId="
                             ></q-btn>
                         </td>
@@ -114,15 +122,17 @@ const student = ref("")
                                 name="check"
                                 color="primary"
                                 size="sm"
+                                aria-label="Manually added"
                             ></q-icon>
                         </td>
-                        <td>
+                        <td class="text-center">
                             <q-btn
                                 dense
                                 icon="delete"
                                 color="negative"
                                 flat
                                 size="sm"
+                                aria-label="Remove Xander Avila"
                             ></q-btn>
                         </td>
                     </tr>
