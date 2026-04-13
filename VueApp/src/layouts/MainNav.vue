@@ -28,8 +28,9 @@
         </template>
         <q-btn
             flat
-            href="helpNav.menuItemURL"
+            :href="helpNav.menuItemURL"
             icon="help"
+            aria-label="Help"
             class="q-px-md text-primary"
         >
             <q-tooltip>Help</q-tooltip>
@@ -51,7 +52,7 @@ interface NavItem {
 }
 
 const topNav = ref<NavItem[]>([])
-const helpNav = ref("")
+const helpNav = ref<NavItem>({ menuItemURL: "", menuItemText: "" })
 const navClass =
     "q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-regular navLink "
 

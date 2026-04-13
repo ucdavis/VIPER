@@ -36,7 +36,7 @@
         }
 
         // Prefer relative/page links over tilde-prefixed instance links
-        if (string.Equals(currentPath, resolvedPath, StringComparison.Ordinal)
+        if (string.Equals(currentPath, resolvedPath, StringComparison.OrdinalIgnoreCase)
             && (activeIndex < 0 || (activeIsTilde && !isTilde)))
         {
             activeIndex = i;

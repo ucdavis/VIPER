@@ -66,7 +66,7 @@ try {
     }
 
     // Run ESLint on .cshtml files using root config
-    const eslintArgs = [...(fixFlag ? ["--fix"] : []), "--format", "json", ...files]
+    const eslintArgs = ["--no-warn-ignored", ...(fixFlag ? ["--fix"] : []), "--format", "json", ...files]
 
     logger.info(`Running ESLint security and quality checks on ${files.length} .cshtml files...`)
 

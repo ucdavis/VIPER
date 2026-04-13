@@ -191,9 +191,9 @@
                     var oldBase = this.membersTable.urlBase
                     this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
 
-                    await this.membersTable.delete(this)
+                    const deleted = await this.membersTable.delete(this)
                     this.membersTable.urlBase = oldBase
-                    this.pushMemberToVMACS()
+                    if (deleted) { this.pushMemberToVMACS() }
                     
                     this.disableMemberUpdate = false
                 },

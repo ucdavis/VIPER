@@ -11,7 +11,7 @@
             <template #avatar>
                 <q-icon
                     name="error"
-                    color="red"
+                    color="negative"
                 />
             </template>
             {{ errorMessage }}

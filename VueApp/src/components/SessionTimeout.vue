@@ -96,7 +96,7 @@ sessionTimeoutCheckEventId = window.setTimeout(checkSessionTimeout, 60000)
                 <q-icon
                     size="md"
                     :name="sessionExpired ? 'error' : 'warning'"
-                    :color="sessionExpired ? 'red' : 'orange'"
+                    :color="sessionExpired ? 'negative' : 'warning'"
                 ></q-icon>
                 <q-space></q-space>
                 <div v-if="sessionExpired">Your session has expired. Please log in again.</div>

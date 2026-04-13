@@ -13,7 +13,7 @@
         <div class="wrapper"></div>
     </header>
 
-    <main></main>
+    <div></div>
 </template>
 
 <style scoped>

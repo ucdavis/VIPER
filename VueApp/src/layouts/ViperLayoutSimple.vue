@@ -21,6 +21,11 @@ const currentYear = new Date().getFullYear()
 </script>
 
 <template>
+    <a
+        href="#main-content"
+        class="skip-to-content"
+        >Skip to main content</a
+    >
     <q-layout view="hHh lpr fff">
         <q-header
             elevated
@@ -58,15 +63,19 @@ const currentYear = new Date().getFullYear()
                                 >home</i
                             >
                             <span class="mainLayoutViper">VIPER 2.0</span>
-                            <span
+                            <q-badge
                                 v-if="environment == 'DEVELOPMENT'"
+                                color="negative"
+                                role="presentation"
                                 class="mainLayoutViperMode"
-                                >Development</span
+                                >Development</q-badge
                             >
-                            <span
+                            <q-badge
                                 v-if="environment == 'TEST'"
+                                color="negative"
+                                role="presentation"
                                 class="mainLayoutViperMode"
-                                >Test</span
+                                >Test</q-badge
                             >
                         </span>
                     </a>
@@ -97,15 +106,19 @@ const currentYear = new Date().getFullYear()
                     :href="viperHome"
                 >
                     <span class="mainLayoutViper">VIPER 2.0</span>
-                    <span
+                    <q-badge
                         v-if="environment == 'DEVELOPMENT'"
+                        color="negative"
+                        role="presentation"
                         class="mainLayoutViperMode"
-                        >Development</span
+                        >Development</q-badge
                     >
-                    <span
+                    <q-badge
                         v-if="environment == 'TEST'"
+                        color="negative"
+                        role="presentation"
                         class="mainLayoutViperMode"
-                        >Test</span
+                        >Test</q-badge
                     >
                 </q-btn>
 
@@ -153,12 +166,17 @@ const currentYear = new Date().getFullYear()
         </q-header>
 
         <q-page-container id="mainLayoutBody">
-            <div
-                class="q-pa-md"
-                v-show="userStore.isLoggedIn"
+            <main
+                id="main-content"
+                tabindex="-1"
             >
-                <router-view></router-view>
-            </div>
+                <div
+                    class="q-pa-md"
+                    v-show="userStore.isLoggedIn"
+                >
+                    <router-view></router-view>
+                </div>
+            </main>
         </q-page-container>
 
         <q-footer
@@ -180,12 +198,14 @@ const currentYear = new Date().getFullYear()
                             color="primary"
                             name="help_center"
                             size="xs"
+                            aria-hidden="true"
                         ></q-icon>
                         SVM-IT ServiceDesk
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a
-                        href="http://www.vetmed.ucdavis.edu/"
+                        href="https://www.vetmed.ucdavis.edu/"
                         target="_blank"
                         rel="noopener"
                         class="text-primary"
@@ -194,12 +214,14 @@ const currentYear = new Date().getFullYear()
                             color="primary"
                             name="navigation"
                             size="xs"
+                            aria-hidden="true"
                         ></q-icon>
                         SVM Home
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
                     <a
-                        href="http://www.ucdavis.edu/"
+                        href="https://www.ucdavis.edu/"
                         target="_blank"
                         rel="noopener"
                         class="text-primary"
@@ -208,8 +230,10 @@ const currentYear = new Date().getFullYear()
                             color="primary"
                             name="school"
                             size="xs"
+                            aria-hidden="true"
                         ></q-icon>
                         UC Davis
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                 </div>
                 <div class="">

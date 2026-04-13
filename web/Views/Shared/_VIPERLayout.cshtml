@@ -28,7 +28,6 @@
     <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet" type="text/css">
     <script src="~/js/ucdavis-colors.js"></script>
     <script asp-add-nonce="true">
-        /* global window, document */
         // Apply UC Davis brand colors immediately to prevent flash
         // Must run after Quasar CSS loads but before page content renders
         (function() {
@@ -39,9 +38,9 @@
                 accent: '#ffc519',       // UC Davis Gold 90
                 dark: '#1d1d1d',         // Dark background
                 'dark-page': '#121212',  // Darker page background
-                positive: '#226e34',     // Green for success states
-                negative: '#6e2222',     // Red for error states
-                info: '#289094',         // Teal for informational states
+                positive: '#266041',     // Redwood - green for success states
+                negative: '#79242F',     // Merlot - red for error states
+                info: '#00B2E3',         // Tahoe - blue for informational states
                 warning: '#ffc519'       // Gold for warning states
             };
 
@@ -57,6 +56,7 @@
 
 </head>
 <body>
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
     <q-layout view="hHh lpR fFf">
         <q-header elevated id="mainLayoutHeader" height-hint="98">
             <div v-show="false" id="headerPlaceholder">
@@ -69,38 +69,38 @@
                             <span class="mainLayoutViper">VIPER 2.0</span>
                             @if (HttpHelper.Environment?.EnvironmentName == "Development")
                             {
-                                <span class="mainLayoutViperMode">Development</span>
+                                <q-badge color="negative" role="presentation" class="mainLayoutViperMode">Development</q-badge>
                             }
                             else if (HttpHelper.Environment?.EnvironmentName == "Test")
                             {
-                                <span class="mainLayoutViperMode">Test</span>
+                                <q-badge color="negative" role="presentation" class="mainLayoutViperMode">Test</q-badge>
                             }
                         </span>
                     </a>
                 </div>
             </div>
             <q-toolbar v-cloak class="items-end">
-                <img src="@Url.Content("~/images/")UCDSVMLogo.png" height="50" />
+                <img src="@Url.Content("~/images/")UCDSVMLogo.png" height="50" alt="UC Davis School of Veterinary Medicine Logo" />
 
-                <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
+                <q-btn flat dense icon="menu" aria-label="Navigation menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
                     user = UserHelper.GetCurrentUser()
                     }
                     )
                 </q-btn>
-                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
+                <q-btn flat dense icon="list" aria-label="Toggle sidebar" class="q-mr-xs lt-md" @@click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
                 <q-btn flat dense label="Viper 2.0" class="lt-md" href="@Url.Content("~/")"></q-btn>
 
                 <q-btn flat dense no-caps class="gt-sm text-white q-py-none q-ml-md self-end" href="@Url.Content("~/")">
                     <span class="mainLayoutViper">VIPER 2.0</span>
                     @if (HttpHelper.Environment?.EnvironmentName == "Development")
                     {
-                        <span class="mainLayoutViperMode">Development</span>
+                        <q-badge color="negative" role="presentation" class="mainLayoutViperMode">Development</q-badge>
                     }
                     else if (HttpHelper.Environment?.EnvironmentName == "Test")
                     {
-                        <span class="mainLayoutViperMode">Test</span>
+                        <q-badge color="negative" role="presentation" class="mainLayoutViperMode">Test</q-badge>
                     }
                 </q-btn>
 
@@ -143,50 +143,55 @@
         )
 
         <q-page-container id="mainLayoutBody">
-            @{
-                var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
-            }
-            @if (UserHelper.GetCurrentUser() != null || allowAnonymousContent)
-            {
-                <div class="q-pa-md" v-cloak>
-                @RenderBody()
-                </div>
-            }
-            else
-            {
-                IgnoreBody();
-                <div class="q-pa-xl flex flex-center" v-cloak>
-                    <q-card class="text-center" style="max-width: 400px">
-                        <q-card-section>
-                            <div class="text-h6">Welcome to VIPER</div>
-                            <div class="text-body1 q-mt-sm text-grey-7">
-                                Please log in to access this application.
-                            </div>
-                        </q-card-section>
-                        <q-card-actions align="center" class="q-pb-md">
-                            <q-btn color="primary" label="Log In" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
-                        </q-card-actions>
-                    </q-card>
-                </div>
-            }
+            <main id="main-content" tabindex="-1">
+                @{
+                    var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
+                }
+                @if (UserHelper.GetCurrentUser() != null || allowAnonymousContent)
+                {
+                    <div class="q-pa-md" v-cloak>
+                    @RenderBody()
+                    </div>
+                }
+                else
+                {
+                    IgnoreBody();
+                    <div class="q-pa-xl flex flex-center" v-cloak>
+                        <q-card class="text-center" style="max-width: 400px">
+                            <q-card-section>
+                                <div class="text-h6">Welcome to VIPER</div>
+                                <div class="text-body1 q-mt-sm text-grey-7">
+                                    Please log in to access this application.
+                                </div>
+                            </q-card-section>
+                            <q-card-actions align="center" class="q-pb-md">
+                                <q-btn color="primary" label="Log In" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
+                            </q-card-actions>
+                        </q-card>
+                    </div>
+                }
+            </main>
         </q-page-container>
 
         <q-footer elevated class="bg-white" v-cloak>
             <div class="q-py-sm q-px-md q-gutter-xs text-caption row" id="footerNavLinks">
                 <div class="col-12 col-md q-pl-md">
                     <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="help_center" size="xs"></q-icon>
+                        <q-icon color="primary" name="help_center" size="xs" aria-hidden="true"></q-icon>
                         SVM-IT ServiceDesk
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
-                    <a href="http://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="navigation" size="xs"></q-icon>
+                    <a href="https://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="navigation" size="xs" aria-hidden="true"></q-icon>
                         SVM Home
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                     <span class="text-primary q-px-sm">|</span>
-                    <a href="http://www.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="school" size="xs"></q-icon>
+                    <a href="https://www.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
+                        <q-icon color="primary" name="school" size="xs" aria-hidden="true"></q-icon>
                         UC Davis
+                        <span class="sr-only">(opens in new window)</span>
                     </a>
                 </div>
                 <div class="col-12 col-md-auto gt-sm">

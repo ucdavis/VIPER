@@ -282,6 +282,11 @@ void getStudents()
                             class="smallPhoto rounded-borders"
                             loading="eager"
                             :no-spinner="true"
+                            :alt="
+                                selectedStudent
+                                    ? `${selectedStudent.firstName} ${selectedStudent.lastName}'s photo`
+                                    : 'Student photo'
+                            "
                         />
                     </q-avatar>
                 </template>
