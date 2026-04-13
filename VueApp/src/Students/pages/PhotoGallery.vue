@@ -351,7 +351,10 @@
                                     class="cursor-pointer"
                                 >
                                     <q-td colspan="100%">
-                                        <q-item class="q-pa-sm">
+                                        <q-item
+                                            class="q-pa-sm"
+                                            role="none"
+                                        >
                                             <q-item-section avatar>
                                                 <img
                                                     v-if="props.row.hasPhoto"

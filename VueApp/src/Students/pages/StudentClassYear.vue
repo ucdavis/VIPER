@@ -23,7 +23,7 @@ const activeOnly = ref(false)
 
 //table columns, rows, properties
 const cols: QTableProps["columns"] = [
-    { name: "avatar", label: "", field: "", align: "left", style: "width:75px;" },
+    { name: "avatar", label: "Photo", field: "", align: "left", style: "width:75px;" },
     { name: "name", label: "Student", field: "", align: "left", sortable: true },
     { name: "classyear", label: "Class Year", field: "personId", align: "left", sortable: true },
     { name: "previousyears", label: "Prev Years", field: "firstName", align: "left", sortable: true },
@@ -346,7 +346,7 @@ load()
                         :label="cy.classYear"
                         v-if="cy.active"
                         color="primary"
-                        class="q-px-sm"
+                        class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
                         <q-badge
@@ -378,7 +378,7 @@ load()
                         :label="cy.classYear"
                         v-if="!cy.active"
                         color="secondary"
-                        class="q-px-sm"
+                        class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
                         <q-badge
