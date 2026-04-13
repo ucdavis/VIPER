@@ -96,7 +96,7 @@
             }
             @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
             {
-                @: <div v-if="props.row.currentAffiliate == true"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + props.row.iamId + '&mailID=' + props.row.mailId + '&empName=' + props.row.name">Alt. Photo</a></div>
+                @: <div v-if="props.row.iamId && props.row.mailId"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + props.row.iamId + '&mailID=' + props.row.mailId + '&empName=' + encodeURIComponent(props.row.name)">Alt. Photo</a></div>
             }
         </q-td>
     </template>

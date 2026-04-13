@@ -65,7 +65,7 @@
                     @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + user.iamId + '&mailID=' + user.mailId + '&empName=' + encodeURIComponent(user.name)" v-if="ids && user.currentAffiliate" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + user.iamId + '&mailID=' + user.mailId + '&empName=' + encodeURIComponent(user.name)" v-if="ids && user.iamId && user.mailId" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
                         <q-icon name="photo_camera" size="xs"></q-icon>
                         <q-tooltip>Alt. Photo</q-tooltip>
                     </a>
