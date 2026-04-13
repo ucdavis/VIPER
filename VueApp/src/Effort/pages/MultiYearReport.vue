@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Multi-Year</h2>
+        <h1>Merit &amp; Promotion Report - Multi-Year</h1>
 
         <!-- Step 1: Select Instructor (shown when no instructor selected) -->
         <div
@@ -42,16 +42,7 @@
                 </div>
             </div>
             <div class="text-grey-7 text-center q-pa-lg">Select an instructor to configure the report.</div>
-            <q-banner
-                class="bg-blue-1 text-caption q-mt-md"
-                rounded
-            >
-                <template #avatar>
-                    <q-icon
-                        name="info"
-                        color="primary"
-                    />
-                </template>
+            <StatusBanner type="info">
                 <p class="q-mb-xs">
                     Faculty count for department averages is a sum of all faculty for the time period specified.
                 </p>
@@ -59,7 +50,7 @@
                     The "Department" used for that average is based on the LAST entry in the review period for the
                     reviewee.
                 </p>
-            </q-banner>
+            </StatusBanner>
         </div>
 
         <!-- Step 2: Configure & Generate (after instructor selected) -->
@@ -194,17 +185,10 @@
             </div>
 
             <!-- Bottom notes -->
-            <q-banner
+            <StatusBanner
                 v-if="!report && !loading"
-                class="bg-blue-1 text-caption q-mt-sm"
-                rounded
+                type="info"
             >
-                <template #avatar>
-                    <q-icon
-                        name="info"
-                        color="primary"
-                    />
-                </template>
                 <p class="q-mb-xs">
                     Faculty count for department averages is a sum of all faculty for the time period specified.
                 </p>
@@ -212,7 +196,7 @@
                     The "Department" used for that average is based on the LAST entry in the review period for the
                     reviewee.
                 </p>
-            </q-banner>
+            </StatusBanner>
         </div>
 
         <!-- Loading state -->
@@ -628,6 +612,7 @@ import {
 } from "../composables/use-effort-type-columns"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import ExportToolbar from "@/components/ExportToolbar.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import LeaveEditorModal from "../components/LeaveEditorModal.vue"
 import type { MultiYearReport, PersonDto, TermDto, SabbaticalDto } from "../types"

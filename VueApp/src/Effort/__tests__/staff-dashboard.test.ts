@@ -55,9 +55,14 @@ function formatChangeAction(action: string): string {
         .replace(/^./, (str) => str.toUpperCase())
 }
 
-const TERM_STATUS_COLORS: Record<string, string> = { Opened: "positive", Closed: "grey", Harvested: "info" }
+const TERM_STATUS_COLORS: Record<string, string> = { Opened: "positive", Closed: "grey-5", Harvested: "info" }
 function getTermStatusColor(status?: string): string {
-    return (status && TERM_STATUS_COLORS[status]) ?? "grey"
+    return (status && TERM_STATUS_COLORS[status]) ?? "grey-5"
+}
+
+const TERM_STATUS_TEXT_COLORS: Record<string, string> = { Opened: "white", Harvested: "dark" }
+function getTermStatusTextColor(status?: string): string {
+    return (status && TERM_STATUS_TEXT_COLORS[status]) ?? "grey-9"
 }
 
 const ALERT_ICONS: Record<string, string> = {
@@ -243,24 +248,26 @@ describe("StaffDashboard - Format Change Action", () => {
 })
 
 describe("StaffDashboard - Term Status Color", () => {
-    it("should return positive for Opened", () => {
-        expect(getTermStatusColor("Opened")).toBe("positive")
+    it.each([
+        ["Opened", "positive"],
+        ["Closed", "grey-5"],
+        ["Harvested", "info"],
+        [undefined, "grey-5"],
+        ["Unknown", "grey-5"],
+    ])("returns %s background color for %s status", (status, expected) => {
+        expect(getTermStatusColor(status)).toBe(expected)
     })
+})
 
-    it("should return grey for Closed", () => {
-        expect(getTermStatusColor("Closed")).toBe("grey")
-    })
-
-    it("should return info for Harvested", () => {
-        expect(getTermStatusColor("Harvested")).toBe("info")
-    })
-
-    it("should return grey for undefined", () => {
-        expect(getTermStatusColor()).toBe("grey")
-    })
-
-    it("should return grey for unknown status", () => {
-        expect(getTermStatusColor("Unknown")).toBe("grey")
+describe("StaffDashboard - Term Status Text Color", () => {
+    it.each([
+        ["Opened", "white"],
+        ["Closed", "grey-9"],
+        ["Harvested", "dark"],
+        [undefined, "grey-9"],
+        ["Unknown", "grey-9"],
+    ])("returns %s text color for %s status", (status, expected) => {
+        expect(getTermStatusTextColor(status)).toBe(expected)
     })
 })
 

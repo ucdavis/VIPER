@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Percent Assignment Types</h2>
+        <h1>Percent Assignment Types</h1>
 
         <div
             v-if="isLoading"
@@ -45,7 +45,7 @@
                         <q-td :props="props">
                             <q-icon
                                 :name="props.row.showOnTemplate ? 'check_circle' : 'cancel'"
-                                :color="props.row.showOnTemplate ? 'positive' : 'grey'"
+                                :color="props.row.showOnTemplate ? 'positive' : 'negative'"
                                 size="sm"
                             />
                         </q-td>

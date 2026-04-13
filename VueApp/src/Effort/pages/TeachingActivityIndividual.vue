@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Teaching Activity Report - Individual</h2>
+        <h1>Teaching Activity Report - Individual</h1>
 
         <ReportFilterForm
             :term-code="termCode"
@@ -37,7 +37,7 @@
             <template v-if="allInstructors.length === 0">
                 <div
                     role="status"
-                    class="text-grey-6 text-center q-pa-lg"
+                    class="text-grey-7 text-center q-pa-lg"
                 >
                     No data found for the selected filters.
                 </div>
@@ -56,7 +56,7 @@
                         <div class="text-weight-bold">{{ instructor.instructor }}</div>
                         <div
                             v-if="instructor.department"
-                            class="text-caption text-grey-7"
+                            class="text-caption text-grey-8"
                         >
                             {{ instructor.department }}
                         </div>

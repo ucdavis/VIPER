@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h2 class="q-ma-none">Manage Units</h2>
+            <h1 class="q-ma-none">Manage Units</h1>
             <q-space />
             <q-btn
                 label="Add Unit"
@@ -104,6 +104,7 @@
                         <q-toggle
                             :model-value="props.row.isActive"
                             dense
+                            :aria-label="`${props.row.name} active`"
                             :disable="isTogglingId === props.row.id"
                             @update:model-value="toggleActive(props.row)"
                         />

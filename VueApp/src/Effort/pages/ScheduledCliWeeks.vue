@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Scheduled Clinical Weeks</h2>
+        <h1>Merit &amp; Promotion Report - Scheduled Clinical Weeks</h1>
 
         <ReportFilterForm
             :term-code="termCode"
@@ -25,13 +25,10 @@
 
         <!-- Report content -->
         <template v-else-if="report">
-            <q-banner
-                class="bg-info text-white q-mb-md"
-                rounded
-            >
+            <StatusBanner type="info">
                 The following data is based on the instructor schedule pulled live from the Clinical Scheduler. It does
                 not contain the verified effort entered by faculty and departments.
-            </q-banner>
+            </StatusBanner>
             <div class="row items-center q-pa-sm q-mb-md bg-grey-2 rounded-borders">
                 <div class="col text-h6">Scheduled Clinical Weeks</div>
                 <div class="col-auto no-print">
@@ -79,6 +76,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { reportService } from "../services/report-service"
 import { useReportPage } from "../composables/use-report-page"
 import ExportToolbar from "@/components/ExportToolbar.vue"

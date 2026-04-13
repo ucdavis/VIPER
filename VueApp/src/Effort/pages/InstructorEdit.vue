@@ -26,9 +26,9 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
+            type="error"
         >
             {{ loadError }}
             <template #action>
@@ -38,7 +38,7 @@
                     :to="{ name: 'InstructorList', params: { termCode } }"
                 />
             </template>
-        </q-banner>
+        </StatusBanner>
 
         <!-- Instructor content -->
         <template v-else-if="instructor">
@@ -138,13 +138,12 @@
                         @filter="filterTitleCodes"
                     >
                         <template #before-options>
-                            <q-banner
+                            <StatusBanner
                                 v-if="isOrphanedTitleCode"
-                                class="bg-warning text-white q-mb-sm"
-                                dense
+                                type="warning"
                             >
                                 Current value "{{ form.effortTitleCode }}" is not in the standard list
-                            </q-banner>
+                            </StatusBanner>
                         </template>
                         <template #no-option>
                             <q-item>
@@ -167,13 +166,12 @@
                         clearable
                     >
                         <template #before-options>
-                            <q-banner
+                            <StatusBanner
                                 v-if="isOrphanedJobGroup"
-                                class="bg-warning text-white q-mb-sm"
-                                dense
+                                type="warning"
                             >
                                 Current value "{{ form.jobGroupId }}" is not in the standard list
-                            </q-banner>
+                            </StatusBanner>
                         </template>
                     </q-select>
 
@@ -199,19 +197,12 @@
                         </span>
                     </q-checkbox>
 
-                    <q-banner
+                    <StatusBanner
                         v-if="settingsErrorMessage"
-                        class="bg-negative text-white"
-                        rounded
+                        type="error"
                     >
-                        <template #avatar>
-                            <q-icon
-                                name="error"
-                                color="white"
-                            />
-                        </template>
                         {{ settingsErrorMessage }}
-                    </q-banner>
+                    </StatusBanner>
                 </q-form>
 
                 <div class="row justify-end q-mt-sm">
@@ -317,6 +308,7 @@ import type {
     PercentAssignTypeDto,
     UnitDto,
 } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import PercentAssignmentTable from "../components/PercentAssignmentTable.vue"
 import PercentAssignmentAddDialog from "../components/PercentAssignmentAddDialog.vue"
 import PercentAssignmentEditDialog from "../components/PercentAssignmentEditDialog.vue"

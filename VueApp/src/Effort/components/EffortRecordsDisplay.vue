@@ -103,17 +103,13 @@
             <h4 class="q-mt-none q-mb-sm">Resident Teaching (R-Course)</h4>
 
             <!-- Generic R-course with zero effort info -->
-            <q-banner
+            <StatusBanner
                 v-if="hasGenericRCourseWithZeroEffort"
-                class="bg-info text-white q-mb-md"
-                rounded
+                type="info"
             >
-                <template #avatar>
-                    <q-icon name="info" />
-                </template>
                 The Resident (R) course was added automatically to allow recording of resident teaching effort. If left
                 with 0 effort and verified, it will be automatically removed.
-            </q-banner>
+            </StatusBanner>
 
             <!-- R-Course Mobile Card View -->
             <div class="lt-sm">
@@ -224,6 +220,7 @@
 import { computed } from "vue"
 import type { QTableColumn } from "quasar"
 import type { InstructorEffortRecordDto } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import EffortRecordsTable from "./EffortRecordsTable.vue"
 import "../effort-record-table.css"
 

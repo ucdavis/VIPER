@@ -39,13 +39,16 @@
 import { computed } from "vue"
 
 type BannerType = "success" | "error" | "warning" | "info"
+type LiveMode = "off" | "polite" | "assertive"
 
 const {
     type,
+    live = undefined,
     icon = undefined,
     dismissible = false,
 } = defineProps<{
     type: BannerType
+    live?: LiveMode
     icon?: string
     dismissible?: boolean
 }>()
@@ -64,7 +67,17 @@ const config = computed(() => typeConfig[type])
 const resolvedIcon = computed(() => icon ?? config.value.icon)
 const bannerClass = computed(() => `${config.value.bg} q-mb-md`)
 const iconClass = computed(() => config.value.iconCls)
-const ariaRole = computed(() => (type === "error" || type === "warning" ? "alert" : "status"))
+
+// Only `error` defaults to an assertive announcement, since errors typically follow a
+// user action (failed submit, save error) where interrupting is expected. Other types
+// default to a polite live region so persistent state indicators loaded with the page
+// don't interrupt screen-reader focus. Callers override with the `live` prop:
+// `live="assertive"` for truly urgent notices, `live="off"` for decorative banners.
+const resolvedLive = computed<LiveMode>(() => live ?? (type === "error" ? "assertive" : "polite"))
+const ariaRole = computed<"alert" | "status" | undefined>(() => {
+    if (resolvedLive.value === "off") return undefined
+    return resolvedLive.value === "assertive" ? "alert" : "status"
+})
 </script>
 
 <style scoped>

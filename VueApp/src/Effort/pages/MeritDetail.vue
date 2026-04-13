@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Detail</h2>
+        <h1>Merit &amp; Promotion Report - Detail</h1>
 
         <ReportFilterForm
             :term-code="termCode"

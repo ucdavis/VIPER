@@ -10,20 +10,12 @@
         </div>
 
         <!-- Error state -->
-        <q-banner
+        <StatusBanner
             v-else-if="loadError"
-            class="bg-negative text-white q-mb-md"
-            rounded
-            role="alert"
+            type="error"
         >
-            <template #avatar>
-                <q-icon
-                    name="error"
-                    color="white"
-                />
-            </template>
             {{ loadError }}
-        </q-banner>
+        </StatusBanner>
 
         <template v-else-if="records.length > 0">
             <!-- Mobile Card View -->
@@ -84,7 +76,21 @@
                             <div class="text-body2 q-mb-xs">
                                 {{ record.effortTypeDescription }} ({{ record.effortTypeId }}) &bull;
                                 <span :class="{ 'zero-effort-text': record.effortValue === 0 }">
+                                    <q-icon
+                                        v-if="record.effortValue === 0"
+                                        name="report_problem"
+                                        color="warning"
+                                        size="1rem"
+                                        class="q-mr-xs"
+                                        aria-hidden="true"
+                                    />
                                     {{ record.effortValue }} {{ record.effortLabel }}
+                                    <span
+                                        v-if="record.effortValue === 0"
+                                        class="sr-only"
+                                    >
+                                        (zero effort)
+                                    </span>
                                 </span>
                             </div>
                             <div
@@ -217,8 +223,22 @@
 
                             <!-- Effort cell with unit label -->
                             <template v-else-if="col.name === 'effort'">
+                                <q-icon
+                                    v-if="slotProps.row.effortValue === 0"
+                                    name="report_problem"
+                                    color="warning"
+                                    size="1rem"
+                                    class="q-mr-xs"
+                                    aria-hidden="true"
+                                />
                                 {{ slotProps.row.effortValue }}
                                 {{ slotProps.row.effortLabel }}
+                                <span
+                                    v-if="slotProps.row.effortValue === 0"
+                                    class="sr-only"
+                                >
+                                    (zero effort)
+                                </span>
                             </template>
 
                             <!-- Actions cell -->
@@ -279,6 +299,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 import type { QTableColumn } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { CourseEffortRecordDto } from "../types"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import "../effort-record-table.css"

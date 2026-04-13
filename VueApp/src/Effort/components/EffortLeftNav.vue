@@ -204,7 +204,7 @@
                     v-ripple
                     href="https://ucdsvm.knowledgeowl.com/help/effort-system-overview"
                     target="_blank"
-                    rel="noopener"
+                    rel="noopener noreferrer"
                     class="leftNavLink"
                 >
                     <q-item-section>
@@ -217,6 +217,13 @@
                                 size="xs"
                             />
                             <span>Help</span>
+                            <q-icon
+                                name="open_in_new"
+                                size="xs"
+                                class="q-ml-xs"
+                                aria-hidden="true"
+                            />
+                            <span class="sr-only">(opens in new window)</span>
                         </q-item-label>
                     </q-item-section>
                 </q-item>

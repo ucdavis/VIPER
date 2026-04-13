@@ -84,32 +84,18 @@
                     </div>
                 </div>
 
-                <q-banner
+                <StatusBanner
                     v-if="searchError"
-                    class="bg-negative text-white q-mb-md"
-                    rounded
+                    type="error"
                 >
-                    <template #avatar>
-                        <q-icon
-                            name="error"
-                            color="white"
-                        />
-                    </template>
                     {{ searchError }}
-                </q-banner>
+                </StatusBanner>
 
                 <!-- No results message (self mode - richer banner) -->
-                <q-banner
+                <StatusBanner
                     v-if="isSelfMode && hasSearched && !isSearching && searchResults.length === 0"
-                    class="bg-info text-white q-mb-md"
-                    rounded
+                    type="info"
                 >
-                    <template #avatar>
-                        <q-icon
-                            name="info"
-                            color="white"
-                        />
-                    </template>
                     <div>
                         No courses found.
                         <ul class="q-mt-sm q-mb-none">
@@ -117,7 +103,7 @@
                             <li>You may need to wait for Banner data to sync</li>
                         </ul>
                     </div>
-                </q-banner>
+                </StatusBanner>
 
                 <!-- Search Results - Card view for mobile -->
                 <div
@@ -139,12 +125,14 @@
                                 </div>
                                 <q-badge
                                     v-if="course.alreadyImported"
-                                    color="grey"
+                                    color="grey-5"
+                                    text-color="grey-9"
                                     >Already Imported</q-badge
                                 >
                                 <q-badge
                                     v-else-if="course.importedUnitValues.length > 0"
-                                    color="orange"
+                                    color="warning"
+                                    text-color="dark"
                                     >Imported: {{ course.importedUnitValues.join(", ") }} units</q-badge
                                 >
                                 <q-badge
@@ -160,6 +148,7 @@
                                     Units: {{ course.unitLow }}-{{ course.unitHigh }}
                                     <q-badge
                                         color="info"
+                                        text-color="dark"
                                         dense
                                         class="q-ml-xs"
                                         >Variable</q-badge
@@ -220,6 +209,7 @@
                                 {{ slotProps.row.unitLow }} - {{ slotProps.row.unitHigh }}
                                 <q-badge
                                     color="info"
+                                    text-color="dark"
                                     class="q-ml-xs"
                                     >Variable</q-badge
                                 >
@@ -232,10 +222,16 @@
                     <template #body-cell-status="slotProps">
                         <q-td :props="slotProps">
                             <template v-if="slotProps.row.alreadyImported">
-                                <q-badge color="grey">Already Imported</q-badge>
+                                <q-badge
+                                    color="grey-5"
+                                    text-color="grey-9"
+                                    >Already Imported</q-badge
+                                >
                             </template>
                             <template v-else-if="slotProps.row.importedUnitValues.length > 0">
-                                <q-badge color="orange"
+                                <q-badge
+                                    color="warning"
+                                    text-color="dark"
                                     >Imported: {{ slotProps.row.importedUnitValues.join(", ") }} units</q-badge
                                 >
                             </template>
@@ -326,16 +322,12 @@
                 </template>
 
                 <!-- Import error display -->
-                <q-banner
+                <StatusBanner
                     v-if="importError"
-                    class="bg-negative text-white q-mt-md"
-                    dense
+                    type="error"
                 >
-                    <template #avatar>
-                        <q-icon name="error" />
-                    </template>
                     {{ importError }}
-                </q-banner>
+                </StatusBanner>
             </q-card-section>
 
             <q-card-actions align="right">
@@ -367,6 +359,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { courseService } from "../services/course-service"
 import type { BannerCourseDto } from "../types"
 import type { QTableColumn } from "quasar"
@@ -445,7 +438,7 @@ const columns: QTableColumn[] = [
     { name: "enrollment", label: "Enrollment", field: "enrollment", align: "center" },
     { name: "units", label: "Units", field: "unitLow", align: "center" },
     { name: "status", label: "Status", field: "alreadyImported", align: "center" },
-    { name: "actions", label: "", field: "actions", align: "center" },
+    { name: "actions", label: "Actions", field: "actions", align: "center" },
 ]
 
 // Reset search when dialog opens

@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Effort Dashboard</h2>
+        <h1>Effort Dashboard</h1>
 
         <!-- Loading state -->
         <div
@@ -30,6 +30,7 @@
                                 size="12px"
                                 class="q-mb-sm"
                                 rounded
+                                aria-label="Overall verification progress"
                             />
                             <div class="text-caption text-grey-7">
                                 {{ stats.verifiedInstructors }} of {{ stats.totalInstructors }} instructors verified
@@ -102,7 +103,7 @@
                                     tabindex="0"
                                     @click="scrollToNoInstructorsAlert"
                                     @keyup.enter="scrollToNoInstructorsAlert"
-                                    @keyup.space.prevent="scrollToNoInstructorsAlert"
+                                    @keydown.space.prevent="scrollToNoInstructorsAlert"
                                 >
                                     {{ stats.coursesWithoutInstructors }} without instructors
                                 </q-badge>
@@ -186,6 +187,7 @@
                                 <span class="text-h6">{{ stats.currentTerm?.termName }}</span>
                                 <q-badge
                                     :color="getTermStatusColor(stats.currentTerm?.status)"
+                                    :text-color="getTermStatusTextColor(stats.currentTerm?.status)"
                                     class="q-pa-sm q-ml-sm"
                                 >
                                     {{ stats.currentTerm?.status }}
@@ -213,7 +215,7 @@
                             </div>
                             <div
                                 v-if="stats.currentTerm?.closedDate && stats.currentTerm?.openedDate"
-                                class="text-caption text-grey-6 q-mt-xs"
+                                class="text-caption text-grey-7 q-mt-xs"
                             >
                                 Open for
                                 {{ getTermDuration(stats.currentTerm.openedDate, stats.currentTerm.closedDate) }}
@@ -272,7 +274,7 @@
                                             :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
                                             @click="navigateToDepartment(dept.departmentCode)"
                                             @keyup.enter="navigateToDepartment(dept.departmentCode)"
-                                            @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                            @keydown.space.prevent="navigateToDepartment(dept.departmentCode)"
                                         >
                                             <div class="dept-name text-truncate">
                                                 {{ getDeptDisplayName(dept) }}
@@ -287,8 +289,9 @@
                                                     size="8px"
                                                     class="dept-bar"
                                                     rounded
+                                                    :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-6">
+                                                <span class="dept-count text-caption text-grey-8">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -320,7 +323,7 @@
                                             :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
                                             @click="navigateToDepartment(dept.departmentCode)"
                                             @keyup.enter="navigateToDepartment(dept.departmentCode)"
-                                            @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                            @keydown.space.prevent="navigateToDepartment(dept.departmentCode)"
                                         >
                                             <div class="dept-name text-truncate">
                                                 {{ getDeptDisplayName(dept) }}
@@ -335,8 +338,9 @@
                                                     size="8px"
                                                     class="dept-bar"
                                                     rounded
+                                                    :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-6">
+                                                <span class="dept-count text-caption text-grey-8">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -362,7 +366,7 @@
                                         :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
                                         @click="navigateToDepartment(dept.departmentCode)"
                                         @keyup.enter="navigateToDepartment(dept.departmentCode)"
-                                        @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                        @keydown.space.prevent="navigateToDepartment(dept.departmentCode)"
                                     >
                                         <div class="dept-name text-truncate">
                                             {{ getDeptDisplayName(dept) }}
@@ -377,8 +381,9 @@
                                                 size="8px"
                                                 class="dept-bar"
                                                 rounded
+                                                :aria-label="dept.departmentName + ' verification progress'"
                                             />
-                                            <span class="dept-count text-caption text-grey-6">
+                                            <span class="dept-count text-caption text-grey-8">
                                                 ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                             </span>
                                         </div>
@@ -488,22 +493,22 @@
                         <q-item-section>
                             <div class="text-h6">Data Hygiene Alerts</div>
                         </q-item-section>
-                        <q-item-section side>
+                    </template>
+                    <q-card-section class="q-pt-none">
+                        <div class="row justify-end q-mb-sm">
                             <q-btn
                                 flat
                                 dense
                                 size="sm"
                                 :label="showIgnoredAlerts ? 'Hide Ignored' : 'Show Ignored'"
-                                @click.stop="showIgnoredAlerts = !showIgnoredAlerts"
+                                @click="showIgnoredAlerts = !showIgnoredAlerts"
                             />
-                        </q-item-section>
-                    </template>
-                    <q-card-section class="q-pt-none">
+                        </div>
                         <template v-if="visibleAlerts.length === 0">
                             <div class="text-grey-6 text-center q-pa-md">No alerts to display</div>
                         </template>
 
-                        <q-list
+                        <div
                             v-else
                             class="alert-sections"
                         >
@@ -538,7 +543,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -565,7 +571,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -607,7 +613,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -637,7 +644,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -679,7 +686,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -706,7 +714,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -749,7 +757,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -776,7 +785,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -818,7 +827,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -845,7 +855,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -853,7 +863,7 @@
                                     </q-item>
                                 </q-list>
                             </q-expansion-item>
-                        </q-list>
+                        </div>
                     </q-card-section>
                 </q-expansion-item>
             </q-card>
@@ -895,7 +905,10 @@
                     />
                 </q-card-section>
                 <q-separator />
-                <q-card-section style="max-height: 70vh; overflow: auto">
+                <q-card-section
+                    style="max-height: 70vh; overflow: auto"
+                    tabindex="0"
+                >
                     <template v-if="allAlerts.length === 0">
                         <div class="text-grey-6 text-center q-pa-md">No alerts</div>
                     </template>
@@ -1102,11 +1115,23 @@ function getTermStatusColor(status: string | undefined): string {
         case "Opened":
             return "positive"
         case "Closed":
-            return "grey"
+            return "grey-5"
         case "Harvested":
             return "info"
         default:
-            return "grey"
+            return "grey-5"
+    }
+}
+
+function getTermStatusTextColor(status: string | undefined): string {
+    switch (status) {
+        case "Opened":
+            return "white"
+        case "Harvested":
+            return "dark"
+        case "Closed":
+        default:
+            return "grey-9"
     }
 }
 

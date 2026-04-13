@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Merit &amp; Promotion Report - Average</h2>
+        <h1>Merit &amp; Promotion Report - Average</h1>
 
         <ReportFilterForm
             :term-code="termCode"
@@ -39,7 +39,7 @@
             <template v-if="report.jobGroups.length === 0">
                 <div
                     role="status"
-                    class="text-grey-6 text-center q-pa-lg"
+                    class="text-grey-7 text-center q-pa-lg"
                 >
                     No data found for the selected filters.
                 </div>

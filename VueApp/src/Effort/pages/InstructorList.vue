@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <h2>Instructor List for {{ currentTermName }}</h2>
+        <h1>Instructor List for {{ currentTermName }}</h1>
 
         <!-- Term selector and filters -->
         <div class="row q-col-gutter-sm q-mb-md items-center">
@@ -80,23 +80,30 @@
                     class="dept-header text-white q-pa-sm row items-center"
                     :class="{
                         'dept-header--no-dept': deptGroup.dept === 'Unknown Department',
-                        'dept-header--collapsible': hasMultipleDepts,
                     }"
-                    :tabindex="hasMultipleDepts ? 0 : undefined"
-                    :role="hasMultipleDepts ? 'button' : undefined"
-                    :aria-expanded="hasMultipleDepts ? !collapsedDepts.has(deptGroup.dept) : undefined"
-                    @click="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keyup.enter="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keyup.space.prevent="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
                 >
-                    <q-icon
+                    <div
                         v-if="hasMultipleDepts"
-                        :name="collapsedDepts.has(deptGroup.dept) ? 'expand_more' : 'expand_less'"
-                        size="sm"
-                        class="q-mr-xs"
-                    />
-                    <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.instructors.length }})</span>
-                    <q-space />
+                        class="dept-header__trigger col row items-center"
+                        tabindex="0"
+                        role="button"
+                        :aria-expanded="!collapsedDepts.has(deptGroup.dept)"
+                        :aria-label="`${collapsedDepts.has(deptGroup.dept) ? 'Expand' : 'Collapse'} ${deptGroup.dept}`"
+                        @click="toggleDeptCollapse(deptGroup.dept)"
+                        @keyup.enter="toggleDeptCollapse(deptGroup.dept)"
+                        @keydown.space.prevent="toggleDeptCollapse(deptGroup.dept)"
+                    >
+                        <q-icon
+                            :name="collapsedDepts.has(deptGroup.dept) ? 'expand_more' : 'expand_less'"
+                            size="sm"
+                            class="q-mr-xs"
+                        />
+                        <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.instructors.length }})</span>
+                    </div>
+                    <template v-else>
+                        <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.instructors.length }})</span>
+                        <q-space />
+                    </template>
                     <q-btn
                         v-if="getEmailableCount(deptGroup) > 0"
                         icon="mail_outline"
@@ -107,7 +114,7 @@
                         no-caps
                         :disable="sendingEmailDepts.has(deptGroup.dept)"
                         :loading="sendingEmailDepts.has(deptGroup.dept)"
-                        @click.stop="confirmBulkEmail(deptGroup)"
+                        @click="confirmBulkEmail(deptGroup)"
                     >
                         <template #loading>
                             <q-spinner
@@ -170,8 +177,8 @@
                                     </router-link>
                                     <q-badge
                                         v-if="instructor.recordCount === 0"
-                                        color="orange-8"
-                                        text-color="white"
+                                        color="warning"
+                                        text-color="dark"
                                     >
                                         No Effort
                                     </q-badge>
@@ -458,8 +465,8 @@
                                 </router-link>
                                 <q-badge
                                     v-if="props.row.recordCount === 0"
-                                    color="orange-8"
-                                    text-color="white"
+                                    color="warning"
+                                    text-color="dark"
                                     class="no-effort-badge"
                                 >
                                     No Effort
@@ -1271,9 +1278,19 @@ onMounted(loadTerms)
     background-color: var(--q-negative);
 }
 
-.dept-header--no-dept.dept-header--collapsible:hover,
-.dept-header--no-dept.dept-header--collapsible:focus {
-    background-color: #a83232;
+.dept-header__trigger {
+    cursor: pointer;
+    user-select: none;
+}
+
+.dept-header__trigger:hover,
+.dept-header__trigger:focus {
+    background-color: rgb(0 0 0 / 15%);
+}
+
+.dept-header__trigger:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
 }
 
 .dept-table--no-dept {
