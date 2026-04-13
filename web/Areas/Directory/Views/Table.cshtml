@@ -38,7 +38,7 @@
          no-results-label="No results found">
     <template v-slot:body-cell-photo="props">
         <q-td :props="props">
-            <q-img :props="props" :src="'@HttpHelper.GetOldViperRootURL()' + '/public/utilities/getbase64image.cfm?mothraID=' + props.row.mothraId + '&altphoto=1'" style="width:87px; height:111px" fit="cover" :alt="'Photo of ' + props.row.displayFirstName + ' ' + props.row.displayLastName">
+            <q-img :src="'@HttpHelper.GetOldViperRootURL()' + '/public/utilities/getbase64image.cfm?mothraID=' + props.row.mothraId + '&altphoto=1'" style="width:87px; height:111px" fit="cover" :alt="'Photo of ' + props.row.displayFirstName + ' ' + props.row.displayLastName">
                 <template #error>
                     <div class="absolute-full flex flex-center bg-grey-3 text-grey-8">
                         <q-icon name="person" size="xl"></q-icon>
