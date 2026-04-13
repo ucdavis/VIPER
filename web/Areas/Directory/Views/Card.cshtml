@@ -5,7 +5,7 @@
     IUserHelper UserHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
-<h2>Directory</h2>
+<h1>Directory</h1>
 <q-form @@submit="return false;">
     <q-input class="q-ml-xs q-mr-xs"
              dense
@@ -18,58 +18,52 @@
              autofocus>
     </q-input>
     <q-toggle v-model="ucd"
-              color="green"
+              color="primary"
               label="Search all of UCD">
     </q-toggle>
     @if (Model.CanDisplayIDs)
     {
     <q-toggle v-model="ids"
-        color="blue"
+              color="primary"
               label="Display IDs">
     </q-toggle>
     }
-    <!--
-    <q-toggle v-model="debug"
-              color="red"
-              label="Display debugging">
-    </q-toggle>
-    -->
     <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
         <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
             <q-card-section class="grid row card_header" :class="[user.svm ? 'SVM' : '']">
-                <a v-if="user.svm && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" class="userinfo_button top_button">
+                <a v-if="user.svm && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
                     <q-icon name="person" size="xs"></q-icon>
                     <q-tooltip>User Information</q-tooltip>
                 </a>
-                <a v-if="user.mailId" :href="'mailto:' + user.mailId + '@@ucdavis.edu'" class="email_button top_button">
+                <a v-if="user.mailId" :href="'mailto:' + user.mailId + '@@ucdavis.edu'" :aria-label="'Email ' + user.mailId + '@@ucdavis.edu'" class="email_button top_button">
                     <q-icon name="email" size="xs"></q-icon>
-                    <q-tooltip>Email {{user.mailId}}</q-tooltip>
+                    <q-tooltip>Email {{user.mailId}}@@ucdavis.edu</q-tooltip>
                 </a>
                 @if (Model.CanEmulate)
                 {
-                <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" class="emulate_button top_button">
+                <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
                 </a>
                 }
-                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" class="AAUD_button top_button">
+                <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
                 </a>
-                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" v-if="ids" class="ID_button top_button">
+                <a v-if="ids && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
                     <q-icon name="account_box" size="xs"></q-icon>
                     <q-tooltip>ID Check</q-tooltip>
                 </a>
-                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids" class="MSO_button top_button">
+                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids && user.mailId" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
                     <q-icon name="supervisor_account" size="xs"></q-icon>
                     <q-tooltip>MSO/CAO Lookup</q-tooltip>
                 </a>
                 @if (Model.CanSeeUCPathInfo)
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId" v-if="ids && user.employeeId" class="UCPath_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId" v-if="ids && user.employeeId" :aria-label="'UCPath info for ' + user.name" class="UCPath_button top_button">
                         <q-icon name="school" size="sm"></q-icon>
                         <q-tooltip>UCPath Info</q-tooltip>
                     </a>
@@ -77,7 +71,7 @@
                 @if (Model.CanSeeAltPhoto)
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name" v-if="ids && user.currentAffiliate" class="photo_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + user.iamId + '&mailID=' + user.mailId + '&empName=' + encodeURIComponent(user.name)" v-if="ids && user.iamId && user.mailId" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
                         <q-icon name="photo_camera" size="xs"></q-icon>
                         <q-tooltip>Alt. Photo</q-tooltip>
                     </a>
@@ -85,17 +79,26 @@
         </q-card-section>
             <q-card-section class="row">
                 <q-card-section class="col photo">
-                    <q-avatar size="87px" square class="text-right photo_avatar">
-                    <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'" height="40" id="siteProfileAvatar">
-                    </q-avatar>
+                    <q-img
+                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'"
+                        :alt="'Photo of ' + user.name"
+                        class="photo_avatar"
+                        fit="cover"
+                    >
+                        <template #error>
+                            <div class="absolute-full flex flex-center bg-grey-3 text-grey-8">
+                                <q-icon name="person" size="xl" />
+                            </div>
+                        </template>
+                    </q-img>
                 </q-card-section>
                 <q-card-section class="col">
-                    <h5><span v-if="ids && user.userName">{{user.userName}}</span>&nbsp;</h5>
-                    <h1>{{user.name}}</h1>
-                    <h2 v-if="user.title">{{user.title}}</h2>
-                    <h2 v-if="user.department">{{user.department}}</h2>
-                    <h3 v-if="user.ucdStudentLevel">{{user.ucdStudentLevel}}</h3>
-                    <h4 v-if="user.svm && ucd">SVM</h4>
+                    <div v-if="ids && user.userName" class="directory-username">{{user.userName}}</div>
+                    <h2 class="directory-name">{{user.name}}</h2>
+                    <div v-if="user.title" class="directory-detail">{{user.title}}</div>
+                    <div v-if="user.department" class="directory-detail">{{user.department}}</div>
+                    <div v-if="user.ucdStudentLevel" class="directory-level">{{user.ucdStudentLevel}}</div>
+                    <div v-if="user.svm && ucd" class="directory-tag">SVM</div>
                     <div class="contact">
                         <div class="mail" v-if="user.email"><a :href="'mailto:' + user.email">{{user.email}}</a></div>
                         <div class="host" v-if="ids && user.emailHost">[{{user.emailHost}}]</div>

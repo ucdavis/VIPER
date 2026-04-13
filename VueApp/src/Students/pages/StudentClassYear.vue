@@ -23,7 +23,7 @@ const activeOnly = ref(false)
 
 //table columns, rows, properties
 const cols: QTableProps["columns"] = [
-    { name: "avatar", label: "", field: "", align: "left", style: "width:75px;" },
+    { name: "avatar", label: "Photo", field: "", align: "left", style: "width:75px;" },
     { name: "name", label: "Student", field: "", align: "left", sortable: true },
     { name: "classyear", label: "Class Year", field: "personId", align: "left", sortable: true },
     { name: "previousyears", label: "Prev Years", field: "firstName", align: "left", sortable: true },
@@ -151,7 +151,7 @@ load()
 <template>
     <div class="row q-mb-sm">
         <div class="col">
-            <h2>Student Class Years</h2>
+            <h1>Student Class Years</h1>
         </div>
     </div>
 
@@ -235,7 +235,7 @@ load()
                         type="button"
                         padding="xs md"
                         @click="deleteStudentClassYear"
-                        color="red"
+                        color="negative"
                     ></q-btn>
                 </q-card-actions>
             </q-form>
@@ -324,7 +324,7 @@ load()
                     <img
                         :src="viperUrl + 'public/utilities/getbase64image.cfm?altphoto=1&mailId=' + props.row.mailId"
                         class="smallPhoto"
-                        alt="Student photo"
+                        :alt="`${props.row.firstName} ${props.row.lastName}'s photo`"
                     />
                 </q-avatar>
             </q-td>
@@ -346,17 +346,18 @@ load()
                         :label="cy.classYear"
                         v-if="cy.active"
                         color="primary"
-                        class="q-px-sm"
+                        class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
@@ -377,17 +378,18 @@ load()
                         :label="cy.classYear"
                         v-if="!cy.active"
                         color="secondary"
-                        class="q-px-sm"
+                        class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
