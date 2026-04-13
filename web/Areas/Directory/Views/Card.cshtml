@@ -46,7 +46,7 @@
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
                 </a>
-                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" v-if="ids" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
+                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
                     <q-icon name="account_box" size="xs"></q-icon>
                     <q-tooltip>ID Check</q-tooltip>
                 </a>
@@ -65,7 +65,7 @@
                     @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + user.iamId + '&mailID=' + props.row.mailId + '&empName=' + user.name" v-if="ids && user.currentAffiliate" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + user.iamId + '&mailID=' + user.mailId + '&empName=' + encodeURIComponent(user.name)" v-if="ids && user.currentAffiliate" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
                         <q-icon name="photo_camera" size="xs"></q-icon>
                         <q-tooltip>Alt. Photo</q-tooltip>
                     </a>
