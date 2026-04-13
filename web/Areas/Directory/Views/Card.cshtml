@@ -42,15 +42,15 @@
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
                 </a>
-                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
+                <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
                 </a>
-                <a v-if="ids" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
+                <a v-if="ids && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
                     <q-icon name="account_box" size="xs"></q-icon>
                     <q-tooltip>ID Check</q-tooltip>
                 </a>
-                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
+                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids && user.mailId" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
                     <q-icon name="supervisor_account" size="xs"></q-icon>
                     <q-tooltip>MSO/CAO Lookup</q-tooltip>
                 </a>
