@@ -55,9 +55,9 @@ function formatChangeAction(action: string): string {
         .replace(/^./, (str) => str.toUpperCase())
 }
 
-const TERM_STATUS_COLORS: Record<string, string> = { Opened: "positive", Closed: "grey", Harvested: "info" }
+const TERM_STATUS_COLORS: Record<string, string> = { Opened: "positive", Closed: "grey-5", Harvested: "info" }
 function getTermStatusColor(status?: string): string {
-    return (status && TERM_STATUS_COLORS[status]) ?? "grey"
+    return (status && TERM_STATUS_COLORS[status]) ?? "grey-5"
 }
 
 const ALERT_ICONS: Record<string, string> = {
@@ -247,20 +247,20 @@ describe("StaffDashboard - Term Status Color", () => {
         expect(getTermStatusColor("Opened")).toBe("positive")
     })
 
-    it("should return grey for Closed", () => {
-        expect(getTermStatusColor("Closed")).toBe("grey")
+    it("should return grey-5 for Closed", () => {
+        expect(getTermStatusColor("Closed")).toBe("grey-5")
     })
 
     it("should return info for Harvested", () => {
         expect(getTermStatusColor("Harvested")).toBe("info")
     })
 
-    it("should return grey for undefined", () => {
-        expect(getTermStatusColor()).toBe("grey")
+    it("should return grey-5 for undefined", () => {
+        expect(getTermStatusColor()).toBe("grey-5")
     })
 
-    it("should return grey for unknown status", () => {
-        expect(getTermStatusColor("Unknown")).toBe("grey")
+    it("should return grey-5 for unknown status", () => {
+        expect(getTermStatusColor("Unknown")).toBe("grey-5")
     })
 })
 

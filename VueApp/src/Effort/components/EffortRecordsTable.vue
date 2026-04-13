@@ -82,7 +82,7 @@
                         <template v-if="isZeroEffort(slotProps.row)">
                             <q-icon
                                 name="report_problem"
-                                color="amber-8"
+                                color="warning"
                                 size="1rem"
                                 class="q-mr-xs"
                                 aria-hidden="true"

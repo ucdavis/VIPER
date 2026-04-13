@@ -187,6 +187,7 @@
                                 <span class="text-h6">{{ stats.currentTerm?.termName }}</span>
                                 <q-badge
                                     :color="getTermStatusColor(stats.currentTerm?.status)"
+                                    :text-color="getTermStatusTextColor(stats.currentTerm?.status)"
                                     class="q-pa-sm q-ml-sm"
                                 >
                                     {{ stats.currentTerm?.status }}
@@ -214,7 +215,7 @@
                             </div>
                             <div
                                 v-if="stats.currentTerm?.closedDate && stats.currentTerm?.openedDate"
-                                class="text-caption text-grey-6 q-mt-xs"
+                                class="text-caption text-grey-7 q-mt-xs"
                             >
                                 Open for
                                 {{ getTermDuration(stats.currentTerm.openedDate, stats.currentTerm.closedDate) }}
@@ -492,18 +493,17 @@
                         <q-item-section>
                             <div class="text-h6">Data Hygiene Alerts</div>
                         </q-item-section>
-                        <q-item-section side>
+                    </template>
+                    <q-card-section class="q-pt-none">
+                        <div class="row justify-end q-mb-sm">
                             <q-btn
                                 flat
                                 dense
                                 size="sm"
                                 :label="showIgnoredAlerts ? 'Hide Ignored' : 'Show Ignored'"
-                                tabindex="-1"
-                                @click.stop="showIgnoredAlerts = !showIgnoredAlerts"
+                                @click="showIgnoredAlerts = !showIgnoredAlerts"
                             />
-                        </q-item-section>
-                    </template>
-                    <q-card-section class="q-pt-none">
+                        </div>
                         <template v-if="visibleAlerts.length === 0">
                             <div class="text-grey-6 text-center q-pa-md">No alerts to display</div>
                         </template>
@@ -543,7 +543,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -570,7 +571,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -612,7 +613,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -642,7 +644,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -684,7 +686,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -711,7 +714,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -754,7 +757,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -781,7 +785,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -823,7 +827,8 @@
                                                 {{ alert.entityName }}
                                                 <q-badge
                                                     v-if="alert.status === 'Ignored'"
-                                                    color="grey"
+                                                    color="grey-5"
+                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
@@ -850,7 +855,7 @@
                                                     dense
                                                     size="sm"
                                                     label="Ignore"
-                                                    color="grey"
+                                                    color="grey-8"
                                                     @click="ignoreAlert(alert)"
                                                 />
                                             </div>
@@ -1110,11 +1115,23 @@ function getTermStatusColor(status: string | undefined): string {
         case "Opened":
             return "positive"
         case "Closed":
-            return "grey"
+            return "grey-5"
         case "Harvested":
             return "info"
         default:
-            return "grey"
+            return "grey-5"
+    }
+}
+
+function getTermStatusTextColor(status: string | undefined): string {
+    switch (status) {
+        case "Opened":
+            return "white"
+        case "Harvested":
+            return "dark"
+        case "Closed":
+        default:
+            return "grey-9"
     }
 }
 

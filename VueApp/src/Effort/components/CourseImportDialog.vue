@@ -125,7 +125,8 @@
                                 </div>
                                 <q-badge
                                     v-if="course.alreadyImported"
-                                    color="grey"
+                                    color="grey-5"
+                                    text-color="grey-9"
                                     >Already Imported</q-badge
                                 >
                                 <q-badge
@@ -221,7 +222,11 @@
                     <template #body-cell-status="slotProps">
                         <q-td :props="slotProps">
                             <template v-if="slotProps.row.alreadyImported">
-                                <q-badge color="grey">Already Imported</q-badge>
+                                <q-badge
+                                    color="grey-5"
+                                    text-color="grey-9"
+                                    >Already Imported</q-badge
+                                >
                             </template>
                             <template v-else-if="slotProps.row.importedUnitValues.length > 0">
                                 <q-badge

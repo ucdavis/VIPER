@@ -79,7 +79,7 @@
                                     <q-icon
                                         v-if="record.effortValue === 0"
                                         name="report_problem"
-                                        color="amber-8"
+                                        color="warning"
                                         size="1rem"
                                         class="q-mr-xs"
                                         aria-hidden="true"
@@ -226,7 +226,7 @@
                                 <q-icon
                                     v-if="slotProps.row.effortValue === 0"
                                     name="report_problem"
-                                    color="amber-8"
+                                    color="warning"
                                     size="1rem"
                                     class="q-mr-xs"
                                     aria-hidden="true"
