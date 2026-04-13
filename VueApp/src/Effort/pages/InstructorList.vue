@@ -91,7 +91,7 @@
                         :aria-label="`${collapsedDepts.has(deptGroup.dept) ? 'Expand' : 'Collapse'} ${deptGroup.dept}`"
                         @click="toggleDeptCollapse(deptGroup.dept)"
                         @keyup.enter="toggleDeptCollapse(deptGroup.dept)"
-                        @keyup.space.prevent="toggleDeptCollapse(deptGroup.dept)"
+                        @keydown.space.prevent="toggleDeptCollapse(deptGroup.dept)"
                     >
                         <q-icon
                             :name="collapsedDepts.has(deptGroup.dept) ? 'expand_more' : 'expand_less'"

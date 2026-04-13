@@ -103,7 +103,7 @@
                                     tabindex="0"
                                     @click="scrollToNoInstructorsAlert"
                                     @keyup.enter="scrollToNoInstructorsAlert"
-                                    @keyup.space.prevent="scrollToNoInstructorsAlert"
+                                    @keydown.space.prevent="scrollToNoInstructorsAlert"
                                 >
                                     {{ stats.coursesWithoutInstructors }} without instructors
                                 </q-badge>
@@ -274,7 +274,7 @@
                                             :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
                                             @click="navigateToDepartment(dept.departmentCode)"
                                             @keyup.enter="navigateToDepartment(dept.departmentCode)"
-                                            @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                            @keydown.space.prevent="navigateToDepartment(dept.departmentCode)"
                                         >
                                             <div class="dept-name text-truncate">
                                                 {{ getDeptDisplayName(dept) }}
@@ -323,7 +323,7 @@
                                             :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
                                             @click="navigateToDepartment(dept.departmentCode)"
                                             @keyup.enter="navigateToDepartment(dept.departmentCode)"
-                                            @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                            @keydown.space.prevent="navigateToDepartment(dept.departmentCode)"
                                         >
                                             <div class="dept-name text-truncate">
                                                 {{ getDeptDisplayName(dept) }}
@@ -366,7 +366,7 @@
                                         :aria-label="`View ${getDeptDisplayName(dept)} instructors`"
                                         @click="navigateToDepartment(dept.departmentCode)"
                                         @keyup.enter="navigateToDepartment(dept.departmentCode)"
-                                        @keyup.space.prevent="navigateToDepartment(dept.departmentCode)"
+                                        @keydown.space.prevent="navigateToDepartment(dept.departmentCode)"
                                     >
                                         <div class="dept-name text-truncate">
                                             {{ getDeptDisplayName(dept) }}

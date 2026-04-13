@@ -111,7 +111,7 @@
                     :aria-expanded="hasMultipleDepts ? !collapsedDepts.has(deptGroup.dept) : undefined"
                     @click="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
                     @keyup.enter="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keyup.space.prevent="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
+                    @keydown.space.prevent="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
                 >
                     <q-icon
                         v-if="hasMultipleDepts"

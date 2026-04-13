@@ -25,8 +25,6 @@
                     no-caps
                     :outline="showAddTermForm"
                     @click="toggleAddTermForm"
-                    @keyup.enter="toggleAddTermForm"
-                    @keyup.space="toggleAddTermForm"
                 />
                 <q-btn
                     icon="event_repeat"
@@ -37,8 +35,6 @@
                     no-caps
                     :outline="showRolloverForm"
                     @click="toggleRolloverForm"
-                    @keyup.enter="toggleRolloverForm"
-                    @keyup.space="toggleRolloverForm"
                 />
             </div>
 
@@ -92,8 +88,6 @@
                             no-caps
                             :disable="!rolloverYear || rolloverYear < 2020 || rolloverYear > currentYear"
                             @click="openRolloverDialog"
-                            @keyup.enter="openRolloverDialog"
-                            @keyup.space="openRolloverDialog"
                         />
                     </div>
                     <div
@@ -177,8 +171,6 @@
                                 class="q-ml-sm"
                                 aria-label="Delete term"
                                 @click="confirmDeleteTerm(props.row)"
-                                @keyup.enter="confirmDeleteTerm(props.row)"
-                                @keyup.space="confirmDeleteTerm(props.row)"
                             >
                                 <q-tooltip>Delete term</q-tooltip>
                             </q-btn>
@@ -202,8 +194,6 @@
                                     padding="2px sm"
                                     class="term-action-btn"
                                     @click="openHarvestDialog(props.row)"
-                                    @keyup.enter="openHarvestDialog(props.row)"
-                                    @keyup.space="openHarvestDialog(props.row)"
                                 >
                                     <q-tooltip
                                         >Import instructors and courses from CREST and Clinical Scheduler</q-tooltip
@@ -221,8 +211,6 @@
                                     padding="2px sm"
                                     class="term-action-btn"
                                     @click="openClinicalDialog(props.row)"
-                                    @keyup.enter="openClinicalDialog(props.row)"
-                                    @keyup.space="openClinicalDialog(props.row)"
                                 >
                                     <q-tooltip>Import clinical rotation assignments from Clinical Scheduler</q-tooltip>
                                 </q-btn>
@@ -247,8 +235,6 @@
                                     padding="2px sm"
                                     class="term-action-btn"
                                     @click="confirmOpenTerm(props.row)"
-                                    @keyup.enter="confirmOpenTerm(props.row)"
-                                    @keyup.space="confirmOpenTerm(props.row)"
                                 />
                                 <q-btn
                                     v-if="props.row.canUnopen"
@@ -262,8 +248,6 @@
                                     padding="2px sm"
                                     class="term-action-btn"
                                     @click="confirmUnopenTerm(props.row)"
-                                    @keyup.enter="confirmUnopenTerm(props.row)"
-                                    @keyup.space="confirmUnopenTerm(props.row)"
                                 />
                             </div>
                         </div>
@@ -286,8 +270,6 @@
                                     padding="2px sm"
                                     class="term-action-btn"
                                     @click="confirmCloseTerm(props.row)"
-                                    @keyup.enter="confirmCloseTerm(props.row)"
-                                    @keyup.space="confirmCloseTerm(props.row)"
                                 />
                                 <q-btn
                                     v-if="props.row.canReopen"
@@ -301,8 +283,6 @@
                                     padding="2px sm"
                                     class="term-action-btn"
                                     @click="confirmReopenTerm(props.row)"
-                                    @keyup.enter="confirmReopenTerm(props.row)"
-                                    @keyup.space="confirmReopenTerm(props.row)"
                                 />
                             </div>
                         </div>
@@ -362,8 +342,6 @@
                                     color="grey-7"
                                     aria-label="Edit expected close date"
                                     @click="startEditExpectedCloseDate(props.row)"
-                                    @keyup.enter="startEditExpectedCloseDate(props.row)"
-                                    @keyup.space="startEditExpectedCloseDate(props.row)"
                                 >
                                     <q-tooltip>Edit expected close date</q-tooltip>
                                 </q-btn>
@@ -463,8 +441,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="openHarvestDialog(term)"
-                                @keyup.enter="openHarvestDialog(term)"
-                                @keyup.space="openHarvestDialog(term)"
                             />
                             <q-btn
                                 v-if="term.canImportClinical"
@@ -478,8 +454,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="openClinicalDialog(term)"
-                                @keyup.enter="openClinicalDialog(term)"
-                                @keyup.space="openClinicalDialog(term)"
                             />
                             <q-btn
                                 v-if="term.canOpen"
@@ -493,8 +467,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="confirmOpenTerm(term)"
-                                @keyup.enter="confirmOpenTerm(term)"
-                                @keyup.space="confirmOpenTerm(term)"
                             />
                             <q-btn
                                 v-if="term.canUnopen"
@@ -508,8 +480,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="confirmUnopenTerm(term)"
-                                @keyup.enter="confirmUnopenTerm(term)"
-                                @keyup.space="confirmUnopenTerm(term)"
                             />
                             <q-btn
                                 v-if="term.canClose"
@@ -523,8 +493,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="confirmCloseTerm(term)"
-                                @keyup.enter="confirmCloseTerm(term)"
-                                @keyup.space="confirmCloseTerm(term)"
                             />
                             <q-btn
                                 v-if="term.canReopen"
@@ -538,8 +506,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="confirmReopenTerm(term)"
-                                @keyup.enter="confirmReopenTerm(term)"
-                                @keyup.space="confirmReopenTerm(term)"
                             />
                             <q-btn
                                 v-if="term.canEditExpectedCloseDate && editingExpectedCloseTermCode !== term.termCode"
@@ -553,8 +519,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="startEditExpectedCloseDate(term)"
-                                @keyup.enter="startEditExpectedCloseDate(term)"
-                                @keyup.space="startEditExpectedCloseDate(term)"
                             />
                             <q-btn
                                 v-if="term.canDelete"
@@ -568,8 +532,6 @@
                                 padding="2px sm"
                                 class="term-action-btn"
                                 @click="confirmDeleteTerm(term)"
-                                @keyup.enter="confirmDeleteTerm(term)"
-                                @keyup.space="confirmDeleteTerm(term)"
                             />
                         </div>
                     </q-card-section>

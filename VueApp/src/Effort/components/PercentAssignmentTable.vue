@@ -26,8 +26,6 @@
                 dense
                 aria-label="Add percentage assignment"
                 @click="$emit('add')"
-                @keyup.enter="$emit('add')"
-                @keyup.space="$emit('add')"
             />
         </div>
 
@@ -77,8 +75,6 @@
                                 size="sm"
                                 aria-label="Edit percentage assignment"
                                 @click="$emit('edit', pct)"
-                                @keyup.enter="$emit('edit', pct)"
-                                @keyup.space="$emit('edit', pct)"
                             />
                             <q-btn
                                 flat
@@ -89,8 +85,6 @@
                                 size="sm"
                                 aria-label="Delete percentage assignment"
                                 @click="$emit('delete', pct)"
-                                @keyup.enter="$emit('delete', pct)"
-                                @keyup.space="$emit('delete', pct)"
                             />
                         </div>
                     </div>
@@ -252,8 +246,6 @@
                                 size="sm"
                                 aria-label="Edit percentage assignment"
                                 @click="$emit('edit', bodyProps.row)"
-                                @keyup.enter="$emit('edit', bodyProps.row)"
-                                @keyup.space="$emit('edit', bodyProps.row)"
                             >
                                 <q-tooltip>Edit</q-tooltip>
                             </q-btn>
@@ -266,8 +258,6 @@
                                 size="sm"
                                 aria-label="Delete percentage assignment"
                                 @click="$emit('delete', bodyProps.row)"
-                                @keyup.enter="$emit('delete', bodyProps.row)"
-                                @keyup.space="$emit('delete', bodyProps.row)"
                             >
                                 <q-tooltip>Delete</q-tooltip>
                             </q-btn>
