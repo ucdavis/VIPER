@@ -14,14 +14,14 @@
                 Your session has been extended to {{sessionExpireTime}}.
             </div>
             <q-space></q-space>
-            <q-btn dense color="secondary" class="q-px-md" label="Log in" v-if="sessionExpired" href="@Url.Content("~/login")"></q-btn>
+            <q-btn dense color="secondary" class="q-px-md" label="Log in" v-if="sessionExpired" @@click="login"></q-btn>
             <q-btn dense color="secondary" class="q-px-md" label="Refresh Session" v-if="!sessionExpired && !sessionReloaded" @@click="extendSession"></q-btn>
         </q-card-section>
     </q-card>
 </q-dialog>
 
 <script asp-add-nonce="true">
-    /* global window, fetch, clearTimeout, createVueApp */
+    /* global clearTimeout */
     createVueApp({
         data() {
             return {
@@ -78,6 +78,10 @@
             hideSessionTimeoutWarning: function() {
                 this.showSessionTimeoutWarning = false
                 this.sessionReloaded = false
+            },
+            login: function() {
+                var returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+                window.location = '@Url.Content("~/login")?ReturnUrl=' + returnUrl
             }
         },
         mounted() {

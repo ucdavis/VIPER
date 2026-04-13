@@ -1,4 +1,7 @@
-﻿<h2>Members of {{ role.friendlyName }}</h2>
+﻿@{
+    ViewData["Title"] = "Role Members";
+}
+<h1>Members of {{ role.friendlyName }}</h1>
 
 <p>
     {{ role.description }}
@@ -15,15 +18,19 @@
          :filter="membersTable.filter"
          :pagination="membersTable.pagination">
     <template v-slot:top-left>
-        <q-btn color="green" label="Add Member" @@click="membersTable.showForm = true" no-caps icon="add"></q-btn>
+        <q-btn color="positive" label="Add Member" @@click="membersTable.showForm = true" no-caps icon="add"></q-btn>
         <q-btn color="primary" label="Push Role Membership to VMACS" @@click="pushRoleToVMACS(true)" no-caps icon="upload" class="q-ml-md" v-if="showVMACSPush"></q-btn>
         <div class="q-pa-sm q-gutter-sm">
             <q-dialog v-model="membersTable.showForm" @@hide="membersTable.clear(this)">
                 <q-card>
                     <q-form @@submit="addUpdateMember();" v-bind="membersTable.object">
-                        <q-card-section>
+                        <q-card-section class="row items-center q-pb-none">
                             <div class="text-h6">{{membersTable.editing >= 0 ? "Edit" : "Create"}} Role Member</div>
-                            <div class="bg-negative text-white q-pa-sm rounded" v-if="membersTable.errors?.message?.length > 0">{{membersTable.errors.message}}</div>
+                            <q-space></q-space>
+                            <q-btn icon="close" flat round dense aria-label="Close dialog" v-close-popup></q-btn>
+                        </q-card-section>
+                        <q-card-section v-if="membersTable.errors?.message?.length > 0">
+                            <div class="bg-negative text-white q-pa-sm rounded">{{membersTable.errors.message}}</div>
                         </q-card-section>
 
                         <q-card-section>
@@ -57,7 +64,7 @@
 
                         <q-card-actions align="evenly">
                             <q-btn no-caps :label="membersTable.editing ? 'Update Member' : 'Add Member'" type="submit" padding="xs sm" color="primary" :disabled="disableMemberUpdate"></q-btn>
-                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteMember(this)" color="red" v-if="membersTable.editing" :disabled="disableMemberUpdate"></q-btn>
+                            <q-btn no-caps label="Delete" type="button" padding="xs lg" @@click="deleteMember(this)" color="negative" v-if="membersTable.editing" :disabled="disableMemberUpdate"></q-btn>
                         </q-card-actions>
                     </q-form>
                 </q-card>
@@ -73,17 +80,17 @@
     </template>
     <template v-slot:body-cell-memberid="props">
         <q-td :props="props">
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
-            <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="policy" title="Combined permissions for user" aria-label="Combined permissions for user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
+            <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="View roles for this user" aria-label="View roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
             @if (ViewData.ContainsKey("canEditPermissions") && (bool)(ViewData["canEditPermissions"] ?? false))
             {
-                <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
+                <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="lock" title="View individual permissions" aria-label="View individual permissions" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
             }
         </q-td>
     </template>
     <template v-slot:body-cell-actions="props">
         <q-td :props="props">
-            <q-btn size="sm" outline icon="edit" :props="props" padding="xs md" color="primary" 
+            <q-btn dense size="sm" outline icon="edit" :props="props" padding="sm" color="primary" aria-label="Edit member"
                 v-if="props.row.viewName == null" @@click="membersTable.selectRow(props.row)"></q-btn>
             <span v-if="props.row.viewName != null">{{props.row.viewName}}</span>
         </q-td>
@@ -107,7 +114,7 @@
                         keys: ["memberId"],
                         urlBase: "Roles",
                         columns: [
-                            { name: "memberid", label: "", field: "memberId", align: "left", style: "width:75px;" },
+                            { name: "memberid", label: "Actions", field: "memberId", align: "left", style: "width:75px;" },
                             { name: "member", label: "Member", field: "userName", align: "left", sortable: true },
                             { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
                             { name: "adddate", label: "Add Date", field: "addDate", align: "left", sortable: true, format: v => formatDate(v) },
@@ -116,14 +123,14 @@
                             { name: "lastmodified", label: "Last Modified", field: "lastModified", align: "left", 
                                 sortable: true, sort: (_1, _2, rowA, rowB) => new Date(rowA.modTime) - new Date(rowB.modTime) },
                             { name: "active", label: "Active", field: "active", align: "left", sortable: true },
-                            { name: "actions", label: "Actions", field: "", align: "left", sortable: false }
+                            { name: "actions", label: "Edit", field: "", align: "left", sortable: false, style: "width: 60px;" }
                         ],
                         //after loading role members, add the member name and active flag
                         onLoad: function (data) {
                             this.data = data.map(rm => ({
                                 ...rm,
                                 active: (rm?.active ?? false) ? "Y" : "N",
-                                lastModified: rm.modBy == null ? "" : (formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")")
+                                lastModified: rm.modBy === null ? "" : (formatDate(rm.modTime) + " (" + rm.modBy.trim() + ")")
                             }))
                         },
                         //set member id and role id when creating/updating
@@ -164,7 +171,7 @@
                     }
 
                     update(() => {
-                        var res = fetch("Members?search=" + val)
+                        fetch("Members?search=" + val)
                             .then(r => r.json())
                             .then(data =>
                                 this.memberSearchResults = data
@@ -186,16 +193,24 @@
                         Quasar.Loading.hide()
                     }
                 },
-                deleteMember: async function () {
-                    this.disableMemberUpdate = true
-                    var oldBase = this.membersTable.urlBase
-                    this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
-
-                    const deleted = await this.membersTable.delete(this)
-                    this.membersTable.urlBase = oldBase
-                    if (deleted) { this.pushMemberToVMACS() }
-                    
-                    this.disableMemberUpdate = false
+                deleteMember: function () {
+                    Quasar.Dialog.create({
+                        title: "Confirm Delete",
+                        message: "Are you sure you want to remove this member from the role?",
+                        cancel: true,
+                        persistent: true
+                    }).onOk(async () => {
+                        this.disableMemberUpdate = true
+                        var url = "Roles/" + this.roleId + "/Members/" + this.membersTable.object.memberId
+                        const result = await viperFetch(this, url, { method: "DELETE" },
+                            [() => this.membersTable.load(this)], this.membersTable.errors)
+                        if (result !== undefined) {
+                            showStatusNotification("Member removed")
+                            this.membersTable.clear()
+                            this.pushMemberToVMACS()
+                        }
+                        this.disableMemberUpdate = false
+                    })
                 },
                 addUpdateMember: async function () {
                     this.disableMemberUpdate = true
@@ -214,7 +229,7 @@
                 this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
                 this.membersTable.load()
                 await this.loadRole()
-                this.showVMACSPush = this.role.instance.indexOf("VMACS") == 0
+                this.showVMACSPush = this.role.instance.indexOf("VMACS") === 0
             },
             watch: {
                 showViewMembers: {
