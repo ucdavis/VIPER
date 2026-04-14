@@ -79,8 +79,22 @@
 
                     <!-- Effort cell with units label -->
                     <template v-else-if="col.name === 'effort'">
-                        {{ slotProps.row.effortValue ?? 0 }}
-                        {{ slotProps.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
+                        <template v-if="isZeroEffort(slotProps.row)">
+                            <q-icon
+                                name="report_problem"
+                                color="warning"
+                                size="1rem"
+                                class="q-mr-xs"
+                                aria-hidden="true"
+                            />
+                            {{ slotProps.row.effortValue ?? 0 }}
+                            {{ slotProps.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
+                            <span class="sr-only">(zero effort)</span>
+                        </template>
+                        <template v-else>
+                            {{ slotProps.row.effortValue ?? 0 }}
+                            {{ slotProps.row.effortLabel === "weeks" ? "Weeks" : "Hours" }}
+                        </template>
                     </template>
 
                     <!-- Actions cell -->

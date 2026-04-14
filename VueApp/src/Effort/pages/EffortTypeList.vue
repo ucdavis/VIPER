@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h2 class="q-ma-none">Manage Effort Types</h2>
+            <h1 class="q-ma-none">Manage Effort Types</h1>
             <q-space />
             <q-btn
                 label="Add Effort Type"
@@ -26,7 +26,10 @@
 
         <template v-else>
             <!-- Effort Types Table - wrapped for horizontal scroll on tablets -->
-            <div class="table-scroll-container">
+            <div
+                class="table-scroll-container"
+                tabindex="0"
+            >
                 <q-table
                     :rows="effortTypes"
                     :columns="columns"
@@ -115,7 +118,7 @@
                             </template>
                             <template v-else>
                                 <div class="row items-center no-wrap">
-                                    <span :class="{ 'text-grey': !props.row.isActive }">{{
+                                    <span :class="{ 'text-strike text-grey-8': !props.row.isActive }">{{
                                         props.row.description
                                     }}</span>
                                     <q-btn
@@ -143,6 +146,7 @@
                             <q-toggle
                                 :model-value="props.row.usesWeeks"
                                 dense
+                                :aria-label="`${props.row.description} uses weeks`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'usesWeeks')"
                             >
@@ -160,6 +164,7 @@
                             <q-toggle
                                 :model-value="props.row.isActive"
                                 dense
+                                :aria-label="`${props.row.description} active`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'isActive')"
                             />
@@ -173,6 +178,7 @@
                             <q-toggle
                                 :model-value="props.row.facultyCanEnter"
                                 dense
+                                :aria-label="`${props.row.description} faculty can enter`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'facultyCanEnter')"
                             />
@@ -186,6 +192,7 @@
                             <q-toggle
                                 :model-value="props.row.allowedOnDvm"
                                 dense
+                                :aria-label="`${props.row.description} allowed on DVM`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'allowedOnDvm')"
                             />
@@ -199,6 +206,7 @@
                             <q-toggle
                                 :model-value="props.row.allowedOn199299"
                                 dense
+                                :aria-label="`${props.row.description} allowed on 199/299`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'allowedOn199299')"
                             />
@@ -212,6 +220,7 @@
                             <q-toggle
                                 :model-value="props.row.allowedOnRCourses"
                                 dense
+                                :aria-label="`${props.row.description} allowed on R courses`"
                                 :disable="isTogglingId === props.row.id"
                                 @update:model-value="toggleProperty(props.row, 'allowedOnRCourses')"
                             />
@@ -294,7 +303,7 @@
                                         <template v-else>
                                             <div
                                                 class="col text-grey-8"
-                                                :class="{ 'text-grey': !props.row.isActive }"
+                                                :class="{ 'text-strike': !props.row.isActive }"
                                             >
                                                 {{ props.row.description }}
                                             </div>

@@ -4,6 +4,7 @@ import { useRequireLogin } from "@/composables/RequireLogin"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
+import { useRouteFocus } from "@/composables/use-route-focus"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -61,5 +62,7 @@ router.beforeEach(async (to, from) => {
         }
     }
 })
+
+useRouteFocus(router)
 
 export { router as effortRouter }
