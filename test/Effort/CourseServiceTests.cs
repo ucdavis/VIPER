@@ -858,4 +858,111 @@ public sealed class CourseServiceTests : IDisposable
     }
 
     #endregion
+
+    #region IsVet4xxCourse Tests
+
+    [Theory]
+    [InlineData("VET", "410", true)]
+    [InlineData("VET", "400", true)]
+    [InlineData("VET", "499", true)]
+    [InlineData("VET", "410A", true)]
+    [InlineData("vet", "410", true)]
+    [InlineData(" VET ", " 410 ", true)]
+    [InlineData("VET", "40", false)]
+    [InlineData("VET", "4000", false)]
+    [InlineData("VET", "300", false)]
+    [InlineData("VET", "500", false)]
+    [InlineData("VME", "410", false)]
+    [InlineData("DVM", "410", false)]
+    [InlineData("", "410", false)]
+    [InlineData("VET", "", false)]
+    public void IsVet4xxCourse_ClassifiesCorrectly(string subjCode, string crseNumb, bool expected)
+    {
+        var result = _courseService.IsVet4xxCourse(subjCode, crseNumb);
+
+        Assert.Equal(expected, result);
+    }
+
+    #endregion
+
+    #region CheckImportConflictAsync Tests
+
+    [Fact]
+    public async Task CheckImportConflictAsync_ReturnsNone_WhenCrnNotInTerm()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "99999", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: false);
+
+        Assert.Equal(ImportConflict.None, result);
+    }
+
+    [Fact]
+    public async Task CheckImportConflictAsync_ReturnsDuplicateSameUnits_WhenCrnAndUnitsMatch()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: false);
+
+        Assert.Equal(ImportConflict.DuplicateSameUnits, result);
+    }
+
+    [Fact]
+    public async Task CheckImportConflictAsync_ReturnsNone_WhenCrnMatchesButUnitsDiffer_NonVet4xx()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 2, isVet4xx: false);
+
+        Assert.Equal(ImportConflict.None, result);
+    }
+
+    [Fact]
+    public async Task CheckImportConflictAsync_ReturnsHarvestBlocked_WhenVet4xxAndAnyExistingRow()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 10, Units = 2, CustDept = "DVM" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true);
+
+        Assert.Equal(ImportConflict.HarvestBlocked, result);
+    }
+
+    [Fact]
+    public async Task CheckImportConflictAsync_ReturnsHarvestBlocked_WhenVet4xxTakesPrecedenceOverDuplicateSameUnits()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "DVM" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true);
+
+        Assert.Equal(ImportConflict.HarvestBlocked, result);
+    }
+
+    [Fact]
+    public async Task CheckImportConflictAsync_TrimsCrnBeforeMatching()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "  12345  ", 4, isVet4xx: false);
+
+        Assert.Equal(ImportConflict.DuplicateSameUnits, result);
+    }
+
+    [Fact]
+    public async Task CheckImportConflictAsync_IgnoresOtherTerms()
+    {
+        _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202310, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "DVM" });
+        await _context.SaveChangesAsync();
+
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true);
+
+        Assert.Equal(ImportConflict.None, result);
+    }
+
+    #endregion
 }

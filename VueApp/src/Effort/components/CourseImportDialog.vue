@@ -70,15 +70,17 @@
                             color="primary"
                             :loading="isSearching"
                             :disable="!canSearch"
-                            class="full-width-xs"
+                            class="full-width-xs loading-btn"
                             @click="searchCourses"
                         >
                             <template #loading>
-                                <q-spinner
-                                    size="1em"
-                                    class="q-mr-sm"
-                                />
-                                Search
+                                <div class="row no-wrap items-center text-no-wrap">
+                                    <q-spinner
+                                        size="1em"
+                                        class="q-mr-sm"
+                                    />
+                                    Search
+                                </div>
                             </template>
                         </q-btn>
                     </div>
@@ -158,11 +160,11 @@
                                 | Enrollment: {{ course.enrollment }}
                             </div>
                             <div
-                                v-if="isSelfMode || !course.alreadyImported"
+                                v-if="shouldShowImportButton(isSelfMode, course)"
                                 class="q-mt-sm"
                             >
                                 <q-btn
-                                    :label="isSelfMode && course.alreadyImported ? 'Use Course' : 'Import'"
+                                    :label="importButtonLabel(isSelfMode, course)"
                                     color="primary"
                                     dense
                                     size="sm"
@@ -170,11 +172,13 @@
                                     @click="startImport(course)"
                                 >
                                     <template #loading>
-                                        <q-spinner
-                                            size="1em"
-                                            class="q-mr-sm"
-                                        />
-                                        {{ isSelfMode && course.alreadyImported ? "Use Course" : "Import" }}
+                                        <div class="row no-wrap items-center text-no-wrap">
+                                            <q-spinner
+                                                size="1em"
+                                                class="q-mr-sm"
+                                            />
+                                            {{ importButtonLabel(isSelfMode, course) }}
+                                        </div>
                                     </template>
                                 </q-btn>
                             </div>
@@ -243,8 +247,8 @@
                     <template #body-cell-actions="slotProps">
                         <q-td :props="slotProps">
                             <q-btn
-                                v-if="isSelfMode || !slotProps.row.alreadyImported"
-                                :label="isSelfMode && slotProps.row.alreadyImported ? 'Use Course' : 'Import'"
+                                v-if="shouldShowImportButton(isSelfMode, slotProps.row)"
+                                :label="importButtonLabel(isSelfMode, slotProps.row)"
                                 color="primary"
                                 dense
                                 size="sm"
@@ -252,11 +256,13 @@
                                 @click="startImport(slotProps.row)"
                             >
                                 <template #loading>
-                                    <q-spinner
-                                        size="1em"
-                                        class="q-mr-sm"
-                                    />
-                                    {{ isSelfMode && slotProps.row.alreadyImported ? "Use Course" : "Import" }}
+                                    <div class="row no-wrap items-center text-no-wrap">
+                                        <q-spinner
+                                            size="1em"
+                                            class="q-mr-sm"
+                                        />
+                                        {{ importButtonLabel(isSelfMode, slotProps.row) }}
+                                    </div>
                                 </template>
                             </q-btn>
                         </q-td>
@@ -337,18 +343,21 @@
                     flat
                 />
                 <q-btn
-                    :label="isSelfMode && selectedBannerCourse?.alreadyImported ? 'Use Course' : 'Import'"
+                    :label="importButtonLabel(isSelfMode, selectedBannerCourse ?? { alreadyImported: false })"
                     color="primary"
                     :loading="isImporting"
                     :disable="!canImport"
+                    class="loading-btn loading-btn--wide"
                     @click="doImport"
                 >
                     <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        {{ isSelfMode && selectedBannerCourse?.alreadyImported ? "Use Course" : "Import" }}
+                        <div class="row no-wrap items-center text-no-wrap">
+                            <q-spinner
+                                size="1em"
+                                class="q-mr-sm"
+                            />
+                            {{ importButtonLabel(isSelfMode, selectedBannerCourse ?? { alreadyImported: false }) }}
+                        </div>
                     </template>
                 </q-btn>
             </q-card-actions>
@@ -363,6 +372,7 @@ import StatusBanner from "@/components/StatusBanner.vue"
 import { courseService } from "../services/course-service"
 import type { BannerCourseDto } from "../types"
 import type { QTableColumn } from "quasar"
+import { shouldShowImportButton, importButtonLabel, shouldShortcutToImport } from "../utils/import-button-rules"
 
 const props = withDefaults(
     defineProps<{
@@ -488,8 +498,10 @@ function startImport(course: BannerCourseDto) {
     importUnits.value = course.unitLow
     importError.value = null
 
-    // Self mode: fixed-unit already-imported shortcut (bypass options dialog)
-    if (isSelfMode.value && course.alreadyImported && !course.isVariableUnits) {
+    // Self mode: already-imported shortcut (bypass options dialog).
+    // Backend returns the existing row by CRN match.
+    // Variable-unit courses must go through the dialog so the user can choose the unit value.
+    if (shouldShortcutToImport(isSelfMode.value, course)) {
         doImport()
         return
     }
@@ -544,3 +556,15 @@ async function doImport() {
     }
 }
 </script>
+
+<style scoped>
+/* Width reserved for the spinner + label loading overlay. */
+.loading-btn {
+    min-width: 8rem;
+}
+
+/* Footer "Use Course" button needs more room than the table-row variant. */
+.loading-btn--wide {
+    min-width: 9rem;
+}
+</style>

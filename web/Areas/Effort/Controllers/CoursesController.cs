@@ -207,20 +207,30 @@ public class CoursesController : BaseEffortController
             units = bannerCourse.UnitLow;
         }
 
-        // Validate: Course not already imported with same units
-        if (await _courseService.CourseExistsAsync(request.TermCode, request.Crn, units, ct))
-        {
-            _logger.LogWarning("Course {Crn} with {Units} units already exists for term {TermCode}",
-                LogSanitizer.SanitizeId(request.Crn), units, request.TermCode);
-            return Conflict($"Course {bannerCourse.SubjCode} {bannerCourse.CrseNumb} with {units} units already exists for this term");
-        }
-
+        // Authorize department access BEFORE conflict checks to avoid leaking
+        // existence of a CRN (or its Harvest-import status) to unauthorized users.
         var targetDept = _courseService.GetCustodialDepartmentForBannerCode(bannerCourse.DeptCode);
         if (!await _permissionService.CanViewDepartmentAsync(targetDept, ct))
         {
             _logger.LogWarning("User not authorized for department {CustDept} when importing course {Crn}",
                 targetDept, LogSanitizer.SanitizeId(request.Crn));
             return NotFound($"Course with CRN {request.Crn} not found in Banner for term {request.TermCode}");
+        }
+
+        // One round-trip covers both the same-units duplicate check and the VET 4XX
+        // Harvest-period block. Harvest wins if both apply (any existing row blocks re-import).
+        var isVet4xx = _courseService.IsVet4xxCourse(bannerCourse.SubjCode, bannerCourse.CrseNumb);
+        var conflict = await _courseService.CheckImportConflictAsync(request.TermCode, request.Crn, units, isVet4xx, ct);
+        switch (conflict)
+        {
+            case ImportConflict.HarvestBlocked:
+                _logger.LogWarning("Blocked manual import of harvested VET 4XX course {Crn} for term {TermCode}",
+                    LogSanitizer.SanitizeId(request.Crn), request.TermCode);
+                return Conflict($"{bannerCourse.SubjCode} {bannerCourse.CrseNumb} is imported during the Harvest period and cannot be manually imported again.");
+            case ImportConflict.DuplicateSameUnits:
+                _logger.LogWarning("Course {Crn} with {Units} units already exists for term {TermCode}",
+                    LogSanitizer.SanitizeId(request.Crn), units, request.TermCode);
+                return Conflict($"Course {bannerCourse.SubjCode} {bannerCourse.CrseNumb} with {units} units already exists for this term");
         }
 
         try

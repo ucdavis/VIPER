@@ -530,7 +530,7 @@ async function loadCourses() {
         if (token !== loadToken) return
 
         courses.value = coursesResult
-        departments.value = deptsResult
+        departments.value = [...deptsResult].sort()
     } finally {
         if (token === loadToken) {
             isLoading.value = false
@@ -586,7 +586,8 @@ async function deleteCourse(courseId: number) {
     const success = await courseService.deleteCourse(courseId)
     if (success) {
         $q.notify({ type: "positive", message: "Course deleted successfully" })
-        await loadCourses()
+        // Skip the full reload so the list doesn't flash.
+        courses.value = courses.value.filter((c) => c.id !== courseId)
     } else {
         $q.notify({ type: "negative", message: "Failed to delete course" })
     }
