@@ -268,8 +268,9 @@ loadPageData()
     >
         <template #top-right>
             <q-input
-                borderless
+                outlined
                 dense
+                bg-color="white"
                 debounce="300"
                 v-model="filter"
                 placeholder="Search"
