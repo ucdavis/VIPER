@@ -138,7 +138,6 @@ describe("CourseAddDialog - Error Handling", () => {
 
     describe("Form Reset Behavior", () => {
         it("should reset form data to defaults", () => {
-            const defaultDepartment = "APC"
             const formData = ref({
                 subjCode: "OLD",
                 crseNumb: "999",
@@ -157,12 +156,12 @@ describe("CourseAddDialog - Error Handling", () => {
                 crn: "",
                 enrollment: 0,
                 units: 0,
-                custDept: defaultDepartment,
+                custDept: "",
             }
 
             expect(formData.value.subjCode).toBe("")
             expect(formData.value.enrollment).toBe(0)
-            expect(formData.value.custDept).toBe("APC")
+            expect(formData.value.custDept).toBe("")
         })
     })
 })

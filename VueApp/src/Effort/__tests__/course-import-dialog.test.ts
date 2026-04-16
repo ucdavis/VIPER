@@ -1,5 +1,6 @@
 import { ref } from "vue"
 import { setActivePinia, createPinia } from "pinia"
+import { shouldShowImportButton, importButtonLabel, shouldShortcutToImport } from "../utils/import-button-rules"
 
 /**
  * Tests for CourseImportDialog error handling behavior.
@@ -158,6 +159,72 @@ describe("CourseImportDialog - Error Handling", () => {
             searchError.value = ""
 
             expect(searchError.value).toBe("")
+        })
+    })
+})
+
+/**
+ * The backend's `alreadyImported` flag is true for fixed-unit courses that
+ * exist in Effort for the term AND for VET 4XX courses (any unit type) that
+ * exist for the term — the latter are harvested during the Harvest period and
+ * cannot be manually re-imported. The frontend renders off this flag.
+ */
+describe("CourseImportDialog - alreadyImported Button Behavior", () => {
+    describe("Import Button Visibility", () => {
+        it("hides the button in staff mode when the course is already imported", () => {
+            expect(shouldShowImportButton(false, { alreadyImported: true })).toBeFalsy()
+        })
+
+        it("shows the button in staff mode when the course is not yet imported", () => {
+            expect(shouldShowImportButton(false, { alreadyImported: false })).toBeTruthy()
+        })
+
+        it("always shows the button in self mode so instructors can 'Use Course'", () => {
+            expect(shouldShowImportButton(true, { alreadyImported: true })).toBeTruthy()
+            expect(shouldShowImportButton(true, { alreadyImported: false })).toBeTruthy()
+        })
+    })
+
+    describe("Import Button Label", () => {
+        it("shows 'Use Course' in self mode when the course is already imported", () => {
+            expect(importButtonLabel(true, { alreadyImported: true })).toBe("Use Course")
+        })
+
+        it("shows 'Import' in self mode when the course is not yet imported", () => {
+            expect(importButtonLabel(true, { alreadyImported: false })).toBe("Import")
+        })
+
+        it("always shows 'Import' in staff mode", () => {
+            expect(importButtonLabel(false, { alreadyImported: true })).toBe("Import")
+            expect(importButtonLabel(false, { alreadyImported: false })).toBe("Import")
+        })
+    })
+
+    describe("startImport Shortcut (self-mode bypass of units dialog)", () => {
+        // Self mode shortcuts the options dialog when the course is already
+        // imported AND fixed-unit — the backend returns the existing row by
+        // CRN match. Variable-unit courses always open the dialog so the user
+        // can pick the unit value for a new import.
+        it("shortcuts fixed-unit already-imported courses in self mode", () => {
+            expect(shouldShortcutToImport(true, { alreadyImported: true, isVariableUnits: false })).toBeTruthy()
+        })
+
+        it("opens the dialog for non-harvest variable-unit courses so the user can pick units", () => {
+            // Non-VET-4XX variable-unit: alreadyImported is false, so no shortcut.
+            expect(shouldShortcutToImport(true, { alreadyImported: false, isVariableUnits: true })).toBeFalsy()
+        })
+
+        it("opens the dialog for VET 4XX variable-unit courses even when alreadyImported", () => {
+            // Under the new backend semantics, VET 4XX variable-unit existing in
+            // Effort has alreadyImported=true. The current shortcut check bails
+            // out on isVariableUnits, so the user goes through the units dialog
+            // (backend will return the existing row regardless of the unit value).
+            expect(shouldShortcutToImport(true, { alreadyImported: true, isVariableUnits: true })).toBeFalsy()
+        })
+
+        it("never shortcuts in staff mode (the button is hidden when alreadyImported)", () => {
+            expect(shouldShortcutToImport(false, { alreadyImported: true, isVariableUnits: false })).toBeFalsy()
+            expect(shouldShortcutToImport(false, { alreadyImported: true, isVariableUnits: true })).toBeFalsy()
         })
     })
 })

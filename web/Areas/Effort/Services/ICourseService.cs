@@ -4,6 +4,24 @@ using Viper.Areas.Effort.Models.DTOs.Responses;
 namespace Viper.Areas.Effort.Services;
 
 /// <summary>
+/// Outcome of the pre-import conflict check for a Banner course.
+/// </summary>
+public enum ImportConflict
+{
+    /// <summary>No conflict — the course can be imported.</summary>
+    None,
+
+    /// <summary>A course with this term/CRN already exists at the same unit value.</summary>
+    DuplicateSameUnits,
+
+    /// <summary>
+    /// The course is a VET 4XX course already imported during the Harvest period.
+    /// Any unit value is blocked from re-import.
+    /// </summary>
+    HarvestBlocked,
+}
+
+/// <summary>
 /// Service for course-related operations in the Effort system.
 /// </summary>
 public interface ICourseService
@@ -61,6 +79,30 @@ public interface ICourseService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>True if a course with this key exists, false otherwise.</returns>
     Task<bool> CourseExistsAsync(int termCode, string crn, decimal units, CancellationToken ct = default);
+
+    /// <summary>
+    /// Determine whether an import of the given CRN/units would conflict with existing data.
+    /// One round-trip combines the same-units duplicate check and the VET 4XX Harvest block,
+    /// returning a discriminator so the controller can render the appropriate response.
+    /// </summary>
+    /// <param name="termCode">The term code.</param>
+    /// <param name="crn">The course reference number.</param>
+    /// <param name="units">The unit value the caller intends to import.</param>
+    /// <param name="isVet4xx">True if the Banner course is VET 4XX (pre-evaluated by the caller).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The conflict kind, or <see cref="ImportConflict.None"/> if the import can proceed.</returns>
+    Task<ImportConflict> CheckImportConflictAsync(int termCode, string crn, decimal units, bool isVet4xx, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if a course is a VET 4XX course (subject code "VET" with course number 400-499).
+    /// These courses are imported during the Harvest period and are blocked from manual re-import.
+    /// Matches numeric 400-499 with optional non-digit suffix (e.g., "410", "410A", "499R"),
+    /// but excludes two-digit numbers like "40" and four-digit numbers like "4000".
+    /// </summary>
+    /// <param name="subjCode">The subject code (e.g., "VET", "VME").</param>
+    /// <param name="crseNumb">The course number (e.g., "410", "410A").</param>
+    /// <returns>True if the course is a VET 4XX course.</returns>
+    bool IsVet4xxCourse(string subjCode, string crseNumb);
 
     /// <summary>
     /// Import a course from Banner into the Effort system.

@@ -142,7 +142,11 @@ public class CourseService : ICourseService
             {
                 var isFixed = course.UnitType == "F";
                 var importedUnits = importedByCrn.GetValueOrDefault(course.Crn, new List<decimal>());
-                course.AlreadyImported = isFixed && importedUnits.Count > 0;
+                // VET 4XX courses are imported during the Harvest period and cannot be
+                // re-imported — treat them as already-imported regardless of unit type so
+                // variable-unit VET 4XX courses are also blocked from re-import.
+                var isVet4xx = IsVet4xxCourse(course.SubjCode, course.CrseNumb);
+                course.AlreadyImported = importedUnits.Count > 0 && (isFixed || isVet4xx);
                 course.ImportedUnitValues = importedUnits;
             }
         }
@@ -160,7 +164,36 @@ public class CourseService : ICourseService
     public async Task<bool> CourseExistsAsync(int termCode, string crn, decimal units, CancellationToken ct = default)
     {
         return await _context.Courses
+            .AsNoTracking()
             .AnyAsync(c => c.TermCode == termCode && c.Crn.Trim() == crn.Trim() && c.Units == units, ct);
+    }
+
+    public async Task<ImportConflict> CheckImportConflictAsync(int termCode, string crn, decimal units, bool isVet4xx, CancellationToken ct = default)
+    {
+        var crnTrimmed = crn.Trim();
+        var existingUnits = await _context.Courses
+            .AsNoTracking()
+            .Where(c => c.TermCode == termCode && c.Crn.Trim() == crnTrimmed)
+            .Select(c => c.Units)
+            .ToListAsync(ct);
+
+        if (isVet4xx && existingUnits.Count > 0) return ImportConflict.HarvestBlocked;
+        if (existingUnits.Contains(units)) return ImportConflict.DuplicateSameUnits;
+        return ImportConflict.None;
+    }
+
+    public bool IsVet4xxCourse(string subjCode, string crseNumb)
+    {
+        if (string.IsNullOrWhiteSpace(subjCode) || string.IsNullOrWhiteSpace(crseNumb)) return false;
+        if (!subjCode.Trim().Equals("VET", StringComparison.OrdinalIgnoreCase)) return false;
+        var trimmed = crseNumb.Trim();
+        // Require exactly three leading digits starting with '4' (matches 400-499).
+        // A digit in position 3 would indicate a 4-digit number like "4000" — not a 4XX course.
+        return trimmed.Length >= 3
+            && trimmed[0] == '4'
+            && char.IsDigit(trimmed[1])
+            && char.IsDigit(trimmed[2])
+            && (trimmed.Length == 3 || !char.IsDigit(trimmed[3]));
     }
 
     public async Task<CourseDto> ImportCourseFromBannerAsync(ImportCourseRequest request, BannerCourseDto bannerCourse, CancellationToken ct = default)
