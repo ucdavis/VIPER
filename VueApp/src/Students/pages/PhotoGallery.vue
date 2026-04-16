@@ -1,5 +1,5 @@
 <template>
-    <q-page padding>
+    <div class="photo-gallery-page">
         <q-card>
             <q-tabs
                 class="no-print"
@@ -26,9 +26,7 @@
 
             <q-card-section class="no-print">
                 <div class="row items-center">
-                    <div class="col">
-                        <div class="text-h5">{{ pageMainTitle }}</div>
-                    </div>
+                    <h1 class="col page-main-title">{{ pageMainTitle }}</h1>
                     <div
                         v-if="activeTab === 'photos'"
                         class="col-auto"
@@ -71,6 +69,7 @@
                             flat
                             icon="print"
                             color="primary"
+                            aria-label="Print Student List"
                             @click="handlePrint"
                         >
                             <q-tooltip>Print Student List</q-tooltip>
@@ -534,7 +533,7 @@
             :initial-index="selectedStudentIndex"
             @update:index="selectedStudentIndex = $event"
         />
-    </q-page>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -1422,6 +1421,10 @@ watch(selectedStudentIndex, (newIndex) => {
 </script>
 
 <style>
+h1.page-main-title {
+    margin: 0;
+}
+
 /* Student grid item sizing for 8 per row on large screens */
 .student-grid-item {
     flex: 0 0 25%; /* 4 per row on mobile (25%) */
@@ -1535,7 +1538,7 @@ watch(selectedStudentIndex, (newIndex) => {
     /* Reset layout and page to use full width */
     .q-layout,
     .q-page-container,
-    .q-page {
+    .photo-gallery-page {
         margin: 0 !important;
         padding: 0 !important;
         max-width: 100% !important;

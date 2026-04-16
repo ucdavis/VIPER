@@ -158,16 +158,31 @@ load()
     <q-dialog
         v-model="showForm"
         @hide="clear"
+        aria-labelledby="student-class-year-dialog-title"
     >
         <q-card style="width: 500px; max-width: 80vw">
             <q-form
                 @submit="submitStudentClassYear"
                 v-model="studentClassYear"
             >
-                <q-card-section>
-                    <div class="text-h6">
+                <q-card-section class="row items-center q-pb-none">
+                    <div
+                        id="student-class-year-dialog-title"
+                        class="text-h6"
+                    >
                         Updating record for {{ selectedStudentName }} Class of {{ studentClassYear.classYear }}
                     </div>
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
+                </q-card-section>
+                <q-card-section class="q-pt-sm">
                     If you change the class year one the current class year, a new record will be created and the
                     current class year one will be marked as inactive with the reasons and term below.
                 </q-card-section>

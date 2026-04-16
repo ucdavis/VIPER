@@ -2,10 +2,29 @@
     <q-dialog
         v-model="show"
         no-backdrop-dismiss
+        aria-labelledby="student-photo-dialog-title"
         @keydown="handleKeydown"
     >
         <q-card :style="cardStyle">
-            <q-card-section class="q-px-none">
+            <q-card-section class="row items-center q-pb-none">
+                <div
+                    id="student-photo-dialog-title"
+                    class="text-h6"
+                >
+                    {{ currentStudent?.fullName ?? "Student" }}
+                </div>
+                <q-space />
+                <q-btn
+                    icon="close"
+                    flat
+                    round
+                    dense
+                    aria-label="Close dialog"
+                    v-close-popup
+                />
+            </q-card-section>
+
+            <q-card-section class="q-px-none q-py-xs">
                 <div
                     class="row items-center justify-center q-gutter-xs"
                     style="flex-wrap: nowrap"
@@ -148,15 +167,6 @@
                     </div>
                 </div>
             </q-card-section>
-
-            <q-card-actions align="right">
-                <q-btn
-                    flat
-                    label="Close"
-                    color="primary"
-                    v-close-popup
-                />
-            </q-card-actions>
         </q-card>
     </q-dialog>
 </template>
