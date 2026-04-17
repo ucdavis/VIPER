@@ -123,12 +123,6 @@
                 <div v-if="user.mothraId"><span>MothraID:</span> {{ user.mothraId }}</div>
                 <div v-if="user.mivId"><span>MIVID:</span> {{ user.mivId }}</div>
             </q-card-section>
-            <q-separator v-if="debug"></q-separator>
-            <q-card-section v-if="debug">
-                <pre>
-                {{ user.originalObject }}
-                </pre>
-            </q-card-section>
         </q-card>
     </div>
 
@@ -140,7 +134,6 @@
                     userSearch: getItemFromStorage("directory_search") ?? "",
                     ucd: getItemFromStorage("directory_ucd") ?? false,
                     ids: getItemFromStorage("directory_ids") ?? false,
-                    debug: getItemFromStorage("directory_debug") ?? false,
                     spinner: false,
                     results: []
                 }
@@ -177,11 +170,6 @@
                 ids: function () {
                     putItemInStorage("directory_search", this.userSearch);
                     putItemInStorage("directory_ids", this.ids);
-                    this.findUsers();
-                },
-                debug: function () {
-                    putItemInStorage("directory_search", this.userSearch);
-                    putItemInStorage("directory_debug", this.ids);
                     this.findUsers();
                 }
             }
