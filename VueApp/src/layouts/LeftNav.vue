@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue"
+import { computed, ref, watch, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
 
@@ -140,23 +140,26 @@ function getMatchScore(routeTo: string): number {
     return 0
 }
 
+const bestMatchScore = computed(() => {
+    let best = 0
+    for (const item of menuItems.value) {
+        if (!item.routeTo) {
+            continue
+        }
+        const score = getMatchScore(item.routeTo)
+        if (score > best) {
+            best = score
+        }
+    }
+    return best
+})
+
 function isItemActive(routeTo: string | null): boolean {
     if (!routeTo) {
         return false
     }
-    const thisScore = getMatchScore(routeTo)
-    if (thisScore === 0) {
-        return false
-    }
-    for (const item of menuItems.value) {
-        if (!item.routeTo || item.routeTo === routeTo) {
-            continue
-        }
-        if (getMatchScore(item.routeTo) > thisScore) {
-            return false
-        }
-    }
-    return true
+    const score = getMatchScore(routeTo)
+    return score > 0 && score === bestMatchScore.value
 }
 
 type OverflowTitleElement = HTMLElement & {

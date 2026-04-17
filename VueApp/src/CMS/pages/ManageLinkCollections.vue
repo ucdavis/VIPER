@@ -492,7 +492,7 @@ const justMovedTagId: Ref<number | null> = ref(null)
 async function loadCollections(preferredId?: number | null) {
     const { get } = useFetch()
     const res = await get(apiURL)
-    collections.value = res.result
+    collections.value = res.success && Array.isArray(res.result) ? res.result : []
 
     if (collections.value.length > 0) {
         const preferred =
