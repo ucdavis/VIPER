@@ -1,100 +1,107 @@
 <template>
     <h2>{{ linkCollection?.linkCollection }}</h2>
 
-    <q-expansion-item
-        v-if="loaded"
-        v-model="filtersExpandedComputed"
-        icon="filter_list"
-        label="Filters"
-        header-class="bg-grey-2 lt-md"
-        :header-style="$q.screen.gt.xs ? 'display: none' : ''"
-        class="q-mb-md"
+    <div
+        v-if="!loaded"
+        class="text-center q-my-lg"
     >
-        <q-form>
-            <div class="row q-pa-sm q-gutter-md">
-                <q-input
-                    v-model="search"
-                    dense
-                    outlined
-                    label="Search"
-                    stack-label
-                    clearable
-                    class="col-12 col-sm-6 col-md-3 col-lg-2"
-                >
-                    <template #append>
-                        <q-icon name="search" />
-                    </template>
-                </q-input>
-                <template
-                    v-for="tf in tagFilters"
-                    :key="tf.linkCollectionTagCategoryId"
-                >
-                    <q-select
-                        v-model="tf.selected"
+        <q-spinner-dots
+            size="3rem"
+            color="primary"
+        />
+        <div class="q-mt-md text-body1">Loading...</div>
+    </div>
+
+    <template v-else>
+        <q-expansion-item
+            v-model="filtersExpandedComputed"
+            icon="filter_list"
+            label="Filters"
+            header-class="bg-grey-2 lt-md"
+            :header-style="$q.screen.gt.xs ? 'display: none' : ''"
+            class="q-mb-md"
+        >
+            <q-form>
+                <div class="row q-pa-sm q-gutter-md">
+                    <q-input
+                        v-model="search"
                         dense
-                        options-dense
                         outlined
-                        :options="tf.options"
-                        :label="tf.linkCollectionTagCategory"
+                        label="Search"
                         stack-label
                         clearable
-                        class="col-12 col-sm-6 col-md-3 col-lg-2 col-xl-1"
-                    ></q-select>
-                </template>
-            </div>
-        </q-form>
-    </q-expansion-item>
+                        class="col-12 col-sm-6 col-md-3 col-lg-2"
+                    >
+                        <template #append>
+                            <q-icon name="search" />
+                        </template>
+                    </q-input>
+                    <template
+                        v-for="tf in tagFilters"
+                        :key="tf.linkCollectionTagCategoryId"
+                    >
+                        <q-select
+                            v-model="tf.selected"
+                            dense
+                            options-dense
+                            outlined
+                            :options="tf.options"
+                            :label="tf.linkCollectionTagCategory"
+                            stack-label
+                            clearable
+                            class="col-12 col-sm-6 col-md-3 col-lg-2 col-xl-1"
+                        ></q-select>
+                    </template>
+                </div>
+            </q-form>
+        </q-expansion-item>
 
-    <template v-if="props.groupByTagCategory == null || props.groupByTagCategory.length == 0">
-        <div
-            class="q-pa-md row q-gutter-md"
-            v-if="linkCollection != null"
-        >
-            <template
-                v-for="li in filteredLinks"
-                :key="li.linkId"
-            >
-                <LinkComponent
-                    :link="li"
-                    :link-collection="linkCollection"
-                ></LinkComponent>
-            </template>
-            <div
-                v-if="filteredLinks.length == 0"
-                class="text-subtitle2 q-pa-md"
-            >
-                No links found.
-            </div>
-        </div>
-    </template>
-    <template v-else-if="linkCollection != null">
-        <div
-            v-if="filteredLinks.length == 0"
-            class="text-subtitle2 q-pa-md"
+        <StatusBanner
+            v-if="filteredLinks.length === 0"
+            type="info"
         >
             No links found.
-        </div>
-        <div
-            class="q-pa-md row q-gutter-md"
-            v-for="groupBy in groupByValues"
-            :key="groupBy"
-        >
+        </StatusBanner>
+
+        <template v-else-if="props.groupByTagCategory == null || props.groupByTagCategory.length == 0">
             <div
-                class="col-12"
-                v-if="getInGroup(filteredLinks, groupBy).length > 0"
+                class="q-pa-md row q-gutter-md"
+                v-if="linkCollection != null"
             >
-                <h3 class="q-mt-lg q-mb-sm">{{ groupBy }}</h3>
+                <template
+                    v-for="li in filteredLinks"
+                    :key="li.linkId"
+                >
+                    <LinkComponent
+                        :link="li"
+                        :link-collection="linkCollection"
+                    ></LinkComponent>
+                </template>
             </div>
-            <template
-                v-for="li in getInGroup(filteredLinks, groupBy)"
-                :key="li.linkId"
+        </template>
+        <template v-else-if="linkCollection != null">
+            <div
+                class="q-pa-md row q-gutter-md"
+                v-for="groupBy in groupByValues"
+                :key="groupBy"
             >
-                <LinkComponent
-                    :link="li"
-                    :link-collection="linkCollection"
-                ></LinkComponent>
-            </template>
-        </div>
+                <div
+                    class="col-12"
+                    v-if="getInGroup(filteredLinks, groupBy).length > 0"
+                >
+                    <h3 class="q-mt-lg q-mb-sm">{{ groupBy }}</h3>
+                </div>
+                <template
+                    v-for="li in getInGroup(filteredLinks, groupBy)"
+                    :key="li.linkId"
+                >
+                    <LinkComponent
+                        :link="li"
+                        :link-collection="linkCollection"
+                    ></LinkComponent>
+                </template>
+            </div>
+        </template>
     </template>
 </template>
 
@@ -105,6 +112,7 @@ import { useQuasar } from "quasar"
 import type { Link, LinkCollection, LinkTag, LinkTagFilter } from "@/CMS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { default as LinkComponent } from "@/CMS/components/Link.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 
 const $q = useQuasar()
 
