@@ -27,7 +27,7 @@
                         no-caps
                         dense
                         class="q-mx-lg q-pr-md"
-                        @click="showCollectionDialog = true"
+                        @click="openNewCollectionDialog"
                     />
                 </div>
                 <div
@@ -499,15 +499,29 @@ function isSafeUrl(val: string): boolean {
 }
 
 //collections
-async function loadCollections() {
+async function loadCollections(preferredId?: number | null) {
     const { get } = useFetch()
     const res = await get(apiURL)
     collections.value = res.result
 
     if (collections.value.length > 0) {
-        collection.value = collections.value[0] !== undefined ? collections.value[0] : null
-        collectionId.value = collections.value[0] !== undefined ? collections.value[0].linkCollectionId : null
+        const preferred =
+            preferredId !== null && preferredId !== undefined
+                ? collections.value.find((c) => c.linkCollectionId === preferredId)
+                : undefined
+        collection.value = preferred ?? collections.value[0] ?? null
+        collectionId.value = collection.value?.linkCollectionId ?? null
     }
+}
+
+function openNewCollectionDialog() {
+    collection.value = null
+    collectionId.value = null
+    collectionData.value = { linkCollection: "" }
+    draftTags.value = []
+    deletedTagIds.value = []
+    addTag.value = ""
+    showCollectionDialog.value = true
 }
 
 async function saveCollection() {
@@ -573,7 +587,8 @@ async function saveCollection() {
     }
 
     $q.notify({ type: "positive", message: `Collection ${isEdit ? "updated" : "created"}` })
-    await loadCollections()
+    const targetId = isEdit ? collection.value?.linkCollectionId : (res.result?.linkCollectionId ?? null)
+    await loadCollections(targetId)
     await loadTags()
     cancelCollectionDialog()
 }
