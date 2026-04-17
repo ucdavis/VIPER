@@ -10,12 +10,17 @@
         <q-card-section class="q-py-sm">
             <div class="text-h3">
                 <a
-                    :href="safeHref(props.link.url)"
+                    v-if="hrefForLink !== '#'"
+                    :href="hrefForLink"
                     target="_blank"
                     rel="noopener noreferrer"
+                    @click.stop
                 >
                     {{ props.link.title }}
                 </a>
+                <span v-else>
+                    {{ props.link.title }}
+                </span>
             </div>
         </q-card-section>
         <q-card-section class="q-py-sm">
@@ -45,12 +50,14 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue"
+import { computed, watch } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
 const props = defineProps<{
     link: Link
     linkCollection: LinkCollection
 }>()
+
+const hrefForLink = computed(() => safeHref(props.link.url))
 
 // Each tag category's sortOrder (1-based) indexes this palette. Gold and Tahoe
 // are light enough to require dark text for WCAG AA contrast (≥4.5:1).

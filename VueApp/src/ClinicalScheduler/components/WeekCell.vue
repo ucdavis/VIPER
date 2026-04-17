@@ -3,7 +3,7 @@
         :class="cardClasses"
         clickable
         tabindex="0"
-        role="group"
+        role="button"
         :aria-label="`Week ${week.weekNumber} starting ${formatDate(week.dateStart)}, ${assignments.length} ${inflect('assignment', assignments.length)}`"
         @click="handleClick"
         @keyup.enter.self.prevent="handleClick"
