@@ -4,7 +4,7 @@
         flat
         bordered
     >
-        <q-card-section class="q-pa-sm q-pb-md">
+        <q-card-section class="q-pa-sm">
             <div class="column q-gutter-sm">
                 <!-- Recent items section -->
                 <div>
@@ -37,9 +37,8 @@
                         <q-chip
                             v-for="item in items"
                             :key="getItemKey(item)"
-                            :color="isItemSelected(item) ? 'primary' : undefined"
+                            :color="isItemSelected(item) ? 'primary' : 'grey-4'"
                             :text-color="isItemSelected(item) ? 'white' : 'dark'"
-                            :outline="!isItemSelected(item)"
                             clickable
                             size="sm"
                             class="q-mr-xs"

@@ -5,7 +5,6 @@ import type { Router } from "vue-router"
 import { initializeQuasar } from "@/composables/QuasarConfig"
 
 /* oxlint-disable import/no-unassigned-import -- CSS imports for side effects */
-import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/dist/quasar.css"
 import "@/styles/index.css"
 /* oxlint-enable import/no-unassigned-import */

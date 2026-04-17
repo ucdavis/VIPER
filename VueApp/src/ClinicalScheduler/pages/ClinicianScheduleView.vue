@@ -1,5 +1,6 @@
 <template>
     <div class="clinical-scheduler-container position-relative">
+        <h1 class="sr-only">{{ permissionsStore.clinicianViewLabel }}</h1>
         <SchedulerNavigation />
 
         <!-- Loading permissions state - show this until we have permission data -->
@@ -75,11 +76,12 @@
             />
 
             <!-- No clinician selected -->
-            <ScheduleBanner
+            <StatusBanner
                 v-if="!selectedClinician && !loadingSchedule"
                 type="info"
-                :custom-message="SCHEDULE_MESSAGES.SELECTION.NO_CLINICIAN"
-            />
+            >
+                {{ SCHEDULE_MESSAGES.SELECTION.NO_CLINICIAN }}
+            </StatusBanner>
 
             <!-- Schedule display -->
             <div v-if="selectedClinician">
@@ -111,6 +113,7 @@
                             :exclude-rotation-names="assignedRotationNames"
                             :only-with-scheduled-weeks="true"
                             :year="currentYear"
+                            hide-bottom-space
                             @rotation-selected="onAddRotationSelected"
                             style="min-width: 280px"
                             class="q-mt-none"
@@ -169,6 +172,7 @@ import { useScheduleNormalization } from "../composables/use-schedule-normalizat
 import { useDeleteMode } from "../composables/use-delete-mode"
 import type { RotationWithService } from "../types/rotation-types"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import {

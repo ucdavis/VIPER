@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import { clinicalSchedulerRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
+import { useRouteFocus } from "@/composables/use-route-focus"
 
 const baseUrl = import.meta.env.VITE_VIPER_HOME
 const router = createRouter({
@@ -13,5 +14,7 @@ router.beforeEach((to) => {
     const { requireLogin } = useRequireLogin(to)
     return requireLogin(true, "SVMSecure.ClnSched")
 })
+
+useRouteFocus(router)
 
 export { router as clinicalSchedulerRouter }

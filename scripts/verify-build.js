@@ -98,7 +98,7 @@ async function verifyVueTypeScript() {
         const vueAppDir = path.resolve(process.cwd(), "VueApp")
         await runCommand("npx", ["vue-tsc", "--build", "--force"], {
             cwd: vueAppDir,
-            env: { ...env, NODE_ENV: "development" },
+            env: { ...env, NODE_ENV: "production" },
         })
 
         logger.success("Vue.js TypeScript compilation passed ✓")
@@ -114,9 +114,9 @@ async function verifyVueBuild() {
 
     try {
         const vueAppDir = path.resolve(process.cwd(), "VueApp")
-        await runCommand("npm", ["run", "build-only-dev"], {
+        await runCommand("npm", ["run", "build-only"], {
             cwd: vueAppDir,
-            env: { ...env, NODE_ENV: "development" },
+            env: { ...env, NODE_ENV: "production" },
         })
 
         logger.success("Vue.js build passed ✓")

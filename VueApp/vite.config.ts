@@ -155,7 +155,7 @@ export default defineConfig(({ mode }) => {
             },
         },
         build: {
-            minify: true,
+            minify: "oxc",
             outDir: "../web/wwwroot/vue",
             emptyOutDir: true,
             rolldownOptions: {

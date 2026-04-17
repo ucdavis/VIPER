@@ -31,12 +31,11 @@
             <div>
                 <h2 class="text-h5 text-grey-8 q-mb-md">Select Scheduling View:</h2>
 
-                <div class="row q-gutter-md">
+                <div class="row q-col-gutter-md">
                     <!-- Schedule by Rotation - available to rotation-specific and full access users -->
                     <div
                         v-if="canAccessRotationView"
-                        class="col-12 col-sm-auto"
-                        style="min-width: 300px; max-width: 400px; flex: 1"
+                        class="col-12 col-sm-6"
                     >
                         <q-card
                             flat
@@ -66,7 +65,7 @@
                                         class="opacity-70"
                                     />
                                 </div>
-                                <p class="text-grey-7 q-mb-sm">Schedule clinicians for a specific rotation</p>
+                                <p class="text-grey-8 q-mb-sm">Schedule clinicians for a specific rotation</p>
                             </q-card-section>
                         </q-card>
                     </div>
@@ -74,8 +73,7 @@
                     <!-- Schedule by Clinician - not available to rotation-specific only users -->
                     <div
                         v-if="canAccessClinicianView"
-                        class="col-12 col-sm-auto"
-                        style="min-width: 300px; max-width: 400px; flex: 1"
+                        class="col-12 col-sm-6"
                     >
                         <q-card
                             flat
@@ -107,17 +105,19 @@
                                         class="opacity-70"
                                     />
                                 </div>
-                                <p class="text-grey-7 q-mb-sm">Schedule rotations for a specific clinician</p>
+                                <p class="text-grey-8 q-mb-sm">Schedule rotations for a specific clinician</p>
                                 <q-banner
                                     v-if="permissionsStore.hasOnlyOwnSchedulePermission"
                                     dense
                                     inline-actions
                                     class="text-primary bg-primary-1 rounded-borders"
+                                    role="status"
                                 >
                                     <template #avatar>
                                         <q-icon
                                             name="info"
                                             size="14px"
+                                            aria-hidden="true"
                                         />
                                     </template>
                                     <span class="text-caption">Your schedule only</span>
