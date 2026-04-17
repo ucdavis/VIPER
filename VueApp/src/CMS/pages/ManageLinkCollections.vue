@@ -616,7 +616,7 @@ async function cancelCollectionDialog() {
 
 watch(showCollectionDialog, (open) => {
     if (open) {
-        draftTags.value = collectionTags.value.map((t) => ({ ...t }))
+        draftTags.value = collectionId.value === null ? [] : collectionTags.value.map((t) => ({ ...t }))
         deletedTagIds.value = []
         addTag.value = ""
     }
