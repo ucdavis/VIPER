@@ -52,6 +52,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
+import { safeHref } from "@/CMS/utils/url"
 const props = defineProps<{
     link: Link
     linkCollection: LinkCollection
@@ -73,19 +74,6 @@ const TAG_STYLES: ReadonlyArray<{ color: string; textColor: string }> = [
 function getTagStyle(order: number) {
     const idx = order >= 1 ? (order - 1) % TAG_STYLES.length : 0
     return TAG_STYLES[idx]!
-}
-
-const SAFE_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"]
-
-function safeHref(url: string): string {
-    const normalized = url?.trim()
-    if (!normalized) return "#"
-    try {
-        const parsed = new URL(normalized)
-        return SAFE_PROTOCOLS.includes(parsed.protocol) ? normalized : "#"
-    } catch {
-        return "#"
-    }
 }
 
 function openWebReports(url: string) {

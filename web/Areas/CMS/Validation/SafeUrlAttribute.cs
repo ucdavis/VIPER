@@ -9,7 +9,7 @@ public sealed class SafeUrlAttribute : ValidationAttribute
 
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
-        if (value is not string url || string.IsNullOrWhiteSpace(url))
+        if (value is not string url || string.IsNullOrEmpty(url))
         {
             return ValidationResult.Success;
         }

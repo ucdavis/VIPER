@@ -459,6 +459,7 @@ import type { Ref } from "vue"
 import { VueDraggable } from "vue-draggable-plus"
 import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from "@/CMS/types/"
 import { useFetch } from "@/composables/ViperFetch"
+import { isSafeUrl } from "@/CMS/utils/url"
 
 const apiURL = (inject("apiURL") + "cms/linkCollections/") as string
 const $q = useQuasar()
@@ -485,18 +486,6 @@ const linkFormRef: Ref<any> = ref(null)
 
 const justMovedLinkId: Ref<number | null> = ref(null)
 const justMovedTagId: Ref<number | null> = ref(null)
-
-const SAFE_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"]
-
-function isSafeUrl(val: string): boolean {
-    if (!val || !val.trim()) return true
-    try {
-        const parsed = new URL(val.trim())
-        return SAFE_PROTOCOLS.includes(parsed.protocol)
-    } catch {
-        return false
-    }
-}
 
 //collections
 async function loadCollections(preferredId?: number | null) {
