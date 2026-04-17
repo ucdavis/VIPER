@@ -242,7 +242,7 @@ onBeforeRouteLeave(() => {
         />
 
         <template v-else-if="detail">
-            <h2 class="q-ma-none q-mb-md">
+            <h1 class="q-ma-none q-mb-md">
                 Emergency Contact: {{ detail.fullName }}
                 <q-badge
                     v-if="canManageAccess"
@@ -259,7 +259,7 @@ onBeforeRouteLeave(() => {
                 >
                     {{ canEdit ? "Editable" : "Read Only" }}
                 </q-badge>
-            </h2>
+            </h1>
 
             <!-- Admin: individual access control -->
             <StatusBanner
