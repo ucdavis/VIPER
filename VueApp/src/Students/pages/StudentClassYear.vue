@@ -183,8 +183,8 @@ load()
                     />
                 </q-card-section>
                 <q-card-section class="q-pt-sm">
-                    If you change the class year one the current class year, a new record will be created and the
-                    current class year one will be marked as inactive with the reasons and term below.
+                    If you change the class year from the current class year, a new record will be created and the
+                    current class year will be marked as inactive with the reasons and term below.
                 </q-card-section>
                 <q-card-section>
                     <q-checkbox

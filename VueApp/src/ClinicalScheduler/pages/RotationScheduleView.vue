@@ -1,5 +1,6 @@
 <template>
     <div class="clinical-scheduler-container position-relative">
+        <h1 class="sr-only">Schedule by Rotation</h1>
         <SchedulerNavigation />
 
         <!-- Loading permissions state - show this until we have permission data -->
@@ -94,18 +95,22 @@
             />
 
             <!-- No rotation selected message -->
-            <ScheduleBanner
+            <StatusBanner
                 v-else-if="!selectedRotation"
                 type="info"
-                custom-message="Please select a rotation to view its schedule."
-            />
+            >
+                Please select a rotation to view its schedule.
+            </StatusBanner>
 
             <!-- Instructions (only show when rotation is selected and not past year) -->
-            <ScheduleBanner
+            <StatusBanner
                 v-else-if="selectedRotation && !isPastYear"
-                type="instructions"
-                custom-message="This list of clinicians should contain any clinician scheduled for the rotation in the current or previous year. The user can click on a clinician to select them, and then click on any week to schedule them."
-            />
+                type="info"
+            >
+                This list of clinicians should contain any clinician scheduled for the rotation in the current or
+                previous year. The user can click on a clinician to select them, and then click on any week to schedule
+                them.
+            </StatusBanner>
 
             <!-- Clinician selector section (only show when rotation is selected and not past year) -->
             <RecentSelections
@@ -214,6 +219,7 @@ import YearSelector from "../components/YearSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import type { WeekItem } from "../components/WeekScheduleCard.vue"
 import ScheduleBanner from "../components/ScheduleBanner.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"

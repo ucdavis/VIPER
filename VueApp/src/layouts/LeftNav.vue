@@ -43,6 +43,7 @@
                                 :clickable="menuItem.clickable"
                                 v-ripple
                                 :to="menuItem.routeTo"
+                                :active="isItemActive(menuItem.routeTo)"
                                 :class="menuItem.displayClass"
                             >
                                 <q-item-section>
@@ -105,8 +106,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue"
+import { computed, ref, watch, onMounted } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
+
+const route = useRoute()
+const router = useRouter()
+
+// Score each menu item against the current route and only highlight the
+// most specific match — so `/ClinicalScheduler/clinician` lights up on
+// `/ClinicalScheduler/clinician/:id` without also dragging in a root
+// link like `/ClinicalScheduler/`, and query-bearing CAHFS siblings
+// disambiguate by their `?section=` value.
+function getMatchScore(routeTo: string): number {
+    const resolved = router.resolve(routeTo)
+    const targetPath = resolved.path.replace(/\/+$/, "") || "/"
+    const currentPath = route.path.replace(/\/+$/, "") || "/"
+    const targetQuery = Object.entries(resolved.query)
+
+    if (targetQuery.length > 0) {
+        if (targetPath !== currentPath) {
+            return 0
+        }
+        const queryMatches = targetQuery.every(([key, value]) => route.query[key] === value)
+        return queryMatches ? 10000 + targetPath.length : 0
+    }
+    if (currentPath === targetPath) {
+        return 1000 + targetPath.length
+    }
+    if (currentPath.startsWith(targetPath + "/")) {
+        return targetPath.length
+    }
+    return 0
+}
+
+const bestMatchScore = computed(() => {
+    let best = 0
+    for (const item of menuItems.value) {
+        if (!item.routeTo) {
+            continue
+        }
+        const score = getMatchScore(item.routeTo)
+        if (score > best) {
+            best = score
+        }
+    }
+    return best
+})
+
+function isItemActive(routeTo: string | null): boolean {
+    if (!routeTo) {
+        return false
+    }
+    const score = getMatchScore(routeTo)
+    return score > 0 && score === bestMatchScore.value
+}
 
 type OverflowTitleElement = HTMLElement & {
     _overflowTitleObserver?: ResizeObserver

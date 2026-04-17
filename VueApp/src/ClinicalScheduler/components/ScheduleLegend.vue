@@ -39,7 +39,7 @@
                         </div>
                         <div
                             class="q-mb-xs q-mt-xs text-caption"
-                            style="color: var(--ucdavis-poppy)"
+                            style="color: var(--ucdavis-black-80)"
                         >
                             <strong>Tip:</strong> When selecting weeks that already contain your selected
                             {{ itemType }}(s), the button changes to "Delete Selected" for bulk removal
@@ -77,8 +77,8 @@
                         <q-icon
                             name="star"
                             size="xs"
-                            color="amber"
-                            class="legend-icon"
+                            color="warning"
+                            class="legend-icon legend-star-outlined"
                             aria-hidden="true"
                         />
                         <span class="legend-text">Current primary evaluator</span>
@@ -149,11 +149,17 @@ const isMac = computed(() => {
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: var(--ucdavis-black-50);
+    color: var(--ucdavis-black-80);
 }
 
 .legend-icon {
     flex-shrink: 0;
+}
+
+/* Dark outline on gold star icon for WCAG contrast on white backgrounds */
+.legend-star-outlined {
+    -webkit-text-stroke: 1px var(--ucdavis-black-80);
+    paint-order: stroke fill;
 }
 
 .legend-text {
