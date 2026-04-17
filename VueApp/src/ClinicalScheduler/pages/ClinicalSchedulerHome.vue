@@ -31,7 +31,7 @@
             <div>
                 <h2 class="text-h5 text-grey-8 q-mb-md">Select Scheduling View:</h2>
 
-                <div class="row q-gutter-md">
+                <div class="row q-col-gutter-md">
                     <!-- Schedule by Rotation - available to rotation-specific and full access users -->
                     <div
                         v-if="canAccessRotationView"

@@ -113,18 +113,50 @@ import { useFetch } from "@/composables/ViperFetch"
 const route = useRoute()
 const router = useRouter()
 
-// Vue Router's default active-state matching ignores query strings, so
-// sibling links sharing a path (e.g. /CAHFS/Section?section=...) all
-// highlight together. Take over detection: require exact path match,
-// and when the target has query params every one must also match.
-// VIPER left-nav routes are flat, so exact matching is the right model.
-function isItemActive(routeTo: string | null): boolean {
-    if (!routeTo) return false
+// Score each menu item against the current route and only highlight the
+// most specific match — so `/ClinicalScheduler/clinician` lights up on
+// `/ClinicalScheduler/clinician/:id` without also dragging in a root
+// link like `/ClinicalScheduler/`, and query-bearing CAHFS siblings
+// disambiguate by their `?section=` value.
+function getMatchScore(routeTo: string): number {
     const resolved = router.resolve(routeTo)
     const targetPath = resolved.path.replace(/\/+$/, "") || "/"
     const currentPath = route.path.replace(/\/+$/, "") || "/"
-    if (targetPath !== currentPath) return false
-    return Object.entries(resolved.query).every(([key, value]) => route.query[key] === value)
+    const targetQuery = Object.entries(resolved.query)
+
+    if (targetQuery.length > 0) {
+        if (targetPath !== currentPath) {
+            return 0
+        }
+        const queryMatches = targetQuery.every(([key, value]) => route.query[key] === value)
+        return queryMatches ? 10000 + targetPath.length : 0
+    }
+    if (currentPath === targetPath) {
+        return 1000 + targetPath.length
+    }
+    if (currentPath.startsWith(targetPath + "/")) {
+        return targetPath.length
+    }
+    return 0
+}
+
+function isItemActive(routeTo: string | null): boolean {
+    if (!routeTo) {
+        return false
+    }
+    const thisScore = getMatchScore(routeTo)
+    if (thisScore === 0) {
+        return false
+    }
+    for (const item of menuItems.value) {
+        if (!item.routeTo || item.routeTo === routeTo) {
+            continue
+        }
+        if (getMatchScore(item.routeTo) > thisScore) {
+            return false
+        }
+    }
+    return true
 }
 
 type OverflowTitleElement = HTMLElement & {

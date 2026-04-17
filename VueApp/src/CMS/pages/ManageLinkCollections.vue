@@ -706,6 +706,7 @@ function clickLink(li: LinkWithTags) {
 function cancelLinkDialog() {
     link.value = { linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 }
     showLinkDialog.value = false
+    linkFormRef.value?.resetValidation()
 }
 
 async function deleteLink() {
@@ -750,13 +751,14 @@ async function confirmAction(title: string, message: string, okLabel: string, ok
     })
 }
 
-function linkOrder() {
-    let ordered: any[] = []
-    links.value.forEach((link, index) => {
-        ordered.push({ linkId: link.linkId, sortOrder: index + 1 })
-    })
+async function linkOrder() {
+    const ordered = links.value.map((link, index) => ({ linkId: link.linkId, sortOrder: index + 1 }))
     const { put } = useFetch()
-    put(apiURL + collectionId.value + "/links-order", ordered)
+    const res = await put(apiURL + collectionId.value + "/links-order", ordered)
+    if (!res.success) {
+        $q.notify({ type: "negative", message: "Failed to save link order" })
+        await loadLinks()
+    }
 }
 
 function moveLink(index: number, direction: -1 | 1) {
@@ -770,7 +772,7 @@ function moveLink(index: number, direction: -1 | 1) {
     setTimeout(() => {
         if (justMovedLinkId.value === item.linkId) justMovedLinkId.value = null
     }, 600)
-    linkOrder()
+    void linkOrder()
 }
 
 //tags
