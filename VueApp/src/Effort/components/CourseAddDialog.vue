@@ -147,7 +147,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue"
-import { useQuasar, QForm } from "quasar"
+import { useQuasar } from "quasar"
+import type { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { courseService } from "../services/course-service"
 import { requiredRule, nonNegativeRule, wholeNumberRule } from "../validation"
@@ -200,7 +201,8 @@ watch(
                 crn: "",
                 enrollment: 0,
                 units: 0,
-                custDept: props.departments[0] ?? "",
+                // No default: force the user to make an explicit department choice.
+                custDept: "",
             }
             formRef.value?.resetValidation()
             setInitialState()

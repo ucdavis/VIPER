@@ -616,9 +616,9 @@ public sealed class CoursesControllerTests
         var importedCourse = new CourseDto { Id = 10, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "VME" };
 
         _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
-        _courseServiceMock.CourseExistsAsync(202410, "12345", 4, Arg.Any<CancellationToken>()).Returns(false);
         _courseServiceMock.GetCustodialDepartmentForBannerCode("72030").Returns("VME");
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.CheckImportConflictAsync(202410, "12345", 4, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(ImportConflict.None);
         _courseServiceMock.ImportCourseFromBannerAsync(request, bannerCourse, Arg.Any<CancellationToken>()).Returns(importedCourse);
 
         // Act
@@ -641,7 +641,6 @@ public sealed class CoursesControllerTests
         var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 20, UnitType = "F", UnitLow = 4, UnitHigh = 4, DeptCode = "72030" };
 
         _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
-        _courseServiceMock.CourseExistsAsync(202410, "12345", 4, Arg.Any<CancellationToken>()).Returns(false);
         _courseServiceMock.GetCustodialDepartmentForBannerCode("72030").Returns("VME");
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
@@ -665,7 +664,9 @@ public sealed class CoursesControllerTests
         var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, UnitType = "F", UnitLow = 4, UnitHigh = 4, DeptCode = "72030" };
 
         _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
-        _courseServiceMock.CourseExistsAsync(202410, "12345", 4, Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.GetCustodialDepartmentForBannerCode("72030").Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.CheckImportConflictAsync(202410, "12345", 4, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(ImportConflict.DuplicateSameUnits);
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -673,6 +674,32 @@ public sealed class CoursesControllerTests
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
         Assert.Contains("already exists", conflictResult.Value?.ToString());
+    }
+
+    [Fact]
+    public async Task ImportCourse_ReturnsConflict_WhenHarvestBlockedForVet4xxCourse()
+    {
+        // Arrange
+        var request = new ImportCourseRequest
+        {
+            TermCode = 202410,
+            Crn = "12345"
+        };
+        var bannerCourse = new BannerCourseDto { Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 20, UnitType = "F", UnitLow = 4, UnitHigh = 4, DeptCode = "72030" };
+
+        _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
+        _courseServiceMock.GetCustodialDepartmentForBannerCode("72030").Returns("VME");
+        _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
+        _courseServiceMock.IsVet4xxCourse("VET", "410").Returns(true);
+        _courseServiceMock.CheckImportConflictAsync(202410, "12345", 4, true, Arg.Any<CancellationToken>()).Returns(ImportConflict.HarvestBlocked);
+
+        // Act
+        var result = await _controller.ImportCourse(request);
+
+        // Assert
+        var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.Contains("Harvest period", conflictResult.Value?.ToString());
+        await _courseServiceMock.DidNotReceive().ImportCourseFromBannerAsync(Arg.Any<ImportCourseRequest>(), Arg.Any<BannerCourseDto>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
