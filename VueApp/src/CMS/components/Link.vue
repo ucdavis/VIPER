@@ -1,16 +1,19 @@
 <template>
     <q-card
         :bordered="true"
-        clickable
-        @click="openWebReports(props.link.url)"
-        class="link-card cursor-pointer q-hoverable"
-        v-ripple
+        :clickable="isSafe"
+        v-ripple="isSafe"
+        :class="['link-card', isSafe ? 'cursor-pointer q-hoverable' : '']"
+        @click="isSafe && openWebReports(props.link.url)"
     >
-        <span class="q-focus-helper"></span>
+        <span
+            v-if="isSafe"
+            class="q-focus-helper"
+        ></span>
         <q-card-section class="q-py-sm">
             <div class="text-h3">
                 <a
-                    v-if="hrefForLink !== '#'"
+                    v-if="isSafe"
                     :href="hrefForLink"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -59,6 +62,7 @@ const props = defineProps<{
 }>()
 
 const hrefForLink = computed(() => safeHref(props.link.url))
+const isSafe = computed(() => hrefForLink.value !== "#")
 
 // Each tag category's sortOrder (1-based) indexes this palette. Gold and Tahoe
 // are light enough to require dark text for WCAG AA contrast (≥4.5:1).
