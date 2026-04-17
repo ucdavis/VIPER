@@ -1,5 +1,5 @@
 <template>
-    <q-page padding>
+    <div class="photo-gallery-page">
         <q-card>
             <q-tabs
                 class="no-print"
@@ -26,9 +26,7 @@
 
             <q-card-section class="no-print">
                 <div class="row items-center">
-                    <div class="col">
-                        <div class="text-h5">{{ pageMainTitle }}</div>
-                    </div>
+                    <h1 class="col page-main-title">{{ pageMainTitle }}</h1>
                     <div
                         v-if="activeTab === 'photos'"
                         class="col-auto"
@@ -37,6 +35,7 @@
                             <q-btn
                                 flat
                                 icon="grid_view"
+                                aria-label="Grid View"
                                 :color="galleryStore.galleryView === 'grid' ? 'primary' : 'grey'"
                                 @click="setView('grid')"
                             >
@@ -45,6 +44,7 @@
                             <q-btn
                                 flat
                                 icon="list"
+                                aria-label="List View"
                                 :color="galleryStore.galleryView === 'list' ? 'primary' : 'grey'"
                                 @click="setView('list')"
                             >
@@ -53,6 +53,7 @@
                             <q-btn
                                 flat
                                 icon="print"
+                                aria-label="Print Sheet"
                                 :color="galleryStore.galleryView === 'sheet' ? 'primary' : 'grey'"
                                 @click="setView('sheet')"
                             >
@@ -68,6 +69,7 @@
                             flat
                             icon="print"
                             color="primary"
+                            aria-label="Print Student List"
                             @click="handlePrint"
                         >
                             <q-tooltip>Print Student List</q-tooltip>
@@ -227,12 +229,9 @@
                         v-else-if="galleryStore.error"
                         class="q-mt-lg"
                     >
-                        <q-banner class="bg-negative text-white">
-                            <template #avatar>
-                                <q-icon name="warning" />
-                            </template>
+                        <StatusBanner type="error">
                             {{ galleryStore.error }}
-                        </q-banner>
+                        </StatusBanner>
                     </div>
 
                     <div
@@ -351,7 +350,10 @@
                                     class="cursor-pointer"
                                 >
                                     <q-td colspan="100%">
-                                        <q-item class="q-pa-sm">
+                                        <q-item
+                                            class="q-pa-sm"
+                                            role="none"
+                                        >
                                             <q-item-section avatar>
                                                 <img
                                                     v-if="props.row.hasPhoto"
@@ -412,8 +414,8 @@
                                         color="grey-5"
                                     />
                                     <div class="text-center">
-                                        <div class="text-h6 text-grey">No photos to display</div>
-                                        <div class="text-subtitle2 text-grey">
+                                        <div class="text-h6 text-grey-8">No photos to display</div>
+                                        <div class="text-subtitle2 text-grey-8">
                                             {{
                                                 photoFilter.trim()
                                                     ? `No students found matching "${photoFilter}"`
@@ -439,7 +441,7 @@
 
                     <div
                         v-else
-                        class="q-mt-lg text-center text-grey"
+                        class="q-mt-lg text-center text-grey-8"
                     >
                         <q-icon
                             name="photo_library"
@@ -508,12 +510,9 @@
                         v-else-if="studentListError"
                         class="q-mt-lg"
                     >
-                        <q-banner class="bg-negative text-white">
-                            <template #avatar>
-                                <q-icon name="warning" />
-                            </template>
+                        <StatusBanner type="error">
                             {{ studentListError }}
-                        </q-banner>
+                        </StatusBanner>
                     </div>
 
                     <div
@@ -568,7 +567,7 @@
 
                     <div
                         v-else
-                        class="q-mt-lg text-center text-grey"
+                        class="q-mt-lg text-center text-grey-8"
                     >
                         <q-icon
                             name="people"
@@ -589,7 +588,7 @@
             :initial-index="selectedStudentIndex"
             @update:index="selectedStudentIndex = $event"
         />
-    </q-page>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -602,6 +601,7 @@ import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import { getPhotoUrl } from "../composables/use-photo-url"
 import { groupStudentsByType, getStudentGroupValue } from "../stores/photo-gallery-helpers"
+import StatusBanner from "@/components/StatusBanner.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"
@@ -1475,6 +1475,10 @@ watch(selectedStudentIndex, (newIndex) => {
 </script>
 
 <style>
+h1.page-main-title {
+    margin: 0;
+}
+
 /* Student grid item sizing for 8 per row on large screens */
 .student-grid-item {
     flex: 0 0 25%; /* 4 per row on mobile (25%) */
@@ -1588,7 +1592,7 @@ watch(selectedStudentIndex, (newIndex) => {
     /* Reset layout and page to use full width */
     .q-layout,
     .q-page-container,
-    .q-page {
+    .photo-gallery-page {
         margin: 0 !important;
         padding: 0 !important;
         max-width: 100% !important;

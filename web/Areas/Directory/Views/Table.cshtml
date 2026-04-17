@@ -5,7 +5,7 @@
     IUserHelper UserHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
-<h2>Directory</h2>
+<h1>Directory</h1>
 <q-form @@submit="return false;">
     <q-input class="q-ml-xs q-mr-xs"
              dense
@@ -18,11 +18,11 @@
              autofocus>
     </q-input>
     <q-toggle v-model="ucd"
-              color="green"
+              color="primary"
               label="Search all of UCD">
     </q-toggle>
     <q-toggle v-model="ids"
-              color="blue"
+              color="primary"
               label="Show IDs">
     </q-toggle>
 </q-form>
@@ -38,10 +38,13 @@
          no-results-label="No results found">
     <template v-slot:body-cell-photo="props">
         <q-td :props="props">
-            <q-img :props="props" :src="'@HttpHelper.GetOldViperRootURL()' + '/public/utilities/getbase64image.cfm?mothraID=' + props.row.mothraId + '&altphoto=1'" style="width:87px; height:111px" :id="'photo_' + props.row.mothraId"></q-img>
-            <q-tooltip :target="true">
-                {{props.row.displayFirstName}} {{props.row.displayLastName}}
-            </q-tooltip>
+            <q-img :src="'@HttpHelper.GetOldViperRootURL()' + '/public/utilities/getbase64image.cfm?mothraID=' + props.row.mothraId + '&altphoto=1'" style="width:87px; height:111px" fit="cover" :alt="'Photo of ' + props.row.displayFirstName + ' ' + props.row.displayLastName">
+                <template #error>
+                    <div class="absolute-full flex flex-center bg-grey-3 text-grey-8">
+                        <q-icon name="person" size="xl"></q-icon>
+                    </div>
+                </template>
+            </q-img>
         </q-td>
     </template>
     <template v-slot:body-cell-name="props">
@@ -93,7 +96,7 @@
             }
             @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
             {
-                @: <div v-if="props.row.currentAffiliate == true"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID' + props.row.iamId + '&mailID=' + props.row.mailId + '&empName=' + props.row.name">Alt. Photo</a></div>
+                @: <div v-if="props.row.iamId && props.row.mailId"><a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + props.row.iamId + '&mailID=' + props.row.mailId + '&empName=' + encodeURIComponent(props.row.name)">Alt. Photo</a></div>
             }
         </q-td>
     </template>
@@ -107,11 +110,11 @@
         <q-td :props="props">
             @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.userinfo"))
             {
-                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :href="'userInfo/' + props.row.mothraId"></q-btn>
+                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="person" :aria-label="'User information for ' + props.row.name" :href="'userInfo/' + props.row.mothraId"></q-btn>
             }
             @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SU"))
             {
-                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="face" :href="'/EmulateUser/' + props.row.loginId"></q-btn>
+                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="face" :aria-label="'Emulate ' + props.row.name" :href="'/EmulateUser/' + props.row.loginId"></q-btn>
             }
         </q-td>
     </template>
@@ -129,17 +132,17 @@
                         keys: ["mothraId"],
                         urlBase: "users",
                         columns: [
-                            { name: "photo", label: "", field: "", align: "center", style: "width:87px; height:111px;" },
+                            { name: "photo", label: "Photo", field: "", align: "center", style: "width:87px; height:111px;" },
                             { name: "name", label: "Individual", field: "name", align: "left", style: "max-width:10em; text-wrap:wrap;", sortable: true },
                             { name: "title", label: "Title/Department", field: "", align: "left", style: "max-width:10em; text-wrap:wrap;" },
-                            { name: "ids", label: "", field: "", align: "left" },
+                            { name: "ids", label: "IDs", field: "", align: "left" },
                             @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryDetail")) {
-                                @: { name: "detail", label: "", field: "", align: "left" },
+                                @: { name: "detail", label: "Detail", field: "", align: "left" },
                             }
                             { name: "loginid", label: "Login ID", field: "loginId", align: "left", sortable: true },
                             { name: "email", label: "Email", field: "mailId", align: "left", sortable: true },
                             { name: "phone", label: "Phone", field: "", align: "left" },
-                            { name: "links", label: "", field: "", align: "left", style: "width:50px;" }
+                            { name: "links", label: "Actions", field: "", align: "left", style: "width:50px;" }
                         ],
                         pagination: { rowsPerPage: 0 }
                     })

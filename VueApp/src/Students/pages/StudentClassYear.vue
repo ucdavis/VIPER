@@ -23,7 +23,7 @@ const activeOnly = ref(false)
 
 //table columns, rows, properties
 const cols: QTableProps["columns"] = [
-    { name: "avatar", label: "", field: "", align: "left", style: "width:75px;" },
+    { name: "avatar", label: "Photo", field: "", align: "left", style: "width:75px;" },
     { name: "name", label: "Student", field: "", align: "left", sortable: true },
     { name: "classyear", label: "Class Year", field: "personId", align: "left", sortable: true },
     { name: "previousyears", label: "Prev Years", field: "firstName", align: "left", sortable: true },
@@ -151,25 +151,40 @@ load()
 <template>
     <div class="row q-mb-sm">
         <div class="col">
-            <h2>Student Class Years</h2>
+            <h1>Student Class Years</h1>
         </div>
     </div>
 
     <q-dialog
         v-model="showForm"
         @hide="clear"
+        aria-labelledby="student-class-year-dialog-title"
     >
         <q-card style="width: 500px; max-width: 80vw">
             <q-form
                 @submit="submitStudentClassYear"
                 v-model="studentClassYear"
             >
-                <q-card-section>
-                    <div class="text-h6">
+                <q-card-section class="row items-center q-pb-none">
+                    <div
+                        id="student-class-year-dialog-title"
+                        class="text-h6"
+                    >
                         Updating record for {{ selectedStudentName }} Class of {{ studentClassYear.classYear }}
                     </div>
-                    If you change the class year one the current class year, a new record will be created and the
-                    current class year one will be marked as inactive with the reasons and term below.
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
+                </q-card-section>
+                <q-card-section class="q-pt-sm">
+                    If you change the class year from the current class year, a new record will be created and the
+                    current class year will be marked as inactive with the reasons and term below.
                 </q-card-section>
                 <q-card-section>
                     <q-checkbox
@@ -235,7 +250,7 @@ load()
                         type="button"
                         padding="xs md"
                         @click="deleteStudentClassYear"
-                        color="red"
+                        color="negative"
                     ></q-btn>
                 </q-card-actions>
             </q-form>
@@ -324,7 +339,7 @@ load()
                     <img
                         :src="viperUrl + 'public/utilities/getbase64image.cfm?altphoto=1&mailId=' + props.row.mailId"
                         class="smallPhoto"
-                        alt="Student photo"
+                        :alt="`${props.row.firstName} ${props.row.lastName}'s photo`"
                     />
                 </q-avatar>
             </q-td>
@@ -346,17 +361,18 @@ load()
                         :label="cy.classYear"
                         v-if="cy.active"
                         color="primary"
-                        class="q-px-sm"
+                        class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
@@ -377,17 +393,18 @@ load()
                         :label="cy.classYear"
                         v-if="!cy.active"
                         color="secondary"
-                        class="q-px-sm"
+                        class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
                         <q-badge
                             v-if="cy.ross"
-                            color="red"
+                            color="negative"
                             class="q-mx-sm"
                             >Ross</q-badge
                         >
                         <q-badge
-                            color="orange"
+                            color="warning"
+                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
                             >{{ cy.leftReasonText }}</q-badge
