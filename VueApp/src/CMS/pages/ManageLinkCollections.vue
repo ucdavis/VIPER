@@ -537,13 +537,23 @@ async function saveCollection() {
     }
 
     // Commit staged tag edits (edit mode only — new collections have no tags yet).
+    // Tag mutations aren't transactional on the server; if any step fails
+    // mid-sequence we reload tags so the dialog reflects true server state
+    // instead of the stale staged edits the user was working from.
     if (isEdit && collectionId.value !== null) {
         const cid = collectionId.value
+
+        async function handleTagFailure(message: string) {
+            $q.notify({ type: "negative", message })
+            await loadTags()
+            draftTags.value = collectionTags.value.map((t) => ({ ...t }))
+            deletedTagIds.value = []
+        }
 
         for (const id of deletedTagIds.value) {
             const delRes = await del(apiURL + cid + "/tags/" + id)
             if (!delRes.success) {
-                $q.notify({ type: "negative", message: "Failed to delete a tag category" })
+                await handleTagFailure("Failed to delete a tag category")
                 return
             }
         }
@@ -557,7 +567,7 @@ async function saveCollection() {
                     sortOrder: orderedIds.length + 1,
                 })
                 if (!addRes.success) {
-                    $q.notify({ type: "negative", message: "Failed to add a tag category" })
+                    await handleTagFailure("Failed to add a tag category")
                     return
                 }
                 orderedIds.push(addRes.result.linkCollectionTagCategoryId)
@@ -573,7 +583,7 @@ async function saveCollection() {
             }))
             const orderRes = await put(apiURL + cid + "/tags/order", orderPayload)
             if (!orderRes.success) {
-                $q.notify({ type: "negative", message: "Failed to update tag order" })
+                await handleTagFailure("Failed to update tag order")
                 return
             }
         }
