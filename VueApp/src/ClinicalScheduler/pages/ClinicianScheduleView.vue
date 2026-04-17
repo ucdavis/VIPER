@@ -1,5 +1,6 @@
 <template>
     <div class="clinical-scheduler-container position-relative">
+        <h1 class="sr-only">{{ permissionsStore.clinicianViewLabel }}</h1>
         <SchedulerNavigation />
 
         <!-- Loading permissions state - show this until we have permission data -->
@@ -112,6 +113,7 @@
                             :exclude-rotation-names="assignedRotationNames"
                             :only-with-scheduled-weeks="true"
                             :year="currentYear"
+                            hide-bottom-space
                             @rotation-selected="onAddRotationSelected"
                             style="min-width: 280px"
                             class="q-mt-none"

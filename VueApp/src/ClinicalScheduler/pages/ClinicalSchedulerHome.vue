@@ -35,8 +35,7 @@
                     <!-- Schedule by Rotation - available to rotation-specific and full access users -->
                     <div
                         v-if="canAccessRotationView"
-                        class="col-12 col-sm-auto"
-                        style="min-width: 300px; max-width: 400px; flex: 1"
+                        class="col-12 col-sm-6"
                     >
                         <q-card
                             flat
@@ -74,8 +73,7 @@
                     <!-- Schedule by Clinician - not available to rotation-specific only users -->
                     <div
                         v-if="canAccessClinicianView"
-                        class="col-12 col-sm-auto"
-                        style="min-width: 300px; max-width: 400px; flex: 1"
+                        class="col-12 col-sm-6"
                     >
                         <q-card
                             flat

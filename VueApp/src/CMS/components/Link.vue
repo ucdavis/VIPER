@@ -10,8 +10,9 @@
         <q-card-section class="q-py-sm">
             <div class="text-h3">
                 <a
-                    :href="props.link.url"
+                    :href="safeHref(props.link.url)"
                     target="_blank"
+                    rel="noopener noreferrer"
                 >
                     {{ props.link.title }}
                 </a>
@@ -31,7 +32,8 @@
                 >
                     <q-badge
                         v-if="tag.linkCollectionTagCategoryId == lct.linkCollectionTagCategoryId"
-                        :color="getLinkCollectionTagColor(lct.sortOrder)"
+                        :color="getTagStyle(lct.sortOrder).color"
+                        :text-color="getTagStyle(lct.sortOrder).textColor"
                         class="link-tag q-px-sm"
                     >
                         {{ tag.value }}
@@ -50,13 +52,39 @@ const props = defineProps<{
     linkCollection: LinkCollection
 }>()
 
-function getLinkCollectionTagColor(order: number) {
-    const colors = ["warning", "secondary", "negative", "positive", "info"]
-    return colors.length >= order ? colors[order - 1] : colors[colors.length - 1]
+// Each tag category's sortOrder (1-based) indexes this palette. Gold and Tahoe
+// are light enough to require dark text for WCAG AA contrast (≥4.5:1).
+const TAG_STYLES: ReadonlyArray<{ color: string; textColor: string }> = [
+    { color: "warning", textColor: "dark" },
+    { color: "secondary", textColor: "white" },
+    { color: "negative", textColor: "white" },
+    { color: "positive", textColor: "white" },
+    { color: "info", textColor: "dark" },
+    { color: "primary", textColor: "white" },
+]
+
+function getTagStyle(order: number) {
+    const idx = order >= 1 ? (order - 1) % TAG_STYLES.length : 0
+    return TAG_STYLES[idx]!
+}
+
+const SAFE_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"]
+
+function safeHref(url: string): string {
+    const normalized = url?.trim()
+    if (!normalized) return "#"
+    try {
+        const parsed = new URL(normalized)
+        return SAFE_PROTOCOLS.includes(parsed.protocol) ? normalized : "#"
+    } catch {
+        return "#"
+    }
 }
 
 function openWebReports(url: string) {
-    window.open(url, "_blank")?.focus()
+    const href = safeHref(url)
+    if (href === "#") return
+    window.open(href, "_blank", "noopener,noreferrer")?.focus()
 }
 
 watch(props, () => {}, { deep: true })

@@ -1,39 +1,49 @@
 <template>
     <h2>{{ linkCollection?.linkCollection }}</h2>
 
-    <q-form v-if="loaded">
-        <div class="row q-pa-sm q-gutter-md">
-            <q-input
-                v-model="search"
-                dense
-                outlined
-                label="Search"
-                stack-label
-                clearable
-                class="col col-md-3 col-lg-2 q-ml-lg"
-            >
-                <template #append>
-                    <q-icon name="search" />
-                </template>
-            </q-input>
-            <template
-                v-for="tf in tagFilters"
-                :key="tf.linkCollectionTagCategoryId"
-            >
-                <q-select
-                    v-model="tf.selected"
+    <q-expansion-item
+        v-if="loaded"
+        v-model="filtersExpandedComputed"
+        icon="filter_list"
+        label="Filters"
+        header-class="bg-grey-2 lt-md"
+        :header-style="$q.screen.gt.xs ? 'display: none' : ''"
+        class="q-mb-md"
+    >
+        <q-form>
+            <div class="row q-pa-sm q-gutter-md">
+                <q-input
+                    v-model="search"
                     dense
-                    options-dense
                     outlined
-                    :options="tf.options"
-                    :label="tf.linkCollectionTagCategory"
+                    label="Search"
                     stack-label
                     clearable
-                    class="col col-md-3 col-lg-2 col-xl-1"
-                ></q-select>
-            </template>
-        </div>
-    </q-form>
+                    class="col-12 col-sm-6 col-md-3 col-lg-2"
+                >
+                    <template #append>
+                        <q-icon name="search" />
+                    </template>
+                </q-input>
+                <template
+                    v-for="tf in tagFilters"
+                    :key="tf.linkCollectionTagCategoryId"
+                >
+                    <q-select
+                        v-model="tf.selected"
+                        dense
+                        options-dense
+                        outlined
+                        :options="tf.options"
+                        :label="tf.linkCollectionTagCategory"
+                        stack-label
+                        clearable
+                        class="col-12 col-sm-6 col-md-3 col-lg-2 col-xl-1"
+                    ></q-select>
+                </template>
+            </div>
+        </q-form>
+    </q-expansion-item>
 
     <template v-if="props.groupByTagCategory == null || props.groupByTagCategory.length == 0">
         <div
@@ -90,10 +100,13 @@
 
 <script setup lang="ts">
 import type { Ref } from "vue"
-import { ref, watch } from "vue"
+import { ref, computed, watch } from "vue"
+import { useQuasar } from "quasar"
 import type { Link, LinkCollection, LinkTag, LinkTagFilter } from "@/CMS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { default as LinkComponent } from "@/CMS/components/Link.vue"
+
+const $q = useQuasar()
 
 const props = withDefaults(
     defineProps<{
@@ -114,6 +127,14 @@ const loaded: Ref<boolean> = ref(false)
 
 const groupByValues: Ref<string[]> = ref([])
 const groupById: Ref<number | null> = ref(null)
+
+const filtersExpanded = ref(false)
+const filtersExpandedComputed = computed({
+    get: () => ($q.screen.gt.xs ? true : filtersExpanded.value),
+    set: (val: boolean) => {
+        filtersExpanded.value = val
+    },
+})
 
 async function getLinkCollection() {
     const { get } = useFetch()

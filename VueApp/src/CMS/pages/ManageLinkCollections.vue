@@ -1,6 +1,6 @@
 <template>
     <div class="link-collections-page">
-        <h2 class="text-primary q-mb-sm">Link Collections</h2>
+        <h1 class="text-h4 text-primary q-mt-none q-mb-sm">Link Collections</h1>
 
         <q-form>
             <div class="row items-center q-mb-md q-col-gutter-sm">
@@ -48,10 +48,27 @@
         </q-form>
 
         <!-- Create/Edit Dialog -->
-        <q-dialog v-model="showCollectionDialog">
+        <q-dialog
+            v-model="showCollectionDialog"
+            aria-labelledby="collection-dialog-title"
+        >
             <q-card style="min-width: 350px">
-                <q-card-section>
-                    <div class="text-h6">{{ collectionId != null ? "Edit" : "Create" }} Collection</div>
+                <q-card-section class="row items-center q-pb-none">
+                    <div
+                        id="collection-dialog-title"
+                        class="text-h6"
+                    >
+                        {{ collectionId != null ? "Edit" : "Create" }} Collection
+                    </div>
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
                 </q-card-section>
 
                 <q-card-section class="q-pt-none">
@@ -88,20 +105,27 @@
                     </div>
 
                     <VueDraggable
-                        v-model="collectionTags"
-                        @end="onDragEnd"
+                        v-model="draftTags"
+                        :animation="200"
+                        handle=".handle"
                         class="list-group"
+                        @end="onDragEnd"
                     >
                         <div
-                            v-for="element in collectionTags"
+                            v-for="(element, index) in draftTags"
                             :key="element.linkCollectionTagCategoryId"
-                            class="row items-center q-col-gutter-sm"
+                            :class="[
+                                'row items-center q-col-gutter-sm',
+                                { 'just-moved': justMovedTagId === element.linkCollectionTagCategoryId },
+                            ]"
                         >
                             <div class="col-auto">
                                 <q-icon
                                     class="handle"
                                     name="drag_handle"
-                                />
+                                >
+                                    <q-tooltip>Drag to reorder</q-tooltip>
+                                </q-icon>
                             </div>
                             <div class="col">
                                 <q-input
@@ -111,6 +135,32 @@
                                 />
                             </div>
                             <div class="col-auto">
+                                <q-btn
+                                    dense
+                                    flat
+                                    no-caps
+                                    size="sm"
+                                    color="secondary"
+                                    icon="arrow_upward"
+                                    aria-label="Move tag up"
+                                    :disable="index === 0"
+                                    @click="moveTag(index, -1)"
+                                >
+                                    <q-tooltip>Move up</q-tooltip>
+                                </q-btn>
+                                <q-btn
+                                    dense
+                                    flat
+                                    no-caps
+                                    size="sm"
+                                    color="secondary"
+                                    icon="arrow_downward"
+                                    aria-label="Move tag down"
+                                    :disable="index === draftTags.length - 1"
+                                    @click="moveTag(index, 1)"
+                                >
+                                    <q-tooltip>Move down</q-tooltip>
+                                </q-btn>
                                 <q-btn
                                     flat
                                     label="Delete"
@@ -131,10 +181,12 @@
                     class="text-primary"
                 >
                     <q-btn
-                        label="Cancel"
-                        @click="cancelCollectionDialog"
+                        v-if="collectionId != null"
+                        label="Delete Collection"
+                        @click="deleteCollection"
                         dense
                         no-caps
+                        color="negative"
                         class="q-pr-md"
                     />
                     <q-btn
@@ -143,14 +195,6 @@
                         color="primary"
                         dense
                         no-caps
-                        class="q-pr-md"
-                    />
-                    <q-btn
-                        label="Delete Collection"
-                        @click="deleteCollection"
-                        dense
-                        no-caps
-                        color="negative"
                         class="q-pr-md"
                     />
                 </q-card-actions>
@@ -171,56 +215,108 @@
             <q-dialog
                 v-model="showLinkDialog"
                 persistent
+                aria-labelledby="link-dialog-title"
+                @keydown.escape="cancelLinkDialog"
             >
                 <q-card style="min-width: 350px">
-                    <q-card-section>
-                        <div class="text-h6">{{ link.linkId > 0 ? "Edit" : "Create" }} Link</div>
-                    </q-card-section>
-                    <q-card-section>
-                        <q-input
-                            dense
-                            outlined
-                            v-model="link.url"
-                            label="URL"
-                        />
-
-                        <q-input
-                            dense
-                            outlined
-                            v-model="link.title"
-                            label="Title"
-                        />
-
-                        <q-input
-                            dense
-                            outlined
-                            v-model="link.description"
-                            type="textarea"
-                            class="col-12 col-lg-3"
-                            label="Description"
-                        />
-                        <template
-                            v-for="tag in collectionTags"
-                            :key="tag.linkCollectionTagCategoryId"
+                    <q-card-section class="row items-center q-pb-none">
+                        <div
+                            id="link-dialog-title"
+                            class="text-h6"
                         >
-                            {{ tag.linkCollectionTagCategory }}:
+                            {{ link.linkId > 0 ? "Edit" : "Create" }} Link
+                        </div>
+                        <q-space />
+                        <q-btn
+                            icon="close"
+                            flat
+                            round
+                            dense
+                            aria-label="Close dialog"
+                            @click="cancelLinkDialog"
+                        />
+                    </q-card-section>
+                    <q-form
+                        ref="linkFormRef"
+                        class="link-form"
+                        greedy
+                    >
+                        <q-card-section class="q-gutter-y-sm q-pb-none">
                             <q-input
                                 dense
                                 outlined
-                                v-model="link.tags[tag.linkCollectionTagCategoryId]"
-                                label="Tags, comma separated"
-                                stack-label
+                                v-model="link.url"
+                                label="URL"
+                                class="required-field"
+                                maxlength="500"
+                                :rules="[
+                                    (val) => (val && val.trim().length > 0) || 'URL is required',
+                                    (val) => !val || val.length <= 500 || 'URL must be 500 characters or less',
+                                    (val) =>
+                                        !val ||
+                                        isSafeUrl(val) ||
+                                        'URL must be a full address starting with http, https, mailto, or tel',
+                                ]"
+                                aria-required="true"
+                                lazy-rules
+                                hide-bottom-space
                             />
-                        </template>
+
+                            <q-input
+                                dense
+                                outlined
+                                v-model="link.title"
+                                label="Title"
+                                class="required-field"
+                                maxlength="500"
+                                :rules="[
+                                    (val) => (val && val.trim().length > 0) || 'Title is required',
+                                    (val) => !val || val.length <= 500 || 'Title must be 500 characters or less',
+                                ]"
+                                aria-required="true"
+                                lazy-rules
+                                hide-bottom-space
+                            />
+
+                            <q-input
+                                dense
+                                outlined
+                                v-model="link.description"
+                                type="textarea"
+                                label="Description"
+                                hide-bottom-space
+                            />
+                        </q-card-section>
+                    </q-form>
+                    <q-card-section
+                        v-if="collectionTags.length > 0"
+                        class="q-pt-none"
+                    >
+                        <fieldset class="tags-fieldset">
+                            <legend class="text-subtitle1 q-px-sm">Tags</legend>
+                            <div class="text-caption text-grey-7 q-mb-sm">
+                                Add additional tags as comma separated values
+                            </div>
+                            <q-input
+                                v-for="tag in collectionTags"
+                                :key="tag.linkCollectionTagCategoryId"
+                                dense
+                                outlined
+                                v-model="link.tags[tag.linkCollectionTagCategoryId]"
+                                :label="tag.linkCollectionTagCategory"
+                                class="q-mb-sm"
+                            />
+                        </fieldset>
                     </q-card-section>
                     <q-card-actions align="right">
                         <q-btn
-                            label="Cancel"
-                            @click="cancelLinkDialog"
+                            v-if="link.linkId > 0"
+                            label="Delete Link"
+                            @click="deleteLink"
                             dense
                             no-caps
+                            color="negative"
                             class="q-pr-md"
-                            color="secondary"
                         />
                         <q-btn
                             label="Save"
@@ -228,14 +324,6 @@
                             dense
                             no-caps
                             color="primary"
-                            class="q-pr-md"
-                        />
-                        <q-btn
-                            label="Delete Link"
-                            @click="deleteLink"
-                            dense
-                            no-caps
-                            color="negative"
                             class="q-pr-md"
                         />
                     </q-card-actions>
@@ -247,16 +335,7 @@
                 class="q-mt-md"
             >
                 <div class="row link-row header items-center q-col-gutter-sm desktop-only link-grid">
-                    <div class="col-12 col-md-auto">
-                        <q-btn
-                            dense
-                            flat
-                            no-caps
-                            size="sm"
-                            color="secondary"
-                            icon="edit"
-                        />
-                    </div>
+                    <div class="col-12 col-md-auto">Actions</div>
                     <div class="col-12 col-md-3 col-lg-2">URL</div>
                     <div class="col-12 col-md-3 col-lg-2">Title</div>
                     <div class="col-12 col-md-6 col-lg-4">Description</div>
@@ -264,28 +343,63 @@
                 </div>
                 <VueDraggable
                     v-model="links"
-                    @end="linkOrder"
+                    :animation="200"
                     handle=".handle"
+                    @end="linkOrder"
                 >
                     <div
-                        v-for="element in links"
+                        v-for="(element, index) in links"
                         :key="element.linkId"
-                        class="row link-row items-start q-col-gutter-sm link-card link-grid"
+                        :class="[
+                            'row link-row items-start q-col-gutter-sm link-card link-grid',
+                            { 'just-moved': justMovedLinkId === element.linkId },
+                        ]"
                     >
                         <div class="col-12 col-md-auto link-actions q-gutter-xs">
                             <div class="action-buttons">
                                 <q-icon
                                     class="handle"
                                     name="drag_handle"
-                                />
+                                >
+                                    <q-tooltip>Drag to reorder</q-tooltip>
+                                </q-icon>
                                 <q-btn
                                     dense
                                     no-caps
                                     size="sm"
                                     color="secondary"
                                     icon="edit"
+                                    aria-label="Edit link"
                                     @click="clickLink(element)"
-                                />
+                                >
+                                    <q-tooltip>Edit</q-tooltip>
+                                </q-btn>
+                                <q-btn
+                                    dense
+                                    flat
+                                    no-caps
+                                    size="sm"
+                                    color="secondary"
+                                    icon="arrow_upward"
+                                    aria-label="Move link up"
+                                    :disable="index === 0"
+                                    @click="moveLink(index, -1)"
+                                >
+                                    <q-tooltip>Move up</q-tooltip>
+                                </q-btn>
+                                <q-btn
+                                    dense
+                                    flat
+                                    no-caps
+                                    size="sm"
+                                    color="secondary"
+                                    icon="arrow_downward"
+                                    aria-label="Move link down"
+                                    :disable="index === links.length - 1"
+                                    @click="moveLink(index, 1)"
+                                >
+                                    <q-tooltip>Move down</q-tooltip>
+                                </q-btn>
                             </div>
                         </div>
                         <div class="col-12 col-md-3 col-lg-2 link-field url-field">
@@ -358,9 +472,31 @@ const collectionNameInput: Ref<any> = ref(null)
 const collectionTags: Ref<LinkCollectionTagCategory[]> = ref([])
 const addTag: Ref<string> = ref("")
 
+// Tag edits are staged locally while the Edit Collection dialog is open;
+// they commit to the server on Save, and discard on X/close.
+const draftTags: Ref<LinkCollectionTagCategory[]> = ref([])
+const deletedTagIds: Ref<number[]> = ref([])
+let nextTempTagId = -1
+
 const links: Ref<LinkWithTags[]> = ref([])
 const link: Ref<LinkWithTags> = ref({ linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 })
 const showLinkDialog: Ref<boolean> = ref(false)
+const linkFormRef: Ref<any> = ref(null)
+
+const justMovedLinkId: Ref<number | null> = ref(null)
+const justMovedTagId: Ref<number | null> = ref(null)
+
+const SAFE_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"]
+
+function isSafeUrl(val: string): boolean {
+    if (!val || !val.trim()) return true
+    try {
+        const parsed = new URL(val.trim())
+        return SAFE_PROTOCOLS.includes(parsed.protocol)
+    } catch {
+        return false
+    }
+}
 
 //collections
 async function loadCollections() {
@@ -380,15 +516,65 @@ async function saveCollection() {
         return
     }
 
-    const { put, post } = useFetch()
+    const { put, post, del } = useFetch()
+    const isEdit = collection.value !== null && collection.value.linkCollectionId > 0
+    const res = isEdit
+        ? await put(apiURL + collection.value!.linkCollectionId, {
+              linkCollection: collectionData.value.linkCollection,
+          })
+        : await post(apiURL, { linkCollection: collectionData.value.linkCollection })
 
-    if (collection.value !== null && collection.value.linkCollectionId > 0) {
-        await put(apiURL + collection.value.linkCollectionId, { linkCollection: collectionData.value.linkCollection })
-    } else {
-        await post(apiURL, { linkCollection: collectionData.value.linkCollection })
+    if (!res.success) {
+        $q.notify({ type: "negative", message: `Failed to ${isEdit ? "update" : "create"} collection` })
+        return
     }
 
+    // Commit staged tag edits (edit mode only — new collections have no tags yet).
+    if (isEdit && collectionId.value !== null) {
+        const cid = collectionId.value
+
+        for (const id of deletedTagIds.value) {
+            const delRes = await del(apiURL + cid + "/tags/" + id)
+            if (!delRes.success) {
+                $q.notify({ type: "negative", message: "Failed to delete a tag category" })
+                return
+            }
+        }
+
+        const orderedIds: number[] = []
+        for (const tag of draftTags.value) {
+            if (tag.linkCollectionTagCategoryId < 0) {
+                const addRes = await post(apiURL + cid + "/tags", {
+                    linkCollectionId: cid,
+                    linkCollectionTagCategory: tag.linkCollectionTagCategory,
+                    sortOrder: orderedIds.length + 1,
+                })
+                if (!addRes.success) {
+                    $q.notify({ type: "negative", message: "Failed to add a tag category" })
+                    return
+                }
+                orderedIds.push(addRes.result.linkCollectionTagCategoryId)
+            } else {
+                orderedIds.push(tag.linkCollectionTagCategoryId)
+            }
+        }
+
+        if (orderedIds.length > 0) {
+            const orderPayload = orderedIds.map((id, i) => ({
+                linkCollectionTagCategoryId: id,
+                sortOrder: i + 1,
+            }))
+            const orderRes = await put(apiURL + cid + "/tags/order", orderPayload)
+            if (!orderRes.success) {
+                $q.notify({ type: "negative", message: "Failed to update tag order" })
+                return
+            }
+        }
+    }
+
+    $q.notify({ type: "positive", message: `Collection ${isEdit ? "updated" : "created"}` })
     await loadCollections()
+    await loadTags()
     cancelCollectionDialog()
 }
 
@@ -396,17 +582,35 @@ async function deleteCollection() {
     const confirmed = await confirmAction(
         "Delete Collection",
         "This will remove the collection and all its links. Continue?",
+        "Delete Collection",
+        "negative",
     )
     if (!confirmed) return
     const { del } = useFetch()
-    await del(apiURL + collection.value?.linkCollectionId)
+    const res = await del(apiURL + collection.value?.linkCollectionId)
+    if (!res.success) {
+        $q.notify({ type: "negative", message: "Failed to delete collection" })
+        return
+    }
+    $q.notify({ type: "positive", message: "Collection deleted" })
     await loadCollections()
     cancelCollectionDialog()
 }
 
 async function cancelCollectionDialog() {
     showCollectionDialog.value = false
+    draftTags.value = []
+    deletedTagIds.value = []
+    addTag.value = ""
 }
+
+watch(showCollectionDialog, (open) => {
+    if (open) {
+        draftTags.value = collectionTags.value.map((t) => ({ ...t }))
+        deletedTagIds.value = []
+        addTag.value = ""
+    }
+})
 
 //links
 async function loadLinks() {
@@ -449,18 +653,22 @@ function getTagsForCategory(element: LinkWithTags, categoryId: number) {
 }
 
 async function saveLink() {
+    const valid = await linkFormRef.value?.validate()
+    if (!valid) return
     const { post, put } = useFetch()
-    if (link.value.linkId === 0) {
-        const res = await post(apiURL + collectionId.value + "/links", {
+    const isEdit = link.value.linkId !== 0
+    let saveRes
+    if (!isEdit) {
+        saveRes = await post(apiURL + collectionId.value + "/links", {
             linkCollectionId: collectionId.value,
             url: link.value.url,
             title: link.value.title,
             description: link.value.description,
             sortOrder: links.value.length + 1,
         })
-        link.value.linkId = res.result.linkId
+        if (saveRes.success) link.value.linkId = saveRes.result.linkId
     } else {
-        await put(apiURL + collectionId.value + "/links/" + link.value.linkId, {
+        saveRes = await put(apiURL + collectionId.value + "/links/" + link.value.linkId, {
             linkCollectionId: collectionId.value,
             url: link.value.url,
             title: link.value.title,
@@ -469,16 +677,25 @@ async function saveLink() {
         })
     }
 
-    //put tags
-    await put(apiURL + collectionId.value + "/links/" + link.value.linkId + "/tags", link.value.tags)
+    if (!saveRes.success) {
+        $q.notify({ type: "negative", message: `Failed to ${isEdit ? "update" : "create"} link` })
+        return
+    }
 
+    const tagsRes = await put(apiURL + collectionId.value + "/links/" + link.value.linkId + "/tags", link.value.tags)
+    if (!tagsRes.success) {
+        $q.notify({ type: "negative", message: "Link saved but tags failed to update" })
+        return
+    }
+
+    $q.notify({ type: "positive", message: `Link ${isEdit ? "updated" : "created"}` })
     link.value = { linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 }
     showLinkDialog.value = false
     loadLinks()
 }
 
 function clickLink(li: LinkWithTags) {
-    link.value = li
+    link.value = { ...li, tags: { ...li.tags } }
     showLinkDialog.value = true
 }
 
@@ -488,28 +705,38 @@ function cancelLinkDialog() {
 }
 
 async function deleteLink() {
-    const confirmed = await confirmAction("Delete Link", "This will permanently remove this link. Continue?")
+    const confirmed = await confirmAction(
+        "Delete Link",
+        "This will permanently remove this link. Continue?",
+        "Delete Link",
+        "negative",
+    )
     if (!confirmed) return
     const { del } = useFetch()
-    await del(apiURL + collectionId.value + "/links/" + link.value.linkId)
+    const res = await del(apiURL + collectionId.value + "/links/" + link.value.linkId)
+    if (!res.success) {
+        $q.notify({ type: "negative", message: "Failed to delete link" })
+        return
+    }
+    $q.notify({ type: "positive", message: "Link deleted" })
     link.value = { linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 }
     showLinkDialog.value = false
     loadLinks()
 }
 
-async function confirmAction(title: string, message: string) {
+async function confirmAction(title: string, message: string, okLabel: string, okColor = "primary") {
     return await new Promise<boolean>((resolve) => {
         $q.dialog({
             title,
             message,
             cancel: {
-                label: "No",
+                label: "Cancel",
                 flat: true,
             },
             persistent: true,
             ok: {
-                label: "Yes",
-                color: "primary",
+                label: okLabel,
+                color: okColor,
                 unelevated: true,
             },
         })
@@ -528,6 +755,20 @@ function linkOrder() {
     put(apiURL + collectionId.value + "/links-order", ordered)
 }
 
+function moveLink(index: number, direction: -1 | 1) {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= links.value.length) return
+    const item = links.value[index]
+    if (item === undefined) return
+    links.value.splice(index, 1)
+    links.value.splice(newIndex, 0, item)
+    justMovedLinkId.value = item.linkId
+    setTimeout(() => {
+        if (justMovedLinkId.value === item.linkId) justMovedLinkId.value = null
+    }, 600)
+    linkOrder()
+}
+
 //tags
 async function loadTags() {
     const { get } = useFetch()
@@ -539,39 +780,41 @@ async function loadTags() {
     }
 }
 
-async function createTag() {
-    const { post } = useFetch()
-    if (collectionId.value && addTag.value.trim() !== "") {
-        await post(apiURL + collectionId.value + "/tags", {
-            linkCollectionId: collectionId.value,
-            linkCollectionTagCategory: addTag.value,
-            sortOrder: collectionTags.value.length + 1,
-        })
-        addTag.value = ""
-        loadTags()
-    }
+function createTag() {
+    if (!collectionId.value || addTag.value.trim() === "") return
+    draftTags.value.push({
+        linkCollectionTagCategoryId: nextTempTagId--,
+        linkCollectionTagCategory: addTag.value.trim(),
+        sortOrder: draftTags.value.length + 1,
+    })
+    addTag.value = ""
 }
 
-async function deleteTag(tagId: number) {
-    const confirmed = await confirmAction(
-        "Delete Tag",
-        "This will remove the tag category from this collection. Continue?",
-    )
-    if (!confirmed) return
-    const { del } = useFetch()
-    if (collectionId.value && tagId) {
-        await del(apiURL + collectionId.value + "/tags/" + tagId)
-        loadTags()
+function deleteTag(tagId: number) {
+    const idx = draftTags.value.findIndex((t) => t.linkCollectionTagCategoryId === tagId)
+    if (idx < 0) return
+    const removed = draftTags.value[idx]
+    if (removed && removed.linkCollectionTagCategoryId > 0) {
+        deletedTagIds.value.push(removed.linkCollectionTagCategoryId)
     }
+    draftTags.value.splice(idx, 1)
 }
 
 function onDragEnd() {
-    let ordered: any[] = []
-    collectionTags.value.forEach((tag, index) => {
-        ordered.push({ linkCollectionTagCategoryId: tag.linkCollectionTagCategoryId, sortOrder: index + 1 })
-    })
-    const { put } = useFetch()
-    put(apiURL + collectionId.value + "/tags/order", ordered)
+    // No-op: draft reorders commit on Save.
+}
+
+function moveTag(index: number, direction: -1 | 1) {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= draftTags.value.length) return
+    const item = draftTags.value[index]
+    if (item === undefined) return
+    draftTags.value.splice(index, 1)
+    draftTags.value.splice(newIndex, 0, item)
+    justMovedTagId.value = item.linkCollectionTagCategoryId
+    setTimeout(() => {
+        if (justMovedTagId.value === item.linkCollectionTagCategoryId) justMovedTagId.value = null
+    }, 600)
 }
 
 watch(collectionId, () => {
@@ -626,7 +869,7 @@ loadCollections()
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 0;
     width: 100%;
     text-align: left;
     margin-bottom: 6px;
@@ -653,8 +896,83 @@ loadCollections()
 
 .action-buttons {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
+}
+
+.handle {
+    cursor: grab;
+}
+
+.handle:active {
+    cursor: grabbing;
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .reorder-move {
+        transition: none;
+    }
+}
+
+.required-field :deep(.q-field__label)::after {
+    content: " *";
+    color: var(--q-negative);
+}
+
+.link-form :deep(.q-field--error .q-field__bottom) {
+    padding-top: 0.25rem;
+}
+
+.link-form :deep(.q-field--error .q-field__messages) {
+    display: inline-flex;
+    align-items: center;
+    background: var(--q-negative);
+    color: white;
+    flex: none;
+    width: fit-content;
+    padding: 0.125rem 0.5rem 0.125rem 0.25rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    gap: 0.125rem;
+}
+
+.link-form :deep(.q-field--error .q-field__messages)::before {
+    content: "error";
+    font-family: "Material Icons";
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.tags-fieldset {
+    border: 1px solid var(--q-primary);
+    border-radius: 4px;
+    padding: 0.75rem 1rem 0.25rem;
+}
+
+.tags-fieldset legend {
+    color: var(--q-primary);
+    font-weight: 500;
+}
+
+@keyframes just-moved-flash {
+    0% {
+        background-color: var(--q-secondary);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+    .just-moved {
+        animation: none;
+    }
+}
+
+.just-moved {
+    animation: just-moved-flash 0.6s ease-out;
 }
 
 .desktop-only {
@@ -668,7 +986,7 @@ loadCollections()
 .field-label {
     font-weight: 600;
     color: var(--q-primary);
-    margin-bottom: 2px;
+    margin-bottom: 0;
 }
 
 .link-field {
@@ -719,7 +1037,7 @@ loadCollections()
 
     .link-row.link-grid {
         display: grid;
-        grid-template-columns: 70px 3.5fr 1.2fr 1.4fr 2.1fr;
+        grid-template-columns: 70px 2.5fr 1.2fr 2.5fr 1.5fr;
         column-gap: 12px;
         align-items: stretch;
     }

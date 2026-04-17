@@ -4,7 +4,7 @@
         flat
         bordered
     >
-        <q-card-section class="q-pa-sm q-pb-md">
+        <q-card-section class="q-pa-sm">
             <div class="column q-gutter-sm">
                 <!-- Recent items section -->
                 <div>

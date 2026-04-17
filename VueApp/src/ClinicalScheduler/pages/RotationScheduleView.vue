@@ -1,5 +1,6 @@
 <template>
     <div class="clinical-scheduler-container position-relative">
+        <h1 class="sr-only">Schedule by Rotation</h1>
         <SchedulerNavigation />
 
         <!-- Loading permissions state - show this until we have permission data -->

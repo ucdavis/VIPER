@@ -15,6 +15,7 @@
             clearable
             dense
             options-dense
+            :hide-bottom-space="hideBottomSpace"
             :input-debounce="INPUT_DEBOUNCE_MS"
             @filter="onFilter"
             @update:model-value="onRotationChange"
@@ -79,6 +80,7 @@ interface Props {
     year?: number | null
     onlyWithScheduledWeeks?: boolean
     excludeRotationNames?: string[] // For filtering out already assigned rotations
+    hideBottomSpace?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -87,6 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
     year: null,
     onlyWithScheduledWeeks: false,
     excludeRotationNames: () => [],
+    hideBottomSpace: false,
 })
 
 // Emits

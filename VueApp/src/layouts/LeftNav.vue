@@ -43,6 +43,7 @@
                                 :clickable="menuItem.clickable"
                                 v-ripple
                                 :to="menuItem.routeTo"
+                                :active="isItemActive(menuItem.routeTo)"
                                 :class="menuItem.displayClass"
                             >
                                 <q-item-section>
@@ -106,7 +107,25 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
+
+const route = useRoute()
+const router = useRouter()
+
+// Vue Router's default active-state matching ignores query strings, so
+// sibling links sharing a path (e.g. /CAHFS/Section?section=...) all
+// highlight together. Take over detection: require exact path match,
+// and when the target has query params every one must also match.
+// VIPER left-nav routes are flat, so exact matching is the right model.
+function isItemActive(routeTo: string | null): boolean {
+    if (!routeTo) return false
+    const resolved = router.resolve(routeTo)
+    const targetPath = resolved.path.replace(/\/+$/, "") || "/"
+    const currentPath = route.path.replace(/\/+$/, "") || "/"
+    if (targetPath !== currentPath) return false
+    return Object.entries(resolved.query).every(([key, value]) => route.query[key] === value)
+}
 
 type OverflowTitleElement = HTMLElement & {
     _overflowTitleObserver?: ResizeObserver
