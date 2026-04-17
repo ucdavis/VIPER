@@ -1,5 +1,8 @@
-﻿
-<h2>View Assessments</h2>
+﻿@{
+    ViewData["Title"] = "View Assessments";
+}
+
+<h1>View Assessments</h1>
 
 <q-form>
     <div class="row">
@@ -80,7 +83,7 @@
                         keys: "id",
                         urlBase: "",
                         columns: [
-                            { name: "action", label: "", field: "id", align: "left" },
+                            { name: "action", label: "Actions", field: "id", align: "left" },
                             { name: "studentName", label: "Student", field: "studentName", align: "left", sortable: true },
                             { name: "epaName", label: "EPA", field: "epaName", align: "left", sortable: true },
                             { name: "service", label: "Service", field: "serviceName", align: "left", sortable: true },
@@ -94,7 +97,7 @@
             methods: {
                 loadAssessments: async function() {
                     const y = Object.fromEntries(
-                      Object.entries(this.searchForm).filter(([key, value]) => value !== null)
+                      Object.entries(this.searchForm).filter(([_key, value]) => value !== null)
                     );
                     var u = null;
                     switch(this.assessmentType) {
@@ -107,7 +110,7 @@
                         default: break;
                     }
 
-                    if(u != null) {
+                    if(u !== null) {
                         u.search = new URLSearchParams(y)
                         this.assessmentsTable.urlBase = u
                         this.assessmentsTable.load()

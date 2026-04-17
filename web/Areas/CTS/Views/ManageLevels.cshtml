@@ -1,4 +1,7 @@
-﻿<h2>Manage Levels</h2>
+﻿@{
+    ViewData["Title"] = "Manage Levels";
+}
+<h1>Manage Levels</h1>
 <q-form action="" @@submit="submitLevel">
     <div class="row items-start">
         <q-btn-toggle name="type" v-model="type" :options="levelTypes" size="large" outlined no-caps push toggle-color="primary" class="q-mb-md"></q-btn-toggle>
@@ -21,7 +24,7 @@
         </div>
         <div class="row">
             <q-btn dense no-caps type="submit" :label="(level?.levelId ? 'Update' : 'Add') + ' Level'" color="primary" class="q-mt-sm col col-4 col-md-1"></q-btn>
-            <q-btn dense no-caps type="button" label="Delete Level" color="red" class="q-mt-sm q-ml-lg col col-4 col-md-1"></q-btn>
+            <q-btn dense no-caps type="button" label="Delete Level" color="negative" class="q-mt-sm q-ml-lg col col-4 col-md-1"></q-btn>
         </div>
     </div>
 
@@ -34,10 +37,10 @@
         </q-item-label>
         <q-item v-for="l in levels.filter(l => l.epa)">
             <q-item-section side top>
-                <q-btn dense no-caps size="md" color="primary" icon="edit" @@click="selectLevel(l)"></q-btn>
+                <q-btn dense no-caps size="md" color="primary" icon="edit" :aria-label="'Edit level: ' + l.levelName" @@click="selectLevel(l)"></q-btn>
             </q-item-section>
             <q-item-section side top>
-                <q-icon :name="l.active ? 'check' : 'close'" :color="l.active ? 'green' : 'red'"></q-icon>
+                <q-icon :name="l.active ? 'check' : 'close'" :color="l.active ? 'positive' : 'negative'"></q-icon>
             </q-item-section>
             <q-item-section side top>
                 {{l.order}}
@@ -90,8 +93,8 @@
                 },
                 addLevel: function() { 
                     this.level = {
-                        levelName: "", description: "", active: true, order: 0, epa: this.type == "EPA", dops: this.type == "DOPS",
-                        clinical: this.type == "Clinical", course: this.type == "Course", milestone: this.type == "milestone"
+                        levelName: "", description: "", active: true, order: 0, epa: this.type === "EPA", dops: this.type === "DOPS",
+                        clinical: this.type === "Clinical", course: this.type === "Course", milestone: this.type === "Milestone"
                     }
                 },
                 loadLevels: async function() {

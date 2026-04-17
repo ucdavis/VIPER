@@ -226,7 +226,7 @@ onMounted(() => {
                         <q-td :props="props">
                             <div
                                 v-if="props.value.length === 0"
-                                class="text-grey-6"
+                                class="text-grey-8"
                             >
                                 None
                             </div>
@@ -238,7 +238,7 @@ onMounted(() => {
                                     v-for="bundle in props.value"
                                     :key="bundle.bundleId"
                                     color="info"
-                                    text-color="white"
+                                    text-color="dark"
                                     size="sm"
                                     dense
                                     class="q-ma-xs"
@@ -289,7 +289,7 @@ onMounted(() => {
                                     <div class="text-subtitle2 q-mb-xs">Associated Bundles:</div>
                                     <div
                                         v-if="props.row.bundles.length === 0"
-                                        class="text-grey-6"
+                                        class="text-grey-8"
                                     >
                                         None
                                     </div>
@@ -301,7 +301,7 @@ onMounted(() => {
                                             v-for="bundle in props.row.bundles"
                                             :key="bundle.bundleId"
                                             color="info"
-                                            text-color="white"
+                                            text-color="dark"
                                             size="sm"
                                             dense
                                         >
