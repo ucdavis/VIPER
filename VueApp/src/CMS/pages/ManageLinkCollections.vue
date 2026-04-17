@@ -51,6 +51,7 @@
         <q-dialog
             v-model="showCollectionDialog"
             aria-labelledby="collection-dialog-title"
+            @hide="cancelCollectionDialog"
         >
             <q-card style="min-width: 350px">
                 <q-card-section class="row items-center q-pb-none">
@@ -500,6 +501,9 @@ async function loadCollections(preferredId?: number | null) {
                 : undefined
         collection.value = preferred ?? collections.value[0] ?? null
         collectionId.value = collection.value?.linkCollectionId ?? null
+    } else {
+        collection.value = null
+        collectionId.value = null
     }
 }
 
@@ -603,6 +607,8 @@ async function deleteCollection() {
 
 async function cancelCollectionDialog() {
     showCollectionDialog.value = false
+    // Revert any unsaved name edits to the currently-selected collection's name
+    collectionData.value.linkCollection = collection.value?.linkCollection || ""
     draftTags.value = []
     deletedTagIds.value = []
     addTag.value = ""
