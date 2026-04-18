@@ -64,7 +64,7 @@ onMounted(() => {
         />
 
         <template v-else-if="detail">
-            <h2 class="q-ma-none q-mb-md">
+            <h1 class="q-ma-none q-mb-md">
                 Emergency Contact: {{ detail.fullName }}
                 <q-btn
                     v-if="detail.canEdit"
@@ -77,7 +77,7 @@ onMounted(() => {
                     color="primary"
                     @click="handleEdit"
                 />
-            </h2>
+            </h1>
 
             <div class="form-content">
                 <!-- Student Info Section -->

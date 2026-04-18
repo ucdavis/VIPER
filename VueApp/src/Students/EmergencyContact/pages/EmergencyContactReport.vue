@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
-import type { QTableProps } from "quasar"
+import { ref, onMounted, useTemplateRef } from "vue"
+import type { QTable, QTableProps } from "quasar"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import ExportToolbar from "@/components/ExportToolbar.vue"
 import { formatPhone } from "../utils/phone"
@@ -9,6 +9,7 @@ import type { StudentContactReport, ContactInfo } from "../types"
 const loading = ref(false)
 const rows = ref<StudentContactReport[]>([])
 const filter = ref("")
+const tableRef = useTemplateRef<QTable>("tableRef")
 
 const columns: QTableProps["columns"] = [
     { name: "classLevel", label: "Class", field: "classLevel", align: "left", sortable: true },
@@ -66,7 +67,17 @@ async function load(): Promise<void> {
     loading.value = false
 }
 
-onMounted(load)
+onMounted(() => {
+    load()
+    // Axe's scrollable-region-focusable rule requires the horizontal scroll
+    // container to be reachable by keyboard; Quasar doesn't expose a prop for it.
+    const scroller = (tableRef.value?.$el as HTMLElement | undefined)?.querySelector<HTMLElement>(".q-table__middle")
+    if (scroller) {
+        scroller.tabIndex = 0
+        scroller.setAttribute("role", "region")
+        scroller.setAttribute("aria-label", "Emergency contact report table")
+    }
+})
 </script>
 
 <template>
@@ -82,6 +93,7 @@ onMounted(load)
         <h1 class="q-ma-none q-mb-md">Emergency Contact Report</h1>
 
         <q-table
+            ref="tableRef"
             :rows="rows"
             :columns="columns"
             row-key="rowKey"

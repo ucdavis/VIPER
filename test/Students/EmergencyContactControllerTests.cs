@@ -104,6 +104,56 @@ public class EmergencyContactControllerTests
     }
 
     [Fact]
+    public async Task GetStudentContactDetail_StudentCaller_StripsUpdatedBy()
+    {
+        var studentUser = CreateStudentUser(100);
+        _userHelper.GetCurrentUser().Returns(studentUser);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+
+        _service.CanEditAsync(100, studentUser.LoginId).Returns(true);
+        _service.GetStudentContactDetailAsync(100, true)
+            .Returns(new StudentContactDetailDto
+            {
+                PersonId = 100,
+                FullName = "Self",
+                UpdatedBy = "admin-who-edited"
+            });
+
+        var result = await _controller.GetStudentContactDetail(100);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<StudentContactDetailDto>(okResult.Value);
+        Assert.False(dto.IsAdmin);
+        Assert.Null(dto.UpdatedBy);
+    }
+
+    [Fact]
+    public async Task GetStudentContactDetail_SisCaller_PreservesUpdatedBy()
+    {
+        var sisUser = CreateAdminUser();
+        _userHelper.GetCurrentUser().Returns(sisUser);
+        _userHelper.HasPermission(_rapsContext, sisUser, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, sisUser, EmergencyContactPermissions.SISAllStudents).Returns(true);
+
+        _service.CanEditAsync(100, sisUser.LoginId).Returns(false);
+        _service.GetStudentContactDetailAsync(100, false)
+            .Returns(new StudentContactDetailDto
+            {
+                PersonId = 100,
+                FullName = "Student",
+                UpdatedBy = "prior-admin"
+            });
+
+        var result = await _controller.GetStudentContactDetail(100);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<StudentContactDetailDto>(okResult.Value);
+        Assert.True(dto.IsAdmin);
+        Assert.Equal("prior-admin", dto.UpdatedBy);
+    }
+
+    [Fact]
     public async Task GetStudentContactDetail_StudentCannotViewOtherRecord_ReturnsForbid()
     {
         var studentUser = CreateStudentUser(100);
@@ -199,6 +249,77 @@ public class EmergencyContactControllerTests
         var result = await _controller.UpdateStudentContact(100, request);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateStudentContact_ArgumentException_ReturnsValidationProblem()
+    {
+        var adminUser = CreateAdminUser();
+        _userHelper.GetCurrentUser().Returns(adminUser);
+        _service.CanEditAsync(100, adminUser.LoginId).Returns(true);
+        _service.UpdateStudentContactAsync(100, Arg.Any<UpdateStudentContactRequest>(), Arg.Any<string>())
+            .ThrowsAsync(new ArgumentException("Invalid phone number: 12345"));
+
+        var request = new UpdateStudentContactRequest { ContactPermanent = false };
+        var result = await _controller.UpdateStudentContact(100, request);
+
+        // ValidationProblem returns ObjectResult with a ValidationProblemDetails body.
+        // Status code is set by the MVC pipeline's ProblemDetailsFactory (400 in prod),
+        // but in unit tests without an HttpContext it stays null — assert the body shape.
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        var problem = Assert.IsType<ValidationProblemDetails>(objectResult.Value);
+        Assert.True(problem.Errors.ContainsKey("PhoneValidation"));
+        Assert.Contains("Invalid phone number: 12345", problem.Errors["PhoneValidation"]);
+    }
+
+    [Fact]
+    public async Task UpdateStudentContact_StudentCaller_StripsUpdatedBy()
+    {
+        var studentUser = CreateStudentUser(100);
+        _userHelper.GetCurrentUser().Returns(studentUser);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+
+        _service.CanEditAsync(100, studentUser.LoginId).Returns(true);
+        _service.GetStudentContactDetailAsync(100, true)
+            .Returns(new StudentContactDetailDto
+            {
+                PersonId = 100,
+                FullName = "Self",
+                UpdatedBy = "admin-who-edited"
+            });
+
+        var result = await _controller.UpdateStudentContact(100, new UpdateStudentContactRequest { ContactPermanent = false });
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<StudentContactDetailDto>(okResult.Value);
+        Assert.False(dto.IsAdmin);
+        Assert.Null(dto.UpdatedBy);
+    }
+
+    [Fact]
+    public async Task UpdateStudentContact_AdminCaller_PreservesUpdatedBy()
+    {
+        var adminUser = CreateAdminUser();
+        _userHelper.GetCurrentUser().Returns(adminUser);
+        _userHelper.HasPermission(_rapsContext, adminUser, EmergencyContactPermissions.Admin).Returns(true);
+        _userHelper.HasPermission(_rapsContext, adminUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+
+        _service.CanEditAsync(100, adminUser.LoginId).Returns(true);
+        _service.GetStudentContactDetailAsync(100, true)
+            .Returns(new StudentContactDetailDto
+            {
+                PersonId = 100,
+                FullName = "Student",
+                UpdatedBy = "prior-admin"
+            });
+
+        var result = await _controller.UpdateStudentContact(100, new UpdateStudentContactRequest { ContactPermanent = false });
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<StudentContactDetailDto>(okResult.Value);
+        Assert.True(dto.IsAdmin);
+        Assert.Equal("prior-admin", dto.UpdatedBy);
     }
 
     #endregion
@@ -310,7 +431,8 @@ public class EmergencyContactControllerTests
     {
         var data = new List<StudentContactListItemDto> { new() { PersonId = 1 } };
         _service.GetStudentContactListAsync().Returns(data);
-        _exportService.GenerateOverviewExcel(data).Returns(new MemoryStream(new byte[] { 1 }));
+        using var stream = new MemoryStream(new byte[] { 1 });
+        _exportService.GenerateOverviewExcel(data).Returns(stream);
 
         var result = await _controller.ExportOverviewExcel();
 
@@ -356,7 +478,8 @@ public class EmergencyContactControllerTests
     {
         var data = new List<StudentContactReportDto> { new() { PersonId = 1 } };
         _service.GetStudentContactReportAsync().Returns(data);
-        _exportService.GenerateExcel(data).Returns(new MemoryStream(new byte[] { 1 }));
+        using var stream = new MemoryStream(new byte[] { 1 });
+        _exportService.GenerateExcel(data).Returns(stream);
 
         var result = await _controller.ExportExcel();
 
