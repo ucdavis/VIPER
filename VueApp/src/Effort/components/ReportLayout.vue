@@ -1,6 +1,9 @@
 <template>
     <div class="report-layout">
-        <div class="report-header no-print-hide">
+        <div
+            v-if="$slots.header"
+            class="report-header no-print-hide row items-center q-pa-sm q-mb-md bg-grey-2 rounded-borders"
+        >
             <slot name="header" />
         </div>
         <div
@@ -75,6 +78,7 @@
     /* Prevent rows from breaking across pages */
     tr {
         page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     /* Remove backgrounds for clean print */

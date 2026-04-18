@@ -337,6 +337,16 @@ header .q-avatar {
     outline: none;
 }
 
+/* Quasar palette AA contrast overrides (!important required to override Quasar's !important).
+   Kept in sync with web/wwwroot/css/site.css so Razor and SPA render the same color. */
+.text-grey {
+    color: var(--ucdavis-black-60, #666666) !important;
+}
+
+.bg-grey {
+    background-color: var(--ucdavis-black-60, #666666) !important;
+}
+
 /* Prevent Quasar from fading inactive tab text below WCAG contrast */
 .q-tabs.tabs-no-fade .q-tab.q-tab--inactive {
     opacity: 1;
