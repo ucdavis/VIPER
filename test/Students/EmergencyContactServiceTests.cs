@@ -119,6 +119,27 @@ public sealed class EmergencyContactServiceTests : IDisposable
         Assert.Null(PhoneHelper.NormalizePhone("530555"));
     }
 
+    [Theory]
+    [InlineData("+1 (530) 555-1234")]
+    [InlineData("+1 530 555 1234")]
+    [InlineData("1-530-555-1234")]
+    [InlineData("15305551234")]
+    public void NormalizePhone_ElevenDigitsWithLeadingOne_ReturnsNull(string input)
+    {
+        // Documents current behavior: inputs with the US country code prefix strip
+        // to 11 digits, which is neither 7 nor 10, so normalization rejects them.
+        // If this changes to accept +1-prefixed numbers, update this test.
+        Assert.Null(PhoneHelper.NormalizePhone(input));
+    }
+
+    [Theory]
+    [InlineData("+1 (530) 555-1234")]
+    [InlineData("15305551234")]
+    public void IsValidPhone_ElevenDigits_ReturnsFalse(string input)
+    {
+        Assert.False(PhoneHelper.IsValidPhone(input));
+    }
+
     #endregion
 
     #region Phone Formatting Tests
@@ -400,7 +421,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ToggleAppAccessAsync_WhenOpen_SetsAccessZero()
+    public async Task ToggleAppAccessAsync_WhenOpen_RemovesRolePermissionRow()
     {
         _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
         {
@@ -414,10 +435,44 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var result = await service.ToggleAppAccessAsync();
 
         Assert.False(result);
-        var rp = await _rapsContext.TblRolePermissions.SingleAsync(rp =>
+        // Row is deleted on close so a role-level Deny cannot shadow individual grants.
+        var rp = await _rapsContext.TblRolePermissions.FirstOrDefaultAsync(rp =>
             rp.RoleId == _seededRoleId
             && rp.PermissionId == _seededPermissionId);
-        Assert.Equal(0, rp.Access);
+        Assert.Null(rp);
+    }
+
+    [Fact]
+    public async Task ToggleAppAccessAsync_Close_DoesNotLeaveDenyRowThatShadowsIndividualGrants()
+    {
+        // Seed: app open AND a student with an individual grant
+        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = "granted-student",
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        await service.ToggleAppAccessAsync(); // close
+
+        // No role-permission row should remain — a row with Access=0 would Deny
+        // all members, overriding the individual grant's Access=1 (RAPS semantics).
+        var rolePerm = await _rapsContext.TblRolePermissions.FirstOrDefaultAsync(rp =>
+            rp.RoleId == _seededRoleId && rp.PermissionId == _seededPermissionId);
+        Assert.Null(rolePerm);
+
+        // Individual grant is preserved
+        var grant = await _rapsContext.TblMemberPermissions.SingleAsync(mp =>
+            mp.MemberId == "granted-student" && mp.PermissionId == _seededPermissionId);
+        Assert.Equal(1, grant.Access);
     }
 
     [Fact]
@@ -619,6 +674,71 @@ public sealed class EmergencyContactServiceTests : IDisposable
         Assert.False(result);
     }
 
+    [Fact]
+    public async Task CanEditAsync_StudentOwnRecord_ExpiredIndividualGrant_ReturnsFalse()
+    {
+        var user = CreateTestUser(206, "stu206");
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(user);
+        await _aaudContext.SaveChangesAsync();
+
+        // App closed, grant exists but ended yesterday
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = user.MothraId,
+            PermissionId = _seededPermissionId,
+            Access = 1,
+            EndDate = DateTime.Now.AddDays(-1)
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(206, "stu206");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_StudentOwnRecord_FutureIndividualGrant_ReturnsFalse()
+    {
+        var user = CreateTestUser(207, "stu207");
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(user);
+        await _aaudContext.SaveChangesAsync();
+
+        // Grant doesn't start until tomorrow
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = user.MothraId,
+            PermissionId = _seededPermissionId,
+            Access = 1,
+            StartDate = DateTime.Now.AddDays(1)
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(207, "stu207");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CanEditAsync_StudentOwnRecord_MemberAccessZero_ReturnsFalse()
+    {
+        var user = CreateTestUser(208, "stu208");
+        var service = CreateServiceWithPermissions();
+        _aaudContext.AaudUsers.Add(user);
+        await _aaudContext.SaveChangesAsync();
+
+        // Member row with Access=0 should not count as a grant
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = user.MothraId,
+            PermissionId = _seededPermissionId,
+            Access = 0
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var result = await service.CanEditAsync(208, "stu208");
+        Assert.False(result);
+    }
+
     #endregion
 
     #region GetAccessStatus Tests
@@ -698,6 +818,138 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var status = await service.GetAccessStatusAsync();
 
         Assert.Empty(status.IndividualGrants);
+    }
+
+    [Fact]
+    public async Task GetAccessStatusAsync_IndependentOfAppState()
+    {
+        // Grant survives both app open and app closed
+        _aaudContext.AaudUsers.Add(CreateTestUser(302, "stu302"));
+        await _aaudContext.SaveChangesAsync();
+        _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
+        {
+            MemberId = "M302",
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 1
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        var statusOpen = await service.GetAccessStatusAsync();
+        Assert.True(statusOpen.AppOpen);
+        Assert.Single(statusOpen.IndividualGrants);
+
+        // Close app (removes role-permission row); grant unchanged
+        _rapsContext.TblRolePermissions.RemoveRange(_rapsContext.TblRolePermissions);
+        await _rapsContext.SaveChangesAsync();
+
+        var statusClosed = await service.GetAccessStatusAsync();
+        Assert.False(statusClosed.AppOpen);
+        Assert.Single(statusClosed.IndividualGrants);
+        Assert.Equal(302, statusClosed.IndividualGrants[0].PersonId);
+    }
+
+    #endregion
+
+    #region Access Workflow Integration
+
+    [Fact]
+    public async Task Workflow_GrantThenCloseApp_StudentCanStillEdit()
+    {
+        // Simulates: admin opens app, grants individual access, then closes app.
+        // Individual grant must survive the close (no role-level Deny row left behind).
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M400", 400, "First", "Student", "V1", "12400", "s400@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            // 1. Open app
+            Assert.True(await service.ToggleAppAccessAsync());
+            Assert.True(await service.CanEditAsync(400, "user400"));
+
+            // 2. Grant individual while app is open (redundant but legal)
+            Assert.True(await service.ToggleIndividualAccessAsync(400));
+
+            // 3. Close app — role-permission row should be removed, not flipped to 0
+            Assert.False(await service.ToggleAppAccessAsync());
+            Assert.False(await service.IsAppOpenAsync());
+
+            // 4. Student can still edit because of the individual grant
+            Assert.True(await service.CanEditAsync(400, "user400"));
+
+            // 5. Revoke grant → student loses edit
+            Assert.False(await service.ToggleIndividualAccessAsync(400));
+            Assert.False(await service.CanEditAsync(400, "user400"));
+        }
+    }
+
+    [Fact]
+    public async Task Workflow_ReopenApp_AfterLegacyAccessZeroRow_FlipsToOpen()
+    {
+        // Legacy data case: a row with Access=0 exists from the previous toggle
+        // behavior. Re-opening should set it to 1 (not insert a duplicate row).
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
+        {
+            RoleId = _seededRoleId,
+            PermissionId = _seededPermissionId,
+            Access = 0
+        });
+        await _rapsContext.SaveChangesAsync();
+
+        var service = CreateService();
+        Assert.True(await service.ToggleAppAccessAsync());
+        Assert.True(await service.IsAppOpenAsync());
+
+        var rows = await _rapsContext.TblRolePermissions
+            .Where(rp => rp.RoleId == _seededRoleId && rp.PermissionId == _seededPermissionId)
+            .ToListAsync();
+        Assert.Single(rows);
+        Assert.Equal(1, rows[0].Access);
+    }
+
+    [Fact]
+    public async Task Workflow_ToggleIndividualAccess_Idempotent()
+    {
+        // Repeat grant/revoke cycles should land back in the expected state each time
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            SeedDvmStudent(aaudContext, "M401", 401, "Second", "Student", "V1", "12401", "s401@ucdavis.edu");
+            await aaudContext.SaveChangesAsync();
+
+            Assert.True(await service.ToggleIndividualAccessAsync(401));   // grant
+            Assert.False(await service.ToggleIndividualAccessAsync(401));  // revoke
+            Assert.True(await service.ToggleIndividualAccessAsync(401));   // grant again
+            Assert.False(await service.ToggleIndividualAccessAsync(401));  // revoke again
+
+            // Final state: no grant for this student
+            var grants = await _rapsContext.TblMemberPermissions
+                .Where(mp => mp.MemberId == "M401" && mp.PermissionId == _seededPermissionId)
+                .ToListAsync();
+            Assert.Empty(grants);
+        }
+    }
+
+    [Fact]
+    public async Task ToggleIndividualAccessAsync_NonDvmStudent_Throws()
+    {
+        var (aaudContext, service) = CreateServiceWithViewSupport();
+        using (aaudContext)
+        {
+            // User exists in AAUD but is not seeded as a current DVM student
+            aaudContext.AaudUsers.Add(CreateTestUser(403, "stu403"));
+            await aaudContext.SaveChangesAsync();
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => service.ToggleIndividualAccessAsync(403));
+        }
     }
 
     #endregion

@@ -296,14 +296,26 @@ public class EmergencyContactService : IEmergencyContactService
         var roleId = await GetStudentRoleIdAsync();
         var currentLoginId = _userHelper.GetCurrentUser()?.LoginId;
 
-        // Find existing role-permission row (keep it permanently, just flip Access)
         var rolePermission = await _rapsContext.TblRolePermissions
             .FirstOrDefaultAsync(rp => rp.RoleId == roleId
                 && rp.PermissionId == permissionId);
 
+        // Closing the app REMOVES the role-permission row rather than setting
+        // Access = 0. In RAPS, a role Deny (Access = 0) overrides an individual
+        // member Allow, which would silently break individual grants.
+        var isCurrentlyOpen = rolePermission != null && rolePermission.Access == 1;
+
+        if (isCurrentlyOpen)
+        {
+            _rapsAuditService.AuditRolePermissionChange(rolePermission!, RAPSAuditService.AuditActionType.Delete);
+            _rapsContext.TblRolePermissions.Remove(rolePermission!);
+            await _rapsContext.SaveChangesAsync();
+            ClearCacheForRoleMembers(roleId);
+            return false;
+        }
+
         if (rolePermission == null)
         {
-            // Ensure role has the permission — create with Access = 1 (open)
             rolePermission = new Viper.Models.RAPS.TblRolePermission
             {
                 RoleId = roleId,
@@ -314,20 +326,18 @@ public class EmergencyContactService : IEmergencyContactService
             };
             _rapsContext.TblRolePermissions.Add(rolePermission);
             _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Create);
-            await _rapsContext.SaveChangesAsync();
-            ClearCacheForRoleMembers(roleId);
-            return true;
         }
-
-        // Toggle Access between 1 (open) and 0 (closed)
-        var nowOpen = rolePermission.Access != 1;
-        rolePermission.Access = (byte)(nowOpen ? 1 : 0);
-        rolePermission.ModTime = DateTime.Now;
-        rolePermission.ModBy = currentLoginId;
-        _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Update);
+        else
+        {
+            // Legacy row with Access = 0 from previous toggle behavior — flip to 1.
+            rolePermission.Access = 1;
+            rolePermission.ModTime = DateTime.Now;
+            rolePermission.ModBy = currentLoginId;
+            _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Update);
+        }
         await _rapsContext.SaveChangesAsync();
         ClearCacheForRoleMembers(roleId);
-        return nowOpen;
+        return true;
     }
 
     public async Task<bool> ToggleIndividualAccessAsync(int personId)
