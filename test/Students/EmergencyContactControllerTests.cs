@@ -431,7 +431,8 @@ public class EmergencyContactControllerTests
     {
         var data = new List<StudentContactListItemDto> { new() { PersonId = 1 } };
         _service.GetStudentContactListAsync().Returns(data);
-        _exportService.GenerateOverviewExcel(data).Returns(new MemoryStream(new byte[] { 1 }));
+        using var stream = new MemoryStream(new byte[] { 1 });
+        _exportService.GenerateOverviewExcel(data).Returns(stream);
 
         var result = await _controller.ExportOverviewExcel();
 
@@ -477,7 +478,8 @@ public class EmergencyContactControllerTests
     {
         var data = new List<StudentContactReportDto> { new() { PersonId = 1 } };
         _service.GetStudentContactReportAsync().Returns(data);
-        _exportService.GenerateExcel(data).Returns(new MemoryStream(new byte[] { 1 }));
+        using var stream = new MemoryStream(new byte[] { 1 });
+        _exportService.GenerateExcel(data).Returns(stream);
 
         var result = await _controller.ExportExcel();
 

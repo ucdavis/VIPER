@@ -173,6 +173,7 @@ async function handleWordExport(): Promise<void> {
             aria-label="Search"
             class="q-ml-sm bg-white"
             clearable
+            :clear-value="''"
             clear-icon="close"
         >
             <template #append>
