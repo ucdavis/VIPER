@@ -1,22 +1,30 @@
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { computed } from "vue"
 
-const props = withDefaults(
-    defineProps<{
-        maxValue: number
-        value: number
-        text?: string
-        id?: number
-    }>(),
-    {
-        text: undefined,
-        id: undefined,
+const props = defineProps({
+    maxValue: {
+        type: Number,
+        required: true,
     },
-)
+    value: {
+        type: Number,
+        required: true,
+    },
+    levelName: {
+        type: String,
+        default: "",
+    },
+    text: {
+        type: String,
+        default: undefined,
+    },
+    id: {
+        type: Number,
+        default: undefined,
+    },
+})
 
-const emit = defineEmits<{
-    "bubble-click": [id: number]
-}>()
+const emit = defineEmits(["bubble-click"])
 
 const classes5 = [
     "assessmentBubble5_1",
@@ -26,41 +34,37 @@ const classes5 = [
     "assessmentBubble5_5",
 ]
 
-const bubbleClass = ref("")
+const isValidValue = computed(() => props.maxValue === 5 && props.value > 0 && props.value <= 5)
 
-watch(props, () => {
-    setBubbleAttrs()
-})
+const bubbleClass = computed(() => (isValidValue.value ? (classes5[props.value - 1] ?? "") : ""))
 
 function clickBubble() {
     if (props.id !== undefined) {
         emit("bubble-click", props.id)
     }
 }
-
-function setBubbleAttrs() {
-    if (props.maxValue === 5 && props.value <= 5 && props.value > 0) {
-        const index = props.value - 1
-        bubbleClass.value = classes5[index] ?? ""
-    }
-}
-
-setBubbleAttrs()
 </script>
 <template>
-    <q-icon
-        name="circle"
-        size="sm"
-        :class="'assessmentIcon cursor-pointer ' + bubbleClass"
+    <button
+        v-if="id !== undefined"
+        type="button"
+        class="assessmentBubbleTrigger"
+        :aria-label="levelName ? `${levelName}, open assessment details` : 'Open assessment details'"
         @click="clickBubble"
     >
-        <q-tooltip
-            style="white-space: pre-wrap"
-            class="text-body2"
-        >
-            <strong>Click to open details</strong>
-            <br />
-            {{ props.text }}
+        <span
+            :class="['assessmentBubble', bubbleClass]"
+            aria-hidden="true"
+        />
+        <q-tooltip class="text-body2">
+            <div><strong>Click to open details</strong></div>
+            <div class="assessmentBubbleTooltipText">{{ props.text }}</div>
         </q-tooltip>
-    </q-icon>
+    </button>
+    <span
+        v-else
+        :class="['assessmentBubble', bubbleClass]"
+        role="img"
+        :aria-label="levelName"
+    />
 </template>
