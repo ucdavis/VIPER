@@ -292,7 +292,6 @@ namespace Viper.Classes.Utilities
             using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(searchStart, searchFilter, SearchScope.Subtree, props);

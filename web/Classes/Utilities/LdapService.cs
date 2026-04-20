@@ -29,7 +29,6 @@ namespace Viper.Classes.Utilities
                     AuthType.Basic);
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(_ldapStart, searchFilter, SearchScope.Subtree, personAttributes);
