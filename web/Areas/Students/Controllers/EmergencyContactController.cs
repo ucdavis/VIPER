@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.Students.Constants;
 using Viper.Areas.Students.Models;
@@ -45,10 +46,13 @@ public class EmergencyContactController : ApiController
 
     /// <summary>
     /// Get full contact detail for a specific student.
-    /// Admins, SIS users, and the student themselves can access this endpoint.
+    /// Authorized callers: admins (EmergencyContactAdmin), SIS users (SIS.AllStudents),
+    /// or DVM students (STUDENTS_DVM role) viewing their own record. Role-gated rather
+    /// than permission-gated so students keep read access even when the app is closed
+    /// (which removes the EmergencyContactStudent role-permission but not role membership).
     /// </summary>
     [HttpGet("{personId}")]
-    [Permission(Allow = "SVMSecure.Students.EmergencyContactAdmin,SVMSecure.SIS.AllStudents,SVMSecure.Students.EmergencyContactStudent")]
+    [Authorize]
     public async Task<ActionResult<StudentContactDetailDto>> GetStudentContactDetail(int personId)
     {
         var currentUser = _userHelper.GetCurrentUser();
@@ -57,9 +61,20 @@ public class EmergencyContactController : ApiController
             return Unauthorized();
         }
 
-        // Students can only view their own record
         var isAdmin = _userHelper.HasPermission(_rapsContext, currentUser, EmergencyContactPermissions.Admin);
         var isSis = _userHelper.HasPermission(_rapsContext, currentUser, EmergencyContactPermissions.SISAllStudents);
+        var isDvmStudent = _userHelper.IsInRole(_rapsContext, currentUser, EmergencyContactPermissions.StudentRoleName);
+
+        if (!isAdmin && !isSis && !isDvmStudent)
+        {
+            _logger.LogWarning(
+                "User {LoginId} attempted to access emergency contact for PersonId {PersonId} without any authorized role",
+                LogSanitizer.SanitizeId(currentUser.LoginId),
+                LogSanitizer.SanitizeId(personId.ToString()));
+            return ForbidApi();
+        }
+
+        // Non-admins (including DVM students) are restricted to their own record
         if (!isAdmin && !isSis && currentUser.AaudUserId != personId)
         {
             _logger.LogWarning(
@@ -207,15 +222,36 @@ public class EmergencyContactController : ApiController
 
     /// <summary>
     /// Check whether the given student's contact info can be edited by the current user.
+    /// Role-gated (see GetStudentContactDetail) so DVM students retain access when the
+    /// app is closed and can see that their record is currently read-only.
     /// </summary>
     [HttpGet("can-edit/{personId}")]
-    [Permission(Allow = "SVMSecure.Students.EmergencyContactAdmin,SVMSecure.SIS.AllStudents,SVMSecure.Students.EmergencyContactStudent")]
+    [Authorize]
     public async Task<ActionResult<bool>> CanEdit(int personId)
     {
         var currentUser = _userHelper.GetCurrentUser();
         if (currentUser == null)
         {
             return Unauthorized();
+        }
+
+        var isAdmin = _userHelper.HasPermission(_rapsContext, currentUser, EmergencyContactPermissions.Admin);
+        var isSis = _userHelper.HasPermission(_rapsContext, currentUser, EmergencyContactPermissions.SISAllStudents);
+        var isDvmStudent = _userHelper.IsInRole(_rapsContext, currentUser, EmergencyContactPermissions.StudentRoleName);
+
+        if (!isAdmin && !isSis && !isDvmStudent)
+        {
+            return ForbidApi();
+        }
+
+        // Non-admins (including DVM students) are restricted to probing their own record
+        if (!isAdmin && !isSis && currentUser.AaudUserId != personId)
+        {
+            _logger.LogWarning(
+                "User {LoginId} attempted to query can-edit for PersonId {PersonId}",
+                LogSanitizer.SanitizeId(currentUser.LoginId),
+                LogSanitizer.SanitizeId(personId.ToString()));
+            return ForbidApi();
         }
 
         var canEdit = await _service.CanEditAsync(personId, currentUser.LoginId);

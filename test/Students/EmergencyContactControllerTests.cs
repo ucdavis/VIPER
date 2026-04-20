@@ -8,6 +8,7 @@ using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using Web.Authorization;
 
 namespace Viper.test.Students;
 
@@ -92,6 +93,7 @@ public class EmergencyContactControllerTests
         _userHelper.GetCurrentUser().Returns(studentUser);
         _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
         _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, studentUser, EmergencyContactPermissions.StudentRoleName).Returns(true);
 
         _service.CanEditAsync(100, studentUser.LoginId).Returns(true);
         _service.GetStudentContactDetailAsync(100, true)
@@ -110,6 +112,7 @@ public class EmergencyContactControllerTests
         _userHelper.GetCurrentUser().Returns(studentUser);
         _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
         _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, studentUser, EmergencyContactPermissions.StudentRoleName).Returns(true);
 
         _service.CanEditAsync(100, studentUser.LoginId).Returns(true);
         _service.GetStudentContactDetailAsync(100, true)
@@ -126,6 +129,46 @@ public class EmergencyContactControllerTests
         var dto = Assert.IsType<StudentContactDetailDto>(okResult.Value);
         Assert.False(dto.IsAdmin);
         Assert.Null(dto.UpdatedBy);
+    }
+
+    [Fact]
+    public async Task GetStudentContactDetail_StudentWithoutEmergencyContactStudentPermission_CanStillViewOwnRecord()
+    {
+        // Simulates app-closed state: student retains STUDENTS_DVM role membership
+        // but no longer has the EmergencyContactStudent permission. Read access
+        // must still work so the read-only view page can render.
+        var studentUser = CreateStudentUser(100);
+        _userHelper.GetCurrentUser().Returns(studentUser);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, studentUser, EmergencyContactPermissions.StudentRoleName).Returns(true);
+
+        _service.CanEditAsync(100, studentUser.LoginId).Returns(false);
+        _service.GetStudentContactDetailAsync(100, false)
+            .Returns(new StudentContactDetailDto { PersonId = 100, FullName = "Self", CanEdit = false });
+
+        var result = await _controller.GetStudentContactDetail(100);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<StudentContactDetailDto>(okResult.Value);
+        Assert.Equal(100, dto.PersonId);
+        Assert.False(dto.CanEdit);
+    }
+
+    [Fact]
+    public async Task GetStudentContactDetail_UserWithoutAnyRole_ReturnsForbid()
+    {
+        // Non-admin, non-SIS, non-DVM-student user attempting access is rejected at the role check
+        var user = CreateAdminUser();
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, user, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, user, EmergencyContactPermissions.StudentRoleName).Returns(false);
+
+        var result = await _controller.GetStudentContactDetail(100);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(403, objectResult.StatusCode);
     }
 
     [Fact]
@@ -160,6 +203,7 @@ public class EmergencyContactControllerTests
         _userHelper.GetCurrentUser().Returns(studentUser);
         _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
         _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, studentUser, EmergencyContactPermissions.StudentRoleName).Returns(true);
 
         var result = await _controller.GetStudentContactDetail(999);
 
@@ -414,7 +458,61 @@ public class EmergencyContactControllerTests
     {
         var user = CreateAdminUser();
         _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, EmergencyContactPermissions.Admin).Returns(true);
+        _userHelper.HasPermission(_rapsContext, user, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, user, EmergencyContactPermissions.StudentRoleName).Returns(false);
         _service.CanEditAsync(100, user.LoginId).Returns(true);
+
+        var result = await _controller.CanEdit(100);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True((bool)okResult.Value!);
+    }
+
+    [Fact]
+    public async Task CanEdit_UserWithoutAnyRole_ReturnsForbid()
+    {
+        // Mirrors GetStudentContactDetail: caller with no admin/SIS/DVM-student gate is rejected
+        // before the service is consulted. Guards against regressing the in-method authorization path.
+        var user = CreateAdminUser();
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, user, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, user, EmergencyContactPermissions.StudentRoleName).Returns(false);
+
+        var result = await _controller.CanEdit(100);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(403, objectResult.StatusCode);
+        await _service.DidNotReceive().CanEditAsync(Arg.Any<int>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task CanEdit_DvmStudentQueryingOtherStudent_ReturnsForbid()
+    {
+        // BOLA guard: a DVM student must not be able to probe editability for another student's PersonId.
+        var studentUser = CreateStudentUser(100);
+        _userHelper.GetCurrentUser().Returns(studentUser);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, studentUser, EmergencyContactPermissions.StudentRoleName).Returns(true);
+
+        var result = await _controller.CanEdit(999);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(403, objectResult.StatusCode);
+        await _service.DidNotReceive().CanEditAsync(Arg.Any<int>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task CanEdit_DvmStudentQueryingOwnRecord_ReturnsCanEditValue()
+    {
+        var studentUser = CreateStudentUser(100);
+        _userHelper.GetCurrentUser().Returns(studentUser);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.Admin).Returns(false);
+        _userHelper.HasPermission(_rapsContext, studentUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
+        _userHelper.IsInRole(_rapsContext, studentUser, EmergencyContactPermissions.StudentRoleName).Returns(true);
+        _service.CanEditAsync(100, studentUser.LoginId).Returns(true);
 
         var result = await _controller.CanEdit(100);
 
@@ -542,6 +640,36 @@ public class EmergencyContactControllerTests
         var controllerType = typeof(EmergencyContactController);
         var areaAttributes = controllerType.GetCustomAttributes(typeof(AreaAttribute), false);
         Assert.Empty(areaAttributes);
+    }
+
+    [Fact]
+    public void GetStudentContactDetail_HasAuthorizeAttributeButNoPermissionGate()
+    {
+        // Gate is role-based (STUDENTS_DVM), enforced inside the method — students
+        // don't have any SVMSecure.Students.* permission when the app is closed,
+        // so the [Permission] attribute can't filter them and [Authorize] is used instead.
+        var method = typeof(EmergencyContactController).GetMethod(nameof(EmergencyContactController.GetStudentContactDetail));
+        Assert.NotNull(method);
+
+        var permissionAttrs = method!.GetCustomAttributes(typeof(PermissionAttribute), false);
+        Assert.Empty(permissionAttrs);
+
+        var authorizeAttrs = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false);
+        Assert.NotEmpty(authorizeAttrs);
+    }
+
+    [Fact]
+    public void CanEdit_HasAuthorizeAttributeButNoPermissionGate()
+    {
+        // Mirrors GetStudentContactDetail — role-based gate enforced inside the method.
+        var method = typeof(EmergencyContactController).GetMethod(nameof(EmergencyContactController.CanEdit));
+        Assert.NotNull(method);
+
+        var permissionAttrs = method!.GetCustomAttributes(typeof(PermissionAttribute), false);
+        Assert.Empty(permissionAttrs);
+
+        var authorizeAttrs = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false);
+        Assert.NotEmpty(authorizeAttrs);
     }
 
     #endregion

@@ -4,6 +4,7 @@ import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useUserStore } from "@/store/UserStore"
 
 const adminPermissions = ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.SIS.AllStudents"]
+const editPermissions = ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.Students.EmergencyContactStudent"]
 
 function requireOwnStudentRecord(pidm: string | number) {
     if (checkHasOnePermission(adminPermissions)) {
@@ -19,6 +20,19 @@ function requireOwnStudentRecord(pidm: string | number) {
     return Number(pidm) === Number(currentUserId)
         ? true
         : { name: "EmergencyContactView", params: { pidm: currentUserId } }
+}
+
+// Students without EmergencyContactStudent (app closed, no individual grant) still
+// get read-only access via the View route — redirect them instead of blocking.
+function requireEditAccess(pidm: string | number) {
+    const ownCheck = requireOwnStudentRecord(pidm)
+    if (ownCheck !== true) {
+        return ownCheck
+    }
+    if (!checkHasOnePermission(editPermissions)) {
+        return { name: "EmergencyContactView", params: { pidm } }
+    }
+    return true
 }
 
 const routes = [
@@ -53,11 +67,6 @@ const routes = [
         path: "/Students/EmergencyContact/",
         meta: {
             layout: ViperLayout,
-            permissions: [
-                "SVMSecure.Students.EmergencyContactAdmin",
-                "SVMSecure.Students.EmergencyContactStudent",
-                "SVMSecure.SIS.AllStudents",
-            ],
         },
         children: [
             {
@@ -65,6 +74,8 @@ const routes = [
                 name: "EmergencyContactList",
                 meta: { layout: ViperLayout },
                 beforeEnter: () => {
+                    // Non-admin students go to their own record. Edit's beforeEnter
+                    // further redirects to View if they lack edit permission (app closed).
                     if (!checkHasOnePermission(adminPermissions)) {
                         const userStore = useUserStore()
                         if (userStore.userInfo.userId) {
@@ -77,14 +88,8 @@ const routes = [
             {
                 path: "edit/:pidm",
                 name: "EmergencyContactEdit",
-                beforeEnter: (to: RouteLocationNormalized) => requireOwnStudentRecord(to.params.pidm as string),
-                meta: {
-                    layout: ViperLayout,
-                    permissions: [
-                        "SVMSecure.Students.EmergencyContactAdmin",
-                        "SVMSecure.Students.EmergencyContactStudent",
-                    ],
-                },
+                beforeEnter: (to: RouteLocationNormalized) => requireEditAccess(to.params.pidm as string),
+                meta: { layout: ViperLayout },
                 component: () => import("@/Students/EmergencyContact/pages/EmergencyContactForm.vue"),
             },
             {
@@ -107,4 +112,4 @@ const routes = [
     },
 ]
 
-export { routes }
+export { routes, requireOwnStudentRecord, requireEditAccess }
