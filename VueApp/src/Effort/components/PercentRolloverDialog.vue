@@ -157,7 +157,7 @@
                                 </div>
                             </div>
                         </template>
-                        <div class="bg-cyan-1 q-pa-sm">
+                        <div class="bg-ucdavis-blue-10 q-pa-sm">
                             <RolloverAssignmentTable :rows="preview.assignments" />
                         </div>
                     </q-expansion-item>
@@ -204,7 +204,7 @@
                                     class="q-mr-sm"
                                 />
                                 <div>
-                                    <div class="text-weight-medium text-orange-9">Excluded - Post-Harvest Changes</div>
+                                    <div class="text-weight-medium text-warning">Excluded - Post-Harvest Changes</div>
                                     <div class="text-caption text-grey-7">
                                         {{ preview.excludedByAudit.length }}
                                         {{ inflect("assignment", preview.excludedByAudit.length) }} excluded due to
@@ -213,7 +213,7 @@
                                 </div>
                             </div>
                         </template>
-                        <div class="bg-orange-1 q-pa-sm">
+                        <div class="bg-ucdavis-gold-10 q-pa-sm">
                             <StatusBanner type="warning">
                                 These assignments will not be rolled forward because someone manually edited or deleted
                                 a percent assignment of the same type for this instructor after the term was harvested.

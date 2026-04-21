@@ -63,17 +63,25 @@
             </div>
 
             <!-- Helper message for clinicians with no assignments - moved to top -->
-            <ScheduleBanner
+            <StatusBanner
                 v-if="selectedClinician && hasNoAssignments && !loadingSchedule"
-                type="no-entries"
-                :custom-message="`${selectedClinician?.fullName || 'This clinician'} has no rotation assignments for ${currentYear}.`"
-            />
+                type="warning"
+            >
+                {{
+                    SCHEDULE_MESSAGES.NO_DATA.NO_ASSIGNMENTS_CLINICIAN(
+                        selectedClinician?.fullName || "This clinician",
+                        currentYear ?? currentGradYear,
+                    )
+                }}
+            </StatusBanner>
 
             <!-- Read-only notice for past years -->
-            <ScheduleBanner
+            <StatusBanner
                 v-if="isPastYear"
-                type="read-only"
-            />
+                type="info"
+            >
+                <strong>Read-Only Mode: </strong>{{ SCHEDULE_MESSAGES.READ_ONLY_NOTICE }}
+            </StatusBanner>
 
             <!-- No clinician selected -->
             <StatusBanner
@@ -171,7 +179,6 @@ import { useBulkDeletionLogic } from "../composables/use-bulk-deletion-logic"
 import { useScheduleNormalization } from "../composables/use-schedule-normalization"
 import { useDeleteMode } from "../composables/use-delete-mode"
 import type { RotationWithService } from "../types/rotation-types"
-import ScheduleBanner from "../components/ScheduleBanner.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"

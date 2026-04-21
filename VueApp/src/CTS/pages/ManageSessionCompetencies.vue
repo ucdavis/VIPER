@@ -307,7 +307,7 @@ if (!courseId || !sessionId) {
                 class="sessionComps"
             >
                 <thead>
-                    <tr class="bg-blue-grey-2">
+                    <tr class="bg-ucdavis-blue-20">
                         <th class="text-left">Competency</th>
                         <th
                             class="text-left"
@@ -327,7 +327,7 @@ if (!courseId || !sessionId) {
                         <tr
                             v-for="lc in legacyCompetencies"
                             :key="lc.dvmCompetencyId"
-                            class="bg-yellow-2"
+                            class="bg-ucdavis-gold-20"
                         >
                             <td style="max-width: 50vw">{{ lc.dvmCompetencyName }}</td>
                             <td v-if="multiRole">{{ lc.dvmRoleName }}</td>

@@ -164,7 +164,7 @@ onMounted(() => {
 
         <q-card class="q-mb-md">
             <q-card-section>
-                <div class="row q-gutter-md items-center">
+                <div class="row q-gutter-sm items-center">
                     <div class="col-auto">
                         <span class="text-weight-medium">Filter by Bundle Flags:</span>
                     </div>
@@ -172,18 +172,24 @@ onMounted(() => {
                         v-model="clinicalFilter"
                         label="Clinical"
                         color="primary"
+                        size="28px"
+                        class="flag-toggle flag-toggle--clinical"
                         @update:model-value="loadCompetencies"
                     />
                     <q-toggle
                         v-model="assessmentFilter"
                         label="Assessment"
                         color="primary"
+                        size="28px"
+                        class="flag-toggle flag-toggle--assessment"
                         @update:model-value="loadCompetencies"
                     />
                     <q-toggle
                         v-model="milestoneFilter"
                         label="Milestone"
                         color="primary"
+                        size="28px"
+                        class="flag-toggle flag-toggle--milestone"
                         @update:model-value="loadCompetencies"
                     />
                     <div class="col-auto q-ml-md">
@@ -256,8 +262,7 @@ onMounted(() => {
                                     v-for="flag in getBundleFlags(props.value)"
                                     :key="flag"
                                     size="sm"
-                                    :color="flag === 'Clinical' ? 'teal' : flag === 'Assessment' ? 'orange' : 'purple'"
-                                    text-color="white"
+                                    :class="`flag-chip flag-chip--${flag.toLowerCase()}`"
                                     dense
                                 >
                                     {{ flag }}
@@ -316,14 +321,7 @@ onMounted(() => {
                                             v-for="flag in getBundleFlags(props.row.bundles)"
                                             :key="flag"
                                             size="sm"
-                                            :color="
-                                                flag === 'Clinical'
-                                                    ? 'teal'
-                                                    : flag === 'Assessment'
-                                                      ? 'orange'
-                                                      : 'purple'
-                                            "
-                                            text-color="white"
+                                            :class="`flag-chip flag-chip--${flag.toLowerCase()}`"
                                             dense
                                         >
                                             {{ flag }}
@@ -411,5 +409,46 @@ onMounted(() => {
 /* Bundle chips wrapper */
 .bundle-chips {
     flex-wrap: wrap;
+}
+
+/* Flag chip categorical colors — UC Davis secondary palette,
+   paired with contrast-tested foreground colors (WCAG AA). */
+.flag-chip--clinical {
+    background: var(--ucdavis-arboretum);
+    color: var(--ucdavis-black-90);
+}
+
+.flag-chip--assessment {
+    background: var(--ucdavis-poppy);
+    color: var(--ucdavis-black-90);
+}
+
+.flag-chip--milestone {
+    background: var(--ucdavis-cabernet);
+    color: white;
+}
+</style>
+
+<style>
+/* Wrap the entire q-toggle (switch + label) in a pill matching the flag-chip
+   tag. Foreground colors are contrast-tested (WCAG AA). */
+.flag-toggle {
+    padding: 0 0.6rem 0 0.15rem;
+    border-radius: 1rem;
+}
+
+.flag-toggle--clinical {
+    background: var(--ucdavis-arboretum);
+    color: var(--ucdavis-black-90);
+}
+
+.flag-toggle--assessment {
+    background: var(--ucdavis-poppy);
+    color: var(--ucdavis-black-90);
+}
+
+.flag-toggle--milestone {
+    background: var(--ucdavis-cabernet);
+    color: white;
 }
 </style>

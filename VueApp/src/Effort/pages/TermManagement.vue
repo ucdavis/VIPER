@@ -92,7 +92,7 @@
                     </div>
                     <div
                         v-if="rolloverYearOverride"
-                        class="text-caption text-orange-9 q-mt-xs"
+                        class="text-caption text-warning q-mt-xs"
                     >
                         Changing the year from the default is unusual. Only do this if you need to run a past rollover.
                     </div>

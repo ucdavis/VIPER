@@ -41,4 +41,38 @@
 
     /* UC Davis Extended Brand Colors */
     --ucdavis-poppy: #f18a00; /* For Tips/Highlights */
+
+    /* UC Davis Secondary Palette (used as accents, never dominant) */
+    --ucdavis-arboretum: #00c4b3;
+    --ucdavis-cabernet: #481268;
+}
+
+/* Background utility classes — UC Davis palette */
+/* Quasar palette utilities (bg-red-1, bg-blue-1, etc.) are not WCAG-aligned
+   with our brand. Prefer these classes. */
+.bg-ucdavis-blue-10 {
+    background-color: var(--ucdavis-blue-10);
+}
+.bg-ucdavis-blue-20 {
+    background-color: var(--ucdavis-blue-20);
+}
+.bg-ucdavis-gold-10 {
+    background-color: var(--ucdavis-gold-10);
+}
+.bg-ucdavis-gold-20 {
+    background-color: var(--ucdavis-gold-20);
+}
+/* Overrides Quasar's .text-warning; bright gold fails WCAG contrast on white.
+   !important required to beat Quasar's own !important. */
+.text-warning {
+    color: #664d03 !important;
+}
+
+/* Error-state surface — mirrors StatusBanner type="error" treatment so
+   non-StatusBanner error dialogs (GenericError, SessionTimeout expired)
+   render consistently. */
+.error-surface {
+    background-color: color-mix(in srgb, var(--q-negative) 12%, white);
+    border-left: 0.25rem solid var(--q-negative);
+    color: var(--q-negative);
 }

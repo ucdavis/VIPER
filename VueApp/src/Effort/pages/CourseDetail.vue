@@ -195,7 +195,7 @@
             <!-- Harvested eval link — directs to Faculty Eval Viewer when harvest data exists -->
             <div
                 v-if="showHarvestedEvalLink"
-                class="q-pa-sm q-mb-md bg-blue-1 rounded-borders"
+                class="q-pa-sm q-mb-md bg-info text-dark rounded-borders"
             >
                 <q-icon
                     name="assessment"

@@ -13,18 +13,20 @@
         </div>
 
         <!-- Error State -->
-        <ScheduleBanner
+        <StatusBanner
             v-else-if="error"
             type="error"
-            :error-message="error"
-        />
+        >
+            <strong>Error: </strong>{{ error }}
+        </StatusBanner>
 
         <!-- No Data State -->
-        <ScheduleBanner
+        <StatusBanner
             v-else-if="!schedulesBySemester || schedulesBySemester.length === 0"
-            type="no-entries"
-            :custom-message="noDataMessage"
-        />
+            type="warning"
+        >
+            {{ noDataMessage }}
+        </StatusBanner>
 
         <!-- Schedule Display -->
         <div v-else>
@@ -86,7 +88,7 @@ export interface WeekItem {
     [key: string]: unknown
 }
 import ScheduleLegend from "./ScheduleLegend.vue"
-import ScheduleBanner from "./ScheduleBanner.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 
 export interface ScheduleAssignment {
     id: number

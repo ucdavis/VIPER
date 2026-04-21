@@ -59,8 +59,8 @@
                             <div class="text-caption">
                                 <q-badge
                                     v-if="stats.pendingInstructors > 0"
-                                    color="amber-2"
-                                    text-color="brown-10"
+                                    color="warning"
+                                    text-color="dark"
                                 >
                                     {{ stats.pendingInstructors }} pending verification
                                 </q-badge>
@@ -96,8 +96,8 @@
                             <div class="text-caption">
                                 <q-badge
                                     v-if="stats.coursesWithoutInstructors > 0"
-                                    color="amber-2"
-                                    text-color="brown-10"
+                                    color="warning"
+                                    text-color="dark"
                                     class="clickable-badge"
                                     role="button"
                                     tabindex="0"
@@ -141,9 +141,7 @@
                                     <div
                                         class="text-h5"
                                         :class="
-                                            stats.hygieneSummary.activeAlerts > 0
-                                                ? 'text-warning-accessible'
-                                                : 'text-positive'
+                                            stats.hygieneSummary.activeAlerts > 0 ? 'text-warning' : 'text-positive'
                                         "
                                     >
                                         {{ stats.hygieneSummary.activeAlerts }}
@@ -585,7 +583,7 @@
                                 v-if="zeroHoursAlerts.length > 0"
                                 v-model="expandedSections.zeroHours"
                                 dense
-                                header-class="text-warning-accessible"
+                                header-class="text-warning"
                             >
                                 <template #header>
                                     <q-item-section side>
@@ -658,7 +656,7 @@
                                 v-if="noRecordsAlerts.length > 0"
                                 v-model="expandedSections.noRecords"
                                 dense
-                                header-class="text-warning-accessible"
+                                header-class="text-warning"
                             >
                                 <template #header>
                                     <q-item-section side>
@@ -729,7 +727,7 @@
                                 id="no-instructors-alerts"
                                 v-model="expandedSections.noInstructors"
                                 dense
-                                header-class="text-warning-accessible"
+                                header-class="text-warning"
                             >
                                 <template #header>
                                     <q-item-section side>
@@ -1321,11 +1319,6 @@ watch(
 .term-status-row {
     display: flex;
     align-items: baseline;
-}
-
-/* Accessible warning text color for headers and larger text */
-.text-warning-accessible {
-    color: #664d03 !important;
 }
 
 .clickable-badge {

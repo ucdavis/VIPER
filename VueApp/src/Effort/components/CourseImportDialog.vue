@@ -321,7 +321,7 @@
                     />
                     <div
                         v-if="selectedBannerCourse?.importedUnitValues.length"
-                        class="text-caption text-orange q-mb-md"
+                        class="text-caption text-warning q-mb-md"
                     >
                         Already imported with: {{ selectedBannerCourse.importedUnitValues.join(", ") }} units
                     </div>

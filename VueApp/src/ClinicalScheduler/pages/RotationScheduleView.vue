@@ -72,11 +72,11 @@
             </div>
 
             <!-- Error display for rotation loading -->
-            <ScheduleBanner
+            <StatusBanner
                 v-if="error"
                 type="error"
-                :error-message="error"
             >
+                <strong>Error: </strong>{{ error }}
                 <template #action>
                     <q-btn
                         flat
@@ -86,13 +86,15 @@
                         @click="loadRotations"
                     />
                 </template>
-            </ScheduleBanner>
+            </StatusBanner>
 
             <!-- Read-only notice for past years -->
-            <ScheduleBanner
+            <StatusBanner
                 v-if="isPastYear"
-                type="read-only"
-            />
+                type="info"
+            >
+                <strong>Read-Only Mode: </strong>{{ SCHEDULE_MESSAGES.READ_ONLY_NOTICE }}
+            </StatusBanner>
 
             <!-- No rotation selected message -->
             <StatusBanner
@@ -151,11 +153,12 @@
             </RecentSelections>
 
             <!-- No weeks scheduled message -->
-            <ScheduleBanner
+            <StatusBanner
                 v-if="selectedRotation && weeksBySemester.length === 0 && !isLoadingSchedule"
-                type="no-entries"
-                :custom-message="`${selectedRotation.name} has no weeks scheduled for ${currentYear}.`"
-            />
+                type="warning"
+            >
+                {{ SCHEDULE_MESSAGES.NO_DATA.NO_WEEKS(selectedRotation.name, currentYear ?? currentGradYear) }}
+            </StatusBanner>
 
             <!-- Unified schedule view -->
             <ScheduleView
@@ -218,12 +221,12 @@ import ClinicianSelector from "../components/ClinicianSelector.vue"
 import YearSelector from "../components/YearSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import type { WeekItem } from "../components/WeekScheduleCard.vue"
-import ScheduleBanner from "../components/ScheduleBanner.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
 import { UI_CONFIG } from "../constants/app-constants"
+import { SCHEDULE_MESSAGES } from "../constants/schedule-config"
 import ScheduleView from "../components/ScheduleView.vue"
 
 // Router and Quasar

@@ -552,7 +552,7 @@ function getActionColor(action: string): string {
     if (action.startsWith("Open") || action.startsWith("Reopen")) return "secondary"
     if (action.startsWith("Close")) return "warning"
     if (action.startsWith("Import")) return "info"
-    if (action.startsWith("Verify")) return "positive"
+    if (action.startsWith("Verif")) return "positive"
     return "grey-8"
 }
 
