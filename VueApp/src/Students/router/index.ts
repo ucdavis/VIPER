@@ -32,23 +32,30 @@ async function loadSisPermissions() {
     }
 }
 
-router.beforeEach(async (to) => {
-    const { requireLogin } = useRequireLogin(to)
-    const loginResult = await requireLogin(true, "SVMSecure.Students")
-    if (!loginResult) {
-        return false
-    }
-
-    // SIS permissions are in a separate area, so they aren't loaded by requireLogin.
-    // Emergency Contact routes grant access via SVMSecure.SIS.AllStudents.
+router.beforeEach(async (to, from) => {
     const userStore = useUserStore()
-    const existingPermissions = userStore.userInfo?.permissions ?? []
-    const hasSisPermissions = existingPermissions.some((p: string) => p.startsWith("SVMSecure.SIS"))
-    if (!hasSisPermissions) {
-        if (!sisPermissionsPromise) {
-            sisPermissionsPromise = loadSisPermissions()
+
+    // Skip re-authentication for in-app navigations. Re-calling requireLogin would
+    // overwrite the permission array (including appended SIS permissions) and cause
+    // a visible flash.
+    const isInternalNavigation = from.matched.length > 0 && userStore.isLoggedIn
+    if (!isInternalNavigation) {
+        const { requireLogin } = useRequireLogin(to)
+        const loginResult = await requireLogin(true, "SVMSecure.Students")
+        if (!loginResult) {
+            return false
         }
-        await sisPermissionsPromise
+
+        // SIS permissions are in a separate area, so they aren't loaded by requireLogin.
+        // Emergency Contact routes grant access via SVMSecure.SIS.AllStudents.
+        const existingPermissions = userStore.userInfo?.permissions ?? []
+        const hasSisPermissions = existingPermissions.some((p: string) => p.startsWith("SVMSecure.SIS"))
+        if (!hasSisPermissions) {
+            if (!sisPermissionsPromise) {
+                sisPermissionsPromise = loadSisPermissions()
+            }
+            await sisPermissionsPromise
+        }
     }
 
     if (to.meta.permissions !== undefined) {
