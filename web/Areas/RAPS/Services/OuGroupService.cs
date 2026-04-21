@@ -443,15 +443,29 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         private static GroupMember CreateGroupMember(TblRoleMember roleMember)
         {
+            VwAaudUser? user = roleMember.AaudUser;
+            if (user == null)
+            {
+                LogManager.GetCurrentClassLogger().Warn(
+                    "Role member {MemberId} in role {RoleId} has no AaudUser record.",
+                    roleMember.MemberId,
+                    roleMember.RoleId);
+                return new()
+                {
+                    MemberId = roleMember.MemberId,
+                    Roles = new List<GroupMemberRole>()
+                };
+            }
+
             return new()
             {
                 MemberId = roleMember.MemberId,
-                LoginId = roleMember.AaudUser.LoginId,
-                MailId = roleMember.AaudUser.MailId,
-                DisplayFirstName = roleMember.AaudUser.DisplayFirstName,
-                DisplayLastName = roleMember.AaudUser.DisplayLastName,
-                DisplayName = roleMember.AaudUser.DisplayLastName + ", " + roleMember.AaudUser.DisplayFirstName,
-                Current = roleMember.AaudUser.Current,
+                LoginId = user.LoginId ?? string.Empty,
+                MailId = user.MailId ?? string.Empty,
+                DisplayFirstName = user.DisplayFirstName,
+                DisplayLastName = user.DisplayLastName,
+                DisplayName = user.DisplayLastName + ", " + user.DisplayFirstName,
+                Current = user.Current,
                 Roles = new List<GroupMemberRole>()
             };
         }
@@ -463,16 +477,25 @@ namespace Viper.Areas.RAPS.Services
         /// <returns></returns>
         private static GroupMemberRole CreateGroupMemberRole(TblRoleMember roleMember)
         {
+            TblRole? role = roleMember.Role;
+            if (role == null)
+            {
+                LogManager.GetCurrentClassLogger().Warn(
+                    "Role member {MemberId} references missing role {RoleId}.",
+                    roleMember.MemberId,
+                    roleMember.RoleId);
+            }
+
             return new()
             {
                 RoleId = roleMember.RoleId,
-                Role = roleMember.Role.FriendlyName,
+                Role = role?.FriendlyName ?? string.Empty,
                 AddDate = roleMember.AddDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.AddDate) : null,
                 StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
                 EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null,
                 ModBy = roleMember.ModBy,
                 ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((System.DateTime)roleMember.ModTime) : null,
-                ViewName = roleMember.Role.ViewName
+                ViewName = role?.ViewName
             };
         }
 
