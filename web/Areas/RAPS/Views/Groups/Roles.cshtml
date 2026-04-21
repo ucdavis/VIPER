@@ -4,6 +4,8 @@
 <h1>Roles for group {{group.name}}</h1>
 <q-table
     dense
+    class="full-width"
+    table-style="width:100%"
     row-key="roleId"
     :rows="groupRoles.rows"
     :loading="groupRoles.loading"
@@ -29,6 +31,9 @@
 <h2>Add Roles</h2>
 <q-table
     dense
+    wrap-cells
+    class="full-width"
+    table-style="width:100%"
     row-key="roleId"
     :rows="allRoles.rows"
     :loading="allRoles.loading"
@@ -76,10 +81,10 @@
                         urlBase: "Roles?allInstances=true&Application=0",
                         columns: [
                             { name: "links", label: "Members", field: "", align: "left", style: "max-width:75px;" },
-                            { name: "instance", label: "Instance", field: "instance", align: "left", sortable: true },
-                            { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true },
-                            { name: "description", label: "Description", field: "description", align: "left", sortable: true, style: "max-width:400px;" },
-                            { name: "add", label: "Add", field: "", align: "left" }
+                            { name: "instance", label: "Instance", field: "instance", align: "left", sortable: true, style: "max-width:110px;overflow-wrap:anywhere;" },
+                            { name: "role", label: "Role", field: "friendlyName", align: "left", sortable: true, style: "max-width:200px;overflow-wrap:anywhere;" },
+                            { name: "description", label: "Description", field: "description", align: "left", sortable: true, style: "max-width:600px;overflow-wrap:anywhere;" },
+                            { name: "add", label: "Add", field: "", align: "left", style: "max-width:90px;" }
                         ],
                         pagination: { rowsPerPage: 0 },
                         onLoad: function (data, vueApp) {

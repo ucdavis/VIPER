@@ -12,11 +12,15 @@
 <q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Sync Members" @@click="syncGroup()"></q-btn>
 <q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Edit Members" :href="'RoleMembers?roleId=' + group.groupRoleId"></q-btn>
 <q-table dense
-         row-key="roleId"
+         ref="membersTable"
+         row-key="memberId"
          :rows="groupMembers.rows"
          :loading="groupMembers.loading"
          :columns="groupMembers.columns"
          :pagination="groupMembers.pagination">
+    <template v-slot:loading>
+        <q-linear-progress indeterminate color="primary" aria-label="Loading group members" />
+    </template>
     <template v-slot:body-cell-active="props">
         <q-td>
             <q-icon size="sm" :name="props.row.current ? 'check' : 'close'" :color="props.row.current ? 'positive' : 'negative'"></q-icon>
@@ -70,7 +74,9 @@
     <template v-slot:body-cell-mod="props">
         <q-td>
             <span v-for="role in props.row.roles">
-                {{fdate(role.modDate)}} ({{role.modBy}})
+                <template v-if="role.modDate || role.modBy">
+                    {{fdate(role.modDate)}}<template v-if="role.modBy"> ({{role.modBy}})</template>
+                </template>
                 <br />
             </span>
         </q-td>
@@ -101,7 +107,7 @@
                             { name: "end", label: "End Date", field: "", align: "left", sortable: false },
                             { name: "mod", label: "Modified", field: "", align: "left", sortable: false }
                         ],
-                        pagination: { rowsPerPage: 0 }
+                        pagination: { rowsPerPage: 50 }
                     })
                 }
             },
@@ -128,6 +134,14 @@
                 this.loadGroup()
                 this.groupMembers.urlBase = "Groups/" + this.groupId + "/Members"
                 this.groupMembers.load()
+                this.$nextTick(() => {
+                    const scroll = this.$refs.membersTable?.$el?.querySelector(".q-table__middle")
+                    if (scroll) {
+                        scroll.setAttribute("tabindex", "0")
+                        scroll.setAttribute("role", "region")
+                        scroll.setAttribute("aria-label", "Group members table")
+                    }
+                })
             }
         })
     </script>
