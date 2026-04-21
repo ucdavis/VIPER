@@ -495,7 +495,7 @@ namespace Viper.Areas.RAPS.Services
                 EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null,
                 ModBy = roleMember.ModBy,
                 ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((System.DateTime)roleMember.ModTime) : null,
-                ViewName = role?.ViewName
+                ViewName = role?.ViewName ?? string.Empty
             };
         }
 

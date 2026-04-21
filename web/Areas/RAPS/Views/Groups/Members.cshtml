@@ -13,7 +13,7 @@
 <q-btn no-caps color="primary" padding="xs md" class="q-mr-md q-mb-sm" label="Edit Members" :href="'RoleMembers?roleId=' + group.groupRoleId"></q-btn>
 <q-table dense
          ref="membersTable"
-         row-key="roleId"
+         row-key="memberId"
          :rows="groupMembers.rows"
          :loading="groupMembers.loading"
          :columns="groupMembers.columns"
