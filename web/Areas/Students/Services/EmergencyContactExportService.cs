@@ -17,14 +17,15 @@ public interface IEmergencyContactExportService
 
 public class EmergencyContactExportService : IEmergencyContactExportService
 {
-    private static string GeneratedLabel => $"Generated {DateTime.Now:M/d/yyyy h:mm tt}";
+    private static string BuildGeneratedLabel(DateTime generatedAt) =>
+        $"Generated {generatedAt:M/d/yyyy h:mm tt}";
 
     public MemoryStream GenerateOverviewExcel(List<StudentContactListItemDto> data)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Emergency Contact Overview");
 
-        ws.Cell(1, 1).Value = GeneratedLabel;
+        ws.Cell(1, 1).Value = BuildGeneratedLabel(DateTime.Now);
         ws.Cell(1, 1).Style.Font.Italic = true;
 
         var headers = new[]
@@ -68,6 +69,9 @@ public class EmergencyContactExportService : IEmergencyContactExportService
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
+        // Capture once so per-page header delegates don't drift across pages.
+        var generatedLabel = BuildGeneratedLabel(DateTime.Now);
+
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -80,7 +84,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                 {
                     col.Item().Text("Emergency Contact Overview")
                         .SemiBold().FontSize(14).AlignCenter();
-                    col.Item().Text(GeneratedLabel)
+                    col.Item().Text(generatedLabel)
                         .FontSize(8).Italic().AlignCenter();
                 });
 
@@ -145,7 +149,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Emergency Contact Report");
 
-        ws.Cell(1, 1).Value = GeneratedLabel;
+        ws.Cell(1, 1).Value = BuildGeneratedLabel(DateTime.Now);
         ws.Cell(1, 1).Style.Font.Italic = true;
 
         var headers = new[] { "Class", "Name", "Student Info", "Local Contact", "Emergency Contact", "Permanent Contact" };
@@ -185,6 +189,8 @@ public class EmergencyContactExportService : IEmergencyContactExportService
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
+        var generatedLabel = BuildGeneratedLabel(DateTime.Now);
+
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -197,7 +203,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                 {
                     col.Item().Text("Emergency Contact Report")
                         .SemiBold().FontSize(14).AlignCenter();
-                    col.Item().Text(GeneratedLabel)
+                    col.Item().Text(generatedLabel)
                         .FontSize(8).Italic().AlignCenter();
                 });
 
