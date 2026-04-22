@@ -20,7 +20,7 @@
                 :week="week"
             >
                 <div class="text-center q-py-sm">
-                    <div class="text-grey-6 text-caption">
+                    <div class="text-grey-7 text-caption">
                         {{ !isPastYear ? "Click to add assignment" : "No assignments" }}
                     </div>
                 </div>

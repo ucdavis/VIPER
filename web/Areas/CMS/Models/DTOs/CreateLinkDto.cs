@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Areas.CMS.Validation;
 
 namespace Areas.CMS.Models.DTOs;
 
@@ -9,6 +10,7 @@ public class CreateLinkDto
 
     [Required]
     [StringLength(500)]
+    [SafeUrl]
     public string Url { get; set; } = string.Empty;
 
     [Required]
