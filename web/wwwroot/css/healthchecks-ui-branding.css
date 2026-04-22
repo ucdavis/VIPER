@@ -1,0 +1,60 @@
+/*
+ * HealthChecks.UI branding - UC Davis palette.
+ * Source: VueApp/src/config/colors.ts (hex values kept in sync by hand;
+ * the dashboard serves this file directly, no Vue build step applies).
+ */
+:root {
+    --primaryColor: #022851; /* Aggie Blue (ucdavis-blue-100) */
+    --secondaryColor: #4b6983; /* ucdavis-blue-70 */
+    --darkColor: #1d1d1d;
+    --midDarkColor: #335379; /* ucdavis-blue-80 */
+    --grayColor: #4a4a4a; /* dark neutral - body text (AAA on white/lightColor) */
+    --midGrayColor: #767676; /* medium gray - borders/secondary text (AA on white) */
+    --lightColor: #f2f4f6; /* ucdavis-blue-10 - background only */
+    --dangerColor: #79242f; /* Merlot */
+    --warningColor: #ffc519; /* Aggie Gold */
+    --successColor: #266041; /* Redwood */
+    --logoImageUrl: url("/healthchecks-ui-logo.png");
+}
+
+/* VIPER doesn't use webhook notifications; hide the nav item. */
+a[href="#/webhooks"] {
+    display: none;
+}
+
+/* The expanded-row inner table header renders ~#626262 on ~#878888 (1.71:1) by
+   default - WCAG fail. Force Aggie Blue on white for clean contrast. */
+.hc-checks-table__header th {
+    background-color: var(--primaryColor);
+    color: #ffffff;
+}
+
+/* Center the Tags column (header + body) for a tidier read. */
+.hc-checks-table__header th:nth-child(2),
+.hc-checks-table tbody td:nth-child(2) {
+    text-align: center;
+}
+
+/* Preserve newlines in description text so AdaptivePollingHealthCheck can
+   show a "Last checked: ..." timestamp on its own line below the original
+   description. Default whitespace handling collapses \n to a single space. */
+.hc-checks-table tbody td {
+    white-space: pre-line;
+}
+
+/* Campus-status link: injected by healthchecks-ui-extras.js under the page
+   header when any "campus-*" check goes non-healthy. Amber (not red) because
+   the campus-* rows themselves already carry the failure indication - this
+   banner is a helpful pointer, not a second alarm. */
+#campus-status-banner {
+    margin: 0 2rem 1rem 2rem;
+    padding: 0.75rem 1rem;
+    background-color: #fff8e1;
+    border-left: 4px solid var(--warningColor);
+    color: var(--darkColor);
+}
+
+#campus-status-banner a {
+    color: var(--primaryColor);
+    font-weight: bold;
+}
