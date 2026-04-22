@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, inject } from "vue"
 import type { Ref } from "vue"
-import type { QTableProps } from "quasar"
+import { useQuasar, type QTableProps } from "quasar"
 import { useRoute } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
 import type {
@@ -14,6 +14,7 @@ import type {
     Role,
 } from "@/CTS/types"
 
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 const apiUrl = inject("apiURL")
 const route = useRoute()
@@ -40,7 +41,7 @@ const columns = ref([
     { name: "order", label: "Order", field: "order", align: "left", sortable: true },
     { name: "competencyname", label: "Competency", field: "competencyName", align: "left", sortable: true },
     { name: "role", label: "Role", field: "roleName", align: "left", sortable: true },
-    { name: "action", label: "", field: "", align: "left" },
+    { name: "action", label: "Actions", field: "", align: "left" },
 ]) as Ref<QTableProps["columns"]>
 const paging = ref({ page: 1, sortBy: "enteredOn", descending: true, rowsPerPage: 0 }) as Ref<any>
 
@@ -140,11 +141,18 @@ async function updateBundleCompetency() {
         clearComp()
     }
 }
-async function removeBundleCompetency(comp: BundleCompetency) {
-    var result = await del(apiUrl + "cts/bundles/" + bundleId + "/competencies/" + comp.bundleCompetencyId)
-    if (result.success) {
-        loadBundleComps()
-    }
+function removeBundleCompetency(comp: BundleCompetency) {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to remove this competency from the bundle?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        var result = await del(apiUrl + "cts/bundles/" + bundleId + "/competencies/" + comp.bundleCompetencyId)
+        if (result.success) {
+            loadBundleComps()
+        }
+    })
 }
 function clearComp() {
     bundleCompetency.value = structuredClone(defaultBundleCompetency)
@@ -185,28 +193,37 @@ function editGroup(group: BundleCompetencyGroup) {
     bundleCompetencyGroup.value = group
     showGroupForm.value = true
 }
-async function removeBundleCompetencyGroup() {
-    let success = (
-        await del(apiUrl + "cts/bundles/" + bundleId + "/groups/" + bundleCompetencyGroup.value.bundleCompetencyGroupId)
-    ).success
-    if (success) {
-        loadBundleComps()
-        clearBundleCompetencyGroup()
-    }
+function removeBundleCompetencyGroup() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to remove this competency group from the bundle?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        let success = (
+            await del(
+                apiUrl + "cts/bundles/" + bundleId + "/groups/" + bundleCompetencyGroup.value.bundleCompetencyGroupId,
+            )
+        ).success
+        if (success) {
+            loadBundleComps()
+            clearBundleCompetencyGroup()
+        }
+    })
 }
 
 load()
 </script>
 <template>
     <div v-if="bundle != null">
-        <h2>Competencies for Bundle {{ bundle?.name }}</h2>
+        <h1>Competencies for Bundle {{ bundle?.name }}</h1>
         <q-btn
             dense
             no-caps
             label="Add Group"
             @click="showGroupForm = true"
             class="q-mt-lg q-px-sm"
-            color="green"
+            color="positive"
             icon="add"
         ></q-btn>
         <div
@@ -253,7 +270,7 @@ load()
                         v-if="bundleCompetencyGroup?.bundleCompetencyGroupId"
                         type="button"
                         @click="removeBundleCompetencyGroup()"
-                        color="red-5"
+                        color="negative"
                         dense
                         class="col-5 col-sm-2 col-md-1 q-px-sm q-mr-md"
                         label="Delete"
@@ -304,7 +321,7 @@ load()
                     type="submit"
                     label="Add"
                     icon="add"
-                    color="green"
+                    color="positive"
                     class="col-auto q-ml-md q-px-sm"
                 ></q-btn>
             </div>
@@ -314,6 +331,18 @@ load()
     <q-dialog v-model="showCompForm">
         <q-card class="q-pa-lg">
             <q-form @submit="updateBundleCompetency()">
+                <q-card-section class="row items-center q-pb-none">
+                    <div class="text-h6">Edit Competency</div>
+                    <q-space />
+                    <q-btn
+                        icon="close"
+                        flat
+                        round
+                        dense
+                        aria-label="Close dialog"
+                        v-close-popup
+                    />
+                </q-card-section>
                 <q-card-section>
                     <div class="row">
                         <div class="col-12">
@@ -423,7 +452,7 @@ load()
                 <q-icon
                     v-if="props.row.levels.findIndex((l: any) => l.levelId === level.levelId) > -1"
                     name="check"
-                    color="green"
+                    color="positive"
                 ></q-icon>
             </q-td>
         </template>
@@ -441,7 +470,7 @@ load()
                     dense
                     size="sm"
                     icon="delete"
-                    color="red-5"
+                    color="negative"
                     @click="removeBundleCompetency(props.row)"
                 ></q-btn>
             </q-td>

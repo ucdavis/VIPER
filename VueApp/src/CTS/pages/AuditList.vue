@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from "vue"
 import type { QTableProps } from "quasar"
-import { ref, inject } from "vue"
+import { ref, inject, computed } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import type { Person } from "@/CTS/types"
@@ -17,7 +17,7 @@ const actions = ref([]) as Ref<string[]>
 const areas = ref([]) as Ref<string[]>
 const showDetail = ref(false)
 
-const auditColumns: QTableProps["columns"] = [
+const baseColumns: QTableProps["columns"] = [
     { name: "area", label: "Area", field: "area", align: "left", sortable: true },
     { name: "action", label: "Action", field: "action", align: "left", sortable: true },
     {
@@ -30,8 +30,9 @@ const auditColumns: QTableProps["columns"] = [
     },
     { name: "modifiedBy", label: "By", field: "modifiedByName", align: "left", sortable: true },
     { name: "modifiedPerson", label: "Modified Person", field: "modifiedPersonName", align: "left", sortable: true },
-    { name: "detail", label: "Detail", field: "detail", align: "left", sortable: false },
 ]
+const detailColumn = { name: "detail", label: "Details", field: "detail", align: "left" as const, sortable: false }
+const auditColumns = computed(() => (showDetail.value ? [...baseColumns!, detailColumn] : baseColumns!))
 const loading = ref(false)
 const pagination = ref({ page: 1, sortBy: "timestamp", descending: true, rowsPerPage: 25, rowsNumber: 100 }) as Ref<any>
 const filter = ref({
@@ -66,10 +67,9 @@ async function loadAudit(page: number, perPage: number, sortBy: string, descendi
     const p = new URLSearchParams()
     if (filter.value.area !== null) p.append("area", filter.value.area)
     if (filter.value.action !== null) p.append("action", filter.value.action)
-    if (filter.value.modifiedBy?.personId !== null)
-        p.append("modifiedById", filter.value.modifiedBy?.personId.toString())
-    if (filter.value.modifiedPerson?.personId !== null)
-        p.append("modifiedPersonId", filter.value.modifiedPerson?.personId.toString())
+    if (filter.value.modifiedBy?.personId != null) p.append("modifiedById", filter.value.modifiedBy.personId.toString())
+    if (filter.value.modifiedPerson?.personId != null)
+        p.append("modifiedPersonId", filter.value.modifiedPerson.personId.toString())
     if (filter.value.dateFrom !== null) p.append("dateFrom", filter.value.dateFrom)
     if (filter.value.dateTo !== null) p.append("dateTo", filter.value.dateTo)
 
@@ -121,7 +121,7 @@ loadAreas()
 </script>
 
 <template>
-    <h2>View Audit Log</h2>
+    <h1>View Audit Log</h1>
     <q-form>
         <div class="row">
             <div class="col-12 col-md-6 col-lg-3">
@@ -203,6 +203,11 @@ loadAreas()
             </div>
         </div>
     </q-form>
+    <q-toggle
+        v-model="showDetail"
+        label="Show Details"
+        class="q-mb-sm"
+    />
     <q-table
         row-key="ctsAuditId"
         :rows="auditRows"
@@ -212,27 +217,17 @@ loadAreas()
         :rows-per-page-options="[5, 10, 15, 25, 50, 100]"
         @request="loadAuditRows"
     >
-        <template #header-cell-detail="props">
-            <q-th :props="props">
-                <q-toggle
-                    v-model="showDetail"
-                    label="Details"
-                />
-            </q-th>
-        </template>
         <template #body-cell-detail="props">
             <q-td
                 :props="props"
                 style="max-width: 300px"
             >
-                <template v-if="showDetail">
-                    <div
-                        v-for="(value, key) in props.row.detail2"
-                        :key="key"
-                    >
-                        {{ key }}: {{ value }}
-                    </div>
-                </template>
+                <div
+                    v-for="(value, key) in props.row.detail2"
+                    :key="key"
+                >
+                    {{ key }}: {{ value }}
+                </div>
             </q-td>
         </template>
     </q-table>

@@ -177,14 +177,27 @@ if (!courseId || !sessionId) {
 }
 </script>
 <template>
-    <h2>Competencies for {{ session.courseTitle }} {{ session.type }} {{ session.typeOrder }} {{ session.title }}</h2>
+    <h1>Competencies for {{ session.courseTitle }} {{ session.type }} {{ session.typeOrder }} {{ session.title }}</h1>
 
     <q-dialog v-model="showCompForm">
         <q-card
             style="width: 800px; max-width: 80vw"
             class="q-pa-md"
         >
-            <h3>{{ compAddUpdate?.sessionCompetencyId ? "Update" : "Add" }} Session Competency</h3>
+            <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">
+                    {{ compAddUpdate?.sessionCompetencyId ? "Update" : "Add" }} Session Competency
+                </div>
+                <q-space />
+                <q-btn
+                    icon="close"
+                    flat
+                    round
+                    dense
+                    aria-label="Close dialog"
+                    v-close-popup
+                />
+            </q-card-section>
             <q-form @submit="submitSessionComp">
                 <div class="row">
                     <div class="col-12">
@@ -276,7 +289,7 @@ if (!courseId || !sessionId) {
             <q-btn
                 dense
                 no-caps
-                color="green"
+                color="positive"
                 icon="add"
                 label="Add Competency"
                 class="q-px-md"
@@ -325,7 +338,7 @@ if (!courseId || !sessionId) {
                                 <td>
                                     <q-icon
                                         name="check"
-                                        color="green"
+                                        color="positive"
                                         v-if="lc.levels.findIndex((l: Level) => l.levelName == level) >= 0"
                                     ></q-icon>
                                 </td>
@@ -346,7 +359,7 @@ if (!courseId || !sessionId) {
                             <td class="text-center">
                                 <q-icon
                                     name="check"
-                                    color="green"
+                                    color="positive"
                                     v-if="c.levels.findIndex((l: Level) => l.levelName == level) >= 0"
                                 ></q-icon>
                             </td>
@@ -364,7 +377,7 @@ if (!courseId || !sessionId) {
                                 dense
                                 size="sm"
                                 icon="delete"
-                                color="red-5"
+                                color="negative"
                                 @click="delComp(c)"
                             ></q-btn>
                         </td>

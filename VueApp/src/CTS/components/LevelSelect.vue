@@ -73,7 +73,10 @@ getLevels()
                 flat
                 size="md"
                 dense
-                :class="selectedLevel.levelId == level.levelId ? 'selectedLevel q-py-sm' : 'q-py-sm'"
+                :class="[
+                    'q-py-sm',
+                    selectedLevel.levelId == level.levelId ? ['selectedLevel', `selectedLevel--${level.order}`] : '',
+                ]"
                 @click="selectedLevel = level"
             >
                 <q-tooltip
@@ -109,7 +112,9 @@ getLevels()
                 no-caps
                 size="md"
                 dense
-                :class="selectedLevel.levelId == level.levelId ? 'selectedLevel' : ''"
+                :class="
+                    selectedLevel.levelId == level.levelId ? ['selectedLevel', `selectedLevel--${level.order}`] : ''
+                "
                 @click="selectedLevel = level"
             >
                 <template #default> {{ level.order }}. {{ level.levelName }} </template>
@@ -143,15 +148,36 @@ getLevels()
 
 <style scoped>
 div.levelSelection button {
-    border: 1px solid rgb(30 136 229);
-    color: rgb(30 136 229);
+    border: 1px solid var(--q-secondary);
+    color: var(--q-secondary);
     width: 100%;
     margin-bottom: 0.2rem;
 }
 
 div.levelSelection button.selectedLevel {
-    background-color: rgb(30 136 229);
+    background-color: var(--q-secondary);
     color: white;
+}
+
+div.levelSelection button.selectedLevel.selectedLevel--1 {
+    background-color: rgba(62, 127, 238, 0.3);
+    color: #212529;
+}
+div.levelSelection button.selectedLevel.selectedLevel--2 {
+    background-color: rgba(62, 127, 238, 0.7);
+    color: #212529;
+}
+div.levelSelection button.selectedLevel.selectedLevel--3 {
+    background-color: rgba(62, 127, 238, 1);
+    color: #000;
+}
+div.levelSelection button.selectedLevel.selectedLevel--4 {
+    background-color: rgba(0, 44, 175, 0.8);
+    color: #fff;
+}
+div.levelSelection button.selectedLevel.selectedLevel--5 {
+    background-color: rgba(11, 3, 139, 1);
+    color: #fff;
 }
 
 .levelHover {

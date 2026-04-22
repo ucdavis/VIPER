@@ -30,7 +30,7 @@ const searchForm = ref({
     dateTo: null,
 })
 const columns: QTableProps["columns"] = [
-    { name: "action", label: "", field: "id", align: "left" },
+    { name: "action", label: "Actions", field: "id", align: "left" },
     { name: "studentName", label: "Student", field: "studentName", align: "left", sortable: true },
     { name: "epaName", label: "EPA", field: "epaName", align: "left", sortable: true },
     { name: "serviceName", label: "Service", field: "serviceName", align: "left", sortable: true },
@@ -138,7 +138,7 @@ loadPageData()
 </script>
 
 <template>
-    <h2>View Assessments</h2>
+    <h1>View Assessments</h1>
 
     <q-form>
         <div class="row">
@@ -268,8 +268,9 @@ loadPageData()
     >
         <template #top-right>
             <q-input
-                borderless
+                outlined
                 dense
+                bg-color="white"
                 debounce="300"
                 v-model="filter"
                 placeholder="Search"

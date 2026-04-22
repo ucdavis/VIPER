@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { inject, ref, watch } from "vue"
 import type { Ref } from "vue"
-import type { QTreeNode } from "quasar"
+import { useQuasar, type QTreeNode } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import type { Competency, Domain } from "@/CTS/types"
 
+const $q = useQuasar()
 const { get, post, put, del } = useFetch()
 const apiUrl = inject("apiURL")
 const domains = ref([]) as Ref<Domain[]>
@@ -30,12 +31,15 @@ const showDescriptions = ref(false)
 const tree = ref(null) as Ref<any>
 
 async function load() {
-    Promise.resolve([
+    const [, , hierarchyResult] = await Promise.all([
         get(apiUrl + "cts/domains").then((r) => (domains.value = r.result)),
         get(apiUrl + "cts/competencies").then((r) => (competencies.value = r.result)),
+        get(apiUrl + "cts/competencies/hierarchy"),
     ])
-    await get(apiUrl + "cts/competencies/hierarchy").then((r) => (competencyHierachy.value = r.result))
-    treeNodes.value = competencyHierachy.value.map(createTreeNode)
+    if (hierarchyResult?.result) {
+        competencyHierachy.value = hierarchyResult.result
+        treeNodes.value = competencyHierachy.value.map(createTreeNode)
+    }
     loaded.value = true
 }
 
@@ -60,12 +64,19 @@ async function submitComp() {
     }
 }
 
-async function deleteComp() {
-    const r = await del(apiUrl + "cts/competencies/" + selectedComp.value.competencyId, selectedComp.value)
-    if (r.success) {
-        await load()
-        clearComp()
-    }
+function deleteComp() {
+    $q.dialog({
+        title: "Confirm Delete",
+        message: "Are you sure you want to delete this competency?",
+        cancel: true,
+        persistent: true,
+    }).onOk(async () => {
+        const r = await del(apiUrl + "cts/competencies/" + selectedComp.value.competencyId, selectedComp.value)
+        if (r.success) {
+            await load()
+            clearComp()
+        }
+    })
 }
 
 function addChild(comp: Competency) {
@@ -111,7 +122,7 @@ watch(
 load()
 </script>
 <template>
-    <h2>Manage Competencies</h2>
+    <h1>Manage Competencies</h1>
     <q-dialog
         v-model="showForm"
         @hide="clearComp()"
@@ -120,6 +131,18 @@ load()
             style="width: 500px; max-width: 80vw"
             class="q-pa-sm"
         >
+            <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">{{ selectedComp?.competencyId ? "Edit" : "Add" }} Competency</div>
+                <q-space />
+                <q-btn
+                    icon="close"
+                    flat
+                    round
+                    dense
+                    aria-label="Close dialog"
+                    v-close-popup
+                />
+            </q-card-section>
             <q-form
                 @submit="submitComp"
                 v-model="selectedComp"
@@ -210,7 +233,7 @@ load()
                         no-caps
                         label="Delete"
                         v-if="selectedComp.competencyId != null"
-                        color="red-5"
+                        color="negative"
                         class="q-px-md q-mx-md col"
                         @click="deleteComp()"
                     ></q-btn>
@@ -254,49 +277,58 @@ load()
                 dense
                 no-caps
                 class="q-px-sm q-ml-md"
-                color="green"
+                color="positive"
                 icon="add"
                 label="Add Competency"
                 @click="showForm = true"
             ></q-btn>
         </span>
     </h3>
+    <div
+        v-if="loaded && treeNodes.length === 0"
+        class="text-grey-8 q-pa-md"
+        role="status"
+    >
+        No competencies found.
+    </div>
     <q-tree
         :nodes="treeNodes"
         node-key="competencyId"
         v-model:expanded="expanded"
         dense
-        v-if="loaded"
+        v-if="loaded && treeNodes.length > 0"
         ref="tree"
     >
         <template #default-header="prop">
             <div class="row full-width items-center">
                 <div
-                    :class="'col-auto q-mr-sm ' + (prop.node.children.length == 0 ? 'q-ml-sm' : '')"
+                    :class="'col-auto q-mr-xs ' + (prop.node.children.length == 0 ? 'q-ml-sm' : '')"
                     @click.stop
                 >
                     <q-btn
                         dense
                         flat
-                        size="sm"
+                        size="1.4rem"
                         icon="add"
-                        color="green"
+                        color="secondary"
                         @click="addChild(prop.node.comp)"
                         title="Add child of this competency"
+                        aria-label="Add child of this competency"
                     ></q-btn>
                 </div>
                 <div
-                    class="col-auto q-mr-sm"
+                    class="col-auto q-mr-xs"
                     @click.stop
                 >
                     <q-btn
                         dense
                         flat
-                        size="sm"
+                        size="1.2rem"
                         icon="edit"
-                        color="grey"
+                        color="secondary"
                         @click="editComp(prop.node.comp)"
-                        title="Edit"
+                        title="Edit competency"
+                        aria-label="Edit competency"
                     ></q-btn>
                 </div>
                 <div class="col-9 col-sm-10">
@@ -305,7 +337,7 @@ load()
                     }}</span>
                     <q-icon
                         name="school"
-                        color="green"
+                        color="positive"
                         v-if="prop.node.comp.canLinkToStudent"
                         class="q-ml-md"
                     ></q-icon>
