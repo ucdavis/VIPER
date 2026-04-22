@@ -69,7 +69,9 @@ namespace Viper.Services
             _sanitizer.AllowedSchemes.Add("mailto");
             _sanitizer.AllowedSchemes.Add("tel");
 
-            // Block all CSS at-rules (@import, @font-face, etc.) — defense in depth even though style attr is blocked.
+            // Block all CSS at-rules (@import, @font-face, etc.). At-rules are not valid inside
+            // an inline style attribute, but clearing the set is defense in depth against parser
+            // edge cases.
             _sanitizer.AllowedAtRules.Clear();
 
             // Block data: URIs in any URL (image XSS vector) on top of the scheme allowlist.

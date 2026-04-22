@@ -135,8 +135,12 @@ namespace Viper.Areas.CMS.Data
             string? viperSectionPath = null, string? page = null, int? blockOrder = null,
             bool? allowPublicAccess = null, int? status = null)
         {
-            // get blocks based on paramenters
+            // get blocks based on paramenters.
+            // AsNoTracking: sanitization mutates b.Content; a later SaveChanges on a tracked
+            // entity (e.g. DeleteContentBlock setting State=Modified) would otherwise persist
+            // the sanitized HTML back to the DB as a side-effect of a read.
             var blocks = _viperContext?.ContentBlocks
+                    .AsNoTracking()
                     .Include(p => p.ContentBlockToPermissions)
                     .Include(f => f.ContentBlockToFiles)
                         .ThenInclude(cbf => cbf.File)
