@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OWASP.AntiSamy.Html;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
@@ -11,6 +10,7 @@ using Viper.Classes.SQLContext;
 using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
+using Viper.Services;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -19,6 +19,7 @@ namespace Viper.Areas.CMS.Data
         #region Properties (private/public)
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
+        private readonly IHtmlSanitizerService _sanitizerService;
 
         public IUserHelper UserHelper { get; set; }
 
@@ -55,10 +56,11 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region Constructors
-        public CMS(VIPERContext viperContext, RAPSContext rapsContext)
+        public CMS(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService)
         {
             this._viperContext = viperContext;
             this._rapsContext = rapsContext;
+            this._sanitizerService = sanitizerService;
             UserHelper = new UserHelper();
         }
         #endregion
@@ -108,10 +110,6 @@ namespace Viper.Areas.CMS.Data
                     }
                 }
 
-                if (goodBlocks.Any())
-                {
-                    Sanitize(goodBlocks);
-                }
                 return goodBlocks;
 
             }
@@ -157,16 +155,9 @@ namespace Viper.Areas.CMS.Data
 
             if (blocks != null)
             {
-                Sanitize(blocks);
-                Policy policy = Policy.GetInstance("antisamy-cms.xml");
-                var antiSamy = new AntiSamy();
-
                 foreach (var b in blocks)
                 {
-                    // sanitize content
-                    CleanResults results = antiSamy.Scan(b.Content, policy);
-                    b.Content = results.GetCleanHtml();
-
+                    b.Content = _sanitizerService.Sanitize(b.Content);
                 }
 
                 return blocks;
@@ -176,19 +167,6 @@ namespace Viper.Areas.CMS.Data
             { return null; }
         }
         #endregion
-
-        public static void Sanitize(IEnumerable<ContentBlock> blocks)
-        {
-            Policy policy = Policy.GetInstance("antisamy-cms.xml");
-            var antiSamy = new AntiSamy();
-
-            foreach (var b in blocks)
-            {
-                // sanitize content
-                CleanResults results = antiSamy.Scan(b.Content, policy);
-                b.Content = results.GetCleanHtml();
-            }
-        }
 
         #region public CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
         /// <summary>

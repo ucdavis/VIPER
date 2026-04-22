@@ -90,10 +90,4 @@
     <None Include="wwwroot\css\cts.css" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="antisamy-cms.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
