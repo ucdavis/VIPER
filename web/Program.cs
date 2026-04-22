@@ -209,6 +209,9 @@ try
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
 
+    // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
+    builder.Services.AddSingleton<Viper.Services.IHtmlSanitizerService, Viper.Services.HtmlSanitizerService>();
+
     builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured

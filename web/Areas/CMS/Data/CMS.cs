@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OWASP.AntiSamy.Html;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
@@ -11,6 +10,7 @@ using Viper.Classes.SQLContext;
 using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
+using Viper.Services;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -19,6 +19,7 @@ namespace Viper.Areas.CMS.Data
         #region Properties (private/public)
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
+        private readonly IHtmlSanitizerService _sanitizerService;
 
         public IUserHelper UserHelper { get; set; }
 
@@ -55,10 +56,11 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region Constructors
-        public CMS(VIPERContext viperContext, RAPSContext rapsContext)
+        public CMS(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService)
         {
             this._viperContext = viperContext;
             this._rapsContext = rapsContext;
+            this._sanitizerService = sanitizerService;
             UserHelper = new UserHelper();
         }
         #endregion
@@ -78,8 +80,9 @@ namespace Viper.Areas.CMS.Data
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocksAllowed(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
         {
-            // get blocks based on paramenters
-            var blocks = GetContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
+            // Fetch raw (no sanitization): we sanitize after the permission filter so we don't
+            // waste work on blocks the current user isn't allowed to see.
+            var blocks = FetchContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
 
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             List<ContentBlock> goodBlocks = new();
@@ -108,10 +111,7 @@ namespace Viper.Areas.CMS.Data
                     }
                 }
 
-                if (goodBlocks.Any())
-                {
-                    Sanitize(goodBlocks);
-                }
+                SanitizeContentBlocks(goodBlocks);
                 return goodBlocks;
 
             }
@@ -137,8 +137,24 @@ namespace Viper.Areas.CMS.Data
             string? viperSectionPath = null, string? page = null, int? blockOrder = null,
             bool? allowPublicAccess = null, int? status = null)
         {
-            // get blocks based on paramenters
-            var blocks = _viperContext?.ContentBlocks
+            var blocks = FetchContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
+            if (blocks != null)
+            {
+                SanitizeContentBlocks(blocks);
+            }
+            return blocks;
+        }
+        #endregion
+
+        // AsNoTracking because SanitizeContentBlocks mutates b.Content; a later SaveChanges on a
+        // tracked entity (e.g. DeleteContentBlock setting State=Modified) would otherwise persist
+        // the sanitized HTML back to the DB as a side-effect of a read.
+        private List<ContentBlock>? FetchContentBlocks(int? contentBlockID, string? friendlyName, string? system,
+            string? viperSectionPath, string? page, int? blockOrder,
+            bool? allowPublicAccess, int? status)
+        {
+            return _viperContext?.ContentBlocks
+                    .AsNoTracking()
                     .Include(p => p.ContentBlockToPermissions)
                     .Include(f => f.ContentBlockToFiles)
                         .ThenInclude(cbf => cbf.File)
@@ -154,39 +170,13 @@ namespace Viper.Areas.CMS.Data
                     .OrderBy(c => c.BlockOrder)
                     .AsSplitQuery()
                     .ToList();
-
-            if (blocks != null)
-            {
-                Sanitize(blocks);
-                Policy policy = Policy.GetInstance("antisamy-cms.xml");
-                var antiSamy = new AntiSamy();
-
-                foreach (var b in blocks)
-                {
-                    // sanitize content
-                    CleanResults results = antiSamy.Scan(b.Content, policy);
-                    b.Content = results.GetCleanHtml();
-
-                }
-
-                return blocks;
-
-            }
-            else
-            { return null; }
         }
-        #endregion
 
-        public static void Sanitize(IEnumerable<ContentBlock> blocks)
+        private void SanitizeContentBlocks(IEnumerable<ContentBlock> blocks)
         {
-            Policy policy = Policy.GetInstance("antisamy-cms.xml");
-            var antiSamy = new AntiSamy();
-
             foreach (var b in blocks)
             {
-                // sanitize content
-                CleanResults results = antiSamy.Scan(b.Content, policy);
-                b.Content = results.GetCleanHtml();
+                b.Content = _sanitizerService.Sanitize(b.Content);
             }
         }
 
