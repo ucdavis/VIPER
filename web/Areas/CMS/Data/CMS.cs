@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Viper.Areas.CMS.Models;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
@@ -20,6 +21,7 @@ namespace Viper.Areas.CMS.Data
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
         private readonly IHtmlSanitizerService _sanitizerService;
+        private readonly ILogger<CMS>? _logger;
 
         public IUserHelper UserHelper { get; set; }
 
@@ -56,11 +58,12 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region Constructors
-        public CMS(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService)
+        public CMS(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService, ILogger<CMS>? logger = null)
         {
             this._viperContext = viperContext;
             this._rapsContext = rapsContext;
             this._sanitizerService = sanitizerService;
+            this._logger = logger;
             UserHelper = new UserHelper();
         }
         #endregion
@@ -193,61 +196,91 @@ namespace Viper.Areas.CMS.Data
         /// <returns>File object</returns>
         public CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
         {
-            var files = GetFiles(fileGUID, oldURL, friendlyName, folder, name);
+            // Dispatch to a per-identifier method so each query shape gets its own cached plan,
+            // avoiding the catch-all (@P IS NULL OR col = @P) antipattern. See VPR-143.
+            if (!string.IsNullOrEmpty(fileGUID) && Guid.TryParse(fileGUID, out var guid))
+            {
+                return GetFileByGuid(guid);
+            }
 
-            return files?.FirstOrDefault();
+            if (!string.IsNullOrEmpty(oldURL))
+            {
+                return GetFileByOldUrl(oldURL);
+            }
 
+            if (!string.IsNullOrEmpty(friendlyName))
+            {
+                return GetFileByFriendlyName(friendlyName);
+            }
+
+            if (!string.IsNullOrEmpty(folder) || !string.IsNullOrEmpty(name))
+            {
+                return GetFileByFolderAndName(folder ?? string.Empty, name ?? string.Empty);
+            }
+
+            return null;
         }
-        #endregion
 
-        #region public IEnumerable<CMSFile> GetFiles(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
-        /// <summary>
-        /// Returns all files that match the given parameters
-        /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="oldURL"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="folder">specify folder to return files in that folder (e.g. cats, students, sosa)</param>
-        /// <param name="name"></param>
-        /// <param name="getDeleted"></param>
-        /// <returns>List of file objects</returns>
-        /// <exception cref="FileNotFoundException"></exception>
-        public IEnumerable<CMSFile> GetFiles(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
+        public CMSFile? GetFileByGuid(Guid fileGuid)
         {
-            if (fileGUID == null && oldURL == null && friendlyName == null && folder == null && name == null)
-            {
-                throw new FileNotFoundException();
-            }
-
-            // get files based on paramenters
-            var files = _viperContext?.Files
-                    .Include(p => p.FileToPermissions)
-                    .Include(p => p.FileToPeople)
-                    .Where(f => f.FileGuid.ToString().Equals(fileGUID) || string.IsNullOrEmpty(fileGUID))
-                    .Where(f => string.IsNullOrEmpty(f.OldUrl) ? string.IsNullOrEmpty(oldURL) : f.OldUrl.Equals(oldURL) || string.IsNullOrEmpty(oldURL))
-                    .Where(f => f.FriendlyName.Equals(friendlyName) || string.IsNullOrEmpty(friendlyName))
-                    .Where(f => f.FilePath.Equals(folder + @"\" + name) || (string.IsNullOrEmpty(folder) && string.IsNullOrEmpty(name)))
-                .OrderBy(c => c.FilePath)
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
                 .AsSplitQuery()
-                .ToList();
+                .TagWith("CMS.GetFileByGuid")
+                .FirstOrDefault(f => f.FileGuid == fileGuid);
 
-            if (files != null)
+            return ToCMSFile(file);
+        }
+
+        public CMSFile? GetFileByOldUrl(string oldUrl)
+        {
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
+                .AsSplitQuery()
+                .TagWith("CMS.GetFileByOldUrl")
+                .OrderBy(f => f.FilePath)
+                .FirstOrDefault(f => f.OldUrl == oldUrl);
+
+            return ToCMSFile(file);
+        }
+
+        public CMSFile? GetFileByFriendlyName(string friendlyName)
+        {
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
+                .AsSplitQuery()
+                .TagWith("CMS.GetFileByFriendlyName")
+                .FirstOrDefault(f => f.FriendlyName == friendlyName);
+
+            return ToCMSFile(file);
+        }
+
+        public CMSFile? GetFileByFolderAndName(string folder, string name)
+        {
+            var filePath = folder + @"\" + name;
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
+                .AsSplitQuery()
+                .TagWith("CMS.GetFileByFolderAndName")
+                .FirstOrDefault(f => f.FilePath == filePath);
+
+            return ToCMSFile(file);
+        }
+
+        private static CMSFile? ToCMSFile(Viper.Models.VIPER.File? file)
+        {
+            if (file is null)
             {
-                List<CMSFile> cmslist = new();
-                foreach (var f in files)
-                {
-                    CMSFile cmsf = new(f);
-                    cmslist.Add(cmsf);
-                    ReplaceRootFolder(cmsf);
-                }
-
-                return cmslist;
-            }
-            else
-            {
-                return new List<CMSFile>();
+                return null;
             }
 
+            var cmsf = new CMSFile(file);
+            ReplaceRootFolder(cmsf);
+            return cmsf;
         }
         #endregion
 
@@ -500,10 +533,12 @@ namespace Viper.Areas.CMS.Data
 
             if (file == null)
             {
+                LogFileNotFound(controller, id, friendlyName, oldURL, reason: "no-db-match");
                 return controller.NotFound();
             }
             else if (!System.IO.File.Exists(file.FilePath))
             {
+                LogFileNotFound(controller, id, friendlyName, oldURL, reason: "missing-on-disk");
                 return controller.NotFound();
             }
             else if (!CheckFilePermission(file))
@@ -541,6 +576,29 @@ namespace Viper.Areas.CMS.Data
 
         }
         #endregion
+
+        // VPR-143: [CMS-FILE-404] emits a warning whenever ProvideFile can't serve a file.
+        // Grep the NLog output directory for the tag to see the distribution of misses
+        // (legacy URLs, typos, bot probes, ACME challenges, files missing on disk).
+        private void LogFileNotFound(Controller controller, string id, string friendlyName, string oldURL, string reason)
+        {
+            if (_logger is null)
+            {
+                return;
+            }
+
+            var request = controller.Request;
+            _logger.LogWarning(
+                "[CMS-FILE-404] reason={Reason} id={Id} friendlyName={FriendlyName} oldURL={OldUrl} " +
+                "userAgent={UserAgent} referer={Referer} remoteIp={RemoteIp}",
+                LogSanitizer.SanitizeString(reason),
+                LogSanitizer.SanitizeString(id),
+                LogSanitizer.SanitizeString(friendlyName),
+                LogSanitizer.SanitizeString(oldURL),
+                LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
+                LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
+                request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+        }
 
         #region public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
         public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
@@ -659,7 +717,13 @@ namespace Viper.Areas.CMS.Data
 
         CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name);
 
-        IEnumerable<CMSFile> GetFiles(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name);
+        CMSFile? GetFileByGuid(Guid fileGuid);
+
+        CMSFile? GetFileByOldUrl(string oldUrl);
+
+        CMSFile? GetFileByFriendlyName(string friendlyName);
+
+        CMSFile? GetFileByFolderAndName(string folder, string name);
 
         IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted);
 
