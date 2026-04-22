@@ -73,7 +73,6 @@
     <PackageReference Include="System.DirectoryServices" Version="10.0.5" />
     <PackageReference Include="System.DirectoryServices.AccountManagement" Version="10.0.5" />
     <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.1" />
-    <PackageReference Include="OWASP.AntiSamy" Version="1.2.0" />
     <PackageReference Include="MailKit" Version="4.15.1" />
     <PackageReference Include="MimeKit" Version="4.15.1" />
     <PackageReference Include="Razor.Templating.Core" Version="3.1.0" />
@@ -88,12 +87,6 @@
 
   <ItemGroup>
     <None Include="wwwroot\css\cts.css" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="antisamy-cms.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

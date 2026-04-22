@@ -1,9 +1,9 @@
-using Ganss.Xss;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Viper.Services;
 using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
@@ -13,12 +13,12 @@ namespace Viper.Areas.CTS.Controllers
     public class EpaController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly HtmlSanitizer sanitizer; //EPAs contain HTML in the description. Sanitize on both input and output.
+        private readonly IHtmlSanitizerService sanitizer; //EPAs contain HTML in the description. Sanitize on both input and output.
 
-        public EpaController(VIPERContext context)
+        public EpaController(VIPERContext context, IHtmlSanitizerService sanitizer)
         {
             this.context = context;
-            sanitizer = new HtmlSanitizer();
+            this.sanitizer = sanitizer;
         }
 
         [HttpGet]

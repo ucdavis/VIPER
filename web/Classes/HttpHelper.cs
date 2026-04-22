@@ -1,4 +1,3 @@
-using Ganss.Xss;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -17,7 +16,6 @@ namespace Viper
         private static IHttpContextAccessor? httpContextAccessor;
         private static IAuthorizationService? authorizationService;
         private static IDataProtectionProvider? dataProtectionProvider;
-        private static HtmlSanitizer? htmlSanitizer;
 
         /// <summary>
         /// Helper functions constructor (gets injected with the memeory cache object)
@@ -31,10 +29,6 @@ namespace Viper
             HttpHelper.httpContextAccessor = httpContextAccessor;
             HttpHelper.authorizationService = authorizationService;
             HttpHelper.dataProtectionProvider = dataProtectionProvider;
-
-            var sanitizer = new HtmlSanitizer();
-            sanitizer.AllowedAttributes.Add("class");
-            HttpHelper.htmlSanitizer = sanitizer;
         }
 
         /// <summary>
@@ -84,11 +78,6 @@ namespace Viper
         /// Get the data protection service
         /// </summary>
         public static IDataProtectionProvider? DataProtectionProvider { get { return dataProtectionProvider; } }
-
-        /// <summary>
-        /// Get our default HTML sanitizer
-        /// </summary>
-        public static HtmlSanitizer? HtmlSanitizer { get { return htmlSanitizer; } }
 
         /// <summary>
         /// Gets the root URL including protocol and port for Viper.Net

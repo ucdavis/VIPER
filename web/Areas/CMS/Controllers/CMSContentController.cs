@@ -4,6 +4,7 @@ using Viper.Areas.CMS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
+using Viper.Services;
 using Web.Authorization;
 
 namespace Viper.Areas.CMS.Controllers
@@ -14,12 +15,14 @@ namespace Viper.Areas.CMS.Controllers
     {
         private readonly VIPERContext _context;
         private readonly RAPSContext _rapsContext;
+        private readonly IHtmlSanitizerService _sanitizerService;
         public IUserHelper UserHelper { get; private set; }
 
-        public CMSContentController(VIPERContext context, RAPSContext rapsContext)
+        public CMSContentController(VIPERContext context, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService)
         {
             _context = context;
             _rapsContext = rapsContext;
+            _sanitizerService = sanitizerService;
             UserHelper = new UserHelper();
         }
 
@@ -32,14 +35,14 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return NotFound();
             }
-            return new Data.CMS(_context, _rapsContext).GetContentBlocks()?.ToList() ?? new List<ContentBlock>();
+            return new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocks()?.ToList() ?? new List<ContentBlock>();
         }
 
         //GET: content/fn/{friendlyName}
         [HttpGet("fn/{friendlyName}")]
         public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
         {
-            var blocks = new Data.CMS(_context, _rapsContext).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
+            var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
             if (blocks == null || !blocks.Any())
             {
                 return NotFound();
@@ -71,7 +74,7 @@ namespace Viper.Areas.CMS.Controllers
                 return BadRequest(inputCheck);
             }
 
-            var friendlyNameCheck = new Data.CMS(_context, _rapsContext).GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
+            var friendlyNameCheck = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
             if (friendlyNameCheck != null && friendlyNameCheck.ContentBlockId != contentBlockId)
             {
                 return ValidationProblem("Friendly name must be unique");
@@ -97,7 +100,7 @@ namespace Viper.Areas.CMS.Controllers
 
             //save and return the saved block
             await _context.SaveChangesAsync();
-            var returnBlock = new Data.CMS(_context, _rapsContext).GetContentBlocks(contentBlockID: contentBlockId)?.FirstOrDefault();
+            var returnBlock = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocks(contentBlockID: contentBlockId)?.FirstOrDefault();
             if (returnBlock == null)
             {
                 return NotFound();
@@ -115,7 +118,7 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest(inputCheck);
             }
-            var friendlyNameCheck = new Data.CMS(_context, _rapsContext).GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
+            var friendlyNameCheck = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocks(friendlyName: block.FriendlyName)?.FirstOrDefault();
             if (friendlyNameCheck != null)
             {
                 return ValidationProblem("Friendly name must be unique");
@@ -145,7 +148,7 @@ namespace Viper.Areas.CMS.Controllers
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
         public async Task<ActionResult<ContentBlock>> DeleteContentBlock(int contentBlockId)
         {
-            var block = new Data.CMS(_context, _rapsContext).GetContentBlocks(contentBlockID: contentBlockId)?.FirstOrDefault();
+            var block = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocks(contentBlockID: contentBlockId)?.FirstOrDefault();
             if (block == null)
             {
                 return NotFound();

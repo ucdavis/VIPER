@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CMS.Data;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
+using Viper.Services;
 
 namespace Viper.Views.Shared.Components.ProfilePic
 {
@@ -10,9 +11,9 @@ namespace Viper.Views.Shared.Components.ProfilePic
     {
         public ICMS CMS { get; private set; }
 
-        public CMSBlocksViewComponent(VIPERContext viperContext, RAPSContext rapsContext)
+        public CMSBlocksViewComponent(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService)
         {
-            CMS = new CMS(viperContext, rapsContext);
+            CMS = new CMS(viperContext, rapsContext, sanitizerService);
         }
 
         public async Task<IViewComponentResult> InvokeAsync(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
