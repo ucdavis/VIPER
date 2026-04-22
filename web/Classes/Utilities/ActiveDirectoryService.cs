@@ -101,7 +101,7 @@ namespace Viper.Classes.Utilities
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             List<LdapGroup> groups = new();
 
-            foreach (SearchResultEntry e in searchResults.Entries)
+            foreach (SearchResultEntry e in searchResults)
             {
                 groups.Add(new LdapGroup(e));
             }
@@ -120,9 +120,9 @@ namespace Viper.Classes.Utilities
             string filter = string.Format("(&(objectClass=group)(distinguishedName={0}))", dn);
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             LdapGroup? group = null;
-            if (searchResults.Entries.Count == 1)
+            if (searchResults.Count == 1)
             {
-                group = new LdapGroup(searchResults.Entries[0]);
+                group = new LdapGroup(searchResults[0]);
             }
 
             return group;
@@ -160,7 +160,7 @@ namespace Viper.Classes.Utilities
             var searchResults = SearchActiveDirectory(filter, fromOu ? Server.OU : Server.AD3, ObjectType.Person);
 
             List<LdapUser> users = new();
-            foreach (SearchResultEntry result in searchResults.Entries)
+            foreach (SearchResultEntry result in searchResults)
             {
                 users.Add(new LdapUser(result));
             }
@@ -180,7 +180,7 @@ namespace Viper.Classes.Utilities
                 string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName),
                 fromOu ? Server.OU : Server.AD3,
                 ObjectType.Person);
-            return searchResults.Entries.Count == 1 ? new LdapUser(searchResults.Entries[0]) : null;
+            return searchResults.Count == 1 ? new LdapUser(searchResults[0]) : null;
         }
 
         /// <summary>
@@ -196,11 +196,11 @@ namespace Viper.Classes.Utilities
             var ouSearchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Person);
             var ad3SearchResults = SearchActiveDirectory(filter, Server.AD3, ObjectType.Person);
 
-            foreach (SearchResultEntry result in ouSearchResults.Entries)
+            foreach (SearchResultEntry result in ouSearchResults)
             {
                 users.Add(new LdapUser(result));
             }
-            foreach (SearchResultEntry result in ad3SearchResults.Entries)
+            foreach (SearchResultEntry result in ad3SearchResults)
             {
                 users.Add(new LdapUser(result));
             }
@@ -277,7 +277,7 @@ namespace Viper.Classes.Utilities
         /// <param name="ou"></param>
         /// <param name="groupProperties"></param>
         /// <returns></returns>
-        private static SearchResponse SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
+        private static List<SearchResultEntry> SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
         {
             var ldapIdentifier = server == Server.OU
                 ? new LdapDirectoryIdentifier(_ouServer, port)
@@ -292,12 +292,32 @@ namespace Viper.Classes.Utilities
             using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(searchStart, searchFilter, SearchScope.Subtree, props);
-            var response = (SearchResponse)lc.SendRequest(searchRequest);
-            return response;
+            // AD caps a single search at 1000 entries; use paging to retrieve all results.
+            var pageRequest = new PageResultRequestControl(1000);
+            searchRequest.Controls.Add(pageRequest);
+
+            var entries = new List<SearchResultEntry>();
+            while (true)
+            {
+                var response = (SearchResponse)lc.SendRequest(searchRequest);
+                foreach (SearchResultEntry entry in response.Entries)
+                {
+                    entries.Add(entry);
+                }
+
+                var pageResponse = response.Controls
+                    .OfType<PageResultResponseControl>()
+                    .FirstOrDefault();
+                if (pageResponse == null || pageResponse.Cookie.Length == 0)
+                {
+                    break;
+                }
+                pageRequest.Cookie = pageResponse.Cookie;
+            }
+            return entries;
         }
     }
 }
