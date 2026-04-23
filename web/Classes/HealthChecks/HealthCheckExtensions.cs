@@ -10,8 +10,6 @@ namespace Viper.Classes.HealthChecks
     /// <summary>
     /// DI + pipeline wiring for /health, /health/detail, and /healthchecks.
     /// Kept here so Program.cs shows two lines for this concern instead of ~80.
-    /// See PLAN-hangfire.md PR 0 for the design rationale (liveness vs IP-gated
-    /// detail, CSP branching, Xabaril UI fork choice, etc.).
     /// </summary>
     public static class HealthCheckExtensions
     {
@@ -37,8 +35,7 @@ namespace Viper.Classes.HealthChecks
 
         /// <summary>
         /// Registers all health checks plus HealthChecks.UI. Checks tagged "ready"
-        /// run on /health/detail; /health is bare liveness. Hangfire checks layer
-        /// onto the "ready" tag in PR 3.
+        /// run on /health/detail; /health is bare liveness.
         /// </summary>
         public static IServiceCollection AddViperHealthChecks(
             this IServiceCollection services,

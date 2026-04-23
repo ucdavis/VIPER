@@ -276,8 +276,7 @@ try
     builder.Services.AddRazorTemplating();
     builder.Services.AddScoped<Viper.EmailTemplates.Services.IEmailTemplateRenderer, Viper.EmailTemplates.Services.EmailTemplateRenderer>();
 
-    // All health-check DI wiring lives in HealthCheckExtensions; see that file
-    // (and PLAN-hangfire.md PR 0) for design rationale.
+    // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
 
     // Add HttpClient for Vite proxy (development only)
