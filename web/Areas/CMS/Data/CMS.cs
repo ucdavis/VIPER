@@ -240,7 +240,6 @@ namespace Viper.Areas.CMS.Data
                 .Include(p => p.FileToPeople)
                 .AsSplitQuery()
                 .TagWith("CMS.GetFileByOldUrl")
-                .OrderBy(f => f.FilePath)
                 .FirstOrDefault(f => f.OldUrl == oldUrl);
 
             return ToCMSFile(file);
@@ -597,7 +596,7 @@ namespace Viper.Areas.CMS.Data
                 LogSanitizer.SanitizeString(oldURL),
                 LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
                 LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
-                request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+                LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
         }
 
         #region public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
