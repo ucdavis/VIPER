@@ -497,3 +497,8 @@ awscredentials.xml
 web/Areas/Effort/Scripts/AnalysisOutput/
 web/Areas/Effort/Scripts/RemediationOutput/
 web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data_LEGACY.txt
+
+# Code-quality tool outputs (fallow cache + jscpd reports)
+.fallow/
+VueApp/.fallow/
+jscpd-report/
