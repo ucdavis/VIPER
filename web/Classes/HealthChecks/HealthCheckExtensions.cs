@@ -189,14 +189,18 @@ namespace Viper.Classes.HealthChecks
                 failureStatus: HealthStatus.Unhealthy,
                 tags: new[] { "ready" }));
 
-            // HealthChecks.UI dashboard. Polls /health/detail over loopback (which is
-            // in InternalAllowlist). Storage is in-memory: history resets on IIS
-            // recycle - acceptable for an operational dashboard. Upgrade to SQL
-            // storage if persistent history becomes a requirement.
+            // Collector is a hosted service (no HttpContext), so we build an
+            // absolute URL from EmailSettings:BaseUrl to pick up the /2 path
+            // base in TEST/PROD. Dev falls back to a relative URL, resolved
+            // against the Kestrel listening address.
+            var baseUrl = configuration["EmailSettings:BaseUrl"]?.TrimEnd('/');
+            var healthEndpointUrl = string.IsNullOrWhiteSpace(baseUrl)
+                ? "/health/detail"
+                : $"{baseUrl}/health/detail";
             services
                 .AddHealthChecksUI(setup =>
                 {
-                    setup.AddHealthCheckEndpoint("viper", "/health/detail");
+                    setup.AddHealthCheckEndpoint("viper", healthEndpointUrl);
                     setup.SetEvaluationTimeInSeconds(300);
                     setup.MaximumHistoryEntriesPerEndpoint(50);
                 })
@@ -278,7 +282,7 @@ namespace Viper.Classes.HealthChecks
                         .Replace("<title>Health Checks UI</title>", "<title>Health Checks Status</title>")
                         .Replace(
                             "</body>",
-                            $"<script src=\"/js/healthchecks-ui-extras.js?v={_assetVersion}\"></script></body>");
+                            $"<script src=\"{ctx.Request.PathBase}/js/healthchecks-ui-extras.js?v={_assetVersion}\"></script></body>");
                     var bytes = Encoding.UTF8.GetBytes(injected);
                     ctx.Response.ContentLength = bytes.Length;
                     await originalBody.WriteAsync(bytes);
