@@ -116,13 +116,10 @@ namespace Viper.Classes.HealthChecks
                         {
                             File.Delete(probePath);
                         }
-                        catch (IOException)
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         {
                             // Best-effort cleanup; unique name means a missed delete
                             // doesn't break future probes, just leaves a 0-byte file.
-                        }
-                        catch (UnauthorizedAccessException)
-                        {
                         }
                     }
                 }

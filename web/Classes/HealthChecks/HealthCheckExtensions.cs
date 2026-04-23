@@ -17,7 +17,7 @@ namespace Viper.Classes.HealthChecks
     {
         // Per-process cache-buster for the injected UI-extras script, so browsers
         // re-fetch after a deploy without requiring a hard refresh.
-        private static readonly string _assetVersion = DateTime.UtcNow.Ticks.ToString();
+        private static readonly string _assetVersion = DateTime.Now.Ticks.ToString();
 
         /// <summary>
         /// Path prefixes owned by the HealthChecks.UI dashboard and its assets.
@@ -254,7 +254,10 @@ namespace Viper.Classes.HealthChecks
             // so the middleware wraps the UI endpoint's response body.
             app.Use(async (ctx, next) =>
             {
-                if (!ctx.Request.Path.Equals("/healthchecks", StringComparison.OrdinalIgnoreCase))
+                // StartsWithSegments handles trailing slashes ("/healthchecks/")
+                // without matching siblings like "/healthchecks-api"; we still
+                // gate on text/html below so JSON/asset responses aren't mangled.
+                if (!ctx.Request.Path.StartsWithSegments("/healthchecks"))
                 {
                     await next();
                     return;
@@ -269,7 +272,8 @@ namespace Viper.Classes.HealthChecks
 
                 if (ctx.Response.ContentType?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    var html = await new StreamReader(buffer).ReadToEndAsync();
+                    using var reader = new StreamReader(buffer, leaveOpen: true);
+                    var html = await reader.ReadToEndAsync();
                     var injected = html
                         .Replace("<title>Health Checks UI</title>", "<title>Health Checks Status</title>")
                         .Replace(

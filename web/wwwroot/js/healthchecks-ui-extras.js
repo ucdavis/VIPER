@@ -27,9 +27,10 @@
 
         if (totalMs < 1000) return Math.round(totalMs) + "ms";
         if (totalMs < 60000) return (totalMs / 1000).toFixed(2) + "s";
-        const mm = Math.floor(totalMs / 60000);
-        const ss = Math.round((totalMs % 60000) / 1000);
-        return mm + "m" + ss + "s";
+        // Round to whole seconds first, then split, so 59.6s at the boundary
+        // rolls into the next minute instead of rendering as "1m60s".
+        const totalSec = Math.round(totalMs / 1000);
+        return Math.floor(totalSec / 60) + "m" + (totalSec % 60) + "s";
     }
 
     function reformatDurations() {

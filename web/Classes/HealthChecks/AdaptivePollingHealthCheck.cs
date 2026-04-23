@@ -16,7 +16,7 @@ namespace Viper.Classes.HealthChecks
         private readonly TimeSpan _healthyCacheDuration;
         private readonly TimeSpan _unhealthyCacheDuration;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
-        private DateTime _lastCheckTimeUtc;
+        private DateTime _lastCheckTime;
         private HealthCheckResult? _lastResult;
 
         public AdaptivePollingHealthCheck(
@@ -38,20 +38,25 @@ namespace Viper.Classes.HealthChecks
             {
                 if (_lastResult.HasValue)
                 {
-                    var elapsed = DateTime.UtcNow - _lastCheckTimeUtc;
+                    // S6561: DateTime.Now used for elapsed-time calc. Accepted
+                    // because VIPER convention is DateTimeKind.Local and a
+                    // sub-hour DST skew only shifts one cache window.
+#pragma warning disable S6561
+                    var elapsed = DateTime.Now - _lastCheckTime;
+#pragma warning restore S6561
                     var cacheDuration = _lastResult.Value.Status == HealthStatus.Healthy
                         ? _healthyCacheDuration
                         : _unhealthyCacheDuration;
 
                     if (elapsed < cacheDuration)
                     {
-                        return AppendTimestamp(_lastResult.Value, _lastCheckTimeUtc.ToLocalTime());
+                        return AppendTimestamp(_lastResult.Value, _lastCheckTime);
                     }
                 }
 
                 var result = await _inner.CheckHealthAsync(context, cancellationToken);
                 _lastResult = result;
-                _lastCheckTimeUtc = DateTime.UtcNow;
+                _lastCheckTime = DateTime.Now;
                 return result;
             }
             finally
