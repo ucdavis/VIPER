@@ -84,7 +84,7 @@ getStudentEpa()
             </StatusBanner>
             <div class="row justify-between items-end q-mb-lg">
                 <div class="col-12 col-md-6 col-lg-5">
-                    <h2 class="epa">{{ studentEpa.epaName }}</h2>
+                    <h1 class="epa">{{ studentEpa.epaName }}</h1>
                 </div>
                 <div class="col-12 col-md-6 col-lg-3 q-mr-md text-weight-medium text-body1">
                     Service: {{ studentEpa.serviceName }}
@@ -166,7 +166,7 @@ getStudentEpa()
 </template>
 
 <style scoped>
-h2.epa {
+h1.epa {
     font-weight: 400;
     font-size: 2rem;
     margin-bottom: 4px;

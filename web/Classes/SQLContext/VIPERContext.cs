@@ -355,6 +355,22 @@ public partial class VIPERContext : DbContext
 
             entity.HasIndex(e => e.FriendlyName, "UX_files_friendlyName").IsUnique();
 
+            // Covering index for /CMS/Files?oldURL=... lookups. See VPR-143.
+            entity.HasIndex(e => e.OldUrl, "IX_files_oldURL")
+                .IncludeProperties(e => new
+                {
+                    e.FilePath,
+                    e.Folder,
+                    e.FriendlyName,
+                    e.Encrypted,
+                    e.Key,
+                    e.Description,
+                    e.AllowPublicAccess,
+                    e.ModifiedOn,
+                    e.ModifiedBy,
+                    e.DeletedOn,
+                });
+
             entity.Property(e => e.FileGuid)
                 .ValueGeneratedNever()
                 .HasColumnName("fileGUID");
@@ -367,6 +383,7 @@ public partial class VIPERContext : DbContext
                 .HasColumnName("description");
             entity.Property(e => e.Encrypted).HasColumnName("encrypted");
             entity.Property(e => e.FilePath)
+                .HasMaxLength(256)
                 .IsUnicode(false)
                 .HasColumnName("filePath");
             entity.Property(e => e.Folder)
@@ -389,6 +406,7 @@ public partial class VIPERContext : DbContext
                 .HasColumnType("datetime")
                 .HasColumnName("modifiedOn");
             entity.Property(e => e.OldUrl)
+                .HasMaxLength(256)
                 .IsUnicode(false)
                 .HasColumnName("oldURL");
         });
