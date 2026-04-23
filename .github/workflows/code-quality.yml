@@ -1,0 +1,92 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [main]
+
+# Detects whether a PR *adds* new dead code or duplication compared to main.
+# - fallow covers VueApp (dead code, unused exports, complexity, duplication)
+# - jscpd covers C# (web/Areas/**/*.cs) since fallow is JS/TS-only
+# Passes if counts are equal to or lower than main.
+
+jobs:
+  fallow-regression:
+    name: Fallow regression (VueApp)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Baseline fallow on main
+        run: |
+          git checkout origin/${{ github.base_ref }} -- VueApp
+          npx fallow audit --root VueApp --save-regression-baseline .fallow-baseline.json
+          git checkout HEAD -- VueApp
+
+      - name: Check fallow regression on PR
+        run: npx fallow audit --root VueApp --fail-on-regression --regression-baseline .fallow-baseline.json --format compact
+
+  jscpd-regression-csharp:
+    name: JSCPD regression (C#)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Baseline jscpd on main
+        run: |
+          git checkout origin/${{ github.base_ref }} -- web
+          node scripts/audit-jscpd-regression.js --save .jscpd-baseline-cs.json web/Areas --format csharp --pattern '**/*.cs' --min-lines 15
+          git checkout HEAD -- web
+
+      - name: Check jscpd regression on PR
+        run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-cs.json web/Areas --format csharp --pattern '**/*.cs' --min-lines 15
+
+  jscpd-regression-vue:
+    name: JSCPD regression (Vue/TS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Baseline jscpd on main
+        run: |
+          git checkout origin/${{ github.base_ref }} -- VueApp/src
+          node scripts/audit-jscpd-regression.js --save .jscpd-baseline-vue.json VueApp/src
+          git checkout HEAD -- VueApp/src
+
+      - name: Check jscpd regression on PR
+        run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-vue.json VueApp/src

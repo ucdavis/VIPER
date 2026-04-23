@@ -142,6 +142,35 @@ function findLintableFiles(dir) {
  * @param {string[]} files - Array of file paths
  * @returns {Object} - Object with arrays of files for each linter
  */
+function routeVueFile(categories, normalizedPath) {
+    categories.css.push(normalizedPath)
+    if (!normalizedPath.startsWith("VueApp/")) {
+        return
+    }
+    categories.vue.push(normalizedPath)
+    categories.fallow.push(normalizedPath)
+    if (normalizedPath.startsWith("VueApp/src/")) {
+        categories.jscpd.push(normalizedPath)
+    }
+}
+
+function routeJsTsFile(categories, normalizedPath) {
+    if (normalizedPath.startsWith("VueApp/") || normalizedPath.startsWith("scripts/")) {
+        categories.ts.push(normalizedPath)
+    }
+    if (normalizedPath.startsWith("VueApp/src/")) {
+        categories.fallow.push(normalizedPath)
+        categories.jscpd.push(normalizedPath)
+    }
+}
+
+function routeCsFile(categories, normalizedPath) {
+    categories.dotnet.push(normalizedPath)
+    if (normalizedPath.startsWith("web/Areas/")) {
+        categories.jscpd.push(normalizedPath)
+    }
+}
+
 function categorizeFiles(files) {
     const categories = {
         css: [], // CSS and Vue files → lint-staged-css.js
@@ -149,37 +178,30 @@ function categorizeFiles(files) {
         ts: [], // JS/TS files → lint-staged-ts.js (Oxlint)
         cshtml: [], // CSHTML files → lint-staged-cshtml.js (ESLint security + accessibility)
         dotnet: [], // C# files → lint-staged-dotnet.js
+        fallow: [], // VueApp/src/**/*.{ts,js,vue} → lint-staged-fallow.js (dead code, project-graph)
+        jscpd: [], // VueApp/src + web/Areas → lint-staged-jscpd.js (duplication)
     }
 
     for (const file of files) {
         const ext = path.extname(file).toLowerCase()
         const relativePath = path.relative(projectRoot, file)
-        // Normalize path separators for consistent matching
+        // Normalize path separators for consistent matching.
+        // Use normalizedPath (forward slashes) so output is copy-pasteable into commands.
         const normalizedPath = relativePath.replaceAll("\\", "/")
 
         // Skip config files like .eslintrc.js
-        if (!path.basename(file).startsWith(".eslintrc")) {
-            // Categorize based on extension and location
-            // Use normalizedPath (forward slashes) so output is copy-pasteable into commands
-            if (ext === ".css") {
-                categories.css.push(normalizedPath)
-            } else if (ext === ".vue") {
-                // Vue files can be linted by both CSS and Vue linters
-                categories.css.push(normalizedPath)
-                // Only send Vue files to Vue linter if they're in VueApp directory
-                if (normalizedPath.startsWith("VueApp/")) {
-                    categories.vue.push(normalizedPath)
-                }
-            } else if ([".js", ".ts"].includes(ext)) {
-                // Send JS/TS files to Oxlint if they're in VueApp or scripts directory
-                if (normalizedPath.startsWith("VueApp/") || normalizedPath.startsWith("scripts/")) {
-                    categories.ts.push(normalizedPath)
-                }
-            } else if (ext === ".cshtml") {
-                categories.cshtml.push(normalizedPath)
-            } else if (ext === ".cs") {
-                categories.dotnet.push(normalizedPath)
-            }
+        if (path.basename(file).startsWith(".eslintrc")) {
+            // No-op — filtered out.
+        } else if (ext === ".css") {
+            categories.css.push(normalizedPath)
+        } else if (ext === ".vue") {
+            routeVueFile(categories, normalizedPath)
+        } else if ([".js", ".ts"].includes(ext)) {
+            routeJsTsFile(categories, normalizedPath)
+        } else if (ext === ".cshtml") {
+            categories.cshtml.push(normalizedPath)
+        } else if (ext === ".cs") {
+            routeCsFile(categories, normalizedPath)
         }
     }
 
@@ -405,6 +427,10 @@ function runFrontendLinters(categories, fix, clearCache) {
     runLinter("lint-staged-cshtml.js", categories.cshtml, "CSHTML - Security & Accessibility", fix, clearCache)
 }
 
+function deduplicate(files) {
+    return [...new Set(files)]
+}
+
 // Main execution
 async function main() {
     console.log("🚀 Smart Linter - Analyzing files and routing to appropriate linters...\n")
@@ -429,6 +455,10 @@ async function main() {
         ...categories.dotnet,
     ]).size
 
+    // Dedup category lists (a .vue file can appear in several)
+    categories.fallow = deduplicate(categories.fallow)
+    categories.jscpd = deduplicate(categories.jscpd)
+
     console.log(`📊 Found ${totalFiles} files to lint:`)
     if (categories.css.length > 0) {
         console.log(`  🎨 CSS/Stylelint: ${categories.css.length} files`)
@@ -445,6 +475,12 @@ async function main() {
     if (categories.dotnet.length > 0) {
         console.log(`  🔷 .NET/SonarAnalyzer: ${categories.dotnet.length} files`)
     }
+    if (categories.fallow.length > 0) {
+        console.log(`  🧹 Fallow (dead code): ${categories.fallow.length} files`)
+    }
+    if (categories.jscpd.length > 0) {
+        console.log(`  📎 JSCPD (duplication): ${categories.jscpd.length} files`)
+    }
 
     // Run oxfmt on JS/TS/CSS/Vue files only (C# formatting is handled by dotnet format)
     const oxfmtFiles = [...new Set([...categories.css, ...categories.vue, ...categories.ts])]
@@ -460,6 +496,20 @@ async function main() {
             "lint-staged-dotnet.js",
             categories.dotnet,
             ".NET/SonarAnalyzer - Security & Quality",
+            shouldFix,
+            shouldClearCache,
+        ),
+        runLinterAsync(
+            "lint-staged-fallow.js",
+            categories.fallow,
+            "Fallow - Dead Code / Unused Exports (report-only)",
+            shouldFix,
+            shouldClearCache,
+        ),
+        runLinterAsync(
+            "lint-staged-jscpd.js",
+            categories.jscpd,
+            "JSCPD - Code Duplication (report-only)",
             shouldFix,
             shouldClearCache,
         ),
