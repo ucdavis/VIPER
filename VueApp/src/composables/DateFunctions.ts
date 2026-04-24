@@ -30,4 +30,4 @@ function useDateFunctions() {
     return { formatDate, formatDateTime, formatDateForDateInput }
 }
 
-export { formatDate, formatDateTime, formatDateForDateInput, useDateFunctions }
+export { useDateFunctions }
