@@ -180,6 +180,7 @@ import { useEffortTypeColumns, getEffortTypeLabel, loadEffortTypeLabels } from "
 import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import type { ClinicalEffortReport } from "../types"
+import "../report-tables.css"
 
 const $q = useQuasar()
 const route = useRoute()
@@ -308,10 +309,6 @@ async function initPage() {
 
 onMounted(() => initPage())
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
 
 <style scoped>
 :deep(.report-table tbody tr) {
