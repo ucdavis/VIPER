@@ -10,6 +10,7 @@ import { useEmergencyContact } from "../composables/use-emergency-contact"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { phoneErrorsKey } from "../utils/phone-errors-key"
+import "@/styles/compact-form.css"
 
 const route = useRoute()
 const router = useRouter()
@@ -558,9 +559,4 @@ onBeforeRouteLeave(() => {
     font-size: 0.75rem;
     gap: 0.125rem;
 }
-</style>
-
-<!-- Shared compact form + error chip styles (unscoped, applied via .compact-form class) -->
-<style>
-@import url("@/styles/compact-form.css");
 </style>
