@@ -15,11 +15,11 @@
 }
 
 /* Shared typography for schedule pages */
-h3 {
+.clinical-scheduler-container h3 {
     color: var(--ucdavis-black-80);
-    font-size: 16px;
-    margin-top: 20px;
-    margin-bottom: 10px;
+    font-size: 1rem;
+    margin-top: 1.25rem;
+    margin-bottom: 0.625rem;
 }
 
 .schedule-note {
@@ -38,8 +38,8 @@ h3 {
 
 /* Mobile responsiveness for main headers */
 @media (max-width: 768px) {
-    h2 {
-        font-size: 18px;
+    .clinical-scheduler-container h2 {
+        font-size: 1.125rem;
     }
 
     /* Shared mobile badge positioning */
@@ -93,7 +93,7 @@ h3 {
 }
 
 @media (max-width: 480px) {
-    h2 {
-        font-size: 16px;
+    .clinical-scheduler-container h2 {
+        font-size: 1rem;
     }
 }

@@ -617,6 +617,7 @@ import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import LeaveEditorModal from "../components/LeaveEditorModal.vue"
 import type { MultiYearReport, PersonDto, TermDto, SabbaticalDto } from "../types"
+import "../report-tables.css"
 
 const $q = useQuasar()
 const route = useRoute()
@@ -899,10 +900,6 @@ async function initPage() {
 
 onMounted(() => initPage())
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
 
 <style scoped>
 .report-section-title {
