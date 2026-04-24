@@ -1,47 +1,19 @@
 <template>
-    <div class="q-pa-md">
-        <!-- Breadcrumb -->
-        <q-breadcrumbs class="q-mb-md">
-            <q-breadcrumbs-el
-                label="Instructors"
-                :to="{ name: 'InstructorList', params: { termCode } }"
-            />
+    <InstructorPageShell
+        :term-code="termCodeNum"
+        :is-loading="isLoading"
+        :load-error="loadError ?? undefined"
+    >
+        <template #breadcrumbs>
             <q-breadcrumbs-el
                 :label="instructor?.fullName ?? 'Instructor'"
                 :to="{ name: 'InstructorDetail', params: { termCode, personId } }"
             />
             <q-breadcrumbs-el label="Edit" />
-        </q-breadcrumbs>
-
-        <!-- Loading state -->
-        <div
-            v-if="isLoading"
-            class="text-center q-my-lg"
-        >
-            <q-spinner-dots
-                size="3rem"
-                color="primary"
-            />
-            <div class="q-mt-md text-body1">Loading instructor...</div>
-        </div>
-
-        <!-- Error state -->
-        <StatusBanner
-            v-else-if="loadError"
-            type="error"
-        >
-            {{ loadError }}
-            <template #action>
-                <q-btn
-                    flat
-                    label="Go Back"
-                    :to="{ name: 'InstructorList', params: { termCode } }"
-                />
-            </template>
-        </StatusBanner>
+        </template>
 
         <!-- Instructor content -->
-        <template v-else-if="instructor">
+        <template v-if="instructor">
             <!-- Instructor Header -->
             <q-card
                 flat
@@ -236,56 +208,56 @@
                 />
             </div>
         </template>
+    </InstructorPageShell>
 
-        <!-- Add Percent Dialog -->
-        <PercentAssignmentAddDialog
-            v-model="showAddPercentDialog"
-            :person-id="instructor?.personId ?? 0"
-            :percent-assign-types="percentAssignTypes"
-            :units="units"
-            @created="onPercentCreated"
-        />
+    <!-- Add Percent Dialog -->
+    <PercentAssignmentAddDialog
+        v-model="showAddPercentDialog"
+        :person-id="instructor?.personId ?? 0"
+        :percent-assign-types="percentAssignTypes"
+        :units="units"
+        @created="onPercentCreated"
+    />
 
-        <!-- Edit Percent Dialog -->
-        <PercentAssignmentEditDialog
-            v-model="showEditPercentDialog"
-            :percentage="selectedPercentage"
-            :percent-assign-types="percentAssignTypes"
-            :units="units"
-            @saved="onPercentUpdated"
-        />
+    <!-- Edit Percent Dialog -->
+    <PercentAssignmentEditDialog
+        v-model="showEditPercentDialog"
+        :percentage="selectedPercentage"
+        :percent-assign-types="percentAssignTypes"
+        :units="units"
+        @saved="onPercentUpdated"
+    />
 
-        <!-- Delete Percent Confirmation Dialog -->
-        <q-dialog
-            v-model="showDeletePercentConfirm"
-            aria-label="Delete percentage assignment confirmation"
-        >
-            <q-card>
-                <q-card-section class="row items-center">
-                    <q-icon
-                        name="warning"
-                        color="warning"
-                        size="md"
-                        class="q-mr-md"
-                    />
-                    <span>Are you sure you want to delete this percentage assignment?</span>
-                </q-card-section>
-                <q-card-actions align="right">
-                    <q-btn
-                        v-close-popup
-                        flat
-                        label="Cancel"
-                    />
-                    <q-btn
-                        flat
-                        label="Delete"
-                        color="negative"
-                        @click="deletePercent"
-                    />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
-    </div>
+    <!-- Delete Percent Confirmation Dialog -->
+    <q-dialog
+        v-model="showDeletePercentConfirm"
+        aria-label="Delete percentage assignment confirmation"
+    >
+        <q-card>
+            <q-card-section class="row items-center">
+                <q-icon
+                    name="warning"
+                    color="warning"
+                    size="md"
+                    class="q-mr-md"
+                />
+                <span>Are you sure you want to delete this percentage assignment?</span>
+            </q-card-section>
+            <q-card-actions align="right">
+                <q-btn
+                    v-close-popup
+                    flat
+                    label="Cancel"
+                />
+                <q-btn
+                    flat
+                    label="Delete"
+                    color="negative"
+                    @click="deletePercent"
+                />
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
 </template>
 
 <script setup lang="ts">
@@ -312,7 +284,7 @@ import type {
     PercentAssignTypeDto,
     UnitDto,
 } from "../types"
-import StatusBanner from "@/components/StatusBanner.vue"
+import InstructorPageShell from "../components/InstructorPageShell.vue"
 import PercentAssignmentTable from "../components/PercentAssignmentTable.vue"
 import PercentAssignmentAddDialog from "../components/PercentAssignmentAddDialog.vue"
 import PercentAssignmentEditDialog from "../components/PercentAssignmentEditDialog.vue"
