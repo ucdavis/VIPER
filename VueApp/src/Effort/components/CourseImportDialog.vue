@@ -3,6 +3,7 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="course-import-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 900px; position: relative">
@@ -17,7 +18,12 @@
                 @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Import Course from Banner ({{ termName }})</div>
+                <div
+                    id="course-import-title"
+                    class="text-h6"
+                >
+                    Import Course from Banner ({{ termName }})
+                </div>
                 <div class="text-caption text-grey-7">Enter one or more fields to search</div>
             </q-card-section>
 
@@ -284,10 +290,16 @@
     <q-dialog
         v-model="showImportOptionsDialog"
         persistent
+        aria-labelledby="import-options-title"
     >
         <q-card style="min-width: 350px">
             <q-card-section>
-                <div class="text-h6">Import Options</div>
+                <div
+                    id="import-options-title"
+                    class="text-h6"
+                >
+                    Import Options
+                </div>
                 <div class="text-subtitle2 text-grey q-mt-sm">
                     {{ selectedBannerCourse?.courseCode }}-{{ selectedBannerCourse?.seqNumb }}
                 </div>

@@ -251,5 +251,22 @@ type UcdavisBlackShade = keyof typeof ucdavisBlack
 type SemanticColorName = keyof typeof semanticColors
 type CssVariableName = (typeof cssVariableNames)[number]
 
-export { ucdavisBlue, ucdavisGold, ucdavisBlack, BRAND_COLORS, semanticColors, colors, cssVariableNames }
+// Quasar/brand colors whose backgrounds are light enough that white foreground
+// text fails WCAG contrast. Pair these with text-color="dark".
+const LIGHT_BACKGROUND_COLORS = new Set(["warning", "info", "accent"])
+
+function getAccessibleTextColor(color: string | null | undefined): "dark" | "white" {
+    return color && LIGHT_BACKGROUND_COLORS.has(color) ? "dark" : "white"
+}
+
+export {
+    ucdavisBlue,
+    ucdavisGold,
+    ucdavisBlack,
+    BRAND_COLORS,
+    semanticColors,
+    colors,
+    cssVariableNames,
+    getAccessibleTextColor,
+}
 export type { UcdavisBlueShade, UcdavisGoldShade, UcdavisBlackShade, SemanticColorName, CssVariableName }

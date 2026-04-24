@@ -3,6 +3,7 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="clinical-import-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 1000px; position: relative">
@@ -17,7 +18,12 @@
                 @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Import Clinical Effort: {{ props.termName }}</div>
+                <div
+                    id="clinical-import-title"
+                    class="text-h6"
+                >
+                    Import Clinical Effort: {{ props.termName }}
+                </div>
                 <div class="text-caption text-grey-7">Import clinical rotation assignments from Clinical Scheduler</div>
             </q-card-section>
 

@@ -146,10 +146,16 @@
         <q-dialog
             v-model="showAddDialog"
             persistent
+            aria-labelledby="add-unit-title"
         >
             <q-card style="min-width: 350px">
                 <q-card-section class="row items-center q-pb-none">
-                    <div class="text-h6">Add New Unit</div>
+                    <div
+                        id="add-unit-title"
+                        class="text-h6"
+                    >
+                        Add New Unit
+                    </div>
                     <q-space />
                     <q-btn
                         v-close-popup

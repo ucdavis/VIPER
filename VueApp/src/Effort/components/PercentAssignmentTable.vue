@@ -89,7 +89,7 @@
                         </div>
                     </div>
                     <div class="text-body2 q-mb-xs">
-                        <q-badge
+                        <StatusBadge
                             :color="getTypeClassColor(pct.typeClass)"
                             :label="pct.typeClass"
                             class="q-mr-sm"
@@ -159,7 +159,7 @@
                         key="typeClass"
                         :props="bodyProps"
                     >
-                        <q-badge
+                        <StatusBadge
                             :color="getTypeClassColor(bodyProps.row.typeClass)"
                             :label="bodyProps.row.typeClass"
                         />
@@ -289,6 +289,7 @@ import { ref, computed } from "vue"
 import { useQuasar, type QTableColumn } from "quasar"
 import type { PercentageDto } from "../types"
 import { formatTypeWithModifier, getTypeClassColor } from "../utils/format"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 const props = defineProps<{
     percentages: PercentageDto[]

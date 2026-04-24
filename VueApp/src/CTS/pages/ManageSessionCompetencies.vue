@@ -179,13 +179,19 @@ if (!courseId || !sessionId) {
 <template>
     <h1>Competencies for {{ session.courseTitle }} {{ session.type }} {{ session.typeOrder }} {{ session.title }}</h1>
 
-    <q-dialog v-model="showCompForm">
+    <q-dialog
+        v-model="showCompForm"
+        aria-labelledby="session-competency-form-title"
+    >
         <q-card
             style="width: 800px; max-width: 80vw"
             class="q-pa-md"
         >
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">
+                <div
+                    id="session-competency-form-title"
+                    class="text-h6"
+                >
                     {{ compAddUpdate?.sessionCompetencyId ? "Update" : "Add" }} Session Competency
                 </div>
                 <q-space />

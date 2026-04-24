@@ -2,11 +2,17 @@
     <q-dialog
         :model-value="modelValue"
         persistent
+        aria-labelledby="instructor-add-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 600px">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Add Instructor</div>
+                <div
+                    id="instructor-add-title"
+                    class="text-h6"
+                >
+                    Add Instructor
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"

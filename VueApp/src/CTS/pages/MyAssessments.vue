@@ -117,10 +117,18 @@ load()
             <span v-else>My Assessments</span>
         </h2>
 
-        <q-dialog v-model="showAssessmentDetail">
+        <q-dialog
+            v-model="showAssessmentDetail"
+            aria-labelledby="assessment-detail-title"
+        >
             <q-card style="width: 700px; max-width: 80vw">
                 <q-card-section>
-                    <div class="text-h6">Assessment Details</div>
+                    <div
+                        id="assessment-detail-title"
+                        class="text-h6"
+                    >
+                        Assessment Details
+                    </div>
                     <div class="row">
                         <div class="col-12"><strong>EPA:</strong> {{ epaAssessment.epaName }}</div>
                     </div>

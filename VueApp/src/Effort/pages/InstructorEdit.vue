@@ -256,7 +256,10 @@
         />
 
         <!-- Delete Percent Confirmation Dialog -->
-        <q-dialog v-model="showDeletePercentConfirm">
+        <q-dialog
+            v-model="showDeletePercentConfirm"
+            aria-label="Delete percentage assignment confirmation"
+        >
             <q-card>
                 <q-card-section class="row items-center">
                     <q-icon

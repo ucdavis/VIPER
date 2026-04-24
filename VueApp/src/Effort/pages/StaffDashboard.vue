@@ -889,10 +889,18 @@
         </template>
 
         <!-- All Alerts Dialog -->
-        <q-dialog v-model="showAlertsDialog">
+        <q-dialog
+            v-model="showAlertsDialog"
+            aria-labelledby="all-alerts-title"
+        >
             <q-card style="width: 600px; max-width: 95vw">
                 <q-card-section class="row items-center">
-                    <div class="text-h6">All Data Hygiene Alerts</div>
+                    <div
+                        id="all-alerts-title"
+                        class="text-h6"
+                    >
+                        All Data Hygiene Alerts
+                    </div>
                     <q-space />
                     <q-btn
                         icon="close"
@@ -930,9 +938,9 @@
                                 <q-item-label caption>{{ alert.description }}</q-item-label>
                             </q-item-section>
                             <q-item-section side>
-                                <q-badge :color="getAlertColor(alert)">
+                                <StatusBadge :color="getAlertColor(alert)">
                                     {{ alert.severity }}
-                                </q-badge>
+                                </StatusBadge>
                             </q-item-section>
                         </q-item>
                     </q-list>
@@ -948,6 +956,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import { dashboardService } from "../services/dashboard-service"
 import type { DashboardStatsDto, DepartmentVerificationDto, EffortChangeAlertDto, RecentChangeDto } from "../types"
+import StatusBadge from "@/components/StatusBadge.vue"
 import { inflect } from "inflection"
 
 const $q = useQuasar()

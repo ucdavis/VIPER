@@ -3,11 +3,17 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="course-link-title"
         @keydown.escape="handleClose"
     >
         <q-card style="min-width: 500px; max-width: 700px">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Link Courses</div>
+                <div
+                    id="course-link-title"
+                    class="text-h6"
+                >
+                    Link Courses
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"

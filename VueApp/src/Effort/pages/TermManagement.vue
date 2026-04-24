@@ -115,6 +115,7 @@
                             dense
                             options-dense
                             outlined
+                            hide-bottom-space
                             class="term-select-input"
                         />
                         <q-input
@@ -125,8 +126,8 @@
                             outlined
                             clearable
                             reactive-rules
+                            hide-bottom-space
                             :rules="[createCloseDateRule]"
-                            :hint="createCloseDateHint"
                             class="expected-close-input"
                         />
                         <q-btn
@@ -136,6 +137,12 @@
                             :disable="!selectedNewTerm"
                             @click="confirmAddTerm"
                         />
+                    </div>
+                    <div
+                        v-if="createCloseDateHint"
+                        class="text-caption text-grey-7 q-mt-xs"
+                    >
+                        {{ createCloseDateHint }}
                     </div>
                 </div>
             </q-slide-transition>

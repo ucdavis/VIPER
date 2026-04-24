@@ -404,10 +404,16 @@
         <q-dialog
             v-model="showAddDialog"
             persistent
+            aria-labelledby="add-effort-type-title"
         >
             <q-card style="min-width: min(450px, 90vw)">
                 <q-card-section class="row items-center q-pb-none">
-                    <div class="text-h6">Add New Effort Type</div>
+                    <div
+                        id="add-effort-type-title"
+                        class="text-h6"
+                    >
+                        Add New Effort Type
+                    </div>
                     <q-space />
                     <q-btn
                         v-close-popup
