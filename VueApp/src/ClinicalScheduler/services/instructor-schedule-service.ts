@@ -262,13 +262,4 @@ interface AuditEntry {
 
 // ApiResult moved to shared types/api.ts
 
-export {
-    InstructorScheduleService,
-    type InstructorScheduleRequest,
-    type InstructorScheduleResponse,
-    type RemoveInstructorResult,
-    type ScheduleConflict,
-    type SetPrimaryEvaluatorRequest,
-    type AuditEntry,
-    type ApiResult,
-}
+export { InstructorScheduleService }
