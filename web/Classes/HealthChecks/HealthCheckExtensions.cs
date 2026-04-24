@@ -267,8 +267,17 @@ namespace Viper.Classes.HealthChecks
                 var originalBody = ctx.Response.Body;
                 using var buffer = new MemoryStream();
                 ctx.Response.Body = buffer;
-                await next();
-                ctx.Response.Body = originalBody;
+                try
+                {
+                    await next();
+                }
+                finally
+                {
+                    // Restore before any downstream error handler runs, even if
+                    // next() threw - leaving Response.Body pointing at the (soon
+                    // disposed) MemoryStream breaks error-page middleware.
+                    ctx.Response.Body = originalBody;
+                }
                 buffer.Seek(0, SeekOrigin.Begin);
 
                 if (ctx.Response.ContentType?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true)
