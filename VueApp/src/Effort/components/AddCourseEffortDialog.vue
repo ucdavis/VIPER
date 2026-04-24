@@ -145,27 +145,12 @@
                 </q-form>
             </q-card-section>
 
-            <q-card-actions align="right">
-                <q-btn
-                    flat
-                    label="Cancel"
-                    @click="handleClose"
-                />
-                <q-btn
-                    color="primary"
-                    label="Add Effort"
-                    :loading="isSaving"
-                    @click="createRecord"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Add Effort
-                    </template>
-                </q-btn>
-            </q-card-actions>
+            <DialogSubmitActions
+                submit-label="Add Effort"
+                :is-saving="isSaving"
+                @cancel="handleClose"
+                @submit="createRecord"
+            />
         </q-card>
     </q-dialog>
 </template>
@@ -178,6 +163,7 @@ import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
 import type { CourseInstructorOptionDto, EffortTypeOptionDto, RoleOptionDto } from "../types"
 import StatusBanner from "@/components/StatusBanner.vue"
+import DialogSubmitActions from "./DialogSubmitActions.vue"
 import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
 import "../effort-dialogs.css"
