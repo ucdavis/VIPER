@@ -1,31 +1,27 @@
-import { createRouter, createWebHistory } from "vue-router"
+import { createSpaRouter } from "@/shared/createSpaRouter"
 import { effortRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
-import { useRouteFocus } from "@/composables/use-route-focus"
 
-const baseUrl = import.meta.env.VITE_VIPER_HOME
-const router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
-    history: createWebHistory(baseUrl),
-    routes,
-})
+const router = createSpaRouter(routes)
 
 // Dedup latch: reuse in-flight fetch so concurrent navigations don't fire multiple requests
 let evalPermissionsPromise: Promise<void> | null = null
 
 async function loadEvalPermissions() {
-    const userStore = useUserStore()
-    const existingPermissions = userStore.userInfo?.permissions ?? []
-    const { get } = useFetch()
-    const apiUrl = import.meta.env.VITE_API_URL
-    const evalPerms = await get(`${apiUrl}loggedInUser/permissions?prefix=SVMSecure.Eval`)
-    if (evalPerms.success && Array.isArray(evalPerms.result)) {
-        userStore.setPermissions([...existingPermissions, ...evalPerms.result])
-    } else {
-        // Reset latch so the next navigation retries the fetch
+    try {
+        const userStore = useUserStore()
+        const existingPermissions = userStore.userInfo?.permissions ?? []
+        const { get } = useFetch()
+        const apiUrl = import.meta.env.VITE_API_URL
+        const evalPerms = await get(`${apiUrl}loggedInUser/permissions?prefix=SVMSecure.Eval`)
+        if (evalPerms.success && Array.isArray(evalPerms.result)) {
+            userStore.setPermissions([...existingPermissions, ...evalPerms.result])
+        }
+    } finally {
+        // Reset latch so future session changes refetch instead of reusing the old resolved promise
         evalPermissionsPromise = null
     }
 }
@@ -62,7 +58,5 @@ router.beforeEach(async (to, from) => {
         }
     }
 })
-
-useRouteFocus(router)
 
 export { router as effortRouter }
