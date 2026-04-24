@@ -121,27 +121,12 @@
                 </q-form>
             </q-card-section>
 
-            <q-card-actions align="right">
-                <q-btn
-                    flat
-                    label="Cancel"
-                    @click="handleClose"
-                />
-                <q-btn
-                    color="primary"
-                    label="Save"
-                    :loading="isSaving"
-                    @click="updateRecord"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Save
-                    </template>
-                </q-btn>
-            </q-card-actions>
+            <DialogSubmitActions
+                submit-label="Save"
+                :is-saving="isSaving"
+                @cancel="handleClose"
+                @submit="updateRecord"
+            />
         </q-card>
     </q-dialog>
 </template>
@@ -151,6 +136,7 @@ import { ref, computed, watch } from "vue"
 import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
+import DialogSubmitActions from "./DialogSubmitActions.vue"
 import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
