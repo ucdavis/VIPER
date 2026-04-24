@@ -236,13 +236,4 @@ interface ClinicianRotationSummary {
     }[]
 }
 
-export {
-    ClinicianService,
-    type Clinician,
-    type ClinicianRotationItem,
-    type ScheduleRotation,
-    type ScheduleWeek,
-    type ScheduleBySemester,
-    type ClinicianScheduleData,
-    type ClinicianRotationSummary,
-}
+export { ClinicianService, type Clinician, type ClinicianScheduleData }

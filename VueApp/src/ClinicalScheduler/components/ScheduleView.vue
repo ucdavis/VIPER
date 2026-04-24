@@ -77,7 +77,7 @@ import { computed, ref } from "vue"
 import { useKeyModifier, useEventListener } from "@vueuse/core"
 import WeekCell from "./WeekCell.vue"
 
-export interface WeekItem {
+interface WeekItem {
     weekId: number
     weekNumber: number
     dateStart: string
@@ -102,7 +102,7 @@ export interface ScheduleSemester {
     weeks: (WeekItem & { dateEnd: string })[]
 }
 
-export type ViewMode = "rotation" | "clinician"
+type ViewMode = "rotation" | "clinician"
 
 // Helper callable type to avoid parameter-name linting within Props
 interface WeekFn<T> {

@@ -199,21 +199,12 @@ type ClinicalImportResultDto = {
 }
 
 export type {
-    HarvestPersonPreview,
-    HarvestCoursePreview,
     HarvestRecordPreview,
-    HarvestSummary,
-    HarvestWarning,
-    HarvestError,
     PercentRolloverItemPreview,
     PercentRolloverPreviewDto,
-    RolloverProgressEvent,
-    RolloverResult,
     HarvestPreviewDto,
     HarvestResultDto,
     ClinicalImportMode,
     ClinicalImportPreviewDto,
     ClinicalAssignmentPreview,
-    ClinicalImportProgressEvent,
-    ClinicalImportResultDto,
 }

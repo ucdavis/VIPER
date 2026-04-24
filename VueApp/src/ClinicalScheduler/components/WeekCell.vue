@@ -176,7 +176,7 @@ function isNewlyAdded(assignmentId: number): boolean {
     return newlyAddedAssignments.value.has(assignmentId)
 }
 
-export interface WeekAssignment {
+interface WeekAssignment {
     id: number
     displayName: string
     isPrimary?: boolean
