@@ -1,17 +1,11 @@
-import { createRouter, createWebHistory } from "vue-router"
+import { createSpaRouter } from "@/shared/createSpaRouter"
 import { effortRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
-import { useRouteFocus } from "@/composables/use-route-focus"
 
-const baseUrl = import.meta.env.VITE_VIPER_HOME
-const router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
-    history: createWebHistory(baseUrl),
-    routes,
-})
+const router = createSpaRouter(routes)
 
 // Dedup latch: reuse in-flight fetch so concurrent navigations don't fire multiple requests
 let evalPermissionsPromise: Promise<void> | null = null
@@ -62,7 +56,5 @@ router.beforeEach(async (to, from) => {
         }
     }
 })
-
-useRouteFocus(router)
 
 export { router as effortRouter }
