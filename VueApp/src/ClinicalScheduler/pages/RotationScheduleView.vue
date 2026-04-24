@@ -221,6 +221,7 @@ import ClinicianSelector from "../components/ClinicianSelector.vue"
 import YearSelector from "../components/YearSelector.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import type { WeekItem } from "../components/WeekScheduleCard.vue"
+import "../assets/schedule-shared.css"
 import StatusBanner from "@/components/StatusBanner.vue"
 import RecentSelections from "../components/RecentSelections.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
@@ -1238,9 +1239,6 @@ onMounted(() => initPage())
 </script>
 
 <style scoped>
-/* Import shared schedule styles */
-@import url("../assets/schedule-shared.css");
-
 /* No access section */
 .no-access-container {
     display: flex;

@@ -165,6 +165,7 @@ import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { DeptSummaryReport } from "../types"
+import "../report-tables.css"
 
 const {
     termCode,
@@ -186,9 +187,3 @@ const {
     getEffortTypes: (r) => r.effortTypes,
 })
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
-
-<style scoped></style>

@@ -355,8 +355,6 @@ const cardClasses = computed(() => {
 </script>
 
 <style scoped>
-@import url("@/styles/colors.css");
-
 .week-schedule-card {
     max-width: 280px;
     min-width: 200px;

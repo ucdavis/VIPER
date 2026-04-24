@@ -210,6 +210,7 @@ import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { TeachingActivityReport } from "../types"
+import "../report-tables.css"
 
 const {
     termCode,
@@ -235,10 +236,6 @@ function formatDecimal(value: number): string {
     return parseFloat(value.toString()).toString()
 }
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
 
 <style scoped>
 .report-table .col-units {
