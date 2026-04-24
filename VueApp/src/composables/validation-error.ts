@@ -1,4 +1,4 @@
-export type ValidationErrors = string[] | Record<string, string[]>
+type ValidationErrors = string[] | Record<string, string[]>
 
 export class ValidationError extends Error {
     errors: ValidationErrors = []

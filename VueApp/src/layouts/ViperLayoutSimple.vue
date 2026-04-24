@@ -4,7 +4,7 @@ import { useUserStore } from "@/store/UserStore"
 import ProfilePic from "@/layouts/ProfilePic.vue"
 import SessionTimeout from "@/components/SessionTimeout.vue"
 
-export type BreadCrumb = {
+type BreadCrumb = {
     url: string
     name: string
 }
