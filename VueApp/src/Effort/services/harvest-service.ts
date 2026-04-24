@@ -10,7 +10,7 @@ function getHarvestUrl(termCode: number) {
 /**
  * Progress event from SSE stream.
  */
-export type HarvestProgressEvent = {
+type HarvestProgressEvent = {
     type: "progress" | "complete" | "error"
     phase: string
     progress: number

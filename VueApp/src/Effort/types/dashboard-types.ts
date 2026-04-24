@@ -83,10 +83,4 @@ type RecentChangeDto = {
     changesDetail: Record<string, { oldValue: string | null; newValue: string | null }> | null
 }
 
-export type {
-    DashboardStatsDto,
-    DataHygieneSummaryDto,
-    DepartmentVerificationDto,
-    EffortChangeAlertDto,
-    RecentChangeDto,
-}
+export type { DashboardStatsDto, DepartmentVerificationDto, EffortChangeAlertDto, RecentChangeDto }

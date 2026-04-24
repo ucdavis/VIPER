@@ -114,4 +114,3 @@ function useEffortTypeColumns(effortTypes: Ref<string[]>, options?: EffortColumn
 }
 
 export { useEffortTypeColumns, ALWAYS_SHOW, SPACING_COLUMNS, getEffortTypeLabel, loadEffortTypeLabels }
-export type { EffortColumnOptions }

@@ -77,14 +77,4 @@ type ConflictCheckApiResult = ApiResult<ScheduleConflictResponse>
 // 204 No Content
 type RemoveInstructorApiResult = ApiResult<void>
 
-export {
-    type ErrorResponse,
-    type ApiError,
-    type InstructorScheduleResponse,
-    type AddInstructorResponse,
-    type ScheduleConflictResponse,
-    type SuccessResponse,
-    type AddInstructorApiResult,
-    type ConflictCheckApiResult,
-    type RemoveInstructorApiResult,
-}
+export { type ApiError }

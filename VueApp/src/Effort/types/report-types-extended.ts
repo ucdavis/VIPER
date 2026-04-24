@@ -184,25 +184,10 @@ type SabbaticalDto = {
 }
 
 export type {
-    ClinicalEffortInstructorRow,
-    ClinicalEffortJobGroup,
     ClinicalEffortReport,
-    ScheduledCliWeeksTermRow,
-    ScheduledCliWeeksInstructorRow,
     ScheduledCliWeeksReport,
-    EvalInstructorSummary,
-    EvalDepartmentGroup,
     EvalSummaryReport,
-    EvalCourseDetail,
-    EvalDetailInstructor,
-    EvalDetailDepartmentGroup,
     EvalDetailReport,
-    MultiYearCourseRow,
-    MultiYearMeritYear,
-    MultiYearMeritSection,
-    MultiYearEvalCourse,
-    MultiYearEvalYear,
-    MultiYearEvalSection,
     MultiYearReport,
     SabbaticalDto,
 }

@@ -258,4 +258,4 @@ class PermissionService {
 // Export singleton instance and class
 const permissionService = new PermissionService()
 
-export { permissionService, PermissionService, type PermissionErrorType }
+export { permissionService, PermissionService }

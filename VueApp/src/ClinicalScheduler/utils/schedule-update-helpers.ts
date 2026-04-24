@@ -150,7 +150,7 @@ function updatePrimaryInClinicianSchedule(
 }
 
 // Export all types and functions
-export type { ScheduleAssignmentData, AddScheduleParams, TogglePrimaryParams, ScheduleData, UpdateRotationParams }
+export type { ScheduleAssignmentData, AddScheduleParams, TogglePrimaryParams, ScheduleData }
 
 export {
     isRotationSchedule,
