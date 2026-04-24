@@ -194,3 +194,4 @@ type PercentageFormState = {
 }
 
 export { usePercentageForm }
+export type { PercentageFormState, TypeOption }
