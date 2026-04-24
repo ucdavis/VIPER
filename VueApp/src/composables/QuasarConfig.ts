@@ -63,4 +63,4 @@ function initializeQuasar(app: App) {
     }
 }
 
-export { useQuasarConfig, initializeQuasar }
+export { initializeQuasar }
