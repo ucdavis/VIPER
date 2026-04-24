@@ -106,14 +106,4 @@ function useScheduleNormalization() {
     }
 }
 
-// Export all functions together
-export {
-    normalizeWeek,
-    normalizeSemesterWeeks,
-    normalizeScheduleSemesters,
-    filterExcludedRotations,
-    getAssignedRotationNames,
-    normalizeClinicianSchedule,
-    normalizeRotationSchedule,
-    useScheduleNormalization,
-}
+export { normalizeWeek, normalizeScheduleSemesters, useScheduleNormalization }
