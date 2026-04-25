@@ -1,43 +1,15 @@
 <template>
-    <div class="q-pa-md">
-        <!-- Breadcrumb -->
-        <q-breadcrumbs class="q-mb-md">
-            <q-breadcrumbs-el
-                label="Instructors"
-                :to="{ name: 'InstructorList', params: { termCode } }"
-            />
+    <InstructorPageShell
+        :term-code="termCodeNum"
+        :is-loading="isLoading"
+        :load-error="loadError ?? undefined"
+    >
+        <template #breadcrumbs>
             <q-breadcrumbs-el :label="instructor?.fullName ?? 'Instructor'" />
-        </q-breadcrumbs>
-
-        <!-- Loading state -->
-        <div
-            v-if="isLoading"
-            class="text-center q-my-lg"
-        >
-            <q-spinner-dots
-                size="3rem"
-                color="primary"
-            />
-            <div class="q-mt-md text-body1">Loading instructor...</div>
-        </div>
-
-        <!-- Error state -->
-        <StatusBanner
-            v-else-if="loadError"
-            type="error"
-        >
-            {{ loadError }}
-            <template #action>
-                <q-btn
-                    flat
-                    label="Go Back"
-                    :to="{ name: 'InstructorList', params: { termCode } }"
-                />
-            </template>
-        </StatusBanner>
+        </template>
 
         <!-- Instructor content -->
-        <template v-else-if="instructor">
+        <template v-if="instructor">
             <!-- Instructor Header -->
             <div class="q-mb-md">
                 <h2 class="q-my-none q-mb-sm">
@@ -95,35 +67,35 @@
                 :show-parent-course="true"
             />
         </template>
+    </InstructorPageShell>
 
-        <!-- Add Effort Dialog -->
-        <EffortRecordAddDialog
-            v-model="showAddDialog"
-            :person-id="personId"
-            :term-code="termCodeNum"
-            :is-verified="instructor?.isVerified"
-            :pre-selected-course-id="preSelectedCourseId"
-            :existing-records="effortRecords"
-            @created="onRecordCreated"
-        />
+    <!-- Add Effort Dialog -->
+    <EffortRecordAddDialog
+        v-model="showAddDialog"
+        :person-id="personId"
+        :term-code="termCodeNum"
+        :is-verified="instructor?.isVerified"
+        :pre-selected-course-id="preSelectedCourseId"
+        :existing-records="effortRecords"
+        @created="onRecordCreated"
+    />
 
-        <!-- Edit Effort Dialog -->
-        <EffortRecordEditDialog
-            v-model="showEditDialog"
-            :record="selectedRecord"
-            :term-code="termCodeNum"
-            :is-verified="instructor?.isVerified"
-            @updated="onRecordUpdated"
-        />
+    <!-- Edit Effort Dialog -->
+    <EffortRecordEditDialog
+        v-model="showEditDialog"
+        :record="selectedRecord"
+        :term-code="termCodeNum"
+        :is-verified="instructor?.isVerified"
+        @updated="onRecordUpdated"
+    />
 
-        <!-- Course Import Dialog -->
-        <CourseImportDialog
-            v-model="showImportDialog"
-            :term-code="termCodeNum"
-            :term-name="currentTermName"
-            @imported="onCourseImportedWithNotify"
-        />
-    </div>
+    <!-- Course Import Dialog -->
+    <CourseImportDialog
+        v-model="showImportDialog"
+        :term-code="termCodeNum"
+        :term-name="currentTermName"
+        @imported="onCourseImportedWithNotify"
+    />
 </template>
 
 <script setup lang="ts">
@@ -136,7 +108,7 @@ import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import { useEffortRecordManagement, formatEffortDate } from "../composables/use-effort-record-management"
 import type { PersonDto, TermDto, InstructorEffortRecordDto } from "../types"
-import StatusBanner from "@/components/StatusBanner.vue"
+import InstructorPageShell from "../components/InstructorPageShell.vue"
 import EffortRecordAddDialog from "../components/EffortRecordAddDialog.vue"
 import EffortRecordEditDialog from "../components/EffortRecordEditDialog.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"

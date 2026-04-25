@@ -1,595 +1,522 @@
 <template>
-    <q-dialog
+    <AsyncOperationDialog
         :model-value="modelValue"
-        persistent
-        maximized-on-mobile
-        @keydown.escape="handleClose"
+        :title="`Harvest Term: ${props.termName}`"
+        subtitle="Import instructors and courses from CREST and Clinical Scheduler"
+        :is-loading="isLoading"
+        :is-committing="isCommitting"
+        :load-error="loadError"
+        :progress="harvestProgress"
+        progress-title="Processing Harvest"
+        :progress-phase="harvestPhase"
+        :progress-detail="harvestDetail"
+        @retry="loadPreview"
+        @close="handleClose"
     >
-        <q-card style="width: 100%; max-width: 1000px; position: relative">
-            <q-btn
-                icon="close"
-                flat
-                round
-                dense
-                class="absolute-top-right q-ma-sm"
-                style="z-index: 1"
-                aria-label="Close dialog"
-                @click="handleClose"
-            />
-            <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Harvest Term: {{ props.termName }}</div>
-                <div class="text-caption text-grey-7">
-                    Import instructors and courses from CREST and Clinical Scheduler
-                </div>
-            </q-card-section>
-
-            <!-- Loading State (Preview) -->
-            <q-card-section
-                v-if="isLoading"
-                class="text-center q-py-xl"
-            >
-                <q-spinner-dots
-                    size="50px"
-                    color="primary"
-                />
-                <div class="q-mt-md text-grey-7">Generating preview...</div>
-            </q-card-section>
-
-            <!-- Committing State (Progress) -->
-            <q-card-section
-                v-else-if="isCommitting"
-                class="q-py-xl"
-            >
-                <div class="text-h6 q-mb-md text-center">Processing Harvest</div>
-                <q-linear-progress
-                    :value="harvestProgress"
-                    size="25px"
-                    color="primary"
-                    class="q-mb-md"
-                >
-                    <div class="absolute-full flex flex-center">
-                        <q-badge
-                            color="white"
-                            text-color="primary"
-                            :label="`${Math.round(harvestProgress * 100)}%`"
-                        />
+        <template v-if="preview">
+            <q-card-section class="q-pt-sm">
+                <!-- Summary Banner -->
+                <StatusBanner type="info">
+                    <div class="row q-col-gutter-md">
+                        <div class="col-6 col-sm-4 text-center">
+                            <div class="text-h5">{{ preview.summary.totalInstructors }}</div>
+                            <div class="text-caption">Instructors</div>
+                        </div>
+                        <div class="col-6 col-sm-4 text-center">
+                            <div class="text-h5">{{ preview.summary.totalCourses }}</div>
+                            <div class="text-caption">Courses</div>
+                        </div>
+                        <div class="col-6 col-sm-4 text-center">
+                            <div class="text-h5">{{ preview.summary.totalEffortRecords }}</div>
+                            <div class="text-caption">Effort Records</div>
+                        </div>
                     </div>
-                </q-linear-progress>
-                <div class="text-center text-grey-7">{{ harvestPhase }}</div>
-                <div
-                    v-if="harvestDetail"
-                    class="text-center text-caption text-grey-6 q-mt-xs"
+                </StatusBanner>
+
+                <!-- Warnings -->
+                <StatusBanner
+                    v-if="preview.warnings.length > 0"
+                    type="warning"
                 >
-                    {{ harvestDetail }}
-                </div>
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium">
+                            {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
+                        </span>
+                    </div>
+                    <ul class="q-mb-none q-pl-lg">
+                        <li
+                            v-for="(warning, idx) in preview.warnings.slice(0, 5)"
+                            :key="idx"
+                        >
+                            <span v-if="warning.phase">{{ warning.phase }}: </span>{{ warning.message }}
+                            <div
+                                v-if="warning.details"
+                                class="text-caption text-grey-7"
+                            >
+                                {{ warning.details }}
+                            </div>
+                        </li>
+                    </ul>
+                    <div
+                        v-if="preview.warnings.length > 5"
+                        class="text-caption text-grey-7"
+                    >
+                        ...and {{ preview.warnings.length - 5 }} more
+                    </div>
+                </StatusBanner>
+
+                <!-- Errors -->
+                <StatusBanner
+                    v-if="preview.errors.length > 0"
+                    type="error"
+                >
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium text-negative">
+                            {{ preview.errors.length }} {{ inflect("Error", preview.errors.length) }} - Harvest may fail
+                        </span>
+                    </div>
+                    <ul class="q-mb-none q-pl-lg">
+                        <li
+                            v-for="(error, idx) in preview.errors"
+                            :key="idx"
+                        >
+                            {{ error.phase }}: {{ error.message }}
+                        </li>
+                    </ul>
+                </StatusBanner>
+
+                <!-- Removed Items Warning -->
+                <StatusBanner
+                    v-if="hasRemovedItems"
+                    type="warning"
+                    icon="person_remove"
+                >
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium">Items that will be removed</span>
+                    </div>
+                    <div class="text-caption text-grey-7">
+                        The following items exist in the current term but are not in the harvest sources and will be
+                        deleted:
+                    </div>
+                    <div
+                        v-if="preview.removedInstructors.length > 0"
+                        class="q-mt-xs"
+                    >
+                        <strong>{{ preview.removedInstructors.length }}</strong>
+                        {{ inflect("instructor", preview.removedInstructors.length) }}
+                        <span class="text-caption text-grey-7">
+                            ({{
+                                preview.removedInstructors
+                                    .slice(0, 5)
+                                    .map((i) => i.fullName)
+                                    .join(" / ")
+                            }}{{ preview.removedInstructors.length > 5 ? " / ..." : "" }})
+                        </span>
+                    </div>
+                    <div
+                        v-if="preview.removedCourses.length > 0"
+                        class="q-mt-xs"
+                    >
+                        <strong>{{ preview.removedCourses.length }}</strong>
+                        {{ inflect("course", preview.removedCourses.length) }}
+                        <span class="text-caption text-grey-7">
+                            ({{
+                                preview.removedCourses
+                                    .slice(0, 3)
+                                    .map((c) => `${c.subjCode.trim()} ${c.crseNumb.trim()}`)
+                                    .join(", ")
+                            }}{{ preview.removedCourses.length > 3 ? "..." : "" }})
+                        </span>
+                    </div>
+                </StatusBanner>
+
+                <!-- Tabs -->
+                <q-tabs
+                    v-model="activeTab"
+                    dense
+                    align="left"
+                    class="text-grey-8 tabs-no-fade"
+                    active-color="primary"
+                    indicator-color="primary"
+                    narrow-indicator
+                >
+                    <q-tab
+                        name="crest"
+                        label="CREST"
+                    />
+                    <q-tab
+                        name="noncrest"
+                        label="Non-CREST"
+                    />
+                    <q-tab
+                        name="clinical"
+                        label="Clinical"
+                    />
+                </q-tabs>
+
+                <q-separator />
+
+                <q-tab-panels
+                    v-model="activeTab"
+                    animated
+                    keep-alive
+                >
+                    <!-- CREST Tab -->
+                    <q-tab-panel
+                        name="crest"
+                        class="q-pa-none q-pt-md"
+                    >
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Instructors ({{ preview.crestInstructors.length }})</div>
+                            <q-input
+                                v-model="crestInstructorFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.crestInstructors"
+                            :columns="instructorColumns"
+                            row-key="personId"
+                            :filter="crestInstructorFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="crestInstructorPagination"
+                            class="q-mb-md"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Courses ({{ preview.crestCourses.length }})</div>
+                            <q-input
+                                v-model="crestCourseFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.crestCourses"
+                            :columns="courseColumns"
+                            row-key="crn"
+                            :filter="crestCourseFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="crestCoursePagination"
+                            class="q-mb-md"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Effort Records ({{ preview.crestEffort.length }})</div>
+                            <q-input
+                                v-model="crestEffortFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.crestEffort"
+                            :columns="effortColumns"
+                            :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
+                            :filter="crestEffortFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="crestEffortPagination"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+                    </q-tab-panel>
+
+                    <!-- Non-CREST Tab -->
+                    <q-tab-panel
+                        name="noncrest"
+                        class="q-pa-none q-pt-md"
+                    >
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Instructors ({{ preview.nonCrestInstructors.length }})</div>
+                            <q-input
+                                v-model="nonCrestInstructorFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.nonCrestInstructors"
+                            :columns="instructorColumns"
+                            row-key="personId"
+                            :filter="nonCrestInstructorFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="nonCrestInstructorPagination"
+                            class="q-mb-md"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Courses ({{ preview.nonCrestCourses.length }})</div>
+                            <q-input
+                                v-model="nonCrestCourseFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.nonCrestCourses"
+                            :columns="courseColumns"
+                            row-key="crn"
+                            :filter="nonCrestCourseFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="nonCrestCoursePagination"
+                            class="q-mb-md"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Effort Records ({{ preview.nonCrestEffort.length }})</div>
+                            <q-input
+                                v-model="nonCrestEffortFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.nonCrestEffort"
+                            :columns="effortColumns"
+                            :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
+                            :filter="nonCrestEffortFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="nonCrestEffortPagination"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+                    </q-tab-panel>
+
+                    <!-- Clinical Tab -->
+                    <q-tab-panel
+                        name="clinical"
+                        class="q-pa-none q-pt-md"
+                    >
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Instructors ({{ preview.clinicalInstructors.length }})</div>
+                            <q-input
+                                v-model="clinicalInstructorFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.clinicalInstructors"
+                            :columns="instructorColumns"
+                            row-key="mothraId"
+                            :filter="clinicalInstructorFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="clinicalInstructorPagination"
+                            class="q-mb-md"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+
+                        <div class="row items-center justify-between q-mb-sm">
+                            <div class="text-subtitle2">Courses ({{ preview.clinicalCourses.length }})</div>
+                            <q-input
+                                v-model="clinicalCourseFilter"
+                                placeholder="Search..."
+                                dense
+                                outlined
+                                clearable
+                                class="compact-search"
+                            >
+                                <template #prepend>
+                                    <q-icon
+                                        name="search"
+                                        size="xs"
+                                    />
+                                </template>
+                            </q-input>
+                        </div>
+                        <q-table
+                            :rows="preview.clinicalCourses"
+                            :columns="courseColumns"
+                            :row-key="(row) => `${row.subjCode}-${row.crseNumb}-${row.seqNumb}`"
+                            :filter="clinicalCourseFilter"
+                            dense
+                            flat
+                            bordered
+                            v-model:pagination="clinicalCoursePagination"
+                            class="q-mb-md"
+                        >
+                            <template #body-cell-status="slotProps">
+                                <q-td :props="slotProps">
+                                    <q-badge
+                                        :color="getStatusColor(slotProps.value)"
+                                        :label="slotProps.value"
+                                    />
+                                </q-td>
+                            </template>
+                        </q-table>
+
+                        <ClinicalEffortPreviewTable
+                            :rows="preview.clinicalEffort"
+                            title="Effort Records"
+                            show-status
+                            :pagination="{ rowsPerPage: 5 }"
+                        />
+                    </q-tab-panel>
+                </q-tab-panels>
             </q-card-section>
 
-            <!-- Error State -->
-            <q-card-section
-                v-else-if="loadError"
-                class="text-center q-py-xl"
+            <!-- Actions -->
+            <q-card-actions
+                align="right"
+                class="q-px-md q-pb-md"
             >
-                <q-icon
-                    name="error"
-                    color="negative"
-                    size="48px"
-                />
-                <div class="q-mt-md text-negative">{{ loadError }}</div>
                 <q-btn
-                    label="Retry"
-                    color="primary"
-                    class="q-mt-md"
-                    @click="loadPreview"
+                    label="Cancel"
+                    flat
+                    @click="handleClose"
                 />
-            </q-card-section>
-
-            <!-- Preview Content -->
-            <template v-else-if="preview">
-                <q-card-section class="q-pt-sm">
-                    <!-- Summary Banner -->
-                    <StatusBanner type="info">
-                        <div class="row q-col-gutter-md">
-                            <div class="col-6 col-sm-4 text-center">
-                                <div class="text-h5">{{ preview.summary.totalInstructors }}</div>
-                                <div class="text-caption">Instructors</div>
-                            </div>
-                            <div class="col-6 col-sm-4 text-center">
-                                <div class="text-h5">{{ preview.summary.totalCourses }}</div>
-                                <div class="text-caption">Courses</div>
-                            </div>
-                            <div class="col-6 col-sm-4 text-center">
-                                <div class="text-h5">{{ preview.summary.totalEffortRecords }}</div>
-                                <div class="text-caption">Effort Records</div>
-                            </div>
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Warnings -->
-                    <StatusBanner
-                        v-if="preview.warnings.length > 0"
-                        type="warning"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium">
-                                {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
-                            </span>
-                        </div>
-                        <ul class="q-mb-none q-pl-lg">
-                            <li
-                                v-for="(warning, idx) in preview.warnings.slice(0, 5)"
-                                :key="idx"
-                            >
-                                <span v-if="warning.phase">{{ warning.phase }}: </span>{{ warning.message }}
-                                <div
-                                    v-if="warning.details"
-                                    class="text-caption text-grey-7"
-                                >
-                                    {{ warning.details }}
-                                </div>
-                            </li>
-                        </ul>
-                        <div
-                            v-if="preview.warnings.length > 5"
-                            class="text-caption text-grey-7"
-                        >
-                            ...and {{ preview.warnings.length - 5 }} more
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Errors -->
-                    <StatusBanner
-                        v-if="preview.errors.length > 0"
-                        type="error"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium text-negative">
-                                {{ preview.errors.length }} {{ inflect("Error", preview.errors.length) }} - Harvest may
-                                fail
-                            </span>
-                        </div>
-                        <ul class="q-mb-none q-pl-lg">
-                            <li
-                                v-for="(error, idx) in preview.errors"
-                                :key="idx"
-                            >
-                                {{ error.phase }}: {{ error.message }}
-                            </li>
-                        </ul>
-                    </StatusBanner>
-
-                    <!-- Removed Items Warning -->
-                    <StatusBanner
-                        v-if="hasRemovedItems"
-                        type="warning"
-                        icon="person_remove"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium">Items that will be removed</span>
-                        </div>
-                        <div class="text-caption text-grey-7">
-                            The following items exist in the current term but are not in the harvest sources and will be
-                            deleted:
-                        </div>
-                        <div
-                            v-if="preview.removedInstructors.length > 0"
-                            class="q-mt-xs"
-                        >
-                            <strong>{{ preview.removedInstructors.length }}</strong>
-                            {{ inflect("instructor", preview.removedInstructors.length) }}
-                            <span class="text-caption text-grey-7">
-                                ({{
-                                    preview.removedInstructors
-                                        .slice(0, 5)
-                                        .map((i) => i.fullName)
-                                        .join(" / ")
-                                }}{{ preview.removedInstructors.length > 5 ? " / ..." : "" }})
-                            </span>
-                        </div>
-                        <div
-                            v-if="preview.removedCourses.length > 0"
-                            class="q-mt-xs"
-                        >
-                            <strong>{{ preview.removedCourses.length }}</strong>
-                            {{ inflect("course", preview.removedCourses.length) }}
-                            <span class="text-caption text-grey-7">
-                                ({{
-                                    preview.removedCourses
-                                        .slice(0, 3)
-                                        .map((c) => `${c.subjCode.trim()} ${c.crseNumb.trim()}`)
-                                        .join(", ")
-                                }}{{ preview.removedCourses.length > 3 ? "..." : "" }})
-                            </span>
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Tabs -->
-                    <q-tabs
-                        v-model="activeTab"
-                        dense
-                        align="left"
-                        class="text-grey-8 tabs-no-fade"
-                        active-color="primary"
-                        indicator-color="primary"
-                        narrow-indicator
-                    >
-                        <q-tab
-                            name="crest"
-                            label="CREST"
-                        />
-                        <q-tab
-                            name="noncrest"
-                            label="Non-CREST"
-                        />
-                        <q-tab
-                            name="clinical"
-                            label="Clinical"
-                        />
-                    </q-tabs>
-
-                    <q-separator />
-
-                    <q-tab-panels
-                        v-model="activeTab"
-                        animated
-                        keep-alive
-                    >
-                        <!-- CREST Tab -->
-                        <q-tab-panel
-                            name="crest"
-                            class="q-pa-none q-pt-md"
-                        >
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Instructors ({{ preview.crestInstructors.length }})</div>
-                                <q-input
-                                    v-model="crestInstructorFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.crestInstructors"
-                                :columns="instructorColumns"
-                                row-key="personId"
-                                :filter="crestInstructorFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="crestInstructorPagination"
-                                class="q-mb-md"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Courses ({{ preview.crestCourses.length }})</div>
-                                <q-input
-                                    v-model="crestCourseFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.crestCourses"
-                                :columns="courseColumns"
-                                row-key="crn"
-                                :filter="crestCourseFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="crestCoursePagination"
-                                class="q-mb-md"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Effort Records ({{ preview.crestEffort.length }})</div>
-                                <q-input
-                                    v-model="crestEffortFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.crestEffort"
-                                :columns="effortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
-                                :filter="crestEffortFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="crestEffortPagination"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-                        </q-tab-panel>
-
-                        <!-- Non-CREST Tab -->
-                        <q-tab-panel
-                            name="noncrest"
-                            class="q-pa-none q-pt-md"
-                        >
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Instructors ({{ preview.nonCrestInstructors.length }})</div>
-                                <q-input
-                                    v-model="nonCrestInstructorFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.nonCrestInstructors"
-                                :columns="instructorColumns"
-                                row-key="personId"
-                                :filter="nonCrestInstructorFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="nonCrestInstructorPagination"
-                                class="q-mb-md"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Courses ({{ preview.nonCrestCourses.length }})</div>
-                                <q-input
-                                    v-model="nonCrestCourseFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.nonCrestCourses"
-                                :columns="courseColumns"
-                                row-key="crn"
-                                :filter="nonCrestCourseFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="nonCrestCoursePagination"
-                                class="q-mb-md"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Effort Records ({{ preview.nonCrestEffort.length }})</div>
-                                <q-input
-                                    v-model="nonCrestEffortFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.nonCrestEffort"
-                                :columns="effortColumns"
-                                :row-key="(row) => `${row.mothraId}-${row.crn}-${row.effortType}`"
-                                :filter="nonCrestEffortFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="nonCrestEffortPagination"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-                        </q-tab-panel>
-
-                        <!-- Clinical Tab -->
-                        <q-tab-panel
-                            name="clinical"
-                            class="q-pa-none q-pt-md"
-                        >
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Instructors ({{ preview.clinicalInstructors.length }})</div>
-                                <q-input
-                                    v-model="clinicalInstructorFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.clinicalInstructors"
-                                :columns="instructorColumns"
-                                row-key="mothraId"
-                                :filter="clinicalInstructorFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="clinicalInstructorPagination"
-                                class="q-mb-md"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-
-                            <div class="row items-center justify-between q-mb-sm">
-                                <div class="text-subtitle2">Courses ({{ preview.clinicalCourses.length }})</div>
-                                <q-input
-                                    v-model="clinicalCourseFilter"
-                                    placeholder="Search..."
-                                    dense
-                                    outlined
-                                    clearable
-                                    class="compact-search"
-                                >
-                                    <template #prepend>
-                                        <q-icon
-                                            name="search"
-                                            size="xs"
-                                        />
-                                    </template>
-                                </q-input>
-                            </div>
-                            <q-table
-                                :rows="preview.clinicalCourses"
-                                :columns="courseColumns"
-                                :row-key="(row) => `${row.subjCode}-${row.crseNumb}-${row.seqNumb}`"
-                                :filter="clinicalCourseFilter"
-                                dense
-                                flat
-                                bordered
-                                v-model:pagination="clinicalCoursePagination"
-                                class="q-mb-md"
-                            >
-                                <template #body-cell-status="slotProps">
-                                    <q-td :props="slotProps">
-                                        <q-badge
-                                            :color="getStatusColor(slotProps.value)"
-                                            :label="slotProps.value"
-                                        />
-                                    </q-td>
-                                </template>
-                            </q-table>
-
-                            <ClinicalEffortPreviewTable
-                                :rows="preview.clinicalEffort"
-                                title="Effort Records"
-                                show-status
-                                :pagination="{ rowsPerPage: 5 }"
-                            />
-                        </q-tab-panel>
-                    </q-tab-panels>
-                </q-card-section>
-
-                <!-- Actions -->
-                <q-card-actions
-                    align="right"
-                    class="q-px-md q-pb-md"
-                >
-                    <q-btn
-                        label="Cancel"
-                        flat
-                        @click="handleClose"
-                    />
-                    <q-btn
-                        label="Confirm Harvest"
-                        color="primary"
-                        :disable="preview.errors.length > 0 || isCommitting"
-                        @click="confirmHarvest"
-                    />
-                </q-card-actions>
-            </template>
-        </q-card>
-    </q-dialog>
+                <q-btn
+                    label="Confirm Harvest"
+                    color="primary"
+                    :disable="preview.errors.length > 0 || isCommitting"
+                    @click="confirmHarvest"
+                />
+            </q-card-actions>
+        </template>
+    </AsyncOperationDialog>
 </template>
 
 <script setup lang="ts">
@@ -599,6 +526,7 @@ import { harvestService } from "../services/harvest-service"
 import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import AsyncOperationDialog from "./AsyncOperationDialog.vue"
 import { inflect } from "inflection"
 import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
 

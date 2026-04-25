@@ -24,163 +24,15 @@
                     class="effort-form"
                     greedy
                 >
-                    <!-- Type Selection (grouped by class) -->
-                    <q-select
-                        v-model="form.percentAssignTypeId"
-                        :options="groupedTypeOptions"
-                        label="Type *"
-                        dense
-                        options-dense
-                        outlined
-                        emit-value
-                        map-options
-                        :rules="[requiredRule('Type')]"
-                        lazy-rules="ondemand"
-                    >
-                        <template #option="scope">
-                            <q-item-label
-                                v-if="scope.opt.isHeader"
-                                header
-                                class="text-weight-bold text-primary q-py-xs"
-                            >
-                                {{ scope.opt.label }}
-                            </q-item-label>
-                            <q-item
-                                v-else
-                                v-bind="scope.itemProps"
-                            >
-                                <q-item-section>
-                                    <q-item-label>{{ scope.opt.label }}</q-item-label>
-                                </q-item-section>
-                            </q-item>
-                        </template>
-                    </q-select>
-
-                    <!-- Modifier Selection -->
-                    <q-select
-                        v-model="form.modifier"
-                        :options="modifierOptions"
-                        label="Modifier"
-                        dense
-                        options-dense
-                        outlined
-                        emit-value
-                        map-options
-                        clearable
-                    />
-
-                    <!-- Unit Selection -->
-                    <q-select
-                        v-model="form.unitId"
-                        :options="unitOptions"
-                        label="Unit *"
-                        dense
-                        options-dense
-                        outlined
-                        emit-value
-                        map-options
-                        clearable
-                        :rules="[requiredRule('Unit')]"
-                        lazy-rules="ondemand"
-                    />
-
-                    <!-- Start Date (Month/Year) -->
-                    <div class="row q-col-gutter-sm">
-                        <div class="col">
-                            <q-select
-                                v-model="form.startMonth"
-                                :options="monthOptions"
-                                label="Start Month *"
-                                dense
-                                options-dense
-                                outlined
-                                emit-value
-                                map-options
-                                :rules="[requiredRule('Start month')]"
-                                lazy-rules="ondemand"
-                            />
-                        </div>
-                        <div class="col">
-                            <q-select
-                                v-model="form.startYear"
-                                :options="yearOptions"
-                                label="Start Year *"
-                                dense
-                                options-dense
-                                outlined
-                                emit-value
-                                map-options
-                                :rules="[requiredRule('Start year')]"
-                                lazy-rules="ondemand"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- End Date (Month/Year) - Optional -->
-                    <div class="row q-col-gutter-sm">
-                        <div class="col">
-                            <q-select
-                                v-model="form.endMonth"
-                                :options="monthOptions"
-                                label="End Month"
-                                dense
-                                options-dense
-                                outlined
-                                emit-value
-                                map-options
-                                clearable
-                                :rules="endMonthRules"
-                                lazy-rules="ondemand"
-                            />
-                        </div>
-                        <div class="col">
-                            <q-select
-                                v-model="form.endYear"
-                                :options="yearOptions"
-                                label="End Year"
-                                dense
-                                options-dense
-                                outlined
-                                emit-value
-                                map-options
-                                clearable
-                                :rules="endYearRules"
-                                lazy-rules="ondemand"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Percent Input -->
-                    <q-input
-                        v-model.number="form.percentageValue"
-                        label="Percent *"
-                        type="number"
-                        dense
-                        outlined
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        :rules="[percentRule]"
-                        lazy-rules="ondemand"
-                    />
-
-                    <!-- Comment Input -->
-                    <q-input
-                        v-model="form.comment"
-                        label="Comment"
-                        type="textarea"
-                        dense
-                        outlined
-                        maxlength="100"
-                        counter
-                        autogrow
-                    />
-
-                    <!-- Compensated Checkbox -->
-                    <q-checkbox
-                        v-model="form.compensated"
-                        label="Compensated"
-                        dense
+                    <PercentAssignmentFormFields
+                        v-model="form"
+                        :grouped-type-options="groupedTypeOptions"
+                        :modifier-options="modifierOptions"
+                        :unit-options="unitOptions"
+                        :month-options="monthOptions"
+                        :year-options="yearOptions"
+                        :end-month-rules="endMonthRules"
+                        :end-year-rules="endYearRules"
                     />
 
                     <!-- Warning Banner -->
@@ -209,27 +61,12 @@
                 </q-form>
             </q-card-section>
 
-            <q-card-actions align="right">
-                <q-btn
-                    flat
-                    label="Cancel"
-                    @click="handleClose"
-                />
-                <q-btn
-                    color="primary"
-                    label="Add"
-                    :loading="isSaving"
-                    @click="createPercentage"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Add
-                    </template>
-                </q-btn>
-            </q-card-actions>
+            <DialogSubmitActions
+                submit-label="Add"
+                :is-saving="isSaving"
+                @cancel="handleClose"
+                @submit="createPercentage"
+            />
         </q-card>
     </q-dialog>
 </template>
@@ -239,9 +76,10 @@ import { ref, computed, watch } from "vue"
 import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
+import DialogSubmitActions from "./DialogSubmitActions.vue"
+import PercentAssignmentFormFields from "./PercentAssignmentFormFields.vue"
 import { percentageService } from "../services/percentage-service"
 import { usePercentageForm } from "../composables/use-percentage-form"
-import { requiredRule, percentRule } from "../validation"
 import "../effort-forms.css"
 import type { PercentageDto, PercentAssignTypeDto, UnitDto, CreatePercentageRequest } from "../types"
 

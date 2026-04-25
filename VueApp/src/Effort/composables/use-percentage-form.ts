@@ -193,5 +193,5 @@ type PercentageFormState = {
     compensated: boolean
 }
 
-export { usePercentageForm, formatToIsoDate, parseDateToMonthYear }
-export type { TypeOption, PercentageFormState }
+export { usePercentageForm }
+export type { PercentageFormState, TypeOption }
