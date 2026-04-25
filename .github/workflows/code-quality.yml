@@ -28,10 +28,18 @@ jobs:
       - name: Install dependencies (root)
         run: npm ci
 
+      - name: Install dependencies (VueApp)
+        # fallow resolves the tsconfig chain (incl. @tsconfig/node24) and needs
+        # VueApp's node_modules to produce accurate counts. Without this step,
+        # CI reports inflated unresolved-imports / unused-types numbers.
+        run: npm ci --prefix VueApp
+
       - name: Baseline fallow on main
+        # `fallow dead-code` exits 1 when issues exist, even with
+        # --save-regression-baseline. Suppress here — the next step is the gate.
         run: |
           git checkout origin/${{ github.base_ref }} -- VueApp
-          npx fallow dead-code --root VueApp --save-regression-baseline .fallow-baseline.json
+          npx fallow dead-code --root VueApp --save-regression-baseline .fallow-baseline.json || true
           git checkout HEAD -- VueApp
 
       - name: Check fallow regression on PR
