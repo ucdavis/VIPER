@@ -12,16 +12,14 @@ namespace Viper.Areas.Effort.Services;
 
 public class MeritReportService : BaseReportService, IMeritReportService
 {
-    private readonly ITermService _termService;
     private readonly ILogger<MeritReportService> _logger;
 
     public MeritReportService(
         EffortDbContext context,
         ITermService termService,
         ILogger<MeritReportService> logger)
-        : base(context)
+        : base(context, termService)
     {
-        _termService = termService;
         _logger = logger;
     }
 
