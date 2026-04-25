@@ -31,11 +31,11 @@ jobs:
       - name: Baseline fallow on main
         run: |
           git checkout origin/${{ github.base_ref }} -- VueApp
-          npx fallow audit --root VueApp --save-regression-baseline .fallow-baseline.json
+          npx fallow dead-code --root VueApp --save-regression-baseline .fallow-baseline.json
           git checkout HEAD -- VueApp
 
       - name: Check fallow regression on PR
-        run: npx fallow audit --root VueApp --fail-on-regression --regression-baseline .fallow-baseline.json --format compact
+        run: npx fallow dead-code --root VueApp --fail-on-regression --regression-baseline .fallow-baseline.json --format compact
 
   jscpd-regression-csharp:
     name: JSCPD regression (C#)
