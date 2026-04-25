@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ref } from "vue"
+
 const student = ref("")
+
+// Mock data for prototype; real implementation will replace with API data.
+const loggedInStudents = [
+    { id: 23631, name: "Montserrat Armero", time: "10/16/24 2:29:01 PM" },
+    { id: 34123, name: "Hailey Atwood", time: "10/16/24 2:29:01 PM" },
+    { id: 34158, name: "Xander Avila", time: "10/16/24 2:29:01 PM" },
+]
 </script>
 <template>
     <h1>Students for VET430 Lab 1 Challenging Communication - Simulated Lab with Actors and Video</h1>
@@ -9,12 +17,12 @@ const student = ref("")
     <div class="row q-mb-md">
         <div class="col-12 col-md-6 col-lg-4">
             <q-select
+                v-model="student"
                 dense
                 options-dense
                 outlined
                 label="Student"
                 :options="['Student 1', 'Student 2']"
-                v-model="student"
             ></q-select>
         </div>
     </div>
@@ -37,7 +45,10 @@ const student = ref("")
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
+                    <tr
+                        v-for="row in loggedInStudents"
+                        :key="row.id"
+                    >
                         <td class="text-center">
                             <q-btn
                                 dense
@@ -45,12 +56,12 @@ const student = ref("")
                                 icon="assignment"
                                 size="sm"
                                 color="primary"
-                                aria-label="Assess competency for Montserrat Armero"
-                                to="AssessmentCompetency?studentId=23631&sessionId="
+                                :aria-label="`Assess competency for ${row.name}`"
+                                :to="`AssessmentCompetency?studentId=${row.id}&sessionId=`"
                             ></q-btn>
                         </td>
-                        <td>Montserrat Armero</td>
-                        <td>10/16/24 2:29:01 PM</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.time }}</td>
                         <td class="text-center">
                             <q-icon
                                 name="check"
@@ -66,73 +77,7 @@ const student = ref("")
                                 color="negative"
                                 flat
                                 size="sm"
-                                aria-label="Remove Montserrat Armero"
-                            ></q-btn>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="text-center">
-                            <q-btn
-                                dense
-                                flat
-                                icon="assignment"
-                                size="sm"
-                                color="primary"
-                                aria-label="Assess competency for Hailey Atwood"
-                                to="AssessmentCompetency?studentId=34123&sessionId="
-                            ></q-btn>
-                        </td>
-                        <td>Hailey Atwood</td>
-                        <td>10/16/24 2:29:01 PM</td>
-                        <td class="text-center">
-                            <q-icon
-                                name="check"
-                                color="primary"
-                                size="sm"
-                                aria-label="Manually added"
-                            ></q-icon>
-                        </td>
-                        <td class="text-center">
-                            <q-btn
-                                dense
-                                icon="delete"
-                                color="negative"
-                                flat
-                                size="sm"
-                                aria-label="Remove Hailey Atwood"
-                            ></q-btn>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="text-center">
-                            <q-btn
-                                dense
-                                flat
-                                icon="assignment"
-                                size="sm"
-                                color="primary"
-                                aria-label="Assess competency for Xander Avila"
-                                to="AssessmentCompetency?studentId=34158&sessionId="
-                            ></q-btn>
-                        </td>
-                        <td>Xander Avila</td>
-                        <td>10/16/24 2:29:01 PM</td>
-                        <td class="text-center">
-                            <q-icon
-                                name="check"
-                                color="primary"
-                                size="sm"
-                                aria-label="Manually added"
-                            ></q-icon>
-                        </td>
-                        <td class="text-center">
-                            <q-btn
-                                dense
-                                icon="delete"
-                                color="negative"
-                                flat
-                                size="sm"
-                                aria-label="Remove Xander Avila"
+                                :aria-label="`Remove ${row.name}`"
                             ></q-btn>
                         </td>
                     </tr>
