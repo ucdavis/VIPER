@@ -438,13 +438,13 @@ public sealed class ExcelGenerationTests
     private static ClinicalEffortService CreateClinicalEffortService()
     {
         var logger = Substitute.For<ILogger<ClinicalEffortService>>();
-        return new ClinicalEffortService(null!, logger);
+        return new ClinicalEffortService(null!, null!, logger);
     }
 
     private static MeritMultiYearService CreateMeritMultiYearService()
     {
         var logger = Substitute.For<ILogger<MeritMultiYearService>>();
-        return new MeritMultiYearService(null!, logger);
+        return new MeritMultiYearService(null!, null!, logger);
     }
 
     #endregion
