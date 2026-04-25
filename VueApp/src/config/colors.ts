@@ -259,6 +259,22 @@ function getAccessibleTextColor(color: string | null | undefined): "dark" | "whi
     return color && LIGHT_BACKGROUND_COLORS.has(color) ? "dark" : "white"
 }
 
+// Quasar's grey (alias for grey-5, #9e9e9e) and grey-6 (#757575) sit in the
+// contrast dead zone where neither white nor dark foreground reaches 4.5:1.
+// Remap to the nearest shade that clears AA with white text.
+const CONTRAST_SAFE_SWAPS = new Map<string, string>([
+    ["grey", "grey-7"],
+    ["grey-5", "grey-7"],
+    ["grey-6", "grey-7"],
+])
+
+function toContrastSafeColor(color: string | null | undefined): string {
+    if (!color) {
+        return ""
+    }
+    return CONTRAST_SAFE_SWAPS.get(color) ?? color
+}
+
 export {
     ucdavisBlue,
     ucdavisGold,
@@ -268,5 +284,6 @@ export {
     colors,
     cssVariableNames,
     getAccessibleTextColor,
+    toContrastSafeColor,
 }
 export type { UcdavisBlueShade, UcdavisGoldShade, UcdavisBlackShade, SemanticColorName, CssVariableName }

@@ -48,7 +48,7 @@
                     >
                         <template #body-cell-relationshipType="slotProps">
                             <q-td :props="slotProps">
-                                <q-badge
+                                <StatusBadge
                                     :color="slotProps.row.relationshipType === 'CrossList' ? 'positive' : 'info'"
                                     :label="slotProps.row.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
                                 />
@@ -73,12 +73,12 @@
                         </template>
                     </q-table>
 
-                    <div
+                    <StatusBanner
                         v-else
-                        class="text-grey-6 q-pa-sm"
+                        type="info"
                     >
                         No linked courses yet.
-                    </div>
+                    </StatusBanner>
                 </div>
 
                 <!-- Add new relationship -->
@@ -169,6 +169,8 @@ import { useQuasar } from "quasar"
 import type { QTableColumn } from "quasar"
 import { courseService } from "../services/course-service"
 import type { CourseDto, CourseRelationshipDto } from "../types"
+import StatusBadge from "@/components/StatusBadge.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 
 const props = defineProps<{
     modelValue: boolean

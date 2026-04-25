@@ -110,12 +110,12 @@ load()
 </script>
 <template>
     <div v-if="loaded">
-        <h2>
+        <h1>
             <span v-if="showPersonName && person != null"
                 >Assessments for {{ person.firstName }} {{ person.lastName }}</span
             >
             <span v-else>My Assessments</span>
-        </h2>
+        </h1>
 
         <q-dialog
             v-model="showAssessmentDetail"
@@ -163,7 +163,7 @@ load()
 
         <div class="row">
             <div class="col col-md-10 col-lg-7 q-mr-sm">
-                <h3>Entrustable Professional Activities</h3>
+                <h2>Entrustable Professional Activities</h2>
             </div>
             <div class="col-1">
                 <q-btn

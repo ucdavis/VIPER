@@ -47,7 +47,7 @@
                 v-if="student.isRossStudent"
                 side
             >
-                <q-badge color="primary"> Ross Student </q-badge>
+                <StatusBadge color="primary"> Ross Student </StatusBadge>
             </q-item-section>
         </q-item>
     </q-list>
@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 defineProps<{
     students: StudentPhoto[]

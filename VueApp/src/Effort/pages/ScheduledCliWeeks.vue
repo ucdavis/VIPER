@@ -45,7 +45,7 @@
             <template v-if="report.instructors.length === 0">
                 <div
                     role="status"
-                    class="text-grey-6 text-center q-pa-lg"
+                    class="text-grey-7 text-center q-pa-lg"
                 >
                     No scheduled clinical weeks found.
                 </div>

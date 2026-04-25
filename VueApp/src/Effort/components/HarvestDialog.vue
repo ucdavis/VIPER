@@ -64,7 +64,7 @@
                 <div class="text-center text-grey-7">{{ harvestPhase }}</div>
                 <div
                     v-if="harvestDetail"
-                    class="text-center text-caption text-grey-6 q-mt-xs"
+                    class="text-center text-caption text-grey-7 q-mt-xs"
                 >
                     {{ harvestDetail }}
                 </div>
@@ -213,7 +213,7 @@
                         v-model="activeTab"
                         dense
                         align="left"
-                        class="text-grey-8 tabs-no-fade"
+                        class="text-grey-7 tabs-no-fade"
                         active-color="primary"
                         indicator-color="primary"
                         narrow-indicator

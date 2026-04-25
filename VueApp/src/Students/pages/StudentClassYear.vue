@@ -4,6 +4,7 @@ import { useRoute } from "vue-router"
 import type { Ref } from "vue"
 import type { QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import StatusBadge from "@/components/StatusBadge.vue"
 import type {
     StudentClassYear as StudentClassYearType,
     StudentClassYearUpdate,
@@ -364,18 +365,17 @@ load()
                         class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
-                        <q-badge
+                        <StatusBadge
                             v-if="cy.ross"
                             color="negative"
                             class="q-mx-sm"
-                            >Ross</q-badge
+                            >Ross</StatusBadge
                         >
-                        <q-badge
+                        <StatusBadge
                             color="warning"
-                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
-                            >{{ cy.leftReasonText }}</q-badge
+                            >{{ cy.leftReasonText }}</StatusBadge
                         >
                     </q-btn>
                 </span>
@@ -396,18 +396,17 @@ load()
                         class="q-px-sm q-mr-sm"
                         @click="selectStudent(props.row, cy)"
                     >
-                        <q-badge
+                        <StatusBadge
                             v-if="cy.ross"
                             color="negative"
                             class="q-mx-sm"
-                            >Ross</q-badge
+                            >Ross</StatusBadge
                         >
-                        <q-badge
+                        <StatusBadge
                             color="warning"
-                            text-color="dark"
                             class="q-mx-sm"
                             v-if="cy.leftReason"
-                            >{{ cy.leftReasonText }}</q-badge
+                            >{{ cy.leftReasonText }}</StatusBadge
                         >
                     </q-btn>
                 </span>

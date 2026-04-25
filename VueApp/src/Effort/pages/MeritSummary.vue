@@ -51,7 +51,7 @@
                     :key="jobGroup.jobGroupDescription"
                     class="job-group-section"
                 >
-                    <h3 class="job-group-header">{{ jobGroup.jobGroupDescription }}</h3>
+                    <h2 class="job-group-header">{{ jobGroup.jobGroupDescription }}</h2>
 
                     <ReportDeptTabs :departments="jobGroup.departments">
                         <template #default="{ dept }">

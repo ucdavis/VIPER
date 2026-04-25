@@ -279,7 +279,7 @@ if (!courseId || !sessionId) {
 
     <div class="row q-mb-lg">
         <div class="col">
-            <h3>Existing Competencies</h3>
+            <h2>Existing Competencies</h2>
         </div>
         <div class="col">
             <span class="text-h6 q-mx-xl">

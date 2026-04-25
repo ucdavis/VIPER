@@ -248,7 +248,7 @@ load()
         </q-card>
     </q-dialog>
 
-    <h3>
+    <h2>
         Existing Competencies
         <span class="text-body2">
             <q-toggle
@@ -289,7 +289,7 @@ load()
                 @click="showForm = true"
             ></q-btn>
         </span>
-    </h3>
+    </h2>
     <div
         v-if="loaded && treeNodes.length === 0"
         class="text-grey-8 q-pa-md"

@@ -19,9 +19,9 @@
                 v-if="hasManageTerms && unopenedTerms.length > 0"
                 class="q-mb-lg"
             >
+                <h2 class="text-h6 q-mb-sm q-mt-none">Unopened Terms</h2>
                 <!-- Desktop: Table -->
                 <q-table
-                    title="Unopened Terms"
                     :rows="unopenedTerms"
                     :columns="unopenedColumns"
                     row-key="termCode"
@@ -55,7 +55,6 @@
                 </q-table>
                 <!-- Mobile: List -->
                 <div class="lt-sm">
-                    <div class="text-subtitle2 q-mb-xs">Unopened Terms</div>
                     <q-list
                         bordered
                         separator
@@ -93,9 +92,9 @@
 
             <!-- Open Terms -->
             <div class="q-mb-lg">
+                <h2 class="text-h6 q-mb-sm q-mt-none">Open Terms</h2>
                 <!-- Desktop: Table -->
                 <q-table
-                    title="Open Terms"
                     :rows="openTerms"
                     :columns="openColumns"
                     row-key="termCode"
@@ -137,7 +136,6 @@
                 </q-table>
                 <!-- Mobile: List -->
                 <div class="lt-sm">
-                    <div class="text-subtitle2 q-mb-xs">Open Terms</div>
                     <q-list
                         bordered
                         separator
@@ -172,9 +170,9 @@
 
             <!-- Closed Terms -->
             <div class="q-mb-lg">
+                <h2 class="text-h6 q-mb-sm q-mt-none">Closed Terms</h2>
                 <!-- Desktop: Table -->
                 <q-table
-                    title="Closed Terms"
                     :rows="closedTerms"
                     :columns="closedColumns"
                     row-key="termCode"
@@ -213,7 +211,6 @@
                 </q-table>
                 <!-- Mobile: List -->
                 <div class="lt-sm">
-                    <div class="text-subtitle2 q-mb-xs">Closed Terms</div>
                     <q-list
                         bordered
                         separator

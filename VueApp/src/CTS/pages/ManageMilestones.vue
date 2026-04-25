@@ -151,7 +151,7 @@ load()
         v-if="milestone?.milestoneId"
         class="q-mt-md"
     >
-        <h3>Levels for {{ milestone.name }}</h3>
+        <h2>Levels for {{ milestone.name }}</h2>
         <q-form @submit="submitLevels">
             <div
                 class="row"

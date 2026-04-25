@@ -112,7 +112,7 @@
                                         <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
                                         <span
                                             v-if="scope.opt.alreadyUsed"
-                                            class="text-grey-6 text-caption q-ml-sm"
+                                            class="text-grey-7 text-caption q-ml-sm"
                                         >
                                             — Already used in this course
                                         </span>
@@ -210,7 +210,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { QForm } from "quasar"
+import type { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { recordService } from "../services/record-service"

@@ -158,7 +158,7 @@ onMounted(() => {
     <div class="q-pa-md">
         <div class="row q-mb-md">
             <div class="col">
-                <h5 class="q-my-none">Competencies Bundle Report</h5>
+                <h1 class="q-my-none">Competencies Bundle Report</h1>
             </div>
         </div>
 

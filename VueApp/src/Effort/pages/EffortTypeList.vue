@@ -381,7 +381,7 @@
                                     <!-- Usage count -->
                                     <div
                                         v-if="props.row.usageCount > 0"
-                                        class="text-caption text-grey-6 q-mt-xs"
+                                        class="text-caption text-grey-7 q-mt-xs"
                                     >
                                         Used in {{ props.row.usageCount }} {{ inflect("record", props.row.usageCount) }}
                                     </div>

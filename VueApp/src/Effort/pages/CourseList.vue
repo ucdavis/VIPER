@@ -146,24 +146,22 @@
                                     class="text-weight-medium text-primary"
                                     >{{ props.row.courseCode }}-{{ props.row.seqNumb }}</router-link
                                 >
-                                <q-badge
+                                <StatusBadge
                                     v-if="!isSvmDept(props.row.custDept)"
                                     color="negative"
-                                    text-color="white"
                                 >
                                     Non-SVM Dept
                                     <q-tooltip
                                         >Expected SVM departments: APC, DVM, PHR, PMI, VMB, VME, VET, VSR</q-tooltip
                                     >
-                                </q-badge>
-                                <q-badge
+                                </StatusBadge>
+                                <StatusBadge
                                     v-if="props.row.enrollment === 0 && !props.row.isRCourse"
                                     color="warning"
-                                    text-color="dark"
                                 >
                                     0 Enrollment
                                     <q-tooltip>This course has zero enrollment</q-tooltip>
-                                </q-badge>
+                                </StatusBadge>
                             </div>
                             <div class="text-caption text-grey-7 lt-sm">
                                 {{ props.row.enrollment }} enrolled &bull; {{ props.row.units }} units
@@ -311,6 +309,7 @@ import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, TermDto } from "../types"
 import type { QTableColumn } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"

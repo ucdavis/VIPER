@@ -32,13 +32,13 @@
                 {{ line }}
             </div>
             <div class="badge-container">
-                <q-badge
+                <StatusBadge
                     v-if="student.isRossStudent"
                     color="primary"
                     class="text-weight-bold badge-text"
                 >
                     Ross Student
-                </q-badge>
+                </StatusBadge>
             </div>
         </q-card-section>
     </q-card>
@@ -48,6 +48,7 @@
 import { computed } from "vue"
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 const props = defineProps<{
     student: StudentPhoto

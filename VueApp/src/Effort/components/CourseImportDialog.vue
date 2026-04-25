@@ -131,22 +131,20 @@
                                     <span class="text-weight-bold">{{ course.courseCode }}</span
                                     ><span class="text-grey-7">-{{ course.seqNumb }}</span>
                                 </div>
-                                <q-badge
+                                <StatusBadge
                                     v-if="course.alreadyImported"
                                     color="grey-5"
-                                    text-color="grey-9"
-                                    >Already Imported</q-badge
+                                    >Already Imported</StatusBadge
                                 >
-                                <q-badge
+                                <StatusBadge
                                     v-else-if="course.importedUnitValues.length > 0"
                                     color="warning"
-                                    text-color="dark"
-                                    >Imported: {{ course.importedUnitValues.join(", ") }} units</q-badge
+                                    >Imported: {{ course.importedUnitValues.join(", ") }} units</StatusBadge
                                 >
-                                <q-badge
+                                <StatusBadge
                                     v-else
                                     color="positive"
-                                    >Available</q-badge
+                                    >Available</StatusBadge
                                 >
                             </div>
                             <div class="text-body2">{{ course.title }}</div>
@@ -154,12 +152,10 @@
                                 CRN: {{ course.crn }} |
                                 <template v-if="course.isVariableUnits">
                                     Units: {{ course.unitLow }}-{{ course.unitHigh }}
-                                    <q-badge
+                                    <StatusBadge
                                         color="info"
-                                        text-color="dark"
-                                        dense
                                         class="q-ml-xs"
-                                        >Variable</q-badge
+                                        >Variable</StatusBadge
                                     >
                                 </template>
                                 <template v-else> Units: {{ course.unitLow }} </template>
@@ -217,11 +213,10 @@
                         >
                             <template v-if="slotProps.row.isVariableUnits">
                                 {{ slotProps.row.unitLow }} - {{ slotProps.row.unitHigh }}
-                                <q-badge
+                                <StatusBadge
                                     color="info"
-                                    text-color="dark"
                                     class="q-ml-xs"
-                                    >Variable</q-badge
+                                    >Variable</StatusBadge
                                 >
                             </template>
                             <template v-else>
@@ -232,21 +227,15 @@
                     <template #body-cell-status="slotProps">
                         <q-td :props="slotProps">
                             <template v-if="slotProps.row.alreadyImported">
-                                <q-badge
-                                    color="grey-5"
-                                    text-color="grey-9"
-                                    >Already Imported</q-badge
-                                >
+                                <StatusBadge color="grey-5">Already Imported</StatusBadge>
                             </template>
                             <template v-else-if="slotProps.row.importedUnitValues.length > 0">
-                                <q-badge
-                                    color="warning"
-                                    text-color="dark"
-                                    >Imported: {{ slotProps.row.importedUnitValues.join(", ") }} units</q-badge
+                                <StatusBadge color="warning"
+                                    >Imported: {{ slotProps.row.importedUnitValues.join(", ") }} units</StatusBadge
                                 >
                             </template>
                             <template v-else>
-                                <q-badge color="positive">Available</q-badge>
+                                <StatusBadge color="positive">Available</StatusBadge>
                             </template>
                         </q-td>
                     </template>
@@ -381,6 +370,7 @@
 import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import { courseService } from "../services/course-service"
 import type { BannerCourseDto } from "../types"
 import type { QTableColumn } from "quasar"

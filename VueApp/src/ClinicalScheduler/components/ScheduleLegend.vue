@@ -12,7 +12,7 @@
                         color="primary"
                         class="q-mr-sm"
                     />
-                    <div class="text-subtitle1 text-weight-medium">Quick Guide</div>
+                    <h3 class="text-subtitle1 text-weight-medium q-my-none">Quick Guide</h3>
                 </div>
 
                 <!-- How to schedule instructions -->

@@ -163,7 +163,7 @@
                         <div class="row items-center no-wrap">
                             <router-link
                                 :to="`/Effort/${props.row.termCode}`"
-                                class="text-primary"
+                                class="text-primary term-name-link q-py-xs q-px-xs"
                             >
                                 {{ props.row.termName }}
                             </router-link>
@@ -371,7 +371,7 @@
                         <div class="text-subtitle1">
                             <router-link
                                 :to="`/Effort/${term.termCode}`"
-                                class="text-primary"
+                                class="text-primary term-name-link q-py-xs q-px-xs"
                             >
                                 {{ term.termName }}
                             </router-link>
@@ -860,6 +860,10 @@ onMounted(loadTerms)
 <style scoped>
 .term-action-btn {
     min-width: 130px;
+}
+
+.term-name-link {
+    display: inline-block;
 }
 
 .term-select-input {

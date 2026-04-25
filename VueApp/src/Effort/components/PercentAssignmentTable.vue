@@ -57,11 +57,10 @@
                     <div class="row items-center justify-between q-mb-xs">
                         <span class="text-weight-bold">
                             {{ formatTypeWithModifier(pct.typeName, pct.modifier) }}
-                            <q-badge
+                            <StatusBadge
                                 v-if="!pct.isActive"
                                 color="grey-5"
-                                text-color="grey-9"
-                                label="Inactive"
+                                label="Past"
                                 class="q-ml-sm"
                             />
                         </span>
@@ -163,11 +162,10 @@
                             :color="getTypeClassColor(bodyProps.row.typeClass)"
                             :label="bodyProps.row.typeClass"
                         />
-                        <q-badge
+                        <StatusBadge
                             v-if="!bodyProps.row.isActive"
                             color="grey-5"
-                            text-color="grey-9"
-                            label="Inactive"
+                            label="Past"
                             class="q-ml-xs"
                         />
                     </q-td>

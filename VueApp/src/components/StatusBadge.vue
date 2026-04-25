@@ -1,7 +1,7 @@
 <template>
     <q-badge
-        :color="color"
-        :text-color="getAccessibleTextColor(color)"
+        :color="safeColor"
+        :text-color="getAccessibleTextColor(safeColor)"
         :label="label"
     >
         <slot />
@@ -9,10 +9,13 @@
 </template>
 
 <script setup lang="ts">
-import { getAccessibleTextColor } from "@/config/colors"
+import { computed } from "vue"
+import { getAccessibleTextColor, toContrastSafeColor } from "@/config/colors"
 
-defineProps<{
+const props = defineProps<{
     color: string
     label?: string | number
 }>()
+
+const safeColor = computed(() => toContrastSafeColor(props.color))
 </script>
