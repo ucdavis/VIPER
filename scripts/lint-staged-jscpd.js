@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 // Run jscpd against VueApp/src (.ts/.js/.vue) and/or web/Areas (.cs) as needed,
-// then report clones that involve any of the input files. Findings are
-// informational (exit 0). Whole-project runs live in `npm run audit:dupes`; CI
+// then report clones that involve any of the input files. Findings block the
+// commit when LINT_BLOCK_ON_WARNINGS=true (matches lint-staged-ts.js); otherwise
+// they're informational. Whole-project runs live in `npm run audit:dupes`; CI
 // runs with regression detection (see .github/workflows/code-quality.yml).
 //
 // Usage:
@@ -13,7 +14,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
-const { parseArguments } = require("./lib/lint-staged-common")
+const { parseArguments, shouldBlockOnWarnings } = require("./lib/lint-staged-common")
 const { createLogger } = require("./lib/script-utils")
 
 const { rawFiles } = parseArguments()
@@ -192,9 +193,9 @@ if (totalFindings === 0) {
     process.exit(0)
 }
 
-logger.plain(
-    `\n📊 JSCPD Summary: ${totalFindings} clone group(s) touching staged files (non-blocking — see PLAN-CODE-QUALITY.md).`,
-)
+const blocking = shouldBlockOnWarnings()
+const blockSuffix = blocking ? "blocking commit" : "non-blocking"
+logger.plain(`\n📊 JSCPD Summary: ${totalFindings} clone group(s) touching staged files (${blockSuffix}).`)
 logger.plain("💡 Run 'npm run audit:dupes' for the whole-project report.")
 
-process.exit(0)
+process.exit(blocking ? 1 : 0)

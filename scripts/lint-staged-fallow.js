@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 // Run fallow dead-code on VueApp and report findings scoped to input files.
-// Findings are informational (exit 0) — fallow's analysis is whole-project, so
-// the file-list filter is applied to the output only. CI runs the full whole-
-// project check with regression detection (see .github/workflows/code-quality.yml).
+// fallow's analysis is whole-project, so the file-list filter is applied to
+// the output only. Findings block the commit when LINT_BLOCK_ON_WARNINGS=true
+// (matches the lint-staged-ts.js convention); otherwise they're informational.
+// CI runs the full whole-project check with regression detection
+// (see .github/workflows/code-quality.yml).
 //
 // Usage:
 //   node scripts/lint-staged-fallow.js <file> [<file>...]
@@ -12,7 +14,7 @@
 const fs = require("node:fs")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
-const { parseArguments } = require("./lib/lint-staged-common")
+const { parseArguments, shouldBlockOnWarnings } = require("./lib/lint-staged-common")
 const { createLogger } = require("./lib/script-utils")
 
 const { rawFiles } = parseArguments()
@@ -156,9 +158,9 @@ printIssues("Unused exports", unusedExports, (x) => `${x.file}:${x.line} — exp
 printIssues("Unused type exports", unusedTypes, (x) => `${x.file}:${x.line} — type '${x.name}' has no importers`)
 printIssues("Duplicate exports", duplicateExports, (x) => `'${x.name}' exported from: ${x.locations.join(", ")}`)
 
-logger.plain(
-    `\n📊 Fallow Summary: ${totalFindings} finding(s) in staged files (non-blocking — see PLAN-CODE-QUALITY.md).`,
-)
+const blocking = shouldBlockOnWarnings()
+const blockSuffix = blocking ? "blocking commit" : "non-blocking"
+logger.plain(`\n📊 Fallow Summary: ${totalFindings} finding(s) in staged files (${blockSuffix}).`)
 logger.plain("💡 Run 'npm run audit:fallow' for the whole-project report.")
 
-process.exit(0)
+process.exit(blocking ? 1 : 0)
