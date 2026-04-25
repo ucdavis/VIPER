@@ -18,7 +18,6 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 {
     private readonly ClinicalSchedulerContext _clinicalContext;
     private readonly AAUDContext _aaudContext;
-    private readonly ITermService _termService;
     private readonly ILogger<ClinicalScheduleService> _logger;
 
     public ClinicalScheduleService(
@@ -27,11 +26,10 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         AAUDContext aaudContext,
         ITermService termService,
         ILogger<ClinicalScheduleService> logger)
-        : base(context)
+        : base(context, termService)
     {
         _clinicalContext = clinicalContext;
         _aaudContext = aaudContext;
-        _termService = termService;
         _logger = logger;
     }
 
