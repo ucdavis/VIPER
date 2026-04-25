@@ -6,8 +6,9 @@
         full-width
         backdrop-filter="brightness(50%)"
         position="top"
+        aria-label="Error notification"
     >
-        <q-banner class="text-center bg-red-1">
+        <q-banner class="text-center error-surface">
             <template #avatar>
                 <q-icon
                     name="error"

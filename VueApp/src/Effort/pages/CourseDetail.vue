@@ -41,9 +41,9 @@
         <template v-else-if="course">
             <!-- Course Header -->
             <div class="q-mb-md">
-                <h2 class="q-my-none q-mb-sm">
+                <h1 class="q-my-none q-mb-sm">
                     Effort for {{ course.courseCode }}-{{ course.seqNumb }} - {{ currentTermName }}
-                </h2>
+                </h1>
                 <div class="row items-center q-gutter-sm q-pl-sm">
                     <q-btn
                         v-if="canEditCourse && !isResidentCourse"
@@ -103,7 +103,7 @@
                 icon="subdirectory_arrow_right"
             >
                 This course is a
-                <q-badge
+                <StatusBadge
                     :color="parentRelationship.relationshipType === 'CrossList' ? 'positive' : 'info'"
                     :label="parentRelationship.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
                     class="q-mx-xs"
@@ -127,7 +127,7 @@
                 v-if="childRelationships.length > 0"
                 class="q-mb-lg"
             >
-                <h3 class="q-mt-none q-mb-sm">Child Courses</h3>
+                <h2 class="q-mt-none q-mb-sm">Child Courses</h2>
                 <q-table
                     :rows="childRelationships"
                     :columns="childColumns"
@@ -155,7 +155,7 @@
                     </template>
                     <template #body-cell-relationshipType="slotProps">
                         <q-td :props="slotProps">
-                            <q-badge
+                            <StatusBadge
                                 :color="slotProps.row.relationshipType === 'CrossList' ? 'positive' : 'info'"
                                 :label="slotProps.row.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
                             />
@@ -185,7 +185,7 @@
             <!-- No relationships message when course is neither parent nor child -->
             <div
                 v-if="!isResidentCourse && !parentRelationship && childRelationships.length === 0"
-                class="text-grey-6 q-mb-lg"
+                class="text-grey-7 q-mb-lg"
             >
                 This course has no linked courses.
             </div>
@@ -195,7 +195,7 @@
             <!-- Harvested eval link — directs to Faculty Eval Viewer when harvest data exists -->
             <div
                 v-if="showHarvestedEvalLink"
-                class="q-pa-sm q-mb-md bg-blue-1 rounded-borders"
+                class="q-pa-sm q-mb-md bg-info text-dark rounded-borders"
             >
                 <q-icon
                     name="assessment"
@@ -225,7 +225,7 @@
                     active-color="primary"
                     indicator-color="primary"
                     no-caps
-                    class="text-grey-8 tabs-no-fade"
+                    class="text-grey-7 tabs-no-fade"
                 >
                     <q-tab
                         name="effort"
@@ -379,6 +379,7 @@ import type {
     CourseEvalEntryDto,
 } from "../types"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseLinkDialog from "../components/CourseLinkDialog.vue"
 import CourseEffortTable from "../components/CourseEffortTable.vue"

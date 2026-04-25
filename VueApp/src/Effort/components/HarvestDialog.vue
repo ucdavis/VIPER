@@ -3,6 +3,7 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="harvest-dialog-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 1000px; position: relative">
@@ -17,7 +18,12 @@
                 @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Harvest Term: {{ props.termName }}</div>
+                <div
+                    id="harvest-dialog-title"
+                    class="text-h6"
+                >
+                    Harvest Term: {{ props.termName }}
+                </div>
                 <div class="text-caption text-grey-7">
                     Import instructors and courses from CREST and Clinical Scheduler
                 </div>
@@ -58,7 +64,7 @@
                 <div class="text-center text-grey-7">{{ harvestPhase }}</div>
                 <div
                     v-if="harvestDetail"
-                    class="text-center text-caption text-grey-6 q-mt-xs"
+                    class="text-center text-caption text-grey-7 q-mt-xs"
                 >
                     {{ harvestDetail }}
                 </div>
@@ -207,7 +213,7 @@
                         v-model="activeTab"
                         dense
                         align="left"
-                        class="text-grey-8 tabs-no-fade"
+                        class="text-grey-7 tabs-no-fade"
                         active-color="primary"
                         indicator-color="primary"
                         narrow-indicator
@@ -269,7 +275,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -308,7 +314,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -346,7 +352,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -391,7 +397,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -430,7 +436,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -468,7 +474,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -513,7 +519,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -552,7 +558,7 @@
                             >
                                 <template #body-cell-status="slotProps">
                                     <q-td :props="slotProps">
-                                        <q-badge
+                                        <StatusBadge
                                             :color="getStatusColor(slotProps.value)"
                                             :label="slotProps.value"
                                         />
@@ -599,6 +605,7 @@ import { harvestService } from "../services/harvest-service"
 import type { HarvestPreviewDto } from "../types"
 import type { QTableColumn } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import { inflect } from "inflection"
 import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
 

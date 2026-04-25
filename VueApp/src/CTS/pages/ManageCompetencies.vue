@@ -125,6 +125,7 @@ load()
     <h1>Manage Competencies</h1>
     <q-dialog
         v-model="showForm"
+        aria-labelledby="competency-form-title"
         @hide="clearComp()"
     >
         <q-card
@@ -132,7 +133,12 @@ load()
             class="q-pa-sm"
         >
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">{{ selectedComp?.competencyId ? "Edit" : "Add" }} Competency</div>
+                <div
+                    id="competency-form-title"
+                    class="text-h6"
+                >
+                    {{ selectedComp?.competencyId ? "Edit" : "Add" }} Competency
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"
@@ -242,7 +248,7 @@ load()
         </q-card>
     </q-dialog>
 
-    <h3>
+    <h2>
         Existing Competencies
         <span class="text-body2">
             <q-toggle
@@ -283,7 +289,7 @@ load()
                 @click="showForm = true"
             ></q-btn>
         </span>
-    </h3>
+    </h2>
     <div
         v-if="loaded && treeNodes.length === 0"
         class="text-grey-8 q-pa-md"

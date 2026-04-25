@@ -2,11 +2,17 @@
     <q-dialog
         :model-value="modelValue"
         persistent
+        aria-labelledby="effort-record-add-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 500px">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Add Effort Record</div>
+                <div
+                    id="effort-record-add-title"
+                    class="text-h6"
+                >
+                    Add Effort Record
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"
@@ -106,7 +112,7 @@
                                         <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
                                         <span
                                             v-if="scope.opt.alreadyUsed"
-                                            class="text-grey-6 text-caption q-ml-sm"
+                                            class="text-grey-7 text-caption q-ml-sm"
                                         >
                                             — Already used in this course
                                         </span>
@@ -204,7 +210,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { QForm } from "quasar"
+import type { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { recordService } from "../services/record-service"

@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed, nextTick, provide } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import ContactSection from "../components/ContactSection.vue"
 import PhoneInput from "../components/PhoneInput.vue"
 import { useEmergencyContact } from "../composables/use-emergency-contact"
@@ -244,21 +245,20 @@ onBeforeRouteLeave(() => {
         <template v-else-if="detail">
             <h1 class="q-ma-none q-mb-md">
                 Emergency Contact: {{ detail.fullName }}
-                <q-badge
+                <StatusBadge
                     v-if="canManageAccess"
                     class="q-ml-sm vertical-top"
                     :color="appOpen ? 'positive' : hasIndividualAccess ? 'warning' : 'negative'"
-                    :text-color="hasIndividualAccess && !appOpen ? 'dark' : 'white'"
                 >
                     {{ appOpen ? "Editing open" : hasIndividualAccess ? "Editing allowed" : "Editing closed" }}
-                </q-badge>
-                <q-badge
+                </StatusBadge>
+                <StatusBadge
                     v-else
                     class="q-ml-sm vertical-top"
                     :color="canEdit ? 'positive' : 'grey'"
                 >
                     {{ canEdit ? "Editable" : "Read Only" }}
-                </q-badge>
+                </StatusBadge>
             </h1>
 
             <!-- Admin: individual access control -->
@@ -336,7 +336,7 @@ onBeforeRouteLeave(() => {
                     class="q-mb-md"
                 >
                     <q-card-section class="q-pb-none">
-                        <div class="text-subtitle1 text-weight-bold">Student Information</div>
+                        <h2 class="text-subtitle1 text-weight-bold q-my-none">Student Information</h2>
                         <div class="text-caption text-grey-7">
                             Your address and contact information used by the SVM to reach you
                         </div>
@@ -435,7 +435,7 @@ onBeforeRouteLeave(() => {
                     class="q-mb-md"
                 >
                     <q-card-section class="q-pb-none">
-                        <div class="text-subtitle1 text-weight-bold">Local Contact</div>
+                        <h2 class="text-subtitle1 text-weight-bold q-my-none">Local Contact</h2>
                         <div class="text-caption text-grey-7">
                             Person to contact if you cannot be reached (e.g. roommate, significant other)
                         </div>
@@ -457,7 +457,7 @@ onBeforeRouteLeave(() => {
                     class="q-mb-md"
                 >
                     <q-card-section class="q-pb-none">
-                        <div class="text-subtitle1 text-weight-bold">Emergency Contact</div>
+                        <h2 class="text-subtitle1 text-weight-bold q-my-none">Emergency Contact</h2>
                         <div class="text-caption text-grey-7">Person to contact in case of an emergency</div>
                     </q-card-section>
                     <q-card-section>
@@ -477,7 +477,7 @@ onBeforeRouteLeave(() => {
                     class="q-mb-md"
                 >
                     <q-card-section class="q-pb-none">
-                        <div class="text-subtitle1 text-weight-bold">Family/Permanent Contact</div>
+                        <h2 class="text-subtitle1 text-weight-bold q-my-none">Family/Permanent Contact</h2>
                         <div class="text-caption text-grey-7">Family or permanent contact information</div>
                     </q-card-section>
                     <q-card-section>

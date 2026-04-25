@@ -32,7 +32,7 @@
         >
             <template #body-cell-typeClass="{ row }">
                 <q-td>
-                    <q-badge
+                    <StatusBadge
                         :color="getTypeClassColor(row.typeClass)"
                         :label="row.typeClass"
                     />
@@ -47,6 +47,7 @@ import { ref, watch } from "vue"
 import type { QTableColumn } from "quasar"
 import type { PercentRolloverItemPreview } from "../types"
 import { formatTypeWithModifier, getTypeClassColor } from "../utils/format"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 const props = withDefaults(
     defineProps<{

@@ -3,6 +3,7 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="percent-rollover-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 900px; position: relative">
@@ -17,7 +18,12 @@
                 @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Percent Assignment Rollover</div>
+                <div
+                    id="percent-rollover-title"
+                    class="text-h6"
+                >
+                    Percent Assignment Rollover
+                </div>
                 <div class="text-caption text-grey-7">Roll forward percent assignments to the new academic year</div>
             </q-card-section>
 
@@ -70,7 +76,7 @@
                 <div class="text-center text-grey-7">{{ rolloverPhase }}</div>
                 <div
                     v-if="rolloverDetail"
-                    class="text-center text-caption text-grey-6 q-mt-xs"
+                    class="text-center text-caption text-grey-8 q-mt-xs"
                 >
                     {{ rolloverDetail }}
                 </div>
@@ -114,7 +120,7 @@
                                 <div class="text-caption">Excluded</div>
                             </div>
                         </div>
-                        <div class="text-caption text-grey-7 q-mt-sm text-center">
+                        <div class="text-caption q-mt-sm text-center">
                             Rolling from {{ preview.sourceAcademicYearDisplay }} to
                             {{ preview.targetAcademicYearDisplay }}
                         </div>
@@ -126,7 +132,7 @@
                         type="warning"
                     >
                         <div class="text-weight-medium">No assignments to roll forward</div>
-                        <div class="text-caption text-grey-7">
+                        <div class="text-caption">
                             There are no percent assignments ending on {{ formatDate(preview.oldEndDate) }} that need to
                             be rolled forward.
                         </div>
@@ -157,7 +163,7 @@
                                 </div>
                             </div>
                         </template>
-                        <div class="bg-cyan-1 q-pa-sm">
+                        <div class="bg-ucdavis-blue-10 q-pa-sm">
                             <RolloverAssignmentTable :rows="preview.assignments" />
                         </div>
                     </q-expansion-item>
@@ -176,8 +182,8 @@
                                     class="q-mr-sm"
                                 />
                                 <div>
-                                    <div class="text-weight-medium text-grey-7">Already rolled</div>
-                                    <div class="text-caption text-grey-6">
+                                    <div class="text-weight-medium text-grey-8">Already rolled</div>
+                                    <div class="text-caption text-grey-8">
                                         {{ preview.existingAssignments.length }}
                                         {{ inflect("assignment", preview.existingAssignments.length) }} already have a
                                         successor in {{ preview.targetAcademicYearDisplay }}
@@ -204,8 +210,8 @@
                                     class="q-mr-sm"
                                 />
                                 <div>
-                                    <div class="text-weight-medium text-orange-9">Excluded - Post-Harvest Changes</div>
-                                    <div class="text-caption text-grey-7">
+                                    <div class="text-weight-medium">Excluded - Post-Harvest Changes</div>
+                                    <div class="text-caption text-grey-8">
                                         {{ preview.excludedByAudit.length }}
                                         {{ inflect("assignment", preview.excludedByAudit.length) }} excluded due to
                                         manual edits/deletes after harvest
@@ -213,7 +219,7 @@
                                 </div>
                             </div>
                         </template>
-                        <div class="bg-orange-1 q-pa-sm">
+                        <div class="bg-ucdavis-gold-10 q-pa-sm">
                             <StatusBanner type="warning">
                                 These assignments will not be rolled forward because someone manually edited or deleted
                                 a percent assignment of the same type for this instructor after the term was harvested.

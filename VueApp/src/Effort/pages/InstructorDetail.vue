@@ -40,9 +40,9 @@
         <template v-else-if="instructor">
             <!-- Instructor Header -->
             <div class="q-mb-md">
-                <h2 class="q-my-none q-mb-sm">
+                <h1 class="q-my-none q-mb-sm">
                     Effort for {{ instructor.firstName }} {{ instructor.lastName }} - {{ currentTermName }}
-                </h2>
+                </h1>
                 <div class="row items-center q-gutter-sm">
                     <EffortActionButtons
                         v-if="canEdit"

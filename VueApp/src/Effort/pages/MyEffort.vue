@@ -157,9 +157,9 @@
                 class="q-mt-lg"
             >
                 <q-separator class="q-mb-md" />
-                <h3 class="q-my-none q-mb-md">
+                <h2 class="q-my-none q-mb-md">
                     {{ myEffort.effortRecords.length === 0 ? "Verify No Effort" : "Verify Effort" }}
-                </h3>
+                </h2>
 
                 <div
                     v-if="myEffort.canVerify"

@@ -23,7 +23,7 @@
                                 <q-badge color="primary">Last Week</q-badge>
                             </q-item-section>
                             <q-item-section side v-if="servicesScheduled.indexOf(scope.opt.value) >= 0">
-                                <q-badge color="yellow">Scheduled</q-badge>
+                                <q-badge color="warning" text-color="dark">Scheduled</q-badge>
                             </q-item-section>
                             <q-item-section>
                                 <q-item-label>{{scope.opt.label}}</q-item-label>
@@ -41,7 +41,7 @@
             </div>
         </div>
 
-        <q-banner inline-actions rounded v-if="success" class="bg-green text-white q-mb-md">
+        <q-banner inline-actions rounded v-if="success" class="bg-positive text-white q-mb-md">
             EPA Saved
             <template v-slot:action>
                 <q-btn flat label="Dismiss" @@click="success = false"></q-btn>
@@ -95,7 +95,7 @@
             </div>
             @*Show form once student is selected*@
             <q-form @@submit="submitEpa" v-bind="assessment" v-if="selectedStudent != null">
-                <div class="bg-red-5 text-white q-pa-sm rounded q-mb-md" v-if="errors?.message?.length > 0">
+                <div class="bg-negative text-white q-pa-sm rounded q-mb-md" v-if="errors?.message?.length > 0">
                     {{errors.message}}
                     Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
                 </div>

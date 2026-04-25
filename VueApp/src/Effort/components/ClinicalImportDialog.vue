@@ -3,6 +3,7 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="clinical-import-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 1000px; position: relative">
@@ -17,7 +18,12 @@
                 @click="handleClose"
             />
             <q-card-section class="q-pb-none q-pr-xl">
-                <div class="text-h6">Import Clinical Effort: {{ props.termName }}</div>
+                <div
+                    id="clinical-import-title"
+                    class="text-h6"
+                >
+                    Import Clinical Effort: {{ props.termName }}
+                </div>
                 <div class="text-caption text-grey-7">Import clinical rotation assignments from Clinical Scheduler</div>
             </q-card-section>
 
@@ -56,7 +62,7 @@
                 <div class="text-center text-grey-7">{{ importPhase }}</div>
                 <div
                     v-if="importDetail"
-                    class="text-center text-caption text-grey-6 q-mt-xs"
+                    class="text-center text-caption text-grey-7 q-mt-xs"
                 >
                     {{ importDetail }}
                 </div>
@@ -117,7 +123,7 @@
                                 <div class="text-caption">To delete</div>
                             </div>
                             <div class="col-6 col-sm-3 text-center">
-                                <div class="text-h5 text-grey-6">{{ preview.skipCount }}</div>
+                                <div class="text-h5 text-grey-7">{{ preview.skipCount }}</div>
                                 <div class="text-caption">To skip</div>
                             </div>
                         </div>
@@ -157,7 +163,7 @@
                                 >Sync will delete ALL clinical effort records</span
                             >
                         </div>
-                        <div class="text-caption text-grey-8">
+                        <div class="text-caption text-grey-7">
                             The source returned 0 records. Syncing will delete all {{ preview.deleteCount }} existing
                             clinical effort records for this term.
                         </div>

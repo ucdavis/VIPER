@@ -93,7 +93,7 @@ load()
     <h1>Manage Bundles</h1>
     <q-card flat>
         <q-form @submit="save()">
-            <h3>{{ bundle?.bundleId == null ? "Add Bundle" : "Update Bundle" }}</h3>
+            <h2>{{ bundle?.bundleId == null ? "Add Bundle" : "Update Bundle" }}</h2>
             <div class="row">
                 <q-input
                     dense

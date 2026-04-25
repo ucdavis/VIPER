@@ -2,12 +2,18 @@
     <q-dialog
         :model-value="modelValue"
         persistent
+        aria-labelledby="edit-evaluation-title"
         @keydown.escape="handleClose"
     >
         <q-card class="dialog-card-md">
             <q-card-section class="row items-center q-pb-none">
                 <div>
-                    <div class="text-h6">{{ isEditMode ? "Edit" : "Add" }} Evaluation Data</div>
+                    <div
+                        id="edit-evaluation-title"
+                        class="text-h6"
+                    >
+                        {{ isEditMode ? "Edit" : "Add" }} Evaluation Data
+                    </div>
                     <div class="text-subtitle2 text-grey-7">{{ instructorName }} &mdash; {{ courseName }}</div>
                 </div>
                 <q-space />

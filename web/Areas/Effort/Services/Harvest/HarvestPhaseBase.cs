@@ -88,15 +88,17 @@ public abstract class HarvestPhaseBase : IHarvestPhase
         HarvestContext ctx,
         CancellationToken ct)
     {
-        // Check if course already exists
+        // Check if course already exists. Match by (CRN, Units) when CRN is
+        // present so variable-unit CRNs become one effort.Course row per unit
+        // variant rather than collapsing to the first one.
         var existing = await ctx.EffortContext.Courses
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.TermCode == ctx.TermCode &&
+                c.Units == course.Units &&
                 (string.IsNullOrWhiteSpace(course.Crn)
                     ? c.SubjCode == course.SubjCode &&
                       c.CrseNumb == course.CrseNumb &&
-                      c.SeqNumb == course.SeqNumb &&
-                      c.Units == course.Units
+                      c.SeqNumb == course.SeqNumb
                     : c.Crn == course.Crn), ct);
 
         if (existing != null)
@@ -147,13 +149,35 @@ public abstract class HarvestPhaseBase : IHarvestPhase
             return (null, null);
         }
 
-        // Find the course ID
+        // Find the course ID. Lookup keys carry units, but effort records only
+        // carry the CRN, so for variable-unit CRNs we may match multiple keys
+        // and link to the first variant (the instructor teaches one section
+        // regardless of how students enrolled at different unit values).
         int courseId;
-        if (!string.IsNullOrWhiteSpace(effort.Crn) && ctx.CourseIdLookup.TryGetValue($"CRN:{effort.Crn}", out courseId))
+        if (!string.IsNullOrWhiteSpace(effort.Crn))
         {
-            // Exact CRN match found
+            var crnPrefix = $"CRN:{effort.Crn}-";
+            var crnMatches = ctx.CourseIdLookup
+                .Where(kv => kv.Key.StartsWith(crnPrefix, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Value)
+                .ToList();
+
+            if (crnMatches.Count > 1)
+            {
+                ctx.Logger.LogDebug(
+                    "Multiple unit variants for CRN {Crn}; linking effort to first variant",
+                    LogSanitizer.SanitizeId(effort.Crn));
+            }
+
+            // Sentinel -1 falls through to the course-code fallback below.
+            courseId = crnMatches.Count >= 1 ? crnMatches[0] : -1;
         }
         else
+        {
+            courseId = -1;
+        }
+
+        if (courseId < 0)
         {
             // Fall back to course code prefix match
             var courseKey = effort.CourseCode.Replace(" ", "") + "-";
@@ -232,13 +256,15 @@ public abstract class HarvestPhaseBase : IHarvestPhase
     }
 
     /// <summary>
-    /// Builds a course lookup key for the CourseIdLookup dictionary.
+    /// Builds a course lookup key for the CourseIdLookup dictionary. Units are
+    /// part of the key so variable-unit CRNs can map each unit variant to its
+    /// own CourseId.
     /// </summary>
     protected static string BuildCourseLookupKey(HarvestCoursePreview course)
     {
         return string.IsNullOrWhiteSpace(course.Crn)
             ? $"{course.SubjCode}{course.CrseNumb}-{course.Units}"
-            : $"CRN:{course.Crn}";
+            : $"CRN:{course.Crn}-{course.Units}";
     }
 
     #endregion

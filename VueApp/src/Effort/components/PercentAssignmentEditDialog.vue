@@ -2,11 +2,17 @@
     <q-dialog
         :model-value="modelValue"
         persistent
+        aria-labelledby="percent-assignment-edit-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 550px">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Edit Percentage Assignment</div>
+                <div
+                    id="percent-assignment-edit-title"
+                    class="text-h6"
+                >
+                    Edit Percentage Assignment
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"
