@@ -34,16 +34,11 @@ jobs:
         # CI reports inflated unresolved-imports / unused-types numbers.
         run: npm ci --prefix VueApp
 
-      - name: Baseline fallow on main
-        # `fallow dead-code` exits 1 when issues exist, even with
-        # --save-regression-baseline. Suppress here — the next step is the gate.
-        run: |
-          git checkout origin/${{ github.base_ref }} -- VueApp
-          npx fallow dead-code --root VueApp --save-regression-baseline .fallow-baseline.json || true
-          git checkout HEAD -- VueApp
-
-      - name: Check fallow regression on PR
-        run: npx fallow dead-code --root VueApp --fail-on-regression --regression-baseline .fallow-baseline.json --format compact
+      - name: Audit fallow on changed files
+        # `fallow audit` is purpose-built for PR-diff regression gating: it
+        # scopes to files changed since --base and returns a pass/warn/fail
+        # verdict (exit 0 if no regression).
+        run: npx fallow audit --root VueApp --base origin/${{ github.base_ref }}
 
   jscpd-regression-csharp:
     name: JSCPD regression (C#)
