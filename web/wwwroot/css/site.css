@@ -268,11 +268,6 @@ html {
     background-color: var(--ucdavis-black-60, #666666) !important;
 }
 
-/* TODO: Remove when color="green" is migrated to color="positive" */
-.bg-green {
-    background-color: #266041 !important;
-}
-
 /* Heading Styles */
 .q-page-container h1,
 .q-page-container .text-h1 {
@@ -339,4 +334,11 @@ header .q-avatar {
 /* Html table */
 table.htable tr th {
     text-align: left;
+}
+
+/* Mirrors VueApp's colors.css so Razor and Vue render error surfaces identically. */
+.error-surface {
+    background-color: color-mix(in srgb, var(--q-negative) 12%, white);
+    border-left: 0.25rem solid var(--q-negative);
+    color: var(--q-negative);
 }

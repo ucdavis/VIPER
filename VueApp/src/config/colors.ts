@@ -251,5 +251,39 @@ type UcdavisBlackShade = keyof typeof ucdavisBlack
 type SemanticColorName = keyof typeof semanticColors
 type CssVariableName = (typeof cssVariableNames)[number]
 
-export { ucdavisBlue, ucdavisGold, ucdavisBlack, BRAND_COLORS, semanticColors, colors, cssVariableNames }
+// Quasar/brand colors whose backgrounds are light enough that white foreground
+// text fails WCAG contrast. Pair these with text-color="dark".
+const LIGHT_BACKGROUND_COLORS = new Set(["warning", "info", "accent"])
+
+function getAccessibleTextColor(color: string | null | undefined): "dark" | "white" {
+    return color && LIGHT_BACKGROUND_COLORS.has(color) ? "dark" : "white"
+}
+
+// Quasar's grey (alias for grey-5, #9e9e9e) and grey-6 (#757575) sit in the
+// contrast dead zone where neither white nor dark foreground reaches 4.5:1.
+// Remap to the nearest shade that clears AA with white text.
+const CONTRAST_SAFE_SWAPS = new Map<string, string>([
+    ["grey", "grey-7"],
+    ["grey-5", "grey-7"],
+    ["grey-6", "grey-7"],
+])
+
+function toContrastSafeColor(color: string | null | undefined): string {
+    if (!color) {
+        return ""
+    }
+    return CONTRAST_SAFE_SWAPS.get(color) ?? color
+}
+
+export {
+    ucdavisBlue,
+    ucdavisGold,
+    ucdavisBlack,
+    BRAND_COLORS,
+    semanticColors,
+    colors,
+    cssVariableNames,
+    getAccessibleTextColor,
+    toContrastSafeColor,
+}
 export type { UcdavisBlueShade, UcdavisGoldShade, UcdavisBlackShade, SemanticColorName, CssVariableName }

@@ -22,7 +22,7 @@
                 <div class="col-12 col-md-4">
                     <q-card class="stat-card">
                         <q-card-section>
-                            <div class="text-overline text-grey-7">VERIFICATION PROGRESS</div>
+                            <div class="text-overline text-grey-8">VERIFICATION PROGRESS</div>
                             <div class="text-h4 q-my-sm">{{ stats.verificationPercent }}%</div>
                             <q-linear-progress
                                 :value="stats.verificationPercent / 100"
@@ -54,22 +54,21 @@
                 <div class="col-12 col-md-4">
                     <q-card class="stat-card">
                         <q-card-section>
-                            <div class="text-overline text-grey-7">INSTRUCTORS</div>
+                            <div class="text-overline text-grey-8">INSTRUCTORS</div>
                             <div class="text-h4 q-my-sm">{{ stats.totalInstructors }}</div>
                             <div class="text-caption">
-                                <q-badge
+                                <StatusBadge
                                     v-if="stats.pendingInstructors > 0"
-                                    color="amber-2"
-                                    text-color="brown-10"
+                                    color="warning"
                                 >
                                     {{ stats.pendingInstructors }} pending verification
-                                </q-badge>
-                                <q-badge
+                                </StatusBadge>
+                                <StatusBadge
                                     v-else
                                     color="positive"
                                 >
                                     All verified
-                                </q-badge>
+                                </StatusBadge>
                             </div>
                             <div class="text-caption text-grey-7 q-mt-xs">{{ stats.totalRecords }} effort records</div>
                         </q-card-section>
@@ -91,13 +90,12 @@
                 <div class="col-12 col-md-4">
                     <q-card class="stat-card">
                         <q-card-section>
-                            <div class="text-overline text-grey-7">COURSES</div>
+                            <div class="text-overline text-grey-8">COURSES</div>
                             <div class="text-h4 q-my-sm">{{ stats.totalCourses }}</div>
                             <div class="text-caption">
-                                <q-badge
+                                <StatusBadge
                                     v-if="stats.coursesWithoutInstructors > 0"
-                                    color="amber-2"
-                                    text-color="brown-10"
+                                    color="warning"
                                     class="clickable-badge"
                                     role="button"
                                     tabindex="0"
@@ -106,13 +104,13 @@
                                     @keydown.space.prevent="scrollToNoInstructorsAlert"
                                 >
                                     {{ stats.coursesWithoutInstructors }} without instructors
-                                </q-badge>
-                                <q-badge
+                                </StatusBadge>
+                                <StatusBadge
                                     v-else
                                     color="positive"
                                 >
                                     All have instructors
-                                </q-badge>
+                                </StatusBadge>
                             </div>
                         </q-card-section>
                         <q-separator />
@@ -135,15 +133,13 @@
                 <div class="col-12 col-md-6">
                     <q-card class="stat-card">
                         <q-card-section>
-                            <div class="text-overline text-grey-7">DATA HYGIENE</div>
+                            <div class="text-overline text-grey-8">DATA HYGIENE</div>
                             <div class="row q-col-gutter-sm q-mt-sm">
                                 <div class="col-4 text-center">
                                     <div
                                         class="text-h5"
                                         :class="
-                                            stats.hygieneSummary.activeAlerts > 0
-                                                ? 'text-warning-accessible'
-                                                : 'text-positive'
+                                            stats.hygieneSummary.activeAlerts > 0 ? 'text-warning' : 'text-positive'
                                         "
                                     >
                                         {{ stats.hygieneSummary.activeAlerts }}
@@ -182,16 +178,15 @@
                 <div class="col-12 col-md-6">
                     <q-card class="stat-card">
                         <q-card-section>
-                            <div class="text-overline text-grey-7">TERM STATUS</div>
+                            <div class="text-overline text-grey-8">TERM STATUS</div>
                             <div class="term-status-row q-my-sm">
                                 <span class="text-h6">{{ stats.currentTerm?.termName }}</span>
-                                <q-badge
+                                <StatusBadge
                                     :color="getTermStatusColor(stats.currentTerm?.status)"
-                                    :text-color="getTermStatusTextColor(stats.currentTerm?.status)"
                                     class="q-pa-sm q-ml-sm"
                                 >
                                     {{ stats.currentTerm?.status }}
-                                </q-badge>
+                                </StatusBadge>
                             </div>
                             <div class="row q-col-gutter-sm q-mt-sm text-caption text-grey-7">
                                 <div
@@ -291,7 +286,7 @@
                                                     rounded
                                                     :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-8">
+                                                <span class="dept-count text-caption text-grey-7">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -340,7 +335,7 @@
                                                     rounded
                                                     :aria-label="dept.departmentName + ' verification progress'"
                                                 />
-                                                <span class="dept-count text-caption text-grey-8">
+                                                <span class="dept-count text-caption text-grey-7">
                                                     ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                                 </span>
                                             </div>
@@ -383,7 +378,7 @@
                                                 rounded
                                                 :aria-label="dept.departmentName + ' verification progress'"
                                             />
-                                            <span class="dept-count text-caption text-grey-8">
+                                            <span class="dept-count text-caption text-grey-7">
                                                 ({{ dept.verifiedInstructors }}/{{ dept.totalInstructors }})
                                             </span>
                                         </div>
@@ -412,7 +407,7 @@
                     </template>
                     <q-card-section class="q-pt-none">
                         <template v-if="recentChanges.length === 0">
-                            <div class="text-grey-6 text-center q-pa-md">No recent changes</div>
+                            <div class="text-grey-7 text-center q-pa-md">No recent changes</div>
                         </template>
 
                         <q-list
@@ -505,7 +500,7 @@
                             />
                         </div>
                         <template v-if="visibleAlerts.length === 0">
-                            <div class="text-grey-6 text-center q-pa-md">No alerts to display</div>
+                            <div class="text-grey-7 text-center q-pa-md">No alerts to display</div>
                         </template>
 
                         <div
@@ -541,16 +536,15 @@
                                         <q-item-section>
                                             <q-item-label>
                                                 {{ alert.entityName }}
-                                                <q-badge
+                                                <StatusBadge
                                                     v-if="alert.status === 'Ignored'"
                                                     color="grey-5"
-                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
                                                         by {{ alert.reviewedBy }}</template
                                                     >
-                                                </q-badge>
+                                                </StatusBadge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
                                         </q-item-section>
@@ -585,7 +579,7 @@
                                 v-if="zeroHoursAlerts.length > 0"
                                 v-model="expandedSections.zeroHours"
                                 dense
-                                header-class="text-warning-accessible"
+                                header-class="text-warning"
                             >
                                 <template #header>
                                     <q-item-section side>
@@ -611,16 +605,15 @@
                                         <q-item-section>
                                             <q-item-label>
                                                 {{ alert.entityName }}
-                                                <q-badge
+                                                <StatusBadge
                                                     v-if="alert.status === 'Ignored'"
                                                     color="grey-5"
-                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
                                                         by {{ alert.reviewedBy }}</template
                                                     >
-                                                </q-badge>
+                                                </StatusBadge>
                                             </q-item-label>
                                             <q-item-label caption
                                                 >{{ alert.description }} ({{ alert.recordCount }}
@@ -658,7 +651,7 @@
                                 v-if="noRecordsAlerts.length > 0"
                                 v-model="expandedSections.noRecords"
                                 dense
-                                header-class="text-warning-accessible"
+                                header-class="text-warning"
                             >
                                 <template #header>
                                     <q-item-section side>
@@ -684,16 +677,15 @@
                                         <q-item-section>
                                             <q-item-label>
                                                 {{ alert.entityName }}
-                                                <q-badge
+                                                <StatusBadge
                                                     v-if="alert.status === 'Ignored'"
                                                     color="grey-5"
-                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
                                                         by {{ alert.reviewedBy }}</template
                                                     >
-                                                </q-badge>
+                                                </StatusBadge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
                                         </q-item-section>
@@ -729,7 +721,7 @@
                                 id="no-instructors-alerts"
                                 v-model="expandedSections.noInstructors"
                                 dense
-                                header-class="text-warning-accessible"
+                                header-class="text-warning"
                             >
                                 <template #header>
                                     <q-item-section side>
@@ -755,16 +747,15 @@
                                         <q-item-section>
                                             <q-item-label>
                                                 {{ alert.entityName }}
-                                                <q-badge
+                                                <StatusBadge
                                                     v-if="alert.status === 'Ignored'"
                                                     color="grey-5"
-                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
                                                         by {{ alert.reviewedBy }}</template
                                                     >
-                                                </q-badge>
+                                                </StatusBadge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
                                         </q-item-section>
@@ -825,16 +816,15 @@
                                         <q-item-section>
                                             <q-item-label>
                                                 {{ alert.entityName }}
-                                                <q-badge
+                                                <StatusBadge
                                                     v-if="alert.status === 'Ignored'"
                                                     color="grey-5"
-                                                    text-color="grey-9"
                                                     class="q-ml-sm"
                                                 >
                                                     Ignored<template v-if="alert.reviewedBy">
                                                         by {{ alert.reviewedBy }}</template
                                                     >
-                                                </q-badge>
+                                                </StatusBadge>
                                             </q-item-label>
                                             <q-item-label caption>{{ alert.description }}</q-item-label>
                                         </q-item-section>
@@ -879,7 +869,7 @@
                         color="grey-5"
                     />
                     <div class="text-h6 text-grey-7 q-mt-md">No Term Selected</div>
-                    <div class="text-grey-6 q-mb-md">Please select a term to view the dashboard.</div>
+                    <div class="text-grey-7 q-mb-md">Please select a term to view the dashboard.</div>
                     <q-btn
                         color="primary"
                         :to="{ name: 'TermSelection' }"
@@ -891,10 +881,18 @@
         </template>
 
         <!-- All Alerts Dialog -->
-        <q-dialog v-model="showAlertsDialog">
+        <q-dialog
+            v-model="showAlertsDialog"
+            aria-labelledby="all-alerts-title"
+        >
             <q-card style="width: 600px; max-width: 95vw">
                 <q-card-section class="row items-center">
-                    <div class="text-h6">All Data Hygiene Alerts</div>
+                    <div
+                        id="all-alerts-title"
+                        class="text-h6"
+                    >
+                        All Data Hygiene Alerts
+                    </div>
                     <q-space />
                     <q-btn
                         icon="close"
@@ -910,7 +908,7 @@
                     tabindex="0"
                 >
                     <template v-if="allAlerts.length === 0">
-                        <div class="text-grey-6 text-center q-pa-md">No alerts</div>
+                        <div class="text-grey-7 text-center q-pa-md">No alerts</div>
                     </template>
                     <q-list
                         v-else
@@ -932,9 +930,9 @@
                                 <q-item-label caption>{{ alert.description }}</q-item-label>
                             </q-item-section>
                             <q-item-section side>
-                                <q-badge :color="getAlertColor(alert)">
+                                <StatusBadge :color="getAlertColor(alert)">
                                     {{ alert.severity }}
-                                </q-badge>
+                                </StatusBadge>
                             </q-item-section>
                         </q-item>
                     </q-list>
@@ -950,6 +948,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import { dashboardService } from "../services/dashboard-service"
 import type { DashboardStatsDto, DepartmentVerificationDto, EffortChangeAlertDto, RecentChangeDto } from "../types"
+import StatusBadge from "@/components/StatusBadge.vue"
 import { inflect } from "inflection"
 
 const $q = useQuasar()
@@ -1120,18 +1119,6 @@ function getTermStatusColor(status: string | undefined): string {
             return "info"
         default:
             return "grey-5"
-    }
-}
-
-function getTermStatusTextColor(status: string | undefined): string {
-    switch (status) {
-        case "Opened":
-            return "white"
-        case "Harvested":
-            return "dark"
-        case "Closed":
-        default:
-            return "grey-9"
     }
 }
 
@@ -1321,11 +1308,6 @@ watch(
 .term-status-row {
     display: flex;
     align-items: baseline;
-}
-
-/* Accessible warning text color for headers and larger text */
-.text-warning-accessible {
-    color: #664d03 !important;
 }
 
 .clickable-badge {

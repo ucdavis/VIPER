@@ -112,10 +112,18 @@ load()
             <span v-else>My Assessments</span>
         </h1>
 
-        <q-dialog v-model="showAssessmentDetail">
+        <q-dialog
+            v-model="showAssessmentDetail"
+            aria-labelledby="assessment-detail-title"
+        >
             <q-card style="width: 700px; max-width: 80vw">
                 <q-card-section class="row items-center q-pb-none">
-                    <div class="text-h6">Assessment Details</div>
+                    <div
+                        id="assessment-detail-title"
+                        class="text-h6"
+                    >
+                        Assessment Details
+                    </div>
                     <q-space />
                     <q-btn
                         icon="close"

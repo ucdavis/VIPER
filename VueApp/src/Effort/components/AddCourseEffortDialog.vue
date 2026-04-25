@@ -2,11 +2,17 @@
     <q-dialog
         :model-value="modelValue"
         persistent
+        aria-labelledby="add-course-effort-title"
         @keydown.escape="handleClose"
     >
         <q-card class="dialog-card-sm">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Add Instructor Effort</div>
+                <div
+                    id="add-course-effort-title"
+                    class="text-h6"
+                >
+                    Add Instructor Effort
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"

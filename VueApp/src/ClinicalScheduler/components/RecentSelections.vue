@@ -56,7 +56,7 @@
                         <!-- Show empty state message when no items and not loading -->
                         <div
                             v-if="!isLoading && items.length === 0"
-                            class="text-grey-6 text-body2 q-py-sm"
+                            class="text-grey-7 text-body2 q-py-sm"
                         >
                             {{ emptyStateMessage }}
                         </div>

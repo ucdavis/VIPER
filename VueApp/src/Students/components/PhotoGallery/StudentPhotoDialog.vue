@@ -158,12 +158,12 @@
                     class="row q-mt-sm text-center"
                 >
                     <div class="col">
-                        <q-badge
+                        <StatusBadge
                             color="primary"
                             class="text-weight-bold"
                         >
                             Ross Student
-                        </q-badge>
+                        </StatusBadge>
                     </div>
                 </div>
             </q-card-section>
@@ -176,6 +176,7 @@ import { ref, computed, watch } from "vue"
 import { useQuasar } from "quasar"
 import type { StudentPhoto } from "../../services/photo-gallery-service"
 import { getPhotoUrl } from "../../composables/use-photo-url"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 const props = defineProps<{
     modelValue: boolean

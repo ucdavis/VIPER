@@ -5,7 +5,7 @@
 <h1>Edit EPA Assessment</h1>
 <div class="row epa justify-center items-start content-start">
     <div style="max-width: 1200px" class="col">
-        <q-banner inline-actions rounded v-if="success" class="bg-green text-white q-mb-md">
+        <q-banner inline-actions rounded v-if="success" class="bg-positive text-white q-mb-md">
             EPA Saved
             <template v-slot:action>
                 <q-btn flat label="Dismiss" @@click="success = false"></q-btn>
@@ -35,7 +35,7 @@
                 </div>
             </div>
             <q-form @@submit="submitEpa" v-bind="assessment">
-                <div class="bg-red-5 text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">
+                <div class="bg-negative text-white q-pa-sm rounded" v-if="errors?.message?.length > 0">
                     {{errors.message}}
                     Please make sure you have selected a service, EPA, student, and a level on the entrustment scale.
                 </div>

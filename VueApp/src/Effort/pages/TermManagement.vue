@@ -92,7 +92,7 @@
                     </div>
                     <div
                         v-if="rolloverYearOverride"
-                        class="text-caption text-orange-9 q-mt-xs"
+                        class="text-caption text-warning q-mt-xs"
                     >
                         Changing the year from the default is unusual. Only do this if you need to run a past rollover.
                     </div>
@@ -115,6 +115,7 @@
                             dense
                             options-dense
                             outlined
+                            hide-bottom-space
                             class="term-select-input"
                         />
                         <q-input
@@ -125,8 +126,8 @@
                             outlined
                             clearable
                             reactive-rules
+                            hide-bottom-space
                             :rules="[createCloseDateRule]"
-                            :hint="createCloseDateHint"
                             class="expected-close-input"
                         />
                         <q-btn
@@ -136,6 +137,12 @@
                             :disable="!selectedNewTerm"
                             @click="confirmAddTerm"
                         />
+                    </div>
+                    <div
+                        v-if="createCloseDateHint"
+                        class="text-caption text-grey-7 q-mt-xs"
+                    >
+                        {{ createCloseDateHint }}
                     </div>
                 </div>
             </q-slide-transition>
@@ -156,7 +163,7 @@
                         <div class="row items-center no-wrap">
                             <router-link
                                 :to="`/Effort/${props.row.termCode}`"
-                                class="text-primary"
+                                class="text-primary term-name-link q-py-xs q-px-xs"
                             >
                                 {{ props.row.termName }}
                             </router-link>
@@ -364,7 +371,7 @@
                         <div class="text-subtitle1">
                             <router-link
                                 :to="`/Effort/${term.termCode}`"
-                                class="text-primary"
+                                class="text-primary term-name-link q-py-xs q-px-xs"
                             >
                                 {{ term.termName }}
                             </router-link>
@@ -853,6 +860,10 @@ onMounted(loadTerms)
 <style scoped>
 .term-action-btn {
     min-width: 130px;
+}
+
+.term-name-link {
+    display: inline-block;
 }
 
 .term-select-input {

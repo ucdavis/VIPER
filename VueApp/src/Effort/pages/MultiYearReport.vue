@@ -65,9 +65,9 @@
                 />
             </div>
 
-            <div class="text-subtitle1 text-weight-medium q-mb-md">
+            <h2 class="text-subtitle1 text-weight-medium q-mb-md q-mt-none">
                 Selected Instructor &mdash; {{ selectedPersonName }}
-            </div>
+            </h2>
 
             <!-- Year range selectors -->
             <div class="filter-form q-mb-md">
@@ -227,9 +227,9 @@
             <template v-if="hasMeritData || hasEvalData">
                 <!-- Section 1: Merit Activity -->
                 <template v-if="hasMeritData">
-                    <h3 class="report-section-title">
+                    <h2 class="report-section-title">
                         Merit &amp; Promotion Multi-Year Report &mdash; {{ report.instructor }}
-                    </h3>
+                    </h2>
                     <div class="report-section-subtitle">
                         {{ report.startYear }} &ndash; {{ report.endYear }} ({{
                             report.useAcademicYear ? "Academic" : "Calendar"
@@ -432,7 +432,7 @@
 
                 <!-- Section 2: Evaluation Multi-Year -->
                 <template v-if="hasEvalData">
-                    <h3 class="report-section-title q-mt-lg">Evaluation Multi-Year &mdash; {{ report.instructor }}</h3>
+                    <h2 class="report-section-title q-mt-lg">Evaluation Multi-Year &mdash; {{ report.instructor }}</h2>
                     <div class="text-bold q-mb-sm">Instructor</div>
 
                     <table class="report-table">
@@ -555,7 +555,7 @@
 
                 <!-- Eval summary (always shown, even when no per-course eval data) -->
                 <template v-else>
-                    <h3 class="report-section-title q-mt-lg">Evaluation Multi-Year &mdash; {{ report.instructor }}</h3>
+                    <h2 class="report-section-title q-mt-lg">Evaluation Multi-Year &mdash; {{ report.instructor }}</h2>
                     <div>
                         <div class="text-bold q-mb-sm">Instructor</div>
                         <div class="eval-summary">

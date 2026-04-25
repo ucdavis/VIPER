@@ -23,7 +23,7 @@
                         <span class="text-weight-bold">
                             {{ child.subjCode }} {{ child.crseNumb.trim() }}-{{ child.seqNumb }}
                         </span>
-                        <q-badge
+                        <StatusBadge
                             :color="child.relationshipType === 'CrossList' ? 'positive' : 'info'"
                             :label="child.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
                         />
@@ -50,7 +50,7 @@
         >
             <template #body-cell-relationshipType="slotProps">
                 <q-td :props="slotProps">
-                    <q-badge
+                    <StatusBadge
                         :color="slotProps.row.relationshipType === 'CrossList' ? 'positive' : 'info'"
                         :label="slotProps.row.relationshipType === 'CrossList' ? 'Cross List' : 'Section'"
                     />
@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { QTableColumn } from "quasar"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 type CrossListedCourseRow = {
     id: number

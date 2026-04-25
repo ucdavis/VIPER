@@ -2,11 +2,17 @@
     <q-dialog
         :model-value="modelValue"
         persistent
+        aria-labelledby="leave-editor-title"
         @update:model-value="emit('update:modelValue', $event)"
     >
         <q-card style="min-width: 36rem; max-width: 56rem">
             <q-card-section>
-                <div class="text-h6">Edit Leave Data</div>
+                <div
+                    id="leave-editor-title"
+                    class="text-h6"
+                >
+                    Edit Leave Data
+                </div>
             </q-card-section>
 
             <q-card-section

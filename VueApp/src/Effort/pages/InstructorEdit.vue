@@ -71,7 +71,7 @@
                         />
                     </q-avatar>
                     <div class="q-ml-md">
-                        <div class="text-h6">{{ instructor.fullName }}</div>
+                        <h1 class="text-h6 q-my-none">{{ instructor.fullName }}</h1>
                         <div class="text-caption text-grey-7">Person ID: {{ instructor.personId }}</div>
                     </div>
                 </q-card-section>
@@ -82,7 +82,7 @@
                 v-if="canEditInstructor"
                 class="q-mb-md"
             >
-                <div class="text-subtitle1 q-mb-sm">Instructor Details</div>
+                <h2 class="text-subtitle1 q-mb-sm q-mt-none">Instructor Details</h2>
 
                 <q-form
                     ref="formRef"
@@ -225,7 +225,7 @@
 
             <!-- Percent Assignments Section -->
             <div class="q-mt-md">
-                <div class="text-subtitle1 q-mb-sm">Percent Assignments</div>
+                <h2 class="text-subtitle1 q-mb-sm q-mt-none">Percent Assignments</h2>
                 <PercentAssignmentTable
                     :percentages="percentages"
                     :can-edit="canEdit && canEditInstructor"
@@ -256,7 +256,10 @@
         />
 
         <!-- Delete Percent Confirmation Dialog -->
-        <q-dialog v-model="showDeletePercentConfirm">
+        <q-dialog
+            v-model="showDeletePercentConfirm"
+            aria-label="Delete percentage assignment confirmation"
+        >
             <q-card>
                 <q-card-section class="row items-center">
                     <q-icon
@@ -288,7 +291,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
-import { QForm, useQuasar } from "quasar"
+import { useQuasar } from "quasar"
+import type { QForm } from "quasar"
 import { requiredRule } from "../validation"
 import "../effort-forms.css"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"

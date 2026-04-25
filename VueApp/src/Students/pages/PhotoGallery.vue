@@ -207,7 +207,7 @@
                         <!-- Title bar with export toolbar -->
                         <div class="row items-center q-mb-md q-pa-sm bg-grey-2 rounded-borders no-print">
                             <div class="col">
-                                <div class="text-h5 text-weight-bold">{{ pageTitle }}</div>
+                                <h2 class="text-h5 text-weight-bold q-my-none">{{ pageTitle }}</h2>
                             </div>
                             <div class="col-auto">
                                 <ExportToolbar
@@ -233,12 +233,12 @@
                                 :key="groupName"
                             >
                                 <!-- Group header (only show if more than one group) -->
-                                <div
+                                <h3
                                     v-if="groupedStudents.size > 1"
                                     class="text-h6 text-weight-bold q-mt-md q-mb-sm q-pa-sm bg-grey-2 rounded-borders"
                                 >
                                     {{ groupName }} ({{ students.length }})
-                                </div>
+                                </h3>
 
                                 <!-- Students grid for this group -->
                                 <div class="row q-col-gutter-xs">
@@ -280,11 +280,11 @@
                                     class="bg-grey-2"
                                 >
                                     <q-td colspan="100%">
-                                        <div class="text-h6 text-weight-bold q-pa-sm">
+                                        <h3 class="text-h6 text-weight-bold q-pa-sm q-my-none">
                                             {{ getGroupValueForStudent(props.row) }} ({{
                                                 getGroupStudentCount(props.row)
                                             }})
-                                        </div>
+                                        </h3>
                                     </q-td>
                                 </q-tr>
 
@@ -339,7 +339,7 @@
                                             </q-item-section>
 
                                             <q-item-section side>
-                                                <q-badge
+                                                <StatusBadge
                                                     v-if="props.row.isRossStudent"
                                                     color="primary"
                                                     label="Ross"
@@ -476,9 +476,9 @@
 
                         <div class="row items-center q-mb-md no-print">
                             <div class="col">
-                                <div class="text-subtitle1">
+                                <h2 class="text-subtitle1 q-my-none">
                                     {{ studentListTitle }}
-                                </div>
+                                </h2>
                                 <div class="text-caption text-grey-7">Generated: {{ currentDateFormatted }}</div>
                             </div>
                         </div>
@@ -548,6 +548,7 @@ import { getPhotoUrl } from "../composables/use-photo-url"
 import { groupStudentsByType, getStudentGroupValue } from "../stores/photo-gallery-helpers"
 import ExportToolbar from "@/components/ExportToolbar.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import PhotoSheet from "../components/PhotoGallery/PhotoSheet.vue"
 import StudentPhotoCard from "../components/PhotoGallery/StudentPhotoCard.vue"
 import StudentPhotoDialog from "../components/PhotoGallery/StudentPhotoDialog.vue"

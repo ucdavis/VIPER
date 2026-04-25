@@ -33,7 +33,8 @@ public sealed class HarvestContext
 
     /// <summary>
     /// Lookup from course key to CourseId for imported courses.
-    /// Keys are either "CRN:{crn}" or "{SubjCode}{CrseNumb}-{Units}".
+    /// Keys are "CRN:{crn}-{Units}" or "{SubjCode}{CrseNumb}-{Units}". Including
+    /// units lets variable-unit CRNs map each unit variant to its own course.
     /// </summary>
     public Dictionary<string, int> CourseIdLookup { get; } = new(StringComparer.OrdinalIgnoreCase);
 

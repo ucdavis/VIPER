@@ -128,7 +128,7 @@ getDomains()
 
     <div class="row">
         <div class="col col-12 col-md-10 col-lg-6">
-            <h3 class="text-primary q-px-md">Domains</h3>
+            <h2 class="text-primary q-px-md">Domains</h2>
             <q-list>
                 <q-item
                     v-for="d in domains"

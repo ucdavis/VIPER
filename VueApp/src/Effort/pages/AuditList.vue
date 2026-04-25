@@ -170,9 +170,9 @@
             </template>
             <template #body-cell-action="props">
                 <q-td :props="props">
-                    <q-badge :color="getActionColor(props.row.action)">
+                    <StatusBadge :color="getActionColor(props.row.action)">
                         {{ props.row.action }}
-                    </q-badge>
+                    </StatusBadge>
                 </q-td>
             </template>
             <template #body-cell-changes="props">
@@ -272,12 +272,12 @@
                         class="bg-grey-1 q-py-xs changes-cell"
                     >
                         <div class="row items-start q-gutter-sm flex-wrap">
-                            <q-badge
+                            <StatusBadge
                                 :color="getActionColor(props.row.action)"
                                 class="q-mr-sm"
                             >
                                 {{ props.row.action }}
-                            </q-badge>
+                            </StatusBadge>
                             <div
                                 v-if="props.row.changesDetail"
                                 class="text-caption col"
@@ -348,12 +348,12 @@
                     >
                         <q-card-section class="q-pa-sm">
                             <div class="row items-center q-mb-xs">
-                                <q-badge
+                                <StatusBadge
                                     :color="getActionColor(props.row.action)"
                                     class="q-mr-sm"
                                 >
                                     {{ props.row.action }}
-                                </q-badge>
+                                </StatusBadge>
                                 <span class="text-caption text-grey-7">
                                     {{
                                         formatDateTime(props.row.changedDate, {
@@ -436,6 +436,7 @@ import type { QTableColumn, QTableProps } from "quasar"
 import { effortAuditService } from "../services/audit-service"
 import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import StatusBadge from "@/components/StatusBadge.vue"
 import type { ChangeDetail, EffortAuditRow, ModifierInfo, TermDto } from "../types"
 
 // Constants
@@ -552,7 +553,7 @@ function getActionColor(action: string): string {
     if (action.startsWith("Open") || action.startsWith("Reopen")) return "secondary"
     if (action.startsWith("Close")) return "warning"
     if (action.startsWith("Import")) return "info"
-    if (action.startsWith("Verify")) return "positive"
+    if (action.startsWith("Verif")) return "positive"
     return "grey-8"
 }
 

@@ -175,20 +175,18 @@
                                     >
                                         {{ instructor.fullName }}
                                     </router-link>
-                                    <q-badge
+                                    <StatusBadge
                                         v-if="instructor.recordCount === 0"
                                         color="warning"
-                                        text-color="dark"
                                     >
                                         No Effort
-                                    </q-badge>
-                                    <q-badge
+                                    </StatusBadge>
+                                    <StatusBadge
                                         v-else-if="instructor.hasZeroHourRecords"
                                         color="negative"
-                                        text-color="white"
                                     >
                                         0 Hours
-                                    </q-badge>
+                                    </StatusBadge>
                                     <div
                                         v-if="instructor.title"
                                         class="text-caption text-grey-7 card-title"
@@ -463,24 +461,22 @@
                                 >
                                     {{ props.row.fullName }}
                                 </router-link>
-                                <q-badge
+                                <StatusBadge
                                     v-if="props.row.recordCount === 0"
                                     color="warning"
-                                    text-color="dark"
                                     class="no-effort-badge"
                                 >
                                     No Effort
                                     <q-tooltip>This instructor has no effort records for this term</q-tooltip>
-                                </q-badge>
-                                <q-badge
+                                </StatusBadge>
+                                <StatusBadge
                                     v-else-if="props.row.hasZeroHourRecords"
                                     color="negative"
-                                    text-color="white"
                                     class="no-effort-badge"
                                 >
                                     Item with 0 Hours
                                     <q-tooltip>This instructor has effort items with 0 hours - cannot verify</q-tooltip>
-                                </q-badge>
+                                </StatusBadge>
                             </div>
                             <div
                                 v-if="props.row.title"
@@ -663,6 +659,7 @@ import { useUserStore } from "@/store/UserStore"
 import type { PersonDto, TermDto, BulkEmailResult } from "../types"
 import type { QTableColumn } from "quasar"
 import InstructorAddDialog from "../components/InstructorAddDialog.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import { inflect } from "inflection"
 import "../dept-table.css"
 

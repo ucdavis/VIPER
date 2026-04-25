@@ -88,6 +88,7 @@ getTerms()
 getRoles()
 </script>
 <template>
+    <h1>Manage Course Competencies</h1>
     <div class="row q-mb-md">
         <div class="col-12 col-sm-6 col-md-3 col-lg-2">
             <q-select
@@ -146,7 +147,7 @@ getRoles()
         v-if="selectedCourse !== null"
         class="q-mb-md"
     >
-        <h4>
+        <h2>
             Roles
             <q-btn
                 dense
@@ -158,7 +159,7 @@ getRoles()
                 @click="showRolesForm = true"
                 class="q-px-md"
             ></q-btn>
-        </h4>
+        </h2>
         <div v-if="courseRoles.length">
             <div
                 v-for="cr in courseRoles"
@@ -170,7 +171,7 @@ getRoles()
         <div v-else>No roles assigned</div>
     </div>
     <div v-if="sessions.length">
-        <h4>Sessions in {{ selectedCourse.courseNum }}</h4>
+        <h2>Sessions in {{ selectedCourse.courseNum }}</h2>
         <table
             cellspacing="0"
             cellpadding="3"

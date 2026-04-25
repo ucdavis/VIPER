@@ -49,10 +49,7 @@
                 #body-cell-status="slotProps"
             >
                 <q-td :props="slotProps">
-                    <q-badge
-                        :color="getStatusColor(getStatus(slotProps.row))"
-                        :label="getStatus(slotProps.row)"
-                    />
+                    <StatusBadge v-bind="getStatusBadgeProps(slotProps.row)" />
                 </q-td>
             </template>
         </q-table>
@@ -63,6 +60,7 @@
 import { ref, computed } from "vue"
 import type { QTableColumn } from "quasar"
 import { inflect } from "inflection"
+import StatusBadge from "@/components/StatusBadge.vue"
 import type { ClinicalAssignmentPreview, HarvestRecordPreview } from "../types"
 
 type ClinicalEffortRow = ClinicalAssignmentPreview | HarvestRecordPreview
@@ -127,6 +125,11 @@ function getStatusColor(status: string): string {
         default:
             return "grey"
     }
+}
+
+function getStatusBadgeProps(row: ClinicalEffortRow) {
+    const label = getStatus(row)
+    return { label, color: getStatusColor(label) }
 }
 
 const tableColumns = computed<QTableColumn[]>(() => {

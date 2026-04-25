@@ -97,7 +97,7 @@ watch(selectedStudentId, () => {
             style="max-width: 1200px"
             class="col"
         >
-            <div class="row"><h2>Select Service and EPA</h2></div>
+            <div class="row"><h1>Select Service and EPA</h1></div>
             <!--Select EPA and service before showing form-->
             <div class="row items-start q-mb-lg">
                 <!--Service-->
