@@ -80,7 +80,7 @@
                 <template #action>
                     <q-btn
                         flat
-                        color="white"
+                        color="negative"
                         label="Retry"
                         :loading="isLoading"
                         @click="loadRotations"

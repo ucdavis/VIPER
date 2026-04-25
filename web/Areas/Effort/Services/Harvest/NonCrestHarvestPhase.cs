@@ -21,8 +21,12 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
     {
         var termCodeStr = context.TermCode.ToString();
 
-        // Get CRNs already in CREST (from Phase 1)
-        var existingCrns = context.Preview.CrestCourses.Select(c => c.Crn).ToHashSet();
+        // Get (CRN, Units) pairs already in CREST (from Phase 1). Filtering by
+        // CRN alone would drop other unit variants of variable-unit CRNs that
+        // CREST only sees at one unit value.
+        var existingCrnUnits = context.Preview.CrestCourses
+            .Select(c => (c.Crn, c.Units))
+            .ToHashSet();
 
         // Get courses with enrollment from roster (excluding DVM courses which are clinical)
         var coursesWithEnrollment = await context.CoursesContext.Rosters
@@ -82,7 +86,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
 
         // Add courses not in CREST (these will be imported)
         var allNonCrestCourses = allScheduleCourses
-            .Where(c => !existingCrns.Contains(c.Crn))
+            .Where(c => !existingCrnUnits.Contains((c.Crn, (decimal)c.Units)))
             .ToList();
 
         foreach (var course in allNonCrestCourses)
@@ -102,7 +106,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
 
         // Add courses that ARE in CREST (for transparency)
         var crestDuplicates = allScheduleCourses
-            .Where(c => existingCrns.Contains(c.Crn))
+            .Where(c => existingCrnUnits.Contains((c.Crn, (decimal)c.Units)))
             .ToList();
 
         foreach (var course in crestDuplicates)
