@@ -169,14 +169,8 @@ public abstract class HarvestPhaseBase : IHarvestPhase
                     LogSanitizer.SanitizeId(effort.Crn));
             }
 
-            if (crnMatches.Count >= 1)
-            {
-                courseId = crnMatches[0];
-            }
-            else
-            {
-                courseId = -1; // sentinel; fall through to course-code fallback
-            }
+            // Sentinel -1 falls through to the course-code fallback below.
+            courseId = crnMatches.Count >= 1 ? crnMatches[0] : -1;
         }
         else
         {
