@@ -284,6 +284,7 @@ import type {
     PercentAssignTypeDto,
     UnitDto,
 } from "../types"
+import StatusBanner from "@/components/StatusBanner.vue"
 import InstructorPageShell from "../components/InstructorPageShell.vue"
 import PercentAssignmentTable from "../components/PercentAssignmentTable.vue"
 import PercentAssignmentAddDialog from "../components/PercentAssignmentAddDialog.vue"
