@@ -102,23 +102,26 @@
             >
                 <!-- Department header -->
                 <div
-                    class="dept-header text-white q-pa-sm row items-center"
-                    :class="{
-                        'dept-header--collapsible': hasMultipleDepts,
-                    }"
-                    :tabindex="hasMultipleDepts ? 0 : undefined"
-                    :role="hasMultipleDepts ? 'button' : undefined"
-                    :aria-expanded="hasMultipleDepts ? !collapsedDepts.has(deptGroup.dept) : undefined"
-                    @click="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keyup.enter="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keydown.space.prevent="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
+                    v-if="hasMultipleDepts"
+                    class="dept-header dept-header--collapsible text-white q-pa-sm row items-center"
+                    tabindex="0"
+                    role="button"
+                    :aria-expanded="!collapsedDepts.has(deptGroup.dept)"
+                    @click="toggleDeptCollapse(deptGroup.dept)"
+                    @keyup.enter="toggleDeptCollapse(deptGroup.dept)"
+                    @keydown.space.prevent="toggleDeptCollapse(deptGroup.dept)"
                 >
                     <q-icon
-                        v-if="hasMultipleDepts"
                         :name="collapsedDepts.has(deptGroup.dept) ? 'expand_more' : 'expand_less'"
                         size="sm"
                         class="q-mr-xs"
                     />
+                    <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.courses.length }})</span>
+                </div>
+                <div
+                    v-else
+                    class="dept-header text-white q-pa-sm row items-center"
+                >
                     <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.courses.length }})</span>
                 </div>
 
