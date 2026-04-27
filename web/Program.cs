@@ -22,6 +22,7 @@ using System.Security.Claims;
 using System.Xml.Linq;
 using Viper;
 using Viper.Classes;
+using Viper.Classes.HealthChecks;
 using Viper.Classes.SQLContext;
 using Web;
 using Web.Authorization;
@@ -275,6 +276,9 @@ try
     builder.Services.AddRazorTemplating();
     builder.Services.AddScoped<Viper.EmailTemplates.Services.IEmailTemplateRenderer, Viper.EmailTemplates.Services.EmailTemplateRenderer>();
 
+    // All health-check DI wiring lives in HealthCheckExtensions.
+    builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
+
     // Add HttpClient for Vite proxy (development only)
     if (builder.Environment.IsDevelopment())
     {
@@ -293,8 +297,13 @@ try
 
     var app = builder.Build();
 
-    // Add Content Security Policy
-    app.UseCsp(csp =>
+    // Add Content Security Policy. Skip for HealthChecks.UI paths - the bundled UI
+    // uses inline scripts and data: fonts that our strict CSP would block. Those
+    // paths are already IP-gated to trusted SVM admin subnets, so relaxing CSP
+    // there is acceptable.
+    app.UseWhen(
+        ctx => !Viper.Classes.HealthChecks.HealthCheckExtensions.IsUIPath(ctx.Request.Path),
+        branch => branch.UseCsp(csp =>
     {
         // Allow JavaScript from:
         csp.AllowScripts
@@ -353,7 +362,7 @@ try
             .FromSelf() // This domain
             .From("fonts.googleapis.com") // Google Fonts stylesheets
             .AllowUnsafeInline(); // Allows inline CSS
-    });
+    }));
 
     // Configure the HTTP request pipeline.
 
@@ -463,6 +472,9 @@ try
     app.UseAuthorization();
     app.UseCookiePolicy();
     app.UseSession();
+
+    // All health-check pipeline wiring lives in HealthCheckExtensions.
+    app.UseViperHealthChecks();
 
     // Define the default route mapping and require authentication by default (fail safe)
     app.MapControllerRoute(

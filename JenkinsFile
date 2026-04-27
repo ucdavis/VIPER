@@ -109,6 +109,27 @@ pipeline {
 				networkShares()
 				filecopy copyOfflineOperations, 'test', env.WORKSPACE
 				filecopy copyOperations, 'test', env.WORKSPACE
+				powershell label: 'Verify /health returns 200', script: '''
+					$url = "https://secure-test.vetmed.ucdavis.edu/2/health"
+					$maxAttempts = 15
+					for ($i = 1; $i -le $maxAttempts; $i++) {
+						# 2s for the first few attempts then 4s - absorbs IIS app-pool warm-up
+						$delay = if ($i -le 5) { 2 } else { 4 }
+						try {
+							$response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+							if ($response.StatusCode -eq 200) {
+								Write-Host "Attempt ${i}: $url returned 200 OK"
+								exit 0
+							}
+							Write-Host "Attempt ${i}: $url returned $($response.StatusCode)"
+						} catch {
+							Write-Host "Attempt ${i}: $($_.Exception.Message)"
+						}
+						if ($i -lt $maxAttempts) { Start-Sleep -Seconds $delay }
+					}
+					Write-Error "Health check at $url failed after $maxAttempts attempts"
+					exit 1
+				'''
 			}
 		}
 		stage('Deploy to prod') {
@@ -122,6 +143,26 @@ pipeline {
 				networkShares()
 				filecopy copyOfflineOperations, 'prod', env.WORKSPACE
 				filecopy copyOperations, 'prod', env.WORKSPACE
+				powershell label: 'Verify /health returns 200', script: '''
+					$url = "https://secure.vetmed.ucdavis.edu/2/health"
+					$maxAttempts = 15
+					for ($i = 1; $i -le $maxAttempts; $i++) {
+						$delay = if ($i -le 5) { 2 } else { 4 }
+						try {
+							$response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+							if ($response.StatusCode -eq 200) {
+								Write-Host "Attempt ${i}: $url returned 200 OK"
+								exit 0
+							}
+							Write-Host "Attempt ${i}: $url returned $($response.StatusCode)"
+						} catch {
+							Write-Host "Attempt ${i}: $($_.Exception.Message)"
+						}
+						if ($i -lt $maxAttempts) { Start-Sleep -Seconds $delay }
+					}
+					Write-Error "Health check at $url failed after $maxAttempts attempts"
+					exit 1
+				'''
 			}
 		}
     }
