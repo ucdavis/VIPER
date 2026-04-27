@@ -204,6 +204,7 @@ onMounted(() => {
         <q-card>
             <div
                 class="table-wrapper"
+                tabindex="0"
                 v-if="!loading"
             >
                 <q-table

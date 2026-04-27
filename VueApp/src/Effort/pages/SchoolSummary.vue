@@ -44,7 +44,10 @@
             </template>
 
             <template v-else>
-                <div class="dept-section">
+                <div
+                    class="dept-section"
+                    tabindex="0"
+                >
                     <table class="report-table">
                         <caption class="sr-only">
                             School-wide summary of effort by department
@@ -73,8 +76,8 @@
                                 v-for="(dept, deptIdx) in report.departments"
                                 :key="dept.department"
                             >
-                                <!-- Department totals row -->
-                                <tr>
+                                <!-- Department totals row (border-top separates from previous dept) -->
+                                <tr :class="{ 'dept-boundary': deptIdx > 0 }">
                                     <td class="dept-name-cell">{{ dept.department }}</td>
                                     <td
                                         v-for="type in orderedEffortTypes"
@@ -105,16 +108,6 @@
                                         :class="{ 'col-spacer': isSpacerColumn(type) }"
                                     >
                                         {{ getAverageValue(dept.averages, type) }}
-                                    </td>
-                                </tr>
-                                <!-- HR divider between departments -->
-                                <tr
-                                    v-if="deptIdx < report.departments.length - 1"
-                                    class="divider-row"
-                                    aria-hidden="true"
-                                >
-                                    <td colspan="100%">
-                                        <hr />
                                     </td>
                                 </tr>
                             </template>
@@ -243,14 +236,9 @@ const {
     font-style: italic;
 }
 
-.divider-row td {
-    padding: 0;
-}
-
-.divider-row hr {
-    border: none;
+.dept-boundary td {
     border-top: 1px solid var(--ucdavis-black-20);
-    margin: 0.5rem 0;
+    padding-top: 0.75rem;
 }
 
 .grand-totals-row {

@@ -88,8 +88,11 @@ export default [
             "vuejs-accessibility/aria-props": "error", // WCAG 4.1.2 Name, Role, Value (A)
             "vuejs-accessibility/aria-role": "error", // WCAG 4.1.2 Name, Role, Value (A)
             "vuejs-accessibility/aria-unsupported-elements": "error", // WCAG 4.1.2 Name, Role, Value (A)
+            "vuejs-accessibility/no-aria-hidden-on-focusable": "error", // WCAG 4.1.2 Name, Role, Value (A)
             "vuejs-accessibility/no-distracting-elements": "error", // WCAG 2.2.2 Pause, Stop, Hide (A)
             "vuejs-accessibility/no-redundant-roles": "error", // WCAG 4.1.2 Name, Role, Value (A)
+            "vuejs-accessibility/no-role-presentation-on-focusable": "error", // WCAG 4.1.2 Name, Role, Value (A)
+            "vuejs-accessibility/no-static-element-interactions": "error", // WCAG 4.1.2 Name, Role, Value (A)
             "vuejs-accessibility/role-has-required-aria-props": "error", // WCAG 4.1.2 Name, Role, Value (A)
 
             // CRITICAL RULES - WCAG 2.1 Level AA:
