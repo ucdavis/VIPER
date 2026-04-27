@@ -102,23 +102,26 @@
             >
                 <!-- Department header -->
                 <div
-                    class="dept-header text-white q-pa-sm row items-center"
-                    :class="{
-                        'dept-header--collapsible': hasMultipleDepts,
-                    }"
-                    :tabindex="hasMultipleDepts ? 0 : undefined"
-                    :role="hasMultipleDepts ? 'button' : undefined"
-                    :aria-expanded="hasMultipleDepts ? !collapsedDepts.has(deptGroup.dept) : undefined"
-                    @click="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keyup.enter="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
-                    @keydown.space.prevent="hasMultipleDepts && toggleDeptCollapse(deptGroup.dept)"
+                    v-if="hasMultipleDepts"
+                    class="dept-header dept-header--collapsible text-white q-pa-sm row items-center"
+                    tabindex="0"
+                    role="button"
+                    :aria-expanded="!collapsedDepts.has(deptGroup.dept)"
+                    @click="toggleDeptCollapse(deptGroup.dept)"
+                    @keyup.enter="toggleDeptCollapse(deptGroup.dept)"
+                    @keydown.space.prevent="toggleDeptCollapse(deptGroup.dept)"
                 >
                     <q-icon
-                        v-if="hasMultipleDepts"
                         :name="collapsedDepts.has(deptGroup.dept) ? 'expand_more' : 'expand_less'"
                         size="sm"
                         class="q-mr-xs"
                     />
+                    <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.courses.length }})</span>
+                </div>
+                <div
+                    v-else
+                    class="dept-header text-white q-pa-sm row items-center"
+                >
                     <span class="text-weight-bold">{{ deptGroup.dept }} ({{ deptGroup.courses.length }})</span>
                 </div>
 
@@ -146,24 +149,22 @@
                                     class="text-weight-medium text-primary"
                                     >{{ props.row.courseCode }}-{{ props.row.seqNumb }}</router-link
                                 >
-                                <q-badge
+                                <StatusBadge
                                     v-if="!isSvmDept(props.row.custDept)"
                                     color="negative"
-                                    text-color="white"
                                 >
                                     Non-SVM Dept
                                     <q-tooltip
                                         >Expected SVM departments: APC, DVM, PHR, PMI, VMB, VME, VET, VSR</q-tooltip
                                     >
-                                </q-badge>
-                                <q-badge
+                                </StatusBadge>
+                                <StatusBadge
                                     v-if="props.row.enrollment === 0 && !props.row.isRCourse"
                                     color="warning"
-                                    text-color="dark"
                                 >
                                     0 Enrollment
                                     <q-tooltip>This course has zero enrollment</q-tooltip>
-                                </q-badge>
+                                </StatusBadge>
                             </div>
                             <div class="text-caption text-grey-7 lt-sm">
                                 {{ props.row.enrollment }} enrolled &bull; {{ props.row.units }} units
@@ -311,6 +312,7 @@ import { useEffortPermissions } from "../composables/use-effort-permissions"
 import type { CourseDto, TermDto } from "../types"
 import type { QTableColumn } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import CourseImportDialog from "../components/CourseImportDialog.vue"
 import CourseEditDialog from "../components/CourseEditDialog.vue"
 import CourseAddDialog from "../components/CourseAddDialog.vue"

@@ -10,12 +10,12 @@ function formatTypeWithModifier(typeName: string, modifier: string | null): stri
 function getTypeClassColor(typeClass: string): string {
     const lc = typeClass.toLowerCase()
     if (lc === "admin") {
-        return "blue"
+        return "info"
     }
     if (lc === "clinical") {
-        return "green"
+        return "positive"
     }
-    return "orange"
+    return "warning"
 }
 
 export { formatTypeWithModifier, getTypeClassColor }

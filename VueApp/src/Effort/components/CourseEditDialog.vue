@@ -3,11 +3,17 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="course-edit-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 500px">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">{{ enrollmentOnly ? "Edit R-Course Enrollment" : "Edit Course" }}</div>
+                <div
+                    id="course-edit-title"
+                    class="text-h6"
+                >
+                    {{ enrollmentOnly ? "Edit R-Course Enrollment" : "Edit Course" }}
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"

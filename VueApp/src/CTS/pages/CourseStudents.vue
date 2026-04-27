@@ -5,7 +5,7 @@ const student = ref("")
 <template>
     <h1>Students for VET430 Lab 1 Challenging Communication - Simulated Lab with Actors and Video</h1>
 
-    <h3>Add Student(s)</h3>
+    <h2>Add Student(s)</h2>
     <div class="row q-mb-md">
         <div class="col-12 col-md-6 col-lg-4">
             <q-select
@@ -19,7 +19,7 @@ const student = ref("")
         </div>
     </div>
 
-    <h3 class="q-mt-md">Logged in students</h3>
+    <h2 class="q-mt-md">Logged in students</h2>
     <div class="row">
         <div class="col-12 col-md-8 col-lg-6">
             <table

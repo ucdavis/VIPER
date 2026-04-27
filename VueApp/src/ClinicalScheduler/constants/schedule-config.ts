@@ -4,6 +4,8 @@
  */
 
 const SCHEDULE_MESSAGES = {
+    READ_ONLY_NOTICE: "You are viewing historical schedule data. Past schedules cannot be edited.",
+
     // Empty state messages
     EMPTY_STATE: {
         EDITABLE: "Click to add assignment",

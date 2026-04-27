@@ -110,17 +110,25 @@ load()
 </script>
 <template>
     <div v-if="loaded">
-        <h2>
+        <h1>
             <span v-if="showPersonName && person != null"
                 >Assessments for {{ person.firstName }} {{ person.lastName }}</span
             >
             <span v-else>My Assessments</span>
-        </h2>
+        </h1>
 
-        <q-dialog v-model="showAssessmentDetail">
+        <q-dialog
+            v-model="showAssessmentDetail"
+            aria-labelledby="assessment-detail-title"
+        >
             <q-card style="width: 700px; max-width: 80vw">
                 <q-card-section>
-                    <div class="text-h6">Assessment Details</div>
+                    <div
+                        id="assessment-detail-title"
+                        class="text-h6"
+                    >
+                        Assessment Details
+                    </div>
                     <div class="row">
                         <div class="col-12"><strong>EPA:</strong> {{ epaAssessment.epaName }}</div>
                     </div>
@@ -155,7 +163,7 @@ load()
 
         <div class="row">
             <div class="col col-md-10 col-lg-7 q-mr-sm">
-                <h3>Entrustable Professional Activities</h3>
+                <h2>Entrustable Professional Activities</h2>
             </div>
             <div class="col-1">
                 <q-btn

@@ -4,6 +4,7 @@ import { ref, watch } from "vue"
 import type { ServiceSelect } from "@/CTS/types"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 interface ScheduledService {
     serviceId: number
@@ -95,19 +96,19 @@ void getServices()
                     side
                     v-if="scope.opt.thisWeek"
                 >
-                    <q-badge color="positive"> This Week </q-badge>
+                    <StatusBadge color="positive"> This Week </StatusBadge>
                 </q-item-section>
                 <q-item-section
                     side
                     v-if="scope.opt.lastWeek && !scope.opt.thisWeek"
                 >
-                    <q-badge color="primary"> Last Week </q-badge>
+                    <StatusBadge color="primary"> Last Week </StatusBadge>
                 </q-item-section>
                 <q-item-section
                     side
                     v-if="scope.opt.scheduled && !scope.opt.lastWeek && !scope.opt.thisWeek"
                 >
-                    <q-badge color="grey-5"> Scheduled </q-badge>
+                    <StatusBadge color="grey-5"> Scheduled </StatusBadge>
                 </q-item-section>
                 <q-item-section>
                     <q-item-label>{{ scope.opt.serviceName }}</q-item-label>

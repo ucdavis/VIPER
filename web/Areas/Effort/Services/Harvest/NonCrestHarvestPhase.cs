@@ -21,8 +21,12 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
     {
         var termCodeStr = context.TermCode.ToString();
 
-        // Get CRNs already in CREST (from Phase 1)
-        var existingCrns = context.Preview.CrestCourses.Select(c => c.Crn).ToHashSet();
+        // Get (CRN, Units) pairs already in CREST (from Phase 1). Filtering by
+        // CRN alone would drop other unit variants of variable-unit CRNs that
+        // CREST only sees at one unit value.
+        var existingCrnUnits = context.Preview.CrestCourses
+            .Select(c => (c.Crn, c.Units))
+            .ToHashSet();
 
         // Get courses with enrollment from roster (excluding DVM courses which are clinical)
         var coursesWithEnrollment = await context.CoursesContext.Rosters
@@ -73,7 +77,8 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             })
             .ToListAsync(ct);
 
-        // Combine courses and separate into those to import vs those already in CREST
+        // Preserve one row per (Crn, Units) so the preview surfaces all enrollment variants
+        // of a variable-unit CRN. The CRN-keyed courseLookup below dedupes separately.
         var allScheduleCourses = coursesWithEnrollment
             .Concat(researchCourses)
             .DistinctBy(c => new { c.Crn, c.Units })
@@ -81,7 +86,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
 
         // Add courses not in CREST (these will be imported)
         var allNonCrestCourses = allScheduleCourses
-            .Where(c => !existingCrns.Contains(c.Crn))
+            .Where(c => !existingCrnUnits.Contains((c.Crn, (decimal)c.Units)))
             .ToList();
 
         foreach (var course in allNonCrestCourses)
@@ -101,7 +106,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
 
         // Add courses that ARE in CREST (for transparency)
         var crestDuplicates = allScheduleCourses
-            .Where(c => existingCrns.Contains(c.Crn))
+            .Where(c => existingCrnUnits.Contains((c.Crn, (decimal)c.Units)))
             .ToList();
 
         foreach (var course in crestDuplicates)
@@ -261,9 +266,12 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
         var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(nonCrestMothraIds, context.TermCode, ct);
 
-        // Build course lookup for effort records
+        // CRN-keyed lookup for SubjCode/CrseNumb resolution from POA rows (POA has no unit info).
+        // Variable-unit CRNs produce multiple allNonCrestCourses rows; take the first since
+        // SubjCode and CrseNumb are identical across unit variants of the same CRN.
         var courseLookup = allNonCrestCourses
-            .ToDictionary(c => c.Crn, c => c);
+            .GroupBy(c => c.Crn)
+            .ToDictionary(g => g.Key, g => g.First());
 
         // Create instructor previews and effort records
         foreach (var poa in poaEntries)

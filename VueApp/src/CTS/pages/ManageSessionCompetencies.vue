@@ -179,13 +179,19 @@ if (!courseId || !sessionId) {
 <template>
     <h1>Competencies for {{ session.courseTitle }} {{ session.type }} {{ session.typeOrder }} {{ session.title }}</h1>
 
-    <q-dialog v-model="showCompForm">
+    <q-dialog
+        v-model="showCompForm"
+        aria-labelledby="session-competency-form-title"
+    >
         <q-card
             style="width: 800px; max-width: 80vw"
             class="q-pa-md"
         >
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">
+                <div
+                    id="session-competency-form-title"
+                    class="text-h6"
+                >
                     {{ compAddUpdate?.sessionCompetencyId ? "Update" : "Add" }} Session Competency
                 </div>
                 <q-space />
@@ -273,7 +279,7 @@ if (!courseId || !sessionId) {
 
     <div class="row q-mb-lg">
         <div class="col">
-            <h3>Existing Competencies</h3>
+            <h2>Existing Competencies</h2>
         </div>
         <div class="col">
             <span class="text-h6 q-mx-xl">
@@ -307,7 +313,7 @@ if (!courseId || !sessionId) {
                 class="sessionComps"
             >
                 <thead>
-                    <tr class="bg-blue-grey-2">
+                    <tr class="bg-ucdavis-blue-20">
                         <th class="text-left">Competency</th>
                         <th
                             class="text-left"
@@ -327,7 +333,7 @@ if (!courseId || !sessionId) {
                         <tr
                             v-for="lc in legacyCompetencies"
                             :key="lc.dvmCompetencyId"
-                            class="bg-yellow-2"
+                            class="bg-ucdavis-gold-20"
                         >
                             <td style="max-width: 50vw">{{ lc.dvmCompetencyName }}</td>
                             <td v-if="multiRole">{{ lc.dvmRoleName }}</td>

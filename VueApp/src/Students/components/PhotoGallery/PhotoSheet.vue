@@ -19,7 +19,9 @@
             >
                 <!-- Group header -->
                 <div class="group-header q-mb-sm">
-                    <div class="text-subtitle1 text-weight-bold">{{ groupName }} ({{ groupStudents.length }})</div>
+                    <h3 class="text-subtitle1 text-weight-bold q-my-none">
+                        {{ groupName }} ({{ groupStudents.length }})
+                    </h3>
                 </div>
 
                 <!-- Students grid for this group -->

@@ -58,7 +58,7 @@
         </q-td>
     </template>
     <template v-slot:body-cell-active="props">
-        <q-td :props="props" :class="props.row.current ? '' : 'bg-red-5 text-white'" width="25px">
+        <q-td :props="props" :class="props.row.current ? '' : 'bg-negative text-white'" width="25px">
             {{props.row.current ? "Y" : "N"}}
         </q-td>
     </template>

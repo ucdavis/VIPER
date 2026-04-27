@@ -3,11 +3,17 @@
         :model-value="modelValue"
         persistent
         maximized-on-mobile
+        aria-labelledby="instructor-percent-edit-title"
         @keydown.escape="handleClose"
     >
         <q-card style="width: 100%; max-width: 1100px; max-height: 90vh">
             <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">Edit Instructor</div>
+                <div
+                    id="instructor-percent-edit-title"
+                    class="text-h6"
+                >
+                    Edit Instructor
+                </div>
                 <q-space />
                 <q-btn
                     icon="close"
@@ -213,7 +219,10 @@
         />
 
         <!-- Delete Percent Confirmation Dialog -->
-        <q-dialog v-model="showDeletePercentConfirm">
+        <q-dialog
+            v-model="showDeletePercentConfirm"
+            aria-label="Delete percentage assignment confirmation"
+        >
             <q-card>
                 <q-card-section class="row items-center">
                     <q-icon

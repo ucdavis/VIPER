@@ -90,8 +90,9 @@ sessionTimeoutCheckEventId = window.setTimeout(checkSessionTimeout, 60000)
         full-width
         v-model="showSessionTimeoutWarning"
         seamless
+        aria-label="Session timeout warning"
     >
-        <q-card :class="'q-mx-lg ' + (sessionExpired ? 'bg-red-1' : 'bg-grey-2')">
+        <q-card :class="'q-mx-lg ' + (sessionExpired ? 'error-surface' : 'bg-grey-2')">
             <q-card-section class="row items-center no-wrap">
                 <q-icon
                     size="md"

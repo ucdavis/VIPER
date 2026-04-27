@@ -81,7 +81,7 @@ getLevels()
             >
                 <q-tooltip
                     v-if="props.levelType == 'epa'"
-                    class="text-dark bg-light-blue-3"
+                    class="text-dark bg-info"
                 >
                     <template #default>
                         <span class="levelHover">{{ level.description }}</span>
@@ -130,7 +130,7 @@ getLevels()
             </template>
             <q-tooltip
                 v-if="props.levelType == 'epa'"
-                class="text-dark bg-light-blue-3"
+                class="text-dark bg-info"
             >
                 <template #default>
                     <span class="levelHover">{{ level.description }}</span>

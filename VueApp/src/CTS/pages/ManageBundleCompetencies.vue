@@ -328,11 +328,19 @@ load()
         </q-form>
     </div>
 
-    <q-dialog v-model="showCompForm">
+    <q-dialog
+        v-model="showCompForm"
+        aria-labelledby="bundle-competency-form-title"
+    >
         <q-card class="q-pa-lg">
             <q-form @submit="updateBundleCompetency()">
                 <q-card-section class="row items-center q-pb-none">
-                    <div class="text-h6">Edit Competency</div>
+                    <div
+                        id="bundle-competency-form-title"
+                        class="text-h6"
+                    >
+                        Edit Competency
+                    </div>
                     <q-space />
                     <q-btn
                         icon="close"
