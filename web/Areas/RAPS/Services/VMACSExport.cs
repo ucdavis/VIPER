@@ -136,10 +136,10 @@ namespace Viper.Areas.RAPS.Services
                     catch (Exception ex)
                     {
                         HttpHelper.Logger.Log(LogLevel.Warn, ex);
-                        RecordMessage(messages, "Error: " + ex.Message + " " + ex?.StackTrace);
-                        if (ex?.InnerException != null)
+                        RecordMessage(messages, "Error: " + ex.Message + " " + ex.StackTrace);
+                        if (ex.InnerException != null)
                         {
-                            RecordMessage(messages, "Error: " + ex.InnerException.Message + " " + ex.InnerException?.StackTrace);
+                            RecordMessage(messages, "Error: " + ex.InnerException.Message + " " + ex.InnerException.StackTrace);
                         }
                     }
                 }

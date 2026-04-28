@@ -490,7 +490,7 @@ namespace Viper.Areas.CTS.Controllers
                     .ToListAsync();
             }
 
-            return context.GetMyCourses(termCode, Int32.Parse(userHelper?.GetCurrentUser()?.Pidm ?? "0"))
+            return context.GetMyCourses(termCode, Int32.Parse(userHelper.GetCurrentUser()?.Pidm ?? "0"))
                 .Select(c => c.CourseId)
                 .ToList();
         }

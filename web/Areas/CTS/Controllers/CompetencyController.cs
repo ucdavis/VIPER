@@ -136,7 +136,7 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
 
-            if (competency.CompetencyId == null || competency.CompetencyId <= 0)
+            if (competency.CompetencyId <= 0)
             {
                 return BadRequest("CompetencyId is required.");
             }
