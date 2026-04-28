@@ -26,11 +26,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Audit the creation, update, or delete of a student EPA assessment
         /// </summary>
-        /// <param name="encounter"></param>
-        /// <param name="studentEpa"></param>
-        /// <param name="actionType"></param>
-        /// <param name="modifier"></param>
-        /// <returns></returns>
         public async Task AuditStudentEpa(Encounter encounter, AuditActionType actionType, int modifier)
         {
             var details = JsonSerializer.Serialize(new

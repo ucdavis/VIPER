@@ -33,10 +33,6 @@ namespace Viper.Areas.Students.Controllers
         /// Get DVM Students by class year or class level (for the current term)
         /// Note that including all class years is restricted
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="classLevel"></param>
-        /// <param name="includeAllClassYears"></param>
-        /// <returns></returns>
         [HttpGet]
         [Permission(Allow = "SVMSecure.Students")]
         public async Task<ActionResult<IEnumerable<Student>>> GetDvmStudents(int? classYear, string? classLevel, bool includeAllClassYears = false)
@@ -52,8 +48,6 @@ namespace Viper.Areas.Students.Controllers
         /// <summary>
         /// Get a single student
         /// </summary>
-        /// <param name="personId"></param>
-        /// <returns></returns>
         [HttpGet("{personId}")]
         [Permission(Allow = "SVMSecure.Students")]
         public async Task<ActionResult<Student>> GetDvmStudent(int personId)
@@ -65,9 +59,6 @@ namespace Viper.Areas.Students.Controllers
         /// <summary>
         /// Get students by term and class level. Uses AAUD student info table, which is driven by registration data and exceptions.
         /// </summary>
-        /// <param name="termCode"></param>
-        /// <param name="classLevel"></param>
-        /// <returns></returns>
         [HttpGet("byTermAndClassLevel/{termcode}/{classLevel}")]
         [Permission(Allow = "SVMSecure.SIS.AllStudents")]
         public async Task<ActionResult<IEnumerable<Student>>> GetStudentsByTermAndClassLevel(int termCode, string classLevel)
@@ -87,9 +78,6 @@ namespace Viper.Areas.Students.Controllers
         /// <summary>
         /// Import the listed people into a class year. Must be their first class year.
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="personIds"></param>
-        /// <returns></returns>
         [HttpPost("{classYear}/import")]
         [Permission(Allow = "SVMSecure.SIS.AllStudents")]
         public async Task<ActionResult<StudentClassYear>> ImportClassYear(int classYear, List<int> personIds)
@@ -106,9 +94,6 @@ namespace Viper.Areas.Students.Controllers
         /// <summary>
         /// Add a person to the class year. Must be the first class year they are added to.
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="personId"></param>
-        /// <returns></returns>
 		[HttpPost("{classYear}/{personId}")]
         [Permission(Allow = "SVMSecure.SIS.AllStudents")]
         public async Task<ActionResult<StudentClassYear>> AddStudentToClassYear(int classYear, int personId)
@@ -125,10 +110,6 @@ namespace Viper.Areas.Students.Controllers
         /// Inserts a student class year. This should be the first class year for the student. If the student is being moved from one class year
         /// to another, the modify function should be used instead (to deactivate the old year with a reason).
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="personId"></param>
-        /// <param name="user"></param>
-        /// <returns></returns>
         private async Task<StudentClassYear?> InsertStudentRecord(int classYear, int personId, AaudUser? user = null)
         {
             //if the student is in any class year, they should be modified, not added
@@ -159,8 +140,6 @@ namespace Viper.Areas.Students.Controllers
         /// Update a student class year. If updating the active record and changing the grad year, insert a new record and mark the old one inactive.
         /// If setting an inactive year to active, mark the active one inactive.
         /// </summary>
-        /// <param name="studentClassYear"></param>
-        /// <returns></returns>
         [HttpPut("{classYear}/{personId}")]
         [Permission(Allow = "SVMSecure.SIS.AllStudents")]
         public async Task<ActionResult<StudentClassYear>> UpdateClassYear(int classYear, int personId, StudentClassYearUpdate studentClassYear)
@@ -230,8 +209,6 @@ namespace Viper.Areas.Students.Controllers
         /// <summary>
         /// Delete a student class year record (i.e. they were never in this class)
         /// </summary>
-        /// <param name="studentClassYearId"></param>
-        /// <returns></returns>
         [HttpDelete("studentClassYears/{studentClassYearId}")]
         public async Task<ActionResult> DeleteStudentClassYear(int studentClassYearId)
         {
@@ -250,7 +227,6 @@ namespace Viper.Areas.Students.Controllers
         /// <summary>
         /// Get reasons a student left their class year
         /// </summary>
-        /// <returns></returns>
         [HttpGet("leftReasons")]
         public async Task<ActionResult<List<ClassYearLeftReason>>> GetReasons()
         {

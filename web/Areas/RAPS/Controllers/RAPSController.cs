@@ -35,9 +35,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// Getting left nav for each page. This is a little complicated - alternatively, ViewData["ViperLeftNav"] = await Nav() 
         /// could be added to each action.
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="next"></param>
-        /// <returns></returns>
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
@@ -212,7 +209,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// Open to admins, IT people for VMACS roles, and Role "owners" for their roles.
         /// </summary>
         /// <param name="Instance">RAPS Instance</param>
-        /// <returns></returns>
         [Route("/[area]/{instance}/[action]")]
         public async Task<IActionResult> RoleList(string instance)
         {
@@ -235,8 +231,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Show the list of the role templates
         /// </summary>
-        /// <param name="instance"></param>
-        /// <returns></returns>
         [Route("/[area]/{instance}/[action]")]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
         public async Task<IActionResult> RoleTemplateList(string instance)
@@ -253,8 +247,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Apply a role template to one or more users
         /// </summary>
-        /// <param name="instance"></param>
-        /// <returns></returns>
         [Route("/[area]/{instance}/[action]")]
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         public async Task<IActionResult> RoleTemplateApply(string instance)
@@ -269,8 +261,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Link a role template to one or more roles
         /// </summary>
-        /// <param name="instance"></param>
-        /// <returns></returns>
         [Route("/[area]/{instance}/[action]")]
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoles")]
         public async Task<IActionResult> RoleTemplateRoles(string instance)
@@ -285,8 +275,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Show and manage the RAPS roles that delegate access to manage the membership of other roles
         /// </summary>
-        /// <param name="instance"></param>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{instance}/DelegateRoles")]
         public async Task<IActionResult> DelegateRoles()
@@ -299,8 +287,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// Role members. Open to admins, IT people for VMACS roles, and Role "owners" for their roles.
         /// </summary>
         /// <param name="Instance">RAPS Instance</param>
-        /// <param name="RoleId"></param>
-        /// <returns></returns>
         [Route("/[area]/{instance}/[action]")]
         public async Task<IActionResult> RoleMembers(string instance, int RoleId)
         {
@@ -327,7 +313,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// List permissions
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionList()
@@ -341,7 +326,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// List permissions for a role
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> RolePermissions(int roleId)
@@ -353,7 +337,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Compare permissions for two roles
         /// </summary>
-        /// <returns></returns>
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> RolePermissionsComparison(string instance)
         {
@@ -370,7 +353,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// List members of a permission 
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionMembers(int? permissionId)
@@ -389,7 +371,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// List roles for a permission 
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.EditRolePermissions")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionRoles(int? permissionId)
@@ -442,7 +423,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Search for users
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.UserLookup")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> UserSearch(string instance)
@@ -457,7 +437,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Add/Update role assignments for a user
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> MemberRoles(string instance)
@@ -475,7 +454,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Add/Update permission assignments for a user
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> MemberPermissions()
@@ -486,7 +464,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// Show all permissions for a user, either from roles or permission assignments
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.RSOP")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> RSOP(string instance)
@@ -503,7 +480,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// <summary>
         /// View history of changes to a user's role and permission assignments
         /// </summary>
-        /// <returns></returns>
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> MemberHistory(string instance)

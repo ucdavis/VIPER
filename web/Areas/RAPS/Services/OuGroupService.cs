@@ -32,8 +32,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get all Raps groups, along with info from ou or ad3
         /// </summary>
-        /// <param name="search"></param>
-        /// <returns></returns>
         public async Task<List<Group>> GetAllGroups(string? search)
         {
             var result = await _context.OuGroups
@@ -79,9 +77,6 @@ namespace Viper.Areas.RAPS.Services
         /// Create an OU group to start managing a group in OU. Also creates a role to manage explicit membership and links it to the
         /// application role.
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="description"></param>
-        /// <returns></returns>
         /// <exception cref="Exception"></exception>
         public async Task<OuGroup> CreateRapsGroup(string groupName, string? description)
         {
@@ -142,9 +137,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Update the name and description of an ou group. Also change the role name of the group membership role.
         /// </summary>
-        /// <param name="ouGroup"></param>
-        /// <param name="name"></param>
-        /// <param name="description"></param>
         public async Task UpdateRapsGroup(OuGroup ouGroup, string name, string? description)
         {
             ouGroup.Name = name;
@@ -212,9 +204,7 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get everyone that should be in a group, along with the role assignment(s) that cause them to be added to the group
         /// </summary>
-        /// <param name="groupId"></param>
         /// <param name="filterToActive">If true, only active SVM affiliates will be returned</param>
-        /// <returns></returns>
         public async Task<List<GroupMember>> GetAllMembers(int groupId, string groupName, bool filterToActive = false)
         {
             List<GroupMember> members = new();
@@ -246,7 +236,6 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="groupName">The group distinguished name</param>
         /// <param name="members">The list of members that should be a part of the group</param>
-        /// <returns></returns>
         private async Task CompareToGroup(string groupName, List<GroupMember> members)
         {
             //Create a lookup of loginids of members that should be in the group
@@ -404,8 +393,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Return true if the group is in ou.ad3.ucdavis.edu, based on the name of the group
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
         private static bool IsOuGroup(string groupName)
         {
             return groupName.ToLower().Contains("dc=ou");
@@ -414,8 +401,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get all members of any role linked to the given group
         /// </summary>
-        /// <param name="groupId"></param>
-        /// <returns></returns>
         private async Task<List<TblRoleMember>> GetAllRoleMembers(int groupId, bool filterToActive)
         {
             List<int> roleIds = await _context.OuGroupRoles
@@ -438,8 +423,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Create a GroupMember from a TblRoleMember
         /// </summary>
-        /// <param name="roleMember"></param>
-        /// <returns></returns>
         private static GroupMember CreateGroupMember(TblRoleMember roleMember)
         {
             VwAaudUser? user = roleMember.AaudUser;
@@ -472,8 +455,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Create a GroupMemberRole from a TblRoleMember
         /// </summary>
-        /// <param name="roleMember"></param>
-        /// <returns></returns>
         private static GroupMemberRole CreateGroupMemberRole(TblRoleMember roleMember)
         {
             TblRole? role = roleMember.Role;

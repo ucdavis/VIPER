@@ -502,9 +502,7 @@ finally
     LogManager.Shutdown();
 }
 
-/// <summary>
-/// Try and parse the AWS credentials XML file and store it in the encrypted JSON
-/// </summary>
+// Try and parse the AWS credentials XML file and store it in the encrypted JSON
 void SetAwsCredentials(Logger logger)
 {
     XElement xAwsCredentials = XElement.Load(awsCredentialsFilePath, LoadOptions.None);
