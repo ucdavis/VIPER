@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
+using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using Web.Authorization;
 
@@ -16,14 +17,14 @@ namespace Viper.Areas.RAPS.Controllers
     [Authorize(Roles = "VMDO SVM-IT,RAPS Users")]//, Policy = "2faAuthentication"
     public class RAPSController : AreaController
     {
-        private readonly Classes.SQLContext.RAPSContext _RAPSContext;
+        private readonly RAPSContext _RAPSContext;
         private readonly RAPSSecurityService _securityService;
         public IUserHelper UserHelper { get; private set; }
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(Classes.SQLContext.RAPSContext context, IWebHostEnvironment environment)
+        public RAPSController(RAPSContext context, IWebHostEnvironment environment)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);

@@ -12,6 +12,7 @@ using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
 using Viper.Services;
+using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -270,7 +271,7 @@ namespace Viper.Areas.CMS.Data
             return ToCMSFile(file);
         }
 
-        private static CMSFile? ToCMSFile(Viper.Models.VIPER.File? file)
+        private static CMSFile? ToCMSFile(File? file)
         {
             if (file is null)
             {
@@ -470,7 +471,7 @@ namespace Viper.Areas.CMS.Data
             }
 
             // create a temp Zip file and populate it with the files
-            string tempFileName = CMS.GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
+            string tempFileName = GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
 
             using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.OpenOrCreate))
             {

@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -302,7 +303,7 @@ public class EvalHarvestService : IEvalHarvestService
         // Wrap lookup + insert in a serializable transaction to prevent duplicate ad-hoc evals
         // from concurrent requests for the same (term, CRN, mailId)
         await using var transaction = await _evalContext.Database
-            .BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+            .BeginTransactionAsync(IsolationLevel.Serializable, ct);
 
         // Duplicate check inside the transaction so concurrent requests serialize
         var existingQuant = await _evalContext.Quants

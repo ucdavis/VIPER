@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace Web;
 
@@ -378,7 +379,7 @@ internal static partial class ViteProxyHelpers
     /// </summary>
     public static string GetContentType(string extension)
     {
-        var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+        var provider = new FileExtensionContentTypeProvider();
         if (provider.TryGetContentType("file" + extension, out var contentType))
         {
             return contentType;

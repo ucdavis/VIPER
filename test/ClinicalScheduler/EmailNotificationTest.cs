@@ -101,7 +101,7 @@ namespace Viper.test.ClinicalScheduler
         {
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == mothraId))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = mothraId,
                     PersonDisplayFullName = $"{lastName}, {firstName}",
@@ -237,7 +237,7 @@ namespace Viper.test.ClinicalScheduler
             // Add Person entity for the instructor
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "test123"))
             {
-                await _context.Persons.AddAsync(new Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "test123",
                     PersonDisplayFullName = "Test Instructor",
@@ -272,7 +272,7 @@ namespace Viper.test.ClinicalScheduler
                 .Include(s => s.Rotation)
                 .Include(s => s.Person)
                 .FirstOrDefaultAsync(s => s.InstructorScheduleId == savedSchedule.InstructorScheduleId);
-            System.Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
+            Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
 
             // Act
             (bool success, bool wasPrimaryEvaluator, string? instructorName) result = (false, false, null);
@@ -284,17 +284,17 @@ namespace Viper.test.ClinicalScheduler
             catch (Exception ex)
             {
                 caughtException = ex;
-                System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
             }
 
             // Debug: Check if schedule exists after calling service
             var scheduleExistsAfterCall = await _context.InstructorSchedules
                 .AnyAsync(s => s.InstructorScheduleId == savedSchedule.InstructorScheduleId);
-            System.Console.WriteLine($"Schedule exists after call: {scheduleExistsAfterCall}, ID: {savedSchedule.InstructorScheduleId}");
-            System.Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
+            Console.WriteLine($"Schedule exists after call: {scheduleExistsAfterCall}, ID: {savedSchedule.InstructorScheduleId}");
+            Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
             if (caughtException != null)
             {
-                System.Console.WriteLine($"Exception: {caughtException}");
+                Console.WriteLine($"Exception: {caughtException}");
             }
 
             // Assert
@@ -402,7 +402,7 @@ namespace Viper.test.ClinicalScheduler
             // Also add minimal Person for mothraId to allow Include query to work, but with minimal data to test graceful handling
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "other456"))
             {
-                await _context.Persons.AddAsync(new Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "other456",
                     PersonDisplayFullName = "Other Person",
@@ -415,7 +415,7 @@ namespace Viper.test.ClinicalScheduler
             // Add minimal Person for unknown123 to allow Include query to work
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == mothraId))
             {
-                await _context.Persons.AddAsync(new Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = mothraId,
                     // Deliberately use empty strings to test graceful handling of missing name data
@@ -454,7 +454,7 @@ namespace Viper.test.ClinicalScheduler
                 .Include(s => s.Rotation)
                 .Include(s => s.Person)
                 .FirstOrDefaultAsync(s => s.InstructorScheduleId == savedPrimarySchedule.InstructorScheduleId);
-            System.Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
+            Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
 
             // Act
             (bool success, bool wasPrimaryEvaluator, string? instructorName) result = (false, false, null);
@@ -466,13 +466,13 @@ namespace Viper.test.ClinicalScheduler
             catch (Exception ex)
             {
                 caughtException = ex;
-                System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
             }
 
-            System.Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
+            Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
             if (caughtException != null)
             {
-                System.Console.WriteLine($"Exception: {caughtException}");
+                Console.WriteLine($"Exception: {caughtException}");
             }
 
             // Assert
@@ -653,7 +653,7 @@ namespace Viper.test.ClinicalScheduler
             // Add the current user person - need to manually set the display name to match expected output
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "currentuser"))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "currentuser",
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
@@ -722,7 +722,7 @@ namespace Viper.test.ClinicalScheduler
             // Add the current user person - need to manually set the display name to match expected output
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "currentuser"))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "currentuser",
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
@@ -789,7 +789,7 @@ namespace Viper.test.ClinicalScheduler
             // Add the current user person - need to manually set the display name to match expected output
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "currentuser"))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "currentuser",
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test

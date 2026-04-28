@@ -4,9 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Controllers;
+using Viper.Areas.ClinicalScheduler.Models;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Validators;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -193,7 +196,7 @@ namespace Viper.test.ClinicalScheduler
                     request.GradYear.Value,
                     request.RotationId.Value,
                     Arg.Any<CancellationToken>())
-                .Returns(new List<Viper.Models.ClinicalScheduler.InstructorSchedule>());
+                .Returns(new List<InstructorSchedule>());
 
             _mockScheduleEditService.AddInstructorAsync(
                     request.MothraId,
@@ -202,7 +205,7 @@ namespace Viper.test.ClinicalScheduler
                     request.GradYear.Value,
                     request.IsPrimaryEvaluator,
                     Arg.Any<CancellationToken>())
-                .Returns(new List<Viper.Models.ClinicalScheduler.InstructorSchedule>
+                .Returns(new List<InstructorSchedule>
                 {
                     new() { InstructorScheduleId = 1, MothraId = TestUserMothraId, WeekId = 1, RotationId = CardiologyRotationId, Evaluator = false },
                     new() { InstructorScheduleId = 2, MothraId = TestUserMothraId, WeekId = 2, RotationId = CardiologyRotationId, Evaluator = false }
@@ -223,7 +226,7 @@ namespace Viper.test.ClinicalScheduler
 
             // OkObjectResult inherently has a 200 status code, so no need to check
             Assert.Equal(200, okResult.StatusCode ?? 200);
-            var actualResponse = Assert.IsType<Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.AddInstructorResponse>(okResult.Value);
+            var actualResponse = Assert.IsType<AddInstructorResponse>(okResult.Value);
 
             Assert.Equal(2, actualResponse.Schedules.Count);
             Assert.Null(actualResponse.WarningMessage);
@@ -291,7 +294,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            var errorResponse = Assert.IsType<Viper.Areas.ClinicalScheduler.Models.ErrorResponse>(badRequestResult.Value);
+            var errorResponse = Assert.IsType<ErrorResponse>(badRequestResult.Value);
 
             Assert.NotNull(errorResponse.UserMessage);
             Assert.Contains("required", errorResponse.UserMessage, StringComparison.OrdinalIgnoreCase);

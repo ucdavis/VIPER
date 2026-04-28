@@ -704,7 +704,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             .CreateInstructorAsync(
                 Arg.Is<CreateInstructorRequest>(r => r.PersonId == newPersonId && r.TermCode == TestTermCode),
                 Arg.Any<CancellationToken>())
-            .Throws(new Areas.Effort.Exceptions.InstructorAlreadyExistsException(newPersonId, TestTermCode));
+            .Throws(new InstructorAlreadyExistsException(newPersonId, TestTermCode));
 
         // After the exception, the person now exists (created by the concurrent request)
         _context.Persons.Add(new EffortPerson

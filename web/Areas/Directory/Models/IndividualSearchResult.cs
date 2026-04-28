@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Microsoft.EntityFrameworkCore;
+using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
@@ -119,7 +120,7 @@ namespace Viper.Areas.Directory.Models
         /// Must be called after construction with an injected AAUDContext.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public void LookupEmailHost(Classes.SQLContext.AAUDContext context)
+        public void LookupEmailHost(AAUDContext context)
         {
             if (MailId != null)
             {

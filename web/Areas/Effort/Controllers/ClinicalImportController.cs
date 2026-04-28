@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -149,7 +150,7 @@ public class ClinicalImportController : BaseEffortController
                 await channel.Writer.WriteAsync(ClinicalImportProgressEvent.Failed("An invalid operation occurred during import."), CancellationToken.None);
                 channel.Writer.Complete();
             }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            catch (DbUpdateException ex)
             {
                 _logger.LogError(ex, "Database error during clinical import for term {TermCode}", termCode);
                 await channel.Writer.WriteAsync(ClinicalImportProgressEvent.Failed("A database error occurred during import."), CancellationToken.None);

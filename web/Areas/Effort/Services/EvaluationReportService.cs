@@ -1,5 +1,7 @@
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -229,7 +231,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
         var results = new List<EvalRawRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
         // Cross-database query matching sp_instructor_evals_multiyear pattern
@@ -278,7 +280,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                 AND quant_mean > 0
             ORDER BY p.EffortDept, p.LastName, p.FirstName, course_subj_code, course_crse_numb";
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand(sql, connection);
+        await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
         command.Parameters.AddWithValue("@PersonId", (object?)personId ?? DBNull.Value);

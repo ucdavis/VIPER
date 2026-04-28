@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 
@@ -42,7 +43,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                 var includedProperties =
                     (from property in data.First().GetType().GetProperties()
                      where property.PropertyType == typeof(string)
-                        || !typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
+                        || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
                      select property)
                     .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
                     .ToList();
@@ -109,7 +110,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                 var includedProperties =
                     (from property in data.First().GetType().GetProperties()
                      where property.PropertyType == typeof(string)
-                        || !typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
+                        || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
                      select property)
                     .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
                     .ToList();
@@ -178,7 +179,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                 var includedProperties =
                     (from property in data.First().GetType().GetProperties()
                      where property.PropertyType == typeof(string)
-                        || !typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
+                        || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
                      select property)
                     .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
                     .ToList();

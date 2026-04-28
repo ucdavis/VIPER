@@ -8,6 +8,7 @@ using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Areas.Effort.Services.Harvest;
 using Viper.Classes.SQLContext;
+using Viper.Models.VIPER;
 
 namespace Viper.test.Effort;
 
@@ -89,7 +90,7 @@ public sealed class HarvestServiceTests : IDisposable
             .ResolveInstructorDepartmentAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns("VET");
 
         _instructorServiceMock
-            .GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<Viper.Areas.Effort.Models.DTOs.Responses.TitleCodeDto>());
+            .GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<TitleCodeDto>());
         _instructorServiceMock
             .GetDepartmentSimpleNameLookupAsync(Arg.Any<CancellationToken>()).Returns(new Dictionary<string, string>());
         // Setup audit service mock for harvest operations
@@ -178,7 +179,7 @@ public sealed class HarvestServiceTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Also add the person to VIPERContext so MothraId lookup works
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 1,
             ClientId = "EXIST001",
@@ -346,7 +347,7 @@ public sealed class HarvestServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 999,
             ClientId = "OLDINST",
@@ -439,7 +440,7 @@ public sealed class HarvestServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 1,
             ClientId = "JDOE001",
@@ -509,7 +510,7 @@ public sealed class HarvestServiceTests : IDisposable
         });
         await _context.SaveChangesAsync();
 
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 1,
             ClientId = "JDOE001",
@@ -647,7 +648,7 @@ public sealed class HarvestServiceTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Also add the persons to VIPERContext so MothraId lookup works
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 1,
             ClientId = "USER001",
@@ -656,7 +657,7 @@ public sealed class HarvestServiceTests : IDisposable
             LastName = "B",
             FullName = "B, A"
         });
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 2,
             ClientId = "USER002",
@@ -805,7 +806,7 @@ public sealed class HarvestServiceTests : IDisposable
         {
             foreach (var (mothraId, personName, crn, effortType) in _records)
             {
-                context.Preview.CrestEffort.Add(new Viper.Areas.Effort.Models.DTOs.Responses.HarvestRecordPreview
+                context.Preview.CrestEffort.Add(new HarvestRecordPreview
                 {
                     MothraId = mothraId,
                     PersonName = personName,

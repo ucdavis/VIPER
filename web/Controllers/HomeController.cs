@@ -20,6 +20,7 @@ using Viper.Classes.Utilities;
 using Viper.Models;
 using Viper.Models.AAUD;
 using Web.Authorization;
+using LogLevel = NLog.LogLevel;
 
 namespace Viper.Controllers
 {
@@ -312,7 +313,7 @@ namespace Viper.Controllers
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
                 if (string.IsNullOrEmpty(validatedUserName))
                 {
-                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + doc.ToString());
                 }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
@@ -340,7 +341,7 @@ namespace Viper.Controllers
             catch (TaskCanceledException ex)
             {
                 // usually caused because the user aborts the page load (HttpContext.RequestAborted)
-                HttpHelper.Logger.Log(NLog.LogLevel.Info, ex, "TaskCanceledException during CAS login");
+                HttpHelper.Logger.Log(LogLevel.Info, ex, "TaskCanceledException during CAS login");
             }
 
             return new ForbidResult();

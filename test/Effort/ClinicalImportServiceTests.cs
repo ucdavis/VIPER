@@ -11,6 +11,7 @@ using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.Courses;
 using Viper.Models.CTS;
+using Person = Viper.Models.VIPER.Person;
 
 namespace Viper.test.Effort;
 
@@ -344,7 +345,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await _context.SaveChangesAsync();
 
         // VIPER People for EnsureEffortPersonAsync name lookup
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 20,
             ClientId = "C020",

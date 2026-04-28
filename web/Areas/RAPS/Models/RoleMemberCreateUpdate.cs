@@ -16,8 +16,8 @@ namespace Viper.Areas.RAPS.Models
             {
                 MemberId = roleMember.MemberId,
                 RoleId = roleMember.RoleId,
-                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
-                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null
+                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((DateTime)roleMember.StartDate) : null,
+                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((DateTime)roleMember.EndDate) : null
             };
         }
     }
