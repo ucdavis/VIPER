@@ -17,11 +17,17 @@ namespace Viper.Views.Shared.Components.VueTableDefault
              IEnumerable<string>? skipColumnsVisible = null
              )
         {
+            // Materialise once: each helper enumerates these collections multiple times.
+            var dataList = data?.ToList();
+            var skipList = skipColumns?.ToList();
+            var altList = altColumnNames?.ToList();
+            var skipVisibleList = skipColumnsVisible?.ToList();
+
             ViewData["UniquePrepend"] = User?.Identity?.Name + DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             ViewData["KeyColumnName"] = keyColumnName;
-            ViewData["Columns"] = GetDefaultColumnNames(data, skipColumns, altColumnNames);
-            ViewData["Rows"] = GetDefaultRows(data, skipColumns);
-            ViewData["VisibleColumns"] = GetDefaultVisibleColumns(data, skipColumnsVisible);
+            ViewData["Columns"] = GetDefaultColumnNames(dataList, skipList, altList);
+            ViewData["Rows"] = GetDefaultRows(dataList, skipList);
+            ViewData["VisibleColumns"] = GetDefaultVisibleColumns(dataList, skipVisibleList);
 
             return await Task.Run(() => View("Default"));
         }
@@ -36,16 +42,20 @@ namespace Viper.Views.Shared.Components.VueTableDefault
         {
             StringBuilder output = new StringBuilder();
 
-            if (data != null)
+            var dataList = data?.ToList();
+            var skipList = skipColumns?.ToList();
+            var altList = altColumnNames?.ToList();
+
+            if (dataList != null)
             {
                 output.Append('[');
 
                 var includedProperties =
-                    (from property in data.First().GetType().GetProperties()
+                    (from property in dataList[0].GetType().GetProperties()
                      where property.PropertyType == typeof(string)
                         || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
                      select property)
-                    .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
+                    .Where(p => skipList == null || !skipList.Contains(p.Name))
                     .ToList();
 
                 var last = includedProperties.LastOrDefault();
@@ -60,13 +70,13 @@ namespace Viper.Views.Shared.Components.VueTableDefault
                     output.Append("sortable:true,");
                     output.Append(String.Format("field:'{0}',", propertyName));
 
-                    if (altColumnNames == null)
+                    if (altList == null)
                     {
                         output.Append(String.Format("label:'{0}'", propertyName));
                     }
                     else
                     {
-                        string? altName = altColumnNames.FirstOrDefault(alt => alt.Item1.ToLower().Equals(propertyName.ToLower()))?.Item2;
+                        string? altName = altList.FirstOrDefault(alt => alt.Item1.ToLower().Equals(propertyName.ToLower()))?.Item2;
 
                         if (altName != null)
                         {
@@ -105,23 +115,26 @@ namespace Viper.Views.Shared.Components.VueTableDefault
         {
             StringBuilder output = new StringBuilder();
 
-            if (data != null)
+            var dataList = data?.ToList();
+            var skipList = skipColumns?.ToList();
+
+            if (dataList != null)
             {
                 var includedProperties =
-                    (from property in data.First().GetType().GetProperties()
+                    (from property in dataList[0].GetType().GetProperties()
                      where property.PropertyType == typeof(string)
                         || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
                      select property)
-                    .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
+                    .Where(p => skipList == null || !skipList.Contains(p.Name))
                     .ToList();
 
                 var last = includedProperties.LastOrDefault();
 
                 output.Append('[');
 
-                var lastObj = data.Last();
+                var lastObj = dataList[^1];
 
-                foreach (var obj in data)
+                foreach (var obj in dataList)
                 {
                     output.Append('{');
 
@@ -172,16 +185,19 @@ namespace Viper.Views.Shared.Components.VueTableDefault
         {
             StringBuilder output = new StringBuilder();
 
-            if (data != null)
+            var dataList = data?.ToList();
+            var skipList = skipColumns?.ToList();
+
+            if (dataList != null)
             {
                 output.Append('[');
 
                 var includedProperties =
-                    (from property in data.First().GetType().GetProperties()
+                    (from property in dataList[0].GetType().GetProperties()
                      where property.PropertyType == typeof(string)
                         || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType) // skip ICollection columns
                      select property)
-                    .Where(p => skipColumns == null || !skipColumns.Contains(p.Name))
+                    .Where(p => skipList == null || !skipList.Contains(p.Name))
                     .ToList();
 
                 var last = includedProperties.LastOrDefault();
