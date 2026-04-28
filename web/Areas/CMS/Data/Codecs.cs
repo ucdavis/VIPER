@@ -1,5 +1,6 @@
 // FROM https://rextester.com/TGN19503
 
+using System.IO;
 using System.Text;
 
 namespace Viper.Areas.CMS.Data
@@ -50,7 +51,7 @@ namespace Viper.Areas.CMS.Data
           0x3D, 0x3E, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00
         };
 
-        public static void UUDecode(System.IO.Stream input, System.IO.Stream output)
+        public static void UUDecode(Stream input, Stream output)
         {
             if (input == null)
                 throw new ArgumentNullException(nameof(input));
@@ -119,7 +120,7 @@ namespace Viper.Areas.CMS.Data
             }
         }
 
-        public static void UUEncode(System.IO.Stream input, System.IO.Stream output)
+        public static void UUEncode(Stream input, Stream output)
         {
             if (input == null)
                 throw new ArgumentNullException(nameof(input));
@@ -202,7 +203,7 @@ namespace Viper.Areas.CMS.Data
                 output.WriteByte(nl[idx]);
         }
 
-        public static void XXDecode(System.IO.Stream input, System.IO.Stream output)
+        public static void XXDecode(Stream input, Stream output)
         {
             if (input == null)
                 throw new ArgumentNullException(nameof(input));
@@ -271,7 +272,7 @@ namespace Viper.Areas.CMS.Data
             }
         }
 
-        public static void XXEncode(System.IO.Stream input, System.IO.Stream output)
+        public static void XXEncode(Stream input, Stream output)
         {
             if (input == null)
                 throw new ArgumentNullException(nameof(input));

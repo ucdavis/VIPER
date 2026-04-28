@@ -3,6 +3,7 @@ using NSubstitute;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Viper.Models.VIPER;
 
 namespace Viper.test.CTS
 {
@@ -17,7 +18,7 @@ namespace Viper.test.CTS
                 EnteredOn = DateTime.Now,
                 StudentUserId = SetupUsers.studentUser1.AaudUserId,
                 EncounterType = (int)EncounterCreationService.EncounterType.Epa,
-                Student = new Models.VIPER.Person()
+                Student = new Person()
                 {
                     FullName = SetupUsers.studentUser1.DisplayLastName + ", " + SetupUsers.studentUser1.DisplayFirstName,
                     MailId = "",
@@ -32,7 +33,7 @@ namespace Viper.test.CTS
                 EnteredOn = DateTime.Now,
                 StudentUserId = SetupUsers.studentUser1.AaudUserId,
                 EncounterType = (int)EncounterCreationService.EncounterType.Epa,
-                Student = new Models.VIPER.Person()
+                Student = new Person()
                 {
                     FullName = SetupUsers.studentUser1.DisplayLastName + ", " + SetupUsers.studentUser1.DisplayFirstName,
                     MailId = "",
@@ -47,7 +48,7 @@ namespace Viper.test.CTS
                 EnteredOn = DateTime.Now,
                 StudentUserId = SetupUsers.studentUser2.AaudUserId,
                 EncounterType = (int)EncounterCreationService.EncounterType.Epa,
-                Student = new Models.VIPER.Person()
+                Student = new Person()
                 {
                     FullName = SetupUsers.studentUser2.DisplayLastName + ", " + SetupUsers.studentUser2.DisplayFirstName,
                     MailId = "",
@@ -72,7 +73,7 @@ namespace Viper.test.CTS
                 .Do(callInfo =>
                  {
                      var e = callInfo.Arg<Encounter>();
-                     e.Student = new Models.VIPER.Person()
+                     e.Student = new Person()
                      {
                          PersonId = e.StudentUserId,
                      };

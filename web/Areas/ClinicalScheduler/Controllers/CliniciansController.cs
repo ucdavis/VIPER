@@ -461,7 +461,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="rotationIds">List of rotation IDs to load</param>
         /// <returns>Dictionary mapping rotation ID to rotation entity</returns>
-        private async Task<Dictionary<int, Viper.Models.ClinicalScheduler.Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
+        private async Task<Dictionary<int, Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
         {
             return await _context.Rotations
                 .AsNoTracking()

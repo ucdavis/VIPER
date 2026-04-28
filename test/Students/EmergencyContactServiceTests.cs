@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Students.Constants;
+using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Models.Entities;
 using Viper.Areas.Students.Services;
 using Viper.Classes.SQLContext;
@@ -373,7 +374,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     [Fact]
     public async Task IsAppOpenAsync_RolePermissionExists_ReturnsTrue()
     {
-        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
         {
             RoleId = _seededRoleId,
             PermissionId = _seededPermissionId,
@@ -389,7 +390,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     [Fact]
     public async Task IsAppOpenAsync_AccessZero_ReturnsFalse()
     {
-        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
         {
             RoleId = _seededRoleId,
             PermissionId = _seededPermissionId,
@@ -423,7 +424,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     [Fact]
     public async Task ToggleAppAccessAsync_WhenOpen_RemovesRolePermissionRow()
     {
-        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
         {
             RoleId = _seededRoleId,
             PermissionId = _seededPermissionId,
@@ -446,7 +447,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     public async Task ToggleAppAccessAsync_Close_DoesNotLeaveDenyRowThatShadowsIndividualGrants()
     {
         // Seed: app open AND a student with an individual grant
-        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
         {
             RoleId = _seededRoleId,
             PermissionId = _seededPermissionId,
@@ -478,7 +479,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     [Fact]
     public async Task ToggleAppAccessAsync_WhenClosed_SetsAccessOne()
     {
-        _rapsContext.TblRolePermissions.Add(new Viper.Models.RAPS.TblRolePermission
+        _rapsContext.TblRolePermissions.Add(new TblRolePermission
         {
             RoleId = _seededRoleId,
             PermissionId = _seededPermissionId,
@@ -535,7 +536,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             SeedDvmStudent(aaudContext, "M101", 101, "Student2", "Test", "V1", "12101", "student2@ucdavis.edu");
             await aaudContext.SaveChangesAsync();
 
-            _rapsContext.TblMemberPermissions.Add(new Viper.Models.RAPS.TblMemberPermission
+            _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
             {
                 MemberId = "M101",
                 PermissionId = _seededPermissionId,
@@ -960,7 +961,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     public async Task UpdateStudentContactAsync_NoPidm_ThrowsInvalidOperation()
     {
         var service = CreateService();
-        var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest { ContactPermanent = false };
+        var request = new UpdateStudentContactRequest { ContactPermanent = false };
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UpdateStudentContactAsync(99999, request, "admin"));
     }
@@ -974,9 +975,9 @@ public sealed class EmergencyContactServiceTests : IDisposable
             SeedDvmStudent(aaudContext, "M200", 200, "Student", "New", "V1", "12345", "student3@ucdavis.edu");
             await aaudContext.SaveChangesAsync();
 
-            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
+            var request = new UpdateStudentContactRequest
             {
-                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                StudentInfo = new StudentInfoDto
                 {
                     Address = "One Shields Avenue",
                     City = "Davis",
@@ -985,20 +986,20 @@ public sealed class EmergencyContactServiceTests : IDisposable
                     CellPhone = "5305551111"
                 },
                 ContactPermanent = true,
-                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto
+                LocalContact = new ContactInfoDto
                 {
                     Name = "Local Person",
                     Relationship = "Friend",
                     CellPhone = "5305552222"
                 },
-                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto
+                EmergencyContact = new ContactInfoDto
                 {
                     Name = "Emergency Person",
                     Relationship = "Parent",
                     HomePhone = "(530) 555-3333",
                     Email = "parent@example.com"
                 },
-                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+                PermanentContact = new ContactInfoDto()
             };
 
             await service.UpdateStudentContactAsync(200, request, "admin");
@@ -1059,22 +1060,22 @@ public sealed class EmergencyContactServiceTests : IDisposable
             _sisContext.StudentEmergencyContacts.Add(localEc);
             await _sisContext.SaveChangesAsync();
 
-            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
+            var request = new UpdateStudentContactRequest
             {
-                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                StudentInfo = new StudentInfoDto
                 {
                     Address = "New Address",
                     City = "New City",
                     Zip = "95617"
                 },
-                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto
+                LocalContact = new ContactInfoDto
                 {
                     Name = "Updated Name",
                     Relationship = "Spouse"
                 },
                 ContactPermanent = false,
-                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+                EmergencyContact = new ContactInfoDto(),
+                PermanentContact = new ContactInfoDto()
             };
 
             await service.UpdateStudentContactAsync(201, request, "admin");
@@ -1103,9 +1104,9 @@ public sealed class EmergencyContactServiceTests : IDisposable
             SeedDvmStudent(aaudContext, "M300", 300, "Test", "Phone", "V1", "12399", "student5@ucdavis.edu");
             await aaudContext.SaveChangesAsync();
 
-            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
+            var request = new UpdateStudentContactRequest
             {
-                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                StudentInfo = new StudentInfoDto
                 {
                     Address = "789 Elm St",
                     City = "Davis",
@@ -1113,9 +1114,9 @@ public sealed class EmergencyContactServiceTests : IDisposable
                     HomePhone = "12345" // invalid phone number
                 },
                 ContactPermanent = false,
-                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+                LocalContact = new ContactInfoDto(),
+                EmergencyContact = new ContactInfoDto(),
+                PermanentContact = new ContactInfoDto()
             };
 
             var ex = await Assert.ThrowsAsync<ArgumentException>(
@@ -1163,18 +1164,18 @@ public sealed class EmergencyContactServiceTests : IDisposable
             });
             await aaudContext.SaveChangesAsync();
 
-            var request = new Viper.Areas.Students.Models.UpdateStudentContactRequest
+            var request = new UpdateStudentContactRequest
             {
-                StudentInfo = new Viper.Areas.Students.Models.StudentInfoDto
+                StudentInfo = new StudentInfoDto
                 {
                     Address = "Test Address",
                     City = "Davis",
                     Zip = "95616"
                 },
                 ContactPermanent = false,
-                LocalContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-                EmergencyContact = new Viper.Areas.Students.Models.ContactInfoDto(),
-                PermanentContact = new Viper.Areas.Students.Models.ContactInfoDto()
+                LocalContact = new ContactInfoDto(),
+                EmergencyContact = new ContactInfoDto(),
+                PermanentContact = new ContactInfoDto()
             };
 
             await service.UpdateStudentContactAsync(700, request, "admin");

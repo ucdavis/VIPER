@@ -30,7 +30,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Models.Group>>> GetOuGroups(string? search = null)
+        public async Task<ActionResult<IEnumerable<Group>>> GetOuGroups(string? search = null)
         {
             if (_context.OuGroups == null)
             {
@@ -41,7 +41,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpGet("{groupId}")]
-        public async Task<ActionResult<Models.Group>> GetOuGroup(int groupId)
+        public async Task<ActionResult<Group>> GetOuGroup(int groupId)
         {
             if (_context.OuGroups == null)
             {
@@ -55,7 +55,7 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(g => g.OugroupId == groupId)
                 .FirstOrDefaultAsync();
             return group != null
-                ? new Models.Group(group)
+                ? new Group(group)
                 : NotFound();
         }
 

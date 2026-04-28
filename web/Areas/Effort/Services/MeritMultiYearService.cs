@@ -1,6 +1,8 @@
 using System.Data;
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -579,10 +581,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             endTerm = endYear * 100 + 10;
         }
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_instructor_evals_average_exclude]", connection);
+        await using var command = new SqlCommand("[effort].[sp_instructor_evals_average_exclude]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.CommandTimeout = 30;
         command.Parameters.AddWithValue("@StartTerm", startTerm);
@@ -627,10 +629,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
         var results = new List<MeritMultiyearRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_multiyear]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_multiyear]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@PersonId", personId);
         command.Parameters.AddWithValue("@StartTermCode", startTermCode);
@@ -696,10 +698,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
         var results = new List<EvalsMultiyearRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_instructor_evals_multiyear]", connection);
+        await using var command = new SqlCommand("[effort].[sp_instructor_evals_multiyear]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@StartYear", startYear);
         command.Parameters.AddWithValue("@EndYear", endYear);
@@ -757,10 +759,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
         var connectionString = _context.Database.GetConnectionString()
             ?? throw new InvalidOperationException("Database connection string not configured");
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_dept_activity_total_exclude]", connection);
+        await using var command = new SqlCommand("[effort].[sp_dept_activity_total_exclude]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.CommandTimeout = 30;
         command.Parameters.AddWithValue("@MothraId", mothraId);
@@ -804,10 +806,10 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
         {
             var yearParam = useAcademicYear ? $"{year}-{year + 1}" : year.ToString();
 
-            await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+            await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync(ct);
 
-            await using var command = new Microsoft.Data.SqlClient.SqlCommand(
+            await using var command = new SqlCommand(
                 "[effort].[sp_dept_count_by_job_group_exclude]", connection);
             command.CommandType = CommandType.StoredProcedure;
             command.CommandTimeout = 30;
@@ -896,7 +898,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
     public Task<byte[]> GenerateReportPdfAsync(MultiYearReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var lastType = orderedTypes[^1];

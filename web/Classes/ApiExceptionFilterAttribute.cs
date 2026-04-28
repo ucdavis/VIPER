@@ -54,7 +54,7 @@ namespace Viper.Classes
         private static List<string> GetErrorList(ExceptionContext context)
         {
             var errors = new List<string>();
-            System.Exception? exception = context.Exception;
+            Exception? exception = context.Exception;
             while (exception != null)
             {
                 errors.Add(exception.Message);

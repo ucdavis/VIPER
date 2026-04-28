@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -5,12 +6,13 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using LogLevel = NLog.LogLevel;
 
 namespace Viper.Areas.RAPS.Services
 {
     public partial class VMACSExport
     {
-        private readonly Classes.SQLContext.RAPSContext _RAPSContext;
+        private readonly RAPSContext _RAPSContext;
 
         public IUserHelper UserHelper { get; private set; }
         private readonly bool _onProduction;
@@ -120,7 +122,7 @@ namespace Viper.Areas.RAPS.Services
                         Method = HttpMethod.Post,
                         Content = exportContent
                     };
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", GetAuthorization());
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Basic", GetAuthorization());
 
                     RecordMessage(messages, "Sending data to: " + Url);
 
@@ -133,7 +135,7 @@ namespace Viper.Areas.RAPS.Services
                     }
                     catch (Exception ex)
                     {
-                        HttpHelper.Logger.Log(NLog.LogLevel.Warn, ex);
+                        HttpHelper.Logger.Log(LogLevel.Warn, ex);
                         RecordMessage(messages, "Error: " + ex.Message + " " + ex?.StackTrace);
                         if (ex?.InnerException != null)
                         {
@@ -148,8 +150,8 @@ namespace Viper.Areas.RAPS.Services
 
         private string GetAuthorization()
         {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(_credentials);
-            return System.Convert.ToBase64String(bytes);
+            var bytes = Encoding.UTF8.GetBytes(_credentials);
+            return Convert.ToBase64String(bytes);
         }
 
         private static async Task<VmacsResponse> ParseResponse(HttpResponseMessage response)
@@ -348,7 +350,7 @@ namespace Viper.Areas.RAPS.Services
         private static void RecordMessage(List<string> messages, string message)
         {
             messages.Add(message);
-            HttpHelper.Logger.Log(NLog.LogLevel.Debug, message);
+            HttpHelper.Logger.Log(LogLevel.Debug, message);
         }
 
         private sealed class UserList

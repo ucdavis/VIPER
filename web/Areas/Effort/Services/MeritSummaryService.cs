@@ -1,6 +1,8 @@
 using System.Data;
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -218,10 +220,10 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
         var results = new List<MeritSummaryRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_summary]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_summary]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
@@ -252,7 +254,7 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
     public Task<byte[]> GenerateReportPdfAsync(MeritSummaryReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 

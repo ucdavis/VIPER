@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Models.Crest;
 
 namespace Viper.Areas.Effort.Services.Harvest;
 
@@ -355,7 +356,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
 
     private async Task BuildCrestEffortRecordsAsync(
         HarvestContext context,
-        List<Viper.Models.Crest.CrestCourseSessionOffering> courseOfferings,
+        List<CrestCourseSessionOffering> courseOfferings,
         HashSet<int> blockCourseIds,
         CancellationToken ct)
     {

@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
@@ -72,10 +73,10 @@ public abstract partial class BaseReportService
 
         var results = new List<TeachingActivityRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_effort_general_report]", connection);
+        await using var command = new SqlCommand("[effort].[sp_effort_general_report]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);

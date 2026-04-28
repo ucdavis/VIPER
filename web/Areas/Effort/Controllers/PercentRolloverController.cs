@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -109,7 +110,7 @@ public class PercentRolloverController : BaseEffortController
                 await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("An invalid operation occurred during rollover."), CancellationToken.None);
                 channel.Writer.Complete();
             }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            catch (DbUpdateException ex)
             {
                 _logger.LogError(ex, "Database error during rollover for year {Year}", LogSanitizer.SanitizeYear(year));
                 await channel.Writer.WriteAsync(RolloverProgressEvent.Failed("A database error occurred during rollover."), CancellationToken.None);

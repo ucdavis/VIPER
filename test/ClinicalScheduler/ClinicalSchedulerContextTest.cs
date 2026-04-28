@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -81,7 +82,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Act
             using var context = new ClinicalSchedulerContext(options);
-            var serviceEntityType = context.Model.FindEntityType(typeof(Viper.Models.ClinicalScheduler.Service));
+            var serviceEntityType = context.Model.FindEntityType(typeof(Service));
 
             // Assert - Verify that Encounters and Epas navigation properties are ignored
             Assert.NotNull(serviceEntityType);

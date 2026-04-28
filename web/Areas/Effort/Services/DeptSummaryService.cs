@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -180,7 +181,7 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
 
     public Task<byte[]> GenerateReportPdfAsync(DeptSummaryReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 

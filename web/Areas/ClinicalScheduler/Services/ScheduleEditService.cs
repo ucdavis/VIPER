@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
@@ -183,7 +184,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     await _context.SaveChangesAsync(cancellationToken);
 
                     return (createdSchedules, removedPrimarySchedules);
-                }, System.Data.IsolationLevel.Serializable, cancellationToken);
+                }, IsolationLevel.Serializable, cancellationToken);
 
                 var (createdSchedules, removedPrimarySchedules) = result;
 
@@ -789,7 +790,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <returns>The result of the operation</returns>
         protected virtual async Task<T> ExecuteInTransactionAsync<T>(
             Func<CancellationToken, Task<T>> operation,
-            System.Data.IsolationLevel isolationLevel,
+            IsolationLevel isolationLevel,
             CancellationToken cancellationToken)
         {
             using var transaction = await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
@@ -818,7 +819,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             Func<CancellationToken, Task<T>> operation,
             CancellationToken cancellationToken)
         {
-            return await ExecuteInTransactionAsync(operation, System.Data.IsolationLevel.Unspecified, cancellationToken);
+            return await ExecuteInTransactionAsync(operation, IsolationLevel.Unspecified, cancellationToken);
         }
     }
 

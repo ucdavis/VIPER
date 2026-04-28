@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -654,7 +655,7 @@ public class EmergencyContactControllerTests
         var permissionAttrs = method!.GetCustomAttributes(typeof(PermissionAttribute), false);
         Assert.Empty(permissionAttrs);
 
-        var authorizeAttrs = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false);
+        var authorizeAttrs = method.GetCustomAttributes(typeof(AuthorizeAttribute), false);
         Assert.NotEmpty(authorizeAttrs);
     }
 
@@ -668,7 +669,7 @@ public class EmergencyContactControllerTests
         var permissionAttrs = method!.GetCustomAttributes(typeof(PermissionAttribute), false);
         Assert.Empty(permissionAttrs);
 
-        var authorizeAttrs = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false);
+        var authorizeAttrs = method.GetCustomAttributes(typeof(AuthorizeAttribute), false);
         Assert.NotEmpty(authorizeAttrs);
     }
 

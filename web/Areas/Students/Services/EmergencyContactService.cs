@@ -6,6 +6,7 @@ using Viper.Areas.Students.Models.Entities;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
+using Viper.Models.RAPS;
 
 namespace Viper.Areas.Students.Services;
 
@@ -316,7 +317,7 @@ public class EmergencyContactService : IEmergencyContactService
 
         if (rolePermission == null)
         {
-            rolePermission = new Viper.Models.RAPS.TblRolePermission
+            rolePermission = new TblRolePermission
             {
                 RoleId = roleId,
                 PermissionId = permissionId,
@@ -379,7 +380,7 @@ public class EmergencyContactService : IEmergencyContactService
         else
         {
             // Add individual grant
-            var memberPermission = new Viper.Models.RAPS.TblMemberPermission
+            var memberPermission = new TblMemberPermission
             {
                 MemberId = user.MothraId,
                 PermissionId = permissionId,
