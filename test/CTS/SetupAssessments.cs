@@ -1,9 +1,8 @@
+using MockQueryable.NSubstitute;
 using NSubstitute;
-using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
-using MockQueryable.NSubstitute;
 
 namespace Viper.test.CTS
 {

@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;

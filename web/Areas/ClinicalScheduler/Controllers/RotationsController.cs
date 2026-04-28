@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
-using Viper.Areas.ClinicalScheduler.Services;
-using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
-using Viper.Areas.Curriculum.Services;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 using Person = Viper.Models.ClinicalScheduler.Person;

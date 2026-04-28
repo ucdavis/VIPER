@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.Curriculum.Services;
+using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
-using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {

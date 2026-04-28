@@ -1,7 +1,7 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Memory;
-using System.Security.Claims;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;

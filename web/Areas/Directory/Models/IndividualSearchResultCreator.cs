@@ -1,6 +1,6 @@
 using System.Runtime.Versioning;
-using Viper.Models.AAUD;
 using System.Text.Json;
+using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
 {
