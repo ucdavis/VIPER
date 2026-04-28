@@ -93,7 +93,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// Get all permissions assigned to a user (either allowed or denied) based on either role membership or direct
         /// permission assignment.
         /// </summary>
-        /// <param name="memberId"></param>
         /// <returns>A list of permission results, including a source param to determine how the permission was assigned</returns>
         [Permission(Allow = "RAPS.Admin,RAPS.RSOP")]
         [HttpGet("{memberId}/RSOP")]

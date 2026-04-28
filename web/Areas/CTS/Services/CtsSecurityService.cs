@@ -28,9 +28,6 @@ namespace Viper.Areas.CTS.Services
         ///     Assessors can view assessments they've entered
         ///     Managers can view all assessments
         /// </summary>
-        /// <param name="studentId"></param>
-        /// <param name="enteredBy"></param>
-        /// <returns></returns>
         public bool CheckStudentAssessmentViewAccess(int? studentId = null, int? enteredBy = null, int? serviceId = null)
         {
             var currentUser = userHelper.GetCurrentUser();

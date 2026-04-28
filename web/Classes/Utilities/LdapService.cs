@@ -143,8 +143,6 @@ namespace Viper.Classes.Utilities
         /// Gets a single user from ou or ad3
         /// </summary>
         /// <param name="samAccountName">samAccountName of user</param>
-        /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
-        /// <returns></returns>
         public static LdapUserContact? GetUserBySamAccountName(string? samAccountName)
         {
             string? filter = BuildUserBySamAccountNameFilter(samAccountName);
