@@ -213,6 +213,31 @@ namespace Viper.Classes.HealthChecks
         /// </summary>
         public static WebApplication UseViperHealthChecks(this WebApplication app)
         {
+            // VPR-141 DEBUG: dump resolved allowlist once at startup so we can
+            // confirm the deployed appsettings.json actually deserialized as
+            // expected. Remove with the per-request gate logs below.
+            var allowlist = app.Configuration
+                .GetSection("IPAddressAllowlistConfiguration:InternalAllowlist")
+                .Get<string[]>() ?? Array.Empty<string>();
+            app.Logger.LogInformation(
+                "VPR-141 DEBUG: InternalAllowlist resolved to: {Allowlist}",
+                string.Join(", ", allowlist));
+
+            // VPR-141 DEBUG: helper that logs what the gate actually sees on
+            // every request - the IP we're checking, the raw X-Forwarded-For
+            // chain, and the allow/deny decision. Remove once gate behaviour
+            // is confirmed.
+            static bool IsAllowedAndLog(HttpContext ctx, ILogger logger, string source)
+            {
+                var allowed = ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist");
+                var remoteIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "(null)";
+                var xff = ctx.Request.Headers["X-Forwarded-For"].ToString();
+                logger.LogInformation(
+                    "VPR-141 DEBUG gate ({Source}) {Path}: RemoteIp={RemoteIp} XFF=[{XFF}] Allowed={Allowed}",
+                    source, ctx.Request.Path, remoteIp, xff, allowed);
+                return allowed;
+            }
+
             // /health - bare liveness. Anonymous (Jenkins has no CAS creds).
             app.MapHealthChecks("/health", new HealthCheckOptions
             {
@@ -228,7 +253,7 @@ namespace Viper.Classes.HealthChecks
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
             }).AddEndpointFilter(async (ctx, next) =>
             {
-                if (!ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist"))
+                if (!IsAllowedAndLog(ctx.HttpContext, app.Logger, "health-detail"))
                 {
                     ctx.HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return null;
@@ -241,7 +266,7 @@ namespace Viper.Classes.HealthChecks
                 ctx => IsUIPath(ctx.Request.Path),
                 branch => branch.Use(async (ctx, next) =>
                 {
-                    if (!ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist"))
+                    if (!IsAllowedAndLog(ctx, app.Logger, "ui"))
                     {
                         ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         return;
