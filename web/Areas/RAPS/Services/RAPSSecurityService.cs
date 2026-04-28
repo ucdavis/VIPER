@@ -92,9 +92,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Check that the role template belongs to the given instance by checking the tgemplate name
         /// </summary>
-        /// <param name="instance"></param>
-        /// <param name="roleTemplate"></param>
-        /// <returns></returns>
         public static bool RoleTemplateBelongsToInstance(string instance, RoleTemplate roleTemplate)
         {
             string name = roleTemplate.TemplateName.ToUpper();
@@ -182,7 +179,7 @@ namespace Viper.Areas.RAPS.Services
         /// Check to see if the user can perform the action on a particular role.
         /// </summary>
         /// <param name="action">Action to perform</param>
-        /// <param name="Instance">Instance the user is working with</param>
+        /// <param name="instance">Instance the user is working with</param>
         /// <param name="Role">The specific role, used to check if the user has access to this particular role</param>
         /// <returns>true/false</returns>
         public bool IsAllowedTo(string action, string instance, TblRole Role)

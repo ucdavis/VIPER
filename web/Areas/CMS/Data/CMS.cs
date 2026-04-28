@@ -73,14 +73,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks and filter based on permissions
         /// </summary>
-        /// <param name="contentBlockID"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="system"></param>
-        /// <param name="viperSectionPath"></param>
-        /// <param name="page"></param>
-        /// <param name="blockOrder"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <param name="status"></param>
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocksAllowed(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
         {
@@ -128,14 +120,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks without filtering on permissions
         /// </summary>
-        /// <param name="contentBlockID"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="system"></param>
-        /// <param name="viperSectionPath"></param>
-        /// <param name="page"></param>
-        /// <param name="blockOrder"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <param name="status"></param>
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID = null, string? friendlyName = null, string? system = null,
             string? viperSectionPath = null, string? page = null, int? blockOrder = null,
@@ -188,12 +172,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Returns the first file that matches the parameters past (or null)
         /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="oldURL"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="folder"></param>
-        /// <param name="name"></param>
-        /// <param name="getDeleted"></param>
         /// <returns>File object</returns>
         public CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
         {
@@ -288,12 +266,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Search for matching files
         /// </summary>
-        /// <param name="folder"></param>
-        /// <param name="isPublic"></param>
-        /// <param name="search"></param>
-        /// <param name="status"></param>
-        /// <param name="encrypted"></param>
-        /// <returns></returns>
         public IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted)
         {
 
@@ -337,9 +309,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get Friendly URL for a friendly name. Currently, always points to ColdFusion Viper
         /// </summary>
-        /// <param name="friendlyName"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <returns></returns>
         public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         {
             string rootURL = String.Empty;
@@ -359,9 +328,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get url for a fileGUID
         /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <returns></returns>
         public static string GetURL(string fileGUID, bool allowPublicAccess = false)
         {
             return (allowPublicAccess ? @"/public" : "") + @"/cms/files/?id=" + fileGUID;
@@ -372,7 +338,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get the root folder for files
         /// </summary>
-        /// <returns></returns>
         public static string GetRootFileFolder()
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development")
@@ -388,7 +353,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Replace the root folder in a file object, e.g. if the app is on secure-test but the file was added on a dev machine, or vice versa.
         /// </summary>
-        /// <param name="file"></param>
         public static void ReplaceRootFolder(CMSFile file)
         {
             string filePath = file.FilePath;
@@ -407,8 +371,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Remove root folder in the file path and change path separator to /
         /// </summary>
-        /// <param name="filePath"></param>
-        /// <returns></returns>
         public string FilePathToWebPath(string filePath)
         {
             return filePath.Replace(GetRootFileFolder(), "").Replace(@"\", @"/");
@@ -648,8 +610,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Required for Unix decoding FROM https://rextester.com/TGN19503
         /// </summary>
-        /// <param name="encryptedString"></param>
-        /// <param name="Key"></param>
         /// <returns>decoded string</returns>
         public string DecryptAES(string encryptedString, string Key)
         {

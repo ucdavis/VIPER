@@ -69,9 +69,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get a single managed group by distinguished name or guid
         /// </summary>
-        /// <param name="distinguishedName"></param>
-        /// <param name="guid"></param>
-        /// <returns></returns>
         public async Task<ManagedGroup> GetManagedGroup(string? distinguishedName = null, string? guid = null)
         {
             string url = "ManagedGroups/";
@@ -92,10 +89,7 @@ namespace Viper.Areas.RAPS.Services
         /// Create a managed group. Does not return anything because the group creation is scheduled and is done by uInform asynchronously
         /// </summary>
         /// <param name="groupName">The name of the group. Must start with SVM- and be unique within AD3.</param>
-        /// <param name="displayName"></param>
-        /// <param name="description"></param>
         /// <param name="maxMembers">max members, or 0 for no max</param>
-        /// <returns></returns>
         public async Task CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
         {
             if (!groupName.StartsWith("SVM-"))
@@ -115,11 +109,7 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Update the managed group with the given guid. Does not return anything because the group creation is scheduled and is done by uInform asynchronously
         /// </summary>
-        /// <param name="guid"></param>
-        /// <param name="displayName"></param>
-        /// <param name="description"></param>
         /// <param name="maxMembers">Max members, or 0 for no max</param>
-        /// <returns></returns>
         public async Task UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
         {
             ManagedGroupAddEdit newGroup = new()
@@ -134,8 +124,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get members of the group with the given guid
         /// </summary>
-        /// <param name="guid"></param>
-        /// <returns></returns>
         public async Task<List<AdUser>> GetGroupMembers(string guid)
         {
             var response = await SendRequest<List<AdUser>>($"ManagedGroups/{guid}/members", HttpMethod.Get);
@@ -145,9 +133,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Add a user to a group
         /// </summary>
-        /// <param name="groupGuid"></param>
-        /// <param name="userGuid"></param>
-        /// <returns></returns>
         public async Task AddGroupMember(string groupGuid, string userGuid)
         {
             await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember()
@@ -160,9 +145,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Remove a user from a group
         /// </summary>
-        /// <param name="groupGuid"></param>
-        /// <param name="userGuid"></param>
-        /// <returns></returns>
         public async Task RemoveGroupMember(string groupGuid, string userGuid)
         {
             await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember()
@@ -175,11 +157,6 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get user by one of the identifiers
         /// </summary>
-        /// <param name="guid"></param>
-        /// <param name="userPrincipalName"></param>
-        /// <param name="mail"></param>
-        /// <param name="samAccountName"></param>
-        /// <returns></returns>
         public async Task<AdUser> GetUser(string? guid = null, string? userPrincipalName = null, string? mail = null, string? samAccountName = null)
         {
             string url = "AdUsers/";
@@ -204,13 +181,12 @@ namespace Viper.Areas.RAPS.Services
         }
 
         /// <summary>
-        /// Helper function to send a request. Create auth header and parses the response into a UinformResponse<T>
+        /// Helper function to send a request. Create auth header and parses the response into a UinformResponse&lt;T&gt;
         /// </summary>
         /// <typeparam name="T">One of the uInform response object types</typeparam>
         /// <param name="url">URL to send the request</param>
         /// <param name="method">HTTP method (Get, Post, Put)</param>
         /// <param name="body">If needed, the JSON body</param>
-        /// <returns></returns>
         private async Task<UinformResponse<T>?> SendRequest<T>(string url, HttpMethod method, string? body = null)
         {
             if (!url.StartsWith(_apiBase))

@@ -59,7 +59,6 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="loginid">LoginId of specific user to push</param>
         /// <param name="roleIds">RoleIds of specific role(s) to push</param>
         /// <param name="mothraId">MothraId of logged in user, or hard coded user to record in log</param>
-        /// <param name="action">Action for log</param>
         /// <param name="debugOnly">If true, don't send, just log</param>
         public async Task<List<string>> ExportToInstances(string instances, string? mothraId, string? loginid = null, string? roleIds = null,
             bool debugOnly = false)
