@@ -1,8 +1,8 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using System.ComponentModel.DataAnnotations;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Services;

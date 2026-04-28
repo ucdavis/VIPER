@@ -1,10 +1,10 @@
-using Viper.Classes;
-using Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
+using Viper.Classes;
+using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {

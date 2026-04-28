@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Viper.Areas.CTS.Models;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Models.CTS;
 using Web.Authorization;

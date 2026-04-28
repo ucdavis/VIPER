@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Viper.Classes.SQLContext;
-using Viper.Areas.Students.Models;
 using Viper.Areas.Curriculum.Services;
+using Viper.Areas.Students.Models;
+using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services

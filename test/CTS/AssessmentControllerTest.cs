@@ -1,8 +1,8 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using NSubstitute;
-using System.Net;
 using Viper.Areas.CTS.Controllers;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;

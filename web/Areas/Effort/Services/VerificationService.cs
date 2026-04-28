@@ -7,8 +7,8 @@ using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
-using Viper.EmailTemplates.Services;
 using Viper.Classes.Utilities;
+using Viper.EmailTemplates.Services;
 using Viper.Services;
 
 namespace Viper.Areas.Effort.Services;

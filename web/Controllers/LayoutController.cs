@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.CMS.Data;
 using Viper.Areas.CMS.Services;
 using Viper.Areas.CTS.Services;
-using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 

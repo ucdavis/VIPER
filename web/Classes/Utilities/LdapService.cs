@@ -1,5 +1,5 @@
-using System.Runtime.Versioning;
 using System.DirectoryServices.Protocols;
+using System.Runtime.Versioning;
 using Viper.Areas.Directory.Models;
 
 namespace Viper.Classes.Utilities

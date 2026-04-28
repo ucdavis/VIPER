@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
-using System.Data;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
