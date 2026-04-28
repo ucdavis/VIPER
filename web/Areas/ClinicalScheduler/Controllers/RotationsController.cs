@@ -219,7 +219,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Get person data for all involved clinicians
                 var uniqueMothraIds = baseInstructorSchedules.Select(i => i.MothraId).Distinct();
-                var recentClinicianMothraIds = recentCliniciansData.Select(c => c.MothraId).Distinct();
+                var recentClinicianMothraIds = recentCliniciansData.Select(c => c.MothraId).Distinct().ToList();
                 var allMothraIds = uniqueMothraIds.Concat(recentClinicianMothraIds);
                 var personData = await GetPersonDataBatchAsync(allMothraIds);
 

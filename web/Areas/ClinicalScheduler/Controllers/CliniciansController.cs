@@ -533,8 +533,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="clinicians">List of all available clinicians</param>
         /// <returns>Filtered list of clinicians based on user permissions</returns>
-        private IEnumerable<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> clinicians, string? viewContext = null)
+        private List<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> cliniciansSource, string? viewContext = null)
         {
+            var clinicians = cliniciansSource.ToList();
             try
             {
                 var currentUser = _userHelper.GetCurrentUser();
