@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
-using Viper.Areas.ClinicalScheduler.Services;
-using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Constants;
+using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Models;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Requests;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Validators;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
-using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {

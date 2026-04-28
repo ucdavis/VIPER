@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
+using Microsoft.Extensions.Caching.Memory;
 using Viper.Classes.SQLContext;
 using Viper.Models;
 using Viper.Models.AAUD;

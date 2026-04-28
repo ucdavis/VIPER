@@ -1,11 +1,11 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
-using Viper.Areas.Curriculum.Services;
 using Viper.Classes;
 using Viper.Classes.Utilities;
 using Web.Authorization;
-using System.Text.Json;
 
 namespace Viper.Areas.Students.Controllers
 {

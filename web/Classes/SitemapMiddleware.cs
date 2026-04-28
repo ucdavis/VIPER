@@ -1,8 +1,9 @@
 // Adapted from https://dotnetthoughts.net/generate-dynamic-xml-sitemaps-in-aspnet5/
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+
 using System.Reflection;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Web.Authorization;
 
 namespace Viper.Classes

@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
-using System.Data;
 using System.Text;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Viper.Views.Shared.Components.VueTableDefault
 {

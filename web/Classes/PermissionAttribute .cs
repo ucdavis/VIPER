@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc;
-using Viper.Classes.SQLContext;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Viper;
+using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
 namespace Web.Authorization
