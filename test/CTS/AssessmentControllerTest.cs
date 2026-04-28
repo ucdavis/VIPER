@@ -258,7 +258,7 @@ namespace Viper.test.CTS
                 var forbidResult = a.Result as ForbidResult;
                 if (result != null)
                 {
-                    Assert.Equal((int)HttpStatusCode.Forbidden, result?.StatusCode);
+                    Assert.Equal((int)HttpStatusCode.Forbidden, result.StatusCode);
                 }
                 Assert.True(result != null || forbidResult != null);
 
