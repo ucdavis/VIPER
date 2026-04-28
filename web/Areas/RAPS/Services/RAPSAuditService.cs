@@ -34,15 +34,7 @@ namespace Viper.Areas.RAPS.Services
         /// Search the audit table and return AuditLog entries. AuditLog entries are TblLog with additional fields (because TblLog does
         /// not have foreign keys for permission, role, member, group ids
         /// </summary>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <param name="auditType"></param>
-        /// <param name="modBy"></param>
-        /// <param name="modifiedUser"></param>
-        /// <param name="roleId"></param>
-        /// <param name="permissionId"></param>
         /// <param name="search">Searches modified user names, modifier names, role and permission names, detail, comment and audit action</param>
-        /// <returns></returns>
         public async Task<List<AuditLog>> GetAuditEntries(DateOnly? startDate = null, DateOnly? endDate = null, string? auditType = null,
             string? modBy = null, string? modifiedUser = null, int? roleId = null,
             int? permissionId = null, string? search = null, string? instance = null)

@@ -54,7 +54,6 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory list
         /// </summary>
         /// <param name="search">search string</param>
-        /// <returns></returns>
         [SupportedOSPlatform("windows")]
         [Route("/[area]/search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
@@ -99,7 +98,6 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory list
         /// </summary>
         /// <param name="search">search string</param>
-        /// <returns></returns>
         [SupportedOSPlatform("windows")]
         [Route("/[area]/search/{search}/ucd")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
@@ -145,7 +143,6 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory results
         /// </summary>
         /// <param name="uid">User ID</param>
-        /// <returns></returns>
         [Route("/[area]/userInfo/{mothraID}")]
         public async Task<IActionResult> DirectoryResult(string mothraID)
         {

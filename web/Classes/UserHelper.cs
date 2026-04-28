@@ -226,7 +226,7 @@ namespace Viper
         /// </summary>
         /// <param name="rapsContext">Dependency injection of the context</param>
         /// <param name="user">Must pass an AaudUser object</param>
-        /// <param name="roleName">The name of the role to check</param>
+        /// <param name="permissionName">The name of the permission to check</param>
         /// <returns>Whether or not the user is in the role specified</returns>
         public bool HasPermission(RAPSContext? rapsContext, AaudUser? user, string permissionName)
         {

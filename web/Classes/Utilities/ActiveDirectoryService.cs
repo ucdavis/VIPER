@@ -156,7 +156,6 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="samAccountName">samAccountName of user</param>
         /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
-        /// <returns></returns>
         public static LdapUser? GetUser(string samAccountName, bool fromOu = false)
         {
             string? filter = BuildUserFilter(samAccountName);
@@ -324,11 +323,6 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Generic search function
         /// </summary>
-        /// <param name="searchFilter"></param>
-        /// <param name="searchStart"></param>
-        /// <param name="ou"></param>
-        /// <param name="groupProperties"></param>
-        /// <returns></returns>
         private static List<SearchResultEntry> SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
         {
             var ldapIdentifier = server == Server.OU
