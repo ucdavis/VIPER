@@ -469,9 +469,9 @@ public sealed class InstructorsControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var returnedDepartments = Assert.IsAssignableFrom<IEnumerable<DepartmentDto>>(okResult.Value);
+        var returnedDepartments = Assert.IsAssignableFrom<IEnumerable<DepartmentDto>>(okResult.Value).ToList();
         Assert.Single(returnedDepartments);
-        Assert.Equal("VME", returnedDepartments.First().Code);
+        Assert.Equal("VME", returnedDepartments[0].Code);
     }
 
     #endregion

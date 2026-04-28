@@ -42,13 +42,13 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("fn/{friendlyName}")]
         public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
         {
-            var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
-            if (blocks == null || !blocks.Any())
+            var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null)?.ToList();
+            if (blocks == null || blocks.Count == 0)
             {
                 return NotFound();
             }
 
-            return blocks.First();
+            return blocks[0];
         }
 
         //PUT: content/5

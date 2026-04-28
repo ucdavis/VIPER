@@ -42,13 +42,18 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
 
             // Validate input data
-            if (rotationWeeks == null || !rotationWeeks.Any())
+            if (rotationWeeks == null)
+            {
+                return false;
+            }
+            var weeks = rotationWeeks.ToList();
+            if (weeks.Count == 0)
             {
                 return false;
             }
 
             // Find the current week in the rotation schedule
-            var currentWeek = rotationWeeks.FirstOrDefault(w => w.WeekNum == weekNumber);
+            var currentWeek = weeks.FirstOrDefault(w => w.WeekNum == weekNumber);
             if (currentWeek == null)
             {
                 return false; // Week not found in rotation schedule
@@ -82,7 +87,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             // 2. Either the next week is a StartWeek OR there is no next week
             if (!currentWeek.StartWeek)
             {
-                var nextWeek = rotationWeeks.FirstOrDefault(w => w.WeekNum == weekNumber + 1);
+                var nextWeek = weeks.FirstOrDefault(w => w.WeekNum == weekNumber + 1);
 
                 // Special case: If next week is extended, this week doesn't need evaluation
                 // Extended weeks are continuation weeks that don't count for evaluation
