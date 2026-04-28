@@ -8,6 +8,7 @@ using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.Students;
 using Web.Authorization;
+using Student = Viper.Areas.Students.Models.Student;
 
 namespace Viper.Areas.Students.Controllers
 {
@@ -38,7 +39,7 @@ namespace Viper.Areas.Students.Controllers
         /// <returns></returns>
         [HttpGet]
         [Permission(Allow = "SVMSecure.Students")]
-        public async Task<ActionResult<IEnumerable<Models.Student>>> GetDvmStudents(int? classYear, string? classLevel, bool includeAllClassYears = false)
+        public async Task<ActionResult<IEnumerable<Student>>> GetDvmStudents(int? classYear, string? classLevel, bool includeAllClassYears = false)
         {
             if (!userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
             {
@@ -55,7 +56,7 @@ namespace Viper.Areas.Students.Controllers
         /// <returns></returns>
         [HttpGet("{personId}")]
         [Permission(Allow = "SVMSecure.Students")]
-        public async Task<ActionResult<Models.Student>> GetDvmStudent(int personId)
+        public async Task<ActionResult<Student>> GetDvmStudent(int personId)
         {
             var student = await studentList.GetStudent(personId);
             return student == null ? NotFound() : student;
@@ -69,7 +70,7 @@ namespace Viper.Areas.Students.Controllers
         /// <returns></returns>
         [HttpGet("byTermAndClassLevel/{termcode}/{classLevel}")]
         [Permission(Allow = "SVMSecure.SIS.AllStudents")]
-        public async Task<ActionResult<IEnumerable<Models.Student>>> GetStudentsByTermAndClassLevel(int termCode, string classLevel)
+        public async Task<ActionResult<IEnumerable<Student>>> GetStudentsByTermAndClassLevel(int termCode, string classLevel)
         {
             return await studentList.GetStudentsByTermCodeAndClassLevel(termCode, classLevel);
         }

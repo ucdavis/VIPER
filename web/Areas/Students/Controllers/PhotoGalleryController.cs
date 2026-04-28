@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
@@ -30,7 +32,7 @@ namespace Viper.Areas.Students.Controllers
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never
         };
 
         public PhotoGalleryController(
@@ -245,7 +247,7 @@ namespace Viper.Areas.Students.Controllers
 
                 // Add ETag for conditional requests
                 var etag = Convert.ToBase64String(
-                    System.Security.Cryptography.SHA256.HashData(photoData)
+                    SHA256.HashData(photoData)
                 )[..16];
                 var etagHeader = $"\"{etag}\"";
                 Response.Headers.ETag = etagHeader;

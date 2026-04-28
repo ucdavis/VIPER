@@ -4,7 +4,9 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
+using Viper.Models.VIPER;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -146,7 +148,7 @@ public class TermService : ITermService
     /// <summary>
     /// Maps an EffortTerm entity to a TermDto, enriching it with the term name and end date.
     /// </summary>
-    private async Task<TermDto> MapTermToDtoAsync(Models.Entities.EffortTerm term, CancellationToken ct)
+    private async Task<TermDto> MapTermToDtoAsync(EffortTerm term, CancellationToken ct)
     {
         var dto = EffortMapper.ToTermDto(term);
         dto.TermName = GetTermName(term.TermCode);
@@ -170,7 +172,7 @@ public class TermService : ITermService
         }
 
         // New term starts with no dates set (Status will be computed as "Created")
-        var term = new Models.Entities.EffortTerm
+        var term = new EffortTerm
         {
             TermCode = termCode,
             ExpectedCloseDate = expectedCloseDate
@@ -397,7 +399,7 @@ public class TermService : ITermService
             .AsNoTracking()
             .Where(t => t.StartDate > DateTime.Today)
             .Where(t => !EF.Parameter(existingTermCodes).Contains(t.TermCode))
-            .Where(t => t.TermCode != Viper.Models.VIPER.Term.FacilityScheduleTermCode)
+            .Where(t => t.TermCode != Term.FacilityScheduleTermCode)
             .OrderBy(t => t.TermCode)
             .Select(t => new AvailableTermDto
             {

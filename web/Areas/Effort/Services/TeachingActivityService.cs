@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -192,7 +193,7 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
     public Task<byte[]> GenerateReportPdfAsync(TeachingActivityReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
@@ -348,7 +349,7 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
     public Task<byte[]> GenerateIndividualReportPdfAsync(TeachingActivityReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 

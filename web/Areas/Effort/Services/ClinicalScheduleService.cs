@@ -1,5 +1,7 @@
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -137,10 +139,10 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         var connectionString = _context.Database.GetConnectionString()
             ?? throw new InvalidOperationException("Database connection string not configured");
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand { Connection = connection };
+        await using var command = new SqlCommand { Connection = connection };
         var paramNames = new List<string>(clinicalJobCodes.Count);
         for (var i = 0; i < clinicalJobCodes.Count; i++)
         {
@@ -293,7 +295,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
     public Task<byte[]> GenerateReportPdfAsync(ScheduledCliWeeksReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var showTotal = report.TermNames.Count > 1;
         var termCount = report.TermNames.Count;

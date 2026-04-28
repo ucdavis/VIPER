@@ -1,4 +1,5 @@
 using System.DirectoryServices.Protocols;
+using System.Net;
 using System.Runtime.Versioning;
 using Viper.Areas.Directory.Models;
 
@@ -24,7 +25,7 @@ namespace Viper.Classes.Utilities
             var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, _ldapSSLPort);
             var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
             using var lc = new LdapConnection(ldapIdentifier,
-                    new System.Net.NetworkCredential(_ldapUsername, cred),
+                    new NetworkCredential(_ldapUsername, cred),
                     AuthType.Basic);
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;

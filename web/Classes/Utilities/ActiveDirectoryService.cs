@@ -1,5 +1,6 @@
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.Protocols;
+using System.Net;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 
@@ -340,7 +341,7 @@ namespace Viper.Classes.Utilities
                 ? _groupProperties
                 : _personProperties;
             var cred = HttpHelper.GetSetting<string>("Credentials", "svmadgrp") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
+            using var lc = new LdapConnection(ldapIdentifier, new NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
             lc.Bind();

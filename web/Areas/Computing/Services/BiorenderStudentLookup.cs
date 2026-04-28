@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using Viper.Areas.Computing.Model;
 using Viper.Classes.Utilities;
 
@@ -91,7 +92,7 @@ namespace Viper.Areas.Computing.Services
             }
             try
             {
-                var addr = new System.Net.Mail.MailAddress(email);
+                var addr = new MailAddress(email);
                 return addr.Address == trimmed;
             }
             catch

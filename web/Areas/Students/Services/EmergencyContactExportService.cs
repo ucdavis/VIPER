@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -67,7 +68,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
     public byte[] GenerateOverviewPdf(List<StudentContactListItemDto> data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         // Capture once so per-page header delegates don't drift across pages.
         var generatedLabel = BuildGeneratedLabel(DateTime.Now);
@@ -187,7 +188,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
     public byte[] GeneratePdf(List<StudentContactReportDto> data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var generatedLabel = BuildGeneratedLabel(DateTime.Now);
 

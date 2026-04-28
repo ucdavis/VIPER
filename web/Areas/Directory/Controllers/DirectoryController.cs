@@ -17,7 +17,7 @@ namespace Viper.Areas.Directory.Controllers
     [Authorize(Roles = "VMDO SVM-IT")] //locking directory for now until it's complete
     public class DirectoryController : AreaController
     {
-        public Classes.SQLContext.AAUDContext _aaud { get; private set; }
+        public AAUDContext _aaud { get; private set; }
         private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper { get; private set; }
 

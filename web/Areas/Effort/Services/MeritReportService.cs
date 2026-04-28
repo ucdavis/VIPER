@@ -1,6 +1,8 @@
 using System.Data;
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -262,10 +264,10 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var results = new List<MeritDetailRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_report]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_report]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@PersonId", (object?)personId ?? DBNull.Value);
         command.Parameters.AddWithValue("@StartTermCode", startTermCode);
@@ -548,10 +550,10 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var results = new List<MeritAverageRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_average]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_average]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
@@ -586,7 +588,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
     public Task<byte[]> GenerateMeritDetailPdfAsync(MeritDetailReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
@@ -735,7 +737,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
     public Task<byte[]> GenerateMeritAveragePdfAsync(MeritAverageReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        Settings.License = LicenseType.Community;
 
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 

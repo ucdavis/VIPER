@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 
 namespace Viper.Classes.Utilities
@@ -88,7 +89,7 @@ namespace Viper.Classes.Utilities
         {
             HttpResponseMessage response = new()
             {
-                StatusCode = System.Net.HttpStatusCode.InternalServerError
+                StatusCode = HttpStatusCode.InternalServerError
             };
             var error = new { errorMessage = "An error occurred." };
             response.Content = new StringContent(JsonSerializer.Serialize(error));

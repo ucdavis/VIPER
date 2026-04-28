@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -357,7 +358,7 @@ public class VerificationService : IVerificationService
         // Validate email address format
         var mailId = person.MailId.Trim();
         var recipientEmail = $"{mailId}@ucdavis.edu";
-        if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(recipientEmail))
+        if (!new EmailAddressAttribute().IsValid(recipientEmail))
         {
             var invalidEmailAuditData = new
             {

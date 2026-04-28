@@ -50,19 +50,19 @@ namespace Viper.Areas.CMS.Data
           0x3D, 0x3E, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00
         };
 
-        public static void UUDecode(System.IO.Stream input, System.IO.Stream output)
+        public static void UUDecode(Stream input, Stream output)
             => DecodeWithMap(input, output, UUDecMap);
 
-        public static void UUEncode(System.IO.Stream input, System.IO.Stream output)
+        public static void UUEncode(Stream input, Stream output)
             => EncodeWithMap(input, output, UUEncMap);
 
-        public static void XXDecode(System.IO.Stream input, System.IO.Stream output)
+        public static void XXDecode(Stream input, Stream output)
             => DecodeWithMap(input, output, XXDecMap);
 
-        public static void XXEncode(System.IO.Stream input, System.IO.Stream output)
+        public static void XXEncode(Stream input, Stream output)
             => EncodeWithMap(input, output, XXEncMap);
 
-        private static void DecodeWithMap(System.IO.Stream input, System.IO.Stream output, byte[] decMap)
+        private static void DecodeWithMap(Stream input, Stream output, byte[] decMap)
         {
             ArgumentNullException.ThrowIfNull(input);
             ArgumentNullException.ThrowIfNull(output);
@@ -128,7 +128,7 @@ namespace Viper.Areas.CMS.Data
             }
         }
 
-        private static void EncodeWithMap(System.IO.Stream input, System.IO.Stream output, byte[] encMap)
+        private static void EncodeWithMap(Stream input, Stream output, byte[] encMap)
         {
             ArgumentNullException.ThrowIfNull(input);
             ArgumentNullException.ThrowIfNull(output);
