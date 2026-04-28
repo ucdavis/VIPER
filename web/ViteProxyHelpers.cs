@@ -61,7 +61,12 @@ internal static partial class ViteProxyHelpers
         if (_vueAppRouteRegex != null) return;
         lock (_regexInitLock)
         {
+            // Double-checked locking: another thread may have initialised the
+            // regex between the outer guard and acquiring the lock. CA1508's
+            // dataflow analysis doesn't model thread interleaving.
+#pragma warning disable CA1508
             if (_vueAppRouteRegex == null)
+#pragma warning restore CA1508
             {
                 // Escape app names to avoid regex injection and build a safe alternation list.
                 var escaped = vueAppNames.Select(Regex.Escape);

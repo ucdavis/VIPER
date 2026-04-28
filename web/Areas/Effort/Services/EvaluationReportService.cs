@@ -281,8 +281,8 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
-        command.Parameters.AddWithValue("@PersonId", (object?)personId ?? DBNull.Value);
-        command.Parameters.AddWithValue("@Role", (object?)ParseRoleFilter(role) ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PersonId", personId);
+        command.Parameters.AddWithValue("@Role", ParseRoleFilter(role));
 
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
