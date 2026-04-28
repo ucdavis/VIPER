@@ -4,10 +4,14 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Effort;
+using Viper.Areas.Effort.Constants;
+using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.AAUD;
+using Person = Viper.Models.VIPER.Person;
 
 namespace Viper.test.Effort;
 
@@ -281,7 +285,7 @@ public sealed class InstructorServiceTests : IDisposable
         var request = new CreateInstructorRequest { PersonId = 1, TermCode = 202410 };
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<Areas.Effort.Exceptions.InstructorAlreadyExistsException>(
+        var ex = await Assert.ThrowsAsync<InstructorAlreadyExistsException>(
             () => _instructorService.CreateInstructorAsync(request));
 
         Assert.Equal(1, ex.PersonId);
@@ -545,11 +549,11 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange - Department override should return configured dept regardless of jobs/employee data
         // Using the MothraId from EffortConstants.DepartmentOverrides
-        var deptOverrides = Areas.Effort.Constants.EffortConstants.DepartmentOverrides;
+        var deptOverrides = EffortConstants.DepartmentOverrides;
         var overrideMothraId = deptOverrides.Keys.First();
         var expectedDept = deptOverrides[overrideMothraId];
 
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 100,
             ClientId = overrideMothraId,
@@ -562,14 +566,14 @@ public sealed class InstructorServiceTests : IDisposable
         await _viperContext.SaveChangesAsync();
 
         // Add VMDO job (should be ignored due to override)
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "OVERRIDE001",
             IdsTermCode = "202410",
             IdsMothraid = overrideMothraId,
             IdsClientid = overrideMothraId
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "OVERRIDE001",
             EmpTermCode = "202410",
@@ -593,7 +597,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task ResolveInstructorDepartmentAsync_ReturnsAcademicDeptFromJobs_WhenAvailable()
     {
         // Arrange
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 1,
             ClientId = "12345678",
@@ -605,7 +609,7 @@ public sealed class InstructorServiceTests : IDisposable
         });
         await _viperContext.SaveChangesAsync();
 
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "TEST001",
             IdsTermCode = "202410",
@@ -614,7 +618,7 @@ public sealed class InstructorServiceTests : IDisposable
         });
 
         // Add employee with non-academic dept
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "TEST001",
             EmpTermCode = "202410",
@@ -627,7 +631,7 @@ public sealed class InstructorServiceTests : IDisposable
         });
 
         // Add job with academic dept code (VME = 072030)
-        _aaudContext.Jobs.Add(new Viper.Models.AAUD.Job
+        _aaudContext.Jobs.Add(new Job
         {
             JobPKey = "TEST001",
             JobSeqNum = 1,
@@ -652,7 +656,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task ResolveInstructorDepartmentAsync_FallsBackToEmployeeFields_WhenNoAcademicJobDept()
     {
         // Arrange
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 2,
             ClientId = "87654321",
@@ -664,7 +668,7 @@ public sealed class InstructorServiceTests : IDisposable
         });
         await _viperContext.SaveChangesAsync();
 
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "TEST002",
             IdsTermCode = "202410",
@@ -673,7 +677,7 @@ public sealed class InstructorServiceTests : IDisposable
         });
 
         // Add employee with academic effort dept
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "TEST002",
             EmpTermCode = "202410",
@@ -710,7 +714,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task ResolveInstructorDepartmentAsync_ReturnsUNK_WhenNoEmployeeOrJobsFound()
     {
         // Arrange - Person exists but no AAUD data
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 3,
             ClientId = "00000000",
@@ -1077,18 +1081,18 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_ReturnsOverrideDept_WhenMothraIdHasOverride()
     {
         // Arrange
-        var deptOverrides = Areas.Effort.Constants.EffortConstants.DepartmentOverrides;
+        var deptOverrides = EffortConstants.DepartmentOverrides;
         var overrideMothraId = deptOverrides.Keys.First();
         var expectedDept = deptOverrides[overrideMothraId];
 
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "OVERRIDE001",
             IdsTermCode = "202410",
             IdsMothraid = overrideMothraId,
             IdsClientid = overrideMothraId
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "OVERRIDE001",
             EmpTermCode = "202410",
@@ -1113,14 +1117,14 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_ReturnsAcademicDeptFromJobs_WhenAvailable()
     {
         // Arrange
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "BATCH001",
             IdsTermCode = "202410",
             IdsMothraid = "11111111",
             IdsClientid = "11111111"
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "BATCH001",
             EmpTermCode = "202410",
@@ -1131,7 +1135,7 @@ public sealed class InstructorServiceTests : IDisposable
             EmpCbuc = "99",
             EmpStatus = "A"
         });
-        _aaudContext.Jobs.Add(new Viper.Models.AAUD.Job
+        _aaudContext.Jobs.Add(new Job
         {
             JobPKey = "BATCH001",
             JobSeqNum = 1,
@@ -1157,14 +1161,14 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_FallsBackToEmployeeFields_WhenNoAcademicJobDept()
     {
         // Arrange
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "BATCH002",
             IdsTermCode = "202410",
             IdsMothraid = "22222222",
             IdsClientid = "22222222"
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "BATCH002",
             EmpTermCode = "202410",
@@ -1201,14 +1205,14 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_ResolvesMultipleInstructorsCorrectly()
     {
         // Arrange - instructor 1: academic job dept
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "MULTI001",
             IdsTermCode = "202410",
             IdsMothraid = "AAA11111",
             IdsClientid = "AAA11111"
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "MULTI001",
             EmpTermCode = "202410",
@@ -1219,7 +1223,7 @@ public sealed class InstructorServiceTests : IDisposable
             EmpCbuc = "99",
             EmpStatus = "A"
         });
-        _aaudContext.Jobs.Add(new Viper.Models.AAUD.Job
+        _aaudContext.Jobs.Add(new Job
         {
             JobPKey = "MULTI001",
             JobSeqNum = 1,
@@ -1233,14 +1237,14 @@ public sealed class InstructorServiceTests : IDisposable
         });
 
         // Arrange - instructor 2: employee fallback
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "MULTI002",
             IdsTermCode = "202410",
             IdsMothraid = "BBB22222",
             IdsClientid = "BBB22222"
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "MULTI002",
             EmpTermCode = "202410",
@@ -1280,14 +1284,14 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_IsCaseInsensitive()
     {
         // Arrange
-        _aaudContext.Ids.Add(new Viper.Models.AAUD.Id
+        _aaudContext.Ids.Add(new Id
         {
             IdsPKey = "CASE001",
             IdsTermCode = "202410",
             IdsMothraid = "CASE1234",
             IdsClientid = "CASE1234"
         });
-        _aaudContext.Employees.Add(new Viper.Models.AAUD.Employee
+        _aaudContext.Employees.Add(new Employee
         {
             EmpPKey = "CASE001",
             EmpTermCode = "202410",

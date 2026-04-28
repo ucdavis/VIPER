@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -232,7 +233,7 @@ namespace Viper.Areas.RAPS.Services
                 RequestUri = new Uri(url),
                 Method = method
             };
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
             request.Headers.Add("Accept", "application/json");
             request.Headers.Add("X-UTIMESTAMP", epochTime.ToString());
             using StringContent content = new(body ?? "", Encoding.UTF8, "application/json");

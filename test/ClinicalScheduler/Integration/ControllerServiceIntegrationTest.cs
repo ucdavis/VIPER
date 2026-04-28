@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -314,7 +315,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 IsPrimaryEvaluator = false
             };
 
-            var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(invalidRequest);
+            var validationContext = new ValidationContext(invalidRequest);
             var validationResults = invalidRequest.Validate(validationContext);
 
             Assert.NotEmpty(validationResults);

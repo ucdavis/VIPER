@@ -95,7 +95,7 @@ namespace Viper.Areas.RAPS.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             _context.OuGroups.Add(newOuGroup);
             await _context.SaveChangesAsync();
-            _auditService.AuditGroupChange(newOuGroup, RAPSAuditService.AuditActionType.Create);
+            _auditService.AuditGroupChange(newOuGroup, AuditActionType.Create);
             await _context.SaveChangesAsync();
 
             //next add a role to manage explicit membership of this group
@@ -108,7 +108,7 @@ namespace Viper.Areas.RAPS.Services
             };
             _context.TblRoles.Add(tblRole);
             await _context.SaveChangesAsync();
-            _auditService.AuditRoleChange(tblRole, RAPSAuditService.AuditActionType.Create);
+            _auditService.AuditRoleChange(tblRole, AuditActionType.Create);
             await _context.SaveChangesAsync();
 
             //then link new the role to the group
@@ -120,7 +120,7 @@ namespace Viper.Areas.RAPS.Services
             };
             _context.OuGroupRoles.Add(groupRole);
             await _context.SaveChangesAsync();
-            _auditService.AuditOuGroupRoleChange(groupRole, RAPSAuditService.AuditActionType.Create);
+            _auditService.AuditOuGroupRoleChange(groupRole, AuditActionType.Create);
             await _context.SaveChangesAsync();
 
             //finally, link the role and the group management app role, so people who can manage groups can see now see this one
@@ -150,14 +150,14 @@ namespace Viper.Areas.RAPS.Services
             ouGroup.Name = name;
             ouGroup.Description = description;
             _context.Entry(ouGroup).State = EntityState.Modified;
-            _auditService.AuditGroupChange(ouGroup, RAPSAuditService.AuditActionType.Update);
+            _auditService.AuditGroupChange(ouGroup, AuditActionType.Update);
             await _context.SaveChangesAsync();
 
             //find the role for managing explicit membership and update its name
             TblRole role = await GetGroupRole(ouGroup.OugroupId);
             role.Role = _exceptionRolePrefix + ouGroup.Name;
             _context.Entry(role).State = EntityState.Modified;
-            _auditService.AuditRoleChange(role, RAPSAuditService.AuditActionType.Update);
+            _auditService.AuditRoleChange(role, AuditActionType.Update);
             await _context.SaveChangesAsync();
         }
 
@@ -178,7 +178,7 @@ namespace Viper.Areas.RAPS.Services
             foreach (TblRoleMember roleMember in groupRoleMembers)
             {
                 _context.TblRoleMembers.Remove(roleMember);
-                _auditService.AuditRoleMemberChange(roleMember, RAPSAuditService.AuditActionType.Delete, "Membership removed during deletion of group.");
+                _auditService.AuditRoleMemberChange(roleMember, AuditActionType.Delete, "Membership removed during deletion of group.");
             }
             await _context.SaveChangesAsync();
 
@@ -194,18 +194,18 @@ namespace Viper.Areas.RAPS.Services
             foreach (OuGroupRole role in groupRoles)
             {
                 _context.OuGroupRoles.Remove(role);
-                _auditService.AuditOuGroupRoleChange(role, RAPSAuditService.AuditActionType.Delete);
+                _auditService.AuditOuGroupRoleChange(role, AuditActionType.Delete);
             }
             await _context.SaveChangesAsync();
 
             //remove the group membership role
             _context.TblRoles.Remove(groupRole);
-            _auditService.AuditRoleChange(groupRole, RAPSAuditService.AuditActionType.Delete);
+            _auditService.AuditRoleChange(groupRole, AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
             //finally remove the group
             _context.OuGroups.Remove(ouGroup);
-            _auditService.AuditGroupChange(ouGroup, RAPSAuditService.AuditActionType.Delete);
+            _auditService.AuditGroupChange(ouGroup, AuditActionType.Delete);
             await _context.SaveChangesAsync();
         }
 
@@ -489,11 +489,11 @@ namespace Viper.Areas.RAPS.Services
             {
                 RoleId = roleMember.RoleId,
                 Role = role?.FriendlyName ?? string.Empty,
-                AddDate = roleMember.AddDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.AddDate) : null,
-                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
-                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null,
+                AddDate = roleMember.AddDate != null ? DateOnly.FromDateTime((DateTime)roleMember.AddDate) : null,
+                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((DateTime)roleMember.StartDate) : null,
+                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((DateTime)roleMember.EndDate) : null,
                 ModBy = roleMember.ModBy,
-                ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((System.DateTime)roleMember.ModTime) : null,
+                ModDate = roleMember.ModTime != null ? DateOnly.FromDateTime((DateTime)roleMember.ModTime) : null,
                 ViewName = role?.ViewName ?? string.Empty
             };
         }

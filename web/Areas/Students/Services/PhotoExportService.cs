@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Drawing;
+using DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +11,33 @@ using QuestPDF.Infrastructure;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.Utilities;
+using BlipFill = DocumentFormat.OpenXml.Drawing.Pictures.BlipFill;
+using BottomBorder = DocumentFormat.OpenXml.Wordprocessing.BottomBorder;
+using Break = DocumentFormat.OpenXml.Wordprocessing.Break;
+using Color = DocumentFormat.OpenXml.Wordprocessing.Color;
+using InsideHorizontalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideHorizontalBorder;
+using InsideVerticalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideVerticalBorder;
+using LeftBorder = DocumentFormat.OpenXml.Wordprocessing.LeftBorder;
+using NonVisualDrawingProperties = DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties;
+using NonVisualGraphicFrameDrawingProperties = DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties;
+using NonVisualPictureDrawingProperties = DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties;
+using NonVisualPictureProperties = DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties;
+using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
+using ParagraphProperties = DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties;
 using WordDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 using PdfDocument = QuestPDF.Fluent.Document;
+using Picture = DocumentFormat.OpenXml.Drawing.Pictures.Picture;
+using RightBorder = DocumentFormat.OpenXml.Wordprocessing.RightBorder;
+using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
+using RunProperties = DocumentFormat.OpenXml.Wordprocessing.RunProperties;
+using Settings = QuestPDF.Settings;
+using ShapeProperties = DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties;
+using Table = DocumentFormat.OpenXml.Wordprocessing.Table;
+using TableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
+using TableProperties = DocumentFormat.OpenXml.Wordprocessing.TableProperties;
+using TableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
+using Text = DocumentFormat.OpenXml.Wordprocessing.Text;
+using TopBorder = DocumentFormat.OpenXml.Wordprocessing.TopBorder;
 
 namespace Viper.Areas.Students.Services
 {
@@ -69,14 +96,14 @@ namespace Viper.Areas.Students.Services
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoService _photoService;
         private readonly ILogger<PhotoExportService> _logger;
-        private readonly Curriculum.Services.TermCodeService _termCodeService;
+        private readonly TermCodeService _termCodeService;
         private readonly ICourseService _courseService;
 
         public PhotoExportService(
             IStudentGroupService studentGroupService,
             IPhotoService photoService,
             ILogger<PhotoExportService> logger,
-            Curriculum.Services.TermCodeService termCodeService,
+            TermCodeService termCodeService,
             ICourseService courseService)
         {
             _studentGroupService = studentGroupService;
@@ -233,7 +260,7 @@ namespace Viper.Areas.Students.Services
                                             photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
                                             var photoRun = photoParagraph.AppendChild(new Run());
 
-                                            var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
+                                            var imagePart = mainPart.AddImagePart(ImagePartType.Jpeg);
                                             using (var photoStream = new MemoryStream(photoBytes))
                                             {
                                                 imagePart.FeedData(photoStream);
@@ -285,7 +312,7 @@ namespace Viper.Areas.Students.Services
                                             )
                                             { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
 
-                                            var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
+                                            var drawing = new Drawing(inline);
 
                                             photoRun.AppendChild(drawing);
                                         }
@@ -354,7 +381,7 @@ namespace Viper.Areas.Students.Services
                                     photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
                                     var photoRun = photoParagraph.AppendChild(new Run());
 
-                                    var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
+                                    var imagePart = mainPart.AddImagePart(ImagePartType.Jpeg);
                                     using (var photoStream = new MemoryStream(photoBytes))
                                     {
                                         imagePart.FeedData(photoStream);
@@ -405,7 +432,7 @@ namespace Viper.Areas.Students.Services
                                     )
                                     { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
 
-                                    var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
+                                    var drawing = new Drawing(inline);
 
                                     photoRun.AppendChild(drawing);
                                 }

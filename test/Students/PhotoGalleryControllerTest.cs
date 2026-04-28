@@ -455,11 +455,11 @@ namespace Viper.test.Students
             var controllerType = typeof(PhotoGalleryController);
 
             // Act
-            var routeAttributes = controllerType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.RouteAttribute), false);
+            var routeAttributes = controllerType.GetCustomAttributes(typeof(RouteAttribute), false);
 
             // Assert
             Assert.NotEmpty(routeAttributes);
-            var routeAttr = (Microsoft.AspNetCore.Mvc.RouteAttribute)routeAttributes[0];
+            var routeAttr = (RouteAttribute)routeAttributes[0];
             Assert.Equal("/api/students/photos", routeAttr.Template);
         }
 

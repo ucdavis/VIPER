@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -165,9 +166,9 @@ namespace Viper.test.ClinicalScheduler
 
             var httpContext = new DefaultHttpContext();
             httpContext.RequestServices = serviceProvider;
-            httpContext.User = new System.Security.Claims.ClaimsPrincipal(
-                new System.Security.Claims.ClaimsIdentity(
-                    new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, TestUserLoginId) },
+            httpContext.User = new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.Name, TestUserLoginId) },
                     "test"
                 )
             );
@@ -198,7 +199,7 @@ namespace Viper.test.ClinicalScheduler
             // Add instructor schedules with numeric MothraIds
             var instructorSchedules = new[]
             {
-                new Models.ClinicalScheduler.InstructorSchedule
+                new InstructorSchedule
                 {
                     InstructorScheduleId = 100,
                     MothraId = "12345",
@@ -206,7 +207,7 @@ namespace Viper.test.ClinicalScheduler
                     WeekId = 10,
                     Evaluator = false
                 },
-                new Models.ClinicalScheduler.InstructorSchedule
+                new InstructorSchedule
                 {
                     InstructorScheduleId = 101,
                     MothraId = "67890",

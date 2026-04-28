@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -73,7 +74,7 @@ namespace Viper.test.ClinicalScheduler
             var serviceType = typeof(WeekService);
 
             // Act
-            var methods = serviceType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            var methods = serviceType.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => m.DeclaringType == serviceType)
                 .Select(m => m.Name)
                 .ToList();

@@ -5,6 +5,8 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
+using Course = Viper.Models.CTS.Course;
+using Session = Viper.Models.CTS.Session;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -387,7 +389,7 @@ namespace Viper.Areas.CTS.Controllers
         /// </summary>
         /// <param name="courseId"></param>
         /// <returns></returns>
-        private async Task<Viper.Models.CTS.Course?> GetCourseForUser(int courseId)
+        private async Task<Course?> GetCourseForUser(int courseId)
         {
             var c = await context.Courses.FindAsync(courseId);
             if (c == null)
@@ -404,7 +406,7 @@ namespace Viper.Areas.CTS.Controllers
             return c;
         }
 
-        private async Task<Viper.Models.CTS.Session?> GetCourseSession(int courseId, int sessionId)
+        private async Task<Session?> GetCourseSession(int courseId, int sessionId)
         {
             var session = await context.Sessions.FindAsync(sessionId);
             return (session != null && session.CourseId == courseId) ? session : null;
