@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;

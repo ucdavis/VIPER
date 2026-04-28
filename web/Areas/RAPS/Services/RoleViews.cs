@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
-using System.Linq.Dynamic.Core;
-using System.Data;
 
 namespace Viper.Areas.RAPS.Services
 {

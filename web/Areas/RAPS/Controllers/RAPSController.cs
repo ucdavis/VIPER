@@ -1,13 +1,13 @@
+using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Viper.Models.RAPS;
-using Viper.Areas.RAPS.Services;
-using Web.Authorization;
-using Microsoft.IdentityModel.Tokens;
-using Viper.Classes;
-using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Viper.Areas.RAPS.Services;
+using Viper.Classes;
+using Viper.Models.RAPS;
+using Web.Authorization;
 
 namespace Viper.Areas.RAPS.Controllers
 {

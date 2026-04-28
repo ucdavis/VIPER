@@ -1,14 +1,14 @@
+using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Models.AAUD;
-using Web.Authorization;
+using Viper.Areas.Directory.Models;
+using Viper.Areas.Directory.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Areas.Directory.Models;
-using System.Runtime.Versioning;
-using Viper.Areas.Directory.Services;
 using Viper.Classes.Utilities;
+using Viper.Models.AAUD;
+using Web.Authorization;
 
 namespace Viper.Areas.Directory.Controllers
 {

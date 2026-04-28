@@ -1,6 +1,6 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Net;
 using Viper.Models;
 
 namespace Viper.Classes

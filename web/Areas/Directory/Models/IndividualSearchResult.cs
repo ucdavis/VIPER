@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using System.Runtime.Versioning;
+using Microsoft.EntityFrameworkCore;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models

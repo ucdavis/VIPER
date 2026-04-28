@@ -1,8 +1,7 @@
+using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
-using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Areas.RAPS.Services;
