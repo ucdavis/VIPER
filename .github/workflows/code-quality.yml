@@ -7,6 +7,9 @@ on:
 # Detects whether a PR *adds* new dead code or duplication compared to main.
 # - fallow covers VueApp (dead code, unused exports, complexity, duplication)
 # - jscpd covers C# (web/Areas/**/*.cs) since fallow is JS/TS-only
+# - resharper-pr-gate covers C# inspections (dead-conditional, NRT-contract, and
+#   redundancy findings the Roslyn build doesn't catch); PR-scoped so pre-existing
+#   issues are not blocking — only NEW findings at lines this PR added/modified fail.
 # Passes if counts are equal to or lower than main.
 
 jobs:
@@ -93,3 +96,44 @@ jobs:
 
       - name: Check jscpd regression on PR
         run: node scripts/audit-jscpd-regression.js --check .jscpd-baseline-vue.json VueApp/src
+
+  resharper-pr-gate:
+    name: ReSharper PR-scoped gate (C#)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Restore dotnet local tools (jb / dotnet-ef / libman)
+        run: dotnet tool restore
+
+      - name: Restore NuGet
+        run: dotnet restore Viper.sln
+
+      - name: Run inspectcode + PR-diff gate
+        # The script runs the full inspectcode scan, parses the SARIF, and only
+        # fails on findings located at lines this PR added/modified vs base ref.
+        run: node scripts/audit-resharper-regression.js --base origin/${{ github.base_ref }}
+
+      - name: Upload SARIF report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resharper-sarif
+          path: inspect-report/inspect.sarif
+          retention-days: 3

@@ -23,6 +23,25 @@ dotnet_diagnostic.IDE0005.severity = error
 dotnet_diagnostic.IDE0059.severity = warning
 # CS8601: Possible null reference assignment.
 dotnet_diagnostic.CS8601.severity = silent
+
+# Maintainability rules (off by default in NetAnalyzers; enable explicitly)
+# CA1502: Avoid excessive cyclomatic complexity (default threshold 25)
+dotnet_diagnostic.CA1502.severity = warning
+# CA1505: Avoid unmaintainable code (maintainability index < 10)
+dotnet_diagnostic.CA1505.severity = warning
+# CA1501: Avoid excessive inheritance (default 5 levels)
+dotnet_diagnostic.CA1501.severity = warning
+# CA1507: Use nameof in place of string literal
+dotnet_diagnostic.CA1507.severity = warning
+# CA1508: Avoid dead conditional code (dataflow analysis - on trial; investigate FP rate)
+dotnet_diagnostic.CA1508.severity = warning
+# CA1510-CA1513: Use throw-helper APIs (.NET 6+ shorthands for argument validation)
+dotnet_diagnostic.CA1510.severity = warning
+dotnet_diagnostic.CA1511.severity = warning
+dotnet_diagnostic.CA1512.severity = warning
+dotnet_diagnostic.CA1513.severity = warning
+# CA1514: Avoid redundant length argument (Substring/Span slicing)
+dotnet_diagnostic.CA1514.severity = warning
 csharp_indent_labels = one_less_than_current
 csharp_using_directive_placement = outside_namespace:silent
 csharp_prefer_simple_using_statement = true:suggestion
