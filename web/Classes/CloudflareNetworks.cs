@@ -1,5 +1,3 @@
-using System.Net;
-
 namespace Viper.Classes
 {
     /// <summary>
@@ -39,7 +37,7 @@ namespace Viper.Classes
             "2c0f:f248::/32",
         ];
 
-        public static IReadOnlyList<IPNetwork> FetchOrFallback(NLog.Logger logger)
+        public static IReadOnlyList<string> FetchOrFallback(NLog.Logger logger)
         {
             try
             {
@@ -49,12 +47,12 @@ namespace Viper.Classes
                 var cidrs = (v4 + "\n" + v6)
                     .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 logger.Info("Fetched {Count} Cloudflare networks from cloudflare.com", cidrs.Length);
-                return cidrs.Select(IPNetwork.Parse).ToList();
+                return cidrs;
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
                 logger.Warn(ex, "Failed to fetch Cloudflare IP ranges; using hardcoded fallback ({Count} entries)", HardcodedFallback.Length);
-                return HardcodedFallback.Select(IPNetwork.Parse).ToList();
+                return HardcodedFallback;
             }
         }
     }

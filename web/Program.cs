@@ -77,7 +77,7 @@ try
 
     //Use forwarded for headers on test and prod. Fetch CF networks once
     //at startup so the closure below can reuse them without re-fetching.
-    var cloudflareNetworks = CloudflareNetworks.FetchOrFallback(logger);
+    var cloudflareCidrs = CloudflareNetworks.FetchOrFallback(logger);
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders =
@@ -88,9 +88,18 @@ try
         // app comes from a CF edge IP. Trust CF networks so UseForwardedHeaders
         // walks the X-Forwarded-For chain and RemoteIpAddress resolves to the
         // real client - otherwise every IP-based allowlist breaks.
-        foreach (var network in cloudflareNetworks)
+        // Add to BOTH KnownNetworks (deprecated but still read by the
+        // middleware) and KnownIPNetworks (the new property) so this works
+        // regardless of which list the runtime middleware consults.
+        foreach (var cidr in cloudflareCidrs)
         {
-            options.KnownIPNetworks.Add(network);
+            var parts = cidr.Split('/');
+            var address = IPAddress.Parse(parts[0]);
+            var prefix = int.Parse(parts[1]);
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(address, prefix));
+#pragma warning disable ASPDEPR005
+            options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(address, prefix));
+#pragma warning restore ASPDEPR005
         }
     });
 
