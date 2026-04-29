@@ -126,7 +126,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenTermCodeIsZero()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(0);
+        var result = await _controller.GetTeachingActivityGrouped();
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -207,7 +207,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityIndividual_ReturnsBadRequest_WhenTermCodeIsZero()
     {
         // Act
-        var result = await _controller.GetTeachingActivityIndividual(0);
+        var result = await _controller.GetTeachingActivityIndividual();
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -725,7 +725,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetDeptSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetDeptSummary(0);
+        var result = await _controller.GetDeptSummary();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -866,7 +866,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSchoolSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetSchoolSummary(0);
+        var result = await _controller.GetSchoolSummary();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -999,7 +999,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetMeritDetail(0);
+        var result = await _controller.GetMeritDetail();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1158,7 +1158,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritAverage_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetMeritAverage(0);
+        var result = await _controller.GetMeritAverage();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1436,7 +1436,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetMeritSummary(0);
+        var result = await _controller.GetMeritSummary();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1755,7 +1755,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetScheduledCliWeeks_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetScheduledCliWeeks(0);
+        var result = await _controller.GetScheduledCliWeeks();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2086,7 +2086,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetEvalSummary(0);
+        var result = await _controller.GetEvalSummary();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2247,7 +2247,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalDetail_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetEvalDetail(0);
+        var result = await _controller.GetEvalDetail();
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2763,7 +2763,7 @@ public sealed class ReportsControllerTests
         _sabbaticalServiceMock
             .SaveAsync(123, "202409", null, 999, Arg.Any<CancellationToken>()).Returns(savedDto);
 
-        var request = new SaveSabbaticalRequest("202409", null);
+        var request = new SaveSabbaticalRequest("202409");
         var result = await _controller.SaveSabbatical(123, request);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -2775,7 +2775,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task SaveSabbatical_InvalidPersonId_ReturnsBadRequest()
     {
-        var request = new SaveSabbaticalRequest("202409", null);
+        var request = new SaveSabbaticalRequest("202409");
         var result = await _controller.SaveSabbatical(-1, request);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);

@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class Bundle
+public class Bundle
 {
     public int BundleId { get; set; }
 

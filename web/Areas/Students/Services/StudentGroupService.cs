@@ -590,8 +590,8 @@ namespace Viper.Areas.Students.Services
                                                          i.IdsMailid,
                                                          i.IdsTermCode,
                                                          PersonFirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
-                                                         PersonLastName = p.PersonLastName,
-                                                         PersonMiddleName = p.PersonMiddleName,
+                                                         p.PersonLastName,
+                                                         p.PersonMiddleName,
                                                          ClassLevel = s.StudentsClassLevel
                                                      })
                                                     .ToListAsync();
@@ -825,11 +825,13 @@ namespace Viper.Areas.Students.Services
             {
                 return $"{eighthsGroup} / {twentiethsGroup}";
             }
-            else if (!string.IsNullOrEmpty(eighthsGroup))
+
+            if (!string.IsNullOrEmpty(eighthsGroup))
             {
                 return eighthsGroup;
             }
-            else if (!string.IsNullOrEmpty(twentiethsGroup))
+
+            if (!string.IsNullOrEmpty(twentiethsGroup))
             {
                 return twentiethsGroup;
             }

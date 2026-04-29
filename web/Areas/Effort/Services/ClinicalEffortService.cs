@@ -349,7 +349,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                         {
                             columns.RelativeColumn(3); // Instructor — wider, flexes for long names
                             columns.ConstantColumn(percentWidth);
-                            columns.RelativeColumn(1); // CLI
+                            columns.RelativeColumn(); // CLI
                             columns.ConstantColumn(ratioWidth);
                             // Other effort type columns (skip CLI since it's shown separately)
                             foreach (var type in orderedTypes)
@@ -358,7 +358,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                                 {
                                     continue;
                                 }
-                                columns.RelativeColumn(1);
+                                columns.RelativeColumn();
                             }
                         });
 

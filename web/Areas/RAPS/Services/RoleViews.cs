@@ -53,7 +53,7 @@ namespace Viper.Areas.RAPS.Services
         {
             if (string.IsNullOrEmpty(role.ViewName))
             {
-                return messages ?? new List<string>() { string.Format("Role {0} has no view", role.Role) };
+                return messages ?? new List<string> { string.Format("Role {0} has no view", role.Role) };
             }
             messages ??= new();
             messages.Add(string.Format("Role {0} - View {1}", role.Role, role.ViewName));

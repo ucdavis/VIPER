@@ -5,11 +5,6 @@ namespace Viper.Views.Shared.Components.SessionTimeout
     [ViewComponent(Name = "SessionTimeout")]
     public class SessionTimeout : ViewComponent
     {
-        public SessionTimeout()
-        {
-
-        }
-
         public async Task<IViewComponentResult> InvokeAsync()
         {
             UserHelper userHelper = new UserHelper();

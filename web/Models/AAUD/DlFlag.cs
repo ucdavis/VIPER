@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class DlFlag
+public class DlFlag
 {
     public string FlagsPKey { get; set; } = null!;
 

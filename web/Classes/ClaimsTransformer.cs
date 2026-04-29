@@ -53,7 +53,7 @@ namespace Web.Authorization
                 RAPSContext rapsContext = scope.ServiceProvider.GetRequiredService<RAPSContext>();
 
                 if (HttpHelper.Cache != null && loginId != null
-                    && HttpHelper.Cache.TryGetValue<string>(EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
+                    && HttpHelper.Cache.TryGetValue(EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
                 {
                     // make sure the emulating user has permission to emulate
                     AaudUser? emulatingUser = UserHelper.GetByLoginId(aaudContext, loginId);

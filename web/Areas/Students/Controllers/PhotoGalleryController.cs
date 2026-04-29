@@ -147,7 +147,7 @@ namespace Viper.Areas.Students.Controllers
         {
             try
             {
-                var courses = await _courseService.GetAvailableCoursesForPhotosAsync("VET");
+                var courses = await _courseService.GetAvailableCoursesForPhotosAsync();
                 return Ok(courses);
             }
             catch (InvalidOperationException ex)
@@ -409,7 +409,7 @@ namespace Viper.Areas.Students.Controllers
 
             try
             {
-                var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel, false);
+                var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel);
                 return Ok(students);
             }
             catch (InvalidOperationException ex)

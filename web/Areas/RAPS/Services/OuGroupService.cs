@@ -259,7 +259,7 @@ namespace Viper.Areas.RAPS.Services
                     //Add this "member" if they are in the group in AD but not in any role that would qualify them for them membership
                     if (!membersInRoles.ContainsKey(user.SamAccountName))
                     {
-                        members.Add(new GroupMember()
+                        members.Add(new GroupMember
                         {
                             DisplayFirstName = user.GivenName,
                             DisplayLastName = user.Sn,
@@ -280,7 +280,7 @@ namespace Viper.Areas.RAPS.Services
                     //Add this "member" if they are in the group in AD but not in any role that would qualify them for them membership
                     if (!membersInRoles.ContainsKey(user.SamAccountName))
                     {
-                        members.Add(new GroupMember()
+                        members.Add(new GroupMember
                         {
                             DisplayName = user.DisplayName,
                             LoginId = user.SamAccountName

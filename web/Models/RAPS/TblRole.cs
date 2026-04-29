@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Viper.Models.RAPS;
 
-public partial class TblRole
+public class TblRole
 {
     public int RoleId { get; set; }
 

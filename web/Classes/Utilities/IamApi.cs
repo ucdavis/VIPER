@@ -33,7 +33,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         public async Task<Response<Ids>> GetIamIds(string iamId)
         {
-            return await Send<Ids>("iam/people/ids/search", new NameValueCollection() { { "iamId", iamId } });
+            return await Send<Ids>("iam/people/ids/search", new NameValueCollection { { "iamId", iamId } });
         }
 
         /// <summary>
@@ -114,10 +114,10 @@ namespace Viper.Classes.Utilities
         {
             var callList = new List<Tuple<string, NameValueCollection?>>
             {
-                new("iam/people/search", new NameValueCollection() { { "dFirstName", name } }),
-                new("iam/people/search", new NameValueCollection() { { "dLastName", name } }),
-                new("iam/people/search", new NameValueCollection() { { "oFirstName", name } }),
-                new("iam/people/search", new NameValueCollection() { { "oLastName", name } })
+                new("iam/people/search", new NameValueCollection { { "dFirstName", name } }),
+                new("iam/people/search", new NameValueCollection { { "dLastName", name } }),
+                new("iam/people/search", new NameValueCollection { { "oFirstName", name } }),
+                new("iam/people/search", new NameValueCollection { { "oLastName", name } })
             };
             return await SendMultiple<CorePerson>(callList, true);
         }
@@ -131,7 +131,7 @@ namespace Viper.Classes.Utilities
             {
                 email += "@ucdavis.edu";
             }
-            return await Send<ContactInfo>("iam/people/contactinfo/search", new NameValueCollection() { { "email", email } });
+            return await Send<ContactInfo>("iam/people/contactinfo/search", new NameValueCollection { { "email", email } });
         }
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         public async Task<Response<ContactInfo>> GetContactInfo(string iamId)
         {
-            return await Send<ContactInfo>("iam/people/contactinfo/" + iamId, null);
+            return await Send<ContactInfo>("iam/people/contactinfo/" + iamId);
         }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace Viper.Classes.Utilities
             {
                 callList.Add(new Tuple<string, NameValueCollection?>("iam/people/contactinfo/" + iamId, null));
             }
-            return await SendMultiple<ContactInfo>(callList, false);
+            return await SendMultiple<ContactInfo>(callList);
         }
 
         /*
@@ -163,7 +163,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         public async Task<Response<EmployeeAssociation>> GetEmployeeAssociations(string iamId)
         {
-            return await Send<EmployeeAssociation>("iam/associations/pps/" + iamId, null);
+            return await Send<EmployeeAssociation>("iam/associations/pps/" + iamId);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         public async Task<Response<EmployeeAssociation>> GetEmployeeAssociationsByDept(string deptCode)
         {
-            return await Send<EmployeeAssociation>("iam/associations/pps/search", new NameValueCollection() { { "apptDeptCode", deptCode } });
+            return await Send<EmployeeAssociation>("iam/associations/pps/search", new NameValueCollection { { "apptDeptCode", deptCode } });
         }
 
         /// <summary>
@@ -182,9 +182,9 @@ namespace Viper.Classes.Utilities
             var callList = new List<Tuple<string, NameValueCollection?>>();
             foreach (var deptCode in deptCodes)
             {
-                callList.Add(new Tuple<string, NameValueCollection?>("iam/associations/pps/search", new NameValueCollection() { { "apptDeptCode", deptCode } }));
+                callList.Add(new Tuple<string, NameValueCollection?>("iam/associations/pps/search", new NameValueCollection { { "apptDeptCode", deptCode } }));
             }
-            return await SendMultiple<EmployeeAssociation>(callList, false);
+            return await SendMultiple<EmployeeAssociation>(callList);
         }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         public async Task<Response<SisAssociation>> GetSisAssociations(string iamId)
         {
-            return await Send<SisAssociation>("iam/associations/sis/" + iamId, null);
+            return await Send<SisAssociation>("iam/associations/sis/" + iamId);
         }
 
         /// <summary>
@@ -247,7 +247,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         public async Task<Response<DirectoryAssociation>> GetDirectoryAssociations(string iamId)
         {
-            return await Send<DirectoryAssociation>("iam/associations/odr/" + iamId, null);
+            return await Send<DirectoryAssociation>("iam/associations/odr/" + iamId);
         }
 
         /*
@@ -356,7 +356,7 @@ namespace Viper.Classes.Utilities
         /// <typeparam name="T">The type of object from IAM</typeparam>
         static private async Task<Response<T>> ParseResponse<T>(HttpResponseMessage? response) where T : IIamData
         {
-            var r = new Response<T>()
+            var r = new Response<T>
             {
                 Data = null,
                 ErrorMessage = null

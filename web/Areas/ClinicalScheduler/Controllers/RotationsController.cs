@@ -533,7 +533,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 dateEnd = week.DateEnd,
                 termCode = week.TermCode,
                 extendedRotation = week.ExtendedRotation,
-                rotationClosed = rotationClosed,
+                rotationClosed,
                 requiresPrimaryEvaluator = requiresPrimary,
                 instructorSchedules = weekSchedules
             };
@@ -565,7 +565,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 .Distinct()
                 .Select(mothraId => new
                 {
-                    mothraId = mothraId,
+                    mothraId,
                     fullName = personData.ContainsKey(mothraId)
                         ? personData[mothraId].PersonDisplayFullName
                         : $"Clinician {mothraId}"
@@ -584,9 +584,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             return new
             {
                 rotation = BuildSimpleRotationResponse(rotation),
-                gradYear = gradYear,
-                schedulesBySemester = schedulesBySemester,
-                recentClinicians = recentClinicians
+                gradYear,
+                schedulesBySemester,
+                recentClinicians
             };
         }
 
@@ -675,8 +675,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             return Ok(new
             {
-                currentGradYear = currentGradYear,
-                availableGradYears = availableGradYears,
+                currentGradYear,
+                availableGradYears,
             });
         }
 

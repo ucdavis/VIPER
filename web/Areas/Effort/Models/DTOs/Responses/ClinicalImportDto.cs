@@ -50,7 +50,7 @@ public class ClinicalImportProgressEvent
     public static ClinicalImportProgressEvent Importing(int current, int total) => new()
     {
         Type = "importing",
-        Progress = 0.1 + (0.8 * (double)current / Math.Max(total, 1)),
+        Progress = 0.1 + (0.8 * current / Math.Max(total, 1)),
         Message = "Importing clinical records...",
         Detail = $"{current}/{total} records processed"
     };

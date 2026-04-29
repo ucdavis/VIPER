@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class AaudOverride
+public class AaudOverride
 {
     public int OverrideId { get; set; }
 

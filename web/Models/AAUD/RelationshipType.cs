@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class RelationshipType
+public class RelationshipType
 {
     public int TypeId { get; set; }
 

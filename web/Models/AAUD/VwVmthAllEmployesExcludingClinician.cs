@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwVmthAllEmployesExcludingClinician
+public class VwVmthAllEmployesExcludingClinician
 {
     public string? FullName { get; set; }
 

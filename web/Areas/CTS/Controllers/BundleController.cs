@@ -155,7 +155,7 @@ namespace Viper.Areas.CTS.Controllers
             var existing = await context.BundleRoles.Where(br => br.BundleId == bundleId).ToListAsync();
             foreach (var brId in bundleRoles.Where(brId => !existing.Any(e => e.RoleId == brId)))
             {
-                context.Add(new BundleRole()
+                context.Add(new BundleRole
                 {
                     BundleId = bundleId,
                     RoleId = brId

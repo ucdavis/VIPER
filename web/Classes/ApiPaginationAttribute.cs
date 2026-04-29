@@ -5,7 +5,7 @@ using Viper.Models;
 
 namespace Viper.Classes
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class ApiPaginationAttribute : ActionFilterAttribute
     {
         public int DefaultPerPage { get; set; } = 25;
@@ -137,7 +137,7 @@ namespace Viper.Classes
             }
             if (objectResult.Value is string v)
             {
-                return new ApiResponse(statusCode, false, null, v, null);
+                return new ApiResponse(statusCode, false, null, v);
             }
             return new ApiResponse(statusCode, false, null, "An error has occurred", objectResult.Value);
         }

@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class VwVmdoDevelopment
+public class VwVmdoDevelopment
 {
     public string? MemberId { get; set; }
 

@@ -58,7 +58,7 @@ namespace Viper.Classes
                                 && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
                             {
                                 string url = string.Format("{0}/{1}/{2}", rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
-                                string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd").ToString();
+                                string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
                                 if (!URLs.ContainsKey(url))
                                 {

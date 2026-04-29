@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class Exceptionemployee
+public class Exceptionemployee
 {
     public string EmpPKey { get; set; } = null!;
 

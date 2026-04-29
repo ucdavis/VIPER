@@ -81,7 +81,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 else
                 {
-                    context.MilestoneLevels.Add(new MilestoneLevel()
+                    context.MilestoneLevels.Add(new MilestoneLevel
                     {
                         BundleId = milestoneId,
                         LevelId = ml.LevelId,

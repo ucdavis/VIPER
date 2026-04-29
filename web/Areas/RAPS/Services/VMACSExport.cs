@@ -10,7 +10,7 @@ using LogLevel = NLog.LogLevel;
 
 namespace Viper.Areas.RAPS.Services
 {
-    public partial class VMACSExport
+    public class VMACSExport
     {
         private readonly RAPSContext _RAPSContext;
 
@@ -159,15 +159,13 @@ namespace Viper.Areas.RAPS.Services
             string responseBody = await response.Content.ReadAsStringAsync();
             try
             {
-                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (vmacsResponse == null)
                 {
                     throw new InvalidOperationException("Failed to deserialize VMACS response.");
                 }
-                else
-                {
-                    vmacsResponse.Success = response.IsSuccessStatusCode;
-                }
+
+                vmacsResponse.Success = response.IsSuccessStatusCode;
             }
             catch (Exception)
             {
@@ -189,7 +187,7 @@ namespace Viper.Areas.RAPS.Services
                         && (rm.EndDate == null || rm.EndDate > DateTime.Now)
                         && (loginId.Length > 0 || user.Current || user.Future)
                         && (role.Role.StartsWith(rolePrefix))
-                        select new UserList()
+                        select new UserList
                         {
                             LoginId = user.LoginId,
                             MothraId = user.MothraId,
@@ -219,7 +217,7 @@ namespace Viper.Areas.RAPS.Services
                 var user = _RAPSContext.VwAaudUser.Where(a => a.LoginId == loginId).FirstOrDefault();
                 if (user != null)
                 {
-                    userList.Add(new UserList()
+                    userList.Add(new UserList
                     {
                         LoginId = loginId,
                         MailId = user.MailId,
@@ -264,7 +262,7 @@ namespace Viper.Areas.RAPS.Services
                 accessCodes = new string(accessCodeArray);
 
                 var permissionSplit = permission.Permission.Split(".");
-                vmacsExportPermissions.Add(new VMACSExportPermission()
+                vmacsExportPermissions.Add(new VMACSExportPermission
                 {
                     Id = permission.PermissionId,
                     Group = permissionSplit[1],
@@ -304,7 +302,7 @@ namespace Viper.Areas.RAPS.Services
                     string permissionIdList = permissionsByMemberId.ContainsKey(user.MothraId.Trim())
                         ? permissionsByMemberId[user.MothraId.Trim()]
                         : "";
-                    exportUsers.Add(new VMACSExportUser()
+                    exportUsers.Add(new VMACSExportUser
                     {
                         CasLogin = user.LoginId,
                         Email = user.MailId + "@ucdavis.edu",

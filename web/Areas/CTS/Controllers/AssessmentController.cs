@@ -302,7 +302,7 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, AuditService.AuditActionType.Create, (int)personId);
             await trans.CommitAsync();
 
-            return new CreateUpdateStudentEpa()
+            return new CreateUpdateStudentEpa
             {
                 EncounterId = encounter.EncounterId,
                 EpaId = epaData.EpaId,
@@ -353,7 +353,7 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, AuditService.AuditActionType.Update, (int)personId);
             await trans.CommitAsync();
 
-            return new CreateUpdateStudentEpa()
+            return new CreateUpdateStudentEpa
             {
                 EncounterId = encounter.EncounterId,
                 EpaId = epaData.EpaId,

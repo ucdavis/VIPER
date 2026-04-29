@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class Role
+public class Role
 {
     public int RoleId { get; set; }
 

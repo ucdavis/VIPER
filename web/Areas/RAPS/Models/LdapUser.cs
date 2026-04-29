@@ -55,7 +55,6 @@ namespace Viper.Areas.RAPS.Models
                             }
                             MemberOf = string.Join(",", groups);
                             break;
-                        default: break;
                     }
                 }
             }

@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class Roster
+public class Roster
 {
     public string RosterPkey { get; set; } = null!;
 
