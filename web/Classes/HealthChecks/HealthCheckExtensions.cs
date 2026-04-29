@@ -219,6 +219,30 @@ namespace Viper.Classes.HealthChecks
                 Predicate = _ => false,
             });
 
+            // VPR-141 DEBUG: anonymous endpoint that echoes what the gate
+            // actually sees - the resolved RemoteIp (post-UseForwardedHeaders),
+            // the X-Forwarded-* chain, the count of known proxies/networks
+            // (so we can tell whether CF networks were loaded at startup),
+            // and the would-be gate decision. Remove once gating is verified.
+            app.MapGet("/health/whoami", (HttpContext ctx,
+                Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions> fwdOpts) =>
+            {
+                var allowlistMatch = ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist");
+                return Results.Ok(new
+                {
+                    remoteIp = ctx.Connection.RemoteIpAddress?.ToString(),
+                    xForwardedFor = ctx.Request.Headers["X-Forwarded-For"].ToString(),
+                    xForwardedHost = ctx.Request.Headers["X-Forwarded-Host"].ToString(),
+                    xForwardedProto = ctx.Request.Headers["X-Forwarded-Proto"].ToString(),
+                    cfConnectingIp = ctx.Request.Headers["CF-Connecting-IP"].ToString(),
+                    host = ctx.Request.Host.Value,
+                    knownProxiesCount = fwdOpts.Value.KnownProxies.Count,
+                    knownNetworksCount = fwdOpts.Value.KnownIPNetworks.Count,
+                    forwardLimit = fwdOpts.Value.ForwardLimit,
+                    allowlistMatch,
+                });
+            });
+
             // /health/detail - per-check JSON (UI format), IP-allowlisted to SVM
             // infra via InternalAllowlist. Intentionally not CAS-gated so the
             // endpoint stays reachable when auth subsystems are degraded.
