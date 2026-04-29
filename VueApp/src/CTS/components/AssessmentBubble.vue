@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+type DisplayStyle = "legacy" | "current" | "abbrev"
+
 const props = defineProps({
     maxValue: {
         type: Number,
@@ -22,6 +24,14 @@ const props = defineProps({
         type: Number,
         default: undefined,
     },
+    displayStyle: {
+        type: String as () => DisplayStyle,
+        default: "current",
+    },
+    abbreviation: {
+        type: String,
+        default: "",
+    },
 })
 
 const emit = defineEmits(["bubble-click"])
@@ -36,7 +46,15 @@ const classes5 = [
 
 const isValidValue = computed(() => props.maxValue === 5 && props.value > 0 && props.value <= 5)
 
-const bubbleClass = computed(() => (isValidValue.value ? (classes5[props.value - 1] ?? "") : ""))
+const bubbleClasses = computed(() => {
+    const classes: string[] = ["assessmentBubble"]
+    if (props.displayStyle === "legacy") classes.push("assessmentBubble--legacy")
+    if (props.displayStyle === "abbrev") classes.push("assessmentBubble--abbrev")
+    if (isValidValue.value) classes.push(classes5[props.value - 1] ?? "")
+    return classes
+})
+
+const showAbbreviation = computed(() => props.displayStyle === "abbrev" && !!props.abbreviation)
 
 function clickBubble() {
     if (props.id !== undefined) {
@@ -53,9 +71,11 @@ function clickBubble() {
         @click="clickBubble"
     >
         <span
-            :class="['assessmentBubble', bubbleClass]"
+            :class="bubbleClasses"
             aria-hidden="true"
-        />
+        >
+            <template v-if="showAbbreviation">{{ abbreviation }}</template>
+        </span>
         <q-tooltip class="text-body2">
             <div><strong>Click to open details</strong></div>
             <div class="assessmentBubbleTooltipText">{{ props.text }}</div>
@@ -63,8 +83,10 @@ function clickBubble() {
     </button>
     <span
         v-else
-        :class="['assessmentBubble', bubbleClass]"
+        :class="bubbleClasses"
         role="img"
         :aria-label="levelName"
-    />
+    >
+        <template v-if="showAbbreviation">{{ abbreviation }}</template>
+    </span>
 </template>
