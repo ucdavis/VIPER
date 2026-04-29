@@ -401,12 +401,24 @@ try
         .ToArray();
     app.Use(async (ctx, next) =>
     {
+        // VPR-141 DEBUG: emit headers so we can diagnose without log access.
+        // Remove once override is verified.
         var connectionIp = ctx.Connection.RemoteIpAddress;
+        var inCfRange = connectionIp != null
+            && cloudflareIPNetworks.Any(n => n.Contains(connectionIp));
+        var cfHeader = ctx.Request.Headers["CF-Connecting-IP"].ToString();
+        ctx.Response.Headers["X-Vpr141-Mw-Ran"] = "true";
+        ctx.Response.Headers["X-Vpr141-Connection-Ip"] = connectionIp?.ToString() ?? "(null)";
+        ctx.Response.Headers["X-Vpr141-In-Cf-Range"] = inCfRange.ToString();
+        ctx.Response.Headers["X-Vpr141-Cf-Header"] = string.IsNullOrEmpty(cfHeader) ? "(empty)" : cfHeader;
+        ctx.Response.Headers["X-Vpr141-Cf-Networks-Loaded"] = cloudflareIPNetworks.Length.ToString();
+
         if (connectionIp != null
-            && cloudflareIPNetworks.Any(n => n.Contains(connectionIp))
-            && IPAddress.TryParse(ctx.Request.Headers["CF-Connecting-IP"].ToString(), out var realIp))
+            && inCfRange
+            && IPAddress.TryParse(cfHeader, out var realIp))
         {
             ctx.Connection.RemoteIpAddress = realIp;
+            ctx.Response.Headers["X-Vpr141-Override-Applied"] = realIp.ToString();
         }
         await next();
     });
