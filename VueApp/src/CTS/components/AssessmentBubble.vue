@@ -1,34 +1,60 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-const props = withDefaults(
-    defineProps<{
-        maxValue: number
-        value: number
-        text?: string
-        id?: number
-    }>(),
-    {
-        text: undefined,
-        id: undefined,
+type DisplayStyle = "legacy" | "current" | "abbrev"
+
+const props = defineProps({
+    maxValue: {
+        type: Number,
+        required: true,
     },
-)
-
-const emit = defineEmits<{
-    "bubble-click": [id: number]
-}>()
-
-const levelClass = computed(() => {
-    if (props.maxValue === 5 && props.value >= 1 && props.value <= 5) {
-        return `assessmentBubble--level-${props.value}`
-    }
-    return ""
+    value: {
+        type: Number,
+        required: true,
+    },
+    levelName: {
+        type: String,
+        default: "",
+    },
+    text: {
+        type: String,
+        default: undefined,
+    },
+    id: {
+        type: Number,
+        default: undefined,
+    },
+    displayStyle: {
+        type: String as () => DisplayStyle,
+        default: "current",
+    },
+    abbreviation: {
+        type: String,
+        default: "",
+    },
 })
 
-const displayValue = computed(() => (props.value >= 1 && props.value <= props.maxValue ? props.value : "?"))
+const emit = defineEmits(["bubble-click"])
 
-const staticLabel = computed(() => `Rating ${displayValue.value} of ${props.maxValue}`)
-const clickableLabel = computed(() => `${staticLabel.value}, open details`)
+const classes5 = [
+    "assessmentBubble5_1",
+    "assessmentBubble5_2",
+    "assessmentBubble5_3",
+    "assessmentBubble5_4",
+    "assessmentBubble5_5",
+]
+
+const isValidValue = computed(() => props.maxValue === 5 && props.value > 0 && props.value <= 5)
+
+const bubbleClasses = computed(() => {
+    const classes: string[] = ["assessmentBubble"]
+    if (props.displayStyle === "legacy") classes.push("assessmentBubble--legacy")
+    if (props.displayStyle === "abbrev") classes.push("assessmentBubble--abbrev")
+    if (isValidValue.value) classes.push(classes5[props.value - 1] ?? "")
+    return classes
+})
+
+const showAbbreviation = computed(() => props.displayStyle === "abbrev" && !!props.abbreviation)
 
 function clickBubble() {
     if (props.id !== undefined) {
@@ -40,79 +66,27 @@ function clickBubble() {
     <button
         v-if="id !== undefined"
         type="button"
-        :class="['assessmentBubble', 'assessmentBubble--clickable', levelClass]"
-        :aria-label="clickableLabel"
+        class="assessmentBubbleTrigger"
+        :aria-label="levelName ? `${levelName}, open assessment details` : 'Open assessment details'"
         @click="clickBubble"
     >
-        <span aria-hidden="true">{{ displayValue }}</span>
-        <q-tooltip
-            style="white-space: pre-wrap"
-            class="text-body2"
+        <span
+            :class="bubbleClasses"
+            aria-hidden="true"
         >
-            <strong>Click to open details</strong>
-            <br />
-            {{ props.text }}
+            <template v-if="showAbbreviation">{{ abbreviation }}</template>
+        </span>
+        <q-tooltip class="text-body2">
+            <div><strong>Click to open details</strong></div>
+            <div class="assessmentBubbleTooltipText">{{ props.text }}</div>
         </q-tooltip>
     </button>
     <span
         v-else
-        :class="['assessmentBubble', levelClass]"
+        :class="bubbleClasses"
         role="img"
-        :aria-label="staticLabel"
+        :aria-label="levelName"
     >
-        <span aria-hidden="true">{{ displayValue }}</span>
+        <template v-if="showAbbreviation">{{ abbreviation }}</template>
     </span>
 </template>
-<style scoped>
-.assessmentBubble {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    margin: 0 0.125rem;
-    border: 0.0625rem solid var(--ucdavis-blue-100);
-    border-radius: 50%;
-    background-color: var(--ucdavis-blue-70);
-    color: white;
-    font-weight: 700;
-    font-size: 0.875rem;
-    line-height: 1;
-    padding: 0;
-    vertical-align: middle;
-}
-
-.assessmentBubble--clickable {
-    cursor: pointer;
-}
-
-.assessmentBubble--clickable:hover,
-.assessmentBubble--clickable:focus {
-    filter: brightness(1.1);
-}
-
-.assessmentBubble--clickable:focus-visible {
-    outline: 0.125rem solid var(--ucdavis-gold-90);
-    outline-offset: 0.125rem;
-}
-
-.assessmentBubble--level-1 {
-    background-color: var(--ucdavis-blue-70);
-}
-
-.assessmentBubble--level-2 {
-    background-color: var(--ucdavis-blue-80);
-}
-
-.assessmentBubble--level-3 {
-    background-color: var(--ucdavis-blue-90);
-}
-
-.assessmentBubble--level-4 {
-    background-color: var(--ucdavis-blue-100);
-}
-
-.assessmentBubble--level-5 {
-    background-color: #011a38;
-}
-</style>

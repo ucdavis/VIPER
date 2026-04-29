@@ -8,6 +8,11 @@ import { useFetch } from "@/composables/ViperFetch"
 import type { Assessment, Epa, Level, Person } from "@/CTS/types"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import AssessmentBubble from "@/CTS/components/AssessmentBubble.vue"
+import EpaVoiceThread from "@/CTS/components/EpaVoiceThread.vue"
+import EpaSupervisionBlend from "@/CTS/components/EpaSupervisionBlend.vue"
+import { getLevelLabel } from "@/CTS/utils/level-labels"
+
+type DisplayStyle = 1 | 2 | 3 | 4 | 5
 
 const userStore = useUserStore()
 const { get } = useFetch()
@@ -25,6 +30,25 @@ const loaded = ref(false)
 const showDetails = ref([]) as Ref<boolean[]>
 
 const showAssessmentDetail = ref(false)
+const displayStyle = ref<DisplayStyle>(2)
+
+const styleOptions = [
+    { label: "1. Original circles", value: 1 as DisplayStyle },
+    { label: "2. Current bubbles", value: 2 as DisplayStyle },
+    { label: "3. Abbreviations", value: 3 as DisplayStyle },
+    { label: "4. Timeline", value: 4 as DisplayStyle },
+    { label: "5. Bar", value: 5 as DisplayStyle },
+]
+
+const bubbleDisplayStyle = computed<"legacy" | "current" | "abbrev">(() => {
+    if (displayStyle.value === 1) return "legacy"
+    if (displayStyle.value === 3) return "abbrev"
+    return "current"
+})
+
+const isTimelineView = computed(() => displayStyle.value === 4)
+const isBlendView = computed(() => displayStyle.value === 5)
+const isCardListView = computed(() => isTimelineView.value || isBlendView.value)
 
 const anyExpanded = computed(() => showDetails.value.some((s) => s))
 
@@ -141,12 +165,9 @@ load()
                     <div class="row">
                         <div class="col-12">
                             <strong>Rating:</strong>
-                            <AssessmentBubble
-                                class="q-ml-sm"
-                                :max-value="5"
-                                :value="epaAssessment.levelValue"
-                            ></AssessmentBubble>
-                            {{ epaAssessment.levelName }}
+                            <span :class="['levelChip', 'levelChip--' + epaAssessment.levelValue, 'q-ml-sm']">
+                                {{ epaAssessment.levelName }}
+                            </span>
                         </div>
                     </div>
                     <div class="row q-mt-xs">
@@ -167,82 +188,138 @@ load()
             </q-card>
         </q-dialog>
 
-        <div class="row items-center">
-            <div class="col col-md-10 col-lg-7 q-mr-sm">
-                <h2>Entrustable Professional Activities</h2>
-            </div>
-            <div class="col-1">
-                <q-btn
-                    dense
-                    color="secondary"
-                    :icon="anyExpanded ? 'expand_less' : 'expand_more'"
-                    :aria-label="anyExpanded ? 'Collapse all EPAs' : 'Expand all EPAs'"
-                    @click="toggleExpandAll()"
-                ></q-btn>
-            </div>
+        <div class="q-mb-md">
+            <q-btn-toggle
+                v-model="displayStyle"
+                :options="styleOptions"
+                color="white"
+                text-color="primary"
+                toggle-color="primary"
+                toggle-text-color="white"
+                unelevated
+                no-caps
+                dense
+                spread
+                aria-label="Assessment display style"
+                class="assessmentStyleToggle"
+            />
         </div>
-        <div
-            v-for="(epa, index) in epas"
-            :key="epa.epaId ?? `epa-${index}`"
-            class="row q-mt-sm q-pt-sm assessmentGroup"
-        >
-            <div class="col col-md-4 col-lg-3 q-mr-sm">
-                {{ epa.name }}
+
+        <template v-if="!isCardListView">
+            <div class="row items-center">
+                <div class="expandToggleCol">
+                    <q-btn
+                        dense
+                        color="secondary"
+                        :icon="anyExpanded ? 'expand_less' : 'expand_more'"
+                        :aria-label="anyExpanded ? 'Collapse all EPAs' : 'Expand all EPAs'"
+                        @click="toggleExpandAll()"
+                    ></q-btn>
+                </div>
+                <div class="col col-md-10 col-lg-7 q-ml-md">
+                    <h2>Entrustable Professional Activities</h2>
+                </div>
             </div>
-            <div class="col col-md-6 col-lg-4">
-                <AssessmentBubble
-                    :max-value="5"
-                    :value="a.levelValue"
-                    :text="getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)"
-                    :id="a.encounterId"
-                    @bubble-click="handleAssessmentClick"
-                    v-for="a in getAssessmentsForEpa(epa.epaId)"
-                    :key="a.encounterId"
-                />
-            </div>
-            <div class="col-1">
-                <q-btn
-                    dense
-                    :icon="showDetails[index] ? 'expand_less' : 'expand_more'"
-                    :aria-label="`${showDetails[index] ? 'Collapse' : 'Expand'} details for ${epa.name}`"
-                    :aria-expanded="showDetails[index]"
-                    @click="showDetails[index] = !showDetails[index]"
-                    v-if="getAssessmentsForEpa(epa.epaId).length > 0"
-                />
-            </div>
-            <q-slide-transition>
-                <div
-                    class="col-12 q-mb-md"
-                    v-if="showDetails[index]"
-                    :key="'epadetails' + index"
-                >
-                    <div
-                        v-for="a in getAssessmentsForEpa(epa.epaId)"
-                        :key="a.encounterId"
-                        class="row q-mb-sm"
-                    >
-                        <div class="col-2 col-sm-auto q-pr-sm">
+            <div
+                v-for="(epa, index) in epas"
+                :key="epa.epaId ?? `epa-${index}`"
+                class="row q-mt-sm q-pt-sm assessmentGroup"
+            >
+                <div class="expandToggleCol">
+                    <q-btn
+                        dense
+                        :icon="showDetails[index] ? 'expand_less' : 'expand_more'"
+                        :aria-label="`${showDetails[index] ? 'Collapse' : 'Expand'} details for ${epa.name}`"
+                        :aria-expanded="showDetails[index]"
+                        @click="showDetails[index] = !showDetails[index]"
+                        v-if="getAssessmentsForEpa(epa.epaId).length > 0"
+                    />
+                </div>
+                <div class="col col-md-10 col-lg-7 q-ml-md">
+                    <div class="row items-center">
+                        <div class="col-12 col-sm q-mr-sm">
+                            {{ epa.name }}
+                        </div>
+                        <div class="col-12 col-sm-auto">
                             <AssessmentBubble
                                 :max-value="5"
                                 :value="a.levelValue"
-                            ></AssessmentBubble>
-                        </div>
-                        <div class="col-10 col-sm-5 col-md-3 col-lg-2">
-                            {{ formatDate(a.encounterDate.toString()) }}
-                            {{ a.enteredByName }}
-                        </div>
-                        <div class="col-10 offset-2 col-sm-5 offset-sm-1 offset-md-0 col-md-3 col-lg-2">
-                            {{ a.serviceName }}
-                        </div>
-                        <div class="col-10 offset-2 col-sm-5 offset-sm-1 offset-md-0 col-md-3 col-lg-2">
-                            {{ a.levelName }}
-                        </div>
-                        <div class="col-10 offset-2 offset-sm-1 offset-md-0 col-md-4 col-lg-5">
-                            {{ a.comment }}
+                                :level-name="a.levelName"
+                                :display-style="bubbleDisplayStyle"
+                                :abbreviation="getLevelLabel(a.levelValue).abbreviation"
+                                :text="
+                                    getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)
+                                "
+                                :id="a.encounterId"
+                                @bubble-click="handleAssessmentClick"
+                                v-for="a in getAssessmentsForEpa(epa.epaId)"
+                                :key="a.encounterId"
+                            />
                         </div>
                     </div>
+                    <q-slide-transition>
+                        <div
+                            class="q-mb-md"
+                            v-if="showDetails[index]"
+                            :key="'epadetails' + index"
+                        >
+                            <div
+                                v-for="a in getAssessmentsForEpa(epa.epaId)"
+                                :key="a.encounterId"
+                                class="row q-mb-sm items-center q-col-gutter-sm"
+                            >
+                                <div class="col-12 col-sm-6 col-md-4">
+                                    {{ formatDate(a.encounterDate.toString()) }}
+                                    {{ a.enteredByName }}
+                                </div>
+                                <div class="col-12 col-sm-6 col-md-4">
+                                    {{ a.serviceName }}
+                                </div>
+                                <div class="col-12 col-sm-auto">
+                                    <span
+                                        v-if="displayStyle === 1"
+                                        class="text-grey-8"
+                                    >
+                                        {{ a.levelName }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        :class="['levelChip', 'levelChip--' + a.levelValue]"
+                                    >
+                                        {{ a.levelName }}
+                                    </span>
+                                </div>
+                                <div
+                                    v-if="a.comment"
+                                    class="col-12 q-mt-xs text-grey-8 assessmentComment"
+                                >
+                                    {{ a.comment }}
+                                </div>
+                            </div>
+                        </div>
+                    </q-slide-transition>
                 </div>
-            </q-slide-transition>
-        </div>
+            </div>
+        </template>
+
+        <template v-else>
+            <h2 class="q-mb-md">Entrustable Professional Activities</h2>
+            <template v-if="isTimelineView">
+                <EpaVoiceThread
+                    v-for="epa in epas"
+                    :key="epa.epaId ?? epa.name"
+                    :epa="epa"
+                    :assessments="getAssessmentsForEpa(epa.epaId)"
+                />
+            </template>
+            <template v-else>
+                <EpaSupervisionBlend
+                    v-for="epa in epas"
+                    :key="epa.epaId ?? epa.name"
+                    :epa="epa"
+                    :assessments="getAssessmentsForEpa(epa.epaId)"
+                />
+            </template>
+        </template>
     </div>
 </template>
