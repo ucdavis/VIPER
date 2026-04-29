@@ -84,22 +84,14 @@ try
             ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
         options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
 
-        // Cloudflare fronts vetmed.ucdavis.edu, so the TCP connection to the
-        // app comes from a CF edge IP. Trust CF networks so UseForwardedHeaders
-        // walks the X-Forwarded-For chain and RemoteIpAddress resolves to the
-        // real client - otherwise every IP-based allowlist breaks.
-        // Add to BOTH KnownNetworks (deprecated but still read by the
-        // middleware) and KnownIPNetworks (the new property) so this works
-        // regardless of which list the runtime middleware consults.
+        // Cloudflare fronts vetmed.ucdavis.edu. The chain is
+        // User -> Cloudflare -> F5 -> app, so the middleware must walk two
+        // proxy hops to land on the real client IP. Default ForwardLimit
+        // is 1, which stops at the CF edge - bump to 2.
+        options.ForwardLimit = 2;
         foreach (var cidr in cloudflareCidrs)
         {
-            var parts = cidr.Split('/');
-            var address = IPAddress.Parse(parts[0]);
-            var prefix = int.Parse(parts[1]);
-            options.KnownIPNetworks.Add(new System.Net.IPNetwork(address, prefix));
-#pragma warning disable ASPDEPR005
-            options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(address, prefix));
-#pragma warning restore ASPDEPR005
+            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
         }
     });
 
@@ -388,40 +380,6 @@ try
 
     // Add correlation ID for all environments - must be early in pipeline
     app.UseCorrelationId();
-
-    // Cloudflare-specific RemoteIp override. UseForwardedHeaders should
-    // handle this via KnownIPNetworks but in our hosting setup it does not -
-    // the connection IP keeps showing as the CF edge. Read CF's own
-    // CF-Connecting-IP header (which always carries the real client IP)
-    // when the connection is from a trusted CF network. Runs unconditionally
-    // (not gated on environment) since the override only triggers when the
-    // TCP source is a CF IP, which never happens in dev.
-    var cloudflareIPNetworks = cloudflareCidrs
-        .Select(System.Net.IPNetwork.Parse)
-        .ToArray();
-    app.Use(async (ctx, next) =>
-    {
-        // VPR-141 DEBUG: emit headers so we can diagnose without log access.
-        // Remove once override is verified.
-        var connectionIp = ctx.Connection.RemoteIpAddress;
-        var inCfRange = connectionIp != null
-            && cloudflareIPNetworks.Any(n => n.Contains(connectionIp));
-        var cfHeader = ctx.Request.Headers["CF-Connecting-IP"].ToString();
-        ctx.Response.Headers["X-Vpr141-Mw-Ran"] = "true";
-        ctx.Response.Headers["X-Vpr141-Connection-Ip"] = connectionIp?.ToString() ?? "(null)";
-        ctx.Response.Headers["X-Vpr141-In-Cf-Range"] = inCfRange.ToString();
-        ctx.Response.Headers["X-Vpr141-Cf-Header"] = string.IsNullOrEmpty(cfHeader) ? "(empty)" : cfHeader;
-        ctx.Response.Headers["X-Vpr141-Cf-Networks-Loaded"] = cloudflareIPNetworks.Length.ToString();
-
-        if (connectionIp != null
-            && inCfRange
-            && IPAddress.TryParse(cfHeader, out var realIp))
-        {
-            ctx.Connection.RemoteIpAddress = realIp;
-            ctx.Response.Headers["X-Vpr141-Override-Applied"] = realIp.ToString();
-        }
-        await next();
-    });
 
     if (!app.Environment.IsDevelopment())
     {
