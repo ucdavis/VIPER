@@ -215,9 +215,9 @@ public class CourseRelationshipService : ICourseRelationshipService
             null,
             new
             {
-                ChildCourseId = request.ChildCourseId,
+                request.ChildCourseId,
                 ChildCourse = $"{childCourse.SubjCode} {childCourse.CrseNumb}-{childCourse.SeqNumb}",
-                RelationshipType = request.RelationshipType
+                request.RelationshipType
             });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -255,9 +255,9 @@ public class CourseRelationshipService : ICourseRelationshipService
         _auditService.AddCourseChangeAudit(relationship.ParentCourseId, parentCourse.TermCode, EffortAuditActions.DeleteCourseRelationship,
             new
             {
-                ChildCourseId = relationship.ChildCourseId,
+                relationship.ChildCourseId,
                 ChildCourse = $"{childCourse.SubjCode} {childCourse.CrseNumb}-{childCourse.SeqNumb}",
-                RelationshipType = relationship.RelationshipType
+                relationship.RelationshipType
             },
             null);
 

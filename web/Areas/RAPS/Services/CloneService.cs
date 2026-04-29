@@ -128,7 +128,7 @@ namespace Viper.Areas.RAPS.Services
             }
             if (action != null)
             {
-                roleClone = new RoleClone()
+                roleClone = new RoleClone
                 {
                     Action = (RoleClone.CloneAction)action,
                     Source = source != null ? RoleMemberCreateUpdate.CreateRoleMember(source) : null,
@@ -172,7 +172,7 @@ namespace Viper.Areas.RAPS.Services
 
             if (action != null)
             {
-                permissionClone = new PermissionClone()
+                permissionClone = new PermissionClone
                 {
                     Action = (PermissionClone.CloneAction)action,
                     Source = source != null ? MemberPermissionCreateUpdate.CreateMemberPermission(source) : null,

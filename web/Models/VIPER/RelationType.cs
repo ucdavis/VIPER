@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class RelationType
+public class RelationType
 {
     public int RelTypeId { get; set; }
 

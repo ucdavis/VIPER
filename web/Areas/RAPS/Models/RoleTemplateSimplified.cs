@@ -19,7 +19,7 @@ namespace Viper.Areas.RAPS.Models
             RoleTemplateId = rt.RoleTemplateId;
             TemplateName = rt.TemplateName;
             Description = rt.Description;
-            Roles = rt.RoleTemplateRoles.Select(rtr => new RoleSimplified()
+            Roles = rt.RoleTemplateRoles.Select(rtr => new RoleSimplified
             {
                 RoleId = rtr.Role.RoleId,
                 FriendlyName = rtr.Role.FriendlyName

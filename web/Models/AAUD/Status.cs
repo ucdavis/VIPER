@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class Status
+public class Status
 {
     public int StatusRecordId { get; set; }
 

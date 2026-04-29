@@ -74,7 +74,7 @@ namespace Viper.Areas.RAPS.Controllers
             List<ModifiedByUser> modByUsers = new();
             foreach (var user in users)
             {
-                modByUsers.Add(new ModifiedByUser()
+                modByUsers.Add(new ModifiedByUser
                 {
                     LoginId = user.LoginId,
                     Name = user.DisplayLastName + ", " + user.DisplayFirstName

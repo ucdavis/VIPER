@@ -377,24 +377,22 @@ public class EmergencyContactService : IEmergencyContactService
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
             return false;
         }
-        else
+
+        // Add individual grant
+        var memberPermission = new TblMemberPermission
         {
-            // Add individual grant
-            var memberPermission = new TblMemberPermission
-            {
-                MemberId = user.MothraId,
-                PermissionId = permissionId,
-                Access = 1,
-                AddDate = DateTime.Now,
-                ModTime = DateTime.Now,
-                ModBy = currentLoginId
-            };
-            _rapsContext.TblMemberPermissions.Add(memberPermission);
-            _rapsAuditService.AuditPermissionMemberChange(memberPermission, RAPSAuditService.AuditActionType.Create);
-            await _rapsContext.SaveChangesAsync();
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
-            return true;
-        }
+            MemberId = user.MothraId,
+            PermissionId = permissionId,
+            Access = 1,
+            AddDate = DateTime.Now,
+            ModTime = DateTime.Now,
+            ModBy = currentLoginId
+        };
+        _rapsContext.TblMemberPermissions.Add(memberPermission);
+        _rapsAuditService.AuditPermissionMemberChange(memberPermission, RAPSAuditService.AuditActionType.Create);
+        await _rapsContext.SaveChangesAsync();
+        _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
+        return true;
     }
 
     public async Task<bool> CanEditAsync(int personId, string? currentLoginId)

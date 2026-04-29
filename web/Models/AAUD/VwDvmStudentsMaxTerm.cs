@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwDvmStudentsMaxTerm
+public class VwDvmStudentsMaxTerm
 {
     public string PersonLastName { get; set; } = null!;
 

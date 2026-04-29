@@ -43,9 +43,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
-            var nav = new List<NavMenuItem>
-            {
-            };
+            var nav = new List<NavMenuItem>();
             return await Task.Run(() => nav);
         }
 

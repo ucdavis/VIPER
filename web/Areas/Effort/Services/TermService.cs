@@ -182,7 +182,7 @@ public class TermService : ITermService
         _context.Terms.Add(term);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CreateTerm,
             null,
-            new { Status = term.Status, term.ExpectedCloseDate });
+            new { term.Status, term.ExpectedCloseDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -271,7 +271,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.OpenTerm,
             new { Status = oldStatus },
-            new { Status = term.Status, term.OpenedDate });
+            new { term.Status, term.OpenedDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -304,7 +304,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CloseTerm,
             new { Status = oldStatus },
-            new { Status = term.Status, term.ClosedDate });
+            new { term.Status, term.ClosedDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -331,7 +331,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.ReopenTerm,
             new { Status = oldStatus },
-            new { Status = term.Status });
+            new { term.Status });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -360,7 +360,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.UnopenTerm,
             new { Status = oldStatus },
-            new { Status = term.Status });
+            new { term.Status });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 

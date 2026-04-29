@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwPapercutUser
+public class VwPapercutUser
 {
     public string Name { get; set; } = null!;
 

@@ -90,10 +90,10 @@ namespace Viper.Areas.RAPS.Controllers
 
             var nav = new List<NavMenuItem>
             {
-                new NavMenuItem() { MenuItemText = "Instances", IsHeader = true }
+                new NavMenuItem { MenuItemText = "Instances", IsHeader = true }
             };
             //Links to instances
-            var universalPages = new List<string>()
+            var universalPages = new List<string>
             {
                 "RolePermissionsComparison",
                 "RoleTemplateList",
@@ -105,63 +105,63 @@ namespace Viper.Areas.RAPS.Controllers
             foreach (string inst in (new[] { "Viper", "ViperForms", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" }).Where(inst => _securityService.IsAllowedTo("AccessInstance", inst)))
             {
                 var usePage = universalPages.Contains(page);
-                nav.Add(new NavMenuItem() { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
+                nav.Add(new NavMenuItem { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
             }
-            nav.Add(new NavMenuItem() { MenuItemText = "Roles", IsHeader = true });
-            nav.Add(new NavMenuItem() { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
+            nav.Add(new NavMenuItem { MenuItemText = "Roles", IsHeader = true });
+            nav.Add(new NavMenuItem { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
             if (_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Role Comparison", MenuItemURL = "RolePermissionsComparison" });
+                nav.Add(new NavMenuItem { MenuItemText = "Role Comparison", MenuItemURL = "RolePermissionsComparison" });
             }
             if (_securityService.IsAllowedTo("ViewRoles", instance))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
+                nav.Add(new NavMenuItem { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
             }
             if (selectedRole != null && RAPSSecurityService.RoleBelongsToInstance(instance, selectedRole))
             {
                 if ((selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                     || _securityService.IsAllowedTo("EditRoleMembership"))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
+                    nav.Add(new NavMenuItem { MenuItemText = string.Format("Selected Role {0}", selectedRole.Role), IsHeader = true });
                 }
                 if (selectedRole.Application == 0 && _securityService.IsAllowedTo("EditPermissions"))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = "Edit Permissions", MenuItemURL = "RolePermissions?roleId=" + selectedRole.RoleId });
+                    nav.Add(new NavMenuItem { MenuItemText = "Edit Permissions", MenuItemURL = "RolePermissions?roleId=" + selectedRole.RoleId });
                 }
                 if (_securityService.IsAllowedTo("EditRoleMembership"))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = "Role Members", MenuItemURL = "RoleMembers?roleId=" + selectedRole.RoleId });
+                    nav.Add(new NavMenuItem { MenuItemText = "Role Members", MenuItemURL = "RoleMembers?roleId=" + selectedRole.RoleId });
                 }
 
             }
             if (_securityService.IsAllowedTo("ManageAllPermissions") || _securityService.IsAllowedTo("ViewPermissions"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Permissions", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "Permission List", MenuItemURL = "permissionlist" });
+                nav.Add(new NavMenuItem { MenuItemText = "Permissions", IsHeader = true });
+                nav.Add(new NavMenuItem { MenuItemText = "Permission List", MenuItemURL = "permissionlist" });
                 if (selectedPermission != null)
                 {
                     if (_securityService.IsAllowedTo("EditRolePermissions")
                         || _securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
+                        nav.Add(new NavMenuItem { MenuItemText = string.Format("Selected Permission {0}", selectedPermission.Permission), IsHeader = true });
                     }
                     if (_securityService.IsAllowedTo("EditRolePermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles?permissionId=" + selectedPermission.PermissionId });
+                        nav.Add(new NavMenuItem { MenuItemText = "Roles w/ Permission", MenuItemURL = "permissionRoles?permissionId=" + selectedPermission.PermissionId });
                     }
                     if (_securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Users w/ Permission", MenuItemURL = "permissionMembers?permissionId=" + selectedPermission.PermissionId });
+                        nav.Add(new NavMenuItem { MenuItemText = "Users w/ Permission", MenuItemURL = "permissionMembers?permissionId=" + selectedPermission.PermissionId });
                     }
                 }
             }
             if (_securityService.IsAllowedTo("UserLookup"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Users", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "User Lookup", MenuItemURL = "UserSearch" });
+                nav.Add(new NavMenuItem { MenuItemText = "Users", IsHeader = true });
+                nav.Add(new NavMenuItem { MenuItemText = "User Lookup", MenuItemURL = "UserSearch" });
                 if (_securityService.IsAllowedTo("Clone", instance))
                 {
-                    nav.Add(new NavMenuItem() { MenuItemText = "Clone User Permissions", MenuItemURL = "UserClone" });
+                    nav.Add(new NavMenuItem { MenuItemText = "Clone User Permissions", MenuItemURL = "UserClone" });
                 }
                 if (selecteduser != null)
                 {
@@ -169,36 +169,36 @@ namespace Viper.Areas.RAPS.Controllers
                         || _securityService.IsAllowedTo("EditMemberPermissions")
                         || _securityService.IsAllowedTo("RSOP"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
+                        nav.Add(new NavMenuItem { MenuItemText = string.Format("Selected User {0}", selecteduser.DisplayFullName), IsHeader = true });
                     }
                     if (_securityService.IsAllowedTo("EditRoleMembership"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "User Roles", MenuItemURL = "memberRoles?memberId=" + selecteduser.MothraId });
+                        nav.Add(new NavMenuItem { MenuItemText = "User Roles", MenuItemURL = "memberRoles?memberId=" + selecteduser.MothraId });
                     }
                     if (_securityService.IsAllowedTo("EditMemberPermissions"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "User Permissions", MenuItemURL = "memberPermissions?memberId=" + selecteduser.MothraId });
+                        nav.Add(new NavMenuItem { MenuItemText = "User Permissions", MenuItemURL = "memberPermissions?memberId=" + selecteduser.MothraId });
                     }
                     if (_securityService.IsAllowedTo("RSOP"))
                     {
-                        nav.Add(new NavMenuItem() { MenuItemText = "Combined Permissions", MenuItemURL = "RSOP?memberId=" + selecteduser.MothraId });
+                        nav.Add(new NavMenuItem { MenuItemText = "Combined Permissions", MenuItemURL = "RSOP?memberId=" + selecteduser.MothraId });
                     }
                 }
             }
             if (_securityService.IsAllowedTo("ViewAuditTrail"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Admin", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "View Audit Trail", MenuItemURL = "AuditTrail" });
+                nav.Add(new NavMenuItem { MenuItemText = "Admin", IsHeader = true });
+                nav.Add(new NavMenuItem { MenuItemText = "View Audit Trail", MenuItemURL = "AuditTrail" });
             }
             if (_securityService.IsAllowedTo("OUGroupsView"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Ad Group Management", IsHeader = true });
-                nav.Add(new NavMenuItem() { MenuItemText = "Group List", MenuItemURL = "GroupList" });
+                nav.Add(new NavMenuItem { MenuItemText = "Ad Group Management", IsHeader = true });
+                nav.Add(new NavMenuItem { MenuItemText = "Group List", MenuItemURL = "GroupList" });
             }
             if (_securityService.IsAllowedTo("Admin"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Export to VMACS", MenuItemURL = "ExportToVMACS" });
-                nav.Add(new NavMenuItem() { MenuItemText = "Update Role Views", MenuItemURL = "RoleViewUpdate" });
+                nav.Add(new NavMenuItem { MenuItemText = "Export to VMACS", MenuItemURL = "ExportToVMACS" });
+                nav.Add(new NavMenuItem { MenuItemText = "Update Role Views", MenuItemURL = "RoleViewUpdate" });
             }
             return new NavMenu("RAPS", nav);
         }
@@ -216,16 +216,15 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml"));
             }
-            else if (_securityService.IsAllowedTo("ViewAllRoles", instance) ||
-                    !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).IsNullOrEmpty())
+
+            if (_securityService.IsAllowedTo("ViewAllRoles", instance) ||
+                !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).IsNullOrEmpty())
             {
                 return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
             }
-            else
-            {
-                //TODO: Should probably have a deny access helper function that writes logs and sets view
-                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
-            }
+
+            //TODO: Should probably have a deny access helper function that writes logs and sets view
+            return await Task.Run(() => View("~/Views/Home/403.cshtml"));
         }
 
         /// <summary>
@@ -303,11 +302,9 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return View("~/Areas/RAPS/Views/Roles/Members.cshtml");
             }
-            else
-            {
-                //TODO: Should probably have a deny access helper function that writes logs and sets view
-                return View("~/Views/Home/403.cshtml");
-            }
+
+            //TODO: Should probably have a deny access helper function that writes logs and sets view
+            return View("~/Views/Home/403.cshtml");
         }
 
         /// <summary>
@@ -344,10 +341,8 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/PermissionComparison.cshtml"));
             }
-            else
-            {
-                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
-            }
+
+            return await Task.Run(() => View("~/Views/Home/403.cshtml"));
         }
 
         /// <summary>

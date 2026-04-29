@@ -29,10 +29,8 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return cms.DownloadZip(this, ids.Split(','), fileName);
             }
-            else
-            {
-                return cms.ProvideFile(this, id, fn, oldURL);
-            }
+
+            return cms.ProvideFile(this, id, fn, oldURL);
 
         }
     }

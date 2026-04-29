@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class TblRoleMember
+public class TblRoleMember
 {
     public int RoleId { get; set; }
 

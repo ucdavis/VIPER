@@ -51,10 +51,8 @@ namespace Viper
                 {
                     return httpContextAccessor.HttpContext;
                 }
-                else
-                {
-                    return null;
-                }
+
+                return null;
             }
         }
 
@@ -92,7 +90,7 @@ namespace Viper
                 Uri url = new(thisRequest.GetDisplayUrl());
                 rootURL = url.GetLeftPart(UriPartial.Authority);
 
-                if (url.AbsolutePath.ToString().StartsWith("/2/") && rootURL != null)
+                if (url.AbsolutePath.StartsWith("/2/") && rootURL != null)
                 {
                     rootURL += "/2";
                 }

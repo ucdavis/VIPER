@@ -203,10 +203,8 @@ namespace Viper.test.ClinicalScheduler
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
                 return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(okResult.Value);
             }
-            else
-            {
-                return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(result.Value);
-            }
+
+            return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(result.Value);
         }
 
         [Fact]

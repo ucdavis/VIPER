@@ -72,7 +72,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var serviceId = CardiologyServiceId;
-            SetupUserWithManagePermission(TestUserMothraId, true);
+            SetupUserWithManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
@@ -86,7 +86,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var serviceId = CardiologyServiceId; // User has permission for this service
-            SetupUserWithoutManagePermission(TestUserMothraId);
+            SetupUserWithoutManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
@@ -100,7 +100,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var serviceId = SurgeryServiceId; // User doesn't have permission for this service
-            SetupUserWithoutManagePermission(TestUserMothraId);
+            SetupUserWithoutManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
@@ -114,7 +114,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var rotationId = CardiologyRotationId; // Cardiology rotation (serviceId = 1)
-            SetupUserWithManagePermission(TestUserMothraId, true);
+            SetupUserWithManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
@@ -128,7 +128,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var rotationId = CardiologyRotationId; // Cardiology rotation (serviceId = 1)
-            SetupUserWithoutManagePermission(TestUserMothraId);
+            SetupUserWithoutManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
@@ -142,7 +142,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var rotationId = SurgeryRotationId; // Surgery rotation (serviceId = 2)
-            SetupUserWithoutManagePermission(TestUserMothraId);
+            SetupUserWithoutManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
@@ -156,7 +156,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var rotationId = 999; // Non-existent rotation
-            SetupUserWithManagePermission(TestUserMothraId, true);
+            SetupUserWithManagePermission();
 
             // Act
             var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
@@ -169,7 +169,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetUserEditableServicesAsync_WithManagePermission_ReturnsAllServices()
         {
             // Arrange
-            SetupUserWithManagePermission(TestUserMothraId, true);
+            SetupUserWithManagePermission();
 
             // Act
             var result = await _permissionService.GetUserEditableServicesAsync();
@@ -182,7 +182,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetUserEditableServicesAsync_WithoutManagePermission_ReturnsFilteredServices()
         {
             // Arrange
-            SetupUserWithoutManagePermission(TestUserMothraId);
+            SetupUserWithoutManagePermission();
 
             // Act
             var result = await _permissionService.GetUserEditableServicesAsync();
@@ -198,7 +198,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetUserServicePermissionsAsync_WithManagePermission_ReturnsAllTrue()
         {
             // Arrange
-            SetupUserWithManagePermission(TestUserMothraId, true);
+            SetupUserWithManagePermission();
 
             // Act
             var result = await _permissionService.GetUserServicePermissionsAsync();
@@ -215,7 +215,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetUserServicePermissionsAsync_WithoutManagePermission_ReturnsPartialPermissions()
         {
             // Arrange
-            SetupUserWithoutManagePermission(TestUserMothraId);
+            SetupUserWithoutManagePermission();
 
             // Act
             var result = await _permissionService.GetUserServicePermissionsAsync();

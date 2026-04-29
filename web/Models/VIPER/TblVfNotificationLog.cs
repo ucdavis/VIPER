@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class TblVfNotificationLog
+public class TblVfNotificationLog
 {
     /// <summary>
     /// log entry id

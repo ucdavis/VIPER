@@ -200,7 +200,7 @@ try
         {
             // Match our SQL Server 2016 compat level (130) so EF Core 10 generates optimal SQL for our DB version
             options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
-            if (enableDetailedErrors) options.EnableDetailedErrors(true);
+            if (enableDetailedErrors) options.EnableDetailedErrors();
         });
     }
 
@@ -292,7 +292,7 @@ try
         {
             client.Timeout = TimeSpan.FromSeconds(30);
         })
-        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
 #pragma warning disable S4830 // Disable SSL validation for development to allow self-signed certificates
             ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true

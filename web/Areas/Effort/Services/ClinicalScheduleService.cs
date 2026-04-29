@@ -328,7 +328,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                             var termLabel = report.AcademicYear != null
                                 ? $"Academic Year {report.TermName}"
                                 : report.TermName;
-                            row.RelativeItem(1).AlignRight().Text(termLabel).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignRight().Text(termLabel).SemiBold().FontSize(12);
                         });
                 });
 

@@ -372,7 +372,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         RotationName = r.Name,
                         r.Abbreviation,
                         r.ServiceId,
-                        ServiceName = r.Service!.ServiceName
+                        r.Service!.ServiceName
                     })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)
@@ -408,28 +408,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
                 return allAffiliates;
             }
-            else
-            {
-                // When includeAllAffiliates is false, get only scheduled clinicians
-                // but filter out those without proper names
-                var gradYearsBack = ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
 
-                var scheduledClinicians = await _personService.GetCliniciansByGradYearRangeAsync(
-                    currentGradYear - gradYearsBack,
-                    currentGradYear,
-                    cancellationToken: HttpContext.RequestAborted);
+            // When includeAllAffiliates is false, get only scheduled clinicians
+            // but filter out those without proper names
+            var gradYearsBack = ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
 
-                // Filter out clinicians without proper names (those showing as "Clinician {MothraId}")
-                var cliniciansWithNames = scheduledClinicians
-                    .Where(c => !string.IsNullOrEmpty(c.FullName) &&
-                               !c.FullName.StartsWith("Clinician ", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+            var scheduledClinicians = await _personService.GetCliniciansByGradYearRangeAsync(
+                currentGradYear - gradYearsBack,
+                currentGradYear,
+                cancellationToken: HttpContext.RequestAborted);
 
-                _logger.LogDebug("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
-                    scheduledClinicians.Count, cliniciansWithNames.Count);
+            // Filter out clinicians without proper names (those showing as "Clinician {MothraId}")
+            var cliniciansWithNames = scheduledClinicians
+                .Where(c => !string.IsNullOrEmpty(c.FullName) &&
+                            !c.FullName.StartsWith("Clinician ", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-                return cliniciansWithNames;
-            }
+            _logger.LogDebug("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
+                scheduledClinicians.Count, cliniciansWithNames.Count);
+
+            return cliniciansWithNames;
         }
 
         /// <summary>
@@ -568,7 +566,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     var filteredClinicians = clinicians.Where(c => c.MothraId == currentUser.MothraId).ToList();
 
                     _logger.LogDebug("Filtered {Original} clinicians to {Filtered} for own-schedule user in clinician view",
-                        clinicians.Count(), filteredClinicians.Count);
+                        clinicians.Count, filteredClinicians.Count);
 
                     return filteredClinicians;
                 }

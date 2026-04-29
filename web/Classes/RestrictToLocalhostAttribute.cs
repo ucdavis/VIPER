@@ -8,7 +8,7 @@ namespace Web.Authorization
     /// Apply this attribute to classes or methods to restict the functionality to use from "localhost" 
     /// Use like: [RestrictToLocalhost]
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class RestrictToLocalhostAttribute : ActionFilterAttribute
     {
         public override void OnActionExecuting(ActionExecutingContext context)

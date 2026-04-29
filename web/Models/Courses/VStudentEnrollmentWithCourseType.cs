@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class VStudentEnrollmentWithCourseType
+public class VStudentEnrollmentWithCourseType
 {
     public string? RosterTermCode { get; set; }
 

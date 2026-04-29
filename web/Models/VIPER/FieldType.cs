@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FieldType
+public class FieldType
 {
     public int FieldTypeId { get; set; }
 

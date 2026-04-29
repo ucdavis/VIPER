@@ -464,9 +464,9 @@ namespace Viper.test.ClinicalScheduler.Integration
             // Create a simple service response structure for testing
             var serviceResponse = new
             {
-                ServiceId = service.ServiceId,
-                ServiceName = service.ServiceName,
-                ShortName = service.ShortName,
+                service.ServiceId,
+                service.ServiceName,
+                service.ShortName,
                 Rotations = new List<RotationDto> { rotation1Dto, rotation2Dto }
             };
 

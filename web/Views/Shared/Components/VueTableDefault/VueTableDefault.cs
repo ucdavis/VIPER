@@ -8,10 +8,6 @@ namespace Viper.Views.Shared.Components.VueTableDefault
 
     public class VueTableDefaultViewComponent : ViewComponent
     {
-        public VueTableDefaultViewComponent()
-        {
-        }
-
         public async Task<IViewComponentResult> InvokeAsync(IEnumerable<Object>? data, string keyColumnName,
              IEnumerable<string>? skipColumns = null, IEnumerable<Tuple<string, string>>? altColumnNames = null,
              IEnumerable<string>? skipColumnsVisible = null

@@ -16,7 +16,7 @@ namespace Web.Authorization
     ///         [Permission(Allow = "Item1")]
     ///         [Permission(Allow = "Item2")]
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     public class PermissionAttribute : AuthorizeAttribute, IAuthorizationFilter
     {
         public string? Allow { get; set; }

@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class ExceptionDeactivate
+public class ExceptionDeactivate
 {
     public string DeactivatePKey { get; set; } = null!;
 
