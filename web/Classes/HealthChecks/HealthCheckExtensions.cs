@@ -213,24 +213,41 @@ namespace Viper.Classes.HealthChecks
         /// </summary>
         public static WebApplication UseViperHealthChecks(this WebApplication app)
         {
-            // VPR-141 DEBUG: IP gate temporarily removed and a debug banner
-            // injected into the dashboard HTML below so we can diagnose why
-            // the gate was returning 401 even for IPs that should match the
-            // allowlist. RESTORE THE GATE before this lands on PROD.
-
             // /health - bare liveness. Anonymous (Jenkins has no CAS creds).
             app.MapHealthChecks("/health", new HealthCheckOptions
             {
                 Predicate = _ => false,
             });
 
-            // /health/detail - per-check JSON (UI format). VPR-141 DEBUG: gate
-            // temporarily removed.
+            // /health/detail - per-check JSON (UI format), IP-allowlisted to SVM
+            // infra via InternalAllowlist. Intentionally not CAS-gated so the
+            // endpoint stays reachable when auth subsystems are degraded.
             app.MapHealthChecks("/health/detail", new HealthCheckOptions
             {
                 Predicate = c => c.Tags.Contains("ready"),
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
+            }).AddEndpointFilter(async (ctx, next) =>
+            {
+                if (!ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist"))
+                {
+                    ctx.HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return null;
+                }
+                return await next(ctx);
             });
+
+            // IP-gate every UI sub-path (HTML page, API, resource files, webhook config).
+            app.UseWhen(
+                ctx => IsUIPath(ctx.Request.Path),
+                branch => branch.Use(async (ctx, next) =>
+                {
+                    if (!ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist"))
+                    {
+                        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return;
+                    }
+                    await next();
+                }));
 
             // Xabaril renders raw TimeSpan strings in the DURATION column; we can't
             // configure this server-side. Inject a small JS that rewrites those
@@ -267,35 +284,11 @@ namespace Viper.Classes.HealthChecks
                 {
                     using var reader = new StreamReader(buffer, leaveOpen: true);
                     var html = await reader.ReadToEndAsync();
-
-                    // VPR-141 DEBUG: visible banner showing what the server sees,
-                    // so we can diagnose IP gating without log access. Remove
-                    // before restoring the gate.
-                    var allowlist = app.Configuration
-                        .GetSection("IPAddressAllowlistConfiguration:InternalAllowlist")
-                        .Get<string[]>() ?? Array.Empty<string>();
-                    var remoteIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "(null)";
-                    var xff = ctx.Request.Headers["X-Forwarded-For"].ToString();
-                    var xfh = ctx.Request.Headers["X-Forwarded-Host"].ToString();
-                    var xfp = ctx.Request.Headers["X-Forwarded-Proto"].ToString();
-                    var allowlistMatch = ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist");
-                    var debugBanner =
-                        "<div style=\"position:fixed;top:0;left:0;right:0;background:#fff3cd;border-bottom:2px solid #856404;padding:0.5rem 1rem;font-family:monospace;font-size:0.75rem;line-height:1.4;color:#856404;z-index:9999;word-break:break-all\">"
-                        + "<strong>VPR-141 DEBUG (gate disabled):</strong> "
-                        + $"RemoteIp=<code>{System.Net.WebUtility.HtmlEncode(remoteIp)}</code> | "
-                        + $"X-Forwarded-For=[<code>{System.Net.WebUtility.HtmlEncode(xff)}</code>] | "
-                        + $"X-Forwarded-Host=<code>{System.Net.WebUtility.HtmlEncode(xfh)}</code> | "
-                        + $"X-Forwarded-Proto=<code>{System.Net.WebUtility.HtmlEncode(xfp)}</code> | "
-                        + $"Host=<code>{System.Net.WebUtility.HtmlEncode(ctx.Request.Host.Value ?? "")}</code> | "
-                        + $"Allowlist=[<code>{System.Net.WebUtility.HtmlEncode(string.Join(", ", allowlist))}</code>] | "
-                        + $"Gate would have allowed: <strong>{allowlistMatch}</strong>"
-                        + "</div>";
-
                     var injected = html
                         .Replace("<title>Health Checks UI</title>", "<title>Health Checks Status</title>")
                         .Replace(
                             "</body>",
-                            $"{debugBanner}<script src=\"{ctx.Request.PathBase}/js/healthchecks-ui-extras.js?v={_assetVersion}\"></script></body>");
+                            $"<script src=\"{ctx.Request.PathBase}/js/healthchecks-ui-extras.js?v={_assetVersion}\"></script></body>");
                     var bytes = Encoding.UTF8.GetBytes(injected);
                     ctx.Response.ContentLength = bytes.Length;
                     await originalBody.WriteAsync(bytes);
