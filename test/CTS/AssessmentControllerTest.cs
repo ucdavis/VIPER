@@ -164,7 +164,7 @@ namespace Viper.test.CTS
             context.Database.Returns(facadeSub);
 
             var actrlAsFac = GetAssessmentController(SetupUsers.UserType.Faculty);
-            var newEpa = new CreateUpdateStudentEpa()
+            var newEpa = new CreateUpdateStudentEpa
             {
                 EncounterDate = DateTime.Now,
                 Comment = "A comment",
@@ -204,7 +204,7 @@ namespace Viper.test.CTS
             var encId1 = SetupAssessments.Encounters.First(e => e.EnteredBy == SetupUsers.facultyUser.AaudUserId).EncounterId;
             var encId2 = SetupAssessments.Encounters.First(e => e.EnteredBy != SetupUsers.facultyUser.AaudUserId).EncounterId;
 
-            var epa1 = new CreateUpdateStudentEpa()
+            var epa1 = new CreateUpdateStudentEpa
             {
                 EncounterId = encId1,
                 EncounterDate = DateTime.Now,
@@ -214,7 +214,7 @@ namespace Viper.test.CTS
                 ServiceId = 0,
                 StudentId = SetupUsers.studentUser1.AaudUserId,
             };
-            var epa2 = new CreateUpdateStudentEpa()
+            var epa2 = new CreateUpdateStudentEpa
             {
                 EncounterId = encId2,
                 EncounterDate = DateTime.Now,
@@ -224,7 +224,7 @@ namespace Viper.test.CTS
                 ServiceId = 0,
                 StudentId = SetupUsers.studentUser1.AaudUserId,
             };
-            var epa3 = new CreateUpdateStudentEpa()
+            var epa3 = new CreateUpdateStudentEpa
             {
                 EncounterId = 99999,
                 EncounterDate = DateTime.Now,

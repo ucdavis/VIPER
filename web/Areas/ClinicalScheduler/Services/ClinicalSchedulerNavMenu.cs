@@ -21,15 +21,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
             var nav = new List<NavMenuItem>
             {
-                new NavMenuItem() { MenuItemText = "Clinical Scheduler", IsHeader = true }
+                new NavMenuItem { MenuItemText = "Clinical Scheduler", IsHeader = true }
             };
 
             if (hasAccess)
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Clinical Scheduler 2.0", MenuItemURL = "~/ClinicalScheduler/" });
-                nav.Add(new NavMenuItem() { MenuItemText = "Schedule by Rotation", MenuItemURL = "~/ClinicalScheduler/rotation", IndentLevel = 1 });
-                nav.Add(new NavMenuItem() { MenuItemText = "Schedule by Clinician", MenuItemURL = "~/ClinicalScheduler/clinician", IndentLevel = 1 });
-                nav.Add(new NavMenuItem() { MenuItemText = "Clinical Scheduler 1.0", MenuItemURL = $"{oldViperUrl}/clinicalScheduler/" });
+                nav.Add(new NavMenuItem { MenuItemText = "Clinical Scheduler 2.0", MenuItemURL = "~/ClinicalScheduler/" });
+                nav.Add(new NavMenuItem { MenuItemText = "Schedule by Rotation", MenuItemURL = "~/ClinicalScheduler/rotation", IndentLevel = 1 });
+                nav.Add(new NavMenuItem { MenuItemText = "Schedule by Clinician", MenuItemURL = "~/ClinicalScheduler/clinician", IndentLevel = 1 });
+                nav.Add(new NavMenuItem { MenuItemText = "Clinical Scheduler 1.0", MenuItemURL = $"{oldViperUrl}/clinicalScheduler/" });
             }
 
             return new NavMenu("Clinical Scheduler", nav);

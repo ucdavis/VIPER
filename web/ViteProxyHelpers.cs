@@ -30,7 +30,7 @@ namespace Web;
 /// </list>
 /// </para>
 /// </remarks>
-internal static partial class ViteProxyHelpers
+internal static class ViteProxyHelpers
 {
     // Base path for Vite assets - make configurable for maintainability
     private const string ViteAssetsBasePath = "/2/vue/assets/";
@@ -306,7 +306,7 @@ internal static partial class ViteProxyHelpers
         // Log the proxy failure with structured logging
         var targetUrl = BuildViteUrl(context.Request.Path, context.Request.QueryString, vueAppNames);
         var safeMethod = WebUtility.HtmlEncode(context.Request.Method);
-        var safeRequestPath = WebUtility.HtmlEncode((context.Request.Path + context.Request.QueryString).ToString());
+        var safeRequestPath = WebUtility.HtmlEncode((context.Request.Path + context.Request.QueryString));
         var safeTargetUrl = WebUtility.HtmlEncode(targetUrl);
         logger.LogWarning(ex, "Vite proxy failed for {Method} {RequestPath} -> {TargetUrl}",
             safeMethod,

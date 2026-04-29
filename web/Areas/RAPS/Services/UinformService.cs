@@ -45,7 +45,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 url += "Search";
                 method = HttpMethod.Post;
-                body = JsonSerializer.Serialize(new SearchClass() { Value = search });
+                body = JsonSerializer.Serialize(new SearchClass { Value = search });
             }
             else if (!string.IsNullOrEmpty(ownerSamAccountName))
             {
@@ -59,7 +59,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 url += "Search";
                 method = HttpMethod.Post;
-                body = JsonSerializer.Serialize(new SearchClass() { Value = _ourGroupIdentifier });
+                body = JsonSerializer.Serialize(new SearchClass { Value = _ourGroupIdentifier });
             }
 
             var response = await SendRequest<List<ManagedGroup>>(url, method, body);
@@ -135,7 +135,7 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         public async Task AddGroupMember(string groupGuid, string userGuid)
         {
-            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember
             {
                 UserGuid = userGuid,
                 Action = "add"
@@ -147,7 +147,7 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         public async Task RemoveGroupMember(string groupGuid, string userGuid)
         {
-            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember
             {
                 UserGuid = userGuid,
                 Action = "remove"
@@ -227,7 +227,7 @@ namespace Viper.Areas.RAPS.Services
             }
             else
             {
-                uInformResponse = new UinformResponse<T>()
+                uInformResponse = new UinformResponse<T>
                 {
                     Success = false,
                     Error = new()
@@ -248,7 +248,7 @@ namespace Viper.Areas.RAPS.Services
             //take "{METHOD}:{epochTime}:{publicKey}" and sign it with the privateKey, then convert to base64
             if (!string.IsNullOrEmpty(publicKey) && !string.IsNullOrEmpty(privateKey))
             {
-                string toSign = method.Method.ToUpper() + ":" + epochTime.ToString() + ":" + publicKey;
+                string toSign = method.Method.ToUpper() + ":" + epochTime + ":" + publicKey;
                 // Legacy API requires HMACSHA1 - third-party system constraint
 #pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                 using var sha1 = new HMACSHA1(Encoding.ASCII.GetBytes(privateKey));
@@ -273,7 +273,7 @@ namespace Viper.Areas.RAPS.Services
             public string GroupName { get; set; } = string.Empty;
             public string DisplayName { get; set; } = string.Empty;
             public string Description { get; set; } = string.Empty;
-            public int MaxMembers { get; set; } = 0;
+            public int MaxMembers { get; set; }
             public string ExtensionAttribute6 { get; set; } = _ourGroupIdentifier;
         }
 

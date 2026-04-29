@@ -59,7 +59,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Name must be unique");
             }
 
-            var group = new BundleCompetencyGroup()
+            var group = new BundleCompetencyGroup
             {
                 BundleId = bundleId,
                 Name = groupDto.Name,

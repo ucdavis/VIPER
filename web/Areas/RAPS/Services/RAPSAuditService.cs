@@ -129,7 +129,7 @@ namespace Viper.Areas.RAPS.Services
             List<string> auditTypes = new() { "AddRoleForMember", "DelRoleForMember", "UpdateRoleForMember" };
             if (canModifyPermissions)
             {
-                auditTypes.AddRange(new List<string>() { "CreateMemberPermission", "UpdateMemberPermission", "DelPermissionForMember" });
+                auditTypes.AddRange(new List<string> { "CreateMemberPermission", "UpdateMemberPermission", "DelPermissionForMember" });
             }
             auditEntries = auditEntries.Where(a => auditTypes.Contains(a.Audit)).ToList();
 
@@ -160,14 +160,13 @@ namespace Viper.Areas.RAPS.Services
                                 undone = moreRecentActions.Contains("DelPermissionForMember"); break;
                             case "UpdateMemberPermission":
                                 undone = moreRecentActions.Contains("UpdateMemberPermission") || moreRecentActions.Contains("DelPermissionForMember"); break;
-                            default: break;
                         }
                         auditLog.Undone = undone;
                     }
                     else
                     {
                         //nothing done on this role or permission before
-                        actionsPerformedOnObject.Add(key, new List<string>() { auditLog.Audit });
+                        actionsPerformedOnObject.Add(key, new List<string> { auditLog.Audit });
                     }
                 }
             }

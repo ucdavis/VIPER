@@ -16,7 +16,7 @@ namespace Viper.Areas.RAPS.Models
         {
             foreach (var p in role1Permissions)
             {
-                Role1Permissions.Add(new RolePermission()
+                Role1Permissions.Add(new RolePermission
                 {
                     PermissionId = p.PermissionId,
                     Name = p.Permission.Permission,
@@ -26,7 +26,7 @@ namespace Viper.Areas.RAPS.Models
 
             foreach (var p in role2Permissions)
             {
-                Role2Permissions.Add(new RolePermission()
+                Role2Permissions.Add(new RolePermission
                 {
                     PermissionId = p.PermissionId,
                     Name = p.Permission.Permission,

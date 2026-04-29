@@ -11,13 +11,13 @@ namespace Viper.Areas.Directory.Models
 
         public string? EmployeeId { get; set; } = string.Empty;
 
-        public int? VmacsId { get; set; } = null!;
+        public int? VmacsId { get; set; }
 
         public string? VmcasId { get; set; } = string.Empty;
 
         public string? UnexId { get; set; } = string.Empty;
 
-        public int? MivId { get; set; } = null!;
+        public int? MivId { get; set; }
 
         public IndividualSearchResultWithIDs()
         {

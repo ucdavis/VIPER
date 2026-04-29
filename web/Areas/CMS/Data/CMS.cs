@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
-using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
 using Viper.Services;
@@ -111,8 +110,8 @@ namespace Viper.Areas.CMS.Data
                 return goodBlocks;
 
             }
-            else
-            { return null; }
+
+            return null;
         }
         #endregion
 
@@ -297,10 +296,8 @@ namespace Viper.Areas.CMS.Data
 
                 return cmslist;
             }
-            else
-            {
-                return new List<CMSFile>();
-            }
+
+            return new List<CMSFile>();
 
         }
         #endregion
@@ -498,12 +495,14 @@ namespace Viper.Areas.CMS.Data
                 LogFileNotFound(controller, id, friendlyName, oldURL, reason: "no-db-match");
                 return controller.NotFound();
             }
-            else if (!System.IO.File.Exists(file.FilePath))
+
+            if (!System.IO.File.Exists(file.FilePath))
             {
                 LogFileNotFound(controller, id, friendlyName, oldURL, reason: "missing-on-disk");
                 return controller.NotFound();
             }
-            else if (!CheckFilePermission(file))
+
+            if (!CheckFilePermission(file))
             {
                 if (currentUser != null && _viperContext != null)
                 {
@@ -513,28 +512,26 @@ namespace Viper.Areas.CMS.Data
                 controller.Response.StatusCode = 403;
                 return controller.View("~/Views/Home/403.cshtml", (HttpStatusCode)403);
             }
-            else
+
+            if (currentUser != null && _viperContext != null)
             {
-                if (currentUser != null && _viperContext != null)
-                {
-                    AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
-                }
-
-                byte[] bytes = System.IO.File.ReadAllBytes(file.FilePath);
-
-                if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
-                {
-                    bytes = DecryptFile(bytes, file.Key);
-                }
-
-                if (bytes == null)
-                    return controller.NotFound();
-
-                string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
-                controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
-
-                return controller.File(bytes, MimeTypes[extension.ToLower()], true);
+                AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
             }
+
+            byte[] bytes = System.IO.File.ReadAllBytes(file.FilePath);
+
+            if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
+            {
+                bytes = DecryptFile(bytes, file.Key);
+            }
+
+            if (bytes == null)
+                return controller.NotFound();
+
+            string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
+            controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
+
+            return controller.File(bytes, MimeTypes[extension.ToLower()], true);
 
         }
         #endregion
@@ -577,7 +574,7 @@ namespace Viper.Areas.CMS.Data
                 FilePath = file.FilePath,
                 IamId = user.IamId,
                 FileMetaData = JsonSerializer.Serialize<CMSFileMetaData>(file.MetaData),
-                ClientData = JsonSerializer.Serialize<ClientData>(userHelper.GetClientData())
+                ClientData = JsonSerializer.Serialize(userHelper.GetClientData())
             };
 
             viperContext.ChangeTracker.Clear();

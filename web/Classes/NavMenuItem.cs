@@ -6,8 +6,8 @@ namespace Viper.Classes
     {
         public string MenuItemText { get; set; } = "";
         public string MenuItemURL { get; set; } = "";
-        public bool IsHeader { get; set; } = false;
-        public int DisplayOrder { get; set; } = 0;
+        public bool IsHeader { get; set; }
+        public int DisplayOrder { get; set; }
         public int IndentLevel { get; set; } = 0;
 
         public NavMenuItem()

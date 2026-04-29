@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class HelpDeskUser
+public class HelpDeskUser
 {
     public string? PersonDisplayFullName { get; set; }
 

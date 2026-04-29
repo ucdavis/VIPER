@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class VwEmployee
+public class VwEmployee
 {
     public string MothraId { get; set; } = null!;
 

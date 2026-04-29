@@ -12,7 +12,7 @@ namespace Viper.Areas.RAPS.Models
 
         public static RoleMemberCreateUpdate CreateRoleMember(TblRoleMember roleMember)
         {
-            return new RoleMemberCreateUpdate()
+            return new RoleMemberCreateUpdate
             {
                 MemberId = roleMember.MemberId,
                 RoleId = roleMember.RoleId,

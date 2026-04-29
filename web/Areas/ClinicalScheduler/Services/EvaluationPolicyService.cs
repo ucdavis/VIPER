@@ -5,10 +5,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
     /// </summary>
     public class EvaluationPolicyService : IEvaluationPolicyService
     {
-        public EvaluationPolicyService()
-        {
-        }
-
         /// <summary>
         /// Determines if a week requires a primary evaluator based on simple business rules:
         ///

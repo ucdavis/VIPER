@@ -54,7 +54,7 @@ namespace Viper.test.ClinicalScheduler
             );
 
             // Set up HTTP context for the controller
-            _controller.ControllerContext = new ControllerContext()
+            _controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
             };

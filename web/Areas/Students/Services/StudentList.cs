@@ -215,7 +215,7 @@ namespace Viper.Areas.Students.Services
                 var std = student.First();
                 if (std.Student != null)
                 {
-                    var newStd = new Student()
+                    var newStd = new Student
                     {
                         PersonId = std.PersonId,
                         MailId = std.Student.MailId,

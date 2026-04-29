@@ -32,7 +32,7 @@ namespace Viper.test.RAPS
         {
             return new List<TblRole>
             {
-                new TblRole()
+                new TblRole
                 {
                     RoleId = 1,
                     Role = "VIPER.TestRole",
@@ -40,7 +40,7 @@ namespace Viper.test.RAPS
                     UpdateFreq = 1,
                     AllowAllUsers = true
                 },
-                new TblRole()
+                new TblRole
                 {
                     RoleId = 2,
                     Role = "VIPER.AnotherTestRole",
@@ -150,7 +150,7 @@ namespace Viper.test.RAPS
                 var rolesController = new RolesController(context);
                 rolesController.AuditService = mockAudit;
 
-                RoleCreateUpdate tblRole = new RoleCreateUpdate()
+                RoleCreateUpdate tblRole = new RoleCreateUpdate
                 {
                     RoleId = 1,
                     Role = "VIPER.TestRole",
@@ -207,14 +207,14 @@ namespace Viper.test.RAPS
                 var rolesController = new RolesController(context);
                 rolesController.AuditService = mockAudit;
 
-                RoleCreateUpdate tblRoleI = new RoleCreateUpdate()
+                RoleCreateUpdate tblRoleI = new RoleCreateUpdate
                 {
                     RoleId = 1,
                     Role = "VIPER.TestRole",
                     Application = 1
                 };
 
-                RoleCreateUpdate tblRoleU = new RoleCreateUpdate()
+                RoleCreateUpdate tblRoleU = new RoleCreateUpdate
                 {
                     RoleId = 1,
                     Role = "VIPER.Updated",
@@ -277,7 +277,7 @@ namespace Viper.test.RAPS
                 var rolesController = new RolesController(context);
                 rolesController.AuditService = mockAudit;
 
-                RoleCreateUpdate tblRole = new RoleCreateUpdate()
+                RoleCreateUpdate tblRole = new RoleCreateUpdate
                 {
                     RoleId = 1,
                     Role = "VIPER.TestRole",
@@ -354,7 +354,7 @@ namespace Viper.test.RAPS
                 var rolesController = new RolesController(context);
                 rolesController.AuditService = mockAudit;
 
-                RoleCreateUpdate tblRole = new RoleCreateUpdate()
+                RoleCreateUpdate tblRole = new RoleCreateUpdate
                 {
                     RoleId = 1,
                     Role = "VIPER.TestRole",

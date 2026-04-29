@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class Competency
+public class Competency
 {
     public int CompetencyId { get; set; }
 

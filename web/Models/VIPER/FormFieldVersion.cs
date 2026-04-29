@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FormFieldVersion
+public class FormFieldVersion
 {
     public int FormFieldVersionId { get; set; }
 

@@ -69,16 +69,12 @@ namespace Viper
                 {
                     return result;
                 }
-                else
-                {
-                    return new List<TblRole>();
-                }
+
+                return new List<TblRole>();
 
             }
-            else
-            {
-                return result;
-            }
+
+            return result;
 
         }
         #endregion
@@ -113,12 +109,9 @@ namespace Viper
 
                 return false;
             }
-            else
-            {
-                var roles = GetRoles(rapsContext, user);
-                return roles.Any(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase));
 
-            }
+            var roles = GetRoles(rapsContext, user);
+            return roles.Any(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase));
 
         }
         #endregion
@@ -153,16 +146,12 @@ namespace Viper
                 {
                     return result;
                 }
-                else
-                {
-                    return new List<TblPermission>();
-                }
+
+                return new List<TblPermission>();
 
             }
-            else
-            {
-                return result;
-            }
+
+            return result;
 
         }
         #endregion
@@ -272,7 +261,8 @@ namespace Viper
                     {
                         return user;
                     }
-                    else if (HttpHelper.Cache != null && aaudContext != null)
+
+                    if (HttpHelper.Cache != null && aaudContext != null)
                     {
                         user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
                         {
@@ -281,10 +271,8 @@ namespace Viper
                             {
                                 return aaudUser;
                             }
-                            else
-                            {
-                                return user;
-                            }
+
+                            return user;
 
                         });
 
@@ -346,14 +334,13 @@ namespace Viper
                     {
                         return trueUser;
                     }
-                    else
-                    {
-                        return GetCurrentUser();
-                    }
+
+                    return GetCurrentUser();
 
 
                 }
-                else { return GetCurrentUser(); }
+
+                return GetCurrentUser();
             }
             catch (Exception ex)
             {
