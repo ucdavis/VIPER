@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Areas.CMS.Validation;
 
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public sealed class SafeUrlAttribute : ValidationAttribute
 {
     private static readonly string[] AllowedSchemes = { "http", "https", "mailto", "tel" };

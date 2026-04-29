@@ -174,7 +174,7 @@ namespace Viper.Areas.RAPS.Controllers
                 .ToListAsync();
             foreach (var role in roleTemplate.RoleTemplateRoles)
             {
-                rolesToApply.Add(new RoleApplyPreview()
+                rolesToApply.Add(new RoleApplyPreview
                 {
                     RoleId = role.Role.RoleId,
                     RoleName = role.Role.FriendlyName,
@@ -183,7 +183,7 @@ namespace Viper.Areas.RAPS.Controllers
                 });
             }
 
-            return new RoleTemplateApplyPreview()
+            return new RoleTemplateApplyPreview
             {
                 DisplayName = user?.DisplayFullName ?? "User not found",
                 MemberId = user?.MothraId ?? "",
@@ -245,10 +245,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -281,7 +279,7 @@ namespace Viper.Areas.RAPS.Controllers
             //add new roles
             foreach (int id in roleIds)
             {
-                _context.Add(new RoleTemplateRole()
+                _context.Add(new RoleTemplateRole
                 {
                     RoleTemplateRoleRoleId = id,
                     RoleTemplateTemplateId = roleTemplateId,

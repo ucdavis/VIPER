@@ -214,7 +214,7 @@ namespace Viper.Areas.Students.Services
                                 if (!isFirstGroup)
                                 {
                                     var pageBreakPara = body.AppendChild(new Paragraph());
-                                    pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
+                                    pageBreakPara.AppendChild(new Run(new Break { Type = BreakValues.Page }));
                                 }
                                 isFirstGroup = false;
 
@@ -233,12 +233,12 @@ namespace Viper.Areas.Students.Services
                                 var chunkTable = body.AppendChild(new Table());
                                 var chunkTableProps = chunkTable.AppendChild(new TableProperties());
                                 chunkTableProps.AppendChild(new TableBorders(
-                                    new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
+                                    new TopBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new BottomBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new LeftBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new RightBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new InsideHorizontalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new InsideVerticalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                                 ));
                                 WordAccessibilityHelper.MarkAsLayoutTable(chunkTable, "Photo gallery layout grid");
 
@@ -257,7 +257,7 @@ namespace Viper.Areas.Students.Services
                                         {
                                             var photoParagraph = cell.AppendChild(new Paragraph());
                                             var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
-                                            photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                            photoParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                             var photoRun = photoParagraph.AppendChild(new Run());
 
                                             var imagePart = mainPart.AddImagePart(ImagePartType.Jpeg);
@@ -320,7 +320,7 @@ namespace Viper.Areas.Students.Services
                                         // Add name (no secondary text for large layouts)
                                         var cellParagraph = cell.AppendChild(new Paragraph());
                                         var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
-                                        cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                        cellParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                         var cellRun = cellParagraph.AppendChild(new Run());
                                         cellRun.AppendChild(new Text(CollapseWhitespace(student.GroupExportName)));
                                     }
@@ -339,7 +339,7 @@ namespace Viper.Areas.Students.Services
                         if (!isFirstGroup && ShouldShowGroupHeaders(groupedStudents))
                         {
                             var pageBreakPara = body.AppendChild(new Paragraph());
-                            pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
+                            pageBreakPara.AppendChild(new Run(new Break { Type = BreakValues.Page }));
                         }
                         isFirstGroup = false;
 
@@ -355,12 +355,12 @@ namespace Viper.Areas.Students.Services
                         var table = body.AppendChild(new Table());
                         var tableProps = table.AppendChild(new TableProperties());
                         tableProps.AppendChild(new TableBorders(
-                            new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
+                            new TopBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new BottomBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new LeftBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new RightBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new InsideHorizontalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new InsideVerticalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                         ));
                         WordAccessibilityHelper.MarkAsLayoutTable(table, "Photo gallery layout grid");
 
@@ -378,7 +378,7 @@ namespace Viper.Areas.Students.Services
                                 {
                                     var photoParagraph = cell.AppendChild(new Paragraph());
                                     var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
-                                    photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                    photoParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                     var photoRun = photoParagraph.AppendChild(new Run());
 
                                     var imagePart = mainPart.AddImagePart(ImagePartType.Jpeg);
@@ -440,7 +440,7 @@ namespace Viper.Areas.Students.Services
                                 // Add name and optionally secondary text (hide group info for large layouts)
                                 var cellParagraph = cell.AppendChild(new Paragraph());
                                 var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
-                                cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                cellParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                 var cellRun = cellParagraph.AppendChild(new Run());
                                 cellRun.AppendChild(new Text(CollapseWhitespace(useLargeLayout ? student.GroupExportName : student.FullName)));
 
@@ -930,22 +930,22 @@ namespace Viper.Areas.Students.Services
                     try
                     {
                         var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)photoBytes };
+                        return new { s.MailId, PhotoBytes = (byte[]?)photoBytes };
                     }
                     catch (IOException ex)
                     {
                         _logger.LogWarning(ex, "IO error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new { s.MailId, PhotoBytes = (byte[]?)null };
                     }
                     catch (HttpRequestException ex)
                     {
                         _logger.LogWarning(ex, "HTTP error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new { s.MailId, PhotoBytes = (byte[]?)null };
                     }
                     catch (InvalidOperationException ex)
                     {
                         _logger.LogWarning(ex, "Invalid operation loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new { s.MailId, PhotoBytes = (byte[]?)null };
                     }
                 });
 
@@ -972,7 +972,8 @@ namespace Viper.Areas.Students.Services
                 _logger.LogDebug("Found {Count} students for class level {ClassLevel}", students.Count, LogSanitizer.SanitizeString(request.ClassLevel));
                 return students;
             }
-            else if (!string.IsNullOrEmpty(request.GroupType) && !string.IsNullOrEmpty(request.GroupId))
+
+            if (!string.IsNullOrEmpty(request.GroupType) && !string.IsNullOrEmpty(request.GroupId))
             {
                 _logger.LogDebug("Fetching students by group: {GroupType}/{GroupId}",
                     LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
@@ -983,7 +984,8 @@ namespace Viper.Areas.Students.Services
                     students.Count, LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 return students;
             }
-            else if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
+
+            if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
             {
                 _logger.LogDebug("Fetching students by course: {TermCode}/{Crn}",
                     LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));

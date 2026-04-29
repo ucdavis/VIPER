@@ -13,7 +13,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly ILogger<ScheduleAuditService> _mockLogger;
         private readonly ScheduleAuditService _service;
         private readonly ClinicalSchedulerContext _context;
-        private bool _disposed = false;
+        private bool _disposed;
 
         public ScheduleAuditServiceTest()
         {

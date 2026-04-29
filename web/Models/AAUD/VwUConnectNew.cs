@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwUConnectNew
+public class VwUConnectNew
 {
     public string? LastName { get; set; }
 

@@ -811,7 +811,7 @@ public sealed class HarvestServiceTests : IDisposable
                     MothraId = mothraId,
                     PersonName = personName,
                     Crn = crn,
-                    CourseCode = $"VET 410",
+                    CourseCode = "VET 410",
                     EffortType = effortType,
                     Hours = 40,
                     RoleId = 1,

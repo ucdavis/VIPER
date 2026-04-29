@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class MilestoneLevel
+public class MilestoneLevel
 {
     public int MilestoneLevelId { get; set; }
 

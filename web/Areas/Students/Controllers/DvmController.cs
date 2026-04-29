@@ -178,7 +178,7 @@ namespace Viper.Areas.Students.Controllers
                 context.Entry(record).State = EntityState.Modified;
                 await context.SaveChangesAsync();
 
-                record = new StudentClassYear()
+                record = new StudentClassYear
                 {
                     Active = true,
                     Added = DateTime.Now,

@@ -2,7 +2,7 @@ using Viper.Models.VIPER;
 
 namespace Viper.Models.CTS;
 
-public partial class StudentCompetency
+public class StudentCompetency
 {
     public int StudentCompetencyId { get; set; }
 

@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class BundleCompetencyGroup
+public class BundleCompetencyGroup
 {
     public int BundleCompetencyGroupId { get; set; }
 

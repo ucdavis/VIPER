@@ -470,7 +470,7 @@ public class HarvestService : IHarvestService
 
             _auditService.AddTermChangeAudit(termCode, EffortAuditActions.HarvestTerm,
                 new { Status = oldStatus },
-                new { Status = term.Status, term.HarvestedDate });
+                new { term.Status, term.HarvestedDate });
         }
     }
 

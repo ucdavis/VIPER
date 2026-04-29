@@ -32,7 +32,6 @@ namespace Viper.Areas.RAPS.Services
                 case "VMACS.VMTH": return true;
                 case "VMACS.VMLF": return true;
                 case "VMACS.UCVMCSD": return true;
-                default: break;
             }
             return false;
         }

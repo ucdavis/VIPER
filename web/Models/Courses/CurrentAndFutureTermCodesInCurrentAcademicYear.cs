@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class CurrentAndFutureTermCodesInCurrentAcademicYear
+public class CurrentAndFutureTermCodesInCurrentAcademicYear
 {
     public string TermCode { get; set; } = null!;
 

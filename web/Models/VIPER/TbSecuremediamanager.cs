@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class TbSecuremediamanager
+public class TbSecuremediamanager
 {
     public int Id { get; set; }
 

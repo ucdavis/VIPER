@@ -405,7 +405,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     message = $"Instructor successfully {action} primary evaluator",
                     isPrimaryEvaluator = request.IsPrimary!.Value,
-                    previousPrimaryName = previousPrimaryName
+                    previousPrimaryName
                 });
             }
             catch (UnauthorizedAccessException ex)

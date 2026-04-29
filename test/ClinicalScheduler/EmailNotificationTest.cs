@@ -168,7 +168,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create primary evaluator and another instructor (so removal is allowed)
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -249,7 +249,7 @@ namespace Viper.test.ClinicalScheduler
 
             await _context.SaveChangesAsync();
 
-            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", rotationId, weekId, false); // Not primary
+            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", rotationId, weekId); // Not primary
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -323,12 +323,12 @@ namespace Viper.test.ClinicalScheduler
             var weekId = 10; // Use unique week ID to avoid conflict
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
-            await AddTestWeekGradYearAsync(weekId, 2025);
+            await AddTestWeekGradYearAsync(weekId);
             await AddTestRotationAsync(rotationId);
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -429,7 +429,7 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -506,7 +506,7 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -575,12 +575,12 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailTemplateRenderer);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
-            await AddTestWeekGradYearAsync(weekId, 2025);
+            await AddTestWeekGradYearAsync(weekId);
             await AddTestRotationAsync(rotationId, "Oncology", "ONC");
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -667,7 +667,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create existing primary evaluator and new instructor
             var oldPrimarySchedule = TestDataBuilder.CreateInstructorSchedule(oldPrimaryMothraId, rotationId, weekId, true);
-            var newInstructorSchedule = TestDataBuilder.CreateInstructorSchedule(newPrimaryMothraId, rotationId, weekId, false);
+            var newInstructorSchedule = TestDataBuilder.CreateInstructorSchedule(newPrimaryMothraId, rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(oldPrimarySchedule, newInstructorSchedule);
             await _context.SaveChangesAsync();
@@ -803,7 +803,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create primary evaluator and another instructor (so unsetting is allowed)
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(primaryMothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other789", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other789", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();

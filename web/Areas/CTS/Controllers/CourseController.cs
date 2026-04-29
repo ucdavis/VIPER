@@ -23,7 +23,7 @@ namespace Viper.Areas.CTS.Controllers
     {
         private readonly RAPSContext rapsContext;
         private readonly VIPERContext context;
-        private readonly List<string> CompetencySupportedSessionTypes = new List<string>()
+        private readonly List<string> CompetencySupportedSessionTypes = new List<string>
         {
             "Lab", "L/D", "Dis","Exm","AUT","JLC","PRS","CBL","PBL","D/L","TBL","ACT"
         };
@@ -96,7 +96,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 foreach (var r in toAdd)
                 {
-                    context.Add(new CourseRole()
+                    context.Add(new CourseRole
                     {
                         CourseId = courseId,
                         RoleId = r
@@ -205,7 +205,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 if (current != null)
                 {
-                    current.Levels.Add(new LevelIdAndNameDto()
+                    current.Levels.Add(new LevelIdAndNameDto
                     {
                         LevelId = sessionCompetency.LevelId,
                         LevelName = sessionCompetency.Level.LevelName,
@@ -228,7 +228,7 @@ namespace Viper.Areas.CTS.Controllers
 
             foreach (var levelId in sessionComp.LevelIds)
             {
-                var newSessionComp = new SessionCompetency()
+                var newSessionComp = new SessionCompetency
                 {
                     CompetencyId = sessionComp.CompetencyId,
                     SessionId = sessionComp.SessionId,
@@ -274,7 +274,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 foreach (var l in toAdd)
                 {
-                    var newSessionComp = new SessionCompetency()
+                    var newSessionComp = new SessionCompetency
                     {
                         CompetencyId = sessionComp.CompetencyId,
                         SessionId = sessionComp.SessionId,

@@ -106,7 +106,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("A competency with this number exists already.");
             }
 
-            var comp = new Competency()
+            var comp = new Competency
             {
                 Name = competency.Name,
                 Number = competency.Number,

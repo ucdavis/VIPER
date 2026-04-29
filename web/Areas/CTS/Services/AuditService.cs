@@ -38,7 +38,7 @@ namespace Viper.Areas.CTS.Services
                 encounter.LevelId,
                 encounter.Comment
             });
-            var audit = new CtsAudit()
+            var audit = new CtsAudit
             {
                 ModifiedBy = modifier,
                 TimeStamp = DateTime.Now,

@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwPerfectFormsConstituent
+public class VwPerfectFormsConstituent
 {
     public string? LastName { get; set; }
 

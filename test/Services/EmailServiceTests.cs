@@ -55,7 +55,7 @@ public class EmailServiceTests
 
         // Act & Assert - ArgumentException should NOT be wrapped (it's a programming error)
         await Assert.ThrowsAsync<ArgumentException>(
-            () => service.SendMultipartEmailAsync("recipient@example.com", "Subject", null, null));
+            () => service.SendMultipartEmailAsync("recipient@example.com", "Subject", null));
     }
 
     [Fact]
