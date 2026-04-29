@@ -392,6 +392,27 @@ try
     if (!app.Environment.IsDevelopment())
     {
         app.UseForwardedHeaders();
+
+        // Cloudflare-specific RemoteIp override. UseForwardedHeaders should
+        // handle this via KnownIPNetworks, but in our hosting setup it does
+        // not - the connection IP keeps showing as the CF edge. Read CF's
+        // own CF-Connecting-IP header (which always carries the real client
+        // IP) when the connection is from a trusted CF network.
+        var cloudflareIPNetworks = cloudflareCidrs
+            .Select(System.Net.IPNetwork.Parse)
+            .ToArray();
+        app.Use(async (ctx, next) =>
+        {
+            var connectionIp = ctx.Connection.RemoteIpAddress;
+            if (connectionIp != null
+                && cloudflareIPNetworks.Any(n => n.Contains(connectionIp))
+                && IPAddress.TryParse(ctx.Request.Headers["CF-Connecting-IP"].ToString(), out var realIp))
+            {
+                ctx.Connection.RemoteIpAddress = realIp;
+            }
+            await next();
+        });
+
         app.UseExceptionHandler("/Error"); // Error page for production
         app.UseHttpsRedirection(); // Force HTTPS
 
