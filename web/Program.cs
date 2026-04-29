@@ -75,12 +75,23 @@ try
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
 
-    //Use forwarded for headers on test and prod
+    //Use forwarded for headers on test and prod. Fetch CF networks once
+    //at startup so the closure below can reuse them without re-fetching.
+    var cloudflareNetworks = CloudflareNetworks.FetchOrFallback(logger);
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders =
             ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
         options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
+
+        // Cloudflare fronts vetmed.ucdavis.edu, so the TCP connection to the
+        // app comes from a CF edge IP. Trust CF networks so UseForwardedHeaders
+        // walks the X-Forwarded-For chain and RemoteIpAddress resolves to the
+        // real client - otherwise every IP-based allowlist breaks.
+        foreach (var network in cloudflareNetworks)
+        {
+            options.KnownIPNetworks.Add(network);
+        }
     });
 
     // Add services to the container.
