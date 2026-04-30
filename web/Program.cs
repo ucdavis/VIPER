@@ -545,22 +545,21 @@ void SetAwsCredentials(Logger logger)
 {
     XElement xAwsCredentials = XElement.Load(awsCredentialsFilePath, LoadOptions.None);
 
-    if (!String.IsNullOrWhiteSpace(xAwsCredentials?.Element("AccessKeyId")?.Value) && !String.IsNullOrWhiteSpace(xAwsCredentials?.Element("SecretAccessKey")?.Value))
+    if (!string.IsNullOrWhiteSpace(xAwsCredentials.Element("AccessKeyId")?.Value) && !string.IsNullOrWhiteSpace(xAwsCredentials.Element("SecretAccessKey")?.Value))
     {
         // grab the credentials ouf of the xml file to stor in the encrypted json file inthe profile
         var options = new CredentialProfileOptions
         {
-            AccessKey = xAwsCredentials?.Element("AccessKeyId")?.Value.Trim(),
-            SecretKey = xAwsCredentials?.Element("SecretAccessKey")?.Value.Trim()
+            AccessKey = xAwsCredentials.Element("AccessKeyId")?.Value.Trim(),
+            SecretKey = xAwsCredentials.Element("SecretAccessKey")?.Value.Trim()
         };
 
         var profile = new CredentialProfile("default", options);
         // if a region was specified in the xml then use the specified region else default to USWest1
-        if (!string.IsNullOrWhiteSpace(xAwsCredentials?.Element("RegionEndpoint")?.Value) && xAwsCredentials?.Element("RegionEndpoint") != null)
+        var regionFieldName = xAwsCredentials.Element("RegionEndpoint")?.Value;
+        if (!string.IsNullOrWhiteSpace(regionFieldName))
         {
-#pragma warning disable CS8604 // Possible null reference argument.
-            profile.Region = typeof(RegionEndpoint).GetField(xAwsCredentials?.Element("RegionEndpoint")?.Value)?.GetValue(null) as RegionEndpoint;
-#pragma warning restore CS8604 // Possible null reference argument.
+            profile.Region = typeof(RegionEndpoint).GetField(regionFieldName)?.GetValue(null) as RegionEndpoint;
         }
         else
         {

@@ -525,9 +525,6 @@ namespace Viper.Areas.CMS.Data
                 bytes = DecryptFile(bytes, file.Key);
             }
 
-            if (bytes == null)
-                return controller.NotFound();
-
             string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
             controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
 

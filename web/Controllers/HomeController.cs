@@ -148,7 +148,7 @@ namespace Viper.Controllers
 
                 if (protector != null && emulatedUser.LoginId != null)
                 {
-                    string? encryptedEmulatedLoginId = protector.Protect(emulatedUser.LoginId);
+                    string encryptedEmulatedLoginId = protector.Protect(emulatedUser.LoginId);
 
                     // set emulating cached item to expire after 30 minutes of inactivity
                     HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
