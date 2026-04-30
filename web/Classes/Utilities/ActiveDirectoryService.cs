@@ -91,12 +91,7 @@ namespace Viper.Classes.Utilities
         /// <returns>List of groups</returns>
         public static List<LdapGroup> GetGroups(string? name = null)
         {
-            string filter = "(objectClass=group)";
-            if (name != null)
-            {
-                filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
-            }
-
+            string filter = BuildGroupsFilter(name);
 
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             List<LdapGroup> groups = new();
@@ -117,7 +112,11 @@ namespace Viper.Classes.Utilities
         /// <returns>The group, if found</returns>
         public static LdapGroup? GetGroup(string dn)
         {
-            string filter = string.Format("(&(objectClass=group)(distinguishedName={0}))", dn);
+            string? filter = BuildGroupFilter(dn);
+            if (filter == null)
+            {
+                return null;
+            }
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             LdapGroup? group = null;
             if (searchResults.Count == 1)
@@ -138,24 +137,7 @@ namespace Viper.Classes.Utilities
         /// <returns>List of users</returns>
         public static List<LdapUser> GetUsers(bool fromOu = false, string? name = null, string? cn = null, string? samAccountName = null)
         {
-            string filter = "(objectClass=user)";
-            string additionalFilters = "";
-            if (name != null)
-            {
-                additionalFilters += string.Format("(displayName=*{0}*)", name);
-            }
-            if (cn != null)
-            {
-                additionalFilters += string.Format("(cn=*{0}*)", cn);
-            }
-            if (samAccountName != null)
-            {
-                additionalFilters += string.Format("(samAccountName=*{0}*)", samAccountName);
-            }
-            if (additionalFilters.Length > 0)
-            {
-                filter = string.Format("(&{0}{1})", filter, additionalFilters);
-            }
+            string filter = BuildUsersFilter(name, cn, samAccountName);
 
             var searchResults = SearchActiveDirectory(filter, fromOu ? Server.OU : Server.AD3, ObjectType.Person);
 
@@ -176,8 +158,13 @@ namespace Viper.Classes.Utilities
         /// <returns></returns>
         public static LdapUser? GetUser(string samAccountName, bool fromOu = false)
         {
+            string? filter = BuildUserFilter(samAccountName);
+            if (filter == null)
+            {
+                return null;
+            }
             var searchResults = SearchActiveDirectory(
-                string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName),
+                filter,
                 fromOu ? Server.OU : Server.AD3,
                 ObjectType.Person);
             return searchResults.Count == 1 ? new LdapUser(searchResults[0]) : null;
@@ -190,8 +177,12 @@ namespace Viper.Classes.Utilities
         /// <returns>List of members of the group</returns>
         public static List<LdapUser> GetGroupMembership(string groupDn)
         {
+            string? filter = BuildGroupMembershipFilter(groupDn);
+            if (filter == null)
+            {
+                return new List<LdapUser>();
+            }
             List<LdapUser> users = new();
-            string filter = string.Format("(&(objectClass=user)(memberOf={0}))", groupDn);
             ////Need to get users from both AD3 and OU
             var ouSearchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Person);
             var ad3SearchResults = SearchActiveDirectory(filter, Server.AD3, ObjectType.Person);
@@ -258,6 +249,66 @@ namespace Viper.Classes.Utilities
             {
                 HttpHelper.Logger.Error(ex);
             }
+        }
+
+        internal static string BuildGroupsFilter(string? name)
+        {
+            const string baseFilter = "(objectClass=group)";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return baseFilter;
+            }
+            return string.Format("(&{0}(cn=*{1}*))", baseFilter, LdapFilter.Escape(name));
+        }
+
+        internal static string? BuildGroupFilter(string? dn)
+        {
+            if (string.IsNullOrWhiteSpace(dn))
+            {
+                return null;
+            }
+            return string.Format("(&(objectClass=group)(distinguishedName={0}))", LdapFilter.Escape(dn));
+        }
+
+        internal static string? BuildUserFilter(string? samAccountName)
+        {
+            if (string.IsNullOrWhiteSpace(samAccountName))
+            {
+                return null;
+            }
+            return string.Format("(&(objectClass=user)(samAccountName={0}))", LdapFilter.Escape(samAccountName));
+        }
+
+        internal static string? BuildGroupMembershipFilter(string? groupDn)
+        {
+            if (string.IsNullOrWhiteSpace(groupDn))
+            {
+                return null;
+            }
+            return string.Format("(&(objectClass=user)(memberOf={0}))", LdapFilter.Escape(groupDn));
+        }
+
+        internal static string BuildUsersFilter(string? name, string? cn, string? samAccountName)
+        {
+            const string baseFilter = "(objectClass=user)";
+            string additionalFilters = "";
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                additionalFilters += string.Format("(displayName=*{0}*)", LdapFilter.Escape(name));
+            }
+            if (!string.IsNullOrWhiteSpace(cn))
+            {
+                additionalFilters += string.Format("(cn=*{0}*)", LdapFilter.Escape(cn));
+            }
+            if (!string.IsNullOrWhiteSpace(samAccountName))
+            {
+                additionalFilters += string.Format("(samAccountName=*{0}*)", LdapFilter.Escape(samAccountName));
+            }
+            if (additionalFilters.Length > 0)
+            {
+                return string.Format("(&{0}{1})", baseFilter, additionalFilters);
+            }
+            return baseFilter;
         }
 
         //Sort users by description first, or sam account name
