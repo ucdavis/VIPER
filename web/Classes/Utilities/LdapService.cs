@@ -44,7 +44,7 @@ namespace Viper.Classes.Utilities
         public static List<LdapUserContact> GetUsersContact(string search)
         {
             List<LdapUserContact> users = new();
-            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            string filter = BuildUsersContactFilter(search);
             var results = SearchLdap(filter);
 
             foreach (SearchResultEntry entry in results.Entries)
@@ -66,7 +66,7 @@ namespace Viper.Classes.Utilities
         public static Dictionary<string, LdapUserContact> GetUsersContactDictionary(string search)
         {
             Dictionary<string, LdapUserContact> users = new();
-            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            string filter = BuildUsersContactFilter(search);
             var results = SearchLdap(filter);
             foreach (SearchResultEntry entry in results.Entries)
             {
@@ -86,7 +86,7 @@ namespace Viper.Classes.Utilities
         /// <returns>LdapUserContact</returns>
         public static LdapUserContact? GetUserContact(string search)
         {
-            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            string filter = BuildUsersContactFilter(search);
             var results = SearchLdap(filter);
 
             if (results.Entries.Count > 0)
@@ -104,8 +104,8 @@ namespace Viper.Classes.Utilities
         /// <returns>LdapUserContact</returns>
         public static LdapUserContact? GetUserByID(string? id)
         {
-            if (id == null) return null;
-            string filter = string.Format("(ucdpersoniamid = {0})", id);
+            string? filter = BuildUserByIDFilter(id);
+            if (filter == null) return null;
             var results = SearchLdap(filter);
             if (results.Entries.Count > 0)
             {
@@ -121,13 +121,8 @@ namespace Viper.Classes.Utilities
         /// <returns>Dictionary of Users, indexed by mothraID</returns>
         public static Dictionary<string, LdapUserContact> GetUsersByIDs(List<string> ids)
         {
-            var filterBuilder = new StringBuilder("(|");
-            foreach (string i in ids)
-            {
-                filterBuilder.Append($"(ucdpersonuuid = {i})");
-            }
-            filterBuilder.Append(')');
-            string filter = filterBuilder.ToString();
+            string? filter = BuildUsersByIDsFilter(ids);
+            if (filter == null) return new Dictionary<string, LdapUserContact>();
             var results = SearchLdap(filter);
             var users = new Dictionary<string, LdapUserContact>();
             foreach (SearchResultEntry entry in results.Entries)
@@ -149,13 +144,52 @@ namespace Viper.Classes.Utilities
         /// <returns></returns>
         public static LdapUserContact? GetUserBySamAccountName(string? samAccountName)
         {
-            string filter = string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName);
+            string? filter = BuildUserBySamAccountNameFilter(samAccountName);
+            if (filter == null) return null;
             var results = SearchLdap(filter);
             if (results.Entries.Count > 0)
             {
                 return new LdapUserContact(results.Entries[0]);
             }
             return null;
+        }
+
+        internal static string BuildUsersContactFilter(string search)
+        {
+            var escaped = LdapFilter.Escape(search);
+            return string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", escaped);
+        }
+
+        internal static string? BuildUserByIDFilter(string? id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            var escaped = LdapFilter.Escape(id);
+            return string.Format("(ucdpersoniamid = {0})", escaped);
+        }
+
+        internal static string? BuildUsersByIDsFilter(List<string>? ids)
+        {
+            if (ids == null || ids.Count == 0) return null;
+
+            var filterBuilder = new StringBuilder("(|");
+            int appended = 0;
+            foreach (string i in ids)
+            {
+                if (string.IsNullOrEmpty(i)) continue;
+                var escaped = LdapFilter.Escape(i);
+                filterBuilder.Append($"(ucdpersonuuid = {escaped})");
+                appended++;
+            }
+            if (appended == 0) return null;
+            filterBuilder.Append(')');
+            return filterBuilder.ToString();
+        }
+
+        internal static string? BuildUserBySamAccountNameFilter(string? samAccountName)
+        {
+            if (string.IsNullOrEmpty(samAccountName)) return null;
+            var escaped = LdapFilter.Escape(samAccountName);
+            return string.Format("(&(objectClass=user)(samAccountName={0}))", escaped);
         }
 
         //Sort users by description first, or sam account name
