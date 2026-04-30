@@ -328,7 +328,7 @@ namespace Viper.Areas.Students.Services
                         .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                     (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                         .Select(sd => sd.IamId)
-                        .Where(id => id != null)
+                        .Where(id => !string.IsNullOrEmpty(id))
                         .Distinct()
                         .ToListAsync();
                 }
@@ -453,7 +453,7 @@ namespace Viper.Areas.Students.Services
                         .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                     (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                         .Select(sd => sd.IamId)
-                        .Where(id => id != null)
+                        .Where(id => !string.IsNullOrEmpty(id))
                         .Distinct()
                         .ToListAsync();
                 }

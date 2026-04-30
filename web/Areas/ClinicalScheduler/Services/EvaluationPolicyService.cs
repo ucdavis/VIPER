@@ -37,7 +37,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 return false;
             }
 
-            // Validate input data
+            // Defensive: contract says non-null but tests cover the NRT-violating
+            // path explicitly (reflection / interop callers).
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             if (rotationWeeks == null)
             {
                 return false;
