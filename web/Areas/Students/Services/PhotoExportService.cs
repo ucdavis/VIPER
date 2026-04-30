@@ -718,6 +718,8 @@ namespace Viper.Areas.Students.Services
         /// Loads all student photos upfront in parallel for faster export generation.
         /// Returns a dictionary keyed by student MailId for quick lookup during rendering.
         /// </summary>
+        private sealed record StudentPhotoLoadResult(string MailId, byte[]? PhotoBytes);
+
         private async Task<Dictionary<string, byte[]>> BatchLoadPhotosAsync(List<StudentPhoto> students)
         {
             var photoCache = new Dictionary<string, byte[]>();
@@ -730,30 +732,33 @@ namespace Viper.Areas.Students.Services
                     try
                     {
                         var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
-                        return new { s.MailId, PhotoBytes = (byte[]?)photoBytes };
+                        return new StudentPhotoLoadResult(s.MailId, photoBytes);
                     }
                     catch (IOException ex)
                     {
                         _logger.LogWarning(ex, "IO error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                     catch (HttpRequestException ex)
                     {
                         _logger.LogWarning(ex, "HTTP error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                     catch (InvalidOperationException ex)
                     {
                         _logger.LogWarning(ex, "Invalid operation loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                 });
 
             var photos = await Task.WhenAll(photoTasks);
 
-            foreach (var photo in photos.Where(p => p.PhotoBytes != null && p.PhotoBytes.Length > 0))
+            foreach (var photo in photos)
             {
-                photoCache[photo.MailId] = photo.PhotoBytes!;
+                if (photo.PhotoBytes is { Length: > 0 } bytes)
+                {
+                    photoCache[photo.MailId] = bytes;
+                }
             }
 
             _logger.LogDebug("Batch loaded {Count} photos for {TotalStudents} students", photoCache.Count, students.Count);

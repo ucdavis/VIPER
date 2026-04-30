@@ -27,7 +27,7 @@ namespace Viper.Areas.Students.Services
         /// class-level / group / course query variants so the photo-building loop is
         /// shared.
         /// </summary>
-        private record StudentBaseRecord(
+        private sealed record StudentBaseRecord(
             string? MailId,
             string? FirstName,
             string LastName,
@@ -769,7 +769,7 @@ namespace Viper.Areas.Students.Services
                     .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                 (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                     .Select(sd => sd.IamId)
-                    .Where(id => id != null)
+                    .Where(id => !string.IsNullOrEmpty(id))
                     .Distinct()
                     .ToListAsync();
             }

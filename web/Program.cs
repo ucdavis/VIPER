@@ -518,11 +518,10 @@ void SetAwsCredentials(Logger logger)
 
         var profile = new CredentialProfile("default", options);
         // if a region was specified in the xml then use the specified region else default to USWest1
-        if (!string.IsNullOrWhiteSpace(xAwsCredentials?.Element("RegionEndpoint")?.Value) && xAwsCredentials?.Element("RegionEndpoint") != null)
+        var regionFieldName = xAwsCredentials?.Element("RegionEndpoint")?.Value;
+        if (!string.IsNullOrWhiteSpace(regionFieldName))
         {
-#pragma warning disable CS8604 // Possible null reference argument.
-            profile.Region = typeof(RegionEndpoint).GetField(xAwsCredentials?.Element("RegionEndpoint")?.Value)?.GetValue(null) as RegionEndpoint;
-#pragma warning restore CS8604 // Possible null reference argument.
+            profile.Region = typeof(RegionEndpoint).GetField(regionFieldName)?.GetValue(null) as RegionEndpoint;
         }
         else
         {

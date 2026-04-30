@@ -24,7 +24,7 @@ namespace Viper.Areas.RAPS.Controllers
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(RAPSContext context, IWebHostEnvironment environment)
+        public RAPSController(RAPSContext context)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);

@@ -130,7 +130,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
 
                 // Use Serializable isolation level to prevent race conditions
-                var result = await ExecuteInTransactionAsync(async cancellationToken =>
+                var result = await ExecuteInTransactionAsync(async _ =>
                 {
                     var createdSchedules = new List<InstructorSchedule>();
                     var removedPrimarySchedules = new Dictionary<int, List<InstructorSchedule>>(); // WeekId -> removed schedules
@@ -312,7 +312,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     }
                 }
 
-                await ExecuteInTransactionAsync(async cancellationToken =>
+                await ExecuteInTransactionAsync(async _ =>
                 {
                     // Remove the schedule
                     _context.InstructorSchedules.Remove(schedule);
@@ -391,7 +391,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return (true, null);
                 }
 
-                var result = await ExecuteInTransactionAsync(async cancellationToken =>
+                var result = await ExecuteInTransactionAsync(async _ =>
                 {
                     string? previousPrimaryName = null;
                     List<InstructorSchedule> removedPrimarySchedules = [];
