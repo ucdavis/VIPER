@@ -11,10 +11,15 @@
 //   node scripts/audit-resharper-regression.js [--base origin/main]
 //                                              [--sarif inspect-report/inspect.sarif]
 //                                              [--skip-scan]
+//                                              [--staged]
 //
 // --skip-scan reuses the SARIF from a prior `audit:resharper` run, useful in
 // CI where the full scan and the gate are split into separate steps so the
 // expensive scan output can be uploaded as an artifact.
+//
+// --staged filters findings to staged C# lines (`git diff --cached`) instead of
+// PR-diff lines. Pair with --skip-scan for fast iterative pre-commit checks
+// against an existing SARIF report.
 
 const fs = require("node:fs")
 const path = require("node:path")
@@ -30,7 +35,7 @@ const MAX_BUFFER_BYTES = 268_435_456
 const MAX_FINDINGS_PER_RULE = 5
 
 function parseArgs(argv) {
-    const args = { base: "origin/main", sarif: DEFAULT_SARIF, skipScan: false }
+    const args = { base: "origin/main", sarif: DEFAULT_SARIF, skipScan: false, staged: false }
     const remaining = [...argv]
     while (remaining.length > 0) {
         const flag = remaining.shift()
@@ -40,6 +45,8 @@ function parseArgs(argv) {
             args.sarif = remaining.shift()
         } else if (flag === "--skip-scan") {
             args.skipScan = true
+        } else if (flag === "--staged") {
+            args.staged = true
         } else {
             console.error(`Unknown arg: ${flag}`)
             process.exit(2)
@@ -49,9 +56,10 @@ function parseArgs(argv) {
 }
 
 // Returns Map<repoRelativePath, Set<lineNumber>> of lines added/modified in
-// the PR, derived from `git diff --unified=0 base...HEAD`.
-function getChangedLines(baseRef) {
-    const result = spawnSync("git", ["diff", "--unified=0", `${baseRef}...HEAD`, "--", "*.cs"], {
+// the diff selection: PR-mode uses `git diff base...HEAD`; staged-mode uses
+// `git diff --cached` (staged-vs-HEAD).
+function getChangedLines(diffSelector) {
+    const result = spawnSync("git", ["diff", "--unified=0", ...diffSelector, "--", "*.cs"], {
         cwd: PROJECT_ROOT,
         encoding: "utf8",
         windowsHide: true,
@@ -164,20 +172,27 @@ if (!fs.existsSync(args.sarif)) {
     process.exit(1)
 }
 
-const changed = getChangedLines(args.base)
-console.log(`Comparing against base ${args.base}: ${changed.size} C# file(s) with added/modified lines`)
+const diffSelector = args.staged ? ["--cached"] : [`${args.base}...HEAD`]
+const diffLabel = args.staged ? "staged C# changes" : `base ${args.base}`
+const noChangesMsg = args.staged
+    ? "✅ No staged C# changes; nothing to gate."
+    : "✅ No C# changes in this PR; nothing to gate."
+const touchedLabel = args.staged ? "staged" : "PR-touched"
+
+const changed = getChangedLines(diffSelector)
+console.log(`Comparing against ${diffLabel}: ${changed.size} C# file(s) with added/modified lines`)
 if (changed.size === 0) {
-    console.log("✅ No C# changes in this PR; nothing to gate.")
+    console.log(noChangesMsg)
     process.exit(0)
 }
 
 const regressions = findRegressions(args.sarif, changed)
 if (regressions.length === 0) {
-    console.log("✅ No new ReSharper warnings at PR-touched lines.")
+    console.log(`✅ No new ReSharper warnings at ${touchedLabel} lines.`)
     process.exit(0)
 }
 
-console.error(`\n❌ ${regressions.length} new ReSharper warning(s) at PR-touched lines:\n`)
+console.error(`\n❌ ${regressions.length} new ReSharper warning(s) at ${touchedLabel} lines:\n`)
 const byRule = new Map()
 for (const r of regressions) {
     if (!byRule.has(r.ruleId)) {

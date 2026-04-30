@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-// `npm run audit` — run both fallow and jscpd whole-project audits.
+// `npm run audit` — run all whole-project audits (fallow, jscpd, ReSharper).
+// Note: ReSharper inspectcode adds several minutes to the run.
 
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
@@ -17,3 +18,4 @@ function runNode(script) {
 
 runNode("audit-fallow.js")
 runNode("audit-jscpd.js")
+runNode("audit-resharper.js")

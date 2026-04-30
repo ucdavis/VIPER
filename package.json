@@ -24,6 +24,7 @@
         "audit:dupes": "node scripts/audit-jscpd.js",
         "audit:resharper": "node scripts/audit-resharper.js",
         "audit:resharper:pr": "node scripts/audit-resharper-regression.js",
+        "audit:resharper-staged": "node scripts/audit-resharper-regression.js --staged",
         "mailpit:start": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js start",
         "mailpit:status": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js status",
         "mailpit:stop": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js stop",
