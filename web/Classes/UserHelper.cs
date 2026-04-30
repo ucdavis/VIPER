@@ -265,7 +265,7 @@ namespace Viper
                     if (HttpHelper.Cache != null && aaudContext != null)
                     {
                         user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId,
-                            entry => aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId));
+                            _ => aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId));
 
                         return user;
                     }
