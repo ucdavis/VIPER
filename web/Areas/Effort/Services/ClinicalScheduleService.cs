@@ -1,7 +1,6 @@
 using ClosedXML.Excel;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -144,7 +143,8 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new SqlCommand { Connection = connection };
+        await using var command = new SqlCommand();
+        command.Connection = connection;
         var paramNames = new List<string>(clinicalJobCodes.Count);
         for (var i = 0; i < clinicalJobCodes.Count; i++)
         {

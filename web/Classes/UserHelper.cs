@@ -264,17 +264,8 @@ namespace Viper
 
                     if (HttpHelper.Cache != null && aaudContext != null)
                     {
-                        user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
-                        {
-                            AaudUser? aaudUser = aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId);
-                            if (aaudUser != null)
-                            {
-                                return aaudUser;
-                            }
-
-                            return user;
-
-                        });
+                        user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId,
+                            entry => aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId));
 
                         return user;
                     }
@@ -334,10 +325,6 @@ namespace Viper
                     {
                         return trueUser;
                     }
-
-                    return GetCurrentUser();
-
-
                 }
 
                 return GetCurrentUser();

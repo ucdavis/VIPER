@@ -1,7 +1,5 @@
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Drawing;
-using DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
@@ -11,27 +9,18 @@ using QuestPDF.Infrastructure;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.Utilities;
-using BlipFill = DocumentFormat.OpenXml.Drawing.Pictures.BlipFill;
 using BottomBorder = DocumentFormat.OpenXml.Wordprocessing.BottomBorder;
 using Break = DocumentFormat.OpenXml.Wordprocessing.Break;
-using Color = DocumentFormat.OpenXml.Wordprocessing.Color;
 using InsideHorizontalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideHorizontalBorder;
 using InsideVerticalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideVerticalBorder;
 using LeftBorder = DocumentFormat.OpenXml.Wordprocessing.LeftBorder;
-using NonVisualDrawingProperties = DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties;
-using NonVisualGraphicFrameDrawingProperties = DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties;
-using NonVisualPictureDrawingProperties = DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties;
-using NonVisualPictureProperties = DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties;
 using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
 using ParagraphProperties = DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties;
 using WordDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 using PdfDocument = QuestPDF.Fluent.Document;
-using Picture = DocumentFormat.OpenXml.Drawing.Pictures.Picture;
 using RightBorder = DocumentFormat.OpenXml.Wordprocessing.RightBorder;
 using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 using RunProperties = DocumentFormat.OpenXml.Wordprocessing.RunProperties;
-using Settings = QuestPDF.Settings;
-using ShapeProperties = DocumentFormat.OpenXml.Drawing.Pictures.ShapeProperties;
 using Table = DocumentFormat.OpenXml.Wordprocessing.Table;
 using TableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 using TableProperties = DocumentFormat.OpenXml.Wordprocessing.TableProperties;
@@ -918,6 +907,8 @@ namespace Viper.Areas.Students.Services
         /// Loads all student photos upfront in parallel for faster export generation.
         /// Returns a dictionary keyed by student MailId for quick lookup during rendering.
         /// </summary>
+        private sealed record StudentPhotoLoadResult(string MailId, byte[]? PhotoBytes);
+
         private async Task<Dictionary<string, byte[]>> BatchLoadPhotosAsync(List<StudentPhoto> students)
         {
             var photoCache = new Dictionary<string, byte[]>();
@@ -930,28 +921,28 @@ namespace Viper.Areas.Students.Services
                     try
                     {
                         var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
-                        return new { s.MailId, PhotoBytes = (byte[]?)photoBytes };
+                        return new StudentPhotoLoadResult(s.MailId, photoBytes);
                     }
                     catch (IOException ex)
                     {
                         _logger.LogWarning(ex, "IO error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                     catch (HttpRequestException ex)
                     {
                         _logger.LogWarning(ex, "HTTP error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                     catch (InvalidOperationException ex)
                     {
                         _logger.LogWarning(ex, "Invalid operation loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                 });
 
             var photos = await Task.WhenAll(photoTasks);
 
-            foreach (var photo in photos.Where(p => p.PhotoBytes != null && p.PhotoBytes.Length > 0))
+            foreach (var photo in photos.Where(p => p.PhotoBytes is { Length: > 0 }))
             {
                 photoCache[photo.MailId] = photo.PhotoBytes!;
             }

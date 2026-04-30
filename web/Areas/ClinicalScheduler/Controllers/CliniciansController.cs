@@ -372,7 +372,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         RotationName = r.Name,
                         r.Abbreviation,
                         r.ServiceId,
-                        r.Service!.ServiceName
+                        r.Service.ServiceName
                     })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)
@@ -529,7 +529,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Filter clinicians based on user permissions.
         /// Users with EditOwnSchedule permission should only see themselves.
         /// </summary>
-        /// <param name="clinicians">List of all available clinicians</param>
+        /// <param name="cliniciansSource">List of all available clinicians</param>
+        /// <param name="viewContext">Optional view context label used for log messages</param>
         /// <returns>Filtered list of clinicians based on user permissions</returns>
         private List<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> cliniciansSource, string? viewContext = null)
         {
