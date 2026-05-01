@@ -1,6 +1,5 @@
 using System.Runtime.Versioning;
 using System.DirectoryServices.Protocols;
-using System.Text;
 using Viper.Areas.Directory.Models;
 
 namespace Viper.Classes.Utilities
@@ -44,7 +43,8 @@ namespace Viper.Classes.Utilities
         public static List<LdapUserContact> GetUsersContact(string search)
         {
             List<LdapUserContact> users = new();
-            string filter = BuildUsersContactFilter(search);
+            string? filter = BuildUsersContactFilter(search);
+            if (filter == null) return users;
             var results = SearchLdap(filter);
 
             foreach (SearchResultEntry entry in results.Entries)
@@ -66,7 +66,8 @@ namespace Viper.Classes.Utilities
         public static Dictionary<string, LdapUserContact> GetUsersContactDictionary(string search)
         {
             Dictionary<string, LdapUserContact> users = new();
-            string filter = BuildUsersContactFilter(search);
+            string? filter = BuildUsersContactFilter(search);
+            if (filter == null) return users;
             var results = SearchLdap(filter);
             foreach (SearchResultEntry entry in results.Entries)
             {
@@ -86,7 +87,8 @@ namespace Viper.Classes.Utilities
         /// <returns>LdapUserContact</returns>
         public static LdapUserContact? GetUserContact(string search)
         {
-            string filter = BuildUsersContactFilter(search);
+            string? filter = BuildUsersContactFilter(search);
+            if (filter == null) return null;
             var results = SearchLdap(filter);
 
             if (results.Entries.Count > 0)
@@ -172,8 +174,9 @@ namespace Viper.Classes.Utilities
             return null;
         }
 
-        internal static string BuildUsersContactFilter(string search)
+        internal static string? BuildUsersContactFilter(string? search)
         {
+            if (string.IsNullOrWhiteSpace(search)) return null;
             var escaped = LdapFilter.Escape(search);
             return string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", escaped);
         }
@@ -187,19 +190,12 @@ namespace Viper.Classes.Utilities
 
         internal static string? BuildUsersByIDsFilter(List<string>? ids)
         {
-            if (ids == null || ids.Count == 0) return null;
-
-            var filterBuilder = new StringBuilder("(|");
-            int appended = 0;
-            foreach (string i in ids.Where(i => !string.IsNullOrEmpty(i)))
-            {
-                var escaped = LdapFilter.Escape(i);
-                filterBuilder.Append($"(ucdpersonuuid = {escaped})");
-                appended++;
-            }
-            if (appended == 0) return null;
-            filterBuilder.Append(')');
-            return filterBuilder.ToString();
+            if (ids == null) return null;
+            var clauses = ids
+                .Where(i => !string.IsNullOrEmpty(i))
+                .Select(i => $"(ucdpersonuuid = {LdapFilter.Escape(i)})")
+                .ToList();
+            return clauses.Count == 0 ? null : $"(|{string.Concat(clauses)})";
         }
 
         internal static string? BuildUserBySamAccountNameFilter(string? samAccountName)
