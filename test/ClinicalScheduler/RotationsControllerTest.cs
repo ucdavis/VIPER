@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MockQueryable.NSubstitute;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -329,6 +331,85 @@ namespace Viper.test.ClinicalScheduler
         // GetRotationSummary already has permission filtering implemented (lines 393-407 in controller)
         // The security is working correctly - users only see services they have permissions for
 
+
+        #endregion
+
+        #region BuildWeekScheduleItem Tests (lines 522-528)
+
+        // Empty InstructorSchedules avoids the Week navigation property NPE that occurs in
+        // GetRecentCliniciansAsync when MockQueryable doesn't load navigation properties.
+        private void SetupForScheduleResponse()
+        {
+			var instSched = new List<InstructorSchedule>().BuildMockDbSet();
+			var rwp = new List<RotationWeeklyPref>().BuildMockDbSet();
+
+            MockContext.InstructorSchedules.Returns(instSched);
+            MockContext.RotationWeeklyPrefs.Returns(rwp);
+
+            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+            _mockWeekService.GetWeeksAsync(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+                .Returns(
+                [
+                    new() { WeekId = 1, WeekNum = 1, DateStart = baseDate, DateEnd = baseDate.AddDays(6), TermCode = TestTermCode },
+                    new() { WeekId = 2, WeekNum = 2, DateStart = baseDate.AddDays(7), DateEnd = baseDate.AddDays(13), TermCode = TestTermCode }
+                ]);
+        }
+
+        private static RotationDto CardiologyRotationWithMinConsecutiveWeeks(int? minConsecutiveWeeks) => new()
+        {
+            RotId = CardiologyRotationId,
+            Name = "Cardiology",
+            ServiceId = CardiologyServiceId,
+            Service = new ServiceDto
+            {
+                ServiceId = CardiologyServiceId,
+                ServiceName = "Cardiology Service",
+                MinConsecutiveWeeks = minConsecutiveWeeks
+            }
+        };
+
+        #endregion
+
+        #region BuildSimpleRotationResponse Tests (lines 621-627)
+
+        [Fact]
+        public async Task GetRotationSchedule_WhenNoWeeks_ServiceMinConsecutiveWeeksIsIncludedInResponse()
+        {
+            SetupMockPermissions(hasFullPermissions: true);
+            _mockWeekService.GetWeeksAsync(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+                .Returns([]);
+
+            const int minConsecutiveWeeks = 4;
+            _mockRotationService.GetRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>())
+                .Returns(CardiologyRotationWithMinConsecutiveWeeks(minConsecutiveWeeks));
+            RecreateController();
+
+            var result = await _controller.GetRotationSchedule(CardiologyRotationId, TestYear);
+
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var rotationProp = okResult.Value!.GetType().GetProperty("Rotation")?.GetValue(okResult.Value);
+            var serviceProp = rotationProp?.GetType().GetProperty("Service")?.GetValue(rotationProp);
+            var actual = serviceProp?.GetType().GetProperty("MinConsecutiveWeeks")?.GetValue(serviceProp);
+            Assert.Equal(minConsecutiveWeeks, (int?)actual);
+        }
+
+        [Fact]
+        public async Task GetRotationSchedule_WhenNoWeeks_AndServiceIsNull_ServiceIsNullInResponse()
+        {
+            SetupMockPermissions(hasFullPermissions: true);
+            _mockWeekService.GetWeeksAsync(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+                .Returns([]);
+            _mockRotationService.GetRotationAsync(CardiologyRotationId, Arg.Any<CancellationToken>())
+                .Returns(new RotationDto { RotId = CardiologyRotationId, Name = "Cardiology", ServiceId = CardiologyServiceId, Service = null });
+            RecreateController();
+
+            var result = await _controller.GetRotationSchedule(CardiologyRotationId, TestYear);
+
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var rotationProp = okResult.Value!.GetType().GetProperty("Rotation")?.GetValue(okResult.Value);
+            var serviceProp = rotationProp?.GetType().GetProperty("Service")?.GetValue(rotationProp);
+            Assert.Null(serviceProp);
+        }
 
         #endregion
 
