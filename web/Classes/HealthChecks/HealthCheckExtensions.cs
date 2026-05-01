@@ -186,14 +186,22 @@ namespace Viper.Classes.HealthChecks
                 failureStatus: HealthStatus.Unhealthy,
                 tags: new[] { "ready" }));
 
-            // Collector is a hosted service (no HttpContext), so we build an
-            // absolute URL from EmailSettings:BaseUrl to pick up the /2 path
-            // base in TEST/PROD. Dev falls back to a relative URL, resolved
-            // against the Kestrel listening address.
+            // The collector polls /health/detail. Hit localhost so the
+            // self-call doesn't loop through Cloudflare/F5 and arrive with
+            // a NAT'd source IP that fails the InternalAllowlist check.
+            // Dev has no path base and uses a non-default Kestrel port,
+            // so fall back to a relative URL.
             var baseUrl = configuration["EmailSettings:BaseUrl"]?.TrimEnd('/');
-            var healthEndpointUrl = string.IsNullOrWhiteSpace(baseUrl)
-                ? "/health/detail"
-                : $"{baseUrl}/health/detail";
+            string healthEndpointUrl;
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                healthEndpointUrl = "/health/detail";
+            }
+            else
+            {
+                var pathBase = new Uri(baseUrl).AbsolutePath.TrimEnd('/');
+                healthEndpointUrl = $"http://localhost{pathBase}/health/detail";
+            }
             services
                 .AddHealthChecksUI(setup =>
                 {
