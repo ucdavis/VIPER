@@ -34,6 +34,17 @@ public class LdapServiceFilterTests
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void BuildUsersContactFilter_ReturnsNullForEmptyInput(string? input)
+    {
+        var filter = LdapService.BuildUsersContactFilter(input);
+
+        Assert.Null(filter);
+    }
+
+    [Theory]
     [InlineData("1234567890", "1234567890")]
     [InlineData("*)(objectClass=*", @"\2a\29\28objectClass=\2a")]
     [InlineData("admin)(|", @"admin\29\28|")]
