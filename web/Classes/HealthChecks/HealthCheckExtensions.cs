@@ -186,21 +186,24 @@ namespace Viper.Classes.HealthChecks
                 failureStatus: HealthStatus.Unhealthy,
                 tags: new[] { "ready" }));
 
-            // The collector polls /health/detail at the public BaseUrl. Inside the
-            // campus network, internal DNS resolves the hostname to the F5's
-            // internal IP, so the self-call stays in 192.168.56.0/24 and the F5
-            // forwards the LAN source IP via X-Forwarded-For. Dev has no BaseUrl
-            // configured, so fall back to a relative URL.
+            // The collector polls /health/detail at the public BaseUrl. The
+            // outbound HttpClient stamps a process-unique token header (see
+            // UseApiEndpointDelegatingHandler below) so the endpoint filter
+            // can recognize the self-call without widening the IP allowlist
+            // to cover whatever NAT'd source IP the loop-out produces.
+            // Dev has no BaseUrl configured, so fall back to a relative URL.
             var baseUrl = configuration["EmailSettings:BaseUrl"]?.TrimEnd('/');
             var healthEndpointUrl = string.IsNullOrWhiteSpace(baseUrl)
                 ? "/health/detail"
                 : $"{baseUrl}/health/detail";
+            services.AddTransient<HealthCheckCollectorTokenHandler>();
             services
                 .AddHealthChecksUI(setup =>
                 {
                     setup.AddHealthCheckEndpoint("viper", healthEndpointUrl);
                     setup.SetEvaluationTimeInSeconds(300);
                     setup.MaximumHistoryEntriesPerEndpoint(50);
+                    setup.UseApiEndpointDelegatingHandler<HealthCheckCollectorTokenHandler>();
                 })
                 .AddInMemoryStorage();
 
@@ -222,13 +225,20 @@ namespace Viper.Classes.HealthChecks
 
             // /health/detail - per-check JSON (UI format), IP-allowlisted to SVM
             // infra via InternalAllowlist. Intentionally not CAS-gated so the
-            // endpoint stays reachable when auth subsystems are degraded.
+            // endpoint stays reachable when auth subsystems are degraded. The
+            // in-app HealthChecksUI collector bypasses the IP check by sending
+            // a process-unique token header (HealthCheckCollectorAuth).
             app.MapHealthChecks("/health/detail", new HealthCheckOptions
             {
                 Predicate = c => c.Tags.Contains("ready"),
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
             }).AddEndpointFilter(async (ctx, next) =>
             {
+                var token = ctx.HttpContext.Request.Headers[HealthCheckCollectorAuth.HeaderName].FirstOrDefault();
+                if (HealthCheckCollectorAuth.Matches(token))
+                {
+                    return await next(ctx);
+                }
                 if (!ClientIpFilterAttribute.IsClientIpSafe("InternalAllowlist"))
                 {
                     ctx.HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
