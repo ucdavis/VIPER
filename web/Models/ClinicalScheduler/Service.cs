@@ -15,7 +15,7 @@ namespace Viper.Models.ClinicalScheduler
         /// Evaluation frequency in weeks. Determines how often a primary evaluator is required.
         /// Examples: 1 = every week, 2 = every 2 weeks, null = use default logic (last week only)
         /// </summary>
-        public int? WeekSize { get; set; }
+		public int? MinConsecutiveWeeks { get; set; }
 
         // Navigation properties
         public virtual ICollection<Rotation> Rotations { get; set; } = new List<Rotation>();

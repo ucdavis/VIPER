@@ -18,7 +18,7 @@ This project uses Node.js 24 LTS. We recommend using [Volta](https://volta.sh/) 
 ```sh
 winget install Volta.Volta
 
-# After installation, restart your terminal and install Node.js 20.6.1
+# After installation, restart your terminal and install Node.js.
 volta install node@24
 ```
 

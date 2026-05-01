@@ -13,11 +13,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// Determines if a week requires a primary evaluator based on simple business rules:
         ///
         /// 1. If RotationWeeklyPref.Closed = 1 for the rotation and week, no primary needed
-        /// 2. If weekSize = 1, every week needs a primary
-        /// 3. If weekSize > 1 (2, 3, 4, etc.), the last week of each block needs a primary:
-        ///    - For weekSize=2: usually the second week
-        ///    - For weekSize=3: usually the third week
-        ///    - For weekSize=4: usually the fourth week
+        /// 2. If MinConsecutiveWeeks = 1, every week needs a primary
+        /// 3. If MinConsecutiveWeeks > 1 (2, 3, 4, etc.), the last week of each block needs a primary:
+        ///    - For MinConsecutiveWeeks=2: usually the second week
+        ///    - For MinConsecutiveWeeks=3: usually the third week
+        ///    - For MinConsecutiveWeeks=4: usually the fourth week
         ///    - For blocks with ExtendedRotation=true weeks, no evaluation needed
         ///    - Logic: For StartWeek=false, check next week:
         ///      * If next week has ExtendedRotation=true, no primary needed
@@ -25,13 +25,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="weekNumber">The week number to check</param>
         /// <param name="rotationWeeks">All weeks for the rotation in the year</param>
-        /// <param name="serviceWeekSize">The WeekSize from the Service table (1, 2, 3, 4, etc.)</param>
+        /// <param name="serviceMinConsecutiveWeeks">The MinConsecutiveWeeks from the Service table (1, 2, 3, 4, etc.)</param>
         /// <param name="rotationClosed">Whether the rotation is closed this week (from RotationWeeklyPref)</param>
         /// <returns>True if the week requires a primary evaluator</returns>
         public bool RequiresPrimaryEvaluator(
             int weekNumber,
             IEnumerable<IRotationWeekInfo> rotationWeeks,
-            int? serviceWeekSize = null,
+            int? serviceMinConsecutiveWeeks = null,
             bool rotationClosed = false)
         {
             // Rule 1: If rotation is closed for this week, no primary needed
@@ -61,16 +61,16 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 return false;
             }
 
-            // Handle null or invalid WeekSize values
-            if (!serviceWeekSize.HasValue || serviceWeekSize.Value <= 0)
+            // Handle null or invalid MinConsecutiveWeeks values
+            if (!serviceMinConsecutiveWeeks.HasValue || serviceMinConsecutiveWeeks.Value <= 0)
             {
-                // NULL or 0 WeekSize indicates undefined rotation structure
+                // NULL or 0 MinConsecutiveWeeks indicates undefined rotation structure
                 // Default to no evaluation requirement for safety
                 return false;
             }
 
-            // Handle different WeekSize values
-            if (serviceWeekSize == 1)
+            // Handle different MinConsecutiveWeeks values
+            if (serviceMinConsecutiveWeeks == 1)
             {
                 // Single-week rotations: every week is a complete block requiring evaluation
                 return true;

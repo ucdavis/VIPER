@@ -522,7 +522,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             var requiresPrimary = _evaluationPolicyService.RequiresPrimaryEvaluator(
                 week.WeekNum,
                 rotationWeeks,
-                rotation?.Service?.WeekSize,
+                rotation?.Service?.MinConsecutiveWeeks,
                 rotationClosed);
 
             return new
@@ -621,7 +621,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 {
                     rotation.Service.ServiceId,
                     rotation.Service.ServiceName,
-                    rotation.Service.WeekSize
+                    rotation.Service.MinConsecutiveWeeks
                 } : null
             };
         }
