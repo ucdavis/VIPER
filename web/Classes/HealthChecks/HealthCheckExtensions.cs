@@ -186,22 +186,15 @@ namespace Viper.Classes.HealthChecks
                 failureStatus: HealthStatus.Unhealthy,
                 tags: new[] { "ready" }));
 
-            // The collector polls /health/detail. Hit localhost so the
-            // self-call doesn't loop through Cloudflare/F5 and arrive with
-            // a NAT'd source IP that fails the InternalAllowlist check.
-            // Dev has no path base and uses a non-default Kestrel port,
-            // so fall back to a relative URL.
+            // The collector polls /health/detail at the public BaseUrl. Inside the
+            // campus network, internal DNS resolves the hostname to the F5's
+            // internal IP, so the self-call stays in 192.168.56.0/24 and the F5
+            // forwards the LAN source IP via X-Forwarded-For. Dev has no BaseUrl
+            // configured, so fall back to a relative URL.
             var baseUrl = configuration["EmailSettings:BaseUrl"]?.TrimEnd('/');
-            string healthEndpointUrl;
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                healthEndpointUrl = "/health/detail";
-            }
-            else
-            {
-                var pathBase = new Uri(baseUrl).AbsolutePath.TrimEnd('/');
-                healthEndpointUrl = $"http://localhost{pathBase}/health/detail";
-            }
+            var healthEndpointUrl = string.IsNullOrWhiteSpace(baseUrl)
+                ? "/health/detail"
+                : $"{baseUrl}/health/detail";
             services
                 .AddHealthChecksUI(setup =>
                 {
