@@ -173,9 +173,8 @@ namespace Viper.Classes.Utilities
 
             var filterBuilder = new StringBuilder("(|");
             int appended = 0;
-            foreach (string i in ids)
+            foreach (string i in ids.Where(i => !string.IsNullOrEmpty(i)))
             {
-                if (string.IsNullOrEmpty(i)) continue;
                 var escaped = LdapFilter.Escape(i);
                 filterBuilder.Append($"(ucdpersonuuid = {escaped})");
                 appended++;
