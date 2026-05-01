@@ -91,7 +91,7 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act - Pass rotationClosed = true
-            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: 2, rotationClosed: true);
+            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceMinConsecutiveWeeks: 2, rotationClosed: true);
 
             // Assert
             Assert.False(result);
@@ -99,10 +99,10 @@ namespace Viper.test.ClinicalScheduler
 
         #endregion
 
-        #region WeekSize = 1 Tests
+        #region MinConsecutiveWeeks = 1 Tests
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize1_NonExtendedWeek_ReturnsTrue()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks1_NonExtendedWeek_ReturnsTrue()
         {
             // Arrange
             var weeks = new List<TestRotationWeekInfo>
@@ -111,14 +111,14 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: 1);
+            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceMinConsecutiveWeeks: 1);
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize1_ExtendedWeek_ReturnsFalse()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks1_ExtendedWeek_ReturnsFalse()
         {
             // Arrange
             var weeks = new List<TestRotationWeekInfo>
@@ -127,7 +127,7 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: 1);
+            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceMinConsecutiveWeeks: 1);
 
             // Assert
             Assert.False(result);
@@ -135,10 +135,10 @@ namespace Viper.test.ClinicalScheduler
 
         #endregion
 
-        #region WeekSize = 2 Tests
+        #region MinConsecutiveWeeks = 2 Tests
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize2_StartWeek_ReturnsFalse()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks2_StartWeek_ReturnsFalse()
         {
             // Arrange - First week of a 2-week block
             var weeks = new List<TestRotationWeekInfo>
@@ -148,14 +148,14 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(28, weeks, serviceWeekSize: 2);
+            var result = _service.RequiresPrimaryEvaluator(28, weeks, serviceMinConsecutiveWeeks: 2);
 
             // Assert
             Assert.False(result); // First week doesn't need evaluator
         }
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize2_SecondWeek_ReturnsTrue()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks2_SecondWeek_ReturnsTrue()
         {
             // Arrange - Second week of a 2-week block
             var weeks = new List<TestRotationWeekInfo>
@@ -165,14 +165,14 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(29, weeks, serviceWeekSize: 2);
+            var result = _service.RequiresPrimaryEvaluator(29, weeks, serviceMinConsecutiveWeeks: 2);
 
             // Assert
             Assert.True(result); // Second week needs evaluator
         }
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize2_ThreeWeekRotationWithExtended_ReturnsFalse()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks2_ThreeWeekRotationWithExtended_ReturnsFalse()
         {
             // Arrange - 3-week rotation where week 3 is extended
             var weeks = new List<TestRotationWeekInfo>
@@ -183,14 +183,14 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act - Check week 32 (would normally be evaluation week, but week 33 is extended)
-            var result = _service.RequiresPrimaryEvaluator(32, weeks, serviceWeekSize: 2);
+            var result = _service.RequiresPrimaryEvaluator(32, weeks, serviceMinConsecutiveWeeks: 2);
 
             // Assert
             Assert.False(result); // No evaluation needed because week 3 is extended
         }
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize2_RegularTwoWeekBlock_SecondWeekTrue()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks2_RegularTwoWeekBlock_SecondWeekTrue()
         {
             // Arrange - Regular 2-week block
             var weeks = new List<TestRotationWeekInfo>
@@ -201,14 +201,14 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act - Check week 36 (second week of block)
-            var result = _service.RequiresPrimaryEvaluator(36, weeks, serviceWeekSize: 2);
+            var result = _service.RequiresPrimaryEvaluator(36, weeks, serviceMinConsecutiveWeeks: 2);
 
             // Assert
             Assert.True(result); // Second week needs evaluator
         }
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize2_LastWeekOfYear_ReturnsTrue()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks2_LastWeekOfYear_ReturnsTrue()
         {
             // Arrange - Last week with no next week
             var weeks = new List<TestRotationWeekInfo>
@@ -218,7 +218,7 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act - Check week 43 (last week, no next week)
-            var result = _service.RequiresPrimaryEvaluator(43, weeks, serviceWeekSize: 2);
+            var result = _service.RequiresPrimaryEvaluator(43, weeks, serviceMinConsecutiveWeeks: 2);
 
             // Assert
             Assert.True(result); // Last week needs evaluator
@@ -289,7 +289,7 @@ namespace Viper.test.ClinicalScheduler
             var relevantWeeks = weeks.Where(w => w.WeekNum >= weekNum - 1 && w.WeekNum <= weekNum + 1).ToList();
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(weekNum, relevantWeeks, serviceWeekSize: 2);
+            var result = _service.RequiresPrimaryEvaluator(weekNum, relevantWeeks, serviceMinConsecutiveWeeks: 2);
 
             // Assert
             Assert.Equal(shouldRequireEvaluator, result);
@@ -297,10 +297,10 @@ namespace Viper.test.ClinicalScheduler
 
         #endregion
 
-        #region No WeekSize Configuration Tests
+        #region No MinConsecutiveWeeks Configuration Tests
 
         [Fact]
-        public void RequiresPrimaryEvaluator_NoWeekSize_ReturnsFalse()
+        public void RequiresPrimaryEvaluator_NoMinConsecutiveWeeks_ReturnsFalse()
         {
             // Arrange
             var weeks = new List<TestRotationWeekInfo>
@@ -308,17 +308,17 @@ namespace Viper.test.ClinicalScheduler
                 new() { WeekNum = 5, ExtendedRotation = false }
             };
 
-            // Act - No serviceWeekSize provided
+            // Act - No serviceMinConsecutiveWeeks provided
             var result = _service.RequiresPrimaryEvaluator(5, weeks);
 
             // Assert
-            Assert.False(result); // Default behavior when no weekSize
+            Assert.False(result); // Default behavior when no MinConsecutiveWeeks
         }
 
         [Theory]
         [InlineData(0)]
         [InlineData(-1)]
-        public void RequiresPrimaryEvaluator_InvalidWeekSize_ReturnsFalse(int weekSize)
+        public void RequiresPrimaryEvaluator_InvalidMinConsecutiveWeeks_ReturnsFalse(int MinConsecutiveWeeks)
         {
             // Arrange
             var weeks = new List<TestRotationWeekInfo>
@@ -327,15 +327,15 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceWeekSize: weekSize);
+            var result = _service.RequiresPrimaryEvaluator(5, weeks, serviceMinConsecutiveWeeks: MinConsecutiveWeeks);
 
             // Assert
-            Assert.False(result); // Invalid weekSize (0, negative) defaults to false
+            Assert.False(result); // Invalid MinConsecutiveWeeks (0, negative) defaults to false
         }
 
 
         [Fact]
-        public void RequiresPrimaryEvaluator_WeekSize4_OnlyLastWeekRequiresEvaluation()
+        public void RequiresPrimaryEvaluator_MinConsecutiveWeeks4_OnlyLastWeekRequiresEvaluation()
         {
             // Arrange - 4-week rotation blocks
             var weeks = new List<TestRotationWeekInfo>
@@ -348,10 +348,10 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act & Assert - For 4-week blocks, only the last week (4th) should require evaluation
-            Assert.False(_service.RequiresPrimaryEvaluator(10, weeks, serviceWeekSize: 4)); // First week
-            Assert.False(_service.RequiresPrimaryEvaluator(11, weeks, serviceWeekSize: 4)); // Second week
-            Assert.False(_service.RequiresPrimaryEvaluator(12, weeks, serviceWeekSize: 4)); // Third week
-            Assert.True(_service.RequiresPrimaryEvaluator(13, weeks, serviceWeekSize: 4));  // Fourth week (last)
+            Assert.False(_service.RequiresPrimaryEvaluator(10, weeks, serviceMinConsecutiveWeeks: 4)); // First week
+            Assert.False(_service.RequiresPrimaryEvaluator(11, weeks, serviceMinConsecutiveWeeks: 4)); // Second week
+            Assert.False(_service.RequiresPrimaryEvaluator(12, weeks, serviceMinConsecutiveWeeks: 4)); // Third week
+            Assert.True(_service.RequiresPrimaryEvaluator(13, weeks, serviceMinConsecutiveWeeks: 4));  // Fourth week (last)
         }
 
         #endregion

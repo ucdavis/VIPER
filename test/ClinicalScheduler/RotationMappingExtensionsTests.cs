@@ -22,7 +22,7 @@ namespace Test.ClinicalScheduler
                     ServiceId = 10,
                     ServiceName = "Surgery Service",
                     ShortName = "Surgery",
-                    WeekSize = 2,
+                    MinConsecutiveWeeks = 2,
                     ScheduleEditPermission = "SVMSecure.ClnSched.EditSurgery"
                 }
             };
