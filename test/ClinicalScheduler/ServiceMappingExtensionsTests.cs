@@ -14,7 +14,7 @@ namespace Test.ClinicalScheduler
                 ServiceId = 10,
                 ServiceName = "Surgery Service",
                 ShortName = "Surgery",
-                WeekSize = 2,
+                MinConsecutiveWeeks = 2,
                 ScheduleEditPermission = "SVMSecure.ClnSched.EditSurgery"
             };
 
@@ -24,7 +24,7 @@ namespace Test.ClinicalScheduler
             // Assert
             Assert.Equal(service.ServiceId, dto.ServiceId);
             Assert.Equal(service.ServiceName, dto.ServiceName);
-            Assert.Equal(service.WeekSize, dto.WeekSize);
+            Assert.Equal(service.MinConsecutiveWeeks, dto.MinConsecutiveWeeks);
             Assert.Equal(service.ScheduleEditPermission, dto.ScheduleEditPermission);
         }
 
@@ -73,7 +73,7 @@ namespace Test.ClinicalScheduler
                 ServiceId = 10,
                 ServiceName = "Surgery Service",
                 ShortName = "Surgery",
-                WeekSize = 2,
+                MinConsecutiveWeeks = 2,
                 ScheduleEditPermission = null
             };
 
@@ -86,7 +86,7 @@ namespace Test.ClinicalScheduler
         }
 
         [Fact]
-        public void ToDto_HandlesZeroWeekSize()
+        public void ToDto_HandlesZeroMinConsecutiveWeeks()
         {
             // Arrange
             var service = new Service
@@ -94,14 +94,14 @@ namespace Test.ClinicalScheduler
                 ServiceId = 10,
                 ServiceName = "Special Service",
                 ShortName = "SPEC",
-                WeekSize = 0
+                MinConsecutiveWeeks = 0
             };
 
             // Act
             var dto = service.ToDto();
 
             // Assert
-            Assert.Equal(0, dto.WeekSize);
+            Assert.Equal(0, dto.MinConsecutiveWeeks);
         }
     }
 }

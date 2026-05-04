@@ -19,7 +19,7 @@ namespace Viper.Areas.ClinicalScheduler.Extensions
             {
                 ServiceId = service.ServiceId,
                 ServiceName = service.ServiceName,
-                WeekSize = service.WeekSize,
+                MinConsecutiveWeeks = service.MinConsecutiveWeeks,
                 ScheduleEditPermission = service.ScheduleEditPermission
             };
         }

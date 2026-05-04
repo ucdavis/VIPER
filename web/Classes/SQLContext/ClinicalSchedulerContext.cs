@@ -52,7 +52,7 @@ public class ClinicalSchedulerContext : DbContext
             entity.Property(e => e.ServiceName).HasColumnName("ServiceName");
             entity.Property(e => e.ShortName).HasColumnName("ShortName");
             entity.Property(e => e.ScheduleEditPermission).HasColumnName("ScheduleEditPermission").IsRequired(false);
-            entity.Property(e => e.WeekSize).HasColumnName("WeekSize").IsRequired(false);
+            entity.Property(e => e.MinConsecutiveWeeks).HasColumnName("MinConsecutiveWeeks").IsRequired(false);
         });
 
         modelBuilder.Entity<InstructorSchedule>(entity =>
