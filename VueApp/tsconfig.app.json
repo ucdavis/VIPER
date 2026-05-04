@@ -9,7 +9,6 @@
         "lib": ["ES2023", "DOM"],
         "target": "ES2023",
 
-        "baseUrl": ".",
         "paths": {
             "@/*": ["./src/*"]
         }
