@@ -37,7 +37,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() && env.HAS_CODECOV_TOKEN == 'true' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./VueApp/coverage/cobertura-coverage.xml
@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && env.HAS_CODECOV_TOKEN == 'true' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./VueApp/test-report.junit.xml
@@ -73,7 +73,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() && env.HAS_CODECOV_TOKEN == 'true' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/**/coverage.cobertura.xml
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && env.HAS_CODECOV_TOKEN == 'true' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./test-report.junit.xml
