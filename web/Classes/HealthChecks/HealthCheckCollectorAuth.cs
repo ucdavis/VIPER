@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Http;
 
 namespace Viper.Classes.HealthChecks
 {
@@ -24,6 +25,17 @@ namespace Viper.Classes.HealthChecks
             var a = Encoding.UTF8.GetBytes(provided);
             var b = Encoding.UTF8.GetBytes(Token);
             return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
+        }
+
+        /// <summary>
+        /// True if the request carries a valid collector token header. Lets the
+        /// /health/detail endpoint filter recognize the in-app self-call without
+        /// touching the IP allowlist.
+        /// </summary>
+        public static bool IsCollectorRequest(HttpContext context)
+        {
+            var token = context.Request.Headers[HeaderName].FirstOrDefault();
+            return Matches(token);
         }
     }
 }

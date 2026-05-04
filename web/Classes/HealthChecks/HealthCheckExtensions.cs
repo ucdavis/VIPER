@@ -234,8 +234,7 @@ namespace Viper.Classes.HealthChecks
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
             }).AddEndpointFilter(async (ctx, next) =>
             {
-                var token = ctx.HttpContext.Request.Headers[HealthCheckCollectorAuth.HeaderName].FirstOrDefault();
-                if (HealthCheckCollectorAuth.Matches(token))
+                if (HealthCheckCollectorAuth.IsCollectorRequest(ctx.HttpContext))
                 {
                     return await next(ctx);
                 }
