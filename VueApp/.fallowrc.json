@@ -1,0 +1,39 @@
+{
+    "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/fallow-schema.json",
+    "entry": [
+        "src/main.ts",
+        "src/CAHFS/cahfs.ts",
+        "src/CMS/cms.ts",
+        "src/CTS/cts.ts",
+        "src/ClinicalScheduler/clinicalscheduler.ts",
+        "src/Computing/computing.ts",
+        "src/Effort/effort.ts",
+        "src/Students/students.ts",
+        "index.html",
+        "src/CAHFS/index.html",
+        "src/CMS/index.html",
+        "src/CTS/index.html",
+        "src/ClinicalScheduler/index.html",
+        "src/Computing/index.html",
+        "src/Effort/index.html",
+        "src/Students/index.html"
+    ],
+    "ignorePatterns": [
+        "node_modules/**",
+        "dist/**",
+        "coverage/**",
+        "obj/**",
+        "bin/**",
+        "public/**"
+    ],
+    "ignoreDependencies": [
+        "@tsconfig/node24",
+        "vue-eslint-parser"
+    ],
+    "duplicates": {
+        "ignoreImports": true,
+        "ignore": [
+            "**/__tests__/**"
+        ]
+    }
+}
