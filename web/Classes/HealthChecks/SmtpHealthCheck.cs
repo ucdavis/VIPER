@@ -81,7 +81,11 @@ namespace Viper.Classes.HealthChecks
             }
             catch (OperationCanceledException)
             {
-                return HealthCheckResult.Unhealthy("SMTP timed out.");
+                // CreateLinkedTokenSource + CancelAfter means OCE can come from
+                // either external shutdown (caller token) or our own timeout.
+                return cancellationToken.IsCancellationRequested
+                    ? HealthCheckResult.Unhealthy("SMTP probe cancelled.")
+                    : HealthCheckResult.Unhealthy("SMTP timed out.");
             }
         }
     }

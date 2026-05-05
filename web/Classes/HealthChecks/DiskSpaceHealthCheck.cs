@@ -11,6 +11,8 @@ namespace Viper.Classes.HealthChecks
     /// </summary>
     public class DiskSpaceHealthCheck : IHealthCheck
     {
+        private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
+
         private readonly string? _explicitDrivePath;
         private readonly double _criticalFreePercent;
         private readonly double _warningFreePercent;
@@ -60,6 +62,16 @@ namespace Viper.Classes.HealthChecks
             HealthCheckContext context,
             CancellationToken cancellationToken = default)
         {
+            // Caller asked us to verify a configured path but didn't supply one
+            // (e.g. LoggingPath is missing/empty in config) - that's a real
+            // misconfiguration, not a "drive not mounted" case.
+            if ((_requirePathExists || _verifyWritable)
+                && string.IsNullOrWhiteSpace(_explicitDrivePath))
+            {
+                return Task.FromResult(HealthCheckResult.Unhealthy(
+                    "Configured path is empty."));
+            }
+
             var driveRoot = _explicitDrivePath is null
                 ? Path.GetPathRoot(AppContext.BaseDirectory)
                 : Path.GetPathRoot(_explicitDrivePath);
@@ -78,15 +90,16 @@ namespace Viper.Classes.HealthChecks
                     : HealthCheckResult.Unhealthy("Drive not ready."));
             }
 
-            if (_requirePathExists && _explicitDrivePath is not null
-                && !Directory.Exists(_explicitDrivePath))
+            // The early empty-path guard above means a true _requirePathExists
+            // or _verifyWritable implies _explicitDrivePath is non-null here.
+            if (_requirePathExists && !Directory.Exists(_explicitDrivePath!))
             {
                 return Task.FromResult(_healthyWhenMissing
                     ? HealthCheckResult.Healthy($"Path '{_explicitDrivePath}' does not exist (skipped).")
                     : HealthCheckResult.Unhealthy($"Path '{_explicitDrivePath}' does not exist."));
             }
 
-            if (_verifyWritable && _explicitDrivePath is not null)
+            if (_verifyWritable)
             {
                 // Unique probe name per invocation - overlapping UI polls + /health/detail
                 // requests would otherwise race on a shared file name and produce
@@ -116,10 +129,15 @@ namespace Viper.Classes.HealthChecks
                         {
                             File.Delete(probePath);
                         }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        // Best-effort cleanup; unique name means a missed delete
+                        // doesn't break future probes, just leaves a 0-byte file.
+                        catch (IOException ex)
                         {
-                            // Best-effort cleanup; unique name means a missed delete
-                            // doesn't break future probes, just leaves a 0-byte file.
+                            _logger.Debug(ex, "Disk-space probe cleanup failed at {Path}", probePath);
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            _logger.Debug(ex, "Disk-space probe cleanup denied at {Path}", probePath);
                         }
                     }
                 }

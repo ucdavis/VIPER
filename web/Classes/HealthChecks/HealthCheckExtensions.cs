@@ -86,18 +86,16 @@ namespace Viper.Classes.HealthChecks
             // requirePathExists + verifyWritable together catch the three failure
             // modes: missing directory, ACL/readonly regression, or drive full.
             // Missing path is always an alert (never "skipped") since the app
-            // requires logging everywhere.
+            // requires logging everywhere - so register unconditionally and let
+            // the check itself fail if LoggingPath is empty/misspelled.
             var loggingPath = configuration["LoggingPath"];
-            if (!string.IsNullOrWhiteSpace(loggingPath))
-            {
-                builder.AddCheck(
-                    "disk-space-logs",
-                    new DiskSpaceHealthCheck(
-                        explicitDrivePath: loggingPath,
-                        requirePathExists: true,
-                        verifyWritable: true),
-                    tags: new[] { "ready" });
-            }
+            builder.AddCheck(
+                "disk-space-logs",
+                new DiskSpaceHealthCheck(
+                    explicitDrivePath: loggingPath,
+                    requirePathExists: true,
+                    verifyWritable: true),
+                tags: new[] { "ready" });
 
             // AWS SSM Parameter Store. The app loads config from SSM at startup
             // (.AddSystemsManager in Program.cs); this check verifies runtime

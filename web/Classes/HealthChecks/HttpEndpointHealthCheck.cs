@@ -36,7 +36,10 @@ namespace Viper.Classes.HealthChecks
 
             try
             {
-                using var response = await client.GetAsync(_url, cancellationToken);
+                using var response = await client.GetAsync(
+                    _url,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
                 var code = (int)response.StatusCode;
                 return code < 500
                     ? HealthCheckResult.Healthy($"{_displayName} reachable (HTTP {code}).")
@@ -49,7 +52,11 @@ namespace Viper.Classes.HealthChecks
             }
             catch (TaskCanceledException)
             {
-                return HealthCheckResult.Unhealthy($"{_displayName} timed out.");
+                // HttpClient.Timeout cancellation and external cancellation (app
+                // shutdown, RequestAborted) both surface as TaskCanceledException.
+                return cancellationToken.IsCancellationRequested
+                    ? HealthCheckResult.Unhealthy($"{_displayName} probe cancelled.")
+                    : HealthCheckResult.Unhealthy($"{_displayName} timed out.");
             }
         }
     }

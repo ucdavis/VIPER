@@ -59,7 +59,7 @@ namespace Viper.Classes.HealthChecks
             }
             catch (OperationCanceledException)
             {
-                return HealthCheckResult.Unhealthy("LDAP bind timed out.");
+                return HealthCheckResult.Unhealthy("LDAP bind cancelled.");
             }
         }
     }

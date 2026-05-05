@@ -10,18 +10,20 @@
  *    a known UCD outage that might explain the failure.
  */
 (function () {
-    const DURATION_PATTERN = /^\d+:\d+:\d+\.\d+$/;
+    // TimeSpan ToString omits the fractional part for whole seconds, so the
+    // fraction group has to be optional or "00:00:02" leaks through unformatted.
+    const DURATION_PATTERN = /^\d+:\d+:\d+(?:\.\d+)?$/;
     const CAMPUS_STATUS_URL = "https://status.ucdavis.edu/";
     const BANNER_ID = "campus-status-banner";
 
     function formatDuration(text) {
-        const m = text.match(/^(\d+):(\d+):(\d+)\.(\d+)$/);
+        const m = text.match(/^(\d+):(\d+):(\d+)(?:\.(\d+))?$/);
         if (!m) return text;
         const hours = +m[1];
         const mins = +m[2];
         const secs = +m[3];
         // TimeSpan fractional part is 7 digits (100-ns ticks); normalise to ms
-        const frac = m[4].padEnd(7, "0").slice(0, 7);
+        const frac = (m[4] ?? "").padEnd(7, "0").slice(0, 7);
         const fracMs = +frac / 10000;
         const totalMs = (hours * 3600 + mins * 60 + secs) * 1000 + fracMs;
 
@@ -47,8 +49,10 @@
             if (!nameCell) continue;
             if (!nameCell.textContent.trim().startsWith("campus-")) continue;
             const icon = row.querySelector(".hc-status .material-icons");
-            // check_circle = Healthy; anything else (error, warning, cancel) is a problem
-            if (icon && icon.textContent.trim() !== "check_circle") return true;
+            // check_circle = Healthy; anything else (error, warning, cancel,
+            // or icon entirely missing) is treated as a problem so we don't
+            // suppress the banner when the UI structure changes underneath us.
+            if (!icon || icon.textContent.trim() !== "check_circle") return true;
         }
         return false;
     }
@@ -64,7 +68,7 @@
             const link = document.createElement("a");
             link.href = CAMPUS_STATUS_URL;
             link.target = "_blank";
-            link.rel = "noopener";
+            link.rel = "noopener noreferrer";
             link.textContent = "Check UC Davis campus status";
             banner.appendChild(
                 document.createTextNode("One or more campus services are reporting issues. "));
