@@ -179,6 +179,24 @@ The project includes VS Code launch configurations for debugging both frontend a
 - `npm run lint:staged` - Lint only git-staged files
 - `npm run precommit` - Run full pre-commit checks manually (lint, test, build verify)
 
+### Auditing (regression detection)
+
+Heavier whole-project scanners that surface dead code, duplication, and C# inspection findings that the per-file linter doesn't catch. Outputs land in gitignored report directories (`.fallow/`, `jscpd-report/`, `inspect-report/`).
+
+**Whole-project scans** — run locally for human review:
+
+- `npm run audit` - Run all whole-project audits (fallow + jscpd + ReSharper); takes several minutes due to the ReSharper scan
+- `npm run audit:fallow` - Vue/TS dead code, unused exports, complexity, duplication (`VueApp/`)
+- `npm run audit:dupes` - jscpd duplicate-code report across `VueApp/src/` and `web/Areas/`
+- `npm run audit:resharper` - ReSharper `inspectcode` whole-solution scan (writes SARIF + HTML to `inspect-report/`); takes several minutes
+
+**Diff-scoped gates** — fail only on *new* findings at touched lines, so pre-existing issues never block:
+
+- `npm run audit:resharper:pr` - C# inspection gate vs `origin/main`. Same gate the `Code Quality` GitHub Actions workflow runs on PRs.
+- `npm run audit:resharper-staged` - C# inspection gate vs the git index (`git diff --cached`). Useful as a manual pre-commit check. For fast iteration after one full scan, append `-- --skip-scan` to reuse the existing SARIF: `npm run audit:resharper-staged -- --skip-scan`.
+
+**CI integration** — `.github/workflows/code-quality.yml` runs four gates on every PR to `main`: `fallow-regression` (Vue), `jscpd-regression-csharp`, `jscpd-regression-vue`, and `resharper-pr-gate` (C# inspections). All four are diff-scoped so existing technical debt doesn't block merges.
+
 ### Build Cache
 
 The linter, test, and build verification scripts use caching to avoid redundant rebuilds. If you encounter stale cache issues (e.g., linter showing warnings for already-fixed code), clear the cache:

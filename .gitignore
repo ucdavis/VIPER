@@ -492,13 +492,15 @@ awscredentials.xml
 # Precommit build artifacts (isolated from dev server)
 .artifacts-precommit/
 .artifacts-lint/
+.artifacts-resharper/
 
 # Effort migration script outputs
 web/Areas/Effort/Scripts/AnalysisOutput/
 web/Areas/Effort/Scripts/RemediationOutput/
 web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data_LEGACY.txt
 
-# Code-quality tool outputs (fallow cache + jscpd reports)
+# Code-quality tool outputs (fallow cache + jscpd + ReSharper reports)
 .fallow/
 VueApp/.fallow/
 jscpd-report/
+inspect-report/
