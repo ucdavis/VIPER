@@ -22,6 +22,7 @@ using System.Security.Claims;
 using System.Xml.Linq;
 using Viper;
 using Viper.Classes;
+using Viper.Classes.HealthChecks;
 using Viper.Classes.SQLContext;
 using Web;
 using Web.Authorization;
@@ -74,25 +75,39 @@ try
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
 
-    //Use forwarded for headers on test and prod. Fetch CF networks once
-    //at startup so the closure below can reuse them without re-fetching.
-    var cloudflareCidrs = CloudflareNetworks.FetchOrFallback(logger);
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    //Use forwarded for headers on test and prod. UseForwardedHeaders is
+    //only enabled outside Development (see below), so skip the cloudflare.com
+    //fetch in dev to avoid a network call on every local startup.
+    if (!builder.Environment.IsDevelopment())
     {
-        options.ForwardedHeaders =
-            ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
-
-        // Cloudflare fronts vetmed.ucdavis.edu. The chain is
-        // User -> Cloudflare -> F5 -> app, so the middleware must walk two
-        // proxy hops to land on the real client IP. Default ForwardLimit
-        // is 1, which stops at the CF edge - bump to 2.
-        options.ForwardLimit = 2;
-        foreach (var cidr in cloudflareCidrs)
+        var cloudflareCidrs = CloudflareNetworks.FetchOrFallback(logger);
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
-        }
-    });
+            options.ForwardedHeaders =
+                ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
+
+            // Cloudflare fronts vetmed.ucdavis.edu. The chain is
+            // User -> Cloudflare -> F5 -> app, so the middleware must walk two
+            // proxy hops to land on the real client IP. Default ForwardLimit
+            // is 1, which stops at the CF edge - bump to 2.
+            options.ForwardLimit = 2;
+            foreach (var cidr in cloudflareCidrs)
+            {
+                // cidrs come from cloudflare.com (or our hardcoded fallback). A
+                // single malformed entry in the live response shouldn't crash
+                // startup - skip it and keep the rest of the allowlist.
+                try
+                {
+                    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
+                }
+                catch (FormatException ex)
+                {
+                    logger.Warn(ex, "Skipping invalid Cloudflare CIDR: {Cidr}", cidr);
+                }
+            }
+        });
+    }
 
     // Add services to the container.
     builder.Services.AddControllersWithViews(options =>
@@ -287,6 +302,9 @@ try
     builder.Services.AddRazorTemplating();
     builder.Services.AddScoped<Viper.EmailTemplates.Services.IEmailTemplateRenderer, Viper.EmailTemplates.Services.EmailTemplateRenderer>();
 
+    // All health-check DI wiring lives in HealthCheckExtensions.
+    builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
+
     // Add HttpClient for Vite proxy (development only)
     if (builder.Environment.IsDevelopment())
     {
@@ -305,8 +323,13 @@ try
 
     var app = builder.Build();
 
-    // Add Content Security Policy
-    app.UseCsp(csp =>
+    // Add Content Security Policy. Skip for HealthChecks.UI paths - the bundled UI
+    // uses inline scripts and data: fonts that our strict CSP would block. Those
+    // paths are already IP-gated to trusted SVM admin subnets, so relaxing CSP
+    // there is acceptable.
+    app.UseWhen(
+        ctx => !Viper.Classes.HealthChecks.HealthCheckExtensions.IsUIPath(ctx.Request.Path),
+        branch => branch.UseCsp(csp =>
     {
         // Allow JavaScript from:
         csp.AllowScripts
@@ -365,7 +388,7 @@ try
             .FromSelf() // This domain
             .From("fonts.googleapis.com") // Google Fonts stylesheets
             .AllowUnsafeInline(); // Allows inline CSS
-    });
+    }));
 
     // Configure the HTTP request pipeline.
 
@@ -475,6 +498,9 @@ try
     app.UseAuthorization();
     app.UseCookiePolicy();
     app.UseSession();
+
+    // All health-check pipeline wiring lives in HealthCheckExtensions.
+    app.UseViperHealthChecks();
 
     // Define the default route mapping and require authentication by default (fail safe)
     app.MapControllerRoute(
