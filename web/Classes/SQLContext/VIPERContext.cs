@@ -86,10 +86,6 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<ReportField> ReportFields { get; set; }
 
-    public virtual DbSet<ScheduledTask> ScheduledTasks { get; set; }
-
-    public virtual DbSet<ScheduledTaskHistory> ScheduledTaskHistories { get; set; }
-
     public virtual DbSet<SecureMediaAudit> SecureMediaAudits { get; set; }
 
     public virtual DbSet<SessionTimeout> SessionTimeouts { get; set; }
@@ -1051,18 +1047,6 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(d => d.ReportId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ReportField_Report");
-        });
-
-        modelBuilder.Entity<ScheduledTask>(entity =>
-        {
-            entity.ToTable("ScheduledTask");
-            entity.HasKey(e => e.ScheduledTaskId);
-        });
-
-        modelBuilder.Entity<ScheduledTaskHistory>(entity =>
-        {
-            entity.ToTable("ScheduledTaskHistory");
-            entity.HasKey(e => e.ScheduledTaskHistoryId);
         });
 
         modelBuilder.Entity<SecureMediaAudit>(entity =>
