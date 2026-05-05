@@ -362,8 +362,9 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
     /// </summary>
     private static decimal CalculateWeightedAverage(IEnumerable<EvalRawRow> rows)
     {
-        var totalPts = rows.Sum(r => r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
-        var totalResponses = rows.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
+        var rowList = rows.ToList();
+        var totalPts = rowList.Sum(r => r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
+        var totalResponses = rowList.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
         return totalResponses > 0 ? Math.Round(totalPts / totalResponses, 2) : 0m;
     }
 
