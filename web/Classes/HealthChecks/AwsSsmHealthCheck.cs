@@ -25,6 +25,9 @@ namespace Viper.Classes.HealthChecks
         /// configuration loader already reads so this check exercises the same
         /// IAM permission.
         /// </param>
+        /// <param name="region">
+        /// AWS region to query. Defaults to USWest1 when null.
+        /// </param>
         /// <param name="healthyWhenMissing">
         /// If true, missing credentials or client-side SDK errors return Healthy
         /// with a "skipped" description. Use for Development where local machines

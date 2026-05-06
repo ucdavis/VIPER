@@ -24,6 +24,13 @@ namespace Viper.Classes.HealthChecks
         /// Drive or path to monitor. If null, the drive hosting the running app is used.
         /// Pass e.g. "S:\\" (or any path on that drive) to monitor an alternate volume.
         /// </param>
+        /// <param name="criticalFreePercent">
+        /// Below this free-space percentage the check returns Unhealthy.
+        /// </param>
+        /// <param name="warningFreePercent">
+        /// Below this free-space percentage (and above criticalFreePercent) the
+        /// check returns Degraded.
+        /// </param>
         /// <param name="healthyWhenMissing">
         /// If true, a missing or unready drive returns Healthy with a "not mounted"
         /// description. Use for optional drives (e.g., network shares that don't
