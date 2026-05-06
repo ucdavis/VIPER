@@ -311,8 +311,7 @@ try
     // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
 
-    // Hangfire scheduler. No-op when Hangfire:Enabled is false; logs and
-    // continues if registration throws (see HangfireExtensions).
+    // Hangfire scheduler. No-op when Hangfire:Enabled is false.
     builder.Services.AddViperHangfire(builder.Configuration, logger);
 
     // Add HttpClient for Vite proxy (development only)
@@ -511,6 +510,9 @@ try
 
     // All health-check pipeline wiring lives in HealthCheckExtensions.
     app.UseViperHealthChecks();
+
+    // Hangfire dashboard. No-op unless AddViperHangfire actually registered.
+    app.UseViperHangfire();
 
     // Define the default route mapping and require authentication by default (fail safe)
     app.MapControllerRoute(
