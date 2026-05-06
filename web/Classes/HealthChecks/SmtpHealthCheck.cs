@@ -19,6 +19,10 @@ namespace Viper.Classes.HealthChecks
         private readonly bool _healthyWhenMissing;
         private readonly TimeSpan _timeout;
 
+        /// <summary>
+        /// Constructs an SMTP reachability check using a MailKit
+        /// Connect + NoOp + Disconnect probe.
+        /// </summary>
         /// <param name="host">SMTP relay host (e.g. "smtp.example.com" or "127.0.0.1").</param>
         /// <param name="port">SMTP port (typically 25, 465, or 587).</param>
         /// <param name="socketOptions">

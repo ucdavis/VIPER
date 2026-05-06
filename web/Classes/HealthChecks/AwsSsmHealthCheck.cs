@@ -20,6 +20,9 @@ namespace Viper.Classes.HealthChecks
         private readonly string _probePath;
         private readonly bool _healthyWhenMissing;
 
+        /// <summary>
+        /// Constructs an AWS SSM Parameter Store reachability check.
+        /// </summary>
         /// <param name="probePath">
         /// SSM path prefix to probe (e.g. "/Shared"). Use a path the app's
         /// configuration loader already reads so this check exercises the same
