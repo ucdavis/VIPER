@@ -328,7 +328,7 @@ try
     // paths are already IP-gated to trusted SVM admin subnets, so relaxing CSP
     // there is acceptable.
     app.UseWhen(
-        ctx => !Viper.Classes.HealthChecks.HealthCheckExtensions.IsUIPath(ctx.Request.Path),
+        ctx => !HealthCheckExtensions.IsUIPath(ctx.Request.Path),
         branch => branch.UseCsp(csp =>
     {
         // Allow JavaScript from:

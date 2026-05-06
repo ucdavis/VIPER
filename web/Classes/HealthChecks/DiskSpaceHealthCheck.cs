@@ -20,9 +20,20 @@ namespace Viper.Classes.HealthChecks
         private readonly bool _requirePathExists;
         private readonly bool _verifyWritable;
 
+        /// <summary>
+        /// Constructs a disk-space health check with optional path overrides and
+        /// severity thresholds.
+        /// </summary>
         /// <param name="explicitDrivePath">
         /// Drive or path to monitor. If null, the drive hosting the running app is used.
         /// Pass e.g. "S:\\" (or any path on that drive) to monitor an alternate volume.
+        /// </param>
+        /// <param name="criticalFreePercent">
+        /// Below this free-space percentage the check returns Unhealthy.
+        /// </param>
+        /// <param name="warningFreePercent">
+        /// Below this free-space percentage (and above criticalFreePercent) the
+        /// check returns Degraded.
         /// </param>
         /// <param name="healthyWhenMissing">
         /// If true, a missing or unready drive returns Healthy with a "not mounted"

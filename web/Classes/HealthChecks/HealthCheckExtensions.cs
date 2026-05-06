@@ -2,6 +2,7 @@ using System.Text;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Viper.Areas.Effort.Data;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
 
@@ -50,7 +51,7 @@ namespace Viper.Classes.HealthChecks
                 .AddDbContextCheck<CoursesContext>("db-courses", tags: new[] { "ready" })
                 .AddDbContextCheck<CrestContext>("db-crest", tags: new[] { "ready" })
                 .AddDbContextCheck<DictionaryContext>("db-dictionary", tags: new[] { "ready" })
-                .AddDbContextCheck<Viper.Areas.Effort.Data.EvalHarvestDbContext>("db-eval-harvest", tags: new[] { "ready" })
+                .AddDbContextCheck<EvalHarvestDbContext>("db-eval-harvest", tags: new[] { "ready" })
                 .AddDbContextCheck<RAPSContext>("db-raps", tags: new[] { "ready" })
                 .AddDbContextCheck<SISContext>("db-sis", tags: new[] { "ready" })
                 .AddDbContextCheck<VIPERContext>("db-viper", tags: new[] { "ready" })
