@@ -23,6 +23,7 @@ using System.Xml.Linq;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
+using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
 using Web;
 using Web.Authorization;
@@ -304,6 +305,10 @@ try
 
     // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
+
+    // Hangfire scheduler. No-op when Hangfire:Enabled is false; logs and
+    // continues if registration throws (see HangfireExtensions).
+    builder.Services.AddViperHangfire(builder.Configuration, logger);
 
     // Add HttpClient for Vite proxy (development only)
     if (builder.Environment.IsDevelopment())
