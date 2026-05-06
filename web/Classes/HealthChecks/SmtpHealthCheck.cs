@@ -19,9 +19,18 @@ namespace Viper.Classes.HealthChecks
         private readonly bool _healthyWhenMissing;
         private readonly TimeSpan _timeout;
 
+        /// <param name="host">SMTP relay host (e.g. "smtp.example.com" or "127.0.0.1").</param>
+        /// <param name="port">SMTP port (typically 25, 465, or 587).</param>
+        /// <param name="socketOptions">
+        /// TLS mode for the connection. Should match what EmailService uses so this
+        /// probe exercises the same handshake path.
+        /// </param>
         /// <param name="healthyWhenMissing">
         /// If true, a SocketException returns Healthy with a "skipped" description.
         /// Use in Development where the SMTP target (e.g. Mailpit) may not be running.
+        /// </param>
+        /// <param name="timeout">
+        /// Per-probe timeout. Defaults to 5 seconds when null.
         /// </param>
         public SmtpHealthCheck(
             string host,
@@ -44,10 +53,8 @@ namespace Viper.Classes.HealthChecks
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(_timeout);
 
-            using var client = new SmtpClient
-            {
-                Timeout = (int)_timeout.TotalMilliseconds,
-            };
+            using var client = new SmtpClient();
+            client.Timeout = (int)_timeout.TotalMilliseconds;
 
             try
             {

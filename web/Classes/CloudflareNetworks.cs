@@ -41,7 +41,11 @@ namespace Viper.Classes
         {
             try
             {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                // Startup-only call, not in a hot path - the socket-exhaustion concern
+                // behind ShortLivedHttpClient doesn't apply here.
+                // ReSharper disable once ShortLivedHttpClient
+                using var http = new HttpClient();
+                http.Timeout = TimeSpan.FromSeconds(5);
                 var v4 = http.GetStringAsync("https://www.cloudflare.com/ips-v4/").GetAwaiter().GetResult();
                 var v6 = http.GetStringAsync("https://www.cloudflare.com/ips-v6/").GetAwaiter().GetResult();
                 var cidrs = (v4 + "\n" + v6)
