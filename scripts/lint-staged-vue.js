@@ -205,8 +205,9 @@ try {
         // Check app files with tsconfig.app.json
         if (appFiles.length > 0) {
             logger.info(`Checking ${appFiles.length} application files...`)
+            // Plain tsc can't resolve named imports from .vue modules.
             const appResult = runCommand(
-                "tsc",
+                "vue-tsc",
                 ["--project", "tsconfig.app.json", "--noEmit"],
                 "TypeScript app checking",
                 vueAppDir,
