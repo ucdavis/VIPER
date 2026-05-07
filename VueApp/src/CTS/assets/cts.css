@@ -427,6 +427,7 @@
     }
     .epaChartButton {
         align-self: center;
+        order: -1;
     }
 }
 
