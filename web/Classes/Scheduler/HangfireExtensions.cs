@@ -1,5 +1,6 @@
 using Hangfire;
 using NLog;
+using Viper.Classes.HealthChecks;
 
 namespace Viper.Classes.Scheduler
 {
@@ -38,8 +39,20 @@ namespace Viper.Classes.Scheduler
                 return services;
             }
 
-            services.AddHangfire(config => config.UseSqlServerStorage(connectionString));
+            // Filter is a singleton so a single ILogger instance and any future
+            // shared state (counters, etc.) stay process-wide.
+            services.AddSingleton<HangfireJobLoggingFilter>();
+            services.AddHangfire((sp, config) => config
+                .UseSqlServerStorage(connectionString)
+                .UseFilter(sp.GetRequiredService<HangfireJobLoggingFilter>()));
             services.AddHangfireServer();
+
+            // Hangfire-specific check piggybacks on the /health/detail "ready"
+            // surface stood up in PR 0. Only registered when Hangfire itself is
+            // wired so /health/detail doesn't claim a missing subsystem is down.
+            services.AddHealthChecks()
+                .AddCheck<HangfireHealthCheck>("hangfire", tags: new[] { "ready" });
+
             return services;
         }
 
