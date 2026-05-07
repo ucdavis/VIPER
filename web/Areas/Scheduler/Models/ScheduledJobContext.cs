@@ -21,8 +21,8 @@ public sealed class ScheduledJobContext
     public TriggerSource TriggerSource { get; }
 
     /// <summary>
-    /// Audit actor: <c>"__scheduler"</c> for scheduled runs, the LoginId for
-    /// manual runs.
+    /// Audit actor: <c>"__sched"</c> for scheduled runs (see
+    /// <c>ISchedulerJobsService.SchedulerActor</c>), the LoginId for manual runs.
     /// </summary>
     public string ModBy { get; }
 }

@@ -16,8 +16,13 @@ public interface ISchedulerJobsService
     /// <summary>Stable id of the hourly reconciler job.</summary>
     public const string ReconcileJobId = SystemJobPrefix + "reconcile";
 
-    /// <summary>Stamp used on rows authored by scheduled (non-HTTP) executions.</summary>
-    public const string SchedulerActor = "__scheduler";
+    /// <summary>
+    /// Stamp used on rows authored by scheduled (non-HTTP) executions. Kept
+    /// at seven characters because the legacy <c>tblRoleMembers.ModBy</c>
+    /// column is <c>varchar(8)</c> (mirrors the existing <c>"__system"</c>
+    /// convention, distinct enough to filter on).
+    /// </summary>
+    public const string SchedulerActor = "__sched";
 
     Task<List<SchedulerJobDto>> ListJobsAsync(CancellationToken ct = default);
 
