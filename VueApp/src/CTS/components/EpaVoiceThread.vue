@@ -17,6 +17,13 @@ const { formatDate } = useDateFunctions()
 const showAll = ref(false)
 const showChartDialog = ref(false)
 const chartDialogTitleId = computed(() => `chart-dialog-title-${props.epa.epaId ?? "new"}`)
+const activeEncounterId = ref<number | null>(null)
+function setActive(id: number) {
+    activeEncounterId.value = id
+}
+function clearActive() {
+    activeEncounterId.value = null
+}
 
 const sorted = computed(() =>
     [...props.assessments].sort((a, b) => new Date(b.encounterDate).getTime() - new Date(a.encounterDate).getTime()),
@@ -143,10 +150,19 @@ watch(visible, scheduleGutter)
                         />
                     </svg>
                 </div>
+                <!-- Hover/focus on a review only highlights styling and syncs
+                     the chart dot; no click action, so role="button" would be
+                     misleading. Focus pair satisfies the keyboard equivalent. -->
+                <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
                 <div
                     v-for="a in visible"
                     :key="a.encounterId"
-                    class="epaVoice"
+                    :class="['epaVoice', { 'epaVoice--active': activeEncounterId === a.encounterId }]"
+                    tabindex="0"
+                    @mouseenter="setActive(a.encounterId)"
+                    @mouseleave="clearActive"
+                    @focusin="setActive(a.encounterId)"
+                    @focusout="clearActive"
                 >
                     <div
                         v-if="a.comment"
@@ -164,7 +180,13 @@ watch(visible, scheduleGutter)
                         <strong>&mdash; {{ a.enteredByName }}</strong>
                         <span v-if="a.serviceName"> &middot; {{ a.serviceName }}</span>
                         &middot; {{ formatDate(a.encounterDate.toString()) }}
-                        <span class="epaVoiceSupervision">{{ a.levelName }}</span>
+                        <span class="epaVoiceSupervision">
+                            <span
+                                :class="['epaVoiceLevelDot', `cts-dot-${a.levelValue}`]"
+                                aria-hidden="true"
+                            ></span>
+                            {{ a.levelName }}
+                        </span>
                     </div>
                 </div>
                 <button
@@ -197,7 +219,11 @@ watch(visible, scheduleGutter)
                 <EpaProgressionChart
                     :assessments="sorted"
                     size="compact"
+                    :active-encounter-id="activeEncounterId"
+                    @hover-dot="setActive"
+                    @leave-dot="clearActive"
                 />
+                <span class="epaChartExpandHint">click to expand</span>
             </button>
         </div>
 
@@ -227,6 +253,9 @@ watch(visible, scheduleGutter)
                     <EpaProgressionChart
                         :assessments="sorted"
                         size="large"
+                        :active-encounter-id="activeEncounterId"
+                        @hover-dot="setActive"
+                        @leave-dot="clearActive"
                     />
                 </q-card-section>
             </q-card>

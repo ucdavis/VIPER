@@ -8,9 +8,15 @@ const props = withDefaults(
     defineProps<{
         assessments: Assessment[]
         size?: ChartSize
+        activeEncounterId?: number | null
     }>(),
-    { size: "compact" },
+    { size: "compact", activeEncounterId: null },
 )
+
+const emit = defineEmits<{
+    "hover-dot": [id: number]
+    "leave-dot": []
+}>()
 
 const DENSE_THRESHOLD = 8
 
@@ -105,13 +111,42 @@ const monthTicks = computed(() => {
     return all.filter((_, i) => i % step === 0 || i === all.length - 1)
 })
 
-const dots = computed(() =>
-    sorted.value.map((a) => ({
-        cx: dotX(new Date(a.encounterDate).getTime()),
-        cy: dotY(a.levelValue),
-        levelValue: a.levelValue,
-    })),
-)
+// Group same-day assessments and spread their cx symmetrically so duplicate
+// dates don't render on top of each other. Re-sort by cx so the spline draws
+// monotonically left-to-right through the (possibly jittered) sequence.
+const dots = computed(() => {
+    type Dot = { cx: number; cy: number; levelValue: number; encounterId: number }
+    const groups = new Map<number, Assessment[]>()
+    for (const a of sorted.value) {
+        const day = new Date(a.encounterDate)
+        day.setHours(0, 0, 0, 0)
+        const key = day.getTime()
+        const list = groups.get(key)
+        if (list) list.push(a)
+        else groups.set(key, [a])
+    }
+    const result: Dot[] = []
+    const step = dotRadius.value * 2.4
+    for (const list of groups.values()) {
+        const baseX = dotX(new Date(list[0].encounterDate).getTime())
+        const mid = (list.length - 1) / 2
+        list.forEach((a, i) => {
+            result.push({
+                cx: baseX + (i - mid) * step,
+                cy: dotY(a.levelValue),
+                levelValue: a.levelValue,
+                encounterId: a.encounterId,
+            })
+        })
+    }
+    result.sort((a, b) => a.cx - b.cx)
+    return result
+})
+
+const activeDot = computed(() => {
+    if (props.activeEncounterId === null) return null
+    return dots.value.find((d) => d.encounterId === props.activeEncounterId) ?? null
+})
 
 // Smooth path through every dot.
 // 2 points → quadratic with a vertical bulge (up if level rises, down if it falls).
@@ -187,14 +222,32 @@ const dotFillClasses = ["", "cts-dot-1", "cts-dot-2", "cts-dot-3", "cts-dot-4", 
                 stroke-linecap="round"
             />
             <circle
-                v-for="(dot, i) in dots"
-                :key="`d-${i}`"
+                v-if="activeDot"
+                class="epaChartDotHalo"
+                :cx="activeDot.cx.toFixed(1)"
+                :cy="activeDot.cy.toFixed(1)"
+                :r="(dotRadius * 1.9).toFixed(1)"
+                fill="#ffc519"
+                fill-opacity="0.45"
+            />
+            <!-- Mouse-only visual sync inside an aria-hidden chart; the
+                 review list is the canonical keyboard-accessible surface. -->
+            <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions, vuejs-accessibility/mouse-events-have-key-events -->
+            <circle
+                v-for="dot in dots"
+                :key="dot.encounterId"
+                class="epaChartDot"
+                :class="[
+                    dotFillClasses[dot.levelValue],
+                    { 'epaChartDot--active': dot.encounterId === activeEncounterId },
+                ]"
                 :cx="dot.cx.toFixed(1)"
                 :cy="dot.cy.toFixed(1)"
                 :r="dotRadius"
-                :class="dotFillClasses[dot.levelValue]"
-                stroke="white"
+                :stroke="dot.encounterId === activeEncounterId ? '#022851' : 'white'"
                 :stroke-width="geometry.DOT_STROKE"
+                @mouseenter="emit('hover-dot', dot.encounterId)"
+                @mouseleave="emit('leave-dot')"
             />
         </svg>
     </div>
@@ -206,29 +259,41 @@ const dotFillClasses = ["", "cts-dot-1", "cts-dot-2", "cts-dot-3", "cts-dot-4", 
     height: 9.25rem;
 }
 
+@media (width >= 1200px) {
+    .epaChartPanel--compact svg {
+        width: 17rem;
+        height: 11.75rem;
+    }
+}
+
+@media (width >= 1600px) {
+    .epaChartPanel--compact svg {
+        width: 21rem;
+        height: 14.5rem;
+    }
+}
+
 .epaChartPanel--large svg {
     width: 100%;
     height: auto;
     max-width: 45rem;
 }
 
-.cts-dot-1 {
-    fill: rgb(62 127 238 / 30%);
+@media screen and (prefers-reduced-motion: reduce) {
+    .epaChartDot {
+        cursor: pointer;
+        transition: none;
+    }
 }
 
-.cts-dot-2 {
-    fill: rgb(62 127 238 / 70%);
+.epaChartDot {
+    cursor: pointer;
+    transition:
+        r 0.12s,
+        stroke 0.12s;
 }
 
-.cts-dot-3 {
-    fill: rgb(62 127 238 / 100%);
-}
-
-.cts-dot-4 {
-    fill: rgb(0 44 175 / 80%);
-}
-
-.cts-dot-5 {
-    fill: rgb(11 3 139 / 100%);
+.epaChartDotHalo {
+    pointer-events: none;
 }
 </style>

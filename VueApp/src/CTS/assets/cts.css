@@ -208,6 +208,28 @@
     font-style: italic;
 }
 
+/* Shared dot colors (used by EpaProgressionChart SVG circles and inline byline dots) */
+.cts-dot-1 {
+    fill: rgb(62 127 238 / 30%);
+    background-color: rgb(62 127 238 / 30%);
+}
+.cts-dot-2 {
+    fill: rgb(62 127 238 / 70%);
+    background-color: rgb(62 127 238 / 70%);
+}
+.cts-dot-3 {
+    fill: rgb(62 127 238 / 100%);
+    background-color: rgb(62 127 238 / 100%);
+}
+.cts-dot-4 {
+    fill: rgb(0 44 175 / 80%);
+    background-color: rgb(0 44 175 / 80%);
+}
+.cts-dot-5 {
+    fill: rgb(11 3 139 / 100%);
+    background-color: rgb(11 3 139 / 100%);
+}
+
 /* ── Style 4: Voices in the Margin ── */
 .epaThread {
     background: #ffffff;
@@ -287,9 +309,18 @@
 .epaVoice {
     grid-column: 2;
     padding: 0.875rem 0 0.875rem 1.25rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.12s;
 }
 .epaVoice + .epaVoice {
     border-top: 1px solid #f0ece4;
+}
+.epaVoice--active {
+    background-color: rgba(2, 40, 81, 0.05);
+}
+.epaVoice:focus-visible {
+    outline: 2px solid var(--q-primary);
+    outline-offset: 2px;
 }
 .epaVoiceQuote {
     font-family: Georgia, "Times New Roman", serif;
@@ -317,6 +348,15 @@
 .epaVoiceSupervision {
     font-style: italic;
     display: block;
+}
+.epaVoiceLevelDot {
+    display: inline-block;
+    width: 0.7em;
+    height: 0.7em;
+    border-radius: 50%;
+    vertical-align: -0.05em;
+    margin-right: 0.4em;
+    border: 1px solid rgba(2, 40, 81, 0.15);
 }
 .epaThreadMore {
     grid-column: 2;
@@ -366,6 +406,19 @@
 .epaChartButton:focus-visible {
     outline: 2px solid var(--q-primary);
     outline-offset: 2px;
+}
+.epaChartExpandHint {
+    display: block;
+    font-size: 0.7rem;
+    color: #6c757d;
+    text-align: center;
+    margin-top: 0.25rem;
+    letter-spacing: 0.03em;
+    transition: color 0.12s;
+}
+.epaChartButton:hover .epaChartExpandHint,
+.epaChartButton:focus-visible .epaChartExpandHint {
+    color: var(--ucdavis-blue-100, #022851);
 }
 @media (max-width: 599px) {
     .epaThreadContent {
