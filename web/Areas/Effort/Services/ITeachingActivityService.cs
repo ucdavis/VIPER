@@ -33,16 +33,30 @@ public interface ITeachingActivityService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Generate a PDF document from a teaching activity report (grouped layout, one page per department).
+    /// Generate a PDF document from a teaching activity report
+    /// (grouped layout, one page per department).
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(TeachingActivityReport report);
 
     /// <summary>
-    /// Generate a PDF document from a teaching activity report in individual (per-instructor) layout.
+    /// Generate a PDF document from a teaching activity report in individual
+    /// (per-instructor) layout.
     /// </summary>
     Task<byte[]> GenerateIndividualReportPdfAsync(TeachingActivityReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a teaching activity report
+    /// (grouped layout, one worksheet per department). Instructor-totals
+    /// rows interleave the course rows so no single structured table is
+    /// built.
+    /// </summary>
     MemoryStream GenerateReportExcel(TeachingActivityReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a teaching activity report
+    /// (individual layout, one worksheet per instructor). Course rows are
+    /// promoted to a structured Excel Table; the instructor-totals row stays
+    /// outside it.
+    /// </summary>
     MemoryStream GenerateIndividualReportExcel(TeachingActivityReport report);
 }

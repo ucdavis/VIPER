@@ -185,10 +185,12 @@ const {
     handlePrint,
     handleExcelDownload,
 } = useReportPage<TeachingActivityReport>({
+    title: "Teaching Activity by Instructor",
     fetchReport: (params) => reportService.getTeachingActivityIndividual(params),
     fetchPdf: (params) => reportService.openPdf("teaching/individual/pdf", params),
     fetchExcel: (params) => reportService.downloadExcel("teaching/individual/excel", params),
     getEffortTypes: (r) => r.effortTypes,
+    hasData: (r) => r.departments.some((d) => d.instructors.length > 0),
 })
 
 /** Strip trailing zeros: 12.00 -> "12", 10.50 -> "10.5" */

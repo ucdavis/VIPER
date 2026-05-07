@@ -17,9 +17,6 @@ import type {
 
 const { get, put } = useFetch()
 
-/** Delay before revoking a blob URL opened in a new tab */
-const BLOB_REVOKE_DELAY_MS = 1000
-
 /**
  * Service for report API calls.
  */
@@ -207,32 +204,31 @@ class ReportService {
     }
 
     /**
-     * Export multi-year report as PDF. Returns false if no data.
+     * Open multi-year merit + evaluation PDF in a new tab. The PDF is served inline so the
+     * browser viewer renders it and Save preserves the server-supplied filename.
      */
-    async openMultiYearPdf(params: {
+    openMultiYearPdf(params: {
         personId: number
         startYear: number
         endYear: number
         excludeClinTerms?: string
         excludeDidTerms?: string
         useAcademicYear?: boolean
-    }): Promise<boolean> {
-        const body = {
-            personId: params.personId,
-            startYear: params.startYear,
-            endYear: params.endYear,
-            excludeClinicalTerms: params.excludeClinTerms || null,
-            excludeDidacticTerms: params.excludeDidTerms || null,
-            useAcademicYear: params.useAcademicYear || false,
+    }): void {
+        const searchParams = new URLSearchParams()
+        searchParams.set("personId", params.personId.toString())
+        searchParams.set("startYear", params.startYear.toString())
+        searchParams.set("endYear", params.endYear.toString())
+        if (params.excludeClinTerms) {
+            searchParams.set("excludeClinicalTerms", params.excludeClinTerms)
         }
-        const { blob } = await postForBlob(`${this.baseUrl}/merit/multiyear/pdf`, body)
-        if (blob.size === 0) {
-            return false
+        if (params.excludeDidTerms) {
+            searchParams.set("excludeDidacticTerms", params.excludeDidTerms)
         }
-        const url = globalThis.URL.createObjectURL(blob)
-        globalThis.open(url, "_blank", "noopener")
-        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), BLOB_REVOKE_DELAY_MS)
-        return true
+        if (params.useAcademicYear) {
+            searchParams.set("useAcademicYear", "true")
+        }
+        globalThis.open(`${this.baseUrl}/merit/multiyear/pdf?${searchParams.toString()}`, "_blank", "noopener")
     }
 
     /**
@@ -257,6 +253,13 @@ class ReportService {
         }
         downloadBlob(blob, filename ?? "report.xlsx")
         return true
+    }
+
+    openClinicalEffortPdf(academicYear: string, clinicalType: number): void {
+        const searchParams = new URLSearchParams()
+        searchParams.set("academicYear", academicYear)
+        searchParams.set("clinicalType", clinicalType.toString())
+        globalThis.open(`${this.baseUrl}/merit/clinical/pdf?${searchParams.toString()}`, "_blank", "noopener")
     }
 
     async downloadMultiYearExcel(params: {
@@ -284,17 +287,12 @@ class ReportService {
     }
 
     /**
-     * Open a report PDF in a new tab. Returns false if the report has no data.
+     * Open a report PDF in a new tab. The endpoint is served inline so the browser viewer
+     * renders it and Save preserves the server-supplied filename.
      */
-    async openPdf(endpoint: string, params: ReportFilterParams): Promise<boolean> {
-        const { blob } = await postForBlob(`${this.baseUrl}/${endpoint}`, params)
-        if (blob.size === 0) {
-            return false
-        }
-        const url = globalThis.URL.createObjectURL(blob)
+    openPdf(endpoint: string, params: ReportFilterParams): void {
+        const url = this.buildUrl(endpoint, params)
         globalThis.open(url, "_blank", "noopener")
-        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), BLOB_REVOKE_DELAY_MS)
-        return true
     }
 
     private buildUrl(endpoint: string, params: ReportFilterParams): string {

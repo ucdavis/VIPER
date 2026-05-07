@@ -1,5 +1,5 @@
 import { normalizeScheduleSemesters } from "../composables/use-schedule-normalization"
-import type { ScheduleSemester } from "../components/ScheduleView.vue"
+import type { ScheduleSemester } from "../components/schedule-view-types"
 
 describe(normalizeScheduleSemesters, () => {
     it("should return empty array when input is undefined", () => {

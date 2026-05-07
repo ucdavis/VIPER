@@ -8,7 +8,7 @@ const props = withDefaults(
         filter?: string
         showSearch?: boolean
         excelExport?: () => Promise<void>
-        pdfExport?: () => Promise<void>
+        pdfExport?: () => void | Promise<void>
         wordExport?: () => Promise<void>
         printAction?: () => void
         busy?: boolean

@@ -61,20 +61,6 @@
                             </q-btn>
                         </q-btn-group>
                     </div>
-                    <div
-                        v-if="activeTab === 'list' && studentListData.length > 0"
-                        class="col-auto"
-                    >
-                        <q-btn
-                            flat
-                            icon="print"
-                            color="primary"
-                            aria-label="Print Student List"
-                            @click="handlePrint"
-                        >
-                            <q-tooltip>Print Student List</q-tooltip>
-                        </q-btn>
-                    </div>
                 </div>
             </q-card-section>
 
@@ -205,22 +191,19 @@
                         class="q-mt-lg"
                     >
                         <!-- Title bar with export toolbar -->
-                        <div class="row items-center q-mb-md q-pa-sm bg-grey-2 rounded-borders no-print">
+                        <div class="row items-center q-pa-sm bg-grey-2 rounded-borders no-print">
                             <div class="col">
                                 <h2 class="text-h5 text-weight-bold q-my-none">{{ pageTitle }}</h2>
                             </div>
                             <div class="col-auto">
+                                <!-- One toolbar drives all gallery views; sheet view hides the
+                                     search input but keeps the same accessible PDF/Word exports. -->
                                 <ExportToolbar
-                                    v-if="galleryStore.galleryView !== 'sheet'"
                                     v-model:filter="photoFilter"
-                                    show-search
+                                    :show-search="galleryStore.galleryView !== 'sheet'"
                                     :busy="galleryStore.exportInProgress"
                                     :pdf-export="handleExportToPDF"
                                     :word-export="handleExportToWord"
-                                />
-                                <ExportToolbar
-                                    v-else
-                                    :print-action="handlePrint"
                                 />
                             </div>
                         </div>
@@ -464,22 +447,22 @@
                         v-else-if="studentListData.length > 0"
                         class="q-mt-lg"
                     >
-                        <!-- Print Button for Student List -->
-                        <div class="row q-mb-md no-print">
-                            <q-btn
-                                color="primary"
-                                icon="print"
-                                label="Print"
-                                @click="handlePrint"
-                            />
-                        </div>
-
-                        <div class="row items-center q-mb-md no-print">
+                        <!-- Title bar matches the gallery view pattern: title + caption
+                             on the left, ExportToolbar (search input + Print/PDF button)
+                             on the right, all on a single row. -->
+                        <div class="row items-center q-mb-md q-pa-sm bg-grey-2 rounded-borders no-print">
                             <div class="col">
-                                <h2 class="text-subtitle1 q-my-none">
+                                <h2 class="text-subtitle1 q-my-none student-list-title">
                                     {{ studentListTitle }}
                                 </h2>
                                 <div class="text-caption text-grey-7">Generated: {{ currentDateFormatted }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <ExportToolbar
+                                    v-model:filter="studentListFilter"
+                                    show-search
+                                    :pdf-export="handleExportStudentListToPDF"
+                                />
                             </div>
                         </div>
 
@@ -491,23 +474,7 @@
                             :pagination="{ rowsPerPage: 0 }"
                             :filter="studentListFilter"
                             class="student-list-table"
-                        >
-                            <template #top-right>
-                                <div class="no-print">
-                                    <q-input
-                                        v-model="studentListFilter"
-                                        dense
-                                        outlined
-                                        debounce="300"
-                                        placeholder="Filter students"
-                                    >
-                                        <template #append>
-                                            <q-icon name="search" />
-                                        </template>
-                                    </q-input>
-                                </div>
-                            </template>
-                        </q-table>
+                        />
                     </div>
 
                     <div
@@ -538,6 +505,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue"
+import { useTitle } from "@vueuse/core"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
@@ -556,8 +524,6 @@ import type { QTableColumn } from "quasar"
 import type { StudentPhoto } from "../services/photo-gallery-service"
 
 // Constants
-const PRINT_DELAY_MS = 1000 // Delay before triggering print dialog to ensure images are loaded
-
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
@@ -1229,6 +1195,7 @@ async function handleExportToWord() {
         await galleryStore.exportToWord({
             groupType: selectedGroupType.value || undefined,
             groupId: selectedGroup.value || undefined,
+            view: galleryStore.galleryView,
         })
         $q.notify({
             type: "positive",
@@ -1242,28 +1209,40 @@ async function handleExportToWord() {
     }
 }
 
-async function handleExportToPDF() {
-    try {
-        // Pass local group type/id to ensure proper grouping in export
-        await galleryStore.exportToPDF({
-            groupType: selectedGroupType.value || undefined,
-            groupId: selectedGroup.value || undefined,
-        })
-        $q.notify({
-            type: "positive",
-            message: "Export to PDF completed successfully",
-        })
-    } catch (error: any) {
-        $q.notify({
-            type: "negative",
-            message: error.message || "Failed to export to PDF",
-        })
-    }
+function handleExportToPDF() {
+    photoGalleryService.openPdf({
+        ...galleryStore.exportParams,
+        groupType: selectedGroupType.value || undefined,
+        groupId: selectedGroup.value || undefined,
+        exportFormat: "pdf",
+        view: galleryStore.galleryView,
+    })
 }
 
-function handlePrint() {
-    globalThis.print()
+function handleExportStudentListToPDF() {
+    const classYearInfo = classYears.value.find((cy) => cy.year === selectedStudentListYear.value)
+    if (!classYearInfo) {
+        $q.notify({ type: "warning", message: "Select a class year before exporting." })
+        return
+    }
+    if (studentListData.value.length === 0) {
+        $q.notify({ type: "warning", message: "No students to export." })
+        return
+    }
+    photoGalleryService.openStudentListPdf({
+        classLevel: classYearInfo.classLevel,
+        includeRossStudents: includeRossStudentsInList.value,
+    })
 }
+
+// Page title reflects the active tab so the browser tab + saved-file
+// suggestion (when users print or save) match the content on screen.
+const pageDocumentTitle = computed(() => {
+    const base = activeTab.value === "list" ? studentListTitle.value : pageTitle.value
+    const trimmed = (base || "Students").trim()
+    return trimmed.length > 0 ? `${trimmed} | VIPER` : "VIPER - Students"
+})
+useTitle(pageDocumentTitle)
 
 async function handleStudentClickByMailId(mailId: string) {
     if (!galleryStore.students || galleryStore.students.length === 0) {
@@ -1347,20 +1326,10 @@ watch(
 watch(
     () => galleryStore.galleryView,
     async (newView, oldView) => {
-        // Reload data and auto-trigger print dialog when switching to sheet view
+        // Refresh photo data when switching into sheet view so the rendered
+        // sheet reflects the current selection.
         if (newView === "sheet" && oldView !== "sheet") {
-            // Reload Photo Gallery data to ensure it's fresh
             await reloadPhotoGalleryData()
-
-            // Auto-trigger print dialog after data loads
-            if (galleryStore.hasStudents) {
-                // Use nextTick + setTimeout to ensure images are loaded before printing
-                nextTick(() => {
-                    setTimeout(() => {
-                        window.print()
-                    }, PRINT_DELAY_MS)
-                })
-            }
         }
     },
 )
@@ -1423,6 +1392,16 @@ watch(selectedStudentIndex, (newIndex) => {
 
 <style>
 h1.page-main-title {
+    margin: 0;
+}
+
+/* Tighten the line-height and zero the margin so the "Generated:" caption
+   sits flush below the student list title. text-subtitle1 sets a
+   line-height around 1.75 with the same class-level specificity as our
+   override, so we use the element+class selector (matching the
+   page-main-title rule above) to win the cascade against Quasar. */
+h2.student-list-title {
+    line-height: 1.2;
     margin: 0;
 }
 

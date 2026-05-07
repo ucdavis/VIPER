@@ -58,6 +58,12 @@ interface PhotoExportRequest {
     crn?: string
     includeRossStudents?: boolean
     exportFormat?: string
+    /**
+     * On-screen view that triggered the export ("grid" | "list" | "sheet").
+     * Carried into the saved filename so multiple downloads of the same class
+     * can be told apart.
+     */
+    view?: string
 }
 
 interface GalleryMenu {
@@ -151,6 +157,55 @@ class PhotoGalleryService {
 
     exportToPDF = (request: PhotoExportRequest): Promise<{ blob: Blob; filename: string | null }> =>
         postForBlob(`${this.baseUrl}/export/pdf`, request)
+
+    /**
+     * Opens the photo-gallery PDF in a new browser tab via the GET endpoint
+     * so the document renders in the browser's built-in viewer. Use this for
+     * inline preview; use `exportToPDF` when you need a Blob for download.
+     */
+    openPdf = (request: PhotoExportRequest): void => {
+        const params = new URLSearchParams()
+        if (request.classLevel) {
+            params.set("classLevel", request.classLevel)
+        }
+        if (request.groupType) {
+            params.set("groupType", request.groupType)
+        }
+        if (request.groupId) {
+            params.set("groupId", request.groupId)
+        }
+        if (request.termCode) {
+            params.set("termCode", request.termCode)
+        }
+        if (request.crn) {
+            params.set("crn", request.crn)
+        }
+        if (request.includeRossStudents) {
+            params.set("includeRossStudents", "true")
+        }
+        if (request.view) {
+            params.set("view", request.view)
+        }
+        const qs = params.toString()
+        const url = qs ? `${this.baseUrl}/export/pdf?${qs}` : `${this.baseUrl}/export/pdf`
+        globalThis.open(url, "_blank", "noopener")
+    }
+
+    exportStudentListToPDF = (request: PhotoExportRequest): Promise<{ blob: Blob; filename: string | null }> =>
+        postForBlob(`${this.baseUrl}/export/list/pdf`, request)
+
+    /**
+     * Opens the tabular student-list PDF in a new browser tab via the GET
+     * endpoint so the document renders in the browser's built-in viewer.
+     */
+    openStudentListPdf = (request: { classLevel: string; includeRossStudents?: boolean }): void => {
+        const params = new URLSearchParams()
+        params.set("classLevel", request.classLevel)
+        if (request.includeRossStudents) {
+            params.set("includeRossStudents", "true")
+        }
+        globalThis.open(`${this.baseUrl}/export/list/pdf?${params.toString()}`, "_blank", "noopener")
+    }
 
     getAvailableGroups = async (): Promise<any> => {
         const { get } = useFetch()

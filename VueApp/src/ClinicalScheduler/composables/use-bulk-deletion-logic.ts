@@ -1,6 +1,6 @@
 import type { Ref } from "vue"
 import { useQuasar } from "quasar"
-import type { ScheduleSemester } from "../components/ScheduleView.vue"
+import type { ScheduleSemester } from "../components/schedule-view-types"
 import type { ScheduleData } from "../utils/schedule-update-helpers"
 import { useBulkDeletion } from "./use-bulk-deletion"
 import { showBulkDeleteConfirmation } from "../utils/confirmation-dialog"

@@ -209,9 +209,9 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
     public Task<byte[]> GenerateReportPdfAsync(TeachingActivityReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+
+        const string reportTitle = "Teaching Activity Report";
 
         // Compact when 12+ effort types: with 6 fixed columns (Qtr, Role, Instructor,
         // Course, Units, Enroll), non-compact overflows the page at 12+ effort types
@@ -242,20 +242,20 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text("Teaching Activity Report").SemiBold().FontSize(12);
-                            row.RelativeItem().AlignCenter().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -295,10 +295,14 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                                 table.Cell().PaddingVertical(cellPadV).Text(course.TermCode.ToString());
                                 table.Cell().PaddingVertical(cellPadV).PaddingLeft(4).Text(course.RoleId);
 
+                                // Per-row instructor cell instead of RowSpan (PDF/UA clause 7.2 test 15)
                                 if (i == 0)
                                 {
-                                    table.Cell().RowSpan((uint)courses.Count).PaddingVertical(cellPadV)
-                                        .Text(instructor.Instructor).SemiBold();
+                                    table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold();
+                                }
+                                else
+                                {
+                                    table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold().FontColor("#FFFFFF");
                                 }
 
                                 table.Cell().PaddingVertical(cellPadV).Text(course.Course);
@@ -324,8 +328,13 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                             }
                         }
 
-                        // Re-display effort type headers before dept totals
-                        table.Cell().ColumnSpan(6).BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("");
+                        // Re-display column headers before dept totals
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Qtr").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Role").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Instructor").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Course").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Units").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Enroll").Style(hdrStyle);
                         foreach (var type in orderedTypes)
                         {
                             table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
@@ -343,31 +352,22 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                         }
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(),
-                            ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
-                            ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(),
+                        ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                        ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Teaching activity by department for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
 
     public Task<byte[]> GenerateIndividualReportPdfAsync(TeachingActivityReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+
+        const string reportTitle = "Teaching Activity Report (Individual)";
 
         // Compact when 12+ effort types: with fixed columns, non-compact overflows the page
         var compact = orderedTypes.Count > 11;
@@ -402,22 +402,22 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text("Teaching Activity Report (Individual)").SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
                             row.RelativeItem().AlignCenter().Text(dept).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                         // Instructor name below the sub-header
-                        col.Item().PaddingBottom(4).Text(instructor.Instructor).Bold().FontSize(11);
+                        col.Item().PaddingBottom(4).SemanticHeader2().Text(instructor.Instructor).Bold().FontSize(11);
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -472,22 +472,13 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                         }
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(),
-                            ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
-                            ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(),
+                        ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                        ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Teaching activity by instructor for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -495,17 +486,21 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
     public MemoryStream GenerateReportExcel(TeachingActivityReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Teaching Activity Report";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Teaching activity by department for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 4 + effortCols.Count;
-        var termName = report.AcademicYear ?? report.TermName;
 
         foreach (var dept in report.Departments)
         {
             var ws = wb.Worksheets.Add(dept.Department);
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Teaching Activity Report", termName, dept.Department);
+            int row = AddExcelHeader(ws, reportTitle, termName, dept.Department);
             row = AddExcelFilterLine(ws, row,
                 ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
                 ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
@@ -609,10 +604,14 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
     public MemoryStream GenerateIndividualReportExcel(TeachingActivityReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Teaching Activity Report (Individual)";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Teaching activity by instructor for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 3 + effortCols.Count;
-        var termName = report.AcademicYear ?? report.TermName;
 
         var allInstructors = report.Departments
             .SelectMany(d => d.Instructors.Select(i => (Dept: d.Department, Instructor: i)))
@@ -629,14 +628,14 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
             var ws = wb.Worksheets.Add(sheetName);
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Teaching Activity Report (Individual)",
-                termName, dept, instructor.Instructor);
+            int row = AddExcelHeader(ws, reportTitle, termName, dept, instructor.Instructor);
             row = AddExcelFilterLine(ws, row,
                 ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
                 ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
             row++; // blank separator
 
             // Column headers
+            int headerRow = row;
             int col = 1;
             ws.Cell(row, col++).Value = "Course";
             ws.Cell(row, col++).Value = "Units";
@@ -662,6 +661,13 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                     col++;
                 }
                 row++;
+            }
+
+            if (row > headerRow + 1)
+            {
+                ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                    ws.Range(headerRow, 1, row - 1, lastCol),
+                    $"Teaching_{sheetName}");
             }
 
             // Totals row

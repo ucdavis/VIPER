@@ -78,33 +78,11 @@
 import { computed, ref } from "vue"
 import { useKeyModifier, useEventListener } from "@vueuse/core"
 import WeekCell from "./WeekCell.vue"
-
-export interface WeekItem {
-    weekId: number
-    weekNumber: number
-    dateStart: string
-    dateEnd?: string
-    requiresPrimaryEvaluator?: boolean
-    [key: string]: unknown
-}
 import ScheduleLegend from "./ScheduleLegend.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
+import type { WeekItem, ScheduleAssignment, ScheduleSemester, ViewMode } from "./schedule-view-types"
 
-export interface ScheduleAssignment {
-    id: number
-    displayName: string
-    isPrimary?: boolean
-    [key: string]: unknown
-}
-
-export interface ScheduleSemester {
-    semester?: string // For clinician view
-    name?: string // For rotation view
-    displayName?: string // For rotation view
-    weeks: (WeekItem & { dateEnd: string })[]
-}
-
-export type ViewMode = "rotation" | "clinician"
+export type { WeekItem, ScheduleAssignment, ScheduleSemester, ViewMode }
 
 // Helper callable type to avoid parameter-name linting within Props
 interface WeekFn<T> {

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -896,8 +897,6 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
     public Task<byte[]> GenerateReportPdfAsync(MultiYearReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var lastType = orderedTypes[^1];
         var compact = orderedTypes.Count > 10;
@@ -911,6 +910,8 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
             ? $"{report.StartYear}-{report.StartYear + 1} to {report.EndYear}-{report.EndYear + 1}"
             : $"{report.StartYear} to {report.EndYear}";
 
+        var reportTitle = $"Merit & Promotion Multi-Year Report \u2014 {report.Instructor}";
+
         var document = Document.Create(container =>
         {
             // Page 1: Merit Activity
@@ -923,18 +924,18 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
                 page.Header().Column(col =>
                 {
-                    col.Item().Row(row =>
+                    col.Item().SemanticIgnore().Row(row =>
                     {
                         row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                         row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                     });
                     col.Item().PaddingVertical(4)
-                        .Text($"Merit & Promotion Multi-Year Report \u2014 {report.Instructor}").SemiBold().FontSize(12);
+                        .SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
                     var yearTypeLabel = report.UseAcademicYear ? "Academic Year" : "Calendar Year";
                     col.Item().Text($"{yearLabel} ({yearTypeLabel})").SemiBold().FontSize(10);
                 });
 
-                page.Content().PaddingTop(8).Table(table =>
+                page.Content().PaddingTop(8).SemanticTable().Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
@@ -1048,7 +1049,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                     }
                 });
 
-                page.Footer().AlignCenter().Text(x =>
+                page.Footer().SemanticIgnore().AlignCenter().Text(x =>
                 {
                     x.Span("Page ");
                     x.CurrentPageNumber();
@@ -1069,12 +1070,12 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
-                        col.Item().PaddingVertical(4).Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
+                        col.Item().PaddingVertical(4).SemanticHeader2().Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
                         col.Item().Row(row =>
                         {
                             row.RelativeItem().Text($"{report.Instructor} ({report.Department})").SemiBold().FontSize(10);
@@ -1085,7 +1086,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                     page.Content().PaddingTop(8).Column(contentCol =>
                     {
                         contentCol.Item().Text("Instructor").Bold();
-                        contentCol.Item().PaddingTop(4).Table(table =>
+                        contentCol.Item().PaddingTop(4).SemanticTable().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -1130,40 +1131,36 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                                     table.Cell().PaddingVertical(cellPadV).Text(course.Course);
                                     table.Cell().PaddingVertical(cellPadV).Text(course.Average.ToString("F2"));
                                     table.Cell().PaddingVertical(cellPadV)
-                                        .Text(course.Median.HasValue ? Math.Round(course.Median.Value).ToString() : "");
+                                        .Text(course.Median.HasValue ? Math.Round(course.Median.Value).ToString(CultureInfo.InvariantCulture) : " ");
                                 }
 
                                 // Year average (value only in Average column)
                                 table.Cell().ColumnSpan(5).PaddingVertical(cellPadV).AlignRight().PaddingRight(4)
                                     .Text($"Average for {year.YearLabel}").Bold().Italic();
-                                table.Cell().PaddingVertical(cellPadV)
+                                table.Cell().ColumnSpan(2).PaddingVertical(cellPadV)
                                     .Text(year.YearAverage.ToString("F2")).Bold();
-                                table.Cell(); // empty median
                             }
 
                             // Overall average (value only in Average column)
                             table.Cell().ColumnSpan(5).BorderTop(1.5f).BorderColor("#666666")
                                 .Background("#E0E0E0").PaddingVertical(cellPadV).AlignRight().PaddingRight(4)
                                 .Text("Overall Average:").Bold();
-                            table.Cell().BorderTop(1.5f).BorderColor("#666666")
+                            table.Cell().ColumnSpan(2).BorderTop(1.5f).BorderColor("#666666")
                                 .Background("#E0E0E0").PaddingVertical(cellPadV)
                                 .Text(report.EvalSection.OverallAverage.ToString("F2")).Bold();
-                            table.Cell().BorderTop(1.5f).BorderColor("#666666")
-                                .Background("#E0E0E0"); // empty median
 
                             // Department average
                             if (report.EvalSection.DepartmentAverage.HasValue)
                             {
                                 table.Cell().ColumnSpan(5).PaddingVertical(cellPadV).AlignRight().PaddingRight(4)
                                     .Text($"{report.Department} Department Average for {report.StartYear} - {report.EndYear}").Italic();
-                                table.Cell().PaddingVertical(cellPadV)
+                                table.Cell().ColumnSpan(2).PaddingVertical(cellPadV)
                                     .Text(report.EvalSection.DepartmentAverage.Value.ToString("F2"));
-                                table.Cell(); // empty median
                             }
                         });
                     });
 
-                    page.Footer().AlignCenter().Text(x =>
+                    page.Footer().SemanticIgnore().AlignCenter().Text(x =>
                     {
                         x.Span("Page ");
                         x.CurrentPageNumber();
@@ -1184,12 +1181,12 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
-                        col.Item().PaddingVertical(4).Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
+                        col.Item().PaddingVertical(4).SemanticHeader2().Text("Multi-Year Evaluation Report").SemiBold().FontSize(12);
                         col.Item().Row(row =>
                         {
                             row.RelativeItem().Text($"{report.Instructor} ({report.Department})").SemiBold().FontSize(10);
@@ -1223,7 +1220,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                         });
                     });
 
-                    page.Footer().AlignCenter().Text(x =>
+                    page.Footer().SemanticIgnore().AlignCenter().Text(x =>
                     {
                         x.Span("Page ");
                         x.CurrentPageNumber();
@@ -1232,7 +1229,8 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
                     });
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Multi-year merit and evaluation summary for {report.Instructor}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -1264,13 +1262,17 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
     public MemoryStream GenerateReportExcel(MultiYearReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Merit & Promotion Report - Multi-Year";
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Multi-year merit and evaluation summary for {report.Instructor}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 4 + effortCols.Count;
         var ws = wb.Worksheets.Add("Multi-Year Report");
 
         // Report title header matching PDF
-        int row = AddExcelHeader(ws, "Merit & Promotion Report - Multi-Year", null);
+        int row = AddExcelHeader(ws, reportTitle, null);
 
         // Instructor/Department/Period info
         ws.Cell(row, 1).Value = "Instructor";

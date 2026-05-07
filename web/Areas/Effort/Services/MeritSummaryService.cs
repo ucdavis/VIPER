@@ -252,10 +252,9 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
     public Task<byte[]> GenerateReportPdfAsync(MeritSummaryReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
+        const string reportTitle = "Merit & Promotion Summary Report";
         var compact = orderedTypes.Count > 14;
         var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
         var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
@@ -279,21 +278,21 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
                         page.Header().Column(col =>
                         {
-                            col.Item().Row(row =>
+                            col.Item().SemanticIgnore().Row(row =>
                             {
                                 row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                                 row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                             });
                             col.Item().PaddingVertical(6).Row(row =>
                             {
-                                row.RelativeItem().Text("Merit & Promotion Summary Report").SemiBold().FontSize(12);
-                                row.RelativeItem().AlignCenter().Text(dept.Department).SemiBold().FontSize(12);
+                                row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                                row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                                 row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                             });
-                            col.Item().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
+                            col.Item().SemanticHeader3().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
                         });
 
-                        page.Content().Table(table =>
+                        page.Content().SemanticTable().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -307,7 +306,12 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                             var hdrStyle = TextStyle.Default.FontSize(headerFontSize).Bold().Underline();
                             table.Header(header =>
                             {
-                                header.Cell().PaddingVertical(cellPadV).Text("").Style(hdrStyle);
+                                // Corner cell is visually blank by design but must exist as a TH so
+                                // the header row covers all columns (PDF/UA clause 7.2). Whitespace-only
+                                // content is dropped from the tag tree by QuestPDF, so we render an
+                                // em-dash in white (invisible against the page) — the cell stays tagged
+                                // while the corner remains visually empty.
+                                header.Cell().PaddingVertical(cellPadV).Text("—").FontColor("#FFFFFF");
                                 foreach (var type in orderedTypes)
                                 {
                                     header.Cell().PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
@@ -324,15 +328,19 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                                 .ForEach(val => table.Cell().Background("#E8E8E8").BorderTop(1.5f).BorderColor("#666666")
                                     .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold());
 
-                            // Number Faculty row
-                            table.Cell().PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
+                            // Number Faculty row (single label/value spanning the full row).
+                            // Trailing ConstantItem absorbs the N effort columns' widths so
+                            // the leading RelativeItem only fills column 1, keeping the
+                            // right-aligned label visually anchored to column 1's right edge.
+                            var numFacAbsorbedWidth = orderedTypes.Sum(t => SpacerColumns.Contains(t) ? spacerWidth : effortWidth);
+                            table.Cell().ColumnSpan((uint)(orderedTypes.Count + 1))
+                                .PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
                             {
                                 row.RelativeItem().AlignRight().Text("Number Faculty:").SemiBold();
                                 row.ConstantItem(30).AlignRight().Text(dept.FacultyCount.ToString()).SemiBold();
                                 row.ConstantItem(55);
+                                row.ConstantItem(numFacAbsorbedWidth);
                             });
-                            foreach (var _ in orderedTypes)
-                                table.Cell().PaddingVertical(cellPadV);
 
                             // Faculty w/ CLI assigned + averages row
                             table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
@@ -348,21 +356,12 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                                     .Text(val.ToString("F1")).Bold());
                         });
 
-                        page.Footer().Column(col =>
-                        {
-                            AddPdfFilterLine(col.Item(), ("Dept", report.FilterDepartment));
-                            col.Item().AlignCenter().Text(x =>
-                            {
-                                x.Span("Page ");
-                                x.CurrentPageNumber();
-                                x.Span(" of ");
-                                x.TotalPages();
-                            });
-                        });
+                        AddPdfPageNumberFooter(page.Footer(), ("Dept", report.FilterDepartment));
                     });
                 }
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Merit and promotion summary for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -370,10 +369,14 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
     public MemoryStream GenerateReportExcel(MeritSummaryReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Merit & Promotion Summary Report";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Merit and promotion summary for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 1 + effortCols.Count;
-        var termName = report.AcademicYear ?? report.TermName;
 
         foreach (var jobGroup in report.JobGroups)
         {
@@ -383,7 +386,7 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                 var ws = wb.Worksheets.Add(sheetName);
 
                 // Header rows matching PDF
-                int row = AddExcelHeader(ws, "Merit & Promotion Summary Report",
+                int row = AddExcelHeader(ws, reportTitle,
                     termName, dept.Department, jobGroup.JobGroupDescription);
                 row = AddExcelFilterLine(ws, row, ("Dept", report.FilterDepartment));
                 row++; // blank separator

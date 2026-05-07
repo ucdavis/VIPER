@@ -601,6 +601,7 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
+import { useTitle } from "@vueuse/core"
 import { reportService } from "../services/report-service"
 import { instructorService } from "../services/instructor-service"
 import { termService } from "../services/term-service"
@@ -623,9 +624,15 @@ const router = useRouter()
 const { isAdmin } = useEffortPermissions()
 
 const loading = ref(false)
-const printLoading = ref(false)
 const excelLoading = ref(false)
 const report = ref<MultiYearReport | null>(null)
+useTitle(
+    computed(() => {
+        const r = report.value
+        if (!r) return "Multi-Year Merit & Promotion Report | VIPER"
+        return `Multi-Year Merit & Promotion Report - ${r.instructor} (${r.startYear}-${r.endYear}) | VIPER`
+    }),
+)
 
 // Filter state
 const selectedPersonId = ref<number | null>(null)
@@ -835,17 +842,13 @@ async function generateReport() {
     }
 }
 
-async function handlePrint() {
+function handlePrint() {
     if (selectedPersonId.value === null || !selectedStartYear.value || !selectedEndYear.value) return
-    printLoading.value = true
-    try {
-        const opened = await reportService.openMultiYearPdf(buildApiParams())
-        if (!opened) {
-            $q.notify({ type: "warning", message: "No data to export for the selected filters." })
-        }
-    } finally {
-        printLoading.value = false
+    if (!report.value || (!hasMeritData.value && !hasEvalData.value)) {
+        $q.notify({ type: "warning", message: "No data to export for the selected filters." })
+        return
     }
+    reportService.openMultiYearPdf(buildApiParams())
 }
 
 async function handleExcelDownload() {

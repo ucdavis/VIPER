@@ -306,6 +306,76 @@ namespace Viper.Areas.Students.Controllers
             return await ExecuteExport(request, _photoExportService.ExportToPdfAsync, "PDF");
         }
 
+        /// <summary>
+        /// Streams the photo-gallery PDF inline (Content-Disposition: inline)
+        /// so it renders in the browser's built-in viewer instead of being
+        /// downloaded by the user agent.
+        /// </summary>
+        [HttpGet("export/pdf")]
+        public async Task<IActionResult> ExportToPdfInline([FromQuery] PhotoExportRequest request)
+        {
+            var validationError = ValidatePhotoExportRequest(request);
+            if (validationError != null) return validationError;
+
+            try
+            {
+                var result = await _photoExportService.ExportToPdfAsync(request);
+                if (result == null)
+                {
+                    return NotFound("No students to export.");
+                }
+                return InlineFile(result.FileData, result.ContentType, result.FileName);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation exporting photo gallery PDF inline");
+                return StatusCode(500, "An error occurred while generating the PDF");
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Invalid argument exporting photo gallery PDF inline");
+                return BadRequest("Invalid export parameters.");
+            }
+        }
+
+        [HttpPost("export/list/pdf")]
+        public async Task<IActionResult> ExportStudentListToPdf([FromBody] PhotoExportRequest request)
+        {
+            return await ExecuteExport(request, _photoExportService.ExportStudentListToPdfAsync, "Student list PDF");
+        }
+
+        /// <summary>
+        /// Streams the tabular student-list PDF inline (Content-Disposition:
+        /// inline) so it renders in the browser's built-in viewer instead of
+        /// being downloaded by the user agent.
+        /// </summary>
+        [HttpGet("export/list/pdf")]
+        public async Task<IActionResult> ExportStudentListToPdfInline([FromQuery] PhotoExportRequest request)
+        {
+            var validationError = ValidatePhotoExportRequest(request);
+            if (validationError != null) return validationError;
+
+            try
+            {
+                var result = await _photoExportService.ExportStudentListToPdfAsync(request);
+                if (result == null)
+                {
+                    return NotFound("No students to export.");
+                }
+                return InlineFile(result.FileData, result.ContentType, result.FileName);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation exporting student list PDF inline");
+                return StatusCode(500, "An error occurred while generating the student list PDF");
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Invalid argument exporting student list PDF inline");
+                return BadRequest("Invalid export parameters.");
+            }
+        }
+
         [HttpGet("metadata/groups")]
         public async Task<IActionResult> GetAvailableGroups()
         {
@@ -386,26 +456,7 @@ namespace Viper.Areas.Students.Controllers
             Func<PhotoExportRequest, Task<PhotoExportResult?>> exportFunc,
             string formatName)
         {
-            // Validate class level
-            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
-            {
-                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
-            }
-
-            // Validate group type
-            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType.ToLower()))
-            {
-                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
-            }
-
-            // Validate group ID
-            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
-            {
-                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
-            }
-
-            // Validate course parameters
-            var validationError = ValidateCourseParams(request.TermCode, request.Crn, required: false);
+            var validationError = ValidatePhotoExportRequest(request);
             if (validationError != null)
             {
                 return validationError;
@@ -449,6 +500,34 @@ namespace Viper.Areas.Students.Controllers
             var wrappedJson = $"{{\"statusCode\":200,\"success\":true,\"result\":{jsonString}}}";
 
             return Content(wrappedJson, "application/json");
+        }
+
+        /// <summary>
+        /// Validates the optional fields on a photo export request against the
+        /// same allow-lists used by the JSON POST endpoints. Inline GET endpoints
+        /// must call this before invoking the service so external callers cannot
+        /// reach the service layer with malformed input.
+        /// </summary>
+        /// <param name="request">The export request to validate.</param>
+        /// <returns>BadRequestObjectResult if validation fails, null if valid.</returns>
+        private BadRequestObjectResult? ValidatePhotoExportRequest(PhotoExportRequest request)
+        {
+            if (!string.IsNullOrEmpty(request.ClassLevel) && !ValidClassLevels.Contains(request.ClassLevel))
+            {
+                return BadRequest($"Invalid class level. Must be one of: {string.Join(", ", ValidClassLevels)}");
+            }
+
+            if (!string.IsNullOrEmpty(request.GroupType) && !ValidGroupTypes.Contains(request.GroupType.ToLower()))
+            {
+                return BadRequest($"Invalid group type. Must be one of: {string.Join(", ", ValidGroupTypes)}");
+            }
+
+            if (!string.IsNullOrEmpty(request.GroupId) && (string.IsNullOrWhiteSpace(request.GroupId) || request.GroupId.Length > 50))
+            {
+                return BadRequest("Invalid group ID. Must be non-empty and less than 50 characters");
+            }
+
+            return ValidateCourseParams(request.TermCode, request.Crn, required: false);
         }
 
         /// <summary>

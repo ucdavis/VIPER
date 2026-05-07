@@ -77,7 +77,6 @@
 
     /* Prevent rows from breaking across pages */
     tr {
-        page-break-inside: avoid;
         break-inside: avoid;
     }
 

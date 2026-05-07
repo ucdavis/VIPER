@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef } from "vue"
+import { useQuasar } from "quasar"
 import type { QTable, QTableProps } from "quasar"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import ExportToolbar from "@/components/ExportToolbar.vue"
 import { formatPhone } from "../utils/phone"
 import type { StudentContactReport, ContactInfo } from "../types"
 
+const $q = useQuasar()
 const loading = ref(false)
 const rows = ref<StudentContactReport[]>([])
 const filter = ref("")
@@ -54,11 +56,20 @@ function formatContact(contact: ContactInfo | null | undefined): string[] {
 }
 
 async function handleExcelExport(): Promise<void> {
-    await emergencyContactService.downloadExcel()
+    const success = await emergencyContactService.downloadExcel()
+    if (success) {
+        $q.notify({ type: "positive", message: "Excel report downloaded." })
+    } else {
+        $q.notify({ type: "warning", message: "No data to export." })
+    }
 }
 
-async function handlePdfExport(): Promise<void> {
-    await emergencyContactService.openPdf()
+function handlePdfExport(): void {
+    if (rows.value.length === 0) {
+        $q.notify({ type: "warning", message: "No data to export." })
+        return
+    }
+    emergencyContactService.openPdf()
 }
 
 async function load(): Promise<void> {

@@ -109,9 +109,11 @@ import type { EvalSummaryReport } from "../types"
 
 const { termCode, loading, report, initialFilters, generateReport, handlePrint, handleExcelDownload } =
     useReportPage<EvalSummaryReport>({
+        title: "Evaluation Summary Report",
         fetchReport: (params) => reportService.getEvalSummary(params),
         fetchPdf: (params) => reportService.openPdf("eval/summary/pdf", params),
         fetchExcel: (params) => reportService.downloadExcel("eval/summary/excel", params),
+        hasData: (r) => r.departments.length > 0,
     })
 
 function formatDecimal(value: number): string {

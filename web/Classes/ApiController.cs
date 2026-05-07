@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using Viper.Models;
 
 namespace Viper.Classes
@@ -50,6 +51,24 @@ namespace Viper.Classes
         protected ActionResult ForbidApi(string message = "Access Denied.")
         {
             return StatusCode(StatusCodes.Status403Forbidden, message);
+        }
+
+        /// <summary>
+        /// Returns a file response with Content-Disposition: inline so the browser renders it
+        /// in the built-in viewer (e.g. PDF) and uses <paramref name="filename"/> when the user
+        /// saves from the viewer. RFC 6266 filename encoding is handled by SetHttpFileName.
+        /// </summary>
+        protected FileContentResult InlineFile(byte[] bytes, string contentType, string filename)
+        {
+            var disposition = new ContentDispositionHeaderValue("inline");
+            disposition.SetHttpFileName(filename);
+            Response.Headers.ContentDisposition = disposition.ToString();
+            // Inline exports often contain PII (student/effort data); GET responses are easily
+            // cached by browsers and intermediaries, so force private + no-store.
+            Response.Headers.CacheControl = "private, no-store, max-age=0";
+            Response.Headers.Pragma = "no-cache";
+            Response.Headers.Expires = "0";
+            return File(bytes, contentType);
         }
     }
 }
