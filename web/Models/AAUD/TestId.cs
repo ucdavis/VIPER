@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class TestId
+public class TestId
 {
     public string IdsPKey { get; set; } = null!;
 

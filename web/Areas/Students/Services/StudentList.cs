@@ -17,12 +17,6 @@ namespace Viper.Areas.Students.Services
         /// <summary>
         /// Get a list of students using the given parameters. Calculate their current class year and all class years they've been a part of.
         /// </summary>
-        /// <param name="classLevel"></param>
-        /// <param name="classYear"></param>
-        /// <param name="currentYearsOnly"></param>
-        /// <param name="includeRoss"></param>
-        /// <param name="activeYearOnly"></param>
-        /// <returns></returns>
         public async Task<List<Student>> GetStudents(string? classLevel = null, int? classYear = null, int? personId = null,
                 bool currentYearsOnly = true, bool includeRoss = true, bool activeYearOnly = true)
         {
@@ -104,9 +98,6 @@ namespace Viper.Areas.Students.Services
         /// <summary>
         /// Get students from AAUD based on term code and class level
         /// </summary>
-        /// <param name="termCode"></param>
-        /// <param name="classLevel"></param>
-        /// <returns></returns>
         public async Task<List<Student>> GetStudentsByTermCodeAndClassLevel(int termCode, string classLevel)
         {
             var studentsByTerm = await _context.AaudStudents
@@ -149,7 +140,6 @@ namespace Viper.Areas.Students.Services
         /// Return a list of students, either for a single class year or for all active class years, 
         /// that appear to be in a different class year based on their class level for the current term
         /// </summary>
-        /// <returns></returns>
         public async Task<List<StudentClassYearProblem>> GetStudentClassYearProblems(int? classYear = null)
         {
             var termCodeService = new TermCodeService(_context);
@@ -179,7 +169,6 @@ namespace Viper.Areas.Students.Services
         /// Return a list of students for a single class year that appear to be in a different class year based on 
         /// their class level for the current term, or should be in this class year but aren't
         /// </summary>
-        /// <returns></returns>
         private async Task<List<StudentClassYearProblem>> GetStudentClassYearProblemsForOneYear(int classYear, int currentTerm)
         {
             List<StudentClassYearProblem> studentProblems = new();
@@ -218,9 +207,6 @@ namespace Viper.Areas.Students.Services
         /// <summary>
         /// Given a list of grad years for a student, create a student object with all class years they've been a part of
         /// </summary>
-        /// <param name="studentGradYears"></param>
-        /// <param name="activeYearOnly"></param>
-        /// <returns></returns>
         private static List<Student> CreateStudentListFromStudentGradYears(List<StudentClassYear> studentGradYears, bool activeYearOnly = true)
         {
             var students = new List<Student>();
@@ -229,7 +215,7 @@ namespace Viper.Areas.Students.Services
                 var std = student.First();
                 if (std.Student != null)
                 {
-                    var newStd = new Student()
+                    var newStd = new Student
                     {
                         PersonId = std.PersonId,
                         MailId = std.Student.MailId,

@@ -1,7 +1,8 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Viper.Classes.SQLContext;
-using Viper.Areas.Students.Models;
 using Viper.Areas.Curriculum.Services;
+using Viper.Areas.Students.Models;
+using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services
@@ -75,7 +76,7 @@ namespace Viper.Areas.Students.Services
                         _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
                         // Continue with empty rossIamIds list - no Ross students will be excluded/added
                     }
-                    catch (Microsoft.Data.SqlClient.SqlException ex)
+                    catch (SqlException ex)
                     {
                         _logger.LogError(ex, "Database error querying SIS context for Ross students");
                         // Continue with empty rossIamIds list - no Ross students will be excluded/added
@@ -164,7 +165,7 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<StudentPhoto>();
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<StudentPhoto>();
@@ -302,7 +303,7 @@ namespace Viper.Areas.Students.Services
                     gradYear, ex.Message, ex.InnerException?.Message ?? "None");
                 return new List<StudentPhoto>();
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting Ross students for grad year {GradYear}. Message: {Message}. InnerException: {InnerMessage}",
                     gradYear, ex.Message, ex.InnerException?.Message ?? "None");
@@ -327,7 +328,7 @@ namespace Viper.Areas.Students.Services
                         .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                     (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                         .Select(sd => sd.IamId)
-                        .Where(id => id != null)
+                        .Where(id => !string.IsNullOrEmpty(id))
                         .Distinct()
                         .ToListAsync();
                 }
@@ -336,7 +337,7 @@ namespace Viper.Areas.Students.Services
                     _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
                     // Continue with empty rossIamIds list - no Ross students will be excluded
                 }
-                catch (Microsoft.Data.SqlClient.SqlException ex)
+                catch (SqlException ex)
                 {
                     _logger.LogError(ex, "Database error querying SIS context for Ross students");
                     // Continue with empty rossIamIds list - no Ross students will be excluded
@@ -430,7 +431,7 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
                 return new List<StudentPhoto>();
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
                 return new List<StudentPhoto>();
@@ -452,7 +453,7 @@ namespace Viper.Areas.Students.Services
                         .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
                                     (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
                         .Select(sd => sd.IamId)
-                        .Where(id => id != null)
+                        .Where(id => !string.IsNullOrEmpty(id))
                         .Distinct()
                         .ToListAsync();
                 }
@@ -460,7 +461,7 @@ namespace Viper.Areas.Students.Services
                 {
                     _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
                 }
-                catch (Microsoft.Data.SqlClient.SqlException ex)
+                catch (SqlException ex)
                 {
                     _logger.LogError(ex, "Database error querying SIS context for Ross students");
                 }
@@ -589,8 +590,8 @@ namespace Viper.Areas.Students.Services
                                                          i.IdsMailid,
                                                          i.IdsTermCode,
                                                          PersonFirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
-                                                         PersonLastName = p.PersonLastName,
-                                                         PersonMiddleName = p.PersonMiddleName,
+                                                         p.PersonLastName,
+                                                         p.PersonMiddleName,
                                                          ClassLevel = s.StudentsClassLevel
                                                      })
                                                     .ToListAsync();
@@ -640,7 +641,7 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
                 return new List<StudentPhoto>();
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
                 return new List<StudentPhoto>();
@@ -674,7 +675,7 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation getting twentieths groups");
                 return new List<string>();
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting twentieths groups");
                 return new List<string>();
@@ -713,7 +714,7 @@ namespace Viper.Areas.Students.Services
                 _logger.LogError(ex, "Invalid operation getting teams for class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<string>();
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting teams for class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
                 return new List<string>();
@@ -754,7 +755,7 @@ namespace Viper.Areas.Students.Services
                 // Fallback to baseline on error
                 return new List<string> { "SA", "LA", "EQ", "LIVE", "ZOO" };
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 _logger.LogError(ex, "Database error getting V3 specialty groups");
                 // Fallback to baseline on error
@@ -824,11 +825,13 @@ namespace Viper.Areas.Students.Services
             {
                 return $"{eighthsGroup} / {twentiethsGroup}";
             }
-            else if (!string.IsNullOrEmpty(eighthsGroup))
+
+            if (!string.IsNullOrEmpty(eighthsGroup))
             {
                 return eighthsGroup;
             }
-            else if (!string.IsNullOrEmpty(twentiethsGroup))
+
+            if (!string.IsNullOrEmpty(twentiethsGroup))
             {
                 return twentiethsGroup;
             }

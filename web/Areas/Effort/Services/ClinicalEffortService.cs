@@ -1,6 +1,8 @@
 using System.Data;
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -235,10 +237,10 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
         var connectionString = _context.Database.GetConnectionString()
             ?? throw new InvalidOperationException("Database connection string not configured");
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_clinical_percent]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_clinical_percent]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@type", clinicalType);
@@ -347,7 +349,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                         {
                             columns.RelativeColumn(3); // Instructor — wider, flexes for long names
                             columns.ConstantColumn(percentWidth);
-                            columns.RelativeColumn(1); // CLI
+                            columns.RelativeColumn(); // CLI
                             columns.ConstantColumn(ratioWidth);
                             // Other effort type columns (skip CLI since it's shown separately)
                             foreach (var type in orderedTypes)
@@ -356,7 +358,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                                 {
                                     continue;
                                 }
-                                columns.RelativeColumn(1);
+                                columns.RelativeColumn();
                             }
                         });
 

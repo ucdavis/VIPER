@@ -1,5 +1,6 @@
-using Microsoft.Extensions.Logging;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
@@ -73,7 +74,7 @@ namespace Viper.test.ClinicalScheduler
             var serviceType = typeof(WeekService);
 
             // Act
-            var methods = serviceType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            var methods = serviceType.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => m.DeclaringType == serviceType)
                 .Select(m => m.Name)
                 .ToList();

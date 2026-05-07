@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class DlSupportPerson
+public class DlSupportPerson
 {
     public string SupportCourseId { get; set; } = null!;
 

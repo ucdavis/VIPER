@@ -3,6 +3,7 @@ using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.CTS.Models;
 using Viper.Models.ClinicalScheduler;
 using CtsModels = Viper.Models.CTS;
 
@@ -37,14 +38,14 @@ namespace Viper.test.ClinicalScheduler.Integration
                     var weekId = callInfo.ArgAt<int?>(4);
 
                     // Return mock data that matches the test scenarios
-                    var mockData = new List<Viper.Areas.CTS.Models.ClinicalScheduledStudent>();
+                    var mockData = new List<ClinicalScheduledStudent>();
 
                     // Add mock student data that matches the test expectations
                     if ((rotationId == null || rotationId == CardiologyRotationId) &&
                         (mothraId == null || mothraId == "12345") &&
                         (weekId == null || weekId == 1))
                     {
-                        mockData.Add(new Viper.Areas.CTS.Models.ClinicalScheduledStudent
+                        mockData.Add(new ClinicalScheduledStudent
                         {
                             MothraId = "12345",
                             FirstName = "Student",
@@ -65,7 +66,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                         (mothraId == null || mothraId == "12345") &&
                         (weekId == null || weekId == 10))
                     {
-                        mockData.Add(new Viper.Areas.CTS.Models.ClinicalScheduledStudent
+                        mockData.Add(new ClinicalScheduledStudent
                         {
                             MothraId = "12345",
                             FirstName = "Student",
@@ -176,7 +177,7 @@ namespace Viper.test.ClinicalScheduler.Integration
         public async Task ServiceDecomposition_StudentScheduleService_WorksIndependently()
         {
             // Arrange - Setup mock to return test data
-            var testStudent = new Viper.Areas.CTS.Models.ClinicalScheduledStudent
+            var testStudent = new ClinicalScheduledStudent
             {
                 MothraId = "student1"
             };
@@ -185,7 +186,7 @@ namespace Viper.test.ClinicalScheduler.Integration
             mockService.GetStudentScheduleAsync(
                 Arg.Any<int?>(), Arg.Any<string>(), CardiologyRotationId, Arg.Any<int?>(),
                 Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
-                .Returns(new List<Viper.Areas.CTS.Models.ClinicalScheduledStudent> { testStudent });
+                .Returns(new List<ClinicalScheduledStudent> { testStudent });
 
             // Act
             var schedules = await mockService.GetStudentScheduleAsync(
@@ -463,9 +464,9 @@ namespace Viper.test.ClinicalScheduler.Integration
             // Create a simple service response structure for testing
             var serviceResponse = new
             {
-                ServiceId = service.ServiceId,
-                ServiceName = service.ServiceName,
-                ShortName = service.ShortName,
+                service.ServiceId,
+                service.ServiceName,
+                service.ShortName,
                 Rotations = new List<RotationDto> { rotation1Dto, rotation2Dto }
             };
 

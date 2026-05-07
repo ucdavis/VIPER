@@ -39,7 +39,7 @@ public class InstructorsController : BaseEffortController
         var instructor = await _instructorService.GetInstructorAsync(personId, termCode, ct);
         if (instructor == null || !await _permissionService.CanViewDepartmentAsync(instructor.EffortDept, ct))
         {
-            return (null, NotFound($"Instructor not found"));
+            return (null, NotFound("Instructor not found"));
         }
         return (instructor, null);
     }
@@ -152,7 +152,7 @@ public class InstructorsController : BaseEffortController
         {
             _logger.LogWarning("Instructor {PersonId} already exists for term {TermCode}",
                 request.PersonId, request.TermCode);
-            return Conflict($"Instructor already exists for this term");
+            return Conflict("Instructor already exists for this term");
         }
 
         // Verify the user is authorized to add instructors to the resolved department

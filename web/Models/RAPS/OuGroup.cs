@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class OuGroup
+public class OuGroup
 {
     public int OugroupId { get; set; }
 

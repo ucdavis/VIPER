@@ -1,10 +1,10 @@
-using Viper.Classes;
-using Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
-using Viper.Models.CTS;
 using Viper.Areas.CTS.Models;
+using Viper.Classes;
+using Viper.Classes.SQLContext;
+using Viper.Models.CTS;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -106,7 +106,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("A competency with this number exists already.");
             }
 
-            var comp = new Competency()
+            var comp = new Competency
             {
                 Name = competency.Name,
                 Number = competency.Number,
@@ -136,7 +136,7 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
 
-            if (competency.CompetencyId == null || competency.CompetencyId <= 0)
+            if (competency.CompetencyId <= 0)
             {
                 return BadRequest("CompetencyId is required.");
             }

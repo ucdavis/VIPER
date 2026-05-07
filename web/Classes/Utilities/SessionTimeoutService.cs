@@ -25,7 +25,7 @@ namespace Viper.Classes.Utilities
                 }
                 else
                 {
-                    context.Add(new SessionTimeout()
+                    context.Add(new SessionTimeout
                     {
                         LoginId = loggedInUserId,
                         SessionTimeoutDateTime = DateTime.Now.AddSeconds(SessionTimeoutSeconds),

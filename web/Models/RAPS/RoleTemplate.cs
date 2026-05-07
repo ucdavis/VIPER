@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class RoleTemplate
+public class RoleTemplate
 {
     public int RoleTemplateId { get; set; }
 

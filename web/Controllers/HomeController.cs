@@ -1,25 +1,26 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using System.Collections;
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using System.Security.Claims;
 using System.Xml.Linq;
-using Viper.Models;
-using Web.Authorization;
-using Microsoft.Extensions.Options;
-using Viper.Classes;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Caching.Memory;
-using Viper.Models.AAUD;
-using System.Collections;
-using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
-using Viper.Areas.CMS.Data;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Viper.Classes.Utilities;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using Viper.Areas.CMS.Data;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
+using Viper.Models;
+using Viper.Models.AAUD;
+using Web.Authorization;
+using LogLevel = NLog.LogLevel;
 
 namespace Viper.Controllers
 {
@@ -147,7 +148,7 @@ namespace Viper.Controllers
 
                 if (protector != null && emulatedUser.LoginId != null)
                 {
-                    string? encryptedEmulatedLoginId = protector?.Protect(emulatedUser.LoginId);
+                    string encryptedEmulatedLoginId = protector.Protect(emulatedUser.LoginId);
 
                     // set emulating cached item to expire after 30 minutes of inactivity
                     HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
@@ -312,7 +313,7 @@ namespace Viper.Controllers
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
                 if (string.IsNullOrEmpty(validatedUserName))
                 {
-                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + doc);
                 }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
@@ -340,7 +341,7 @@ namespace Viper.Controllers
             catch (TaskCanceledException ex)
             {
                 // usually caused because the user aborts the page load (HttpContext.RequestAborted)
-                HttpHelper.Logger.Log(NLog.LogLevel.Info, ex, "TaskCanceledException during CAS login");
+                HttpHelper.Logger.Log(LogLevel.Info, ex, "TaskCanceledException during CAS login");
             }
 
             return new ForbidResult();

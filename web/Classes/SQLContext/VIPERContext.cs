@@ -1,6 +1,7 @@
 using Areas.CMS.Models;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.VIPER;
+using File = Viper.Models.VIPER.File;
 
 namespace Viper.Classes.SQLContext;
 
@@ -36,7 +37,7 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<FieldType> FieldTypes { get; set; }
 
-    public virtual DbSet<Viper.Models.VIPER.File> Files { get; set; }
+    public virtual DbSet<File> Files { get; set; }
 
     public virtual DbSet<FileAudit> FileAudits { get; set; }
 
@@ -92,7 +93,7 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<SlowPage> SlowPages { get; set; }
 
-    public virtual DbSet<Viper.Models.VIPER.System> Systems { get; set; }
+    public virtual DbSet<Models.VIPER.System> Systems { get; set; }
 
     public virtual DbSet<TbSecuremediamanager> TbSecuremediamanagers { get; set; }
 
@@ -343,7 +344,7 @@ public partial class VIPERContext : DbContext
                 .HasColumnName("publicEditAllowed");
         });
 
-        modelBuilder.Entity<Viper.Models.VIPER.File>(entity =>
+        modelBuilder.Entity<File>(entity =>
         {
             entity.HasKey(e => e.FileGuid);
 
@@ -1100,7 +1101,7 @@ public partial class VIPERContext : DbContext
                 .IsUnicode(false);
         });
 
-        modelBuilder.Entity<Viper.Models.VIPER.System>(entity =>
+        modelBuilder.Entity<Models.VIPER.System>(entity =>
         {
             entity.HasNoKey();
 

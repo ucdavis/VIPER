@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
-using Viper.Areas.ClinicalScheduler.Services;
-using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
-using Viper.Areas.Curriculum.Services;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
 using Person = Viper.Models.ClinicalScheduler.Person;
@@ -219,7 +219,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 // Get person data for all involved clinicians
                 var uniqueMothraIds = baseInstructorSchedules.Select(i => i.MothraId).Distinct();
-                var recentClinicianMothraIds = recentCliniciansData.Select(c => c.MothraId).Distinct();
+                var recentClinicianMothraIds = recentCliniciansData.Select(c => c.MothraId).Distinct().ToList();
                 var allMothraIds = uniqueMothraIds.Concat(recentClinicianMothraIds);
                 var personData = await GetPersonDataBatchAsync(allMothraIds);
 
@@ -533,7 +533,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 dateEnd = week.DateEnd,
                 termCode = week.TermCode,
                 extendedRotation = week.ExtendedRotation,
-                rotationClosed = rotationClosed,
+                rotationClosed,
                 requiresPrimaryEvaluator = requiresPrimary,
                 instructorSchedules = weekSchedules
             };
@@ -565,7 +565,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 .Distinct()
                 .Select(mothraId => new
                 {
-                    mothraId = mothraId,
+                    mothraId,
                     fullName = personData.ContainsKey(mothraId)
                         ? personData[mothraId].PersonDisplayFullName
                         : $"Clinician {mothraId}"
@@ -584,9 +584,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             return new
             {
                 rotation = BuildSimpleRotationResponse(rotation),
-                gradYear = gradYear,
-                schedulesBySemester = schedulesBySemester,
-                recentClinicians = recentClinicians
+                gradYear,
+                schedulesBySemester,
+                recentClinicians
             };
         }
 
@@ -675,8 +675,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
             return Ok(new
             {
-                currentGradYear = currentGradYear,
-                availableGradYears = availableGradYears,
+                currentGradYear,
+                availableGradYears,
             });
         }
 

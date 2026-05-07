@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 
 namespace Viper.Areas.Effort.Services;
@@ -35,6 +36,6 @@ public interface IHarvestService
     Task ExecuteHarvestWithProgressAsync(
         int termCode,
         int modifiedBy,
-        System.Threading.Channels.ChannelWriter<HarvestProgressEvent> progressChannel,
+        ChannelWriter<HarvestProgressEvent> progressChannel,
         CancellationToken ct = default);
 }

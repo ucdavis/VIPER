@@ -3,8 +3,8 @@ using MockQueryable.NSubstitute;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
-using Viper.Models.ClinicalScheduler;
 using Viper.Models.AAUD;
+using Viper.Models.ClinicalScheduler;
 using Viper.test.ClinicalScheduler.Setup;
 
 namespace Viper.test.ClinicalScheduler

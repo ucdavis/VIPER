@@ -1,10 +1,10 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Net;
 
 namespace Viper.Classes
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class ApiResponseAttribute : ActionFilterAttribute
     {
         public override void OnResultExecuting(ResultExecutingContext context)
@@ -42,7 +42,7 @@ namespace Viper.Classes
             }
             if (objectResult.Value is string v)
             {
-                return new ApiResponse(statusCode, false, null, v, null);
+                return new ApiResponse(statusCode, false, null, v);
             }
             return new ApiResponse(statusCode, false, null, "An error has occurred", objectResult.Value);
         }

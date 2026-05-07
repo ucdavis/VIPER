@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -156,7 +155,7 @@ namespace Viper.Areas.CTS.Controllers
             var existing = await context.BundleRoles.Where(br => br.BundleId == bundleId).ToListAsync();
             foreach (var brId in bundleRoles.Where(brId => !existing.Any(e => e.RoleId == brId)))
             {
-                context.Add(new BundleRole()
+                context.Add(new BundleRole
                 {
                     BundleId = bundleId,
                     RoleId = brId

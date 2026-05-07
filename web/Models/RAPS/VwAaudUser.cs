@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Viper.Models.RAPS
 {
     [Table("vw_aaudUser")]
-    public partial class VwAaudUser
+    public class VwAaudUser
     {
         public int AaudUserId { get; set; }
         public string? IamId { get; set; }

@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
@@ -129,7 +130,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
 
                 // Use Serializable isolation level to prevent race conditions
-                var result = await ExecuteInTransactionAsync(async (cancellationToken) =>
+                var result = await ExecuteInTransactionAsync(async _ =>
                 {
                     var createdSchedules = new List<InstructorSchedule>();
                     var removedPrimarySchedules = new Dictionary<int, List<InstructorSchedule>>(); // WeekId -> removed schedules
@@ -183,7 +184,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     await _context.SaveChangesAsync(cancellationToken);
 
                     return (createdSchedules, removedPrimarySchedules);
-                }, System.Data.IsolationLevel.Serializable, cancellationToken);
+                }, IsolationLevel.Serializable, cancellationToken);
 
                 var (createdSchedules, removedPrimarySchedules) = result;
 
@@ -311,7 +312,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     }
                 }
 
-                await ExecuteInTransactionAsync(async (cancellationToken) =>
+                await ExecuteInTransactionAsync(async _ =>
                 {
                     // Remove the schedule
                     _context.InstructorSchedules.Remove(schedule);
@@ -357,7 +358,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing instructor schedule {ScheduleId}", instructorScheduleId);
-                throw new InvalidOperationException($"Failed to remove instructor schedule. Please try again or contact support if the problem persists.", ex);
+                throw new InvalidOperationException("Failed to remove instructor schedule. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -390,7 +391,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return (true, null);
                 }
 
-                var result = await ExecuteInTransactionAsync(async (cancellationToken) =>
+                var result = await ExecuteInTransactionAsync(async _ =>
                 {
                     string? previousPrimaryName = null;
                     List<InstructorSchedule> removedPrimarySchedules = [];
@@ -466,7 +467,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error setting primary evaluator for instructor schedule {ScheduleId} to {IsPrimary}", instructorScheduleId, isPrimary);
-                throw new InvalidOperationException($"Failed to update primary evaluator status. Please try again or contact support if the problem persists.", ex);
+                throw new InvalidOperationException("Failed to update primary evaluator status. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -534,7 +535,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error checking other rotation schedules for {MothraId} on weeks {WeekIds} for grad year {GradYear}",
                     LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds), LogSanitizer.SanitizeYear(gradYear));
-                throw new InvalidOperationException($"Failed to retrieve other rotation schedules. Please try again or contact support if the problem persists.", ex);
+                throw new InvalidOperationException("Failed to retrieve other rotation schedules. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -561,7 +562,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting scheduled instructors for rotation {RotationId} on weeks {WeekIds}", rotationId, string.Join(",", weekIds));
-                throw new InvalidOperationException($"Failed to retrieve scheduled instructors. Please try again or contact support if the problem persists.", ex);
+                throw new InvalidOperationException("Failed to retrieve scheduled instructors. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -789,7 +790,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <returns>The result of the operation</returns>
         protected virtual async Task<T> ExecuteInTransactionAsync<T>(
             Func<CancellationToken, Task<T>> operation,
-            System.Data.IsolationLevel isolationLevel,
+            IsolationLevel isolationLevel,
             CancellationToken cancellationToken)
         {
             using var transaction = await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
@@ -818,7 +819,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             Func<CancellationToken, Task<T>> operation,
             CancellationToken cancellationToken)
         {
-            return await ExecuteInTransactionAsync(operation, System.Data.IsolationLevel.Unspecified, cancellationToken);
+            return await ExecuteInTransactionAsync(operation, IsolationLevel.Unspecified, cancellationToken);
         }
     }
 

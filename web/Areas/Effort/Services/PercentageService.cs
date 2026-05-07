@@ -98,7 +98,7 @@ public class PercentageService : IPercentageService
                 TypeName = type.Name,
                 TypeClass = type.Class,
                 UnitName = unit?.Name,
-                PercentageValue = request.PercentageValue,
+                request.PercentageValue,
                 percentage.StartDate,
                 percentage.EndDate,
                 percentage.Compensated
@@ -179,7 +179,7 @@ public class PercentageService : IPercentageService
                 TypeName = type.Name,
                 TypeClass = type.Class,
                 UnitName = unit?.Name,
-                PercentageValue = request.PercentageValue,
+                request.PercentageValue,
                 request.StartDate,
                 request.EndDate,
                 request.Compensated

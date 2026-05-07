@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class ExternalId
+public class ExternalId
 {
     public int Pidm { get; set; }
 

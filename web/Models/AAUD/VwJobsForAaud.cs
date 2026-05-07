@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwJobsForAaud
+public class VwJobsForAaud
 {
     public string? Emplid { get; set; }
 

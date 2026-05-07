@@ -15,13 +15,11 @@ namespace Viper.Areas.CMS.Services
         {
             UserHelper userHelper = new UserHelper();
 
-            var nav = new List<NavMenuItem>
-            {
-            };
+            var nav = new List<NavMenuItem>();
 
             if (userHelper.HasPermission(_rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CMS.ManageContentBlocks"))
             {
-                nav.Add(new NavMenuItem() { MenuItemText = "Manage Link Collections", MenuItemURL = "ManageLinkCollections" });
+                nav.Add(new NavMenuItem { MenuItemText = "Manage Link Collections", MenuItemURL = "ManageLinkCollections" });
             }
 
             return new NavMenu("Content Management System", nav);

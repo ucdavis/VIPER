@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using QuestPDF;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -126,13 +127,13 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                     table.ColumnsDefinition(columns =>
                     {
                         columns.RelativeColumn(2.5f); // Name
-                        columns.RelativeColumn(1);    // Class
+                        columns.RelativeColumn();    // Class
                         columns.RelativeColumn(2.5f); // Email
                         columns.RelativeColumn(1.5f); // Phone
-                        columns.RelativeColumn(1);    // Student Info
-                        columns.RelativeColumn(1);    // Local
-                        columns.RelativeColumn(1);    // Emergency
-                        columns.RelativeColumn(1);    // Permanent
+                        columns.RelativeColumn();    // Student Info
+                        columns.RelativeColumn();    // Local
+                        columns.RelativeColumn();    // Emergency
+                        columns.RelativeColumn();    // Permanent
                         columns.RelativeColumn(1.2f); // Last Updated
                     });
 
@@ -255,7 +256,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                 {
                     table.ColumnsDefinition(columns =>
                     {
-                        columns.RelativeColumn(1);   // Class
+                        columns.RelativeColumn();   // Class
                         columns.RelativeColumn(2);   // Name
                         columns.RelativeColumn(2.5f); // Student Info
                         columns.RelativeColumn(2.5f); // Local Contact

@@ -1,5 +1,6 @@
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.Protocols;
+using System.Net;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 
@@ -155,7 +156,6 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="samAccountName">samAccountName of user</param>
         /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
-        /// <returns></returns>
         public static LdapUser? GetUser(string samAccountName, bool fromOu = false)
         {
             string? filter = BuildUserFilter(samAccountName);
@@ -323,11 +323,6 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Generic search function
         /// </summary>
-        /// <param name="searchFilter"></param>
-        /// <param name="searchStart"></param>
-        /// <param name="ou"></param>
-        /// <param name="groupProperties"></param>
-        /// <returns></returns>
         private static List<SearchResultEntry> SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
         {
             var ldapIdentifier = server == Server.OU
@@ -340,7 +335,7 @@ namespace Viper.Classes.Utilities
                 ? _groupProperties
                 : _personProperties;
             var cred = HttpHelper.GetSetting<string>("Credentials", "svmadgrp") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
+            using var lc = new LdapConnection(ldapIdentifier, new NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
             lc.Bind();

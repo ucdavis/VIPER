@@ -4,6 +4,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -113,7 +114,7 @@ namespace Viper.test.ClinicalScheduler
             MockUserHelper.GetCurrentUser().Returns(testUser);
 
             var servicePermissions = TestDataBuilder.ServicePermissionScenarios.CardiologyOnly;
-            var editableServices = new List<Viper.Models.ClinicalScheduler.Service> { Context.Services.First(s => s.ServiceId == CardiologyServiceId) };
+            var editableServices = new List<Service> { Context.Services.First(s => s.ServiceId == CardiologyServiceId) };
 
             _mockPermissionService.GetUserServicePermissionsAsync(Arg.Any<CancellationToken>())
                 .Returns(servicePermissions);

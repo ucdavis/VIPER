@@ -1,5 +1,6 @@
-using System.Runtime.Versioning;
 using System.DirectoryServices.Protocols;
+using System.Net;
+using System.Runtime.Versioning;
 using Viper.Areas.Directory.Models;
 
 namespace Viper.Classes.Utilities
@@ -24,7 +25,7 @@ namespace Viper.Classes.Utilities
             var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, _ldapSSLPort);
             var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
             using var lc = new LdapConnection(ldapIdentifier,
-                    new System.Net.NetworkCredential(_ldapUsername, cred),
+                    new NetworkCredential(_ldapUsername, cred),
                     AuthType.Basic);
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
@@ -160,8 +161,6 @@ namespace Viper.Classes.Utilities
         /// Gets a single user from ou or ad3
         /// </summary>
         /// <param name="samAccountName">samAccountName of user</param>
-        /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
-        /// <returns></returns>
         public static LdapUserContact? GetUserBySamAccountName(string? samAccountName)
         {
             string? filter = BuildUserBySamAccountNameFilter(samAccountName);

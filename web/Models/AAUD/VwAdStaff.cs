@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwAdStaff
+public class VwAdStaff
 {
     public string? LastName { get; set; }
 

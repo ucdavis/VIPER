@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
@@ -33,14 +32,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Generic assessment get with params - note that this returns StudentAssessments of derived types
         /// </summary>
-        /// <param name="type"></param>
-        /// <param name="studentUserId"></param>
-        /// <param name="enteredById"></param>
-        /// <param name="serviceId"></param>
-        /// <param name="epaId"></param>
-        /// <param name="dateFrom"></param>
-        /// <param name="dateTo"></param>
-        /// <returns></returns>
         [HttpGet]
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical,SVMSecure.CTS.MyAssessments")]
         [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
@@ -194,8 +185,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Get single student epa assessment
         /// </summary>
-        /// <param name="encounterId"></param>
-        /// <returns></returns>
         [HttpGet("{encounterId}")]
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical,SVMSecure.CTS.MyAssessments")]
         public async Task<ActionResult<StudentAssessment>> GetStudentAssessment(int encounterId)
@@ -225,8 +214,6 @@ namespace Viper.Areas.CTS.Controllers
         /// Given an Eval360 instance id, get the list of student evalautees for this evaluator and whether or not they have an EPA during
         /// this rotation.
         /// </summary>
-        /// <param name="instanceId"></param>
-        /// <returns></returns>
         [HttpGet("epacompletion")]
         [Permission(Allow = "SVMSecure")]
         public async Task<ActionResult<List<EvaluateeWithEpaCompletion>>> EvalauteeStudentsWithEpas(int instanceId)
@@ -287,8 +274,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Create a new epa assessment
         /// </summary>
-        /// <param name="epaData"></param>
-        /// <returns></returns>
         [HttpPost("epa")]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
         public async Task<ActionResult<CreateUpdateStudentEpa>> CreateStudentEpa(CreateUpdateStudentEpa epaData)
@@ -297,7 +282,7 @@ namespace Viper.Areas.CTS.Controllers
                     .Include(p => p.StudentInfo)
                     .Where(p => p.PersonId == epaData.StudentId)
                     .FirstOrDefaultAsync();
-            if (student == null || student?.StudentInfo?.ClassLevel == null)
+            if (student == null || student.StudentInfo?.ClassLevel == null)
             {
                 return BadRequest("Student not found");
             }
@@ -317,7 +302,7 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, AuditService.AuditActionType.Create, (int)personId);
             await trans.CommitAsync();
 
-            return new CreateUpdateStudentEpa()
+            return new CreateUpdateStudentEpa
             {
                 EncounterId = encounter.EncounterId,
                 EpaId = epaData.EpaId,
@@ -332,9 +317,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Update an EPA
         /// </summary>
-        /// <param name="encounterId"></param>
-        /// <param name="epaData"></param>
-        /// <returns></returns>
         [HttpPut("epa/{encounterId}")]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
         public async Task<ActionResult<CreateUpdateStudentEpa>> UpdateStudentEpa(int encounterId, CreateUpdateStudentEpa epaData)
@@ -371,7 +353,7 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, AuditService.AuditActionType.Update, (int)personId);
             await trans.CommitAsync();
 
-            return new CreateUpdateStudentEpa()
+            return new CreateUpdateStudentEpa
             {
                 EncounterId = encounter.EncounterId,
                 EpaId = epaData.EpaId,

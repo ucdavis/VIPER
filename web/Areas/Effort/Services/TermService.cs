@@ -4,7 +4,9 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
+using Viper.Models.VIPER;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -146,7 +148,7 @@ public class TermService : ITermService
     /// <summary>
     /// Maps an EffortTerm entity to a TermDto, enriching it with the term name and end date.
     /// </summary>
-    private async Task<TermDto> MapTermToDtoAsync(Models.Entities.EffortTerm term, CancellationToken ct)
+    private async Task<TermDto> MapTermToDtoAsync(EffortTerm term, CancellationToken ct)
     {
         var dto = EffortMapper.ToTermDto(term);
         dto.TermName = GetTermName(term.TermCode);
@@ -170,7 +172,7 @@ public class TermService : ITermService
         }
 
         // New term starts with no dates set (Status will be computed as "Created")
-        var term = new Models.Entities.EffortTerm
+        var term = new EffortTerm
         {
             TermCode = termCode,
             ExpectedCloseDate = expectedCloseDate
@@ -180,7 +182,7 @@ public class TermService : ITermService
         _context.Terms.Add(term);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CreateTerm,
             null,
-            new { Status = term.Status, term.ExpectedCloseDate });
+            new { term.Status, term.ExpectedCloseDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -269,7 +271,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.OpenTerm,
             new { Status = oldStatus },
-            new { Status = term.Status, term.OpenedDate });
+            new { term.Status, term.OpenedDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -302,7 +304,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.CloseTerm,
             new { Status = oldStatus },
-            new { Status = term.Status, term.ClosedDate });
+            new { term.Status, term.ClosedDate });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -329,7 +331,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.ReopenTerm,
             new { Status = oldStatus },
-            new { Status = term.Status });
+            new { term.Status });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -358,7 +360,7 @@ public class TermService : ITermService
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         _auditService.AddTermChangeAudit(termCode, EffortAuditActions.UnopenTerm,
             new { Status = oldStatus },
-            new { Status = term.Status });
+            new { term.Status });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -397,7 +399,7 @@ public class TermService : ITermService
             .AsNoTracking()
             .Where(t => t.StartDate > DateTime.Today)
             .Where(t => !EF.Parameter(existingTermCodes).Contains(t.TermCode))
-            .Where(t => t.TermCode != Viper.Models.VIPER.Term.FacilityScheduleTermCode)
+            .Where(t => t.TermCode != Term.FacilityScheduleTermCode)
             .OrderBy(t => t.TermCode)
             .Select(t => new AvailableTermDto
             {

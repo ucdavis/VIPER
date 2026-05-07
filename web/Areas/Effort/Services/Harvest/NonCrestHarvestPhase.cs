@@ -276,7 +276,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         // Create instructor previews and effort records
         foreach (var poa in poaEntries)
         {
-            var pidmStr = poa.PoaPidm.ToString();
+            var pidmStr = poa.PoaPidm;
 
             if (!courseLookup.TryGetValue(poa.PoaCrn, out var course)) continue;
 
