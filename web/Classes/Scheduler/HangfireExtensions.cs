@@ -1,5 +1,6 @@
 using Hangfire;
 using NLog;
+using Viper.Areas.Scheduler.Services;
 using Viper.Classes.HealthChecks;
 
 namespace Viper.Classes.Scheduler
@@ -30,12 +31,19 @@ namespace Viper.Classes.Scheduler
                 return services;
             }
 
-            var connectionString = configuration.GetConnectionString("VIPER");
+            // Prefer a dedicated Hangfire DB when configured, otherwise fall
+            // back to the shared VIPER connection (the documented default).
+            var connectionString = configuration.GetConnectionString("Hangfire");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                connectionString = configuration.GetConnectionString("VIPER");
+            }
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 logger.Error(
-                    "Hangfire is enabled but ConnectionStrings:VIPER is empty. "
-                    + "Hangfire will be disabled for this process.");
+                    "Hangfire is enabled but neither ConnectionStrings:Hangfire nor "
+                    + "ConnectionStrings:VIPER is set. Hangfire will be disabled for "
+                    + "this process.");
                 return services;
             }
 
@@ -43,7 +51,13 @@ namespace Viper.Classes.Scheduler
             // shared state (counters, etc.) stay process-wide.
             services.AddSingleton<HangfireJobLoggingFilter>();
             services.AddHangfire((sp, config) => config
-                .UseSqlServerStorage(connectionString)
+                .UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
+                {
+                    // Pin the schema explicitly so case-sensitive collations and
+                    // future Hangfire defaults can't drift from the [HangFire]
+                    // schema the marker table colocates against.
+                    SchemaName = "HangFire",
+                })
                 .UseFilter(sp.GetRequiredService<HangfireJobLoggingFilter>()));
             services.AddHangfireServer();
 
@@ -52,6 +66,22 @@ namespace Viper.Classes.Scheduler
             // wired so /health/detail doesn't claim a missing subsystem is down.
             services.AddHealthChecks()
                 .AddCheck<HangfireHealthCheck>("hangfire", tags: new[] { "ready" });
+
+            // Scheduler API surface — registered here (not via Scrutor) so
+            // controller activation only succeeds when Hangfire is wired,
+            // avoiding 500s on /api/scheduler/jobs* with the flag off.
+            services.AddScoped<ISchedulerJobsService, SchedulerJobsService>();
+
+            // Reconciler is needed by both the startup hosted service and the
+            // hourly recurring job; resolved as a transient because each entry
+            // point creates its own scope for the underlying service.
+            services.AddTransient<SchedulerJobReconciler>();
+            services.AddHostedService<ReconcilerStartupHostedService>();
+
+            // Idempotent DDL: ensure the marker table exists so pause/resume
+            // doesn't fail on first run. Hangfire's own bootstrap creates the
+            // HangFire schema; we attach our table to it.
+            SchedulerSchemaInitializer.EnsureSchedulerJobStateTable(connectionString, logger);
 
             return services;
         }
@@ -76,11 +106,32 @@ namespace Viper.Classes.Scheduler
                 return app;
             }
 
+            // Idempotent DDL: ensure the marker table exists so pause/resume
+            // doesn't fail on first run. Resolving JobStorage above triggered
+            // Hangfire's bootstrap, which guarantees the [HangFire] schema is
+            // present before we attach our marker table to it.
+            var nlogger = LogManager.GetCurrentClassLogger();
+            var hangfireConn = app.Configuration.GetConnectionString("Hangfire");
+            if (string.IsNullOrWhiteSpace(hangfireConn))
+            {
+                hangfireConn = app.Configuration.GetConnectionString("VIPER");
+            }
+            if (!string.IsNullOrWhiteSpace(hangfireConn))
+            {
+                SchedulerSchemaInitializer.EnsureSchedulerJobStateTable(hangfireConn, nlogger);
+            }
+
             app.MapHangfireDashboard(DashboardPath, new DashboardOptions
             {
                 Authorization = new[] { new HangfireDashboardAuthorizationFilter() },
                 DashboardTitle = "VIPER Scheduler",
             }).RequireAuthorization();
+
+            // Register the hourly reconciler. AddOrUpdate is idempotent so the
+            // call is safe across restarts; running it here (after Hangfire is
+            // mounted) guarantees the storage layer is ready.
+            var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+            SchedulerJobReconciler.RegisterRecurring(recurringJobManager);
             return app;
         }
     }

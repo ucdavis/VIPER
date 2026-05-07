@@ -233,7 +233,11 @@ try
     builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
 
 
-    // Scrutor: auto-register services and validators by convention
+    // Scrutor: auto-register services and validators by convention.
+    // Viper.Areas.Scheduler.Services is intentionally excluded — those services
+    // depend on Hangfire DI types (JobStorage, IRecurringJobManager) and are
+    // registered explicitly inside AddViperHangfire when Hangfire:Enabled=true,
+    // so they remain inert when the feature flag is off.
     builder.Services.Scan(scan => scan
         .FromAssemblyOf<Program>()
         .AddClasses(classes => classes
