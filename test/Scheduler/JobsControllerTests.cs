@@ -14,15 +14,14 @@ namespace Viper.test.Scheduler
     {
         private readonly ISchedulerJobsService _service;
         private readonly IUserHelper _userHelper;
-        private readonly ILogger<JobsController> _logger;
         private readonly JobsController _sut;
 
         public JobsControllerTests()
         {
             _service = Substitute.For<ISchedulerJobsService>();
             _userHelper = Substitute.For<IUserHelper>();
-            _logger = Substitute.For<ILogger<JobsController>>();
-            _sut = new JobsController(_service, _userHelper, _logger);
+            var logger = Substitute.For<ILogger<JobsController>>();
+            _sut = new JobsController(_service, _userHelper, logger);
         }
 
         // ──────────── ListJobs ────────────
@@ -142,7 +141,7 @@ namespace Viper.test.Scheduler
                 CancellationToken.None);
 
             Assert.IsType<BadRequestObjectResult>(result.Result);
-            await _service.DidNotReceiveWithAnyArgs().PauseJobAsync(default!, default!, default, default);
+            await _service.DidNotReceiveWithAnyArgs().PauseJobAsync(default!, default!, default);
         }
 
         [Fact]
@@ -184,7 +183,7 @@ namespace Viper.test.Scheduler
             var result = await _sut.ResumeJob("raps:role-refresh", new JobsController.ResumeRequest(), CancellationToken.None);
 
             Assert.IsType<BadRequestObjectResult>(result.Result);
-            await _service.DidNotReceiveWithAnyArgs().ResumeJobAsync(default!, default!, default);
+            await _service.DidNotReceiveWithAnyArgs().ResumeJobAsync(default!, default!);
         }
 
         [Fact]
