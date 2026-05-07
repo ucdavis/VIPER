@@ -502,7 +502,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
     public Task<byte[]> GenerateSummaryPdfAsync(EvalSummaryReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        const string reportTitle = "Eval Summary Report";
 
         var document = Document.Create(container =>
         {
@@ -517,21 +517,21 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text("Eval Summary Report").SemiBold().FontSize(12);
-                            row.AutoItem().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.AutoItem().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(12);
                         });
                         col.Item().BorderBottom(1.5f).BorderColor(Colors.Black).PaddingBottom(3);
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -557,23 +557,14 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                         table.Cell().Background("#D0D0D0").PaddingVertical(2).AlignCenter().Text(dept.DepartmentAverage.ToString("F2")).Bold();
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(),
-                            ("Dept", report.FilterDepartment),
-                            ("Person", report.FilterPersonId?.ToString()),
-                            ("Role", report.FilterRole));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(),
+                        ("Dept", report.FilterDepartment),
+                        ("Person", report.FilterPersonId?.ToString()),
+                        ("Role", report.FilterRole));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Evaluation summary for {report.AcademicYear ?? report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -584,7 +575,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
     public Task<byte[]> GenerateDetailPdfAsync(EvalDetailReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
+        const string reportTitle = "Eval Detail Report";
 
         var document = Document.Create(container =>
         {
@@ -599,21 +590,21 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text("Eval Detail Report").SemiBold().FontSize(12);
-                            row.AutoItem().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.AutoItem().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.AcademicYear ?? report.TermName).SemiBold().FontSize(12);
                         });
                         col.Item().BorderBottom(1.5f).BorderColor(Colors.Black).PaddingBottom(3);
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -644,11 +635,14 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                             {
                                 var course = instructor.Courses[i];
 
-                                // Instructor name rowspanned across course rows only
+                                // Per-row instructor cell instead of RowSpan (PDF/UA clause 7.2 test 15)
                                 if (i == 0)
                                 {
-                                    table.Cell().RowSpan((uint)courseCount)
-                                        .PaddingVertical(1.5f).PaddingLeft(4).Text(instructor.Instructor);
+                                    table.Cell().PaddingVertical(1.5f).PaddingLeft(4).Text(instructor.Instructor);
+                                }
+                                else
+                                {
+                                    table.Cell().PaddingVertical(1.5f).PaddingLeft(4).Text(instructor.Instructor).FontColor("#FFFFFF");
                                 }
 
                                 table.Cell().PaddingVertical(1.5f).AlignCenter().Text(course.Role);
@@ -662,36 +656,25 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                             // Instructor average row (full width background)
                             table.Cell().ColumnSpan(4).Background("#E8E8E8").PaddingVertical(1.5f)
                                 .Text("Instructor Average").Italic().FontSize(8).AlignRight();
-                            table.Cell().Background("#E8E8E8").PaddingVertical(1.5f).AlignCenter()
+                            table.Cell().ColumnSpan(2).Background("#E8E8E8").PaddingVertical(1.5f).AlignCenter()
                                 .Text(instructor.InstructorAverage.ToString("F2")).Bold();
-                            table.Cell().Background("#E8E8E8").PaddingVertical(1.5f).Text("");
                         }
 
                         // Department average row
                         table.Cell().ColumnSpan(4).Background("#D0D0D0").PaddingVertical(2)
                             .Text("Department Average").Italic().FontSize(9).AlignRight();
-                        table.Cell().Background("#D0D0D0").PaddingVertical(2).AlignCenter()
+                        table.Cell().ColumnSpan(2).Background("#D0D0D0").PaddingVertical(2).AlignCenter()
                             .Text(dept.DepartmentAverage.ToString("F2")).Bold();
-                        table.Cell().Background("#D0D0D0").PaddingVertical(2).Text("");
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(),
-                            ("Dept", report.FilterDepartment),
-                            ("Person", report.FilterPersonId?.ToString()),
-                            ("Role", report.FilterRole));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(),
+                        ("Dept", report.FilterDepartment),
+                        ("Person", report.FilterPersonId?.ToString()),
+                        ("Role", report.FilterRole));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Evaluation detail for {report.AcademicYear ?? report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -699,14 +682,17 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
     public MemoryStream GenerateEvalSummaryExcel(EvalSummaryReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Eval Summary Report";
         var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Evaluation summary for {termName}");
 
         foreach (var dept in report.Departments)
         {
             var ws = wb.Worksheets.Add(dept.Department);
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Eval Summary Report", termName, dept.Department);
+            int row = AddExcelHeader(ws, reportTitle, termName, dept.Department);
             row = AddExcelFilterLine(ws, row,
                 ("Dept", report.FilterDepartment),
                 ("Person", report.FilterPersonId?.ToString()),
@@ -714,6 +700,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
             row++; // blank separator
 
             // Column headers
+            int headerRow = row;
             ws.Cell(row, 1).Value = "Instructor";
             ws.Cell(row, 2).Value = "Average";
             ws.Range($"{row}:{row}").Style.Font.Bold = true;
@@ -726,6 +713,13 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                 ws.Cell(row, 2).Value = instructor.WeightedAverage;
                 ws.Cell(row, 2).Style.NumberFormat.Format = "0.00";
                 row++;
+            }
+
+            if (row > headerRow + 1)
+            {
+                ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                    ws.Range(headerRow, 1, row - 1, 2),
+                    $"EvalSummary_{dept.Department}");
             }
 
             // Department average
@@ -749,14 +743,17 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
     public MemoryStream GenerateEvalDetailExcel(EvalDetailReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Eval Detail Report";
         var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Evaluation detail for {termName}");
 
         foreach (var dept in report.Departments)
         {
             var ws = wb.Worksheets.Add(dept.Department);
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Eval Detail Report", termName, dept.Department);
+            int row = AddExcelHeader(ws, reportTitle, termName, dept.Department);
             row = AddExcelFilterLine(ws, row,
                 ("Dept", report.FilterDepartment),
                 ("Person", report.FilterPersonId?.ToString()),

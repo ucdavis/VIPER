@@ -215,6 +215,37 @@ public abstract partial class BaseReportService
         });
     }
 
+    // ── PDF Page Footer ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Render the standard report footer — a filter summary plus "Page N of M".
+    /// Only the page counter is wrapped in
+    /// <see cref="QuestPDF.Fluent.SemanticExtensions.SemanticIgnore"/> (the
+    /// number itself is a repeating page artifact). The filter summary stays
+    /// in the semantic tree because for some reports (e.g. evaluation reports)
+    /// the filter values appear nowhere else in the PDF, and assistive tech
+    /// would otherwise lose that context.
+    /// </summary>
+    protected static void AddPdfPageNumberFooter(
+        IContainer footer,
+        params (string Label, string? Value)[] filters)
+    {
+        footer.Column(col =>
+        {
+            if (filters.Length > 0)
+            {
+                AddPdfFilterLine(col.Item(), filters);
+            }
+            col.Item().SemanticIgnore().AlignCenter().Text(x =>
+            {
+                x.Span("Page ");
+                x.CurrentPageNumber();
+                x.Span(" of ");
+                x.TotalPages();
+            });
+        });
+    }
+
     // ── Excel Header / Filter Line ─────────────────────────────────
 
     /// <summary>

@@ -173,8 +173,8 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
+import { useTitle } from "@vueuse/core"
 import { reportService } from "../services/report-service"
-import { postForBlob } from "@/composables/ViperFetch"
 import { termService } from "../services/term-service"
 import { useEffortTypeColumns, getEffortTypeLabel, loadEffortTypeLabels } from "../composables/use-effort-type-columns"
 import ExportToolbar from "@/components/ExportToolbar.vue"
@@ -186,9 +186,15 @@ const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-const printLoading = ref(false)
 const excelLoading = ref(false)
 const report = ref<ClinicalEffortReport | null>(null)
+useTitle(
+    computed(() => {
+        const r = report.value
+        const term = r?.academicYear || r?.termName
+        return term ? `Clinical Effort Report - ${term} | VIPER` : "Clinical Effort Report | VIPER"
+    }),
+)
 const yearOptions = ref<{ label: string; value: string }[]>([])
 
 const clinicalTypeOptions = [
@@ -240,25 +246,13 @@ async function generateReport() {
     }
 }
 
-async function handlePrint() {
+function handlePrint() {
     if (!selectedYear.value) return
-    printLoading.value = true
-    try {
-        const baseUrl = `${import.meta.env.VITE_API_URL}effort/reports`
-        const { blob } = await postForBlob(`${baseUrl}/merit/clinical/pdf`, {
-            academicYear: selectedYear.value,
-            clinicalType: selectedType.value,
-        })
-        if (blob.size === 0) {
-            $q.notify({ type: "warning", message: "No data to export for the selected filters." })
-        } else {
-            const url = globalThis.URL.createObjectURL(blob)
-            globalThis.open(url, "_blank")
-            globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 1000)
-        }
-    } finally {
-        printLoading.value = false
+    if (!report.value || report.value.jobGroups.length === 0) {
+        $q.notify({ type: "warning", message: "No data to export for the selected filters." })
+        return
     }
+    reportService.openClinicalEffortPdf(selectedYear.value, selectedType.value)
 }
 
 async function handleExcelDownload() {

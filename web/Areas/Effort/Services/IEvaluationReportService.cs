@@ -52,15 +52,30 @@ public interface IEvaluationReportService
 
     /// <summary>
     /// Generate a PDF document from an evaluation summary report.
+    /// One page per department, instructor weighted averages followed by a
+    /// department-average row.
     /// </summary>
     Task<byte[]> GenerateSummaryPdfAsync(EvalSummaryReport report);
 
     /// <summary>
     /// Generate a PDF document from an evaluation detail report.
+    /// One landscape page per department, course-level rows per instructor
+    /// followed by instructor-average and department-average summary rows.
     /// </summary>
     Task<byte[]> GenerateDetailPdfAsync(EvalDetailReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from an evaluation summary report.
+    /// One worksheet per department; instructor rows are promoted to a
+    /// structured Excel Table while the department-average row stays outside.
+    /// </summary>
     MemoryStream GenerateEvalSummaryExcel(EvalSummaryReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from an evaluation detail report.
+    /// One worksheet per department. Data isn't promoted to a structured
+    /// table because instructor-average and department-average rows
+    /// interleave the course detail rows.
+    /// </summary>
     MemoryStream GenerateEvalDetailExcel(EvalDetailReport report);
 }

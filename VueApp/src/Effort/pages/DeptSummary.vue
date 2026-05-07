@@ -180,10 +180,12 @@ const {
     handlePrint,
     handleExcelDownload,
 } = useReportPage<DeptSummaryReport>({
+    title: "Department Summary Report",
     fetchReport: (params) => reportService.getDeptSummary(params),
     fetchPdf: (params) => reportService.openPdf("teaching/dept-summary/pdf", params),
     fetchExcel: (params) => reportService.downloadExcel("teaching/dept-summary/excel", params),
     getEffortTypes: (r) => r.effortTypes,
+    hasData: (r) => r.departments.length > 0,
 })
 </script>
 

@@ -24,6 +24,8 @@ public interface IMeritMultiYearService
 
     /// <summary>
     /// Generate a PDF document from a multi-year report.
+    /// Two pages: merit activity then evaluations (or a summary fallback when
+    /// no per-course eval data exists).
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(MultiYearReport report);
 
@@ -33,5 +35,11 @@ public interface IMeritMultiYearService
     /// </summary>
     Task<InstructorYearRangeDto?> GetInstructorYearRangeAsync(int personId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Generate an Excel workbook from a multi-year report. Single worksheet
+    /// with merit and evaluation sections. Data rows aren't promoted to a
+    /// structured table because per-year header rows and summary rows
+    /// interleave the data.
+    /// </summary>
     MemoryStream GenerateReportExcel(MultiYearReport report);
 }

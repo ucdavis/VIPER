@@ -32,8 +32,16 @@ public interface IDeptSummaryService
 
     /// <summary>
     /// Generate a PDF document from a department summary report.
+    /// One landscape page per department; instructor effort columns followed
+    /// by department-totals and faculty-count summary rows.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(DeptSummaryReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a department summary report.
+    /// One worksheet per department; instructor rows are promoted to a
+    /// structured Excel Table while the totals/faculty-count rows stay
+    /// outside (their shape isn't uniform with the data rows).
+    /// </summary>
     MemoryStream GenerateReportExcel(DeptSummaryReport report);
 }

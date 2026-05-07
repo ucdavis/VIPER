@@ -300,8 +300,6 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
 
     public Task<byte[]> GenerateReportPdfAsync(ClinicalEffortReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
         var compact = orderedTypes.Count > 14;
@@ -311,6 +309,8 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
         var cellPadV = compact ? ReportPdfSettings.CellPadVCompact : ReportPdfSettings.CellPadV;
         var percentWidth = compact ? 50f : 60f;
         var ratioWidth = compact ? 65f : 85f;
+
+        var reportTitle = $"Merit & Promotion Report - Clinical Effort - {report.ClinicalTypeName}";
 
         var document = Document.Create(container =>
         {
@@ -325,21 +325,23 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        // Institution name + date row repeats on every page —
+                        // mark it as artifact so screen readers don't replay it.
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text($"Merit & Promotion Report - Clinical Effort - {report.ClinicalTypeName}").SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text($"Academic Year {report.TermName}").SemiBold().FontSize(12);
                         });
                         col.Item().BorderBottom(1.5f).BorderColor(Colors.Black)
-                            .PaddingBottom(3).Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
+                            .PaddingBottom(3).SemanticHeader2().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -402,41 +404,37 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                         }
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(), ("Type", report.ClinicalTypeName));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(), ("Type", report.ClinicalTypeName));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Clinical effort report for academic year {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
 
     public MemoryStream GenerateReportExcel(ClinicalEffortReport report)
     {
-        var wb = new XLWorkbook();
-        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+        using var wb = new XLWorkbook();
+        const string reportTitle = "Merit & Promotion Report - Clinical Effort";
         var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Clinical effort for {termName}");
+
+        var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
         foreach (var jobGroup in report.JobGroups)
         {
             var ws = wb.Worksheets.Add(ExcelHelper.SanitizeSheetName(jobGroup.JobGroupDescription));
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Merit & Promotion Report - Clinical Effort",
+            int row = AddExcelHeader(ws, reportTitle,
                 termName, subtitle: jobGroup.JobGroupDescription);
             row = AddExcelFilterLine(ws, row, ("Type", report.ClinicalTypeName));
             row++; // blank separator
 
             // Column headers (no Job Group column — it's in the sheet name/header)
+            int headerRow = row;
             int col = 1;
             ws.Cell(row, col++).Value = "Instructor";
             ws.Cell(row, col++).Value = "Department";
@@ -451,6 +449,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                 }
                 ws.Cell(row, col++).Value = type;
             }
+            int totalCols = col - 1;
             ws.Range($"{row}:{row}").Style.Font.Bold = true;
             ws.SheetView.FreezeRows(row);
             row++;
@@ -481,12 +480,19 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                 row++;
             }
 
+            // Promote uniform instructor rows to a structured table for AT navigation.
+            if (row > headerRow + 1)
+            {
+                ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                    ws.Range(headerRow, 1, row - 1, totalCols),
+                    $"ClinicalEffort_{jobGroup.JobGroupDescription}");
+            }
+
             ws.Columns().AdjustToContents();
         }
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
