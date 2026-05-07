@@ -282,7 +282,7 @@ public class EmergencyContactController : ApiController
     /// <summary>
     /// Export the overview (completeness summary) as a PDF file.
     /// </summary>
-    [HttpPost("export/overview/pdf")]
+    [HttpGet("export/overview/pdf")]
     [Permission(Allow = "SVMSecure.Students.EmergencyContactAdmin,SVMSecure.SIS.AllStudents")]
     public async Task<ActionResult> ExportOverviewPdf()
     {
@@ -293,7 +293,7 @@ public class EmergencyContactController : ApiController
         }
 
         var pdfBytes = _exportService.GenerateOverviewPdf(data);
-        return File(pdfBytes, "application/pdf", $"EmergencyContactOverview_{DateTime.Now:yyyyMMdd}.pdf");
+        return InlineFile(pdfBytes, "application/pdf", $"EmergencyContactOverview_{DateTime.Now:yyyyMMdd}.pdf");
     }
 
     /// <summary>
@@ -320,7 +320,7 @@ public class EmergencyContactController : ApiController
     /// <summary>
     /// Export all emergency contacts as a PDF file.
     /// </summary>
-    [HttpPost("export/pdf")]
+    [HttpGet("export/pdf")]
     [Permission(Allow = "SVMSecure.Students.EmergencyContactAdmin,SVMSecure.SIS.AllStudents")]
     public async Task<ActionResult> ExportPdf()
     {
@@ -331,6 +331,6 @@ public class EmergencyContactController : ApiController
         }
 
         var pdfBytes = _exportService.GeneratePdf(data);
-        return File(pdfBytes, "application/pdf", $"EmergencyContacts_{DateTime.Now:yyyyMMdd}.pdf");
+        return InlineFile(pdfBytes, "application/pdf", $"EmergencyContacts_{DateTime.Now:yyyyMMdd}.pdf");
     }
 }

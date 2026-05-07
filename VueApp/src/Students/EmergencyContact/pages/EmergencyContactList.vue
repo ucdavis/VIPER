@@ -90,11 +90,20 @@ function navigateToStudent(row: StudentContactListItem): void {
 }
 
 async function handleExcelExport(): Promise<void> {
-    await emergencyContactService.downloadOverviewExcel()
+    const success = await emergencyContactService.downloadOverviewExcel()
+    if (success) {
+        $q.notify({ type: "positive", message: "Excel report downloaded." })
+    } else {
+        $q.notify({ type: "warning", message: "No data to export." })
+    }
 }
 
-async function handlePdfExport(): Promise<void> {
-    await emergencyContactService.openOverviewPdf()
+function handlePdfExport(): void {
+    if (rows.value.length === 0) {
+        $q.notify({ type: "warning", message: "No data to export." })
+        return
+    }
+    emergencyContactService.openOverviewPdf()
 }
 
 async function loadGrantedIds(): Promise<void> {

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -32,7 +33,10 @@ public class EmergencyContactControllerTests
         _rapsContext = Substitute.For<RAPSContext>();
         _userHelper = Substitute.For<IUserHelper>();
         _logger = Substitute.For<ILogger<EmergencyContactController>>();
-        _controller = new EmergencyContactController(_service, _exportService, _rapsContext, _userHelper, _logger);
+        _controller = new EmergencyContactController(_service, _exportService, _rapsContext, _userHelper, _logger)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
     }
 
     #region GetStudentContactList Tests
@@ -596,7 +600,7 @@ public class EmergencyContactControllerTests
     }
 
     [Fact]
-    public async Task ExportPdf_WithData_ReturnsFile()
+    public async Task ExportPdf_WithData_ReturnsInlineFile()
     {
         var data = new List<StudentContactReportDto> { new() { PersonId = 1 } };
         _service.GetStudentContactReportAsync().Returns(data);
@@ -606,6 +610,11 @@ public class EmergencyContactControllerTests
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
+        // InlineFile must set Content-Disposition: inline with a filename so the browser
+        // renders the PDF in its built-in viewer instead of forcing a download.
+        var disposition = _controller.Response.Headers.ContentDisposition.ToString();
+        Assert.StartsWith("inline", disposition);
+        Assert.Contains("EmergencyContacts_", disposition);
     }
 
     [Fact]

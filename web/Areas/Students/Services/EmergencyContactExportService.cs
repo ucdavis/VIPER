@@ -7,11 +7,34 @@ using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services;
 
+/// <summary>
+/// Exports for the student emergency-contact app. Each report has a
+/// completeness-summary "overview" variant and a full-detail variant.
+/// </summary>
 public interface IEmergencyContactExportService
 {
+    /// <summary>
+    /// Generate the overview Excel workbook — one row per student with
+    /// completeness counts for each contact category.
+    /// </summary>
     MemoryStream GenerateOverviewExcel(List<StudentContactListItemDto> data);
+
+    /// <summary>
+    /// Generate the overview PDF — one row per student with completeness
+    /// counts for each contact category.
+    /// </summary>
     byte[] GenerateOverviewPdf(List<StudentContactListItemDto> data);
+
+    /// <summary>
+    /// Generate the full-detail Excel workbook — one row per student with
+    /// the formatted blocks for each contact category.
+    /// </summary>
     MemoryStream GenerateExcel(List<StudentContactReportDto> data);
+
+    /// <summary>
+    /// Generate the full-detail PDF — one row per student with formatted
+    /// blocks for each contact category.
+    /// </summary>
     byte[] GeneratePdf(List<StudentContactReportDto> data);
 }
 
@@ -23,7 +46,11 @@ public class EmergencyContactExportService : IEmergencyContactExportService
     public MemoryStream GenerateOverviewExcel(List<StudentContactListItemDto> data)
     {
         using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add("Emergency Contact Overview");
+        const string title = "Emergency Contact Overview";
+        ExcelAccessibilityHelper.SetCoreProperties(wb, title,
+            subject: "Student emergency contact overview");
+
+        var ws = wb.Worksheets.Add(title);
 
         ws.Cell(1, 1).Value = BuildGeneratedLabel(DateTime.Now);
         ws.Cell(1, 1).Style.Font.Italic = true;
@@ -57,6 +84,13 @@ public class EmergencyContactExportService : IEmergencyContactExportService
             ws.Cell(row, 9).Value = d.LastUpdated?.ToString("M/d/yyyy") ?? "";
         }
 
+        if (data.Count > 0)
+        {
+            ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                ws.Range(2, 1, data.Count + 2, headers.Length),
+                "EmergencyContactOverview");
+        }
+
         ws.Columns().AdjustToContents();
 
         var stream = new MemoryStream();
@@ -67,10 +101,9 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
     public byte[] GenerateOverviewPdf(List<StudentContactListItemDto> data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         // Capture once so per-page header delegates don't drift across pages.
         var generatedLabel = BuildGeneratedLabel(DateTime.Now);
+        const string title = "Emergency Contact Overview";
 
         var document = Document.Create(container =>
         {
@@ -82,13 +115,13 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
                 page.Header().Column(col =>
                 {
-                    col.Item().Text("Emergency Contact Overview")
+                    col.Item().SemanticHeader1().Text(title)
                         .SemiBold().FontSize(14).AlignCenter();
                     col.Item().Text(generatedLabel)
                         .FontSize(8).Italic().AlignCenter();
                 });
 
-                page.Content().Table(table =>
+                page.Content().SemanticTable().Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
@@ -119,19 +152,19 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
                     foreach (var d in data)
                     {
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.FullName);
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.ClassLevel);
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.Email);
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.CellPhone ?? "");
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.FullName));
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.ClassLevel));
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.Email));
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.CellPhone));
                         table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.StudentInfoComplete, d.StudentInfoTotal));
                         table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.LocalContactComplete, d.LocalContactTotal));
                         table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.EmergencyContactComplete, d.EmergencyContactTotal));
                         table.Cell().BorderBottom(0.5f).Padding(2).Text(CompletenessLabel(d.PermanentContactComplete, d.PermanentContactTotal));
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.LastUpdated?.ToString("M/d/yyyy") ?? "");
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.LastUpdated?.ToString("M/d/yyyy") ?? "—");
                     }
                 });
 
-                page.Footer().AlignCenter().Text(x =>
+                page.Footer().SemanticIgnore().AlignCenter().Text(x =>
                 {
                     x.Span("Page ");
                     x.CurrentPageNumber();
@@ -139,7 +172,8 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                     x.TotalPages();
                 });
             });
-        });
+        })
+        .WithAccessibility(title, subject: "Student emergency contact overview");
 
         return document.GeneratePdf();
     }
@@ -147,7 +181,11 @@ public class EmergencyContactExportService : IEmergencyContactExportService
     public MemoryStream GenerateExcel(List<StudentContactReportDto> data)
     {
         using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add("Emergency Contact Report");
+        const string title = "Emergency Contact Report";
+        ExcelAccessibilityHelper.SetCoreProperties(wb, title,
+            subject: "Student emergency contact report");
+
+        var ws = wb.Worksheets.Add(title);
 
         ws.Cell(1, 1).Value = BuildGeneratedLabel(DateTime.Now);
         ws.Cell(1, 1).Style.Font.Italic = true;
@@ -177,6 +215,13 @@ public class EmergencyContactExportService : IEmergencyContactExportService
             ws.Cell(row, 6).Style.Alignment.WrapText = true;
         }
 
+        if (data.Count > 0)
+        {
+            ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                ws.Range(2, 1, data.Count + 2, headers.Length),
+                "EmergencyContactReport");
+        }
+
         ws.Columns().AdjustToContents();
 
         var stream = new MemoryStream();
@@ -187,9 +232,8 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
     public byte[] GeneratePdf(List<StudentContactReportDto> data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var generatedLabel = BuildGeneratedLabel(DateTime.Now);
+        const string title = "Emergency Contact Report";
 
         var document = Document.Create(container =>
         {
@@ -201,13 +245,13 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
                 page.Header().Column(col =>
                 {
-                    col.Item().Text("Emergency Contact Report")
+                    col.Item().SemanticHeader1().Text(title)
                         .SemiBold().FontSize(14).AlignCenter();
                     col.Item().Text(generatedLabel)
                         .FontSize(8).Italic().AlignCenter();
                 });
 
-                page.Content().Table(table =>
+                page.Content().SemanticTable().Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
@@ -232,8 +276,8 @@ public class EmergencyContactExportService : IEmergencyContactExportService
 
                     foreach (var d in data)
                     {
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.ClassLevel);
-                        table.Cell().BorderBottom(0.5f).Padding(2).Text(d.FullName);
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.ClassLevel));
+                        table.Cell().BorderBottom(0.5f).Padding(2).Text(OrDash(d.FullName));
                         PdfMultiLineCell(table, FormatStudentInfoLines(d));
                         PdfMultiLineCell(table, FormatContactLines(d.LocalContact));
                         PdfMultiLineCell(table, FormatContactLines(d.EmergencyContact));
@@ -241,7 +285,7 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                     }
                 });
 
-                page.Footer().AlignCenter().Text(x =>
+                page.Footer().SemanticIgnore().AlignCenter().Text(x =>
                 {
                     x.Span("Page ");
                     x.CurrentPageNumber();
@@ -249,7 +293,8 @@ public class EmergencyContactExportService : IEmergencyContactExportService
                     x.TotalPages();
                 });
             });
-        });
+        })
+        .WithAccessibility(title, subject: "Student emergency contact report");
 
         return document.GeneratePdf();
     }
@@ -260,6 +305,14 @@ public class EmergencyContactExportService : IEmergencyContactExportService
         if (complete == 0) return "No";
         return "Partial";
     }
+
+    /// <summary>
+    /// Returns an em-dash placeholder when the value is null or empty so that
+    /// QuestPDF emits the cell as a tagged TD (whitespace-only and empty Text
+    /// elements are dropped from the structure tree, breaking PDF/UA clause 7.2).
+    /// </summary>
+    private static string OrDash(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
 
     /// <summary>Formats student info as a multi-line block for Excel cells.</summary>
     private static string FormatStudentInfoBlock(StudentContactReportDto d)
@@ -300,9 +353,18 @@ public class EmergencyContactExportService : IEmergencyContactExportService
     {
         table.Cell().BorderBottom(0.5f).Padding(2).Column(col =>
         {
-            foreach (var line in lines)
+            if (lines.Count == 0)
             {
-                col.Item().Text(line);
+                // Empty Column children would cause QuestPDF to drop the cell from the
+                // tag tree, breaking PDF/UA clause 7.2 (rows must have matching column counts).
+                col.Item().Text("—");
+            }
+            else
+            {
+                foreach (var line in lines)
+                {
+                    col.Item().Text(line);
+                }
             }
         });
     }

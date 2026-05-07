@@ -103,6 +103,13 @@ function photoUrl(student: StudentPhoto): string {
 </script>
 
 <style scoped>
+/* The parent page renders the title in its bg-grey-2 toolbar; this print-header
+   only exists so the saved PDF / browser-printed page carries the title. Hide
+   it on screen to avoid the duplicate the user reported. */
+.print-header {
+    display: none;
+}
+
 .photo-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(55px, 55px));
