@@ -19,17 +19,20 @@ public class SchedulerJobsService : ISchedulerJobsService
     private readonly VIPERContext _context;
     private readonly JobStorage _hangfireStorage;
     private readonly IRecurringJobManager _recurringJobManager;
+    private readonly IScheduledJobRegistry _scheduledJobRegistry;
     private readonly ILogger<SchedulerJobsService> _logger;
 
     public SchedulerJobsService(
         VIPERContext context,
         JobStorage hangfireStorage,
         IRecurringJobManager recurringJobManager,
+        IScheduledJobRegistry scheduledJobRegistry,
         ILogger<SchedulerJobsService> logger)
     {
         _context = context;
         _hangfireStorage = hangfireStorage;
         _recurringJobManager = recurringJobManager;
+        _scheduledJobRegistry = scheduledJobRegistry;
         _logger = logger;
     }
 
@@ -334,6 +337,29 @@ public class SchedulerJobsService : ISchedulerJobsService
         }
 
         outcome.CorrectlyActive = hangfireJobs.Count(j => !splitBrainIds.Contains(j.Id));
+
+        // Heal lost registrations: a [ScheduledJob]-declared job that has no
+        // Hangfire entry and no marker was either never registered (failed
+        // deploy) or removed from the dashboard. Re-create it from declarative
+        // metadata. Skipped when a marker exists for the same id, since the
+        // marker is admin intent and overrides the declaration.
+        var markerIds = markers.Select(m => m.RecurringJobId).ToHashSet(StringComparer.Ordinal);
+        foreach (var declared in _scheduledJobRegistry.JobsById.Values)
+        {
+            if (hangfireById.ContainsKey(declared.Id) || markerIds.Contains(declared.Id))
+            {
+                continue;
+            }
+            _recurringJobManager.AddOrUpdate<ScheduledJobRunner>(
+                declared.Id,
+                runner => runner.RunAsync(declared.Id, JobCancellationToken.Null),
+                declared.Cron,
+                new RecurringJobOptions { TimeZone = ResolveTimeZone(declared.TimeZoneId) });
+            outcome.LostRegistrationsHealed++;
+            _logger.LogWarning(
+                "Reconciler: re-registered lost recurring job {JobId} from [ScheduledJob] declaration",
+                LogSanitizer.SanitizeId(declared.Id));
+        }
 
         return outcome;
     }

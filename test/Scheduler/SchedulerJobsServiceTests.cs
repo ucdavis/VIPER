@@ -19,6 +19,7 @@ namespace Viper.test.Scheduler
         private readonly IRecurringJobManager _recurringJobManager;
         private readonly ILogger<SchedulerJobsService> _logger;
         private List<HangfireRecurringJobDto> _hangfireJobs = new();
+        private readonly Dictionary<string, ScheduledJobMetadata> _declaredJobs = new(StringComparer.Ordinal);
 
         // Concrete method target so InvocationData round-trips have a real
         // MethodInfo to bind against.
@@ -44,7 +45,11 @@ namespace Viper.test.Scheduler
             _context.Dispose();
         }
 
-        private TestableService CreateSut() => new(_context, _hangfireStorage, _recurringJobManager, _logger, () => _hangfireJobs);
+        private TestableService CreateSut()
+        {
+            var registry = new ScheduledJobRegistry(_declaredJobs);
+            return new TestableService(_context, _hangfireStorage, _recurringJobManager, registry, _logger, () => _hangfireJobs);
+        }
 
         private static HangfireRecurringJobDto BuildRecurringJob(
             string id,
@@ -304,6 +309,55 @@ namespace Viper.test.Scheduler
             _recurringJobManager.DidNotReceive().RemoveIfExists(Arg.Any<string>());
         }
 
+        [Fact]
+        public async Task ReconcileAsync_RegistersLostScheduledJob()
+        {
+            // Declared via [ScheduledJob], but no Hangfire registration and no marker.
+            _declaredJobs["raps:role-refresh"] = new ScheduledJobMetadata(
+                typeof(SchedulerJobsServiceTests),
+                "raps:role-refresh",
+                "0 0 * * *",
+                "UTC",
+                isSystem: false);
+            _hangfireJobs = [];
+
+            var outcome = await CreateSut().ReconcileAsync();
+
+            // Verify outcome counter and that the underlying (non-extension)
+            // AddOrUpdate was hit with the right id/cron. We avoid asserting
+            // on Arg.Any over the extension-method overload because NSubstitute
+            // does not intercept extension methods - matchers there leak.
+            Assert.Equal(1, outcome.LostRegistrationsHealed);
+            _recurringJobManager.Received(1).AddOrUpdate(
+                "raps:role-refresh",
+                Arg.Any<Job>(),
+                "0 0 * * *",
+                Arg.Any<RecurringJobOptions>());
+        }
+
+        [Fact]
+        public async Task ReconcileAsync_DoesNotReRegisterWhenMarkerExists()
+        {
+            // Marker is admin intent -> the declaration is paused, not lost.
+            _declaredJobs["raps:role-refresh"] = new ScheduledJobMetadata(
+                typeof(SchedulerJobsServiceTests),
+                "raps:role-refresh",
+                "0 0 * * *",
+                "UTC",
+                isSystem: false);
+            await SeedMarkerAsync("raps:role-refresh");
+            _hangfireJobs = [];
+
+            var outcome = await CreateSut().ReconcileAsync();
+
+            Assert.Equal(0, outcome.LostRegistrationsHealed);
+            _recurringJobManager.DidNotReceive().AddOrUpdate(
+                Arg.Any<string>(),
+                Arg.Any<Job>(),
+                Arg.Any<string>(),
+                Arg.Any<RecurringJobOptions>());
+        }
+
         // Subclass that lets each test swap the Hangfire-side data without
         // mocking the full IStorageConnection extension-method surface.
         private sealed class TestableService : SchedulerJobsService
@@ -314,9 +368,10 @@ namespace Viper.test.Scheduler
                 VIPERContext context,
                 JobStorage storage,
                 IRecurringJobManager manager,
+                IScheduledJobRegistry registry,
                 ILogger<SchedulerJobsService> logger,
                 Func<List<HangfireRecurringJobDto>> provider)
-                : base(context, storage, manager, logger)
+                : base(context, storage, manager, registry, logger)
             {
                 _provider = provider;
             }

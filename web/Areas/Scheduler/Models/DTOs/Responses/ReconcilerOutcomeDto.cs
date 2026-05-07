@@ -9,6 +9,13 @@ public class ReconcilerOutcomeDto
     /// <summary>Both marker present AND Hangfire registration found - registration was removed.</summary>
     public int SplitBrainHealed { get; set; }
 
+    /// <summary>
+    /// Marker absent + Hangfire registration absent for a job declared via
+    /// <c>[ScheduledJob]</c> - the recurring registration was re-created.
+    /// Catches drift after a failed deploy or manual dashboard removal.
+    /// </summary>
+    public int LostRegistrationsHealed { get; set; }
+
     /// <summary>Marker referenced a __scheduler:* id - illegal; row was deleted.</summary>
     public int SystemMarkersDeleted { get; set; }
 
