@@ -1,3 +1,4 @@
+using System.Reflection;
 using Hangfire;
 using NLog;
 using Viper.Areas.Scheduler.Services;
@@ -31,19 +32,16 @@ namespace Viper.Classes.Scheduler
                 return services;
             }
 
-            // Prefer a dedicated Hangfire DB when configured, otherwise fall
-            // back to the shared VIPER connection (the documented default).
-            var connectionString = configuration.GetConnectionString("Hangfire");
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                connectionString = configuration.GetConnectionString("VIPER");
-            }
+            // Hangfire shares the VIPER DB so the marker table (queried via
+            // VIPERContext) and Hangfire's own tables stay in one database.
+            // A separate connection string would split EF queries from DDL
+            // and break pause/resume; revisit when there's a scheduler DbContext.
+            var connectionString = configuration.GetConnectionString("VIPER");
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 logger.Error(
-                    "Hangfire is enabled but neither ConnectionStrings:Hangfire nor "
-                    + "ConnectionStrings:VIPER is set. Hangfire will be disabled for "
-                    + "this process.");
+                    "Hangfire is enabled but ConnectionStrings:VIPER is empty. "
+                    + "Hangfire will be disabled for this process.");
                 return services;
             }
 
@@ -78,10 +76,12 @@ namespace Viper.Classes.Scheduler
             services.AddTransient<SchedulerJobReconciler>();
             services.AddHostedService<ReconcilerStartupHostedService>();
 
-            // Idempotent DDL: ensure the marker table exists so pause/resume
-            // doesn't fail on first run. Hangfire's own bootstrap creates the
-            // HangFire schema; we attach our table to it.
-            SchedulerSchemaInitializer.EnsureSchedulerJobStateTable(connectionString, logger);
+            // Discover [ScheduledJob] implementations so the registry is
+            // available to ISchedulerJobsService (reconciler) and the post-
+            // mount registrar can wire each one into Hangfire.
+            ScheduledJobDiscovery.RegisterScheduledJobs(
+                services,
+                new[] { Assembly.GetExecutingAssembly() });
 
             return services;
         }
@@ -111,14 +111,10 @@ namespace Viper.Classes.Scheduler
             // Hangfire's bootstrap, which guarantees the [HangFire] schema is
             // present before we attach our marker table to it.
             var nlogger = LogManager.GetCurrentClassLogger();
-            var hangfireConn = app.Configuration.GetConnectionString("Hangfire");
-            if (string.IsNullOrWhiteSpace(hangfireConn))
+            var connectionString = app.Configuration.GetConnectionString("VIPER");
+            if (!string.IsNullOrWhiteSpace(connectionString))
             {
-                hangfireConn = app.Configuration.GetConnectionString("VIPER");
-            }
-            if (!string.IsNullOrWhiteSpace(hangfireConn))
-            {
-                SchedulerSchemaInitializer.EnsureSchedulerJobStateTable(hangfireConn, nlogger);
+                SchedulerSchemaInitializer.EnsureSchedulerJobStateTable(connectionString, nlogger);
             }
 
             app.MapHangfireDashboard(DashboardPath, new DashboardOptions
@@ -132,6 +128,12 @@ namespace Viper.Classes.Scheduler
             // mounted) guarantees the storage layer is ready.
             var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
             SchedulerJobReconciler.RegisterRecurring(recurringJobManager);
+
+            // Same idempotent pass for every [ScheduledJob]-declared job. The
+            // reconciler also re-registers lost ones, but doing it on startup
+            // means a fresh deploy doesn't have to wait an hour to converge.
+            var registry = app.Services.GetRequiredService<IScheduledJobRegistry>();
+            ScheduledJobDiscovery.RegisterRecurringJobs(recurringJobManager, registry.JobsById.Values);
             return app;
         }
     }
