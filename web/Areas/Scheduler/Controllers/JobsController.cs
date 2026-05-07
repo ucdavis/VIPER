@@ -96,7 +96,7 @@ public class JobsController : ApiController
     [HttpPost("{id}/resume")]
     public async Task<ActionResult<PauseResumeResultDto>> ResumeJob(
         string id,
-        [FromBody] ResumeRequest request,
+        [FromBody] ResumeRequest? request,
         CancellationToken ct)
     {
         var expectedRowVersion = TryDecodeRowVersion(request?.RowVersion);

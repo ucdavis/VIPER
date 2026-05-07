@@ -377,7 +377,7 @@ public class SchedulerJobsService : ISchedulerJobsService
         var args = payload.SerializedArgs
             .Zip(paramTypes, (json, t) => System.Text.Json.JsonSerializer.Deserialize(json, t))
             .ToArray();
-        return new Hangfire.Common.Job(type, method, args!);
+        return new Hangfire.Common.Job(type, method, args);
     }
 
     /// <summary>

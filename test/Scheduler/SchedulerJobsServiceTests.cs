@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hangfire;
 using Hangfire.Common;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ namespace Viper.test.Scheduler
     public sealed class SchedulerJobsServiceTests : IDisposable
     {
         private readonly VIPERContext _context;
-        private readonly Hangfire.JobStorage _hangfireStorage;
+        private readonly JobStorage _hangfireStorage;
         private readonly IRecurringJobManager _recurringJobManager;
         private readonly ILogger<SchedulerJobsService> _logger;
         private List<HangfireRecurringJobDto> _hangfireJobs = new();
@@ -33,7 +34,7 @@ namespace Viper.test.Scheduler
                     .UseInMemoryDatabase(Guid.NewGuid().ToString())
                     .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                     .Options);
-            _hangfireStorage = Substitute.For<Hangfire.JobStorage>();
+            _hangfireStorage = Substitute.For<JobStorage>();
             _recurringJobManager = Substitute.For<IRecurringJobManager>();
             _logger = Substitute.For<ILogger<SchedulerJobsService>>();
         }
@@ -68,12 +69,12 @@ namespace Viper.test.Scheduler
         private static string SerializeJobPayload()
         {
             var method = typeof(FakeJob).GetMethod(nameof(FakeJob.Run))!;
-            return System.Text.Json.JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 TypeName = typeof(FakeJob).AssemblyQualifiedName,
                 MethodName = method.Name,
                 ParameterTypeNames = method.GetParameters().Select(p => p.ParameterType.AssemblyQualifiedName).ToArray(),
-                SerializedArgs = new[] { System.Text.Json.JsonSerializer.Serialize("arg1") },
+                SerializedArgs = new[] { JsonSerializer.Serialize("arg1") },
             });
         }
 
@@ -156,7 +157,7 @@ namespace Viper.test.Scheduler
             _recurringJobManager.Received(1).RemoveIfExists("job-1");
             var marker = await _context.SchedulerJobStates.FirstOrDefaultAsync(s => s.RecurringJobId == "job-1");
             Assert.NotNull(marker);
-            Assert.Equal("*/5 * * * *", marker!.Cron);
+            Assert.Equal("*/5 * * * *", marker.Cron);
             Assert.Equal("critical", marker.Queue);
             Assert.Equal("alice", marker.PausedBy);
         }
@@ -311,7 +312,7 @@ namespace Viper.test.Scheduler
 
             public TestableService(
                 VIPERContext context,
-                Hangfire.JobStorage storage,
+                JobStorage storage,
                 IRecurringJobManager manager,
                 ILogger<SchedulerJobsService> logger,
                 Func<List<HangfireRecurringJobDto>> provider)

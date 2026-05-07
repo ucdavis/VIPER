@@ -6,7 +6,7 @@ using Viper.Areas.Scheduler.Models.Entities;
 
 namespace Viper.Classes.SQLContext;
 
-public partial class VIPERContext : DbContext
+public partial class VIPERContext
 {
     /* Scheduler */
     public virtual DbSet<SchedulerJobState> SchedulerJobStates { get; set; }
@@ -20,8 +20,7 @@ public partial class VIPERContext : DbContext
             entity.HasKey(e => e.RecurringJobId);
 
             entity.Property(e => e.RecurringJobId)
-                .HasMaxLength(200)
-                .IsUnicode(true);
+                .HasMaxLength(200);
 
             entity.Property(e => e.Cron)
                 .IsRequired()
