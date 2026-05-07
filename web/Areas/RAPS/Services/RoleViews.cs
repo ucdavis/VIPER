@@ -37,7 +37,7 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="modBy">
         /// Audit actor stamped on every <c>TblRoleMember</c> and <c>TblLog</c>
-        /// row written by this run. Pass <c>"__scheduler"</c> for nightly
+        /// row written by this run. Pass <c>"__sched"</c> for nightly
         /// recurring runs, the LoginId for manual admin runs, or rely on the
         /// <see cref="DefaultModBy"/> for legacy callers.
         /// </param>

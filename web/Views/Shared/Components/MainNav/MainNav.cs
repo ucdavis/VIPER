@@ -30,6 +30,7 @@ namespace Viper.Views.Shared.Components.MainNav
             new string[] { "~/Policy", "Policies", "SVMSecure" },
             new string[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
             new string[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
+            new[] { "~/scheduler/dashboard", "Scheduler", "SVMSecure.CATS.scheduledJobs", "Hangfire scheduler dashboard" },
             new string[] { "/students/default.cfm", "Students", "SVMSecure.Students" },
             new string[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
             new string[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
@@ -64,6 +65,7 @@ namespace Viper.Views.Shared.Components.MainNav
             {
                 "raps" => "Computing",
                 "policy" => "Policies",
+                "scheduler" => "Scheduler",
                 _ => "VIPER Home",
             };
             return await Task.Run(() => View("Default", user));

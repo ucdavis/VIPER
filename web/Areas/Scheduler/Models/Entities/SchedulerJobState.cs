@@ -28,7 +28,7 @@ public class SchedulerJobState
     /// <summary>Local timestamp the pause was recorded (DateTimeKind.Local per project DB convention).</summary>
     public DateTime PausedAt { get; set; }
 
-    /// <summary>LoginId of the operator, or "__scheduler" for system pauses.</summary>
+    /// <summary>LoginId of the operator, or "__sched" for system pauses.</summary>
     public string PausedBy { get; set; } = string.Empty;
 
     /// <summary>SQL Server rowversion for optimistic concurrency on pause/resume.</summary>

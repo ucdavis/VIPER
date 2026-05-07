@@ -10,7 +10,7 @@ namespace Viper.Areas.RAPS.Jobs;
 /// First consumer of the scheduled-job abstraction: nightly role membership
 /// refresh. Wraps <see cref="RoleViews.UpdateRoles"/> and threads the run's
 /// <see cref="ScheduledJobContext.ModBy"/> through so the audit log clearly
-/// distinguishes scheduler-driven changes (<c>"__scheduler"</c>) from
+/// distinguishes scheduler-driven changes (<c>"__sched"</c>) from
 /// admin-driven manual runs (a real LoginId).
 /// </summary>
 [ScheduledJob(id: "raps:role-refresh", cron: "0 0 * * *", TimeZoneId = "Pacific Standard Time")]

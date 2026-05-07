@@ -36,7 +36,7 @@ public class SchedulerJobDto
     /// <summary>Local timestamp the pause was recorded; null when not paused. Matches SchedulerJobState.PausedAt.</summary>
     public DateTime? PausedAt { get; set; }
 
-    /// <summary>LoginId or "__scheduler" who recorded the pause; null when not paused.</summary>
+    /// <summary>LoginId or "__sched" who recorded the pause; null when not paused.</summary>
     public string? PausedBy { get; set; }
 
     /// <summary>True for jobs in the reserved "__scheduler:" namespace; UI must hide pause/resume.</summary>
