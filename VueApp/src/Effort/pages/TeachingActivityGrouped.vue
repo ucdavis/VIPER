@@ -224,10 +224,12 @@ const {
     handlePrint,
     handleExcelDownload,
 } = useReportPage<TeachingActivityReport>({
+    title: "Teaching Activity Report - Grouped by Department",
     fetchReport: (params) => reportService.getTeachingActivityGrouped(params),
     fetchPdf: (params) => reportService.openPdf("teaching/grouped/pdf", params),
     fetchExcel: (params) => reportService.downloadExcel("teaching/grouped/excel", params),
     getEffortTypes: (r) => r.effortTypes,
+    hasData: (r) => r.departments.length > 0,
 })
 
 /** Strip trailing zeros: 12.00 → "12", 10.50 → "10.5" */

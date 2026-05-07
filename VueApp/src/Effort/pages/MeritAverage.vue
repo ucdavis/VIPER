@@ -216,10 +216,12 @@ const {
     handlePrint,
     handleExcelDownload,
 } = useReportPage<MeritAverageReport>({
+    title: "Merit & Promotion Report - Average",
     fetchReport: (params) => reportService.getMeritAverage(params),
     fetchPdf: (params) => reportService.openPdf("merit/average/pdf", params),
     fetchExcel: (params) => reportService.downloadExcel("merit/average/excel", params),
     getEffortTypes: (r) => r.effortTypes,
+    hasData: (r) => r.jobGroups.length > 0,
 })
 </script>
 
