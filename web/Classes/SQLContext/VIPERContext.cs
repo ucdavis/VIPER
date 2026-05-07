@@ -1403,8 +1403,10 @@ public partial class VIPERContext : DbContext
         });
         OnModelCreatingCTS(modelBuilder);
         OnModelCreatingStudents(modelBuilder);
+        OnModelCreatingScheduler(modelBuilder);
     }
 
     partial void OnModelCreatingCTS(ModelBuilder modelBuilder);
     partial void OnModelCreatingStudents(ModelBuilder modelBuilder);
+    partial void OnModelCreatingScheduler(ModelBuilder modelBuilder);
 }
