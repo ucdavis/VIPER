@@ -1,5 +1,5 @@
 import { isRotationExcluded } from "../constants/rotation-constants"
-import type { ScheduleSemester } from "../components/ScheduleView.vue"
+import type { ScheduleSemester } from "../types/schedule-view-types"
 import type { ClinicianScheduleData } from "../services/clinician-service"
 import type { RotationScheduleData } from "../services/rotation-service"
 
@@ -106,14 +106,6 @@ function useScheduleNormalization() {
     }
 }
 
-// Export all functions together
-export {
-    normalizeWeek,
-    normalizeSemesterWeeks,
-    normalizeScheduleSemesters,
-    filterExcludedRotations,
-    getAssignedRotationNames,
-    normalizeClinicianSchedule,
-    normalizeRotationSchedule,
-    useScheduleNormalization,
-}
+// Export the composable plus the two helpers consumed directly by tests/utils.
+// Helpers without external importers stay reachable via useScheduleNormalization().
+export { normalizeWeek, normalizeScheduleSemesters, useScheduleNormalization }
