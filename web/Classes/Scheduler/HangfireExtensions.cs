@@ -74,14 +74,14 @@ namespace Viper.Classes.Scheduler
                 // on the worker; both must run for the graph to populate.
                 .UseHeartbeatPage(checkInterval: TimeSpan.FromSeconds(30)));
 
-            // Worker process + a per-server ProcessMonitor that records the
-            // CPU/RAM/uptime metrics rendered on the Heartbeat dashboard tab.
-            // Storage is null so AddHangfireServer resolves the JobStorage
-            // we registered above via UseSqlServerStorage.
-            services.AddHangfireServer(
-                optionsAction: (_, _) => { },
-                storage: null!,
-                additionalProcesses: new IBackgroundProcess[] { new ProcessMonitor(checkInterval: TimeSpan.FromSeconds(30)) });
+            // ProcessMonitor (from Hangfire.Heartbeat) records the CPU/RAM/
+            // uptime metrics rendered by UseHeartbeatPage. Registering it as
+            // an IBackgroundProcess in DI lets AddHangfireServer pick it up
+            // alongside the default workers without us having to pass storage
+            // explicitly (the overload that takes additionalProcesses also
+            // requires a non-null JobStorage).
+            services.AddSingleton<IBackgroundProcess>(_ => new ProcessMonitor(checkInterval: TimeSpan.FromSeconds(30)));
+            services.AddHangfireServer();
 
             // Hangfire-specific check piggybacks on the /health/detail "ready"
             // surface stood up in PR 0. Only registered when Hangfire itself is
