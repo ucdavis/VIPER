@@ -1,5 +1,7 @@
 using System.Reflection;
 using Hangfire;
+using Hangfire.Console;
+using Hangfire.Heartbeat;
 using NLog;
 using Viper.Areas.Scheduler.Services;
 using Viper.Classes.HealthChecks;
@@ -61,7 +63,13 @@ namespace Viper.Classes.Scheduler
                     // schema the marker table colocates against.
                     SchemaName = "HangFire",
                 })
-                .UseFilter(sp.GetRequiredService<HangfireJobLoggingFilter>()));
+                .UseFilter(sp.GetRequiredService<HangfireJobLoggingFilter>())
+                // Hangfire.Console: per-job execution logs in the dashboard
+                // (jobs accept PerformContext and call context.WriteLine).
+                .UseConsole()
+                // Hangfire.Heartbeat: server CPU/RAM/uptime metrics on the
+                // dashboard's Servers page.
+                .UseHeartbeatPage(checkInterval: TimeSpan.FromSeconds(30)));
             services.AddHangfireServer();
 
             // Hangfire-specific check piggybacks on the /health/detail "ready"
