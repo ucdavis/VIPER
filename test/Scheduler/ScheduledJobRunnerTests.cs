@@ -44,7 +44,7 @@ namespace Viper.test.Scheduler
 
             var jobCt = Substitute.For<Hangfire.IJobCancellationToken>();
             jobCt.ShutdownToken.Returns(CancellationToken.None);
-            await runner.RunAsync("test:capturing", jobCt, performContext: null);
+            await runner.RunAsync("test:capturing", jobCt);
 
             Assert.True(capturing.Ran);
             Assert.NotNull(capturing.CapturedContext);
@@ -64,7 +64,7 @@ namespace Viper.test.Scheduler
 
             var jobCt = Substitute.For<Hangfire.IJobCancellationToken>();
             jobCt.ShutdownToken.Returns(CancellationToken.None);
-            var ex = await Record.ExceptionAsync(() => runner.RunAsync("does-not-exist", jobCt, performContext: null));
+            var ex = await Record.ExceptionAsync(() => runner.RunAsync("does-not-exist", jobCt));
             Assert.Null(ex);
         }
     }

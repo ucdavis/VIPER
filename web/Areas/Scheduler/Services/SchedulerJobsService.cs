@@ -352,7 +352,7 @@ public class SchedulerJobsService : ISchedulerJobsService
             }
             _recurringJobManager.AddOrUpdate<ScheduledJobRunner>(
                 declared.Id,
-                runner => runner.RunAsync(declared.Id, JobCancellationToken.Null, null!),
+                runner => runner.RunAsync(declared.Id, JobCancellationToken.Null),
                 declared.Cron,
                 new RecurringJobOptions { TimeZone = ResolveTimeZone(declared.TimeZoneId) });
             outcome.LostRegistrationsHealed++;
