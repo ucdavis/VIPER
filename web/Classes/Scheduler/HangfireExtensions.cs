@@ -1,5 +1,9 @@
 using System.Reflection;
 using Hangfire;
+using Hangfire.Console;
+using Hangfire.Heartbeat;
+using Hangfire.Heartbeat.Server;
+using Hangfire.Server;
 using NLog;
 using Viper.Areas.Scheduler.Services;
 using Viper.Classes.HealthChecks;
@@ -61,7 +65,22 @@ namespace Viper.Classes.Scheduler
                     // schema the marker table colocates against.
                     SchemaName = "HangFire",
                 })
-                .UseFilter(sp.GetRequiredService<HangfireJobLoggingFilter>()));
+                .UseFilter(sp.GetRequiredService<HangfireJobLoggingFilter>())
+                // Hangfire.Console: per-job execution logs in the dashboard
+                // (jobs accept PerformContext and call context.WriteLine).
+                .UseConsole()
+                // Hangfire.Heartbeat: dashboard tab that renders server
+                // metrics. The recorder is added below as a background process
+                // on the worker; both must run for the graph to populate.
+                .UseHeartbeatPage(checkInterval: TimeSpan.FromSeconds(30)));
+
+            // ProcessMonitor (from Hangfire.Heartbeat) records the CPU/RAM/
+            // uptime metrics rendered by UseHeartbeatPage. Registering it as
+            // an IBackgroundProcess in DI lets AddHangfireServer pick it up
+            // alongside the default workers without us having to pass storage
+            // explicitly (the overload that takes additionalProcesses also
+            // requires a non-null JobStorage).
+            services.AddSingleton<IBackgroundProcess>(_ => new ProcessMonitor(checkInterval: TimeSpan.FromSeconds(30)));
             services.AddHangfireServer();
 
             // Hangfire-specific check piggybacks on the /health/detail "ready"

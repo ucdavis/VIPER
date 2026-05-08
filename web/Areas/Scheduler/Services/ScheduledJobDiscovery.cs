@@ -87,9 +87,11 @@ public static class ScheduledJobDiscovery
         foreach (var meta in jobs)
         {
             var cron = autoSchedule ? meta.Cron : Cron.Never();
+            // PerformContext is null in the expression; Hangfire substitutes
+            // the real context at execution time (same pattern as IJobCancellationToken).
             manager.AddOrUpdate<ScheduledJobRunner>(
                 meta.Id,
-                runner => runner.RunAsync(meta.Id, JobCancellationToken.Null),
+                runner => runner.RunAsync(meta.Id, JobCancellationToken.Null, null!),
                 cron,
                 new RecurringJobOptions
                 {
