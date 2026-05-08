@@ -94,7 +94,7 @@ parameters in deployed environments).
 
 | Key | Purpose | Default |
 |---|---|---|
-| `Hangfire:Enabled` | Master switch. When `false`, no scheduler wiring runs and the dashboard is unreachable. | `false` |
+| `Hangfire:Enabled` | Master switch. When `false`, no scheduler wiring runs and the dashboard is unreachable. | `true` |
 | `ConnectionStrings:VIPER` | The database that hosts Hangfire's tables and our `[HangFire].[SchedulerJobState]` marker table. Required when `Hangfire:Enabled=true`. Hangfire and the marker table share VIPER; splitting them is not supported. | n/a |
 | `IPAddressAllowlistConfiguration:InternalAllowlist` | Source-IP gate for `/health/detail` and the HealthChecks UI. Add SVM infra ranges + your office subnet. | localhost only |
 
