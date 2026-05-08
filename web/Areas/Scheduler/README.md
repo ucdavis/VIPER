@@ -119,6 +119,18 @@ ColdFusion VIPER scheduler (`cats/inc_scheduledTasks.cfm`) checks &mdash;
 admins who already manage the legacy scheduler inherit access without a
 provisioning step.
 
+### Dashboard add-ons
+
+Two Hangfire dashboard plugins enrich the operator experience:
+
+- **Hangfire.Console** &mdash; per-job console output appears inline on the
+  job's detail page. Jobs that want to surface progress to operators
+  accept a `PerformContext` parameter and call `context.WriteLine(...)`;
+  the output is captured in storage and rendered in the dashboard.
+- **Hangfire.Heartbeat** &mdash; CPU, memory, and uptime metrics for each
+  registered worker are shown on the dashboard's Servers page (refreshed
+  every 30 s). Useful for spotting a stuck worker before users do.
+
 ---
 
 ## Pause and resume
