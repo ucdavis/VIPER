@@ -74,18 +74,23 @@ public static class ScheduledJobDiscovery
     /// <summary>
     /// Calls <see cref="IRecurringJobManager.AddOrUpdate"/> for each declared
     /// job. Idempotent: safe to invoke on every startup, and the reconciler
-    /// reuses it to heal lost registrations.
+    /// reuses it to heal lost registrations. When <paramref name="autoSchedule"/>
+    /// is false, every job is registered with <see cref="Cron.Never"/> so it
+    /// is visible in the dashboard but never fires on a schedule (operators
+    /// can still use "Trigger now" or <c>BackgroundJob.Enqueue</c>).
     /// </summary>
     public static void RegisterRecurringJobs(
         IRecurringJobManager manager,
-        IEnumerable<ScheduledJobMetadata> jobs)
+        IEnumerable<ScheduledJobMetadata> jobs,
+        bool autoSchedule = true)
     {
         foreach (var meta in jobs)
         {
+            var cron = autoSchedule ? meta.Cron : Cron.Never();
             manager.AddOrUpdate<ScheduledJobRunner>(
                 meta.Id,
                 runner => runner.RunAsync(meta.Id, JobCancellationToken.Null),
-                meta.Cron,
+                cron,
                 new RecurringJobOptions
                 {
                     TimeZone = ResolveTimeZone(meta.TimeZoneId),
