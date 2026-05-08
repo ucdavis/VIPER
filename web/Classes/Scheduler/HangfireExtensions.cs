@@ -15,12 +15,17 @@ namespace Viper.Classes.Scheduler
     {
         public const string DashboardPath = "/scheduler/dashboard";
         private const string EnabledKey = "Hangfire:Enabled";
+        private const string AutoScheduleKey = "Hangfire:AutoSchedule";
 
         /// <summary>
         /// Registers Hangfire services + the background server when
         /// <c>Hangfire:Enabled</c> is true. Hangfire's tables live in the
         /// VIPER database under the HangFire schema (auto-migrated on first
-        /// server start).
+        /// server start). When <c>Hangfire:AutoSchedule</c> is false (e.g.
+        /// local dev), the worker still runs and the dashboard still mounts,
+        /// but recurring jobs are registered with <c>Cron.Never</c> so cron
+        /// never fires; jobs are visible in the dashboard and can be invoked
+        /// via "Trigger now" or <c>BackgroundJob.Enqueue</c>.
         /// </summary>
         public static IServiceCollection AddViperHangfire(
             this IServiceCollection services,
@@ -123,17 +128,27 @@ namespace Viper.Classes.Scheduler
                 DashboardTitle = "VIPER Scheduler",
             }).RequireAuthorization();
 
-            // Register the hourly reconciler. AddOrUpdate is idempotent so the
-            // call is safe across restarts; running it here (after Hangfire is
-            // mounted) guarantees the storage layer is ready.
+            // When AutoSchedule is off (dev), register every recurring job
+            // with Cron.Never so the dashboard still shows them and operators
+            // can fire them via "Trigger now" or BackgroundJob.Enqueue, but
+            // nothing fires on its own.
+            var autoSchedule = app.Configuration.GetValue<bool?>(AutoScheduleKey) ?? true;
             var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
-            SchedulerJobReconciler.RegisterRecurring(recurringJobManager);
+            if (autoSchedule)
+            {
+                // Register the hourly reconciler. AddOrUpdate is idempotent so
+                // the call is safe across restarts; running it here (after
+                // Hangfire is mounted) guarantees the storage layer is ready.
+                SchedulerJobReconciler.RegisterRecurring(recurringJobManager);
+            }
 
             // Same idempotent pass for every [ScheduledJob]-declared job. The
             // reconciler also re-registers lost ones, but doing it on startup
             // means a fresh deploy doesn't have to wait an hour to converge.
+            // When AutoSchedule is off, RegisterRecurringJobs swaps each
+            // declared cron for Cron.Never so jobs stay visible without firing.
             var registry = app.Services.GetRequiredService<IScheduledJobRegistry>();
-            ScheduledJobDiscovery.RegisterRecurringJobs(recurringJobManager, registry.JobsById.Values);
+            ScheduledJobDiscovery.RegisterRecurringJobs(recurringJobManager, registry.JobsById.Values, autoSchedule);
             return app;
         }
     }
