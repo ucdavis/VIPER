@@ -49,6 +49,8 @@
     <PackageReference Include="AWSSDK.Core" Version="3.7.201.7" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
+    <PackageReference Include="Hangfire.SqlServer" Version="1.8.23" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
     <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" />
@@ -88,6 +90,8 @@
     <Folder Include="Areas\ClinicalScheduler\Models\" />
     <Folder Include="Areas\CMS\Views\" />
     <Folder Include="Areas\RAPS\Data\" />
+    <Folder Include="Areas\Scheduler\Controllers\" />
+    <Folder Include="Areas\Scheduler\Services\" />
     <Folder Include="wwwroot\js\vue\" />
   </ItemGroup>
 

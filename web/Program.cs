@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -31,6 +30,7 @@ using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
+using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
@@ -90,39 +90,9 @@ try
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
 
-    //Use forwarded for headers on test and prod. UseForwardedHeaders is
-    //only enabled outside Development (see below), so skip the cloudflare.com
-    //fetch in dev to avoid a network call on every local startup.
-    if (!builder.Environment.IsDevelopment())
-    {
-        var cloudflareCidrs = CloudflareNetworks.FetchOrFallback(logger);
-        builder.Services.Configure<ForwardedHeadersOptions>(options =>
-        {
-            options.ForwardedHeaders =
-                ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
-
-            // Cloudflare fronts vetmed.ucdavis.edu. The chain is
-            // User -> Cloudflare -> F5 -> app, so the middleware must walk two
-            // proxy hops to land on the real client IP. Default ForwardLimit
-            // is 1, which stops at the CF edge - bump to 2.
-            options.ForwardLimit = 2;
-            foreach (var cidr in cloudflareCidrs)
-            {
-                // cidrs come from cloudflare.com (or our hardcoded fallback). A
-                // single malformed entry in the live response shouldn't crash
-                // startup - skip it and keep the rest of the allowlist.
-                try
-                {
-                    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
-                }
-                catch (FormatException ex)
-                {
-                    logger.Warn(ex, "Skipping invalid Cloudflare CIDR: {Cidr}", cidr);
-                }
-            }
-        });
-    }
+    // Forwarded-headers wiring (Cloudflare + F5 trusted proxies). No-op
+    // in Development. See ForwardedHeadersExtensions.
+    builder.Services.AddViperForwardedHeaders(builder.Environment, logger);
 
     // Add services to the container.
     builder.Services.AddControllersWithViews(options =>
@@ -278,7 +248,11 @@ try
     builder.Services.AddScoped<IHarvestPhase, ClinicalHarvestPhase>();
 
 
-    // Scrutor: auto-register services and validators by convention
+    // Scrutor: auto-register services and validators by convention.
+    // Viper.Areas.Scheduler.Services is intentionally excluded — those services
+    // depend on Hangfire DI types (JobStorage, IRecurringJobManager) and are
+    // registered explicitly inside AddViperHangfire when Hangfire:Enabled=true,
+    // so they remain inert when the feature flag is off.
     builder.Services.Scan(scan => scan
         .FromAssemblyOf<Program>()
         .AddClasses(classes => classes
@@ -319,6 +293,9 @@ try
 
     // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
+
+    // Hangfire scheduler. No-op when Hangfire:Enabled is false.
+    builder.Services.AddViperHangfire(builder.Configuration, logger);
 
     // Add HttpClient for Vite proxy (development only)
     if (builder.Environment.IsDevelopment())
@@ -516,6 +493,9 @@ try
 
     // All health-check pipeline wiring lives in HealthCheckExtensions.
     app.UseViperHealthChecks();
+
+    // Hangfire dashboard. No-op unless AddViperHangfire actually registered.
+    app.UseViperHangfire();
 
     // Define the default route mapping and require authentication by default (fail safe)
     app.MapControllerRoute(
