@@ -1,4 +1,5 @@
 using Hangfire;
+using Hangfire.Server;
 using Viper.Areas.Scheduler.Models;
 using Viper.Classes.Utilities;
 
@@ -28,10 +29,16 @@ public sealed class ScheduledJobRunner
     /// Hangfire invokes this method with the scheduled job's id. The
     /// <see cref="IJobCancellationToken"/> parameter is replaced by Hangfire
     /// at runtime with one tied to the server's shutdown signal so jobs can
-    /// honor cooperative cancellation. A fresh DI scope is created per
-    /// execution so each run gets its own DbContext.
+    /// honor cooperative cancellation. The <see cref="PerformContext"/> is
+    /// also injected by Hangfire and threaded into <see cref="ScheduledJobContext"/>
+    /// so jobs can write to the dashboard console via <c>context.WriteLine</c>.
+    /// A fresh DI scope is created per execution so each run gets its own
+    /// DbContext.
     /// </summary>
-    public async Task RunAsync(string jobId, IJobCancellationToken cancellationToken)
+    public async Task RunAsync(
+        string jobId,
+        IJobCancellationToken cancellationToken,
+        PerformContext? performContext)
     {
         using var scope = _scopeFactory.CreateScope();
         var registry = scope.ServiceProvider.GetRequiredService<IScheduledJobRegistry>();
@@ -46,7 +53,8 @@ public sealed class ScheduledJobRunner
         var job = (IScheduledJob)scope.ServiceProvider.GetRequiredService(metadata.JobType);
         var context = new ScheduledJobContext(
             TriggerSource.Scheduled,
-            ISchedulerJobsService.SchedulerActor);
+            ISchedulerJobsService.SchedulerActor,
+            performContext);
 
         await job.RunAsync(context, cancellationToken.ShutdownToken);
     }

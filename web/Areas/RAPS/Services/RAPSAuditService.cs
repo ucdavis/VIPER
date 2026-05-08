@@ -251,9 +251,7 @@ namespace Viper.Areas.RAPS.Services
             TblLog tblLog = new()
             {
                 ModTime = DateTime.Now,
-                ModBy = string.IsNullOrWhiteSpace(modBy)
-                    ? (UserHelper.GetCurrentUser()?.LoginId ?? "__system")
-                    : modBy,
+                ModBy = string.IsNullOrWhiteSpace(modBy) ? UserHelper.GetCurrentUser()?.LoginId : modBy,
                 RoleId = roleMember.RoleId,
                 MemberId = roleMember.MemberId,
                 Comment = comment

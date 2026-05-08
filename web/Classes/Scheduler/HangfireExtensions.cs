@@ -69,8 +69,9 @@ namespace Viper.Classes.Scheduler
                 // Hangfire.Console: per-job execution logs in the dashboard
                 // (jobs accept PerformContext and call context.WriteLine).
                 .UseConsole()
-                // Hangfire.Heartbeat: server CPU/RAM/uptime metrics on the
-                // dashboard's Servers page.
+                // Hangfire.Heartbeat: dashboard tab that renders server
+                // metrics. The recorder is added below as a background process
+                // on the worker; both must run for the graph to populate.
                 .UseHeartbeatPage(checkInterval: TimeSpan.FromSeconds(30)));
 
             // ProcessMonitor (from Hangfire.Heartbeat) records the CPU/RAM/
