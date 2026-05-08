@@ -160,10 +160,12 @@ const {
     handlePrint,
     handleExcelDownload,
 } = useReportPage<MeritSummaryReport>({
+    title: "Merit Summary Report",
     fetchReport: (params) => reportService.getMeritSummary(params),
     fetchPdf: (params) => reportService.openPdf("merit/summary/pdf", params),
     fetchExcel: (params) => reportService.downloadExcel("merit/summary/excel", params),
     getEffortTypes: (r) => r.effortTypes,
+    hasData: (r) => r.jobGroups.length > 0,
 })
 </script>
 

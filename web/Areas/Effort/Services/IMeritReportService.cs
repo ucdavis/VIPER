@@ -49,15 +49,30 @@ public interface IMeritReportService
 
     /// <summary>
     /// Generate a PDF document from a merit detail report.
+    /// One landscape page per department; courses listed per instructor with
+    /// instructor-totals and department-totals rows.
     /// </summary>
     Task<byte[]> GenerateMeritDetailPdfAsync(MeritDetailReport report);
 
     /// <summary>
     /// Generate a PDF document from a merit average report.
+    /// One legal-landscape page per (job group, department) pair; per-term
+    /// effort by instructor with totals/averages summary rows.
     /// </summary>
     Task<byte[]> GenerateMeritAveragePdfAsync(MeritAverageReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a merit detail report. One worksheet
+    /// per department. Data isn't promoted to a structured table because
+    /// course rows are interleaved with instructor-totals and
+    /// department-totals rows.
+    /// </summary>
     MemoryStream GenerateMeritDetailExcel(MeritDetailReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a merit average report. One worksheet
+    /// per (job group, department) pair. Per-term rows interleave with
+    /// instructor-totals so no structured table is built.
+    /// </summary>
     MemoryStream GenerateMeritAverageExcel(MeritAverageReport report);
 }

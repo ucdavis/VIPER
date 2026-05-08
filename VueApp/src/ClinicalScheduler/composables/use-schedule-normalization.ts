@@ -1,5 +1,5 @@
 import { isRotationExcluded } from "../constants/rotation-constants"
-import type { ScheduleSemester } from "../components/ScheduleView.vue"
+import type { ScheduleSemester } from "../components/schedule-view-types"
 import type { ClinicianScheduleData } from "../services/clinician-service"
 import type { RotationScheduleData } from "../services/rotation-service"
 

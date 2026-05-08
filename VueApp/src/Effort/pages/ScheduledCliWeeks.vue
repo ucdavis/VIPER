@@ -89,9 +89,11 @@ import type { QTableColumn } from "quasar"
 
 const { termCode, loading, report, initialFilters, generateReport, handlePrint, handleExcelDownload } =
     useReportPage<ScheduledCliWeeksReport>({
+        title: "Scheduled Clinical Weeks",
         fetchReport: (params) => reportService.getScheduledCliWeeks(params),
         fetchPdf: (params) => reportService.openPdf("clinical-schedule/pdf", params),
         fetchExcel: (params) => reportService.downloadExcel("clinical-schedule/excel", params),
+        hasData: (r) => r.instructors.length > 0,
     })
 
 type CliWeeksRow = {

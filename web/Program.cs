@@ -17,6 +17,7 @@ using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
+using QuestPDF.Infrastructure;
 using System.Net;
 using System.Security.Claims;
 using System.Xml.Linq;
@@ -42,6 +43,10 @@ string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS"
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
+
+// Configure QuestPDF for the whole process. Must run before any export
+// service generates a PDF; assigning at startup covers every export.
+QuestPDF.Settings.License = LicenseType.Community;
 
 // Early init of NLog to allow startup and exception logging, before host is built
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -13,14 +14,45 @@ using PdfDocument = QuestPDF.Fluent.Document;
 
 namespace Viper.Areas.Students.Services
 {
+    /// <summary>
+    /// Builds Word and PDF photo galleries for a class / course / student-group
+    /// selection.
+    /// </summary>
     public interface IPhotoExportService
     {
+        /// <summary>
+        /// Export student photos to a Word document (.docx). Layout is either
+        /// the standard 6-up grid or, for grouped exports, a 3-up large layout.
+        /// </summary>
         Task<PhotoExportResult?> ExportToWordAsync(PhotoExportRequest request);
+
+        /// <summary>
+        /// Export student photos to a PDF. Layout matches the Word variant.
+        /// Returns null when no students match the request.
+        /// </summary>
         Task<PhotoExportResult?> ExportToPdfAsync(PhotoExportRequest request);
+
+        /// <summary>
+        /// Export the tabular student list (no photos) to a PDF — mirrors the
+        /// "Student List" tab on the gallery page. Used by the list-tab
+        /// Print/PDF button so the saved file is a real, accessible PDF
+        /// instead of a browser-rendered print capture.
+        /// </summary>
+        Task<PhotoExportResult?> ExportStudentListToPdfAsync(PhotoExportRequest request);
     }
 
     public class PhotoExportService : IPhotoExportService
     {
+        // Source data (student names, group labels) occasionally contains stray
+        // double-spaces from upstream systems. Microsoft's accessibility checker
+        // and our own home-grown checker flag 3+ consecutive whitespace chars
+        // ("RepeatedBlanks"); collapsing them on the way out is a safe no-op for
+        // clean data and a structural improvement for messy data.
+        private static readonly Regex RepeatedWhitespaceRegex = new(@"\s{2,}", RegexOptions.Compiled);
+
+        private static string CollapseWhitespace(string? text) =>
+            string.IsNullOrEmpty(text) ? string.Empty : RepeatedWhitespaceRegex.Replace(text, " ").Trim();
+
         // Photo dimensions in EMUs (English Metric Units) for Word/PDF export
         // EMU = 1/914400 inch
 
@@ -86,6 +118,11 @@ namespace Viper.Areas.Students.Services
                 var layout = GetLayoutConfiguration(request);
                 var useLargeLayout = ShouldUseLargeLayout(request);
 
+                // Resolve title up-front so the same string is used for both core
+                // properties and the visible H1 paragraph.
+                var titleLines = (await GetExportTitleAsync(request)).Split('\n');
+                var documentTitle = titleLines[0];
+
                 using var stream = new MemoryStream();
                 using (var wordDocument = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document))
                 {
@@ -93,28 +130,40 @@ namespace Viper.Areas.Students.Services
                     mainPart.Document = new WordDocument();
                     var body = mainPart.Document.AppendChild(new Body());
 
-                    // Only show title and date for non-group exports
+                    WordAccessibilityHelper.EnsureAccessibilityStyles(mainPart);
+                    WordAccessibilityHelper.EnsureModernCompatibility(mainPart);
+                    WordAccessibilityHelper.SetCoreProperties(wordDocument, documentTitle, subject: "Student photo gallery export");
+
+                    // Only show title and date for non-group exports.
+                    // Use Heading1, not Title — accessibility checkers (Microsoft's
+                    // built-in and our own check-docx-accessibility.ps1) recognise
+                    // Heading1-9 as document headings; Word's "Title" style is a
+                    // separate concept and doesn't satisfy the heading-styles rule.
                     if (!useLargeLayout)
                     {
-                        var titleLines = (await GetExportTitleAsync(request)).Split('\n');
+                        body.AppendChild(WordAccessibilityHelper.CreateHeadingParagraph(
+                            CollapseWhitespace(documentTitle), WordAccessibilityHelper.Heading1StyleId));
 
-                        var titleParagraph = body.AppendChild(new Paragraph());
-                        var titleRun = titleParagraph.AppendChild(new Run());
-                        titleRun.AppendChild(new Text(titleLines[0]));
-
-                        var titleProps = titleRun.PrependChild(new RunProperties());
-                        titleProps.AppendChild(new Bold());
-                        titleProps.AppendChild(new FontSize() { Val = "32" });
-
-                        // Add export date on new line with smaller font
+                        // Date subtitle is regular body text, not a heading — keeps the
+                        // outline a single H1 instead of two competing top-level entries.
                         if (titleLines.Length > 1)
                         {
-                            titleRun.AppendChild(new Break());
-                            var dateRun = titleParagraph.AppendChild(new Run());
-                            dateRun.AppendChild(new Text(titleLines[1]));
+                            var dateParagraph = body.AppendChild(new Paragraph());
+                            // Tight spacing keeps the date hugging the title like the
+                            // original soft-break version before the H1 split.
+                            var dateParaProps = dateParagraph.AppendChild(new ParagraphProperties());
+                            dateParaProps.AppendChild(new SpacingBetweenLines
+                            {
+                                Before = "0",
+                                After = "0",
+                            });
+                            var dateRun = dateParagraph.AppendChild(new Run());
+                            dateRun.AppendChild(new Text(CollapseWhitespace(titleLines[1])));
                             var dateProps = dateRun.PrependChild(new RunProperties());
                             dateProps.AppendChild(new FontSize() { Val = "16" });
-                            dateProps.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Color() { Val = "808080" }); // Gray color
+                            // Matches Quasar's grey-7 (the same theme color the on-page caption
+                            // text uses); ≈4.6:1 contrast against white clears WCAG AA.
+                            dateProps.AppendChild(new DocumentFormat.OpenXml.Wordprocessing.Color() { Val = "757575" });
                         }
                     }
 
@@ -148,15 +197,12 @@ namespace Viper.Areas.Students.Services
                                 // Add group header with student range numbering
                                 if (ShouldShowGroupHeaders(groupedStudents))
                                 {
-                                    var groupHeaderPara = body.AppendChild(new Paragraph());
-                                    var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
-                                    groupHeaderRun.AppendChild(new Text($"{group.Key} ({chunkStart + 1}-{chunkEnd})"));
-                                    var groupHeaderProps = groupHeaderRun.PrependChild(new RunProperties());
-                                    groupHeaderProps.AppendChild(new Bold());
-                                    groupHeaderProps.AppendChild(new FontSize() { Val = "24" });
+                                    body.AppendChild(WordAccessibilityHelper.CreateHeadingParagraph(
+                                        CollapseWhitespace($"{group.Key} ({chunkStart + 1}-{chunkEnd})"),
+                                        WordAccessibilityHelper.Heading2StyleId));
                                 }
 
-                                // Create a borderless table for this chunk
+                                // Create a borderless table for this chunk (layout table — photos in a grid)
                                 var chunkTable = body.AppendChild(new Table());
                                 var chunkTableProps = chunkTable.AppendChild(new TableProperties());
                                 chunkTableProps.AppendChild(new TableBorders(
@@ -167,6 +213,7 @@ namespace Viper.Areas.Students.Services
                                     new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
                                     new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                                 ));
+                                WordAccessibilityHelper.MarkAsLayoutTable(chunkTable, "Photo gallery layout grid");
 
                                 // Render rows for this chunk
                                 for (int i = 0; i < chunkStudents.Count; i += layout.PerRow)
@@ -194,17 +241,33 @@ namespace Viper.Areas.Students.Services
 
                                             imageId++; // Increment before use to avoid duplicate IDs
 
+                                            // Alt text follows the rule from PLAN-Word-PDF-WCAG.md:
+                                            // photos that convey identity get the student's displayed name.
+                                            var altText = $"Photo of {student.GroupExportName}";
+
+                                            var wpDocProps = new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties()
+                                            {
+                                                Id = (UInt32Value)imageId,
+                                                Name = $"Photo{imageId}"
+                                            };
+                                            var picNonVisualProps = new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties()
+                                            {
+                                                Id = (UInt32Value)imageId,
+                                                Name = $"Photo{imageId}.jpg"
+                                            };
+                                            WordAccessibilityHelper.SetImageAltText(wpDocProps, picNonVisualProps, altText);
+
                                             var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
                                                 new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = layout.Width, Cy = layout.Height },
                                                 new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                                                new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
+                                                wpDocProps,
                                                 new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
                                                     new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
                                                 new DocumentFormat.OpenXml.Drawing.Graphic(
                                                     new DocumentFormat.OpenXml.Drawing.GraphicData(
                                                         new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
                                                             new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
-                                                                new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}.jpg" },
+                                                                picNonVisualProps,
                                                                 new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
                                                             new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
                                                                 new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
@@ -232,7 +295,7 @@ namespace Viper.Areas.Students.Services
                                         var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
                                         cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
                                         var cellRun = cellParagraph.AppendChild(new Run());
-                                        cellRun.AppendChild(new Text(student.GroupExportName));
+                                        cellRun.AppendChild(new Text(CollapseWhitespace(student.GroupExportName)));
                                     }
 
                                     for (int j = rowStudents.Count; j < layout.PerRow; j++)
@@ -256,19 +319,12 @@ namespace Viper.Areas.Students.Services
                         // Add group header if there are multiple groups
                         if (ShouldShowGroupHeaders(groupedStudents))
                         {
-                            var groupHeaderPara = body.AppendChild(new Paragraph());
-                            var groupHeaderRun = groupHeaderPara.AppendChild(new Run());
-
-                            // Show count in parentheses
-                            var headerText = GetGroupHeaderText(group.Key, groupStudents.Count);
-                            groupHeaderRun.AppendChild(new Text(headerText));
-
-                            var groupHeaderProps = groupHeaderRun.PrependChild(new RunProperties());
-                            groupHeaderProps.AppendChild(new Bold());
-                            groupHeaderProps.AppendChild(new FontSize() { Val = "24" });
+                            body.AppendChild(WordAccessibilityHelper.CreateHeadingParagraph(
+                                CollapseWhitespace(GetGroupHeaderText(group.Key, groupStudents.Count)),
+                                WordAccessibilityHelper.Heading2StyleId));
                         }
 
-                        // Create a borderless table for this group
+                        // Create a borderless table for this group (layout table — photos in a grid)
                         var table = body.AppendChild(new Table());
                         var tableProps = table.AppendChild(new TableProperties());
                         tableProps.AppendChild(new TableBorders(
@@ -279,6 +335,7 @@ namespace Viper.Areas.Students.Services
                             new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
                             new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                         ));
+                        WordAccessibilityHelper.MarkAsLayoutTable(table, "Photo gallery layout grid");
 
                         for (int i = 0; i < groupStudents.Count; i += layout.PerRow)
                         {
@@ -305,17 +362,32 @@ namespace Viper.Areas.Students.Services
 
                                     imageId++; // Increment before use to avoid duplicate IDs
 
+                                    var displayedName = useLargeLayout ? student.GroupExportName : student.FullName;
+                                    var altText = $"Photo of {displayedName}";
+
+                                    var wpDocProps = new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties()
+                                    {
+                                        Id = (UInt32Value)imageId,
+                                        Name = $"Photo{imageId}"
+                                    };
+                                    var picNonVisualProps = new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties()
+                                    {
+                                        Id = (UInt32Value)imageId,
+                                        Name = $"Photo{imageId}.jpg"
+                                    };
+                                    WordAccessibilityHelper.SetImageAltText(wpDocProps, picNonVisualProps, altText);
+
                                     var inline = new DocumentFormat.OpenXml.Drawing.Wordprocessing.Inline(
                                         new DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent() { Cx = layout.Width, Cy = layout.Height },
                                         new DocumentFormat.OpenXml.Drawing.Wordprocessing.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                                        new DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}" },
+                                        wpDocProps,
                                         new DocumentFormat.OpenXml.Drawing.Wordprocessing.NonVisualGraphicFrameDrawingProperties(
                                             new DocumentFormat.OpenXml.Drawing.GraphicFrameLocks() { NoChangeAspect = true }),
                                         new DocumentFormat.OpenXml.Drawing.Graphic(
                                             new DocumentFormat.OpenXml.Drawing.GraphicData(
                                                 new DocumentFormat.OpenXml.Drawing.Pictures.Picture(
                                                     new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureProperties(
-                                                        new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualDrawingProperties() { Id = (UInt32Value)imageId, Name = $"Photo{imageId}.jpg" },
+                                                        picNonVisualProps,
                                                         new DocumentFormat.OpenXml.Drawing.Pictures.NonVisualPictureDrawingProperties()),
                                                     new DocumentFormat.OpenXml.Drawing.Pictures.BlipFill(
                                                         new DocumentFormat.OpenXml.Drawing.Blip() { Embed = mainPart.GetIdOfPart(imagePart) },
@@ -343,7 +415,7 @@ namespace Viper.Areas.Students.Services
                                 var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
                                 cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
                                 var cellRun = cellParagraph.AppendChild(new Run());
-                                cellRun.AppendChild(new Text(useLargeLayout ? student.GroupExportName : student.FullName));
+                                cellRun.AppendChild(new Text(CollapseWhitespace(useLargeLayout ? student.GroupExportName : student.FullName)));
 
                                 // Only show secondary text (group info) if not using large layout
                                 if (!useLargeLayout)
@@ -351,7 +423,7 @@ namespace Viper.Areas.Students.Services
                                     foreach (var line in student.SecondaryTextLines)
                                     {
                                         cellRun.AppendChild(new Break());
-                                        cellRun.AppendChild(new Text(line));
+                                        cellRun.AppendChild(new Text(CollapseWhitespace(line)));
                                     }
                                 }
                             }
@@ -433,8 +505,7 @@ namespace Viper.Areas.Students.Services
 
                 // Fetch title before entering QuestPDF builder to avoid async void lambda
                 var titleLines = (await GetExportTitleAsync(request)).Split('\n');
-
-                QuestPDF.Settings.License = LicenseType.Community;
+                var documentTitle = titleLines[0];
 
                 const int studentsPerPage = 9; // For large layouts: 3 rows × 3 students
 
@@ -466,11 +537,14 @@ namespace Viper.Areas.Students.Services
                                     page.Header()
                                         .Column(column =>
                                         {
-                                            // Add group header with student range numbering
+                                            // Large layout intentionally has no on-page H1 — the
+                                            // document title is exposed via core properties (see
+                                            // WithAccessibility below) and the visual design has
+                                            // never shown a title for grouped photo sheets.
                                             if (ShouldShowGroupHeaders(groupedStudents))
                                             {
                                                 var headerText = $"{group.Key} ({chunkStart + 1}-{chunkEnd})";
-                                                column.Item().Text(headerText)
+                                                column.Item().SemanticHeader2().Text(headerText)
                                                     .SemiBold()
                                                     .FontSize(16)
                                                     .FontColor(Colors.Black);
@@ -504,7 +578,9 @@ namespace Viper.Areas.Students.Services
                                                             // Add photo from cache with explicit dimensions
                                                             if (photoCache.TryGetValue(student.MailId, out var photoBytes))
                                                             {
-                                                                innerColumn.Item().Width(1.74f, Unit.Inch).Height(2.26f, Unit.Inch).Image(photoBytes);
+                                                                innerColumn.Item()
+                                                                    .SemanticImage($"Photo of {student.GroupExportName}")
+                                                                    .Width(1.74f, Unit.Inch).Height(2.26f, Unit.Inch).Image(photoBytes);
                                                             }
 
                                                             // Show student name (centered)
@@ -523,6 +599,7 @@ namespace Viper.Areas.Students.Services
                                         });
 
                                     page.Footer()
+                                        .SemanticIgnore()
                                         .AlignCenter()
                                         .Text(x =>
                                         {
@@ -552,7 +629,7 @@ namespace Viper.Areas.Students.Services
                                         // Only show title and date for non-group exports
                                         if (!useLargeLayout)
                                         {
-                                            column.Item().Text(titleLines[0])
+                                            column.Item().SemanticHeader1().Text(titleLines[0])
                                                 .SemiBold()
                                                 .FontSize(20)
                                                 .FontColor(Colors.Black);
@@ -569,7 +646,7 @@ namespace Viper.Areas.Students.Services
                                         if (ShouldShowGroupHeaders(groupedStudents))
                                         {
                                             var headerText = GetGroupHeaderText(group.Key, groupStudents.Count);
-                                            column.Item().PaddingTop(useLargeLayout ? 0 : 10).Text(headerText)
+                                            column.Item().PaddingTop(useLargeLayout ? 0 : 10).SemanticHeader2().Text(headerText)
                                                 .SemiBold()
                                                 .FontSize(16)
                                                 .FontColor(Colors.Black);
@@ -603,15 +680,20 @@ namespace Viper.Areas.Students.Services
                                                         // Add photo from cache with explicit dimensions based on layout
                                                         if (photoCache.TryGetValue(student.MailId, out var photoBytes))
                                                         {
+                                                            var displayedName = useLargeLayout ? student.GroupExportName : student.FullName;
+                                                            var altText = $"Photo of {displayedName}";
+
                                                             if (useLargeLayout)
                                                             {
                                                                 // Large layout: 1.74" x 2.26"
-                                                                innerColumn.Item().Width(1.74f, Unit.Inch).Height(2.26f, Unit.Inch).Image(photoBytes);
+                                                                innerColumn.Item().SemanticImage(altText)
+                                                                    .Width(1.74f, Unit.Inch).Height(2.26f, Unit.Inch).Image(photoBytes);
                                                             }
                                                             else
                                                             {
                                                                 // Standard layout: 0.69" x 0.92"
-                                                                innerColumn.Item().Width(0.69f, Unit.Inch).Height(0.92f, Unit.Inch).Image(photoBytes);
+                                                                innerColumn.Item().SemanticImage(altText)
+                                                                    .Width(0.69f, Unit.Inch).Height(0.92f, Unit.Inch).Image(photoBytes);
                                                             }
                                                         }
 
@@ -642,6 +724,7 @@ namespace Viper.Areas.Students.Services
                                     });
 
                                 page.Footer()
+                                    .SemanticIgnore()
                                     .AlignCenter()
                                     .Text(x =>
                                     {
@@ -653,7 +736,8 @@ namespace Viper.Areas.Students.Services
                             });
                         }
                     }
-                });
+                })
+                .WithAccessibility(documentTitle, subject: "Student photo gallery export");
 
                 var pdfBytes = document.GeneratePdf();
 
@@ -683,6 +767,122 @@ namespace Viper.Areas.Students.Services
             catch (ArgumentException ex)
             {
                 _logger.LogError(ex, "Invalid argument exporting photos to PDF");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Exports the student list (no photos) as a tabular PDF. Mirrors the
+        /// "Student List" tab on the gallery page so the Print/PDF button can
+        /// download a real accessible PDF instead of a browser print capture.
+        /// </summary>
+        public async Task<PhotoExportResult?> ExportStudentListToPdfAsync(PhotoExportRequest request)
+        {
+            try
+            {
+                _logger.LogDebug("ExportStudentListToPdfAsync called with ClassLevel={ClassLevel}, IncludeRoss={IncludeRoss}",
+                    LogSanitizer.SanitizeString(request.ClassLevel), request.IncludeRossStudents);
+
+                var students = await GetStudentsForExport(request);
+                if (!students.Any())
+                {
+                    _logger.LogWarning("No students found for student list PDF export");
+                    return null;
+                }
+
+                var ordered = students.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();
+
+                var titleLines = (await GetExportTitleAsync(request)).Split('\n');
+                var documentTitle = titleLines[0];
+                var generatedLabel = titleLines.Length > 1 ? titleLines[1] : $"As of {DateTime.Now:M/d/yyyy}";
+                var fullTitle = $"{documentTitle} - {ordered.Count} Student{(ordered.Count != 1 ? "s" : "")}";
+
+                var document = PdfDocument.Create(container =>
+                {
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.Letter);
+                        page.Margin(0.5f, Unit.Inch);
+                        page.PageColor(Colors.White);
+                        page.DefaultTextStyle(x => x.FontSize(10));
+
+                        page.Header().Column(col =>
+                        {
+                            col.Item().SemanticHeader1().Text(fullTitle).SemiBold().FontSize(16);
+                            col.Item().PaddingTop(2).Text(generatedLabel).FontSize(9).FontColor(Colors.Grey.Darken1);
+                        });
+
+                        page.Content().PaddingVertical(0.5f, Unit.Centimetre).SemanticTable().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(40);     // #
+                                columns.RelativeColumn(2);      // Name
+                                columns.RelativeColumn(3);      // Email
+                            });
+
+                            var hdrStyle = TextStyle.Default.SemiBold().Underline();
+                            table.Header(header =>
+                            {
+                                header.Cell().Background(Colors.Grey.Lighten3).PaddingVertical(4).PaddingHorizontal(4).Text("#").Style(hdrStyle);
+                                header.Cell().Background(Colors.Grey.Lighten3).PaddingVertical(4).PaddingHorizontal(4).Text("Name").Style(hdrStyle);
+                                header.Cell().Background(Colors.Grey.Lighten3).PaddingVertical(4).PaddingHorizontal(4).Text("Email").Style(hdrStyle);
+                            });
+
+                            for (int i = 0; i < ordered.Count; i++)
+                            {
+                                var s = ordered[i];
+                                var rowBg = i % 2 == 0 ? "#FFFFFF" : "#FAFAFA";
+                                var fullName = !string.IsNullOrWhiteSpace(s.LastName) || !string.IsNullOrWhiteSpace(s.FirstName)
+                                    ? $"{s.LastName}, {s.FirstName}".Trim(',', ' ')
+                                    : s.GroupExportName;
+                                var email = !string.IsNullOrWhiteSpace(s.MailId) ? $"{s.MailId}@ucdavis.edu" : "—";
+
+                                table.Cell().Background(rowBg).PaddingVertical(3).PaddingHorizontal(4).Text((i + 1).ToString());
+                                table.Cell().Background(rowBg).PaddingVertical(3).PaddingHorizontal(4).Text(CollapseWhitespace(fullName));
+                                table.Cell().Background(rowBg).PaddingVertical(3).PaddingHorizontal(4).Text(CollapseWhitespace(email));
+                            }
+                        });
+
+                        page.Footer().SemanticIgnore().AlignCenter().Text(x =>
+                        {
+                            x.Span("Page ");
+                            x.CurrentPageNumber();
+                            x.Span(" of ");
+                            x.TotalPages();
+                        });
+                    });
+                })
+                .WithAccessibility(fullTitle, subject: "Student list export");
+
+                var pdfBytes = document.GeneratePdf();
+
+                return new PhotoExportResult
+                {
+                    ExportId = Guid.NewGuid().ToString(),
+                    FileData = pdfBytes,
+                    FileName = await GetExportFilenameAsync(request, ".pdf"),
+                    ContentType = "application/pdf"
+                };
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied exporting student list to PDF");
+                return null;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "I/O error exporting student list to PDF");
+                return null;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation exporting student list to PDF");
+                return null;
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Invalid argument exporting student list to PDF");
                 return null;
             }
         }
@@ -1012,6 +1212,11 @@ namespace Viper.Areas.Students.Services
                 // When filtering by a specific group, include the group ID
                 var groupTypeLabel = request.GroupType?.ToLower() ?? "group";
                 filenameParts.Add($"{groupTypeLabel} {request.GroupId}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.View))
+            {
+                filenameParts.Add(request.View.Trim().ToLowerInvariant());
             }
 
             // Build filename with spaces (not underscores) and add extension

@@ -588,9 +588,9 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
     public Task<byte[]> GenerateMeritDetailPdfAsync(MeritDetailReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
+
+        const string reportTitle = "Merit & Promotion Detail Report";
 
         // Compact when 12+ effort types: with fixed columns, non-compact overflows the page
         var compact = orderedTypes.Count > 11;
@@ -618,20 +618,20 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text("Merit & Promotion Detail Report").SemiBold().FontSize(12);
-                            row.RelativeItem().AlignCenter().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -667,10 +667,17 @@ public class MeritReportService : BaseReportService, IMeritReportService
                                 table.Cell().PaddingVertical(cellPadV).Text(course.TermCode.ToString());
                                 table.Cell().PaddingVertical(cellPadV).PaddingLeft(4).Text(course.RoleId);
 
+                                // Instructor cell emitted per row (visible on first, invisible on
+                                // subsequent) instead of RowSpan — QuestPDF's RowSpan tagging
+                                // produces overlapping cells in the structure tree that veraPDF
+                                // flags as PDF/UA clause 7.2 test 15 violations.
                                 if (i == 0)
                                 {
-                                    table.Cell().RowSpan((uint)courses.Count).PaddingVertical(cellPadV)
-                                        .Text(instructor.Instructor).SemiBold();
+                                    table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold();
+                                }
+                                else
+                                {
+                                    table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold().FontColor("#FFFFFF");
                                 }
 
                                 table.Cell().PaddingVertical(cellPadV).Text(course.Course);
@@ -682,31 +689,50 @@ public class MeritReportService : BaseReportService, IMeritReportService
                                 }
                             }
 
-                            // Instructor totals row
-                            table.Cell().ColumnSpan(4).Background("#F8F8F8").BorderTop(0.5f).BorderColor("#CCCCCC")
+                            // Instructor totals row — replace ColumnSpan(4) with 4 individual TDs
+                            // so each cell's column header is algorithmically determinable
+                            // (PDF/UA clause 7.5 test 1). Cols 1-3 carry the same label in
+                            // background color so they're tagged but visually blank.
+                            const string instTotalsLabel = "Instructor Totals:";
+                            const string instTotalsBg = "#F8F8F8";
+                            for (var col = 0; col < 3; col++)
+                            {
+                                table.Cell().Background(instTotalsBg).BorderTop(0.5f).BorderColor("#CCCCCC")
+                                    .PaddingVertical(cellPadV).Text(instTotalsLabel).FontColor(instTotalsBg);
+                            }
+                            table.Cell().Background(instTotalsBg).BorderTop(0.5f).BorderColor("#CCCCCC")
                                 .PaddingVertical(cellPadV).AlignRight().PaddingRight(8)
-                                .Text("Instructor Totals:").Italic().Bold();
+                                .Text(instTotalsLabel).Italic().Bold();
                             foreach (var type in orderedTypes)
                             {
                                 var val = instructor.InstructorTotals.GetValueOrDefault(type, 0);
-                                table.Cell().Background("#F8F8F8").BorderTop(0.5f).BorderColor("#CCCCCC")
+                                table.Cell().Background(instTotalsBg).BorderTop(0.5f).BorderColor("#CCCCCC")
                                     .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold();
                             }
                         }
 
-                        // Re-display effort type headers before department totals
-                        table.Cell().ColumnSpan(4).BorderTop(1).BorderColor("#999999")
-                            .PaddingVertical(cellPadV).Text("");
+                        // Re-display column headers before department totals
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Qtr").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Role").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Instructor").Style(hdrStyle);
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Course").Style(hdrStyle);
                         foreach (var type in orderedTypes)
                         {
                             table.Cell().BorderTop(1).BorderColor("#999999")
                                 .PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
                         }
 
-                        // Department totals row
-                        table.Cell().ColumnSpan(4).Background("#E8E8E8").BorderTop(1.5f).BorderColor("#666666")
+                        // Department totals row — same ColumnSpan(4) → 4 individual TDs treatment
+                        const string deptTotalsLabel = "Department Totals:";
+                        const string deptTotalsBg = "#E8E8E8";
+                        for (var col = 0; col < 3; col++)
+                        {
+                            table.Cell().Background(deptTotalsBg).BorderTop(1.5f).BorderColor("#666666")
+                                .PaddingVertical(cellPadV).Text(deptTotalsLabel).FontColor(deptTotalsBg);
+                        }
+                        table.Cell().Background(deptTotalsBg).BorderTop(1.5f).BorderColor("#666666")
                             .PaddingVertical(cellPadV).AlignRight().PaddingRight(8)
-                            .Text("Department Totals:").Italic().Bold();
+                            .Text(deptTotalsLabel).Italic().Bold();
                         foreach (var type in orderedTypes)
                         {
                             var val = dept.DepartmentTotals.GetValueOrDefault(type, 0);
@@ -715,32 +741,22 @@ public class MeritReportService : BaseReportService, IMeritReportService
                         }
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(),
-                            ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
-                            ("Faculty", report.FilterPersonId?.ToString()));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(),
+                        ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                        ("Faculty", report.FilterPersonId?.ToString()));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Merit and promotion detail for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
 
     public Task<byte[]> GenerateMeritAveragePdfAsync(MeritAverageReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
+        const string reportTitle = "Merit & Promotion Average Report";
         var compact = orderedTypes.Count > 14;
         var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
         var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
@@ -766,23 +782,23 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
                         page.Header().Column(col =>
                         {
-                            col.Item().Row(row =>
+                            col.Item().SemanticIgnore().Row(row =>
                             {
                                 row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                                 row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                             });
                             col.Item().PaddingVertical(6).Row(row =>
                             {
-                                row.RelativeItem().Text("Merit & Promotion Average Report").SemiBold().FontSize(12);
-                                row.RelativeItem().AlignCenter().Text(dept.Department).SemiBold().FontSize(12);
+                                row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                                row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                                 row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                             });
-                            col.Item().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
+                            col.Item().SemanticHeader3().Text(jobGroup.JobGroupDescription).SemiBold().FontSize(11);
                         });
 
                         var totalColumns = (uint)(2 + orderedTypes.Count);
 
-                        page.Content().Table(table =>
+                        page.Content().SemanticTable().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
@@ -807,7 +823,6 @@ public class MeritReportService : BaseReportService, IMeritReportService
                             foreach (var instructor in dept.Instructors)
                             {
                                 var terms = instructor.Terms;
-                                var termCount = terms.Count > 0 ? terms.Count : 1;
 
                                 if (terms.Count > 0)
                                 {
@@ -815,10 +830,14 @@ public class MeritReportService : BaseReportService, IMeritReportService
                                     {
                                         var term = terms[i];
 
+                                        // Per-row instructor cell instead of RowSpan (PDF/UA clause 7.2 test 15)
                                         if (i == 0)
                                         {
-                                            table.Cell().RowSpan((uint)termCount).PaddingVertical(cellPadV)
-                                                .Text(instructor.Instructor).SemiBold();
+                                            table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold();
+                                        }
+                                        else
+                                        {
+                                            table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold().FontColor("#FFFFFF");
                                         }
 
                                         table.Cell().PaddingVertical(cellPadV)
@@ -835,7 +854,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
                                 {
                                     // Fallback: single row with aggregated totals
                                     table.Cell().PaddingVertical(cellPadV).Text(instructor.Instructor).SemiBold();
-                                    table.Cell().PaddingVertical(cellPadV).Text("");
+                                    table.Cell().PaddingVertical(cellPadV).Text("—");
                                     foreach (var type in orderedTypes)
                                     {
                                         var val = instructor.EffortByType.GetValueOrDefault(type, 0);
@@ -886,22 +905,13 @@ public class MeritReportService : BaseReportService, IMeritReportService
                             }
                         });
 
-                        page.Footer().Column(col =>
-                        {
-                            AddPdfFilterLine(col.Item(),
-                                ("Dept", report.FilterDepartment), ("Faculty", report.FilterPersonId?.ToString()));
-                            col.Item().AlignCenter().Text(x =>
-                            {
-                                x.Span("Page ");
-                                x.CurrentPageNumber();
-                                x.Span(" of ");
-                                x.TotalPages();
-                            });
-                        });
+                        AddPdfPageNumberFooter(page.Footer(),
+                            ("Dept", report.FilterDepartment), ("Faculty", report.FilterPersonId?.ToString()));
                     });
                 }
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Merit and promotion averages for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -909,17 +919,21 @@ public class MeritReportService : BaseReportService, IMeritReportService
     public MemoryStream GenerateMeritDetailExcel(MeritDetailReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Merit & Promotion Detail Report";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Merit and promotion detail for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 2 + effortCols.Count;
-        var termName = report.AcademicYear ?? report.TermName;
 
         foreach (var dept in report.Departments)
         {
             var ws = wb.Worksheets.Add(dept.Department);
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Merit & Promotion Detail Report", termName, dept.Department);
+            int row = AddExcelHeader(ws, reportTitle, termName, dept.Department);
             row = AddExcelFilterLine(ws, row,
                 ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
                 ("Faculty", report.FilterPersonId?.ToString()));
@@ -985,8 +999,8 @@ public class MeritReportService : BaseReportService, IMeritReportService
             ws.Range($"{row}:{row}").Style.Font.Bold = true;
             row++;
 
-            // Department totals
-            col = 1;
+            // Department totals (col 2 = under Course column, matching Instructor Totals row)
+            col = 2;
             ws.Cell(row, col).Value = "Department Totals";
             ws.Range(row, 1, row, lastCol).Style.Font.Bold = true;
             ShadeExcelRow(ws, row, lastCol, "#E8E8E8");
@@ -1011,10 +1025,14 @@ public class MeritReportService : BaseReportService, IMeritReportService
     public MemoryStream GenerateMeritAverageExcel(MeritAverageReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Merit & Promotion Average Report";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Merit and promotion averages for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 2 + effortCols.Count;
-        var termName = report.AcademicYear ?? report.TermName;
 
         foreach (var jobGroup in report.JobGroups)
         {
@@ -1024,7 +1042,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
                 var ws = wb.Worksheets.Add(sheetName);
 
                 // Header rows matching PDF
-                int row = AddExcelHeader(ws, "Merit & Promotion Average Report",
+                int row = AddExcelHeader(ws, reportTitle,
                     termName, dept.Department, jobGroup.JobGroupDescription);
                 row = AddExcelFilterLine(ws, row,
                     ("Dept", report.FilterDepartment), ("Faculty", report.FilterPersonId?.ToString()));

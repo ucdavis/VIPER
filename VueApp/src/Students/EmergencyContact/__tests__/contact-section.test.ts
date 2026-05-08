@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest"
 import { ref, computed } from "vue"
 import { patterns } from "quasar"
 import type { ContactInfo } from "../types"

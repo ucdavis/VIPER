@@ -180,10 +180,9 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
 
     public Task<byte[]> GenerateReportPdfAsync(DeptSummaryReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
+        const string reportTitle = "Department Summary Report";
         var compact = orderedTypes.Count > 14;
         var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
         var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
@@ -206,20 +205,20 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().SemanticIgnore().Row(row =>
                         {
                             row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                             row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                         });
                         col.Item().PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem().Text("Department Summary Report").SemiBold().FontSize(12);
-                            row.RelativeItem().AlignCenter().Text(dept.Department).SemiBold().FontSize(12);
+                            row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignCenter().SemanticHeader2().Text(dept.Department).SemiBold().FontSize(12);
                             row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                         });
                     });
 
-                    page.Content().Table(table =>
+                    page.Content().SemanticTable().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
@@ -251,7 +250,7 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
                         }
 
                         // Re-display effort type headers before totals
-                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("");
+                        table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Instructor").Style(hdrStyle);
                         foreach (var type in orderedTypes)
                         {
                             table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text(type).Style(hdrStyle);
@@ -268,15 +267,20 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
                                 .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold();
                         }
 
-                        // Number Faculty row
-                        table.Cell().PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
+                        // Number Faculty row (single label/value spanning the full row).
+                        // Trailing ConstantItem absorbs the N effort columns' widths so the
+                        // leading RelativeItem only fills column 1, keeping the right-aligned
+                        // label visually anchored to column 1's right edge (matching the
+                        // "Faculty w/ CLI assigned:" row below).
+                        var numFacAbsorbedWidth = orderedTypes.Sum(t => SpacerColumns.Contains(t) ? spacerWidth : effortWidth);
+                        table.Cell().ColumnSpan((uint)(orderedTypes.Count + 1))
+                            .PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
                         {
                             row.RelativeItem().AlignRight().Text("Number Faculty:").SemiBold();
                             row.ConstantItem(30).AlignRight().Text(dept.FacultyCount.ToString()).SemiBold();
                             row.ConstantItem(55);
+                            row.ConstantItem(numFacAbsorbedWidth);
                         });
-                        foreach (var _ in orderedTypes)
-                            table.Cell().PaddingVertical(cellPadV);
 
                         // Faculty w/ CLI assigned + averages row
                         table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV).PaddingRight(8).Row(row =>
@@ -293,22 +297,13 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
                         }
                     });
 
-                    page.Footer().Column(col =>
-                    {
-                        AddPdfFilterLine(col.Item(),
-                            ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
-                            ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
-                        col.Item().AlignCenter().Text(x =>
-                        {
-                            x.Span("Page ");
-                            x.CurrentPageNumber();
-                            x.Span(" of ");
-                            x.TotalPages();
-                        });
-                    });
+                    AddPdfPageNumberFooter(page.Footer(),
+                        ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                        ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
                 });
             }
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Department effort summary for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -316,23 +311,28 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
     public MemoryStream GenerateReportExcel(DeptSummaryReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "Department Summary Report";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Department effort summary for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 1 + effortCols.Count;
-        var termName = report.AcademicYear ?? report.TermName;
 
         foreach (var dept in report.Departments)
         {
             var ws = wb.Worksheets.Add(dept.Department);
 
             // Header rows matching PDF
-            int row = AddExcelHeader(ws, "Department Summary Report", termName, dept.Department);
+            int row = AddExcelHeader(ws, reportTitle, termName, dept.Department);
             row = AddExcelFilterLine(ws, row,
                 ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
                 ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
             row++; // blank separator
 
             // Column headers
+            int headerRow = row;
             int col = 1;
             ws.Cell(row, col++).Value = "Instructor";
             foreach (var (type, isSpacer) in effortCols)
@@ -354,6 +354,16 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
                     col++;
                 }
                 row++;
+            }
+
+            // Promote the instructor rows (header + data) to a structured table so
+            // screen readers announce each instructor's effort columns by name.
+            // Summary rows (totals/faculty counts) intentionally sit outside.
+            if (row > headerRow + 1)
+            {
+                ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                    ws.Range(headerRow, 1, row - 1, lastCol),
+                    $"DeptSummary_{dept.Department}");
             }
 
             // Re-display effort type headers before totals

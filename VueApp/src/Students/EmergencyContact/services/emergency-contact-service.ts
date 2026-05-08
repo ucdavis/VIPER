@@ -7,8 +7,6 @@ import type {
     AppAccessStatus,
 } from "../types"
 
-const REVOKE_DELAY_MS = 1000
-
 class EmergencyContactService {
     private baseUrl = `${import.meta.env.VITE_API_URL}students/emergency-contacts`
 
@@ -97,15 +95,8 @@ class EmergencyContactService {
         return true
     }
 
-    openOverviewPdf = async (): Promise<boolean> => {
-        const { blob } = await postForBlob(`${this.baseUrl}/export/overview/pdf`, {})
-        if (blob.size === 0) {
-            return false
-        }
-        const url = globalThis.URL.createObjectURL(blob)
-        globalThis.open(url, "_blank", "noopener")
-        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), REVOKE_DELAY_MS)
-        return true
+    openOverviewPdf = (): void => {
+        globalThis.open(`${this.baseUrl}/export/overview/pdf`, "_blank", "noopener")
     }
 
     downloadExcel = async (): Promise<boolean> => {
@@ -117,15 +108,8 @@ class EmergencyContactService {
         return true
     }
 
-    openPdf = async (): Promise<boolean> => {
-        const { blob } = await postForBlob(`${this.baseUrl}/export/pdf`, {})
-        if (blob.size === 0) {
-            return false
-        }
-        const url = globalThis.URL.createObjectURL(blob)
-        globalThis.open(url, "_blank", "noopener")
-        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), REVOKE_DELAY_MS)
-        return true
+    openPdf = (): void => {
+        globalThis.open(`${this.baseUrl}/export/pdf`, "_blank", "noopener")
     }
 }
 

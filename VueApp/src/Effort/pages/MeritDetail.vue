@@ -209,10 +209,12 @@ const {
     handlePrint,
     handleExcelDownload,
 } = useReportPage<MeritDetailReport>({
+    title: "Merit Detail Report",
     fetchReport: (params) => reportService.getMeritDetail(params),
     fetchPdf: (params) => reportService.openPdf("merit/detail/pdf", params),
     fetchExcel: (params) => reportService.downloadExcel("merit/detail/excel", params),
     getEffortTypes: (r) => r.effortTypes,
+    hasData: (r) => r.departments.length > 0,
 })
 </script>
 

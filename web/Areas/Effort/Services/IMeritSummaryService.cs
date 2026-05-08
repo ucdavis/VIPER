@@ -26,8 +26,15 @@ public interface IMeritSummaryService
 
     /// <summary>
     /// Generate a PDF document from a merit summary report.
+    /// One legal-landscape page per (job group, department) pair; each page
+    /// holds totals + faculty-count + averages rows.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(MeritSummaryReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a merit summary report. One worksheet
+    /// per (job group, department) pair. Sheets are summary-only so no
+    /// structured table is built.
+    /// </summary>
     MemoryStream GenerateReportExcel(MeritSummaryReport report);
 }

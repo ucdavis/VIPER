@@ -32,8 +32,17 @@ public interface ISchoolSummaryService
 
     /// <summary>
     /// Generate a PDF document from a school summary report.
+    /// Single landscape page; each department contributes a totals row + a
+    /// faculty-count row + a faculty-with-CLI/averages row, followed by
+    /// grand-total rows.
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(SchoolSummaryReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a school summary report. Single
+    /// worksheet. Data isn't promoted to a structured table because each
+    /// department block emits totals + faculty-count + averages rows of
+    /// differing shape.
+    /// </summary>
     MemoryStream GenerateReportExcel(SchoolSummaryReport report);
 }

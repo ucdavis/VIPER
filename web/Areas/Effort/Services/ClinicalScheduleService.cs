@@ -295,8 +295,6 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
     public Task<byte[]> GenerateReportPdfAsync(ScheduledCliWeeksReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var showTotal = report.TermNames.Count > 1;
         var termCount = report.TermNames.Count;
         var fontSize = ReportPdfSettings.FontSize;
@@ -304,6 +302,8 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         var cellPadV = ReportPdfSettings.CellPadV;
         // Use landscape for multi-term, portrait for single term
         var useLandscape = termCount > 1;
+
+        const string reportTitle = "Merit & Promotion Report - Scheduled Clinical Weeks";
 
         var document = Document.Create(container =>
         {
@@ -316,7 +316,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
 
                 page.Header().Column(col =>
                 {
-                    col.Item().Row(row =>
+                    col.Item().SemanticIgnore().Row(row =>
                     {
                         row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                         row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
@@ -324,7 +324,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                     col.Item().BorderBottom(1.5f).BorderColor(Colors.Black)
                         .PaddingVertical(6).Row(row =>
                         {
-                            row.RelativeItem(3).Text("Merit & Promotion Report - Scheduled Clinical Weeks").SemiBold().FontSize(12);
+                            row.RelativeItem(3).SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
                             var termLabel = report.AcademicYear != null
                                 ? $"Academic Year {report.TermName}"
                                 : report.TermName;
@@ -332,7 +332,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                         });
                 });
 
-                page.Content().Table(table =>
+                page.Content().SemanticTable().Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
@@ -384,7 +384,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                             else
                             {
                                 table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-                                    .PaddingVertical(cellPadV).Text("");
+                                    .PaddingVertical(cellPadV).Text("—");
                             }
                         }
 
@@ -396,33 +396,30 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                     }
                 });
 
-                page.Footer().Column(col =>
-                {
-                    col.Item().AlignCenter().Text(x =>
-                    {
-                        x.Span("Page ");
-                        x.CurrentPageNumber();
-                        x.Span(" of ");
-                        x.TotalPages();
-                    });
-                });
+                AddPdfPageNumberFooter(page.Footer());
             });
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"Scheduled clinical weeks for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
 
     public MemoryStream GenerateReportExcel(ScheduledCliWeeksReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
+        const string reportTitle = "Merit & Promotion Report - Scheduled Clinical Weeks";
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"Scheduled clinical weeks for {report.TermName}");
+
         var ws = wb.Worksheets.Add("Scheduled CLI Weeks");
         var showTotal = report.TermNames.Count > 1;
 
         // Header rows matching PDF (term is already in the column headers)
-        int row = AddExcelHeader(ws, "Merit & Promotion Report - Scheduled Clinical Weeks", null);
+        int row = AddExcelHeader(ws, reportTitle, null);
         row++; // blank separator
 
         // Column headers
+        int headerRow = row;
         int col = 1;
         ws.Cell(row, col++).Value = "Instructor";
         foreach (var termName in report.TermNames)
@@ -435,6 +432,10 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         }
         ws.Range($"{row}:{row}").Style.Font.Bold = true;
         ws.SheetView.FreezeRows(row);
+        // After the term loop, col is one past the last term column. The
+        // "AY Total" cell sits at col (no further increment) when showTotal,
+        // so the last filled column is col when showTotal else col - 1.
+        int totalCols = showTotal ? col : col - 1;
         row++;
         foreach (var instructor in report.Instructors)
         {
@@ -463,11 +464,17 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
             row++;
         }
 
+        if (row > headerRow + 1)
+        {
+            ExcelAccessibilityHelper.PromoteToAccessibleTable(
+                ws.Range(headerRow, 1, row - 1, totalCols),
+                "ScheduledClinicalWeeks");
+        }
+
         ws.Columns().AdjustToContents();
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

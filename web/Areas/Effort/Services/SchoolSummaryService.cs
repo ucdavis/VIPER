@@ -190,10 +190,9 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
 
     public Task<byte[]> GenerateReportPdfAsync(SchoolSummaryReport report)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
 
+        const string reportTitle = "School Summary Report";
         var compact = orderedTypes.Count > 14;
         var fontSize = compact ? ReportPdfSettings.FontSizeCompact : ReportPdfSettings.FontSize;
         var headerFontSize = compact ? ReportPdfSettings.HeaderFontSizeCompact : ReportPdfSettings.HeaderFontSize;
@@ -216,19 +215,19 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
 
                 page.Header().Column(col =>
                 {
-                    col.Item().Row(row =>
+                    col.Item().SemanticIgnore().Row(row =>
                     {
                         row.RelativeItem().Text("UCD School of Veterinary Medicine").Bold().FontSize(11);
                         row.RelativeItem().AlignRight().Text(DateTime.Now.ToString("d MMMM yyyy")).Bold().FontSize(11);
                     });
                     col.Item().PaddingVertical(6).Row(row =>
                     {
-                        row.RelativeItem().Text("School Summary Report").SemiBold().FontSize(12);
+                        row.RelativeItem().SemanticHeader1().Text(reportTitle).SemiBold().FontSize(12);
                         row.RelativeItem().AlignRight().Text(report.TermName).SemiBold().FontSize(12);
                     });
                 });
 
-                page.Content().Table(table =>
+                page.Content().SemanticTable().Table(table =>
                 {
                     var totalColumns = (uint)(1 + orderedTypes.Count);
 
@@ -263,14 +262,12 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                             table.Cell().PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0");
                         }
 
-                        // # Faculty row
-                        table.Cell().PaddingVertical(cellPadV).Row(row =>
+                        // # Faculty row (single label/value spanning the full row)
+                        table.Cell().ColumnSpan(totalColumns).PaddingVertical(cellPadV).Row(row =>
                         {
                             row.ConstantItem(facultyLabelWidth).Text("# Faculty").SemiBold();
                             row.AutoItem().Text(dept.FacultyCount.ToString()).SemiBold();
                         });
-                        foreach (var _ in orderedTypes)
-                            table.Cell().PaddingVertical(cellPadV).Text("");
 
                         // # Faculty with CLI + averages row
                         table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV).Row(row =>
@@ -286,16 +283,12 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                                 .Text(val.ToString("F1")).Italic();
                         }
 
-                        // Divider between departments
-                        if (deptIdx < report.Departments.Count - 1)
-                        {
-                            table.Cell().ColumnSpan(totalColumns).PaddingVertical(4)
-                                .BorderBottom(0.5f).BorderColor("#CCCCCC").Text("");
-                        }
+                        // Divider between departments removed for PDF/UA compliance
+                        // (single-cell rows of whitespace are dropped by QuestPDF, leaving an empty TR)
                     }
 
                     // Re-display effort type headers before grand totals
-                    table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("");
+                    table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV).Text("Department").Style(hdrStyle);
                     foreach (var type in orderedTypes)
                     {
                         table.Cell().BorderTop(1).BorderColor("#999999").PaddingVertical(cellPadV)
@@ -312,14 +305,12 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                             .PaddingVertical(cellPadV).Text(val > 0 ? val.ToString() : "0").Bold();
                     }
 
-                    // # Faculty row (grand)
-                    table.Cell().PaddingVertical(cellPadV).Row(row =>
+                    // # Faculty row (grand) — single label/value spanning the full row
+                    table.Cell().ColumnSpan(totalColumns).PaddingVertical(cellPadV).Row(row =>
                     {
                         row.ConstantItem(facultyLabelWidth).Text("# Faculty").Bold();
                         row.AutoItem().Text(report.GrandTotals.FacultyCount.ToString()).Bold();
                     });
-                    foreach (var _ in orderedTypes)
-                        table.Cell().PaddingVertical(cellPadV).Text("");
 
                     // # Faculty with CLI + grand averages row
                     table.Cell().Background("#E0E0E0").PaddingVertical(cellPadV).Row(row =>
@@ -336,21 +327,12 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
                     }
                 });
 
-                page.Footer().Column(col =>
-                {
-                    AddPdfFilterLine(col.Item(),
-                        ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
-                        ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
-                    col.Item().AlignCenter().Text(x =>
-                    {
-                        x.Span("Page ");
-                        x.CurrentPageNumber();
-                        x.Span(" of ");
-                        x.TotalPages();
-                    });
-                });
+                AddPdfPageNumberFooter(page.Footer(),
+                    ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
+                    ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));
             });
-        });
+        })
+        .WithAccessibility(reportTitle, subject: $"School-wide effort summary for {report.TermName}");
 
         return Task.FromResult(document.GeneratePdf());
     }
@@ -358,14 +340,18 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
     public MemoryStream GenerateReportExcel(SchoolSummaryReport report)
     {
         var wb = new XLWorkbook();
+        const string reportTitle = "School Summary Report";
+        var termName = report.AcademicYear ?? report.TermName;
+        ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
+            subject: $"School-wide effort summary for {termName}");
+
         var orderedTypes = GetOrderedEffortTypes(report.EffortTypes);
         var effortCols = BuildExcelEffortColumns(orderedTypes);
         var lastCol = 1 + effortCols.Count;
         var ws = wb.Worksheets.Add("School Summary");
-        var termName = report.AcademicYear ?? report.TermName;
 
         // Header rows matching PDF
-        int row = AddExcelHeader(ws, "School Summary Report", termName);
+        int row = AddExcelHeader(ws, reportTitle, termName);
         row = AddExcelFilterLine(ws, row,
             ("Dept", report.FilterDepartment), ("Role", report.FilterRole),
             ("Faculty", report.FilterPerson), ("Title", report.FilterTitle));

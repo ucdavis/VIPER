@@ -1,6 +1,6 @@
 import { computed } from "vue"
 import type { Ref } from "vue"
-import type { ScheduleAssignment, ScheduleSemester } from "../components/ScheduleView.vue"
+import type { ScheduleAssignment, ScheduleSemester } from "../components/schedule-view-types"
 
 /**
  * Generic interface for selectable items that can be in delete mode

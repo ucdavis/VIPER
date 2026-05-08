@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import type { UpdateStudentContactRequest } from "../types"
 

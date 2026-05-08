@@ -162,10 +162,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export teaching activity report as PDF.
     /// </summary>
-    [HttpPost("teaching/grouped/pdf")]
+    [HttpGet("teaching/grouped/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportTeachingActivityGroupedPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -217,7 +217,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _teachingActivityService.GenerateReportPdfAsync(report);
         var filename = $"TeachingActivity_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("teaching/grouped/excel")]
@@ -266,10 +266,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export individual teaching activity report as PDF (one section per instructor).
     /// </summary>
-    [HttpPost("teaching/individual/pdf")]
+    [HttpGet("teaching/individual/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportTeachingActivityIndividualPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -321,7 +321,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _teachingActivityService.GenerateIndividualReportPdfAsync(report);
         var filename = $"TeachingActivityIndividual_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("teaching/individual/excel")]
@@ -627,10 +627,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export department summary report as PDF.
     /// </summary>
-    [HttpPost("teaching/dept-summary/pdf")]
+    [HttpGet("teaching/dept-summary/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportDeptSummaryPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -668,7 +668,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _deptSummaryService.GenerateReportPdfAsync(report);
         var filename = $"DeptSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("teaching/dept-summary/excel")]
@@ -777,10 +777,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export school summary report as PDF. Requires SVMSecure.Effort.SchoolSummary permission.
     /// </summary>
-    [HttpPost("teaching/school-summary/pdf")]
+    [HttpGet("teaching/school-summary/pdf")]
     [Permission(Allow = $"{EffortPermissions.SchoolSummary},{EffortPermissions.ViewAllDepartments}")]
     public async Task<ActionResult> ExportSchoolSummaryPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -814,7 +814,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _schoolSummaryService.GenerateReportPdfAsync(report);
         var filename = $"SchoolSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("teaching/school-summary/excel")]
@@ -921,10 +921,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export merit detail report as PDF.
     /// </summary>
-    [HttpPost("merit/detail/pdf")]
+    [HttpGet("merit/detail/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportMeritDetailPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -962,7 +962,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _meritReportService.GenerateMeritDetailPdfAsync(report);
         var filename = $"MeritDetail_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("merit/detail/excel")]
@@ -1067,10 +1067,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export merit average report as PDF.
     /// </summary>
-    [HttpPost("merit/average/pdf")]
+    [HttpGet("merit/average/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportMeritAveragePdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -1108,7 +1108,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _meritReportService.GenerateMeritAveragePdfAsync(report);
         var filename = $"MeritAverage_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("merit/average/excel")]
@@ -1210,10 +1210,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export merit summary report as PDF.
     /// </summary>
-    [HttpPost("merit/summary/pdf")]
+    [HttpGet("merit/summary/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportMeritSummaryPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -1251,7 +1251,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _meritSummaryService.GenerateReportPdfAsync(report);
         var filename = $"MeritSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("merit/summary/excel")]
@@ -1347,10 +1347,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export clinical effort report as PDF.
     /// </summary>
-    [HttpPost("merit/clinical/pdf")]
+    [HttpGet("merit/clinical/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportClinicalEffortPdf(
-        [FromBody] ClinicalEffortPdfRequest request,
+        [FromQuery] ClinicalEffortPdfRequest request,
         CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(request.AcademicYear))
@@ -1387,7 +1387,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _clinicalEffortService.GenerateReportPdfAsync(report);
         var filename = $"ClinicalEffort_{report.ClinicalTypeName}_{report.AcademicYear}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     [HttpPost("merit/clinical/excel")]
@@ -1473,10 +1473,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export scheduled clinical weeks report as PDF.
     /// </summary>
-    [HttpPost("clinical-schedule/pdf")]
+    [HttpGet("clinical-schedule/pdf")]
     [Permission(Allow = EffortPermissions.ViewAllDepartments)]
     public async Task<ActionResult> ExportScheduledCliWeeksPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear);
@@ -1508,7 +1508,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _clinicalScheduleService.GenerateReportPdfAsync(report);
         var filename = $"ScheduledClinicalWeeks_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     /// <summary>
@@ -1620,10 +1620,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export evaluation summary report as PDF.
     /// </summary>
-    [HttpPost("eval/summary/pdf")]
+    [HttpGet("eval/summary/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportEvalSummaryPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -1661,7 +1661,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _evaluationReportService.GenerateSummaryPdfAsync(report);
         var filename = $"EvalSummary_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     /// <summary>
@@ -1776,10 +1776,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export evaluation detail report as PDF.
     /// </summary>
-    [HttpPost("eval/detail/pdf")]
+    [HttpGet("eval/detail/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportEvalDetailPdf(
-        [FromBody] ReportPdfRequest request,
+        [FromQuery] ReportPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateTermAndYear(request.TermCode, request.AcademicYear)
@@ -1817,7 +1817,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _evaluationReportService.GenerateDetailPdfAsync(report);
         var filename = $"EvalDetail_{report.TermName}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     /// <summary>
@@ -1924,10 +1924,10 @@ public partial class ReportsController : BaseEffortController
     /// <summary>
     /// Export multi-year merit + evaluation report as PDF.
     /// </summary>
-    [HttpPost("merit/multiyear/pdf")]
+    [HttpGet("merit/multiyear/pdf")]
     [Permission(Allow = $"{EffortPermissions.ViewAllDepartments},{EffortPermissions.ViewDept},{EffortPermissions.Reports}")]
     public async Task<ActionResult> ExportMeritMultiYearPdf(
-        [FromBody] MultiYearPdfRequest request,
+        [FromQuery] MultiYearPdfRequest request,
         CancellationToken ct = default)
     {
         var validationResult = ValidateMultiYearParams(request.PersonId, request.StartYear, request.EndYear);
@@ -1964,7 +1964,7 @@ public partial class ReportsController : BaseEffortController
 
         var pdfBytes = await _meritMultiYearService.GenerateReportPdfAsync(report);
         var filename = $"MultiYear_{report.Instructor}_{report.StartYear}-{report.EndYear}_{DateTime.Now:yyyyMMdd}.pdf";
-        return File(pdfBytes, "application/pdf", filename);
+        return InlineFile(pdfBytes, "application/pdf", filename);
     }
 
     /// <summary>

@@ -24,5 +24,10 @@ public interface IClinicalEffortService
     /// </summary>
     Task<byte[]> GenerateReportPdfAsync(ClinicalEffortReport report);
 
+    /// <summary>
+    /// Generate an Excel workbook from a clinical effort report.
+    /// One worksheet per job group; instructor rows are promoted to a
+    /// structured Excel Table.
+    /// </summary>
     MemoryStream GenerateReportExcel(ClinicalEffortReport report);
 }
