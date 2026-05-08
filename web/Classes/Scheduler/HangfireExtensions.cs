@@ -2,6 +2,8 @@ using System.Reflection;
 using Hangfire;
 using Hangfire.Console;
 using Hangfire.Heartbeat;
+using Hangfire.Heartbeat.Server;
+using Hangfire.Server;
 using NLog;
 using Viper.Areas.Scheduler.Services;
 using Viper.Classes.HealthChecks;
@@ -70,6 +72,14 @@ namespace Viper.Classes.Scheduler
                 // Hangfire.Heartbeat: server CPU/RAM/uptime metrics on the
                 // dashboard's Servers page.
                 .UseHeartbeatPage(checkInterval: TimeSpan.FromSeconds(30)));
+
+            // ProcessMonitor (from Hangfire.Heartbeat) records the CPU/RAM/
+            // uptime metrics rendered by UseHeartbeatPage. Registering it as
+            // an IBackgroundProcess in DI lets AddHangfireServer pick it up
+            // alongside the default workers without us having to pass storage
+            // explicitly (the overload that takes additionalProcesses also
+            // requires a non-null JobStorage).
+            services.AddSingleton<IBackgroundProcess>(_ => new ProcessMonitor(checkInterval: TimeSpan.FromSeconds(30)));
             services.AddHangfireServer();
 
             // Hangfire-specific check piggybacks on the /health/detail "ready"
