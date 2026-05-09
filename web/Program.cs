@@ -277,7 +277,8 @@ try
                 "Viper.Areas.ClinicalScheduler.Validators",
                 "Viper.Areas.Students.Services",
                 "Viper.Areas.Curriculum.Services",
-                "Viper.Areas.Effort.Services"
+                "Viper.Areas.Effort.Services",
+                "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
         .UsingRegistrationStrategy(Scrutor.RegistrationStrategy.Skip)
@@ -327,6 +328,10 @@ try
 
 
     var app = builder.Build();
+
+    // Ensure the per-request CMS ZIP temp folder exists once at startup
+    // rather than on every download request.
+    Directory.CreateDirectory(Viper.Areas.CMS.Services.CmsFilePathSafety.GetZipTempFolder());
 
     // Add Content Security Policy. Skip for HealthChecks.UI paths - the bundled UI
     // uses inline scripts and data: fonts that our strict CSP would block. Those
