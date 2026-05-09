@@ -61,38 +61,4 @@ const SCHEDULE_LABELS = {
     },
 } as const
 
-const SCHEDULE_VIEW_CONFIG = {
-    // Common view props
-    DEFAULT_PROPS: {
-        showLegend: true,
-        showPrimaryToggle: true,
-        labelSpacing: "xs" as const,
-        selectorSpacing: "none" as const,
-    },
-
-    // Rotation view specific
-    ROTATION_VIEW: {
-        showWarningInLegend: true,
-        showWarningIcon: true,
-        requiresPrimaryForWeek: true,
-        labelSpacing: "md" as const,
-        selectorSpacing: "lg" as const,
-    },
-
-    // Clinician view specific
-    CLINICIAN_VIEW: {
-        showWarningInLegend: false,
-        showWarningIcon: false,
-        requiresPrimaryForWeek: false,
-    },
-} as const
-
-// Type helpers for the constants
-type ScheduleMessageKey = keyof typeof SCHEDULE_MESSAGES
-type ScheduleLabelKey = keyof typeof SCHEDULE_LABELS
-type ViewConfigKey = keyof typeof SCHEDULE_VIEW_CONFIG
-
-// Consolidated exports - types and constants at end of file
-export { SCHEDULE_MESSAGES, SCHEDULE_LABELS, SCHEDULE_VIEW_CONFIG }
-
-export type { ScheduleMessageKey, ScheduleLabelKey, ViewConfigKey }
+export { SCHEDULE_MESSAGES, SCHEDULE_LABELS }

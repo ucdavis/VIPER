@@ -176,7 +176,7 @@ function isNewlyAdded(assignmentId: number): boolean {
     return newlyAddedAssignments.value.has(assignmentId)
 }
 
-export interface WeekAssignment {
+interface WeekAssignment {
     id: number
     displayName: string
     isPrimary?: boolean
@@ -355,8 +355,6 @@ const cardClasses = computed(() => {
 </script>
 
 <style scoped>
-@import url("@/styles/colors.css");
-
 .week-schedule-card {
     max-width: 280px;
     min-width: 200px;

@@ -163,6 +163,7 @@ import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { EvalDetailReport } from "../types"
+import "../report-tables.css"
 
 const { termCode, loading, report, initialFilters, generateReport, handlePrint, handleExcelDownload } =
     useReportPage<EvalDetailReport>({
@@ -181,10 +182,6 @@ function formatNullableDecimal(value: number | null): string {
     return value !== null ? value.toFixed(2) : ""
 }
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
 
 <style scoped>
 .col-numeric {
