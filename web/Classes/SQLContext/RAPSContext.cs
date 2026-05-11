@@ -161,7 +161,7 @@ public partial class RAPSContext : DbContext
     public virtual DbSet<VwVmdoSp> VwVmdoSps { get; set; }
 
     public virtual DbSet<VwVmdoSvmIt> VwVmdoSvmIts { get; set; }
-
+	public virtual DbSet<VwVmthChief> VwVmthChiefs { get; set; }
     public virtual DbSet<VwVmthClinician> VwVmthClinicians { get; set; }
 
     public virtual DbSet<VwVmthConstituent> VwVmthConstituents { get; set; }
@@ -1340,6 +1340,18 @@ public partial class RAPSContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.MemberId)
                 .HasMaxLength(9)
+                .IsUnicode(false)
+                .HasColumnName("MemberID");
+        });
+
+		modelBuilder.Entity<VwVmthChief>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vw_VMTH_Chiefs");
+
+            entity.Property(e => e.MemberId)
+                .HasMaxLength(8)
                 .IsUnicode(false)
                 .HasColumnName("MemberID");
         });

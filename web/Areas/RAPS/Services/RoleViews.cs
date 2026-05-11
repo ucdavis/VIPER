@@ -223,6 +223,7 @@ namespace Viper.Areas.RAPS.Services
                 "vw_vmdo_sp" => await _RAPSContext.VwVmdoSps.Select(v => v.MemberId).ToListAsync(),
                 "vw_vmdo_svm_it" => await _RAPSContext.VwVmdoSvmIts.Select(v => v.MemberId).ToListAsync(),
                 "vw_vmthadmissions" => await _RAPSContext.VwVmthadmissions.Select(v => v.MemberId).ToListAsync(),
+				"vw_vmth_chiefs" => await _RAPSContext.VwVmthChiefs.Select(v => v.MemberId).ToListAsync(),
                 "vw_vmth_clinicians" => await _RAPSContext.VwVmthClinicians.Select(v => v.MemberId).ToListAsync(),
                 "vw_vmth_constituents" => await _RAPSContext.VwVmthConstituents.Select(v => v.MemberId).ToListAsync(),
                 "vw_vmthinternsmanual" => await _RAPSContext.VwVmthinternsManuals.Select(v => v.MemberId).ToListAsync(),
