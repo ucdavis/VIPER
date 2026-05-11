@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.RAPS;
 
@@ -161,7 +162,9 @@ public partial class RAPSContext : DbContext
     public virtual DbSet<VwVmdoSp> VwVmdoSps { get; set; }
 
     public virtual DbSet<VwVmdoSvmIt> VwVmdoSvmIts { get; set; }
-	public virtual DbSet<VwVmthChief> VwVmthChiefs { get; }
+
+    [UsedImplicitly]
+    public virtual DbSet<VwVmthChief> VwVmthChiefs { get; set; }
     public virtual DbSet<VwVmthClinician> VwVmthClinicians { get; set; }
 
     public virtual DbSet<VwVmthConstituent> VwVmthConstituents { get; set; }
@@ -1344,7 +1347,7 @@ public partial class RAPSContext : DbContext
                 .HasColumnName("MemberID");
         });
 
-		modelBuilder.Entity<VwVmthChief>(entity =>
+        modelBuilder.Entity<VwVmthChief>(entity =>
         {
             entity
                 .HasNoKey()
