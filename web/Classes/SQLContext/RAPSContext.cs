@@ -161,7 +161,7 @@ public partial class RAPSContext : DbContext
     public virtual DbSet<VwVmdoSp> VwVmdoSps { get; set; }
 
     public virtual DbSet<VwVmdoSvmIt> VwVmdoSvmIts { get; set; }
-	public virtual DbSet<VwVmthChief> VwVmthChiefs { get; set; }
+	public virtual DbSet<VwVmthChief> VwVmthChiefs { get; }
     public virtual DbSet<VwVmthClinician> VwVmthClinicians { get; set; }
 
     public virtual DbSet<VwVmthConstituent> VwVmthConstituents { get; set; }
