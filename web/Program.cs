@@ -420,44 +420,6 @@ try
 
     }
 
-    // In development, set up Vite proxy BEFORE rewrite rules so it can handle .ts/.js files
-    if (app.Environment.IsDevelopment())
-    {
-        // Development: Proxy Vue.js assets to Vite dev server for hot module replacement (HMR)
-        // This middleware intercepts requests for Vue assets and forwards them to the Vite dev server
-        app.Use(async (context, next) =>
-        {
-            if (ViteProxyHelpers.ShouldProxyToVite(context, VueAppNames))
-            {
-                try
-                {
-                    // Use the registered HttpClient from dependency injection
-                    var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
-                    var httpClient = httpClientFactory.CreateClient("ViteProxy");
-
-                    // Build the Vite server URL and try to proxy directly
-                    var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
-                    var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
-                    using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
-
-                    // Copy the response back to the client
-                    await ViteProxyHelpers.CopyProxyResponse(context, response);
-                    return; // Successfully proxied, don't continue to static files
-                }
-                catch (Exception ex)
-                {
-                    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                    logger.LogDebug(ex, "Vite server not available, falling back to static files for {Path}",
-                        Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
-                    // Fall through to static file serving
-                }
-            }
-
-            // Continue to static file serving (either Vite not needed or not available)
-            await next();
-        });
-    }
-
     var rewriteOptions = new RewriteOptions();
 
     // Add redirects and rewrites for each SPA using centralized app names
@@ -474,40 +436,77 @@ try
         rewriteOptions.AddRewrite($@"(?i)^{escapedAppName}", $"/2/vue/src/{lowerAppName}/index.html", true);
     }
 
-    app.UseRewriter(rewriteOptions);
-
-    //for the vue src files, use directories in the url but serve index.html
+    // Default-file convention for /vue (legacy path).
     app.UseDefaultFiles(new DefaultFilesOptions
     {
         DefaultFileNames = new List<string> { "index.html" },
         FileProvider = new PhysicalFileProvider(
-            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "vue")),
         RequestPath = "/vue",
         RedirectToAppendTrailingSlash = true
     });
 
-    // Static file serving configuration
-    // Serve built Vue files - in development proxy middleware runs first,
-    // in production these files are served directly
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(
-            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
-        RequestPath = "/2/vue"
-    });
-
-    // Serve other static files
+    // General static files (favicon, /css, /js, /images, etc.).
     app.UseStaticFiles();
 
-    // Add sitemap middleware after static file handling
     app.UseSitemapMiddleware();
 
-    // apply settings define earlier
+    // Routing first so subsequent middleware can defer to a matched MVC endpoint.
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseCookiePolicy();
     app.UseSession();
+
+    // SPA shell serving — Vue app prefixes like /CMS, /Effort, etc.
+    // Only runs when no MVC controller endpoint claimed the path, so attribute-routed
+    // legacy endpoints (e.g. /CMS/Files → CMSController.Files) reach the controller
+    // instead of being rewritten to the SPA shell.
+    app.UseWhen(
+        ctx => ctx.GetEndpoint() is null,
+        branch =>
+        {
+            if (app.Environment.IsDevelopment())
+            {
+                // Dev: proxy Vue assets and SPA routes to the Vite dev server (HMR).
+                branch.Use(async (context, next) =>
+                {
+                    if (ViteProxyHelpers.ShouldProxyToVite(context, VueAppNames))
+                    {
+                        try
+                        {
+                            var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
+                            var httpClient = httpClientFactory.CreateClient("ViteProxy");
+
+                            var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
+                            var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
+                            using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+
+                            await ViteProxyHelpers.CopyProxyResponse(context, response);
+                            return;
+                        }
+                        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+                        {
+                            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                            logger.LogDebug(ex, "Vite server not available, falling back to static files for {Path}",
+                                Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
+                        }
+                    }
+
+                    await next();
+                });
+            }
+
+            // Prod (and dev fallback): rewrite SPA routes to the built SPA shell,
+            // then serve the static file from wwwroot/vue.
+            branch.UseRewriter(rewriteOptions);
+            branch.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(
+                    Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "vue")),
+                RequestPath = "/2/vue"
+            });
+        });
 
     // All health-check pipeline wiring lives in HealthCheckExtensions.
     app.UseViperHealthChecks();
