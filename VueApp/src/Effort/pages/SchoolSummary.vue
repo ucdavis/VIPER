@@ -191,6 +191,7 @@ import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import type { SchoolSummaryReport } from "../types"
+import "../report-tables.css"
 
 const {
     termCode,
@@ -214,10 +215,6 @@ const {
     hasData: (r) => r.departments.length > 0,
 })
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
 
 <style scoped>
 .dept-section {

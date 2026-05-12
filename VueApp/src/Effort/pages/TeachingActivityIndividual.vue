@@ -171,6 +171,7 @@ import ExportToolbar from "@/components/ExportToolbar.vue"
 import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import type { TeachingActivityReport, TeachingActivityInstructorGroup } from "../types"
+import "../report-tables.css"
 
 const {
     termCode,
@@ -211,10 +212,6 @@ const allInstructors = computed<InstructorWithDept[]>(() => {
     return result
 })
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
 
 <style scoped>
 .col-units {

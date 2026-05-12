@@ -5,7 +5,7 @@ import type { Service } from "../types"
  * Interface defining the getters used by permission utilities.
  * Provides typed access to computed values from the permissions store.
  */
-export interface PermissionsGetters {
+interface PermissionsGetters {
     editableServices: {
         value: Service[]
     }

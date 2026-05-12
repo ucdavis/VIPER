@@ -97,15 +97,4 @@ interface RotationScheduleData {
     recentClinicians?: RecentClinician[]
 }
 
-export type {
-    RotationWithService,
-    RotationSummary,
-    ApiResult,
-    InstructorScheduleItem,
-    WeekItem,
-    ScheduleItem,
-    WeekWithSchedules,
-    SemesterSchedule,
-    RecentClinician,
-    RotationScheduleData,
-}
+export type { RotationWithService, RotationSummary, RecentClinician, RotationScheduleData }

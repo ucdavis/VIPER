@@ -145,6 +145,7 @@ import ReportFilterForm from "../components/ReportFilterForm.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import ReportDeptTabs from "../components/ReportDeptTabs.vue"
 import type { MeritSummaryReport } from "../types"
+import "../report-tables.css"
 
 const {
     termCode,
@@ -168,9 +169,3 @@ const {
     hasData: (r) => r.jobGroups.length > 0,
 })
 </script>
-
-<style>
-@import url("../report-tables.css");
-</style>
-
-<style scoped></style>
