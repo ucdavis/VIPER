@@ -42,43 +42,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .Include(s => s.Service)
                     .Include(s => s.Rotation)
                     .AsNoTracking()
-                    .AsQueryable();
-
-                // Apply filters
-                if (classYear.HasValue)
-                {
-                    query = query.Where(s => s.Week.WeekGradYears.Any(gy => gy.GradYear == classYear));
-                }
-
-                if (!string.IsNullOrWhiteSpace(mothraId))
-                {
-                    query = query.Where(s => s.MothraId == mothraId);
-                }
-
-                if (rotationId.HasValue)
-                {
-                    query = query.Where(s => s.RotationId == rotationId);
-                }
-
-                if (serviceId.HasValue)
-                {
-                    query = query.Where(s => s.ServiceId == serviceId);
-                }
-
-                if (weekId.HasValue)
-                {
-                    query = query.Where(s => s.WeekId == weekId);
-                }
-
-                if (startDate.HasValue)
-                {
-                    query = query.Where(s => s.DateEnd >= startDate);
-                }
-
-                if (endDate.HasValue)
-                {
-                    query = query.Where(s => s.DateStart <= endDate);
-                }
+                    .ApplyScheduleFilters(classYear, mothraId, rotationId, serviceId, weekId, startDate, endDate);
 
                 if (active.HasValue && active.Value)
                 {
