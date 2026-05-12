@@ -63,12 +63,7 @@
                     }
                 </q-btn>
 
-                @if (UserHelper.IsEmulating())
-                {
-                    <q-banner dense rounded inline-actions class="bg-warning text-black q-ml-lg">
-                        <strong>EMULATING:</strong> @UserHelper.GetCurrentUser()?.DisplayFullName <q-btn no-caps dense href="@Url.Content("~/ClearEmulation")" color="secondary" class="text-white q-px-sm q-ml-md">End Emulation</q-btn>
-                    </q-banner>
-                }
+                @await Component.InvokeAsync("EmulationBanner")
                 <q-space></q-space>
 
                 @await Component.InvokeAsync("ProfilePic",

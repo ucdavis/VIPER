@@ -13,27 +13,27 @@ namespace Viper.Views.Shared.Components.MainNav
         //[href, label, permission, tooltip?]
         private readonly List<string[]> links = new()
         {
-            new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
-            new string[] { "~/", "VIPER Home", "SVMSecure", "VIPER Home Page" },
-            new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
-            new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
-            new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
-            new string[] { "~/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
-            new string[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
-            new string[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
-            new string[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },
-            new string[] { "/facilities/default.cfm", "Facilities", "SVMSecure.Facilities" },
-            new string[] { "/faculty/default.cfm", "Faculty", "SVMSecure.Faculty" },
-            new string[] { "/fiscal/default.cfm", "Fiscal", "SVMSecure.Fiscal" },
-            new string[] { "/IDCards/default.cfm", "IDCards", "SVMSecure.IDCards.Apply" },
-            new string[] { "/personnel/default.cfm", "Personnel", "SVMSecure.Personnel" },
-            new string[] { "~/Policy", "Policies", "SVMSecure" },
-            new string[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
-            new string[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
+            new[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
+            new[] { "~/", "VIPER Home", "SVMSecure", "VIPER Home Page" },
+            new[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
+            new[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
+            new[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
+            new[] { "~/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
+            new[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
+            new[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
+            new[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },
+            new[] { "/facilities/default.cfm", "Facilities", "SVMSecure.Facilities" },
+            new[] { "/faculty/default.cfm", "Faculty", "SVMSecure.Faculty" },
+            new[] { "/fiscal/default.cfm", "Fiscal", "SVMSecure.Fiscal" },
+            new[] { "/IDCards/default.cfm", "IDCards", "SVMSecure.IDCards.Apply" },
+            new[] { "/personnel/default.cfm", "Personnel", "SVMSecure.Personnel" },
+            new[] { "~/Policy", "Policies", "SVMSecure" },
+            new[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
+            new[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
             new[] { "~/scheduler/dashboard", "Scheduler", "SVMSecure.CATS.scheduledJobs", "Hangfire scheduler dashboard" },
-            new string[] { "/students/default.cfm", "Students", "SVMSecure.Students" },
-            new string[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
-            new string[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
+            new[] { "/students/default.cfm", "Students", "SVMSecure.Students" },
+            new[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
+            new[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
         };
 
         public MainNavViewComponent(RAPSContext context)

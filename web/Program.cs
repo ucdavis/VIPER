@@ -542,14 +542,9 @@ void SetAwsCredentials(Logger logger)
         var profile = new CredentialProfile("default", options);
         // if a region was specified in the xml then use the specified region else default to USWest1
         var regionFieldName = xAwsCredentials.Element("RegionEndpoint")?.Value;
-        if (!string.IsNullOrWhiteSpace(regionFieldName))
-        {
-            profile.Region = typeof(RegionEndpoint).GetField(regionFieldName)?.GetValue(null) as RegionEndpoint;
-        }
-        else
-        {
-            profile.Region = RegionEndpoint.USWest1;
-        }
+        profile.Region = !string.IsNullOrWhiteSpace(regionFieldName)
+            ? typeof(RegionEndpoint).GetField(regionFieldName)?.GetValue(null) as RegionEndpoint
+            : RegionEndpoint.USWest1;
         var netSDKFile = new NetSDKCredentialsFile();
         netSDKFile.RegisterProfile(profile);
 
