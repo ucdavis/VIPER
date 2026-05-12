@@ -64,6 +64,7 @@ namespace Viper.Views.Shared.Components.MainNav
             {
                 "raps" => "Computing",
                 "policy" => "Policies",
+                "scheduler" => "Computing",
                 _ => "VIPER Home",
             };
             return await Task.Run(() => View("Default", user));
