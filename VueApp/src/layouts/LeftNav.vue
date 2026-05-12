@@ -60,8 +60,8 @@
                                 clickable
                                 v-ripple
                                 :href="menuItem.menuItemUrl"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                :target="menuItem.isExternalSite ? '_blank' : undefined"
+                                :rel="menuItem.isExternalSite ? 'noopener noreferrer' : undefined"
                                 :class="menuItem.displayClass"
                             >
                                 <q-item-section>
@@ -162,6 +162,22 @@ function isItemActive(routeTo: string | null): boolean {
     return score > 0 && score === bestMatchScore.value
 }
 
+// True when the URL resolves to a real SPA route. Vue Router's catch-all
+// (path: "/:catchAll(.*)*" etc.) matches anything not otherwise registered,
+// so a successful resolve isn't enough — we also reject paths that match
+// only via a regex catch-all segment.
+function isInSpaRoute(url: string): boolean {
+    try {
+        const matched = router.resolve(url).matched
+        if (matched.length === 0) {
+            return false
+        }
+        return matched.some((r) => !/\(\.\*\)/.test(r.path))
+    } catch {
+        return false
+    }
+}
+
 type OverflowTitleElement = HTMLElement & {
     _overflowTitleObserver?: ResizeObserver
 }
@@ -252,17 +268,29 @@ async function getLeftNav() {
                 }
             }
 
-            let routeToUrl = null
+            // Resolve to either an in-SPA route (RouterLink, client-side nav)
+            // or a same-tab anchor (full page load). URLs that don't match
+            // any registered SPA route fall through to the catch-all 404 if
+            // RouterLink-handled, so render those as plain anchors instead.
+            let routeToUrl: string | null = null
+            let internalAnchorUrl: string | undefined = undefined
             if (!isExternalUrl && r.menuItemURL.length > 0) {
-                if (isRelativeUrl && props.navarea && props.nav) {
-                    routeToUrl = `/${props.nav.toUpperCase()}/${r.menuItemURL}`
+                const candidate =
+                    isRelativeUrl && props.navarea && props.nav
+                        ? `/${props.nav.toUpperCase()}/${r.menuItemURL}`
+                        : r.menuItemURL
+                if (isInSpaRoute(candidate)) {
+                    routeToUrl = candidate
                 } else {
-                    routeToUrl = r.menuItemURL
+                    // Plain-anchor hrefs need the SPA's base path prepended
+                    // (e.g. `/2/`) since the browser won't apply Vue Router's
+                    // base for direct hrefs. router.resolve handles this.
+                    internalAnchorUrl = router.resolve(candidate).href
                 }
             }
 
             return {
-                menuItemUrl: isExternalUrl ? r.menuItemURL : undefined,
+                menuItemUrl: isExternalUrl ? r.menuItemURL : internalAnchorUrl,
                 routeTo: routeToUrl,
                 menuItemText: r.menuItemText,
                 clickable: r.menuItemURL.length > 0,
