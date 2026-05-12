@@ -15,225 +15,44 @@
 
         <template v-else>
             <!-- Unopened Terms - only visible to ManageTerms users -->
-            <div
+            <TermTable
                 v-if="hasManageTerms && unopenedTerms.length > 0"
-                class="q-mb-lg"
+                title="Unopened Terms"
+                :rows="unopenedTerms"
+                :columns="unopenedColumns"
             >
-                <h2 class="text-h6 q-mb-sm q-mt-none">Unopened Terms</h2>
-                <!-- Desktop: Table -->
-                <q-table
-                    :rows="unopenedTerms"
-                    :columns="unopenedColumns"
-                    row-key="termCode"
-                    dense
-                    flat
-                    bordered
-                    :pagination="{ rowsPerPage: 0 }"
-                    hide-pagination
-                    class="gt-xs"
-                >
-                    <template #body-cell-termName="props">
-                        <q-td :props="props">
-                            <router-link
-                                :to="`/Effort/${props.row.termCode}`"
-                                class="text-primary"
-                            >
-                                {{ props.row.termName }}
-                            </router-link>
-                        </q-td>
-                    </template>
-                    <template #body-cell-harvestedDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.harvestedDate) }}
-                        </q-td>
-                    </template>
-                    <template #body-cell-expectedCloseDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.expectedCloseDate) }}
-                        </q-td>
-                    </template>
-                </q-table>
-                <!-- Mobile: List -->
-                <div class="lt-sm">
-                    <q-list
-                        bordered
-                        separator
-                        dense
-                    >
-                        <q-item
-                            v-for="term in unopenedTerms"
-                            :key="term.termCode"
-                            clickable
-                            v-ripple
-                            :to="`/Effort/${term.termCode}`"
-                        >
-                            <q-item-section>
-                                <q-item-label>{{ term.termName }}</q-item-label>
-                                <q-item-label
-                                    caption
-                                    v-if="term.harvestedDate || term.expectedCloseDate"
-                                >
-                                    <span v-if="term.harvestedDate"
-                                        >Harvested: {{ formatDate(term.harvestedDate) }}</span
-                                    >
-                                    <span v-if="term.expectedCloseDate">
-                                        {{ term.harvestedDate ? " &middot; " : "" }}Expected Close:
-                                        {{ formatDate(term.expectedCloseDate) }}
-                                    </span>
-                                </q-item-label>
-                            </q-item-section>
-                            <q-item-section side>
-                                <q-icon name="chevron_right" />
-                            </q-item-section>
-                        </q-item>
-                    </q-list>
-                </div>
-            </div>
+                <template #caption="{ term }">
+                    <span v-if="term.harvestedDate">Harvested: {{ formatDate(term.harvestedDate) }}</span>
+                    <span v-if="term.expectedCloseDate">
+                        {{ term.harvestedDate ? " · " : "" }}Expected Close:
+                        {{ formatDate(term.expectedCloseDate) }}
+                    </span>
+                </template>
+            </TermTable>
 
             <!-- Open Terms -->
-            <div class="q-mb-lg">
-                <h2 class="text-h6 q-mb-sm q-mt-none">Open Terms</h2>
-                <!-- Desktop: Table -->
-                <q-table
-                    :rows="openTerms"
-                    :columns="openColumns"
-                    row-key="termCode"
-                    dense
-                    flat
-                    bordered
-                    :pagination="{ rowsPerPage: 0 }"
-                    hide-pagination
-                    class="gt-xs"
-                >
-                    <template #body-cell-termName="props">
-                        <q-td :props="props">
-                            <router-link
-                                :to="`/Effort/${props.row.termCode}`"
-                                class="text-primary"
-                            >
-                                {{ props.row.termName }}
-                            </router-link>
-                        </q-td>
-                    </template>
-                    <template #body-cell-harvestedDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.harvestedDate) }}
-                        </q-td>
-                    </template>
-                    <template #body-cell-openedDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.openedDate) }}
-                        </q-td>
-                    </template>
-                    <template #body-cell-expectedCloseDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.expectedCloseDate) }}
-                        </q-td>
-                    </template>
-                    <template #no-data>
-                        <div class="text-grey q-pa-sm">No terms are currently open for editing</div>
-                    </template>
-                </q-table>
-                <!-- Mobile: List -->
-                <div class="lt-sm">
-                    <q-list
-                        bordered
-                        separator
-                        dense
-                    >
-                        <q-item
-                            v-for="term in openTerms"
-                            :key="term.termCode"
-                            clickable
-                            v-ripple
-                            :to="`/Effort/${term.termCode}`"
-                        >
-                            <q-item-section>
-                                <q-item-label>{{ term.termName }}</q-item-label>
-                                <q-item-label caption>
-                                    Opened: {{ formatDate(term.openedDate ?? "") }}
-                                    <span v-if="term.expectedCloseDate">
-                                        &middot; Expected Close: {{ formatDate(term.expectedCloseDate) }}
-                                    </span>
-                                </q-item-label>
-                            </q-item-section>
-                            <q-item-section side>
-                                <q-icon name="chevron_right" />
-                            </q-item-section>
-                        </q-item>
-                        <q-item v-if="openTerms.length === 0">
-                            <q-item-section class="text-grey"> No terms are currently open for editing </q-item-section>
-                        </q-item>
-                    </q-list>
-                </div>
-            </div>
+            <TermTable
+                title="Open Terms"
+                :rows="openTerms"
+                :columns="openColumns"
+                empty-message="No terms are currently open for editing"
+            >
+                <template #caption="{ term }">
+                    Opened: {{ formatDate(term.openedDate ?? "") }}
+                    <span v-if="term.expectedCloseDate">
+                        · Expected Close: {{ formatDate(term.expectedCloseDate) }}
+                    </span>
+                </template>
+            </TermTable>
 
             <!-- Closed Terms -->
-            <div class="q-mb-lg">
-                <h2 class="text-h6 q-mb-sm q-mt-none">Closed Terms</h2>
-                <!-- Desktop: Table -->
-                <q-table
-                    :rows="closedTerms"
-                    :columns="closedColumns"
-                    row-key="termCode"
-                    dense
-                    flat
-                    bordered
-                    :pagination="{ rowsPerPage: 0 }"
-                    hide-pagination
-                    class="gt-xs"
-                >
-                    <template #body-cell-termName="props">
-                        <q-td :props="props">
-                            <router-link
-                                :to="`/Effort/${props.row.termCode}`"
-                                class="text-primary"
-                            >
-                                {{ props.row.termName }}
-                            </router-link>
-                        </q-td>
-                    </template>
-                    <template #body-cell-harvestedDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.harvestedDate) }}
-                        </q-td>
-                    </template>
-                    <template #body-cell-openedDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.openedDate) }}
-                        </q-td>
-                    </template>
-                    <template #body-cell-closedDate="props">
-                        <q-td :props="props">
-                            {{ formatDate(props.row.closedDate) }}
-                        </q-td>
-                    </template>
-                </q-table>
-                <!-- Mobile: List -->
-                <div class="lt-sm">
-                    <q-list
-                        bordered
-                        separator
-                        dense
-                    >
-                        <q-item
-                            v-for="term in closedTerms"
-                            :key="term.termCode"
-                            clickable
-                            v-ripple
-                            :to="`/Effort/${term.termCode}`"
-                        >
-                            <q-item-section>
-                                <q-item-label>{{ term.termName }}</q-item-label>
-                                <q-item-label caption> Closed: {{ formatDate(term.closedDate ?? "") }} </q-item-label>
-                            </q-item-section>
-                            <q-item-section side>
-                                <q-icon name="chevron_right" />
-                            </q-item-section>
-                        </q-item>
-                    </q-list>
-                </div>
-            </div>
+            <TermTable
+                title="Closed Terms"
+                :rows="closedTerms"
+                :columns="closedColumns"
+            >
+                <template #caption="{ term }"> Closed: {{ formatDate(term.closedDate ?? "") }} </template>
+            </TermTable>
         </template>
     </div>
 </template>
@@ -243,6 +62,7 @@ import { ref, computed, onMounted } from "vue"
 import { termService } from "../services/term-service"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import TermTable from "../components/TermTable.vue"
 import type { TermDto } from "../types"
 import type { QTableColumn } from "quasar"
 

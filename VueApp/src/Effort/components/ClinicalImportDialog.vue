@@ -1,237 +1,162 @@
 <template>
-    <q-dialog
+    <AsyncOperationDialog
         :model-value="modelValue"
-        persistent
-        maximized-on-mobile
-        aria-labelledby="clinical-import-title"
-        @keydown.escape="handleClose"
+        :title="`Import Clinical Effort: ${props.termName}`"
+        subtitle="Import clinical rotation assignments from Clinical Scheduler"
+        :is-loading="isLoading"
+        :is-committing="isCommitting"
+        :load-error="loadError"
+        :progress="importProgress"
+        progress-title="Processing Clinical Import"
+        progress-color="info"
+        :progress-phase="importPhase"
+        :progress-detail="importDetail"
+        @retry="loadPreview"
+        @close="handleClose"
     >
-        <q-card style="width: 100%; max-width: 1000px; position: relative">
-            <q-btn
-                icon="close"
-                flat
-                round
-                dense
-                class="absolute-top-right q-ma-sm"
-                style="z-index: 1"
-                aria-label="Close dialog"
-                @click="handleClose"
-            />
-            <q-card-section class="q-pb-none q-pr-xl">
-                <div
-                    id="clinical-import-title"
-                    class="text-h6"
-                >
-                    Import Clinical Effort: {{ props.termName }}
-                </div>
-                <div class="text-caption text-grey-7">Import clinical rotation assignments from Clinical Scheduler</div>
-            </q-card-section>
-
-            <!-- Loading State (Preview) -->
-            <q-card-section
-                v-if="isLoading"
-                class="text-center q-py-xl"
-            >
-                <q-spinner-dots
-                    size="50px"
-                    color="primary"
-                />
-                <div class="q-mt-md text-grey-7">Generating preview...</div>
-            </q-card-section>
-
-            <!-- Committing State (Progress) -->
-            <q-card-section
-                v-else-if="isCommitting"
-                class="q-py-xl"
-            >
-                <div class="text-h6 q-mb-md text-center">Processing Clinical Import</div>
-                <q-linear-progress
-                    :value="importProgress"
-                    size="25px"
-                    color="info"
-                    class="q-mb-md"
-                >
-                    <div class="absolute-full flex flex-center">
-                        <q-badge
-                            color="white"
-                            text-color="info"
-                            :label="`${Math.round(importProgress * 100)}%`"
-                        />
-                    </div>
-                </q-linear-progress>
-                <div class="text-center text-grey-7">{{ importPhase }}</div>
-                <div
-                    v-if="importDetail"
-                    class="text-center text-caption text-grey-7 q-mt-xs"
-                >
-                    {{ importDetail }}
-                </div>
-            </q-card-section>
-
-            <!-- Error State -->
-            <q-card-section
-                v-else-if="loadError"
-                class="text-center q-py-xl"
-            >
-                <q-icon
-                    name="error"
-                    color="negative"
-                    size="48px"
-                />
-                <div class="q-mt-md text-negative">{{ loadError }}</div>
-                <q-btn
-                    label="Retry"
-                    color="primary"
-                    class="q-mt-md"
-                    @click="loadPreview"
-                />
-            </q-card-section>
-
-            <!-- Preview Content -->
-            <template v-else-if="preview">
-                <q-card-section class="q-pt-sm">
-                    <!-- Import Mode Selector -->
-                    <div class="q-mb-md">
-                        <div class="text-subtitle2 q-mb-sm">Import Mode</div>
-                        <q-option-group
-                            v-model="selectedMode"
-                            :options="modeOptions"
-                            color="info"
-                            :inline="$q.screen.gt.xs"
-                            @update:model-value="onModeChange"
-                        />
-                    </div>
-
-                    <!-- Summary Banner -->
-                    <StatusBanner type="info">
-                        <div class="row q-col-gutter-md">
-                            <div class="col-6 col-sm-3 text-center">
-                                <div class="text-h5 text-positive">{{ preview.addCount }}</div>
-                                <div class="text-caption">To add</div>
-                            </div>
-                            <div class="col-6 col-sm-3 text-center">
-                                <div class="text-h5 text-info">{{ preview.updateCount }}</div>
-                                <div class="text-caption">To update</div>
-                            </div>
-                            <div class="col-6 col-sm-3 text-center">
-                                <div
-                                    class="text-h5"
-                                    :class="preview.deleteCount > 0 ? 'text-negative' : ''"
-                                >
-                                    {{ preview.deleteCount }}
-                                </div>
-                                <div class="text-caption">To delete</div>
-                            </div>
-                            <div class="col-6 col-sm-3 text-center">
-                                <div class="text-h5 text-grey-7">{{ preview.skipCount }}</div>
-                                <div class="text-caption">To skip</div>
-                            </div>
-                        </div>
-                        <div class="text-caption text-grey-7 q-mt-sm text-center">
-                            Data as of {{ formatPreviewDateTime(preview.previewGeneratedAt) }}
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Warnings Section -->
-                    <StatusBanner
-                        v-if="preview.warnings.length > 0"
-                        type="warning"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium">
-                                {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
-                            </span>
-                        </div>
-                        <ul class="q-mb-none q-pl-lg">
-                            <li
-                                v-for="(warning, idx) in preview.warnings"
-                                :key="idx"
-                            >
-                                {{ warning }}
-                            </li>
-                        </ul>
-                    </StatusBanner>
-
-                    <!-- Delete Warning for Sync Mode with Empty Source -->
-                    <StatusBanner
-                        v-if="selectedMode === 'Sync' && preview.addCount === 0 && preview.deleteCount > 0"
-                        type="error"
-                        icon="dangerous"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium text-negative"
-                                >Sync will delete ALL clinical effort records</span
-                            >
-                        </div>
-                        <div class="text-caption text-grey-7">
-                            The source returned 0 records. Syncing will delete all {{ preview.deleteCount }} existing
-                            clinical effort records for this term.
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Delete Warning Banner -->
-                    <StatusBanner
-                        v-else-if="preview.deleteCount > 0"
-                        type="error"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium text-negative">
-                                {{ preview.deleteCount }} {{ inflect("record", preview.deleteCount) }} will be deleted
-                            </span>
-                        </div>
-                        <div class="text-caption text-grey-7">
-                            <template v-if="selectedMode === 'ClearReplace'">
-                                Clear & Replace mode will delete all existing clinical records before importing.
-                            </template>
-                            <template v-else>
-                                Sync mode will remove clinical records that no longer exist in the source.
-                            </template>
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Nothing to Import Warning -->
-                    <StatusBanner
-                        v-if="totalChanges === 0"
-                        type="warning"
-                    >
-                        <div class="row items-center q-mb-xs">
-                            <span class="text-weight-medium">Nothing to import</span>
-                        </div>
-                        <div class="text-caption text-grey-7">
-                            There are no changes to make with the selected import mode.
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Preview Table -->
-                    <ClinicalEffortPreviewTable
-                        v-if="preview.assignments.length > 0"
-                        :rows="preview.assignments"
-                        title="Preview"
-                        show-status
-                        class="q-mb-md"
-                    />
-                </q-card-section>
-
-                <!-- Actions -->
-                <q-card-actions
-                    align="right"
-                    class="q-px-md q-pb-md"
-                >
-                    <q-btn
-                        label="Cancel"
-                        flat
-                        @click="handleClose"
-                    />
-                    <q-btn
-                        label="Confirm Import"
+        <template v-if="preview">
+            <q-card-section class="q-pt-sm">
+                <!-- Import Mode Selector -->
+                <div class="q-mb-md">
+                    <div class="text-subtitle2 q-mb-sm">Import Mode</div>
+                    <q-option-group
+                        v-model="selectedMode"
+                        :options="modeOptions"
                         color="info"
-                        :disable="totalChanges === 0 || isCommitting"
-                        @click="confirmImport"
+                        :inline="$q.screen.gt.xs"
+                        @update:model-value="onModeChange"
                     />
-                </q-card-actions>
-            </template>
-        </q-card>
-    </q-dialog>
+                </div>
+
+                <!-- Summary Banner -->
+                <StatusBanner type="info">
+                    <div class="row q-col-gutter-md">
+                        <div class="col-6 col-sm-3 text-center">
+                            <div class="text-h5 text-positive">{{ preview.addCount }}</div>
+                            <div class="text-caption">To add</div>
+                        </div>
+                        <div class="col-6 col-sm-3 text-center">
+                            <div class="text-h5 text-info">{{ preview.updateCount }}</div>
+                            <div class="text-caption">To update</div>
+                        </div>
+                        <div class="col-6 col-sm-3 text-center">
+                            <div
+                                class="text-h5"
+                                :class="preview.deleteCount > 0 ? 'text-negative' : ''"
+                            >
+                                {{ preview.deleteCount }}
+                            </div>
+                            <div class="text-caption">To delete</div>
+                        </div>
+                        <div class="col-6 col-sm-3 text-center">
+                            <div class="text-h5 text-grey-6">{{ preview.skipCount }}</div>
+                            <div class="text-caption">To skip</div>
+                        </div>
+                    </div>
+                    <div class="text-caption text-grey-7 q-mt-sm text-center">
+                        Data as of {{ formatPreviewDateTime(preview.previewGeneratedAt) }}
+                    </div>
+                </StatusBanner>
+
+                <!-- Warnings Section -->
+                <StatusBanner
+                    v-if="preview.warnings.length > 0"
+                    type="warning"
+                >
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium">
+                            {{ preview.warnings.length }} {{ inflect("Warning", preview.warnings.length) }}
+                        </span>
+                    </div>
+                    <ul class="q-mb-none q-pl-lg">
+                        <li
+                            v-for="(warning, idx) in preview.warnings"
+                            :key="idx"
+                        >
+                            {{ warning }}
+                        </li>
+                    </ul>
+                </StatusBanner>
+
+                <!-- Delete Warning for Sync Mode with Empty Source -->
+                <StatusBanner
+                    v-if="selectedMode === 'Sync' && preview.addCount === 0 && preview.deleteCount > 0"
+                    type="error"
+                    icon="dangerous"
+                >
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium text-negative"
+                            >Sync will delete ALL clinical effort records</span
+                        >
+                    </div>
+                    <div class="text-caption text-grey-8">
+                        The source returned 0 records. Syncing will delete all {{ preview.deleteCount }} existing
+                        clinical effort records for this term.
+                    </div>
+                </StatusBanner>
+
+                <!-- Delete Warning Banner -->
+                <StatusBanner
+                    v-else-if="preview.deleteCount > 0"
+                    type="error"
+                >
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium text-negative">
+                            {{ preview.deleteCount }} {{ inflect("record", preview.deleteCount) }} will be deleted
+                        </span>
+                    </div>
+                    <div class="text-caption text-grey-7">
+                        <template v-if="selectedMode === 'ClearReplace'">
+                            Clear & Replace mode will delete all existing clinical records before importing.
+                        </template>
+                        <template v-else>
+                            Sync mode will remove clinical records that no longer exist in the source.
+                        </template>
+                    </div>
+                </StatusBanner>
+
+                <!-- Nothing to Import Warning -->
+                <StatusBanner
+                    v-if="totalChanges === 0"
+                    type="warning"
+                >
+                    <div class="row items-center q-mb-xs">
+                        <span class="text-weight-medium">Nothing to import</span>
+                    </div>
+                    <div class="text-caption text-grey-7">
+                        There are no changes to make with the selected import mode.
+                    </div>
+                </StatusBanner>
+
+                <!-- Preview Table -->
+                <ClinicalEffortPreviewTable
+                    v-if="preview.assignments.length > 0"
+                    :rows="preview.assignments"
+                    title="Preview"
+                    show-status
+                    class="q-mb-md"
+                />
+            </q-card-section>
+
+            <!-- Actions -->
+            <q-card-actions
+                align="right"
+                class="q-px-md q-pb-md"
+            >
+                <q-btn
+                    label="Cancel"
+                    flat
+                    @click="handleClose"
+                />
+                <q-btn
+                    label="Confirm Import"
+                    color="info"
+                    :disable="totalChanges === 0 || isCommitting"
+                    @click="confirmImport"
+                />
+            </q-card-actions>
+        </template>
+    </AsyncOperationDialog>
 </template>
 
 <script setup lang="ts">
@@ -241,6 +166,7 @@ import { clinicalService } from "../services/clinical-service"
 import type { ClinicalImportPreviewDto, ClinicalImportMode } from "../types"
 import { inflect } from "inflection"
 import StatusBanner from "@/components/StatusBanner.vue"
+import AsyncOperationDialog from "./AsyncOperationDialog.vue"
 import ClinicalEffortPreviewTable from "./ClinicalEffortPreviewTable.vue"
 
 const props = defineProps<{

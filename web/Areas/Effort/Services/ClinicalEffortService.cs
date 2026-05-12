@@ -17,8 +17,9 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
 
     public ClinicalEffortService(
         EffortDbContext context,
+        ITermService termService,
         ILogger<ClinicalEffortService> logger)
-        : base(context)
+        : base(context, termService)
     {
         _logger = logger;
     }

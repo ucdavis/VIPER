@@ -9,14 +9,11 @@ namespace Viper.Areas.Effort.Services;
 
 public class DeptSummaryService : BaseReportService, IDeptSummaryService
 {
-    private readonly ITermService _termService;
-
     public DeptSummaryService(
         EffortDbContext context,
         ITermService termService)
-        : base(context)
+        : base(context, termService)
     {
-        _termService = termService;
     }
 
     public async Task<DeptSummaryReport> GetDeptSummaryReportAsync(
@@ -27,24 +24,19 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
         string? jobGroupId = null,
         CancellationToken ct = default)
     {
-        var rows = await ExecuteGeneralReportForDepartmentsAsync(termCode, departments, personId, role, jobGroupId, ct);
-        var term = await _termService.GetTermAsync(termCode, ct);
-        var filterDept = departments is { Count: 1 } ? departments[0] : null;
-
-        var academicYear = AcademicYearHelper.GetAcademicYearFromTermCode(termCode);
-        var clinicalMothraIds = await GetClinicalFacultyMothraIdsAsync(academicYear, ct);
+        var ctx = await LoadSingleTermContextAsync(termCode, departments, personId, role, jobGroupId, ct);
 
         var report = new DeptSummaryReport
         {
             TermCode = termCode,
-            TermName = term?.TermName ?? _termService.GetTermName(termCode),
-            FilterDepartment = filterDept,
+            TermName = ctx.TermName,
+            FilterDepartment = ctx.FilterDepartment,
             FilterPerson = personId?.ToString(),
             FilterRole = role,
             FilterTitle = jobGroupId
         };
 
-        return BuildReport(report, rows, clinicalMothraIds);
+        return BuildReport(report, ctx.Rows, ctx.ClinicalMothraIds);
     }
 
     public async Task<DeptSummaryReport> GetDeptSummaryReportByYearAsync(
@@ -55,44 +47,33 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
         string? jobGroupId = null,
         CancellationToken ct = default)
     {
-        var startYear = ParseAcademicYearStart(academicYear);
-        var termCodes = await GetTermCodesForAcademicYearAsync(startYear, ct);
-        var filterDept = departments is { Count: 1 } ? departments[0] : null;
+        var ctx = await LoadYearlyReportContextAsync(academicYear, departments, personId, role, jobGroupId, ct);
 
-        if (termCodes.Count == 0)
+        if (ctx.TermCodes.Count == 0)
         {
             return new DeptSummaryReport
             {
                 TermName = academicYear,
                 AcademicYear = academicYear,
-                FilterDepartment = filterDept,
+                FilterDepartment = ctx.FilterDepartment,
                 FilterPerson = personId?.ToString(),
                 FilterRole = role,
                 FilterTitle = jobGroupId
             };
         }
 
-        var allRows = new List<TeachingActivityRow>();
-        foreach (var tc in termCodes)
-        {
-            var rows = await ExecuteGeneralReportForDepartmentsAsync(tc, departments, personId, role, jobGroupId, ct);
-            allRows.AddRange(rows);
-        }
-
-        var clinicalMothraIds = await GetClinicalFacultyMothraIdsAsync(academicYear, ct);
-
         var report = new DeptSummaryReport
         {
-            TermCode = termCodes[0],
+            TermCode = ctx.TermCodes[0],
             TermName = academicYear,
             AcademicYear = academicYear,
-            FilterDepartment = filterDept,
+            FilterDepartment = ctx.FilterDepartment,
             FilterPerson = personId?.ToString(),
             FilterRole = role,
             FilterTitle = jobGroupId
         };
 
-        return BuildReport(report, allRows, clinicalMothraIds);
+        return BuildReport(report, ctx.Rows, ctx.ClinicalMothraIds);
     }
 
     private static DeptSummaryReport BuildReport(
@@ -103,13 +84,7 @@ public class DeptSummaryService : BaseReportService, IDeptSummaryService
             return report;
         }
 
-        var effortTypes = rows
-            .Where(r => !string.IsNullOrWhiteSpace(r.EffortTypeId))
-            .Select(r => r.EffortTypeId.Trim())
-            .Distinct()
-            .OrderBy(t => t)
-            .ToList();
-
+        var effortTypes = ExtractDistinctEffortTypes(rows);
         report.EffortTypes = effortTypes;
 
         report.Departments = rows

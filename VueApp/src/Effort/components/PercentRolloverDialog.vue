@@ -1,33 +1,20 @@
 <template>
-    <q-dialog
+    <AsyncOperationDialog
         :model-value="modelValue"
-        persistent
-        maximized-on-mobile
-        aria-labelledby="percent-rollover-title"
-        @keydown.escape="handleClose"
+        title="Percent Assignment Rollover"
+        subtitle="Roll forward percent assignments to the new academic year"
+        max-width="900px"
+        :is-loading="isLoading"
+        :is-committing="isCommitting"
+        :load-error="loadError"
+        :progress="rolloverProgress"
+        progress-title="Processing Rollover"
+        :progress-phase="rolloverPhase"
+        :progress-detail="rolloverDetail"
+        @retry="loadPreview"
+        @close="handleClose"
     >
-        <q-card style="width: 100%; max-width: 900px; position: relative">
-            <q-btn
-                icon="close"
-                flat
-                round
-                dense
-                class="absolute-top-right q-ma-sm"
-                style="z-index: 1"
-                aria-label="Close dialog"
-                @click="handleClose"
-            />
-            <q-card-section class="q-pb-none q-pr-xl">
-                <div
-                    id="percent-rollover-title"
-                    class="text-h6"
-                >
-                    Percent Assignment Rollover
-                </div>
-                <div class="text-caption text-grey-7">Roll forward percent assignments to the new academic year</div>
-            </q-card-section>
-
-            <!-- June/July Warning -->
+        <template #before-body>
             <q-card-section
                 v-if="isOutsideIdealMonths && !isLoading"
                 class="q-py-sm"
@@ -40,215 +27,154 @@
                     </div>
                 </StatusBanner>
             </q-card-section>
+        </template>
 
-            <!-- Loading State (Preview) -->
-            <q-card-section
-                v-if="isLoading"
-                class="text-center q-py-xl"
-            >
-                <q-spinner-dots
-                    size="50px"
-                    color="primary"
-                />
-                <div class="q-mt-md text-grey-7">Generating preview...</div>
-            </q-card-section>
+        <template v-if="preview">
+            <q-card-section class="q-pt-sm">
+                <!-- Summary Banner -->
+                <StatusBanner type="info">
+                    <div class="row q-col-gutter-md">
+                        <div class="col-4 text-center">
+                            <div class="text-h5">{{ preview.assignments.length }}</div>
+                            <div class="text-caption">To Roll Forward</div>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="text-h5">{{ preview.existingAssignments.length }}</div>
+                            <div class="text-caption">Already Rolled</div>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="text-h5">{{ preview.excludedByAudit?.length ?? 0 }}</div>
+                            <div class="text-caption">Excluded</div>
+                        </div>
+                    </div>
+                    <div class="text-caption text-grey-7 q-mt-sm text-center">
+                        Rolling from {{ preview.sourceAcademicYearDisplay }} to
+                        {{ preview.targetAcademicYearDisplay }}
+                    </div>
+                </StatusBanner>
 
-            <!-- Committing State (Progress) -->
-            <q-card-section
-                v-else-if="isCommitting"
-                class="q-py-xl"
-            >
-                <div class="text-h6 q-mb-md text-center">Processing Rollover</div>
-                <q-linear-progress
-                    :value="rolloverProgress"
-                    size="25px"
-                    color="primary"
+                <!-- Warning when nothing to rollover -->
+                <StatusBanner
+                    v-if="preview.assignments.length === 0"
+                    type="warning"
+                >
+                    <div class="text-weight-medium">No assignments to roll forward</div>
+                    <div class="text-caption text-grey-7">
+                        There are no percent assignments ending on {{ formatDate(preview.oldEndDate) }} that need to be
+                        rolled forward.
+                    </div>
+                </StatusBanner>
+
+                <!-- Will be Rolled Forward Section (cyan, expanded by default) -->
+                <q-expansion-item
+                    v-if="preview.assignments.length > 0"
+                    default-opened
                     class="q-mb-md"
                 >
-                    <div class="absolute-full flex flex-center">
-                        <q-badge
-                            color="white"
-                            text-color="primary"
-                            :label="`${Math.round(rolloverProgress * 100)}%`"
-                        />
+                    <template #header>
+                        <div class="row items-center full-width">
+                            <q-icon
+                                name="event_repeat"
+                                color="info"
+                                size="24px"
+                                class="q-mr-sm"
+                            />
+                            <div>
+                                <div class="text-weight-medium">Will be rolled forward</div>
+                                <div class="text-caption text-grey-7">
+                                    {{ preview.assignments.length }}
+                                    {{ inflect("assignment", preview.assignments.length) }} ending
+                                    {{ formatDate(preview.oldEndDate) }} will be extended to
+                                    {{ formatDate(preview.newEndDate) }}
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="bg-cyan-1 q-pa-sm">
+                        <RolloverAssignmentTable :rows="preview.assignments" />
                     </div>
-                </q-linear-progress>
-                <div class="text-center text-grey-7">{{ rolloverPhase }}</div>
-                <div
-                    v-if="rolloverDetail"
-                    class="text-center text-caption text-grey-8 q-mt-xs"
+                </q-expansion-item>
+
+                <!-- Already Rolled Section (grey, collapsed by default, shows first 10 with Show all option) -->
+                <q-expansion-item
+                    v-if="preview.existingAssignments.length > 0"
+                    class="q-mb-md"
                 >
-                    {{ rolloverDetail }}
-                </div>
+                    <template #header>
+                        <div class="row items-center full-width">
+                            <q-icon
+                                name="check_circle"
+                                color="grey-6"
+                                size="24px"
+                                class="q-mr-sm"
+                            />
+                            <div>
+                                <div class="text-weight-medium text-grey-7">Already rolled</div>
+                                <div class="text-caption text-grey-6">
+                                    {{ preview.existingAssignments.length }}
+                                    {{ inflect("assignment", preview.existingAssignments.length) }} already have a
+                                    successor in {{ preview.targetAcademicYearDisplay }}
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="bg-grey-2 q-pa-sm">
+                        <RolloverAssignmentTable :rows="preview.existingAssignments" />
+                    </div>
+                </q-expansion-item>
+
+                <!-- Excluded by Audit Section (orange, collapsed by default) -->
+                <q-expansion-item
+                    v-if="preview.excludedByAudit?.length > 0"
+                    class="q-mb-md"
+                >
+                    <template #header>
+                        <div class="row items-center full-width">
+                            <q-icon
+                                name="block"
+                                color="warning"
+                                size="24px"
+                                class="q-mr-sm"
+                            />
+                            <div>
+                                <div class="text-weight-medium text-orange-9">Excluded - Post-Harvest Changes</div>
+                                <div class="text-caption text-grey-7">
+                                    {{ preview.excludedByAudit.length }}
+                                    {{ inflect("assignment", preview.excludedByAudit.length) }} excluded due to manual
+                                    edits/deletes after harvest
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="bg-orange-1 q-pa-sm">
+                        <StatusBanner type="warning">
+                            These assignments will not be rolled forward because someone manually edited or deleted a
+                            percent assignment of the same type for this instructor after the term was harvested.
+                        </StatusBanner>
+                        <RolloverAssignmentTable :rows="preview.excludedByAudit" />
+                    </div>
+                </q-expansion-item>
             </q-card-section>
 
-            <!-- Error State -->
-            <q-card-section
-                v-else-if="loadError"
-                class="text-center q-py-xl"
+            <!-- Actions -->
+            <q-card-actions
+                align="right"
+                class="q-px-md q-pb-md"
             >
-                <q-icon
-                    name="error"
-                    color="negative"
-                    size="48px"
-                />
-                <div class="q-mt-md text-negative">{{ loadError }}</div>
                 <q-btn
-                    label="Retry"
-                    color="primary"
-                    class="q-mt-md"
-                    @click="loadPreview"
+                    label="Cancel"
+                    flat
+                    @click="handleClose"
                 />
-            </q-card-section>
-
-            <!-- Preview Content -->
-            <template v-else-if="preview">
-                <q-card-section class="q-pt-sm">
-                    <!-- Summary Banner -->
-                    <StatusBanner type="info">
-                        <div class="row q-col-gutter-md">
-                            <div class="col-4 text-center">
-                                <div class="text-h5">{{ preview.assignments.length }}</div>
-                                <div class="text-caption">To Roll Forward</div>
-                            </div>
-                            <div class="col-4 text-center">
-                                <div class="text-h5">{{ preview.existingAssignments.length }}</div>
-                                <div class="text-caption">Already Rolled</div>
-                            </div>
-                            <div class="col-4 text-center">
-                                <div class="text-h5">{{ preview.excludedByAudit?.length ?? 0 }}</div>
-                                <div class="text-caption">Excluded</div>
-                            </div>
-                        </div>
-                        <div class="text-caption q-mt-sm text-center">
-                            Rolling from {{ preview.sourceAcademicYearDisplay }} to
-                            {{ preview.targetAcademicYearDisplay }}
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Warning when nothing to rollover -->
-                    <StatusBanner
-                        v-if="preview.assignments.length === 0"
-                        type="warning"
-                    >
-                        <div class="text-weight-medium">No assignments to roll forward</div>
-                        <div class="text-caption">
-                            There are no percent assignments ending on {{ formatDate(preview.oldEndDate) }} that need to
-                            be rolled forward.
-                        </div>
-                    </StatusBanner>
-
-                    <!-- Will be Rolled Forward Section (cyan, expanded by default) -->
-                    <q-expansion-item
-                        v-if="preview.assignments.length > 0"
-                        default-opened
-                        class="q-mb-md"
-                    >
-                        <template #header>
-                            <div class="row items-center full-width">
-                                <q-icon
-                                    name="event_repeat"
-                                    color="info"
-                                    size="24px"
-                                    class="q-mr-sm"
-                                />
-                                <div>
-                                    <div class="text-weight-medium">Will be rolled forward</div>
-                                    <div class="text-caption text-grey-7">
-                                        {{ preview.assignments.length }}
-                                        {{ inflect("assignment", preview.assignments.length) }} ending
-                                        {{ formatDate(preview.oldEndDate) }} will be extended to
-                                        {{ formatDate(preview.newEndDate) }}
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                        <div class="bg-ucdavis-blue-10 q-pa-sm">
-                            <RolloverAssignmentTable :rows="preview.assignments" />
-                        </div>
-                    </q-expansion-item>
-
-                    <!-- Already Rolled Section (grey, collapsed by default, shows first 10 with Show all option) -->
-                    <q-expansion-item
-                        v-if="preview.existingAssignments.length > 0"
-                        class="q-mb-md"
-                    >
-                        <template #header>
-                            <div class="row items-center full-width">
-                                <q-icon
-                                    name="check_circle"
-                                    color="grey-6"
-                                    size="24px"
-                                    class="q-mr-sm"
-                                />
-                                <div>
-                                    <div class="text-weight-medium text-grey-8">Already rolled</div>
-                                    <div class="text-caption text-grey-8">
-                                        {{ preview.existingAssignments.length }}
-                                        {{ inflect("assignment", preview.existingAssignments.length) }} already have a
-                                        successor in {{ preview.targetAcademicYearDisplay }}
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                        <div class="bg-grey-2 q-pa-sm">
-                            <RolloverAssignmentTable :rows="preview.existingAssignments" />
-                        </div>
-                    </q-expansion-item>
-
-                    <!-- Excluded by Audit Section (orange, collapsed by default) -->
-                    <q-expansion-item
-                        v-if="preview.excludedByAudit?.length > 0"
-                        class="q-mb-md"
-                    >
-                        <template #header>
-                            <div class="row items-center full-width">
-                                <q-icon
-                                    name="block"
-                                    color="warning"
-                                    size="24px"
-                                    class="q-mr-sm"
-                                />
-                                <div>
-                                    <div class="text-weight-medium">Excluded - Post-Harvest Changes</div>
-                                    <div class="text-caption text-grey-8">
-                                        {{ preview.excludedByAudit.length }}
-                                        {{ inflect("assignment", preview.excludedByAudit.length) }} excluded due to
-                                        manual edits/deletes after harvest
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                        <div class="bg-ucdavis-gold-10 q-pa-sm">
-                            <StatusBanner type="warning">
-                                These assignments will not be rolled forward because someone manually edited or deleted
-                                a percent assignment of the same type for this instructor after the term was harvested.
-                            </StatusBanner>
-                            <RolloverAssignmentTable :rows="preview.excludedByAudit" />
-                        </div>
-                    </q-expansion-item>
-                </q-card-section>
-
-                <!-- Actions -->
-                <q-card-actions
-                    align="right"
-                    class="q-px-md q-pb-md"
-                >
-                    <q-btn
-                        label="Cancel"
-                        flat
-                        @click="handleClose"
-                    />
-                    <q-btn
-                        label="Confirm Rollover"
-                        color="primary"
-                        :disable="preview.assignments.length === 0 || isCommitting"
-                        @click="confirmRollover"
-                    />
-                </q-card-actions>
-            </template>
-        </q-card>
-    </q-dialog>
+                <q-btn
+                    label="Confirm Rollover"
+                    color="primary"
+                    :disable="preview.assignments.length === 0 || isCommitting"
+                    @click="confirmRollover"
+                />
+            </q-card-actions>
+        </template>
+    </AsyncOperationDialog>
 </template>
 
 <script setup lang="ts">
@@ -257,6 +183,7 @@ import { useQuasar } from "quasar"
 import { rolloverService } from "../services/rollover-service"
 import type { PercentRolloverPreviewDto } from "../types"
 import StatusBanner from "@/components/StatusBanner.vue"
+import AsyncOperationDialog from "./AsyncOperationDialog.vue"
 import { inflect } from "inflection"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import RolloverAssignmentTable from "./RolloverAssignmentTable.vue"

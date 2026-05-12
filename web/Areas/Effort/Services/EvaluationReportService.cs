@@ -11,16 +11,14 @@ namespace Viper.Areas.Effort.Services;
 
 public class EvaluationReportService : BaseReportService, IEvaluationReportService
 {
-    private readonly ITermService _termService;
     private readonly ILogger<EvaluationReportService> _logger;
 
     public EvaluationReportService(
         EffortDbContext context,
         ITermService termService,
         ILogger<EvaluationReportService> logger)
-        : base(context)
+        : base(context, termService)
     {
-        _termService = termService;
         _logger = logger;
     }
 
@@ -334,42 +332,40 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                     .Select(instrGroup =>
                     {
                         var instrRows = instrGroup.ToList();
-                        var totalPts = instrRows.Sum(r =>
-                            r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
-                        var totalResponses = instrRows.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
-                        var weightedAvg = totalResponses > 0
-                            ? Math.Round(totalPts / totalResponses, 2)
-                            : 0m;
-
                         return new EvalInstructorSummary
                         {
                             MothraId = instrGroup.Key,
                             Instructor = instrRows[0].Instructor,
-                            WeightedAverage = weightedAvg,
+                            WeightedAverage = CalculateWeightedAverage(instrRows),
                             TotalResponses = instrRows.Sum(r => r.NumResponses),
                             TotalEnrolled = instrRows.Sum(r => r.NumEnrolled)
                         };
                     })
                     .ToList();
 
-                // Department average: weighted across all courses in the department
-                var deptTotalPts = deptGroup.Sum(r =>
-                    r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
-                var deptTotalResponses = deptGroup.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
-
                 return new EvalDepartmentGroup
                 {
                     Department = deptGroup.Key,
                     Instructors = instructors,
-                    DepartmentAverage = deptTotalResponses > 0
-                        ? Math.Round(deptTotalPts / deptTotalResponses, 2)
-                        : 0m,
+                    DepartmentAverage = CalculateWeightedAverage(deptGroup),
                     TotalResponses = deptGroup.Sum(r => r.NumResponses)
                 };
             })
             .ToList();
 
         return report;
+    }
+
+    /// <summary>
+    /// Compute the weighted average of an N5..N1 rating distribution over a row collection,
+    /// rounded to 2 decimals. Returns 0 when there are no responses to avoid divide-by-zero.
+    /// </summary>
+    private static decimal CalculateWeightedAverage(IEnumerable<EvalRawRow> rows)
+    {
+        var rowList = rows.ToList();
+        var totalPts = rowList.Sum(r => r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
+        var totalResponses = rowList.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
+        return totalResponses > 0 ? Math.Round(totalPts / totalResponses, 2) : 0m;
     }
 
     private EvalDetailReport BuildEvalDetailReport(EvalDetailReport report, List<EvalRawRow> rows)
@@ -405,11 +401,6 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                             })
                             .ToList();
 
-                        // Instructor weighted average: totalPts / totalResponses
-                        var totalPts = instrRows.Sum(r =>
-                            r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
-                        var totalResponses = instrRows.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
-
                         // Instructor median from combined distribution
                         var totalN1 = instrRows.Sum(r => r.N1);
                         var totalN2 = instrRows.Sum(r => r.N2);
@@ -422,26 +413,17 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                             MothraId = instrGroup.Key,
                             Instructor = instrRows[0].Instructor,
                             Courses = courses,
-                            InstructorAverage = totalResponses > 0
-                                ? Math.Round(totalPts / totalResponses, 2)
-                                : 0m,
+                            InstructorAverage = CalculateWeightedAverage(instrRows),
                             InstructorMedian = CalculateMedian(totalN1, totalN2, totalN3, totalN4, totalN5)
                         };
                     })
                     .ToList();
 
-                // Department weighted average
-                var deptTotalPts = deptGroup.Sum(r =>
-                    r.N5 * 5m + r.N4 * 4m + r.N3 * 3m + r.N2 * 2m + r.N1 * 1m);
-                var deptTotalResponses = deptGroup.Sum(r => r.N5 + r.N4 + r.N3 + r.N2 + r.N1);
-
                 return new EvalDetailDepartmentGroup
                 {
                     Department = deptGroup.Key,
                     Instructors = instructors,
-                    DepartmentAverage = deptTotalResponses > 0
-                        ? Math.Round(deptTotalPts / deptTotalResponses, 2)
-                        : 0m
+                    DepartmentAverage = CalculateWeightedAverage(deptGroup)
                 };
             })
             .ToList();
