@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue"
 import { useUserStore } from "@/store/UserStore"
 import ProfilePic from "@/layouts/ProfilePic.vue"
+import EmulationBanner from "@/layouts/EmulationBanner.vue"
+import FooterLinks from "@/layouts/FooterLinks.vue"
+import ViperBrandButton from "@/layouts/ViperBrandButton.vue"
 import SessionTimeout from "@/components/SessionTimeout.vue"
 
 type BreadCrumb = {
@@ -16,8 +18,7 @@ const props = defineProps<{
 }>()
 
 const userStore = useUserStore()
-const clearEmulationHref = ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation")
-const environment = ref(import.meta.env.VITE_ENVIRONMENT)
+const environment = import.meta.env.VITE_ENVIRONMENT
 const viperHome = import.meta.env.VITE_VIPER_HOME
 const currentYear = new Date().getFullYear()
 </script>
@@ -100,29 +101,7 @@ const currentYear = new Date().getFullYear()
                         width="201"
                         height="36"
                 /></a>
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    class="gt-sm self-end"
-                    :href="viperHome"
-                >
-                    <span class="mainLayoutViper">VIPER 2.0</span>
-                    <q-badge
-                        v-if="environment == 'DEVELOPMENT'"
-                        color="negative"
-                        role="presentation"
-                        class="mainLayoutViperMode"
-                        >Development</q-badge
-                    >
-                    <q-badge
-                        v-if="environment == 'TEST'"
-                        color="negative"
-                        role="presentation"
-                        class="mainLayoutViperMode"
-                        >Test</q-badge
-                    >
-                </q-btn>
+                <ViperBrandButton class-name="gt-sm self-end" />
 
                 <div class="breadcrumbs self-end q-ml-lg q-pb-xs row">
                     <span
@@ -143,24 +122,7 @@ const currentYear = new Date().getFullYear()
                     </span>
                 </div>
 
-                <q-banner
-                    v-if="userStore.isEmulating"
-                    dense
-                    rounded
-                    inline-actions
-                    class="bg-warning text-black q-ml-lg"
-                >
-                    <strong>EMULATING:</strong>
-                    {{ userStore.userInfo.firstName }} {{ userStore.userInfo.lastName }}
-                    <q-btn
-                        no-caps
-                        dense
-                        :href="clearEmulationHref"
-                        color="secondary"
-                        class="text-white q-px-sm q-ml-md"
-                        >End Emulation</q-btn
-                    >
-                </q-banner>
+                <EmulationBanner />
 
                 <q-space></q-space>
                 <ProfilePic></ProfilePic>
@@ -190,53 +152,7 @@ const currentYear = new Date().getFullYear()
                 id="footerNavLinks"
             >
                 <div class="q-pl-md">
-                    <a
-                        href="https://svmithelp.vetmed.ucdavis.edu/"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary"
-                    >
-                        <q-icon
-                            color="primary"
-                            name="help_center"
-                            size="xs"
-                            aria-hidden="true"
-                        ></q-icon>
-                        SVM-IT ServiceDesk
-                        <span class="sr-only">(opens in new window)</span>
-                    </a>
-                    <span class="text-primary q-px-sm">|</span>
-                    <a
-                        href="https://www.vetmed.ucdavis.edu/"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary"
-                    >
-                        <q-icon
-                            color="primary"
-                            name="navigation"
-                            size="xs"
-                            aria-hidden="true"
-                        ></q-icon>
-                        SVM Home
-                        <span class="sr-only">(opens in new window)</span>
-                    </a>
-                    <span class="text-primary q-px-sm">|</span>
-                    <a
-                        href="https://www.ucdavis.edu/"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary"
-                    >
-                        <q-icon
-                            color="primary"
-                            name="school"
-                            size="xs"
-                            aria-hidden="true"
-                        ></q-icon>
-                        UC Davis
-                        <span class="sr-only">(opens in new window)</span>
-                    </a>
+                    <FooterLinks />
                 </div>
                 <div class="">
                     <div class="text-black">&copy; {{ currentYear }} School of Veterinary Medicine</div>

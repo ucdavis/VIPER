@@ -97,48 +97,9 @@
                 </q-btn>
 
                 <!--For medium+ screens-->
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    class="gt-sm text-white q-py-none q-ml-md self-end"
-                    :href="viperHome"
-                >
-                    <span class="mainLayoutViper">VIPER 2.0</span>
-                    <q-badge
-                        v-if="environment == 'DEVELOPMENT'"
-                        color="negative"
-                        role="presentation"
-                        class="mainLayoutViperMode"
-                        >Development</q-badge
-                    >
-                    <q-badge
-                        v-if="environment == 'TEST'"
-                        color="negative"
-                        role="presentation"
-                        class="mainLayoutViperMode"
-                        >Test</q-badge
-                    >
-                </q-btn>
+                <ViperBrandButton />
 
-                <q-banner
-                    v-if="userStore.isEmulating"
-                    dense
-                    rounded
-                    inline-actions
-                    class="bg-warning text-black q-ml-lg"
-                >
-                    <strong>EMULATING:</strong>
-                    {{ userStore.userInfo.firstName }} {{ userStore.userInfo.lastName }}
-                    <q-btn
-                        no-caps
-                        dense
-                        :href="clearEmulationHref"
-                        color="secondary"
-                        class="text-white q-px-sm q-ml-md"
-                        >End Emulation</q-btn
-                    >
-                </q-banner>
+                <EmulationBanner />
 
                 <q-space></q-space>
 
@@ -220,53 +181,7 @@
                 id="footerNavLinks"
             >
                 <div class="col-12 col-md q-pl-md">
-                    <a
-                        href="https://svmithelp.vetmed.ucdavis.edu/"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary"
-                    >
-                        <q-icon
-                            color="primary"
-                            name="help_center"
-                            size="xs"
-                            aria-hidden="true"
-                        ></q-icon>
-                        SVM-IT ServiceDesk
-                        <span class="sr-only">(opens in new window)</span>
-                    </a>
-                    <span class="text-primary q-px-sm">|</span>
-                    <a
-                        href="https://www.vetmed.ucdavis.edu/"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary"
-                    >
-                        <q-icon
-                            color="primary"
-                            name="navigation"
-                            size="xs"
-                            aria-hidden="true"
-                        ></q-icon>
-                        SVM Home
-                        <span class="sr-only">(opens in new window)</span>
-                    </a>
-                    <span class="text-primary q-px-sm">|</span>
-                    <a
-                        href="https://www.ucdavis.edu/"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary"
-                    >
-                        <q-icon
-                            color="primary"
-                            name="school"
-                            size="xs"
-                            aria-hidden="true"
-                        ></q-icon>
-                        UC Davis
-                        <span class="sr-only">(opens in new window)</span>
-                    </a>
+                    <FooterLinks />
                 </div>
                 <div class="col-12 col-md-auto gt-sm text-black">
                     &copy; {{ currentYear }} School of Veterinary Medicine
@@ -285,6 +200,9 @@ import LeftNav from "@/layouts/LeftNav.vue"
 import MainNav from "@/layouts/MainNav.vue"
 import MiniNav from "@/layouts/MiniNav.vue"
 import ProfilePic from "@/layouts/ProfilePic.vue"
+import EmulationBanner from "@/layouts/EmulationBanner.vue"
+import FooterLinks from "@/layouts/FooterLinks.vue"
+import ViperBrandButton from "@/layouts/ViperBrandButton.vue"
 import SessionTimeout from "@/components/SessionTimeout.vue"
 
 type BreadCrumb = {
@@ -302,7 +220,6 @@ defineProps<{
 
 const userStore = useUserStore()
 const mainLeftDrawer = ref(false)
-const clearEmulationHref = import.meta.env.VITE_VIPER_HOME + "ClearEmulation"
 const environment = import.meta.env.VITE_ENVIRONMENT
 const viperHome = import.meta.env.VITE_VIPER_HOME
 const loginHref = getLoginUrl()
