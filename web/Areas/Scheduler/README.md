@@ -39,7 +39,7 @@ public sealed class RapsRoleRefreshScheduledJob : IScheduledJob
     public async Task RunAsync(ScheduledJobContext context, CancellationToken ct)
     {
         var roleViews = new RoleViews(_rapsContext);
-        await roleViews.UpdateRoles(modBy: context.ModBy, debugOnly: false);
+        await roleViews.UpdateRoles(modBy: context.ModBy, debugOnly: false, ct: ct);
     }
 }
 ```
@@ -48,27 +48,22 @@ public sealed class RapsRoleRefreshScheduledJob : IScheduledJob
 
 | Field | Rule |
 |---|---|
-| `id` | `area:job-name` for user jobs (e.g. `raps:role-refresh`). Must NOT start with `__scheduler:`. |
-| `id` (system jobs) | If `IsSystem = true`, the id MUST start with `__scheduler:`. The discovery pass refuses any combination that violates this invariant. |
+| `id` | `area:job-name` (e.g. `raps:role-refresh`). |
 | `cron` | Five-field Hangfire cron (`m h dom mon dow`). |
 | `TimeZoneId` | Defaults to `Pacific Standard Time`. UC Davis runs Windows; IANA aliases like `America/Los_Angeles` also work. |
 
 ### 3. Stamping audit rows
 
 Background jobs run with no HTTP context, so `UserHelper.GetCurrentUser()`
-is **not available**. Every job receives a `ScheduledJobContext` carrying:
+is **not available**. Every job receives a `ScheduledJobContext` whose
+`ModBy` property is the audit actor for this run — pass it through to
+your service layer; do not derive it inside the job.
 
-- `TriggerSource` &mdash; `Scheduled` for cron-driven runs, `Manual` for
-  admin-triggered runs.
-- `ModBy` &mdash; the audit actor for this run. Pass it through to your
-  service layer; do not derive it inside the job.
-
-For the scheduler-triggered path, `ModBy` is `"__sched"` (7 chars; the
-legacy `tblRoleMembers.ModBy` column is `varchar(8)`, so the stamp is
-shortened to fit while staying distinct from the existing `"__system"`
-convention). Existing audit queries can filter on
-`WHERE ModBy = '__sched'` to isolate scheduler-driven changes from
-human-driven changes.
+`ModBy` is `"__sched"` (7 chars; the legacy `tblRoleMembers.ModBy`
+column is `varchar(8)`, so the stamp is shortened to fit while staying
+distinct from the existing `"__system"` convention). Existing audit
+queries can filter on `WHERE ModBy = '__sched'` to isolate
+scheduler-driven changes from human-driven changes.
 
 ### 4. DI
 
@@ -83,7 +78,6 @@ extra wiring &mdash; the discovery pass registers your job type as
 |---|---|
 | Initial registration | At app startup, after Hangfire is mounted, every `[ScheduledJob]`-declared type is `AddOrUpdate`'d. Idempotent. |
 | Subsequent registrations | A fresh deploy with new jobs picks them up on next startup. |
-| Lost-registration heal | If a job is missing from Hangfire's storage and has no pause marker, the hourly `__scheduler:reconcile` recurring job re-registers it. |
 
 ---
 
@@ -96,7 +90,7 @@ parameters in deployed environments).
 |---|---|---|
 | `Hangfire:Enabled` | Master switch. When `false`, no scheduler wiring runs and the dashboard is unreachable. | `true` |
 | `Hangfire:AutoSchedule` | When `false`, recurring jobs register with `Cron.Never` so cron never fires. The worker still runs and the dashboard still mounts, so operators can fire jobs via "Trigger now" or `BackgroundJob.Enqueue`. Local dev sets this `false` to require manual triggering. | `true` |
-| `ConnectionStrings:VIPER` | The database that hosts Hangfire's tables and our `[HangFire].[SchedulerJobState]` marker table. Required when `Hangfire:Enabled=true`. Hangfire and the marker table share VIPER; splitting them is not supported. | n/a |
+| `ConnectionStrings:VIPER` | The database that hosts Hangfire's tables. Required when `Hangfire:Enabled=true`. | n/a |
 | `IPAddressAllowlistConfiguration:InternalAllowlist` | Source-IP gate for `/health/detail` and the HealthChecks UI. Add SVM infra ranges + your office subnet. | localhost only |
 
 The dashboard does **not** read this config; it is always mounted at
@@ -110,7 +104,6 @@ not IP.
 | Surface | URL | Auth |
 |---|---|---|
 | Hangfire dashboard | `/scheduler/dashboard` | Cookie auth (CAS) + RAPS permission `SVMSecure.CATS.scheduledJobs` |
-| Pause/resume API | `/api/scheduler/jobs`, `/api/scheduler/jobs/{id}/pause`, `/api/scheduler/jobs/{id}/resume` | Same RAPS permission |
 | Health (liveness) | `/health` | Anonymous (Jenkins polls it) |
 | Health (detail) | `/health/detail` | IP-allowlisted to `InternalAllowlist` |
 
@@ -124,29 +117,12 @@ provisioning step.
 Two Hangfire dashboard plugins enrich the operator experience:
 
 - **Hangfire.Console** &mdash; per-job console output appears inline on the
-  job's detail page. Jobs that want to surface progress to operators
-  accept a `PerformContext` parameter and call `context.WriteLine(...)`;
-  the output is captured in storage and rendered in the dashboard.
+  job's detail page. Jobs call `context.WriteLine(...)` on the
+  `ScheduledJobContext` they receive; the output is captured in storage
+  and rendered in the dashboard.
 - **Hangfire.Heartbeat** &mdash; CPU, memory, and uptime metrics for each
   registered worker are shown on the dashboard's Servers page (refreshed
   every 30 s). Useful for spotting a stuck worker before users do.
-
----
-
-## Pause and resume
-
-Hangfire has no native "paused" state, so we deregister the recurring job
-and persist its definition in the `[HangFire].[SchedulerJobState]` marker
-table. The marker is the **declared source of truth** for "is this job
-paused?".
-
-| Property | Behavior |
-|---|---|
-| Pause ordering | Marker write first, then `RemoveIfExists`. If `RemoveIfExists` throws, the API returns HTTP 202 with `deregistrationPending: true` and the reconciler completes the deregistration on its next pass. |
-| Resume ordering | Re-register first, then delete the marker. A residual marker after a successful registration is healed by the reconciler. |
-| Idempotency | Pause-on-already-paused returns 200 with the existing rowversion. Resume-on-already-active returns 200. |
-| Concurrency | `RowVersion` (SQL Server `rowversion`) guards every write. Stale rowversion &rarr; HTTP 409. |
-| System jobs | Ids starting with `__scheduler:` are refused (HTTP 403, `error: "system_job_not_pausable"`) before any write. They remain visible in the list and on the dashboard. |
 
 ---
 
@@ -169,31 +145,6 @@ paused?".
    regardless &mdash; requeue is for retrying the specific failed
    instance.
 
-### Pause / resume expectations
-
-| Scenario | Expected outcome |
-|---|---|
-| Pause a running job | Marker created, registration removed, returns 200. |
-| Pause when registration removal fails | Marker created, returns 202 with `deregistrationPending: true`. Reconciler finishes within an hour. |
-| Pause an already-paused job | Returns 200 idempotently (no marker rewrite). |
-| Resume a paused job | Registration restored, marker deleted, returns 200. |
-| Resume with stale rowversion | Returns 409. Refresh and retry. |
-| Pause/resume a `__scheduler:` job | Returns 403 with `error: "system_job_not_pausable"`. |
-
-### Reconciler outcomes
-
-The hourly `__scheduler:reconcile` job logs an outcome counter on every
-pass. Look for the structured log entry:
-
-```text
-Scheduler reconciler pass: split-brain healed=N, system markers deleted=N, paused ok=N, active ok=N, lost registrations healed=N, markers=N, registrations=N
-```
-
-Non-zero `splitBrainHealed`, `systemMarkersDeleted`, or
-`lostRegistrationsHealed` indicate drift was corrected this pass.
-Persistent non-zero values across passes mean something keeps creating
-drift &mdash; investigate before accepting it as normal.
-
 ### Pre-escalation checklist
 
 Before paging a developer, verify in this order:
@@ -206,16 +157,10 @@ Before paging a developer, verify in this order:
    `Healthy`. If `Degraded` (no servers), the worker process is down or
    not started; confirm `Hangfire:Enabled=true` and check application
    startup logs for `"Hangfire is enabled but ConnectionStrings:VIPER is
-   empty"` or DDL errors.
-4. **Recent deploys** &mdash; a job that disappeared after a deploy and
-   has not yet been re-registered will be picked up by the next reconciler
-   pass (within an hour). Force-trigger by restarting the app or by
-   triggering `__scheduler:reconcile` from the dashboard.
-5. **Marker drift** &mdash; query
-   `SELECT * FROM [HangFire].[SchedulerJobState]`. Markers with a
-   `__scheduler:` id should not exist; the reconciler deletes them as a
-   safety net but their presence indicates an attempted protected-prefix
-   pause.
+   empty"`.
+4. **Recent deploys** &mdash; a job that disappeared after a deploy is
+   re-registered on the next app startup (idempotent `AddOrUpdate`).
+   Restart the app to force it.
 
 ---
 
@@ -223,11 +168,8 @@ Before paging a developer, verify in this order:
 
 | Concern | Location |
 |---|---|
-| Hangfire wiring (DI, dashboard mount, schema bootstrap) | `web/Classes/Scheduler/HangfireExtensions.cs` |
+| Hangfire wiring (DI, dashboard mount) | `web/Classes/Scheduler/HangfireExtensions.cs` |
 | Dashboard auth filter | `web/Classes/Scheduler/HangfireDashboardAuthorizationFilter.cs` |
 | Per-job logging filter | `web/Classes/Scheduler/HangfireJobLoggingFilter.cs` |
 | Health check | `web/Classes/HealthChecks/HangfireHealthCheck.cs` |
-| Pause/resume API | `web/Areas/Scheduler/Controllers/JobsController.cs` |
-| Service layer (pause/resume/reconcile) | `web/Areas/Scheduler/Services/SchedulerJobsService.cs` |
 | Job abstraction | `web/Areas/Scheduler/Services/IScheduledJob.cs`, `ScheduledJobAttribute.cs`, `ScheduledJobDiscovery.cs`, `ScheduledJobRunner.cs` |
-| Marker table entity + DDL | `web/Areas/Scheduler/Models/Entities/SchedulerJobState.cs`, `web/Classes/Scheduler/SchedulerSchemaInitializer.cs` |

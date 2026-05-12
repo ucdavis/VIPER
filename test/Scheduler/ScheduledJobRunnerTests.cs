@@ -9,7 +9,7 @@ namespace Viper.test.Scheduler
     public sealed class ScheduledJobRunnerTests
     {
         // Captures the ScheduledJobContext the runner hands the job, so tests
-        // can assert that ModBy and TriggerSource are set correctly.
+        // can assert that ModBy is set correctly.
         private sealed class CapturingJob : IScheduledJob
         {
             public ScheduledJobContext? CapturedContext { get; private set; }
@@ -33,7 +33,7 @@ namespace Viper.test.Scheduler
             var registry = new ScheduledJobRegistry(new Dictionary<string, ScheduledJobMetadata>
             {
                 ["test:capturing"] = new ScheduledJobMetadata(
-                    typeof(CapturingJob), "test:capturing", "0 0 * * *", "UTC", isSystem: false),
+                    typeof(CapturingJob), "test:capturing", "0 0 * * *", "UTC"),
             });
             services.AddSingleton<IScheduledJobRegistry>(registry);
 
@@ -48,8 +48,7 @@ namespace Viper.test.Scheduler
 
             Assert.True(capturing.Ran);
             Assert.NotNull(capturing.CapturedContext);
-            Assert.Equal(TriggerSource.Scheduled, capturing.CapturedContext!.TriggerSource);
-            Assert.Equal(ISchedulerJobsService.SchedulerActor, capturing.CapturedContext.ModBy);
+            Assert.Equal(ScheduledJobContext.SchedulerActor, capturing.CapturedContext!.ModBy);
         }
 
         [Fact]

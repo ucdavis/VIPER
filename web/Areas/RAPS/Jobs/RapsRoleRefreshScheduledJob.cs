@@ -29,17 +29,16 @@ public sealed class RapsRoleRefreshScheduledJob : IScheduledJob
 
     public async Task RunAsync(ScheduledJobContext context, CancellationToken ct)
     {
-        context.WriteLine($"RAPS role refresh starting ({context.TriggerSource}, modBy={context.ModBy})");
+        context.WriteLine($"RAPS role refresh starting (modBy={context.ModBy})");
         var roleViews = new RoleViews(_rapsContext);
-        var messages = await roleViews.UpdateRoles(modBy: context.ModBy, debugOnly: false);
+        var messages = await roleViews.UpdateRoles(modBy: context.ModBy, debugOnly: false, ct: ct);
         foreach (var message in messages)
         {
             context.WriteLine(message);
         }
         context.WriteLine($"Done. {messages.Count} change message(s).");
         _logger.LogInformation(
-            "RAPS role refresh ({TriggerSource}, modBy={ModBy}) wrote {ChangeCount} change message(s)",
-            context.TriggerSource,
+            "RAPS role refresh (modBy={ModBy}) wrote {ChangeCount} change message(s)",
             LogSanitizer.SanitizeString(context.ModBy),
             messages.Count);
     }

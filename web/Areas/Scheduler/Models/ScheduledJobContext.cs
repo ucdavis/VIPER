@@ -11,24 +11,29 @@ namespace Viper.Areas.Scheduler.Models;
 /// </summary>
 public sealed class ScheduledJobContext
 {
+    /// <summary>
+    /// Audit actor stamped on rows produced by scheduler-triggered runs.
+    /// 7 chars to fit the legacy <c>tblRoleMembers.ModBy varchar(8)</c>
+    /// column while staying distinct from the existing <c>"__system"</c>
+    /// convention.
+    /// </summary>
+    public const string SchedulerActor = "__sched";
+
     private readonly PerformContext? _performContext;
 
-    public ScheduledJobContext(TriggerSource triggerSource, string modBy, PerformContext? performContext = null)
+    public ScheduledJobContext(string modBy, PerformContext? performContext = null)
     {
         if (string.IsNullOrWhiteSpace(modBy))
         {
             throw new ArgumentException("modBy is required.", nameof(modBy));
         }
-        TriggerSource = triggerSource;
         ModBy = modBy;
         _performContext = performContext;
     }
 
-    public TriggerSource TriggerSource { get; }
-
     /// <summary>
-    /// Audit actor: <c>"__sched"</c> for scheduled runs (see
-    /// <c>ISchedulerJobsService.SchedulerActor</c>), the LoginId for manual runs.
+    /// Audit actor. Always <see cref="SchedulerActor"/> today; if a manual
+    /// trigger path is added later it can pass a real LoginId here.
     /// </summary>
     public string ModBy { get; }
 

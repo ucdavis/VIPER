@@ -5,9 +5,9 @@ namespace Viper.Classes.Scheduler
 {
     /// <summary>
     /// Hangfire server filter that wraps every job execution in a structured
-    /// logging scope (jobId / recurringJobId / triggerSource) and emits
-    /// start/complete/error log entries. All user-influenced values are run
-    /// through <see cref="LogSanitizer"/> before being logged.
+    /// logging scope (jobId / recurringJobId) and emits start/complete/error
+    /// log entries. All user-influenced values are run through
+    /// <see cref="LogSanitizer"/> before being logged.
     /// </summary>
     public sealed class HangfireJobLoggingFilter : IServerFilter
     {
@@ -24,15 +24,13 @@ namespace Viper.Classes.Scheduler
         {
             var jobId = LogSanitizer.SanitizeId(context.BackgroundJob.Id);
             var recurringJobId = LogSanitizer.SanitizeString(context.GetJobParameter<string>("RecurringJobId"));
-            var triggerSource = string.IsNullOrEmpty(recurringJobId) ? "Manual" : "Scheduled";
 
             // Stash the scope on context.Items because OnPerforming and OnPerformed
             // are separate calls; a `using` block here would dispose too early.
             var scope = _logger.BeginScope(new Dictionary<string, object>
             {
                 ["jobId"] = jobId ?? string.Empty,
-                ["recurringJobId"] = recurringJobId ?? string.Empty,
-                ["triggerSource"] = triggerSource
+                ["recurringJobId"] = recurringJobId ?? string.Empty
             });
 
             if (scope != null)

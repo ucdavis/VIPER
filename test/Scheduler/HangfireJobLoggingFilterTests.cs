@@ -104,23 +104,6 @@ namespace Viper.test.Scheduler
             var dict = captured[0];
             Assert.Contains("jobId", dict.Keys);
             Assert.Contains("recurringJobId", dict.Keys);
-            Assert.Contains("triggerSource", dict.Keys);
-            Assert.Equal("Scheduled", dict["triggerSource"]);
-        }
-
-        [Fact]
-        public void OnPerforming_TriggerSourceIsManualWhenNoRecurringJobId()
-        {
-            var logger = Substitute.For<ILogger<HangfireJobLoggingFilter>>();
-            CaptureScope(logger, out var captured);
-            var sut = new HangfireJobLoggingFilter(logger);
-            var perf = BuildPerformContext(recurringJobId: null);
-            var performing = new Hangfire.Server.PerformingContext(perf);
-
-            sut.OnPerforming(performing);
-
-            Assert.Single(captured);
-            Assert.Equal("Manual", captured[0]["triggerSource"]);
         }
 
         [Fact]

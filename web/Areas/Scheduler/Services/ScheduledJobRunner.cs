@@ -10,7 +10,7 @@ namespace Viper.Areas.Scheduler.Services;
 /// an interface type, so every recurring registration targets this concrete
 /// class. The runner resolves the actual <see cref="IScheduledJob"/> from DI
 /// by id at execution time and hands it a <see cref="ScheduledJobContext"/>
-/// stamped with <see cref="TriggerSource.Scheduled"/> + the system actor.
+/// stamped with the system actor.
 /// </summary>
 public sealed class ScheduledJobRunner
 {
@@ -52,8 +52,7 @@ public sealed class ScheduledJobRunner
 
         var job = (IScheduledJob)scope.ServiceProvider.GetRequiredService(metadata.JobType);
         var context = new ScheduledJobContext(
-            TriggerSource.Scheduled,
-            ISchedulerJobsService.SchedulerActor,
+            ScheduledJobContext.SchedulerActor,
             performContext);
 
         await job.RunAsync(context, cancellationToken.ShutdownToken);
