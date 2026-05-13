@@ -1,40 +1,24 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-type DisplayStyle = "legacy" | "current" | "abbrev"
+const props = withDefaults(
+    defineProps<{
+        maxValue: number
+        value: number
+        levelName?: string
+        text?: string
+        id?: number
+    }>(),
+    {
+        levelName: "",
+        text: undefined,
+        id: undefined,
+    },
+)
 
-const props = defineProps({
-    maxValue: {
-        type: Number,
-        required: true,
-    },
-    value: {
-        type: Number,
-        required: true,
-    },
-    levelName: {
-        type: String,
-        default: "",
-    },
-    text: {
-        type: String,
-        default: undefined,
-    },
-    id: {
-        type: Number,
-        default: undefined,
-    },
-    displayStyle: {
-        type: String as () => DisplayStyle,
-        default: "current",
-    },
-    abbreviation: {
-        type: String,
-        default: "",
-    },
-})
-
-const emit = defineEmits(["bubble-click"])
+const emit = defineEmits<{
+    "bubble-click": [id: number]
+}>()
 
 const classes5 = [
     "assessmentBubble5_1",
@@ -48,13 +32,15 @@ const isValidValue = computed(() => props.maxValue === 5 && props.value > 0 && p
 
 const bubbleClasses = computed(() => {
     const classes: string[] = ["assessmentBubble"]
-    if (props.displayStyle === "legacy") classes.push("assessmentBubble--legacy")
-    if (props.displayStyle === "abbrev") classes.push("assessmentBubble--abbrev")
     if (isValidValue.value) classes.push(classes5[props.value - 1] ?? "")
     return classes
 })
 
-const showAbbreviation = computed(() => props.displayStyle === "abbrev" && !!props.abbreviation)
+// Decorative span variant: when no levelName is provided the bubble carries no
+// meaning for assistive tech, so drop the role="img" + empty aria-label and
+// treat it as purely decorative (aria-hidden). The clickable variant always
+// has a meaningful action label so it never falls through to this branch.
+const spanIsDecorative = computed(() => props.levelName.length === 0)
 
 function clickBubble() {
     if (props.id !== undefined) {
@@ -73,20 +59,21 @@ function clickBubble() {
         <span
             :class="bubbleClasses"
             aria-hidden="true"
-        >
-            <template v-if="showAbbreviation">{{ abbreviation }}</template>
-        </span>
+        />
         <q-tooltip class="text-body2">
             <div><strong>Click to open details</strong></div>
             <div class="assessmentBubbleTooltipText">{{ props.text }}</div>
         </q-tooltip>
     </button>
     <span
+        v-else-if="spanIsDecorative"
+        :class="bubbleClasses"
+        aria-hidden="true"
+    />
+    <span
         v-else
         :class="bubbleClasses"
         role="img"
         :aria-label="levelName"
-    >
-        <template v-if="showAbbreviation">{{ abbreviation }}</template>
-    </span>
+    />
 </template>

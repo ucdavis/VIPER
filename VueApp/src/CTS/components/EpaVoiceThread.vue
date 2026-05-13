@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from "vue"
 import type { Assessment, Epa } from "@/CTS/types"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import { inflect } from "inflection"
@@ -7,6 +7,15 @@ import EpaProgressionChart from "@/CTS/components/EpaProgressionChart.vue"
 
 const VOICES_THRESHOLD = 5
 const CHART_THRESHOLD = 2
+
+// Gutter SVG layout — coords are inside a 32-unit-wide viewBox; levels 1–5
+// fan from left (low trust) to right (high trust) so the spline visually
+// trends rightward as a student progresses.
+const GUTTER_BASE_X = 6
+const GUTTER_LEVEL_SPACING = 5
+// Vertical offset (in CSS px) from each voice card's top edge to the dot
+// center, chosen to align with the byline's visual midline.
+const GUTTER_CARD_VERTICAL_OFFSET = 18
 
 const props = defineProps<{
     epa: Epa
@@ -16,7 +25,9 @@ const props = defineProps<{
 const { formatDate } = useDateFunctions()
 const showAll = ref(false)
 const showChartDialog = ref(false)
-const chartDialogTitleId = computed(() => `chart-dialog-title-${props.epa.epaId ?? "new"}`)
+// useId() yields a per-instance unique id so two EpaVoiceThreads with the
+// same (possibly null) epaId don't collide on aria-labelledby targets.
+const chartDialogTitleId = `chart-dialog-title-${useId()}`
 const activeEncounterId = ref<number | null>(null)
 function setActive(id: number) {
     activeEncounterId.value = id
@@ -50,7 +61,7 @@ const gutterDots = ref<{ x: number; y: number }[]>([])
 const gutterHeight = ref(0)
 
 function lvX(lv: number): number {
-    return 6 + (lv - 1) * 5
+    return GUTTER_BASE_X + (lv - 1) * GUTTER_LEVEL_SPACING
 }
 
 function buildGutter() {
@@ -72,7 +83,7 @@ function buildGutter() {
     const gutterTop = gutter.getBoundingClientRect().top
     const pts = voiceEls.map((el, i) => ({
         x: lvX(visible.value[i]?.levelValue ?? 3),
-        y: el.getBoundingClientRect().top - gutterTop + 18,
+        y: el.getBoundingClientRect().top - gutterTop + GUTTER_CARD_VERTICAL_OFFSET,
     }))
 
     let d = `M ${pts[0].x} ${pts[0].y}`
@@ -97,7 +108,22 @@ function scheduleGutter() {
     nextTick(() => buildGutter())
 }
 
-onMounted(scheduleGutter)
+// Watch the body for layout changes — window resize, font load, container
+// width changes — and rebuild the gutter spline so it stays aligned with the
+// voice cards' new positions.
+let resizeObserver: ResizeObserver | null = null
+onMounted(() => {
+    scheduleGutter()
+    const body = gutterRef.value?.parentElement
+    if (body && typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(scheduleGutter)
+        resizeObserver.observe(body)
+    }
+})
+onBeforeUnmount(() => {
+    resizeObserver?.disconnect()
+    resizeObserver = null
+})
 watch(visible, scheduleGutter)
 </script>
 <template>
@@ -231,7 +257,7 @@ watch(visible, scheduleGutter)
             v-model="showChartDialog"
             :aria-labelledby="chartDialogTitleId"
         >
-            <q-card style="width: 50rem; max-width: 92vw">
+            <q-card class="epaChartDialogCard">
                 <q-card-section class="row items-center q-pb-none">
                     <div
                         :id="chartDialogTitleId"

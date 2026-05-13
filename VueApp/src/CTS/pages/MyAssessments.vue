@@ -9,10 +9,8 @@ import type { Assessment, Epa, Level, Person } from "@/CTS/types"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import AssessmentBubble from "@/CTS/components/AssessmentBubble.vue"
 import EpaVoiceThread from "@/CTS/components/EpaVoiceThread.vue"
-import EpaSupervisionBlend from "@/CTS/components/EpaSupervisionBlend.vue"
-import { getLevelLabel } from "@/CTS/utils/level-labels"
 
-type DisplayStyle = 1 | 2 | 3 | 4 | 5
+type DisplayMode = "compact" | "timeline"
 
 const userStore = useUserStore()
 const { get } = useFetch()
@@ -30,27 +28,23 @@ const loaded = ref(false)
 const showDetails = ref([]) as Ref<boolean[]>
 
 const showAssessmentDetail = ref(false)
-const displayStyle = ref<DisplayStyle>(2)
+const displayMode = ref<DisplayMode>("timeline")
 
-const styleOptions = [
-    { label: "1. Original circles", value: 1 as DisplayStyle },
-    { label: "2. Current bubbles", value: 2 as DisplayStyle },
-    { label: "3. Abbreviations", value: 3 as DisplayStyle },
-    { label: "4. Timeline", value: 4 as DisplayStyle },
-    { label: "5. Bar", value: 5 as DisplayStyle },
-]
-
-const bubbleDisplayStyle = computed<"legacy" | "current" | "abbrev">(() => {
-    if (displayStyle.value === 1) return "legacy"
-    if (displayStyle.value === 3) return "abbrev"
-    return "current"
-})
-
-const isTimelineView = computed(() => displayStyle.value === 4)
-const isBlendView = computed(() => displayStyle.value === 5)
-const isCardListView = computed(() => isTimelineView.value || isBlendView.value)
-
+const isTimelineView = computed(() => displayMode.value === "timeline")
 const anyExpanded = computed(() => showDetails.value.some((s) => s))
+
+// Pre-bucket assessments by epaId so the template's repeated lookups
+// (v-if guard, bubble v-for, voice v-for in Compact mode) reuse one O(n)
+// pass instead of re-filtering the full list each render.
+const assessmentsByEpaId = computed(() => {
+    const buckets = new Map<number | null, Assessment[]>()
+    for (const a of epaAssessments.value) {
+        const list = buckets.get(a.epaId)
+        if (list) list.push(a)
+        else buckets.set(a.epaId, [a])
+    }
+    return buckets
+})
 
 async function load() {
     const $q = useQuasar()
@@ -68,6 +62,10 @@ async function load() {
         if (!Number.isNaN(studentParam) && canAccess) {
             studentUserId = studentParam
             showPersonName.value = true
+            // Non-student viewers (faculty/admin looking up a student) default
+            // to the Compact view; students viewing their own page get the
+            // narrative Timeline.
+            displayMode.value = "compact"
         }
     }
     let p1 = get(apiUrl + "cts/epas").then((r) => (epas.value = r.result))
@@ -93,8 +91,8 @@ async function getAssessments() {
     })
 }
 
-function getAssessmentsForEpa(epaId: number | null) {
-    return epaAssessments.value.filter((e) => e.epaId === epaId)
+function getAssessmentsForEpa(epaId: number | null): Assessment[] {
+    return assessmentsByEpaId.value.get(epaId) ?? []
 }
 
 function getText(date: Date, enteredBy: string, levelName: string, comment: string | null, serviceName: string | null) {
@@ -188,24 +186,26 @@ load()
             </q-card>
         </q-dialog>
 
-        <div class="q-mb-md">
-            <q-btn-toggle
-                v-model="displayStyle"
-                :options="styleOptions"
-                color="white"
-                text-color="primary"
-                toggle-color="primary"
-                toggle-text-color="white"
-                unelevated
-                no-caps
-                dense
-                spread
-                aria-label="Assessment display style"
-                class="assessmentStyleToggle"
+        <q-tabs
+            v-model="displayMode"
+            align="left"
+            dense
+            no-caps
+            inline-label
+            aria-label="Assessment display mode"
+            class="assessmentModeTabs q-mb-md"
+        >
+            <q-tab
+                name="compact"
+                label="Compact"
             />
-        </div>
+            <q-tab
+                name="timeline"
+                label="Timeline"
+            />
+        </q-tabs>
 
-        <template v-if="!isCardListView">
+        <template v-if="!isTimelineView">
             <div class="row items-center">
                 <div class="expandToggleCol">
                     <q-btn
@@ -245,8 +245,6 @@ load()
                                 :max-value="5"
                                 :value="a.levelValue"
                                 :level-name="a.levelName"
-                                :display-style="bubbleDisplayStyle"
-                                :abbreviation="getLevelLabel(a.levelValue).abbreviation"
                                 :text="
                                     getText(a.encounterDate, a.enteredByName, a.levelName, a?.comment, a?.serviceName)
                                 "
@@ -259,41 +257,38 @@ load()
                     </div>
                     <q-slide-transition>
                         <div
-                            class="q-mb-md"
+                            class="compactVoices"
                             v-if="showDetails[index]"
                             :key="'epadetails' + index"
                         >
                             <div
                                 v-for="a in getAssessmentsForEpa(epa.epaId)"
                                 :key="a.encounterId"
-                                class="row q-mb-sm items-center q-col-gutter-sm"
+                                class="epaVoice"
                             >
-                                <div class="col-12 col-sm-6 col-md-4">
-                                    {{ formatDate(a.encounterDate.toString()) }}
-                                    {{ a.enteredByName }}
-                                </div>
-                                <div class="col-12 col-sm-6 col-md-4">
-                                    {{ a.serviceName }}
-                                </div>
-                                <div class="col-12 col-sm-auto">
-                                    <span
-                                        v-if="displayStyle === 1"
-                                        class="text-grey-8"
-                                    >
-                                        {{ a.levelName }}
-                                    </span>
-                                    <span
-                                        v-else
-                                        :class="['levelChip', 'levelChip--' + a.levelValue]"
-                                    >
-                                        {{ a.levelName }}
-                                    </span>
-                                </div>
                                 <div
                                     v-if="a.comment"
-                                    class="col-12 q-mt-xs text-grey-8 assessmentComment"
+                                    class="epaVoiceQuote"
                                 >
                                     {{ a.comment }}
+                                </div>
+                                <div
+                                    v-else
+                                    class="epaVoiceNoComment"
+                                >
+                                    (No comment recorded)
+                                </div>
+                                <div class="epaVoiceByline">
+                                    <strong>&mdash; {{ a.enteredByName }}</strong>
+                                    <span v-if="a.serviceName"> &middot; {{ a.serviceName }}</span>
+                                    &middot; {{ formatDate(a.encounterDate.toString()) }}
+                                    <span class="epaVoiceSupervision">
+                                        <span
+                                            :class="['epaVoiceLevelDot', `cts-dot-${a.levelValue}`]"
+                                            aria-hidden="true"
+                                        ></span>
+                                        {{ a.levelName }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -304,22 +299,12 @@ load()
 
         <template v-else>
             <h2 class="q-mb-md">Entrustable Professional Activities</h2>
-            <template v-if="isTimelineView">
-                <EpaVoiceThread
-                    v-for="epa in epas"
-                    :key="epa.epaId ?? epa.name"
-                    :epa="epa"
-                    :assessments="getAssessmentsForEpa(epa.epaId)"
-                />
-            </template>
-            <template v-else>
-                <EpaSupervisionBlend
-                    v-for="epa in epas"
-                    :key="epa.epaId ?? epa.name"
-                    :epa="epa"
-                    :assessments="getAssessmentsForEpa(epa.epaId)"
-                />
-            </template>
+            <EpaVoiceThread
+                v-for="epa in epas"
+                :key="epa.epaId ?? epa.name"
+                :epa="epa"
+                :assessments="getAssessmentsForEpa(epa.epaId)"
+            />
         </template>
     </div>
 </template>

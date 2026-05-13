@@ -53,6 +53,17 @@ describe(AssessmentBubble, () => {
             expect(label).not.toMatch(/\b2 of 5\b/i)
         })
 
+        it("renders the standalone span as aria-hidden when levelName is empty", () => {
+            const wrapper = createWrapper({
+                maxValue: 5,
+                value: 2,
+            })
+
+            expect(wrapper.find('span[role="img"]').exists()).toBeFalsy()
+            const decorative = wrapper.get('span[aria-hidden="true"]')
+            expect(decorative.attributes("aria-label")).toBeUndefined()
+        })
+
         it("appends open-details hint on the clickable variant", () => {
             const wrapper = createWrapper({
                 maxValue: 5,

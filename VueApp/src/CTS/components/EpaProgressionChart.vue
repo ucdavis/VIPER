@@ -19,6 +19,19 @@ const emit = defineEmits<{
 }>()
 
 const DENSE_THRESHOLD = 8
+const DAY_MS = 86_400_000
+// When a single assessment is plotted, pad the x-axis by ±7 days so the
+// dot doesn't sit alone on a zero-width range.
+const SINGLE_POINT_PADDING_DAYS = 7
+// When 2+ assessments span a real date range, pad each side by 5% of that
+// range so dots don't crowd the chart edges.
+const MULTI_POINT_PADDING_RATIO = 0.05
+// Horizontal spread between same-day dots, expressed as a multiple of the
+// dot radius (2.4 ≈ "barely touching" with a little breathing room).
+const DOT_SPREAD_FACTOR = 2.4
+// Vertical arc height of the two-point quadratic spline, expressed as a
+// fraction of LANE_H so the bulge scales with the chart size.
+const QUADRATIC_BULGE_FACTOR = 0.3
 
 const geometry = computed(() => {
     if (props.size === "large") {
@@ -69,11 +82,10 @@ const dateBounds = computed(() => {
     let min = Math.min(...times)
     let max = Math.max(...times)
     if (min === max) {
-        const dayMs = 86_400_000
-        min -= dayMs * 7
-        max += dayMs * 7
+        min -= DAY_MS * SINGLE_POINT_PADDING_DAYS
+        max += DAY_MS * SINGLE_POINT_PADDING_DAYS
     } else {
-        const pad = (max - min) * 0.05
+        const pad = (max - min) * MULTI_POINT_PADDING_RATIO
         min -= pad
         max += pad
     }
@@ -126,7 +138,7 @@ const dots = computed(() => {
         else groups.set(key, [a])
     }
     const result: Dot[] = []
-    const step = dotRadius.value * 2.4
+    const step = dotRadius.value * DOT_SPREAD_FACTOR
     for (const list of groups.values()) {
         const baseX = dotX(new Date(list[0].encounterDate).getTime())
         const mid = (list.length - 1) / 2
@@ -159,7 +171,7 @@ const splinePath = computed(() => {
         const [p0, p1] = pts
         const midX = (p0.cx + p1.cx) / 2
         const midY = (p0.cy + p1.cy) / 2
-        const bulge = geometry.value.LANE_H * 0.3
+        const bulge = geometry.value.LANE_H * QUADRATIC_BULGE_FACTOR
         // SVG: smaller y = higher on screen. Higher level value = smaller cy.
         // dy > 0 → second dot is lower (rating dropped); arch downward.
         // dy < 0 → second dot is higher (rating rose); arch upward.

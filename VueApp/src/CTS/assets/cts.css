@@ -1,3 +1,24 @@
+/*
+ * Shared CTS supervision-level palette (levels 1–5, low → high trust).
+ *
+ * Bubble fills, level chips, and progression-chart/byline dots all key off
+ * the same five colors — centralizing them here keeps the three class
+ * families (.assessmentBubble5_*, .levelChip--*, .cts-dot-*) in sync when
+ * the palette is tweaked.
+ */
+:root {
+    --cts-level-1-bg: rgba(62, 127, 238, 0.3);
+    --cts-level-1-fg: #212529;
+    --cts-level-2-bg: rgba(62, 127, 238, 0.7);
+    --cts-level-2-fg: #212529;
+    --cts-level-3-bg: rgba(62, 127, 238, 1);
+    --cts-level-3-fg: #000;
+    --cts-level-4-bg: rgba(0, 44, 175, 0.8);
+    --cts-level-4-fg: #fff;
+    --cts-level-5-bg: rgba(11, 3, 139, 1);
+    --cts-level-5-fg: #fff;
+}
+
 .assessmentGroup {
     border-top: 1px solid silver;
 }
@@ -94,82 +115,28 @@
 }
 
 .assessmentBubble5_1 {
-    background-color: rgba(62, 127, 238, 0.3);
-    color: #212529;
+    background-color: var(--cts-level-1-bg);
+    color: var(--cts-level-1-fg);
 }
 
 .assessmentBubble5_2 {
-    background-color: rgba(62, 127, 238, 0.7);
-    color: #212529;
+    background-color: var(--cts-level-2-bg);
+    color: var(--cts-level-2-fg);
 }
 
 .assessmentBubble5_3 {
-    background-color: rgba(62, 127, 238, 1);
-    color: #000;
+    background-color: var(--cts-level-3-bg);
+    color: var(--cts-level-3-fg);
 }
 
 .assessmentBubble5_4 {
-    background-color: rgba(0, 44, 175, 0.8);
-    color: #fff;
+    background-color: var(--cts-level-4-bg);
+    color: var(--cts-level-4-fg);
 }
 
 .assessmentBubble5_5 {
-    background-color: rgba(11, 3, 139, 1);
-    color: #fff;
-}
-
-/* Style 1 — legacy palette (size matches current bubble) */
-.assessmentBubble--legacy.assessmentBubble5_1 {
-    background-color: rgba(174, 235, 255, 1);
-    color: #212529;
-}
-.assessmentBubble--legacy.assessmentBubble5_2 {
-    background-color: rgba(134, 198, 255, 1);
-    color: #212529;
-}
-.assessmentBubble--legacy.assessmentBubble5_3 {
-    background-color: rgba(62, 127, 238, 1);
-    color: #000;
-}
-.assessmentBubble--legacy.assessmentBubble5_4 {
-    background-color: rgba(0, 44, 219, 1);
-    color: #fff;
-}
-.assessmentBubble--legacy.assessmentBubble5_5 {
-    background-color: rgba(11, 3, 139, 1);
-    color: #fff;
-}
-
-/* Style 3 — abbreviation pill (keeps current palette, stretches shape) */
-.assessmentBubble--abbrev {
-    width: auto;
-    min-width: 1.5rem;
-    padding: 0 0.45rem;
-    border-radius: 0.75rem;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-}
-
-.assessmentBubbleCloser5_1 {
-    color: rgba(2, 40, 150, 0.7);
-}
-
-.assessmentBubbleCloser5_2 {
-    color: rgba(2, 40, 150, 0.8);
-}
-
-.assessmentBubbleCloser5_3 {
-    color: rgba(2, 40, 150, 0.9);
-}
-
-.assessmentBubbleCloser5_4 {
-    color: rgba(2, 40, 150, 0.95);
-}
-
-.assessmentBubbleCloser5_5 {
-    color: rgba(2, 40, 150, 1);
+    background-color: var(--cts-level-5-bg);
+    color: var(--cts-level-5-fg);
 }
 
 .levelChip {
@@ -184,50 +151,47 @@
     color: #212529;
 }
 .levelChip--1 {
-    background-color: rgba(62, 127, 238, 0.3);
-    color: #212529;
+    background-color: var(--cts-level-1-bg);
+    color: var(--cts-level-1-fg);
 }
 .levelChip--2 {
-    background-color: rgba(62, 127, 238, 0.7);
-    color: #212529;
+    background-color: var(--cts-level-2-bg);
+    color: var(--cts-level-2-fg);
 }
 .levelChip--3 {
-    background-color: rgba(62, 127, 238, 1);
-    color: #000;
+    background-color: var(--cts-level-3-bg);
+    color: var(--cts-level-3-fg);
 }
 .levelChip--4 {
-    background-color: rgba(0, 44, 175, 0.8);
-    color: #fff;
+    background-color: var(--cts-level-4-bg);
+    color: var(--cts-level-4-fg);
 }
 .levelChip--5 {
-    background-color: rgba(11, 3, 139, 1);
-    color: #fff;
+    background-color: var(--cts-level-5-bg);
+    color: var(--cts-level-5-fg);
 }
 
-.assessmentComment {
-    font-style: italic;
-}
-
-/* Shared dot colors (used by EpaProgressionChart SVG circles and inline byline dots) */
+/* EpaProgressionChart SVG circles + inline byline dots — same swatches as the
+   bubble/chip families, applied via fill (SVG) and background-color (HTML). */
 .cts-dot-1 {
-    fill: rgb(62 127 238 / 30%);
-    background-color: rgb(62 127 238 / 30%);
+    fill: var(--cts-level-1-bg);
+    background-color: var(--cts-level-1-bg);
 }
 .cts-dot-2 {
-    fill: rgb(62 127 238 / 70%);
-    background-color: rgb(62 127 238 / 70%);
+    fill: var(--cts-level-2-bg);
+    background-color: var(--cts-level-2-bg);
 }
 .cts-dot-3 {
-    fill: rgb(62 127 238 / 100%);
-    background-color: rgb(62 127 238 / 100%);
+    fill: var(--cts-level-3-bg);
+    background-color: var(--cts-level-3-bg);
 }
 .cts-dot-4 {
-    fill: rgb(0 44 175 / 80%);
-    background-color: rgb(0 44 175 / 80%);
+    fill: var(--cts-level-4-bg);
+    background-color: var(--cts-level-4-bg);
 }
 .cts-dot-5 {
-    fill: rgb(11 3 139 / 100%);
-    background-color: rgb(11 3 139 / 100%);
+    fill: var(--cts-level-5-bg);
+    background-color: var(--cts-level-5-bg);
 }
 
 /* ── Style 4: Voices in the Margin ── */
@@ -431,181 +395,27 @@
     }
 }
 
-/* Style toggle (segmented control on MyAssessments) */
-.assessmentStyleToggle {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
+/* Sizing for the expanded progression-chart dialog (Timeline view) */
+.epaChartDialogCard {
+    width: 50rem;
+    max-width: 92vw;
 }
 
-/* ── Style 5: Supervision Blend ── */
-.epaBlend {
-    background: #ffffff;
-    border: 1px solid #e8e4dc;
-    border-radius: 0.5rem;
-    padding: 1.375rem 1.75rem;
-    margin-bottom: 1.125rem;
-}
-.epaBlendHeader {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    border-bottom: 1px solid #e8e4dc;
-    padding-bottom: 0.75rem;
-    margin-bottom: 1.125rem;
-}
-.epaBlendTitle {
-    font-family: Georgia, "Times New Roman", serif;
-    font-style: italic;
-    font-weight: 500;
-    font-size: 1.125rem;
+/* Mode tabs (Compact / Timeline on MyAssessments). The q-tabs root gives
+   us role="tablist" + arrow-key navigation for free; we just constrain
+   the underline-indicator color to match the rest of the page. */
+.assessmentModeTabs {
     color: var(--ucdavis-blue-100, #022851);
-    line-height: 1.3;
-}
-.epaBlendCount {
-    font-size: 0.72rem;
-    font-weight: 500;
-    color: #6c757d;
-    text-transform: lowercase;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.epaBlendEmpty {
-    font-style: italic;
-    font-size: 0.85rem;
-    color: #616161;
-}
-.epaBlendBar {
-    display: flex;
-    width: 100%;
-    height: 1.5rem;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    background: #f0ece4;
-    margin-bottom: 0.875rem;
-}
-.epaBlendSegment {
-    height: 100%;
-    box-shadow: inset -1px 0 0 #ffffff;
-    transition: width 0.2s;
-}
-.epaBlendSegment:last-child {
-    box-shadow: none;
-}
-.epaBlendSegment--lv-1 {
-    background-color: rgba(62, 127, 238, 0.3);
-}
-.epaBlendSegment--lv-2 {
-    background-color: rgba(62, 127, 238, 0.7);
-}
-.epaBlendSegment--lv-3 {
-    background-color: rgba(62, 127, 238, 1);
-}
-.epaBlendSegment--lv-4 {
-    background-color: rgba(0, 44, 175, 0.8);
-}
-.epaBlendSegment--lv-5 {
-    background-color: rgba(11, 3, 139, 1);
-}
-.epaBlendLegend {
-    list-style: none;
-    margin: 0 0 1.25rem;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1.25rem;
-}
-.epaBlendLegendItem {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: #1a1d2e;
-}
-.epaBlendSwatch {
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 0.1875rem;
-    flex-shrink: 0;
-}
-.epaBlendLegendLabel {
-    color: #1a1d2e;
-}
-.epaBlendLegendCount {
-    color: #6c757d;
-    font-variant-numeric: tabular-nums;
-}
-.epaBlendComments--withBar {
-    border-top: 1px solid #f0ece4;
-    padding-top: 0.875rem;
-}
-.epaBlendComment {
-    padding: 0.625rem 0;
-    border-top: 1px solid #f0ece4;
-}
-.epaBlendComment:first-child {
-    border-top: none;
-    padding-top: 0;
-}
-.epaBlendCommentText {
-    font-family: Georgia, "Times New Roman", serif;
-    font-style: italic;
-    font-size: 1rem;
-    line-height: 1.55;
-    color: #1a1a1a;
-    margin: 0 0 0.375rem;
-}
-.epaBlendCommentMissing {
-    font-size: 0.85rem;
-    color: #adb5bd;
-    font-style: italic;
-    margin-bottom: 0.375rem;
-}
-.epaBlendCommentMeta {
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-.epaBlendCommentMeta strong {
-    color: var(--ucdavis-blue-100, #022851);
-    font-weight: 600;
-}
-.epaBlendMore {
-    margin: 0.5rem 0 0;
-    font-size: 0.8rem;
-    color: var(--ucdavis-blue-100, #022851);
-    background: none;
-    border: none;
-    border-bottom: 1px dotted var(--ucdavis-blue-100, #022851);
-    padding: 0 0 1px;
-    cursor: pointer;
-    text-align: left;
-    opacity: 0.75;
-}
-.epaBlendMore:hover,
-.epaBlendMore:focus-visible {
-    opacity: 1;
-}
-.epaBlendMore:focus-visible {
-    outline: 2px solid var(--q-primary);
-    outline-offset: 2px;
 }
 
-/*
-.assessmentbubble.ab5_1 {
-    background-color: rgb(169, 208, 255)
+/* Voice cards rendered under the bubble row when an EPA is expanded in
+   Compact mode. */
+.compactVoices {
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    border-top: 1px solid #f0ece4;
 }
-.assessmentbubble.ab5_2 {
-    background-color: rgb(121, 158, 223)
+.compactVoices .epaVoice {
+    padding-left: 0;
+    padding-right: 0;
 }
-.assessmentbubble.ab5_3 {
-    background-color: rgb(78, 108, 189)
-}
-.assessmentbubble.ab5_4 {
-    background-color: rgb(42, 60, 152)
-}
-.assessmentbubble.ab5_5 {
-    background-color: rgb(0, 11, 113)
-}
-*/
