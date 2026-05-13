@@ -6,6 +6,7 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -92,7 +93,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 await context.SaveChangesAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 return BadRequest("Could not remove domain. It may be linked to other objects.");
             }

@@ -4,6 +4,8 @@ using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Viper.Classes.Utilities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Services
 {
@@ -218,7 +220,7 @@ namespace Viper.Services
                 // For production, assume the SMTP server is available
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error checking email service availability");
                 return false;

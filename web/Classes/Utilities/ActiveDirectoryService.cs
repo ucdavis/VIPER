@@ -2,6 +2,8 @@ using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Classes.Utilities
 {
@@ -219,7 +221,7 @@ namespace Viper.Classes.Utilities
                     group.Save();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 HttpHelper.Logger.Error(ex);
             }
@@ -245,7 +247,7 @@ namespace Viper.Classes.Utilities
                     group.Save();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 HttpHelper.Logger.Error(ex);
             }

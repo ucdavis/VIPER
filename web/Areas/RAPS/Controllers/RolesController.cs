@@ -7,6 +7,7 @@ using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -225,7 +226,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
             }
