@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
@@ -48,7 +49,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     weeks.Count, gradYear, includeExtendedRotation);
                 return weeks.ToDto();
             }
-            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving weeks for grad year {GradYear}: {ErrorMessage}", gradYear, ex.Message);
                 throw new InvalidOperationException($"Failed to retrieve weeks for graduation year {gradYear}", ex);
@@ -89,7 +90,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     weekId, week.GradYear, week.WeekNum);
                 return week.ToDto();
             }
-            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving week {WeekId} for grad year {GradYear}", weekId, gradYear);
                 throw new InvalidOperationException($"Failed to retrieve week {weekId} for graduation year {gradYear}", ex);
@@ -130,7 +131,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Current week is {WeekNum} for grad year {GradYear}", week.WeekNum, week.GradYear);
                 return week.ToDto();
             }
-            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving current week for grad year {GradYear}", gradYear);
                 throw new InvalidOperationException($"Failed to retrieve current week for graduation year {gradYear}", ex);
@@ -174,7 +175,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     weeks.Count, startDate?.ToString("yyyy-MM-dd") ?? "none", endDate?.ToString("yyyy-MM-dd") ?? "none");
                 return weeks.ToDto();
             }
-            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving weeks for date range {StartDate} to {EndDate}",
                     startDate?.ToString("yyyy-MM-dd") ?? "none", endDate?.ToString("yyyy-MM-dd") ?? "none");
