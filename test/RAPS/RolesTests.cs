@@ -180,7 +180,7 @@ namespace Viper.test.RAPS
             // arrange
             int RoleId = -1;
             var mockSet = GetTestRoles().BuildMockDbSet();
-            mockSet.FindAsync(Arg.Any<object?[]?>()).ReturnsNull();
+            mockSet.FindAsync(Arg.Any<object?[]?>(), Arg.Any<CancellationToken>()).ReturnsNull();
             rapsContext.TblRoles.Returns(mockSet);
 
             var rolesController = new RolesController(rapsContext);
