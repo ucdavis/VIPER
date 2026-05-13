@@ -105,7 +105,7 @@ namespace Viper.Areas.CTS.Controllers
                 context.Entry(epa).State = EntityState.Deleted;
                 await context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 return BadRequest(ex.Message);
             }

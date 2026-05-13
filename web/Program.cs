@@ -75,7 +75,7 @@ try
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
     }
-    catch (Exception ex)
+    catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
     {
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
@@ -439,7 +439,7 @@ try
                     await ViteProxyHelpers.CopyProxyResponse(context, response);
                     return; // Successfully proxied, don't continue to static files
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
                 {
                     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
                     logger.LogDebug(ex, "Vite server not available, falling back to static files for {Path}",
@@ -523,7 +523,9 @@ try
     app.Run();
 #pragma warning restore S6966
 }
+#pragma warning disable CA1031 // Top-level app startup must catch any exception to log fatal and rethrow as InvalidOperationException with context for hosting platform.
 catch (Exception exception)
+#pragma warning restore CA1031
 {
     // NLog: catch setup errors
     logger.Fatal(exception, "Stopped program because of exception");
@@ -570,7 +572,7 @@ void SetAwsCredentials(Logger logger)
         {
             File.Delete(awsCredentialsFilePath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
         {
             logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
             logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");

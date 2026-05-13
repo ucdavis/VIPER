@@ -268,7 +268,7 @@ namespace Viper.Areas.RAPS.Controllers
                         return vmacsResponse;
                     }
                 }
-                catch
+                catch (System.Text.Json.JsonException)
                 {
                     return new VmacsResponse()
                     {

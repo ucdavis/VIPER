@@ -218,7 +218,7 @@ namespace Viper.Services
                 // For production, assume the SMTP server is available
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error checking email service availability");
                 return false;

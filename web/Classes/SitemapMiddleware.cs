@@ -84,7 +84,7 @@ namespace Viper.Classes
                         await memoryStream.CopyToAsync(stream, bytes.Length);
                     }
                 }
-                catch (Exception)
+                catch (Exception) when (true /* placeholder */)
                 {
                     await _next(context);
                 }

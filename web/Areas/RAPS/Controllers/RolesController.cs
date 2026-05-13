@@ -225,7 +225,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
             }

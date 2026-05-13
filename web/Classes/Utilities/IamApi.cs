@@ -449,7 +449,7 @@ namespace Viper.Classes.Utilities
 
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 r.ErrorMessage = "Invalid response: " + ex.Message + ".";
             }

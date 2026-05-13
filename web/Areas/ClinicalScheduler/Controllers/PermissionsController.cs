@@ -153,7 +153,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(new { canEdit });
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("ServiceId", serviceId);
@@ -215,7 +215,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(new { canEdit });
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("RotationId", rotationId);
@@ -277,7 +277,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(new { canEditOwn });
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("InstructorScheduleId", instructorScheduleId);

@@ -48,7 +48,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 ActiveDirectoryService.GetGroups();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 Logger logger = LogManager.GetCurrentClassLogger();
                 logger.Error(ex);

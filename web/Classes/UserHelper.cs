@@ -291,7 +291,7 @@ namespace Viper
                         return user;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
                 {
                     HttpHelper.Logger.Error(ex);
                     return null;
@@ -318,7 +318,7 @@ namespace Viper
 
                 return currentUser;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 HttpHelper.Logger.Error(ex);
                 return null;
@@ -355,7 +355,7 @@ namespace Viper
                 }
                 else { return GetCurrentUser(); }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 HttpHelper.Logger.Error(ex);
                 return null;

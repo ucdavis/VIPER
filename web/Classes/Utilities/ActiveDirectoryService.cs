@@ -219,7 +219,7 @@ namespace Viper.Classes.Utilities
                     group.Save();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 HttpHelper.Logger.Error(ex);
             }
@@ -245,7 +245,7 @@ namespace Viper.Classes.Utilities
                     group.Save();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 HttpHelper.Logger.Error(ex);
             }

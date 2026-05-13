@@ -89,7 +89,7 @@ namespace Web.Authorization
 
 
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
                 {
                     bool isProd = false;
 

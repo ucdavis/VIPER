@@ -103,7 +103,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Could not set roles.");
             }
@@ -285,7 +285,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Could not update levels.");
             }

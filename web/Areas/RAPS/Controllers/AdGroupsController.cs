@@ -114,7 +114,7 @@ namespace Viper.Areas.RAPS.Controllers
                 OuGroup newOuGroup = await _ouGroupService.CreateRapsGroup(group.Name, group.Description);
                 return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId }, newOuGroup);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 //Exception message could be indication user is trying to create a group that exists or is invalid.
                 return ValidationProblem(ex.Message);

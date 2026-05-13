@@ -131,7 +131,7 @@ namespace Viper.Areas.RAPS.Services
                         VmacsResponse vmacsResponse = await ParseResponse(response);
                         RecordMessage(messages, JsonSerializer.Serialize(vmacsResponse));
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
                     {
                         HttpHelper.Logger.Log(NLog.LogLevel.Warn, ex);
                         RecordMessage(messages, "Error: " + ex.Message + " " + ex?.StackTrace);
@@ -168,7 +168,7 @@ namespace Viper.Areas.RAPS.Services
                     vmacsResponse.Success = response.IsSuccessStatusCode;
                 }
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 vmacsResponse = new()
                 {

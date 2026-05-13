@@ -140,7 +140,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Could not delete bundle. If this bundle has been used, it cannot be deleted.");
             }

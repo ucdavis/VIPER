@@ -92,7 +92,7 @@ namespace Viper.Areas.CTS.Controllers
             {
                 await context.SaveChangesAsync();
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Could not remove domain. It may be linked to other objects.");
             }

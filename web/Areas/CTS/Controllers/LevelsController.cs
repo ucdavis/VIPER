@@ -152,7 +152,7 @@ namespace Viper.Areas.CTS.Controllers
                 AdjustLevelOrders(existing);
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Could not delete level. If this level has been used in an assessment, it cannot be deleted.");
             }
