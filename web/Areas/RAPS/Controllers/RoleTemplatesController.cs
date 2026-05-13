@@ -42,12 +42,9 @@ namespace Viper.Areas.RAPS.Controllers
                 .OrderBy(rt => rt.TemplateName)
                 .ToListAsync();
 
-            List<RoleTemplateSimplified> roleTemplates = new();
-            foreach (var rt in dbRoleTemplates)
-            {
-                roleTemplates.Add(new RoleTemplateSimplified(rt));
-            }
-            return roleTemplates;
+            return dbRoleTemplates
+                .Select(rt => new RoleTemplateSimplified(rt))
+                .ToList();
         }
 
         // GET: RoleTemplates/5
@@ -186,8 +183,8 @@ namespace Viper.Areas.RAPS.Controllers
 
             return new RoleTemplateApplyPreview()
             {
-                DisplayName = user.DisplayFullName ?? "User not found",
-                MemberId = user.MothraId ?? "",
+                DisplayName = user.DisplayFullName,
+                MemberId = user.MothraId,
                 Roles = rolesToApply
             };
         }

@@ -50,7 +50,7 @@ namespace Viper.Areas.RAPS.Controllers
             string instance = "VIPER";
             string page = "";
             // rapsIdx is non-null iff path is non-null (it's derived from path?.FindIndex).
-            if (rapsIdx is int idx && idx > -1)
+            if (rapsIdx is { } idx && idx > -1)
             {
                 if (path!.Count > idx + 1)
                 {
