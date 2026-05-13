@@ -40,7 +40,7 @@ using LoadOptions = System.Xml.Linq.LoadOptions;
 
 // Load .env.local for local development only (multiple-instance support)
 // Avoid loading in production - guard by ASPNETCORE_ENVIRONMENT.
-var envPath = Path.Combine(Directory.GetCurrentDirectory(), "../.env.local");
+var envPath = Path.Join(Directory.GetCurrentDirectory(), "../.env.local");
 var aspNetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
     && File.Exists(envPath))
@@ -468,7 +468,7 @@ try
     {
         DefaultFileNames = new List<string> { "index.html" },
         FileProvider = new PhysicalFileProvider(
-            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            Path.Join(builder.Environment.ContentRootPath, "wwwroot/vue")),
         RequestPath = "/vue",
         RedirectToAppendTrailingSlash = true
     });
@@ -479,7 +479,7 @@ try
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(
-            Path.Combine(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            Path.Join(builder.Environment.ContentRootPath, "wwwroot/vue")),
         RequestPath = "/2/vue"
     });
 

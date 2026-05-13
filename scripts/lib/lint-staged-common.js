@@ -318,7 +318,7 @@ function sanitizeFilePath(filePath, baseDir, allowedExtensions, maxFileSizeMB = 
 
     // On Windows, lint-staged may pass paths like C:/path/to/file
     // Convert these to proper Windows format first
-    if (IS_WINDOWS && /^[A-Za-z]:[\\\\/]/.test(filePath)) {
+    if (IS_WINDOWS && /^[A-Za-z]:[\\/]/.test(filePath)) {
         normalizedPath = filePath.replaceAll("/", path.sep)
     }
 
