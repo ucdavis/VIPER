@@ -11,7 +11,7 @@ namespace Viper.Areas.RAPS.Models
 
         public string Description { get; set; } = null!;
 
-        public virtual ICollection<RoleSimplified> Roles { get; set; } = new List<RoleSimplified>();
+        public ICollection<RoleSimplified> Roles { get; set; } = new List<RoleSimplified>();
 
         public RoleTemplateSimplified() { }
         public RoleTemplateSimplified(RoleTemplate rt)

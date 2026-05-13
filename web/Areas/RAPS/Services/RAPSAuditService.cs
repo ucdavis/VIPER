@@ -145,11 +145,11 @@ namespace Viper.Areas.RAPS.Services
             Dictionary<string, List<string>> actionsPerformedOnObject = new();
             foreach (AuditLog auditLog in auditEntries)
             {
-                if (auditLog?.RoleId != null || auditLog?.PermissionId != null)
+                if (auditLog.RoleId != null || auditLog.PermissionId != null)
                 {
-                    string key = auditLog?.RoleId != null
+                    string key = auditLog.RoleId != null
                         ? "role-" + auditLog.RoleId
-                        : "permission-" + auditLog!.PermissionId;
+                        : "permission-" + auditLog.PermissionId;
                     if (actionsPerformedOnObject.ContainsKey(key))
                     {
                         List<string> moreRecentActions = actionsPerformedOnObject[key];

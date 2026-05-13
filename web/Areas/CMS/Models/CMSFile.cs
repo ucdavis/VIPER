@@ -1,6 +1,6 @@
 namespace Viper.Areas.CMS.Models
 {
-    public partial class CMSFile : Viper.Models.VIPER.File
+    public sealed class CMSFile : Viper.Models.VIPER.File
     {
         public string FriendlyURL { get; set; }
 

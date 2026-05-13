@@ -30,6 +30,10 @@ public class PercentRolloverService : IPercentRolloverService
 
     public async Task<PercentRolloverPreviewDto> GetRolloverPreviewAsync(int year, CancellationToken ct = default)
     {
+        // Bound year for DateTime constructions below (year and year+1 must be valid years).
+        ArgumentOutOfRangeException.ThrowIfLessThan(year, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(year, 9998);
+
         var result = new PercentRolloverPreviewDto();
 
         result.SourceAcademicYear = year;
@@ -42,7 +46,7 @@ public class PercentRolloverService : IPercentRolloverService
         var july1Start = new DateTime(year, 7, 1, 0, 0, 0, DateTimeKind.Local);
         result.OldEndDate = june30Start;
         result.NewStartDate = july1Start;
-        result.NewEndDate = new DateTime(year + 1, 6, 30, 0, 0, 0, DateTimeKind.Local);
+        result.NewEndDate = june30Start.AddYears(1);
 
         // Find assignments ending on June 30 of source year (any time on that day)
         var assignments = await _context.Percentages

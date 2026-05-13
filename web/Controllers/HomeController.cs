@@ -147,7 +147,7 @@ namespace Viper.Controllers
 
                 if (protector != null && emulatedUser.LoginId != null)
                 {
-                    string? encryptedEmulatedLoginId = protector?.Protect(emulatedUser.LoginId);
+                    string encryptedEmulatedLoginId = protector.Protect(emulatedUser.LoginId);
 
                     // set emulating cached item to expire after 30 minutes of inactivity
                     HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
@@ -319,7 +319,8 @@ namespace Viper.Controllers
                 {
                     var claimsIdentity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, validatedUserName), new Claim(ClaimTypes.NameIdentifier, validatedUserName), new Claim(ClaimTypes.AuthenticationMethod, "CAS") }, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                    XElement? attributesNode = successNode?.Element(_ns + "attributes");
+                    // successNode is guaranteed non-null here: validatedUserName is derived from successNode?.Element(user)?.Value.
+                    XElement? attributesNode = successNode!.Element(_ns + "attributes");
                     if (attributesNode != null)
                     {
                         foreach (string attributeName in _casAttributesToCapture)

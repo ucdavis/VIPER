@@ -136,10 +136,6 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
 
-            if (competency.CompetencyId == null || competency.CompetencyId <= 0)
-            {
-                return BadRequest("CompetencyId is required.");
-            }
             if (competency.Name.Length < 2 || competency.Number.Length < 1)
             {
                 return BadRequest("Name and Number are required.");
