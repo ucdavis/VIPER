@@ -281,7 +281,7 @@ namespace Viper.test.ClinicalScheduler
             {
                 result = await _service.RemoveInstructorScheduleAsync(savedSchedule.InstructorScheduleId);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or OperationCanceledException)
             {
                 caughtException = ex;
                 System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
@@ -463,7 +463,7 @@ namespace Viper.test.ClinicalScheduler
             {
                 result = await _service.RemoveInstructorScheduleAsync(savedPrimarySchedule.InstructorScheduleId);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or OperationCanceledException)
             {
                 caughtException = ex;
                 System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
