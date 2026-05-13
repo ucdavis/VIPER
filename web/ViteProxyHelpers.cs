@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace Web;
 
@@ -284,7 +286,7 @@ internal static class ViteProxyHelpers
                 {
                     context.Response.Headers[header.Key] = header.Value.ToArray();
                 }
-                catch (Exception headerEx) when (headerEx is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException or System.IO.IOException)
+                catch (Exception headerEx) when (headerEx is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException or IOException)
                 {
                     // Use structured logging for header errors
                     var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
@@ -367,7 +369,7 @@ internal static class ViteProxyHelpers
                     return;
                 }
             }
-            catch (Exception fileEx) when (fileEx is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException or System.IO.IOException)
+            catch (Exception fileEx) when (fileEx is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException or IOException)
             {
                 var safePath = context.Request.Path.ToString().Replace("\r", "").Replace("\n", "");
                 logger.LogWarning(fileEx, "Failed to serve static file fallback for {Path}", safePath);

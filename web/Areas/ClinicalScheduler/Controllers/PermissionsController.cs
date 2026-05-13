@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
@@ -153,7 +154,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(new { canEdit });
             }
-            catch (Exception) when (true /* placeholder */)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("ServiceId", serviceId);
@@ -215,7 +216,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(new { canEdit });
             }
-            catch (Exception) when (true /* placeholder */)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("RotationId", rotationId);
@@ -277,7 +278,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(new { canEditOwn });
             }
-            catch (Exception) when (true /* placeholder */)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("InstructorScheduleId", instructorScheduleId);

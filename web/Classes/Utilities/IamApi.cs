@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Web;
 using NLog;
 using Viper.Models.IAM;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Classes.Utilities
 {
@@ -398,7 +400,7 @@ namespace Viper.Classes.Utilities
 
                 }
             }
-            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 r.ErrorMessage = "Invalid response: " + ex.Message + ".";
             }
