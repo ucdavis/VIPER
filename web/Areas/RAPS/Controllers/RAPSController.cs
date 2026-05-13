@@ -47,10 +47,9 @@ namespace Viper.Areas.RAPS.Controllers
             int? rapsIdx = path?.FindIndex(p => p.Equals("raps", StringComparison.OrdinalIgnoreCase));
             string instance = "VIPER";
             string page = "";
-            // rapsIdx is non-null iff path is non-null (it's derived from path?.FindIndex).
-            if (rapsIdx is int idx && idx > -1)
+            if (path != null && rapsIdx is { } idx && idx > -1)
             {
-                if (path!.Count > idx + 1)
+                if (path.Count > idx + 1)
                 {
                     instance = path[idx + 1];
                 }

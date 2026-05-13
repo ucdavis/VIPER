@@ -38,6 +38,14 @@ public class AcademicYearHelperTests
         Assert.Equal(new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Local), result);
     }
 
+    [Fact]
+    public void GetAcademicYearStart_DateBeforeJulyYearOne_Throws()
+    {
+        // date.Year == 1 && month < 7 would underflow to year 0 in AddYears(-1)
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            AcademicYearHelper.GetAcademicYearStart(DateTime.MinValue));
+    }
+
     #endregion
 
     #region GetDateRange Tests
