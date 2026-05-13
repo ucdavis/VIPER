@@ -21,14 +21,14 @@ namespace Viper
         /// Helper functions constructor (gets injected with the memeory cache object)
         /// </summary>
         /// <param name="memoryCache"></param>
-        public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? httpContextAccessor, IAuthorizationService? authorizationService, IDataProtectionProvider? dataProtectionProvider)
+        public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? contextAccessor, IAuthorizationService? authzService, IDataProtectionProvider? dataProtection)
         {
             Cache = memoryCache;
             Settings = configurationSettings;
             Environment = env;
-            HttpHelper.httpContextAccessor = httpContextAccessor;
-            HttpHelper.authorizationService = authorizationService;
-            HttpHelper.dataProtectionProvider = dataProtectionProvider;
+            httpContextAccessor = contextAccessor;
+            authorizationService = authzService;
+            dataProtectionProvider = dataProtection;
         }
 
         /// <summary>
@@ -44,20 +44,7 @@ namespace Viper
         /// <summary>
         /// Get the current HttpContext
         /// </summary>
-        public static HttpContext? HttpContext
-        {
-            get
-            {
-                if (httpContextAccessor != null)
-                {
-                    return httpContextAccessor.HttpContext;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
+        public static HttpContext? HttpContext => httpContextAccessor?.HttpContext;
 
         /// <summary>
         /// Get the current memory cache

@@ -36,7 +36,7 @@ namespace Viper.Areas.Curriculum.Services
                 default: desc = "Unknown Term"; break;
             }
 
-            return string.Format("{0} {1}", desc, year.ToString());
+            return string.Format("{0} {1}", desc, year);
         }
 
         public async Task<List<Term>> GetTerms(string? TermType = null, bool? current = null, bool? currentMulti = null)

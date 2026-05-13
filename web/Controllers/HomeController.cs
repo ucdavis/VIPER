@@ -312,7 +312,7 @@ namespace Viper.Controllers
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
                 if (string.IsNullOrEmpty(validatedUserName))
                 {
-                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc);
                 }
 
                 if (!string.IsNullOrEmpty(validatedUserName))

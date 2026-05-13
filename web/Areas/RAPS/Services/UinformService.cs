@@ -271,7 +271,7 @@ namespace Viper.Areas.RAPS.Services
             //take "{METHOD}:{epochTime}:{publicKey}" and sign it with the privateKey, then convert to base64
             if (!string.IsNullOrEmpty(publicKey) && !string.IsNullOrEmpty(privateKey))
             {
-                string toSign = method.Method.ToUpper() + ":" + epochTime.ToString() + ":" + publicKey;
+                string toSign = method.Method.ToUpper() + ":" + epochTime + ":" + publicKey;
                 // Legacy API requires HMACSHA1 - third-party system constraint
 #pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                 using var sha1 = new HMACSHA1(Encoding.ASCII.GetBytes(privateKey));

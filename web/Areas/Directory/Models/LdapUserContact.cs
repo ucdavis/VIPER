@@ -36,7 +36,7 @@ namespace Viper.Areas.Directory.Models
             foreach (DirectoryAttribute attr in entry.Attributes.Values)
             {
                 var v = attr[0];
-                or.Add(attr.Name + "=" + v.ToString());
+                or.Add(attr.Name + "=" + v);
                 switch (attr.Name)
                 {
                     case "uid": Uid = v.ToString(); break;
