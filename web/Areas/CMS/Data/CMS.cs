@@ -628,7 +628,7 @@ namespace Viper.Areas.CMS.Data
         {
             byte[] secretkey = GetSecretKey(keystring);
 
-            Aes aes = Aes.Create();
+            using Aes aes = Aes.Create();
             aes.Mode = CipherMode.ECB;
 
             using var ms = new MemoryStream();
@@ -653,13 +653,13 @@ namespace Viper.Areas.CMS.Data
         public string DecryptAES(string encryptedString, string Key)
         {
             //First write to memory
-            MemoryStream mmsStream = new();
-            StreamWriter srwTemp = new(mmsStream);
+            using MemoryStream mmsStream = new();
+            using StreamWriter srwTemp = new(mmsStream);
             srwTemp.Write(encryptedString);
             srwTemp.Flush();
             mmsStream.Position = 0;
 
-            MemoryStream outstream = new();
+            using MemoryStream outstream = new();
 
             //CallingUUDecode
             Codecs.UUDecode(mmsStream, outstream);

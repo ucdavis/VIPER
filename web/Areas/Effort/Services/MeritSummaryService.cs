@@ -368,7 +368,7 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
     public MemoryStream GenerateReportExcel(MeritSummaryReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Summary Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -456,7 +456,6 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

@@ -41,7 +41,7 @@ namespace Viper.Classes.Utilities
             if (request.Method != HttpMethod.Get && attemptNumber == 0)
             {
                 //Try a send to the original url, with a get and empty body.
-                HttpRequestMessage newRequest = new()
+                using HttpRequestMessage newRequest = new()
                 {
                     RequestUri = request.RequestUri,
                     Method = HttpMethod.Get

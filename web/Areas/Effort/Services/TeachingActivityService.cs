@@ -485,7 +485,7 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
     public MemoryStream GenerateReportExcel(TeachingActivityReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Teaching Activity Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -596,14 +596,13 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
 
     public MemoryStream GenerateIndividualReportExcel(TeachingActivityReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Teaching Activity Report (Individual)";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -694,7 +693,6 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
