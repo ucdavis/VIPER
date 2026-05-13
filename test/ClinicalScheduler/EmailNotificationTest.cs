@@ -119,8 +119,8 @@ namespace Viper.test.ClinicalScheduler
                 await _context.Weeks.AddAsync(new Week
                 {
                     WeekId = weekId,
-                    DateStart = DateTime.UtcNow.AddDays((double)(-7 * (10 - weekId))),
-                    DateEnd = DateTime.UtcNow.AddDays((double)(-7 * (10 - weekId) + 6)),
+                    DateStart = DateTime.UtcNow.AddDays(-7.0 * (10 - weekId)),
+                    DateEnd = DateTime.UtcNow.AddDays(-7.0 * (10 - weekId) + 6),
                     TermCode = 202501
                 });
             }

@@ -258,10 +258,11 @@ namespace Viper
                     }
                     else if (HttpHelper.Cache != null && aaudContext != null)
                     {
+                        var fallbackUser = user;
                         user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
                         {
                             AaudUser? aaudUser = aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId);
-                            return aaudUser ?? user;
+                            return aaudUser ?? fallbackUser;
                         });
 
                         return user;

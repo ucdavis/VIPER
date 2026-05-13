@@ -18,9 +18,8 @@ namespace Viper
         private static IDataProtectionProvider? dataProtectionProvider;
 
         /// <summary>
-        /// Helper functions constructor (gets injected with the memeory cache object)
+        /// Helper functions constructor (gets injected with the memory cache object)
         /// </summary>
-        /// <param name="memoryCache"></param>
         public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? contextAccessor, IAuthorizationService? authzService, IDataProtectionProvider? dataProtection)
         {
             Cache = memoryCache;
