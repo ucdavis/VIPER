@@ -6,6 +6,8 @@ using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Web.Authorization
 {
@@ -89,7 +91,7 @@ namespace Web.Authorization
 
 
                 }
-                catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
                 {
                     bool isProd = false;
 

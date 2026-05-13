@@ -4,6 +4,7 @@ using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -84,7 +85,7 @@ namespace Viper.Areas.CTS.Controllers
                 context.Entry(role).State = EntityState.Deleted;
                 await context.SaveChangesAsync();
             }
-            catch (Exception) when (true /* placeholder */)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 return BadRequest("Could not delete role. If this role has been added to a bundle, it cannot be deleted.");
             }

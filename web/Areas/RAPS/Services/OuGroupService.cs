@@ -9,6 +9,7 @@ using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.RAPS;
 using static Viper.Areas.RAPS.Services.RAPSAuditService;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -48,7 +49,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 ActiveDirectoryService.GetGroups();
             }
-            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 Logger logger = LogManager.GetCurrentClassLogger();
                 logger.Error(ex);

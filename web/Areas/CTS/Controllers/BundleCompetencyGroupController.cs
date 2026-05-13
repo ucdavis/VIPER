@@ -5,6 +5,7 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -116,7 +117,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 AdjustGroupOrders(group);
             }
-            catch (Exception) when (true /* placeholder */)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
                 return BadRequest("Cannot delete group. Competencies must be removed from the group, and the group cannot have been used to document a student competency.");
             }

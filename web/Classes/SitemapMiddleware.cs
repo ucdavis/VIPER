@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using System.Text;
 using Web.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Classes
 {
@@ -84,7 +86,7 @@ namespace Viper.Classes
                         await memoryStream.CopyToAsync(stream, bytes.Length);
                     }
                 }
-                catch (Exception) when (true /* placeholder */)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
                 {
                     await _next(context);
                 }
