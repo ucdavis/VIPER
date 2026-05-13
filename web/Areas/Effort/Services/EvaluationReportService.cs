@@ -681,7 +681,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
     public MemoryStream GenerateEvalSummaryExcel(EvalSummaryReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Eval Summary Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -735,14 +735,13 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
 
     public MemoryStream GenerateEvalDetailExcel(EvalDetailReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Eval Detail Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -819,7 +818,6 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

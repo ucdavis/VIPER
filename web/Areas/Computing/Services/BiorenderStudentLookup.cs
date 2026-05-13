@@ -19,7 +19,7 @@ namespace Viper.Areas.Computing.Services
         public async Task<List<BiorenderStudent>> GetBiorenderStudentInfo(List<string> emails)
         {
             List<Task<BiorenderStudent>> resultList = new();
-            var throttler = new SemaphoreSlim(initialCount: 20);
+            using var throttler = new SemaphoreSlim(initialCount: 20);
             foreach (var email in emails)
             {
                 await throttler.WaitAsync();
