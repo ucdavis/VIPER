@@ -104,7 +104,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Found {Count} instructor schedules", schedules.Count);
                 return schedules;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving instructor schedules");
                 throw new InvalidOperationException("Failed to retrieve instructor schedules", ex);
