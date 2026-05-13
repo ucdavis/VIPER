@@ -58,16 +58,9 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Getting rotations. ServiceId: {ServiceId}", serviceId);
 
                 // Get rotations through service layer
-                List<RotationDto> rotations;
-
-                if (serviceId.HasValue)
-                {
-                    rotations = await _rotationService.GetRotationsByServiceAsync(serviceId.Value, HttpContext.RequestAborted);
-                }
-                else
-                {
-                    rotations = await _rotationService.GetRotationsAsync(HttpContext.RequestAborted);
-                }
+                List<RotationDto> rotations = serviceId.HasValue
+                    ? await _rotationService.GetRotationsByServiceAsync(serviceId.Value, HttpContext.RequestAborted)
+                    : await _rotationService.GetRotationsAsync(HttpContext.RequestAborted);
 
                 // Filter rotations based on user permissions
                 var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);

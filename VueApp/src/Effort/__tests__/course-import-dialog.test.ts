@@ -69,7 +69,8 @@ describe("CourseImportDialog - Error Handling", () => {
 
             // Simulate handling a non-Error value (e.g., from external code)
             const nonErrorValue: unknown = "string error"
-            importError.value = nonErrorValue instanceof Error ? nonErrorValue.message : "Failed to import course"
+            const isError = typeof nonErrorValue === "object" && nonErrorValue instanceof Error
+            importError.value = isError ? (nonErrorValue as Error).message : "Failed to import course"
 
             expect(importError.value).toBe("Failed to import course")
         })
@@ -93,7 +94,8 @@ describe("CourseImportDialog - Error Handling", () => {
 
             // Simulate handling a non-Error value (e.g., from external code)
             const nonErrorValue: unknown = "unknown error"
-            searchError.value = nonErrorValue instanceof Error ? nonErrorValue.message : "Error searching for courses"
+            const isError = typeof nonErrorValue === "object" && nonErrorValue instanceof Error
+            searchError.value = isError ? (nonErrorValue as Error).message : "Error searching for courses"
 
             expect(searchError.value).toBe("Error searching for courses")
         })

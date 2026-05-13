@@ -54,20 +54,15 @@ namespace Viper.Areas.Students.Services
             switch (termPart)
             {
                 case 2:
-                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (4 - (gradYear - termYear)).ToString());
+                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (4 - (gradYear - termYear)));
                     break;
                 case 9:
-                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (5 - (gradYear - termYear)).ToString());
+                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (5 - (gradYear - termYear)));
                     break;
                 case 4:
-                    if (gradYear - termYear == 1)
-                    {
-                        termAndClassLevel = Tuple.Create(currentTerm, "V4");
-                    }
-                    else
-                    {
-                        termAndClassLevel = Tuple.Create((termYear * 100) + 9, "V" + (5 - (gradYear - termYear)).ToString());
-                    }
+                    termAndClassLevel = gradYear - termYear == 1
+                        ? Tuple.Create(currentTerm, "V4")
+                        : Tuple.Create((termYear * 100) + 9, "V" + (5 - (gradYear - termYear)));
                     break;
             }
 
