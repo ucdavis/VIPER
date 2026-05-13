@@ -114,7 +114,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for instructor schedule {ScheduleId}", instructorScheduleId);
                 throw new InvalidOperationException($"Failed to retrieve audit history for instructor schedule {instructorScheduleId}. Please try again or contact support if the problem persists.", ex);
@@ -134,7 +134,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
                 throw new InvalidOperationException($"Failed to retrieve audit history for rotation {rotationId}, week {weekId}. Please try again or contact support if the problem persists.", ex);
@@ -179,7 +179,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return auditEntry;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException)
             {
                 _logger.LogError(ex, "Error creating audit entry for action {Action}, {MothraId} on rotation {RotationId}, week {WeekId}",
                     action, LogSanitizer.SanitizeId(mothraId), rotationId, weekId);
