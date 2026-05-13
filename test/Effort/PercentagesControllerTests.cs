@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -153,7 +154,7 @@ public sealed class PercentagesControllerTests
     public async Task GetPercentage_ReturnsNotFound_WhenPercentageDoesNotExist()
     {
         // Arrange
-        _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).Returns((PercentageDto?)null);
+        _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetPercentage(999);
@@ -398,7 +399,7 @@ public sealed class PercentagesControllerTests
         // Arrange
         var request = CreateTestUpdateRequest();
 
-        _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).Returns((PercentageDto?)null);
+        _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.UpdatePercentage(999, request);
@@ -525,7 +526,7 @@ public sealed class PercentagesControllerTests
     public async Task DeletePercentage_ReturnsNotFound_WhenPercentageDoesNotExist()
     {
         // Arrange
-        _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).Returns((PercentageDto?)null);
+        _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.DeletePercentage(999);
