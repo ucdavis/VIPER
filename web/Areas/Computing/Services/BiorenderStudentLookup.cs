@@ -95,7 +95,7 @@ namespace Viper.Areas.Computing.Services
                 var addr = new MailAddress(email);
                 return addr.Address == trimmed;
             }
-            catch
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
             {
                 return false;
             }

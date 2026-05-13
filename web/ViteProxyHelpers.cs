@@ -284,7 +284,7 @@ internal static class ViteProxyHelpers
                 {
                     context.Response.Headers[header.Key] = header.Value.ToArray();
                 }
-                catch (Exception headerEx)
+                catch (Exception headerEx) when (headerEx is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException or System.IO.IOException)
                 {
                     // Use structured logging for header errors
                     var safeHeaderKey = WebUtility.HtmlEncode(header.Key);
@@ -367,7 +367,7 @@ internal static class ViteProxyHelpers
                     return;
                 }
             }
-            catch (Exception fileEx)
+            catch (Exception fileEx) when (fileEx is Microsoft.EntityFrameworkCore.DbUpdateException or Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException or System.IO.IOException)
             {
                 var safePath = context.Request.Path.ToString().Replace("\r", "").Replace("\n", "");
                 logger.LogWarning(fileEx, "Failed to serve static file fallback for {Path}", safePath);

@@ -158,7 +158,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 AdjustBundleCompetencyOrders(bundleComp);
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Cannot delete this bundle competency.");
             }

@@ -116,7 +116,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 AdjustGroupOrders(group);
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 return BadRequest("Cannot delete group. Competencies must be removed from the group, and the group cannot have been used to document a student competency.");
             }

@@ -22,7 +22,7 @@ namespace Viper.Classes.Utilities
             {
                 response = await _httpClient.SendAsync(request);
             }
-            catch (Exception)
+            catch (Exception) when (true /* placeholder */)
             {
                 response = await HandleConnectionFail(request, attemptNumber);
             }
