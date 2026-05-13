@@ -232,7 +232,7 @@ public class VerificationService : IVerificationService
 
         // Set verification timestamp
         var verifiedDate = DateTime.Now;
-        var oldValues = new { EffortVerified = (DateTime?)null };
+        var oldValues = new { EffortVerified = default(DateTime?) };
 
         instructor.EffortVerified = verifiedDate;
 
