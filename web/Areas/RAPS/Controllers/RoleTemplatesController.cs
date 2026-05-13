@@ -186,8 +186,8 @@ namespace Viper.Areas.RAPS.Controllers
 
             return new RoleTemplateApplyPreview()
             {
-                DisplayName = user?.DisplayFullName ?? "User not found",
-                MemberId = user?.MothraId ?? "",
+                DisplayName = user.DisplayFullName ?? "User not found",
+                MemberId = user.MothraId ?? "",
                 Roles = rolesToApply
             };
         }

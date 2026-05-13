@@ -52,8 +52,8 @@ public static class AcademicYearHelper
     /// </summary>
     public static DateTime GetAcademicYearStart(DateTime date)
     {
-        var year = date.Month < 7 ? date.Year - 1 : date.Year;
-        return new DateTime(year, 7, 1, 0, 0, 0, DateTimeKind.Local);
+        var julyOfYear = new DateTime(date.Year, 7, 1, 0, 0, 0, DateTimeKind.Local);
+        return date.Month < 7 ? julyOfYear.AddYears(-1) : julyOfYear;
     }
 
     /// <summary>

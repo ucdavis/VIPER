@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using NLog;
 using NLog.Web;
@@ -542,26 +543,29 @@ void SetAwsCredentials(Logger logger)
 {
     XElement xAwsCredentials = XElement.Load(awsCredentialsFilePath, LoadOptions.None);
 
-    if (!String.IsNullOrWhiteSpace(xAwsCredentials?.Element("AccessKeyId")?.Value) && !String.IsNullOrWhiteSpace(xAwsCredentials?.Element("SecretAccessKey")?.Value))
+    var accessKey = xAwsCredentials.Element("AccessKeyId")?.Value;
+    var secretKey = xAwsCredentials.Element("SecretAccessKey")?.Value;
+    if (!String.IsNullOrWhiteSpace(accessKey) && !String.IsNullOrWhiteSpace(secretKey))
     {
         // grab the credentials ouf of the xml file to stor in the encrypted json file inthe profile
         var options = new CredentialProfileOptions
         {
-            AccessKey = xAwsCredentials?.Element("AccessKeyId")?.Value.Trim(),
-            SecretKey = xAwsCredentials?.Element("SecretAccessKey")?.Value.Trim()
+            AccessKey = accessKey.Trim(),
+            SecretKey = secretKey.Trim()
         };
 
         var profile = new CredentialProfile("default", options);
         // if a region was specified in the xml then use the specified region else default to USWest1
-        if (!string.IsNullOrWhiteSpace(xAwsCredentials?.Element("RegionEndpoint")?.Value) && xAwsCredentials?.Element("RegionEndpoint") != null)
+        var regionValue = xAwsCredentials.Element("RegionEndpoint")?.Value.Trim();
+        if (!string.IsNullOrWhiteSpace(regionValue))
         {
-#pragma warning disable CS8604 // Possible null reference argument.
-            profile.Region = typeof(Amazon.RegionEndpoint).GetField(xAwsCredentials?.Element("RegionEndpoint")?.Value)?.GetValue(null) as Amazon.RegionEndpoint;
-#pragma warning restore CS8604 // Possible null reference argument.
+            const BindingFlags regionFieldFlags = BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase;
+            profile.Region = typeof(RegionEndpoint).GetField(regionValue, regionFieldFlags)?.GetValue(null) as RegionEndpoint
+                ?? RegionEndpoint.USWest1;
         }
         else
         {
-            profile.Region = Amazon.RegionEndpoint.USWest1;
+            profile.Region = RegionEndpoint.USWest1;
         }
         var netSDKFile = new NetSDKCredentialsFile();
         netSDKFile.RegisterProfile(profile);

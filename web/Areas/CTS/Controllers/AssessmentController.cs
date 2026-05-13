@@ -297,7 +297,7 @@ namespace Viper.Areas.CTS.Controllers
                     .Include(p => p.StudentInfo)
                     .Where(p => p.PersonId == epaData.StudentId)
                     .FirstOrDefaultAsync();
-            if (student == null || student?.StudentInfo?.ClassLevel == null)
+            if (student == null || student.StudentInfo?.ClassLevel == null)
             {
                 return BadRequest("Student not found");
             }
