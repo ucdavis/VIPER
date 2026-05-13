@@ -135,15 +135,12 @@ namespace Viper.Areas.CTS.Controllers
             var assessmentsList = await assessments
                 .ToListAsync();
 
-            List<StudentAssessment> studentAssessments = new();
-            foreach (var a in assessmentsList)
+            return assessmentsList.Select(a =>
             {
                 var sa = CreateStudentAssessment(a);
                 sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy, sa.EnteredOn);
-                studentAssessments.Add(sa);
-            }
-
-            return studentAssessments;
+                return sa;
+            }).ToList();
         }
 
         [HttpGet("assessors")]

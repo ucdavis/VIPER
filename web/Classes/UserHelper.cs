@@ -96,22 +96,7 @@ namespace Viper
             if (user.LoginId == HttpHelper.HttpContext?.User?.Identity?.Name)
             {
                 var claims = HttpHelper.HttpContext?.User?.Claims;
-
-                if (claims != null)
-                {
-
-                    foreach (var claim in claims)
-                    {
-                        if (claim.Type == ClaimTypes.Role && claim.Value == roleName)
-                        {
-                            return true;
-                        }
-
-                    }
-
-                }
-
-                return false;
+                return claims?.Any(c => c.Type == ClaimTypes.Role && c.Value == roleName) == true;
             }
             else
             {
