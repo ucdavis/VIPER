@@ -20,6 +20,7 @@ namespace Viper.Classes.Scheduler
         public const string DashboardPath = "/scheduler/dashboard";
         private const string EnabledKey = "Hangfire:Enabled";
         private const string AutoScheduleKey = "Hangfire:AutoSchedule";
+        private const string DashboardAppPathKey = "Hangfire:DashboardAppPath";
 
         /// <summary>
         /// Registers Hangfire services + the background server when
@@ -106,10 +107,15 @@ namespace Viper.Classes.Scheduler
                 return app;
             }
 
+            // The dashboard's "Back to site" link uses AppPath verbatim;
+            // we have no UsePathBase middleware so the /2/ deployment prefix
+            // (TEST/PROD) must come from config.
+            var dashboardAppPath = app.Configuration.GetValue<string>(DashboardAppPathKey) ?? "/Computing";
             app.MapHangfireDashboard(DashboardPath, new DashboardOptions
             {
                 Authorization = new[] { new HangfireDashboardAuthorizationFilter() },
                 DashboardTitle = "VIPER Scheduler",
+                AppPath = dashboardAppPath,
             }).RequireAuthorization();
 
             // When AutoSchedule is off (dev), register every recurring job
