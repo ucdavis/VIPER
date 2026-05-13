@@ -150,9 +150,8 @@ namespace Viper.Areas.RAPS.Services
                     string key = auditLog?.RoleId != null
                         ? "role-" + auditLog.RoleId
                         : "permission-" + auditLog!.PermissionId;
-                    if (actionsPerformedOnObject.ContainsKey(key))
+                    if (actionsPerformedOnObject.TryGetValue(key, out var moreRecentActions))
                     {
-                        List<string> moreRecentActions = actionsPerformedOnObject[key];
                         bool undone = false;
                         switch (auditLog.Audit)
                         {
