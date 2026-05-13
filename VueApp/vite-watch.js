@@ -62,7 +62,7 @@ function startBuild() {
 let watcher = null
 try {
     // For chokidar v4, expand globs first
-    const filesToWatch = await glob("./src/**/*.{vue,ts,js,css,scss,sass}", {
+    const filesToWatch = await glob("./src/**/*.{vue,ts,js,css}", {
         ignore: ["**/node_modules/**"],
     })
 
