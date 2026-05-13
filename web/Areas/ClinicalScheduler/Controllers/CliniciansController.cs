@@ -201,7 +201,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                             fullName = $"Clinician {mothraId}",
                             firstName = "",
                             lastName = "",
-                            role = (string?)null
+                            role = default(string)
                         };
                     }
                     else
