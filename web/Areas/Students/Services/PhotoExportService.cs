@@ -891,6 +891,8 @@ namespace Viper.Areas.Students.Services
         /// Loads all student photos upfront in parallel for faster export generation.
         /// Returns a dictionary keyed by student MailId for quick lookup during rendering.
         /// </summary>
+        private sealed record PhotoLookupResult(string MailId, byte[]? PhotoBytes);
+
         private async Task<Dictionary<string, byte[]>> BatchLoadPhotosAsync(List<StudentPhoto> students)
         {
             var photoCache = new Dictionary<string, byte[]>();
@@ -903,22 +905,22 @@ namespace Viper.Areas.Students.Services
                     try
                     {
                         var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)photoBytes };
+                        return new PhotoLookupResult(s.MailId, photoBytes);
                     }
                     catch (IOException ex)
                     {
                         _logger.LogWarning(ex, "IO error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new PhotoLookupResult(s.MailId, null);
                     }
                     catch (HttpRequestException ex)
                     {
                         _logger.LogWarning(ex, "HTTP error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new PhotoLookupResult(s.MailId, null);
                     }
                     catch (InvalidOperationException ex)
                     {
                         _logger.LogWarning(ex, "Invalid operation loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new PhotoLookupResult(s.MailId, null);
                     }
                 });
 

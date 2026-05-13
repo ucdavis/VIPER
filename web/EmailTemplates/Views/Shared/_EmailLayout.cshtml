@@ -41,11 +41,14 @@
                 @* Use width attribute for Outlook, max-width for modern clients. Class for responsive override. *@
                 <table class="email-container" cellpadding="0" cellspacing="0" border="0" width="650" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #dee2e6; max-width: 650px; width: 100%;">
                     @* UC Davis Weill Header Image *@
+                    @{
+                        var baseUrl = ViewBag.BaseUrl as string;
+                    }
                     <tr>
                         <td class="email-header" style="padding: 0; line-height: 0; font-size: 0;">
-                            @if (!string.IsNullOrWhiteSpace((string?)ViewBag.BaseUrl))
+                            @if (!string.IsNullOrWhiteSpace(baseUrl))
                             {
-                                <img src="@(((string)ViewBag.BaseUrl).TrimEnd('/'))/images/email/email-header-weill.jpg"
+                                <img src="@(baseUrl.TrimEnd('/'))/images/email/email-header-weill.jpg"
                                      alt="UC Davis Weill School of Veterinary Medicine"
                                      width="650"
                                      style="display: block; width: 100%; max-width: 650px; height: auto; border: 0;" />
