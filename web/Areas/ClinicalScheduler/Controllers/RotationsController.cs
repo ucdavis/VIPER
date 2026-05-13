@@ -497,16 +497,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         {
             var weekSchedules = allSchedules
                 .Where(s => s.WeekId == week.WeekId)
-                .Select(i => new
+                .Select(i =>
                 {
-                    instructorScheduleId = i.InstructorScheduleId,
-                    firstName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayFirstName : "Unknown",
-                    lastName = personData.ContainsKey(i.MothraId) ? personData[i.MothraId].PersonDisplayLastName : "Unknown",
-                    fullName = personData.ContainsKey(i.MothraId)
-                        ? personData[i.MothraId].PersonDisplayFullName
-                        : $"Person {i.MothraId}",
-                    mothraId = i.MothraId,
-                    isPrimaryEvaluator = i.Evaluator
+                    personData.TryGetValue(i.MothraId, out var p);
+                    return new
+                    {
+                        instructorScheduleId = i.InstructorScheduleId,
+                        firstName = p?.PersonDisplayFirstName ?? "Unknown",
+                        lastName = p?.PersonDisplayLastName ?? "Unknown",
+                        fullName = p?.PersonDisplayFullName ?? $"Person {i.MothraId}",
+                        mothraId = i.MothraId,
+                        isPrimaryEvaluator = i.Evaluator
+                    };
                 })
                 .ToList();
 

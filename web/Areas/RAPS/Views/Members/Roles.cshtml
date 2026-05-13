@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Member Roles";
 }
 <h1>Roles for {{member.displayFirstName}} {{member.displayLastName}}</h1>
@@ -74,7 +74,7 @@
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
                 <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="person" title="View members of this role" aria-label="View members of this role" :href="'RoleMembers?roleId=' + props.row.roleId"></q-btn>
-                @if (ViewData.ContainsKey("canEditPermissions") && (bool)(ViewData["canEditPermissions"] ?? false))
+                @if ((bool)(ViewData["canEditPermissions"] ?? false))
                 {
                     <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="lock" title="Set permissions this role controls" aria-label="Set permissions this role controls" :href="'RolePermissions?roleId=' + props.row.roleId"></q-btn>
                 }
