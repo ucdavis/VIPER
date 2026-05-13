@@ -304,24 +304,32 @@ function runOxfmtCheck(files, fix) {
  * @param {string[]} files - Array of file paths
  * @param {boolean} fix - Whether to pass --fix
  * @param {boolean} clearCache - Whether to pass --clear-cache
- * @returns {{ scriptArgs: string[], tempFile: string | null }}
+ * @returns {{ scriptArgs: string[], cleanup: (() => void) | null }}
  */
 function buildScriptArgs(files, fix, clearCache) {
     const scriptArgs = []
-    let tempFile = null
+    let cleanup = null
 
     const totalLength = files.reduce((sum, f) => sum + f.length + 1, 0)
     if (totalLength > MAX_ARG_LENGTH) {
-        const RADIX = 36
-        const SUFFIX_LENGTH = 8
-        tempFile = path.join(
-            os.tmpdir(),
-            `lint-files-${Date.now()}-${Math.random()
-                .toString(RADIX)
-                .slice(2, 2 + SUFFIX_LENGTH)}.txt`,
-        )
-        fs.writeFileSync(tempFile, files.join("\n"), "utf8")
-        scriptArgs.push(`--files-from=${tempFile}`)
+        // Use mkdtempSync (private mode-0700 dir with cryptographic suffix) so the
+        // inner file cannot be predicted/preempted by another local process.
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lint-files-"))
+        const tempFile = path.join(tempDir, "files.txt")
+        cleanup = () => {
+            try {
+                fs.rmSync(tempDir, { recursive: true, force: true })
+            } catch {
+                /* Best-effort cleanup */
+            }
+        }
+        try {
+            fs.writeFileSync(tempFile, files.join("\n"), "utf8")
+            scriptArgs.push(`--files-from=${tempFile}`)
+        } catch (error) {
+            cleanup()
+            throw error
+        }
     } else {
         scriptArgs.push(...files)
     }
@@ -333,7 +341,7 @@ function buildScriptArgs(files, fix, clearCache) {
         scriptArgs.push("--clear-cache")
     }
 
-    return { scriptArgs, tempFile }
+    return { scriptArgs, cleanup }
 }
 
 /**
@@ -352,7 +360,7 @@ function runLinter(script, files, description, fix, clearCache) {
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
     const scriptPath = path.join(__dirname, script)
-    const { scriptArgs, tempFile } = buildScriptArgs(files, fix, clearCache)
+    const { scriptArgs, cleanup } = buildScriptArgs(files, fix, clearCache)
 
     const result = spawnSync("node", [scriptPath, ...scriptArgs], {
         stdio: "inherit",
@@ -360,13 +368,7 @@ function runLinter(script, files, description, fix, clearCache) {
         env,
     })
 
-    if (tempFile) {
-        try {
-            fs.unlinkSync(tempFile)
-        } catch {
-            /* Best-effort cleanup */
-        }
-    }
+    cleanup?.()
 
     if (result.error) {
         console.error(`❌ Failed to run ${script}:`, result.error.message)
@@ -392,7 +394,7 @@ function runLinterAsync(script, files, description, fix, clearCache) {
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
     const scriptPath = path.join(__dirname, script)
-    const { scriptArgs, tempFile } = buildScriptArgs(files, fix, clearCache)
+    const { scriptArgs, cleanup } = buildScriptArgs(files, fix, clearCache)
 
     return new Promise((resolve) => {
         const child = spawn("node", [scriptPath, ...scriptArgs], {
@@ -402,13 +404,7 @@ function runLinterAsync(script, files, description, fix, clearCache) {
         })
 
         child.on("close", (code, signal) => {
-            if (tempFile) {
-                try {
-                    fs.unlinkSync(tempFile)
-                } catch {
-                    /* Best-effort cleanup */
-                }
-            }
+            cleanup?.()
             if (signal) {
                 console.error(`❌ ${script} terminated by signal ${signal}`)
                 resolve(1)
@@ -417,13 +413,7 @@ function runLinterAsync(script, files, description, fix, clearCache) {
             resolve(code ?? 1)
         })
         child.on("error", (err) => {
-            if (tempFile) {
-                try {
-                    fs.unlinkSync(tempFile)
-                } catch {
-                    /* Best-effort cleanup */
-                }
-            }
+            cleanup?.()
             console.error(`❌ Failed to run ${script}:`, err.message)
             resolve(1)
         })
