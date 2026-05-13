@@ -41,7 +41,6 @@
         "@eslint/js": "^10.0.0",
         "concurrently": "^9.0.1",
         "cross-env": "^10.0.0",
-        "dotenv": "^17.4.2",
         "eslint": "^10.2.1",
         "eslint-plugin-html": "^8.1.4",
         "eslint-plugin-security": "^4.0.0",
@@ -52,10 +51,8 @@
         "oxlint": "^1.61.0",
         "oxlint-tsgolint": "^0.21.1",
         "postcss-html": "^1.8.0",
-        "recursive-last-modified": "^1.0.6",
         "stylelint": "^17.9.0",
         "stylelint-config-standard": "^40.0.0",
-        "tsgolint": "^0.0.1",
         "yauzl": "^3.2.0"
     },
     "volta": {

@@ -64,7 +64,6 @@
         "npm-run-all2": "^8.0.4",
         "oxfmt": "^0.46.0",
         "oxlint-tsgolint": "^0.21.1",
-        "sass": "^1.99.0",
         "tree-kill": "^1.2.2",
         "typescript": "^6.0.3",
         "vite": "^8.0.10",
