@@ -107,9 +107,9 @@ namespace Viper.Classes.Scheduler
                 return app;
             }
 
-            // The dashboard's "Back to site" link uses AppPath verbatim;
-            // we have no UsePathBase middleware so the /2/ deployment prefix
-            // (TEST/PROD) must come from config.
+            // Hangfire renders the configured AppPath as-is in the dashboard
+            // "Back to site" link. With no UsePathBase middleware, we need to
+            // supply the /2 deployment prefix from configuration ourselves.
             var dashboardAppPath = app.Configuration.GetValue<string>(DashboardAppPathKey) ?? "/Computing";
             app.MapHangfireDashboard(DashboardPath, new DashboardOptions
             {

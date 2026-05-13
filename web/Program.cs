@@ -388,6 +388,11 @@ try
 
     }
 
+    // Re-execute bare status-code responses (403, 404, etc.) through HomeController.Error
+    // so middleware that writes raw status codes — e.g. Hangfire's dashboard middleware
+    // when our auth filter denies — gets the same Razor error view as the rest of the app.
+    app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
     // In development, set up Vite proxy BEFORE rewrite rules so it can handle .ts/.js files
     if (app.Environment.IsDevelopment())
     {
