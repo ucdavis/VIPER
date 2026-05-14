@@ -6,6 +6,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Viper.Areas.CMS.Models;
+using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models;
@@ -442,14 +443,13 @@ namespace Viper.Areas.CMS.Data
         #region public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         {
-            if (fileGUIDs.Length == 0 && fileName.Length == 0)
+            if (fileGUIDs.Length == 0)
             {
-                ArgumentNullException argumentNullException = new(nameof(fileGUIDs), "Missing fileGUIDs and file name parameters");
-                throw argumentNullException;
+                return controller.BadRequest("Missing fileGUIDs parameter.");
             }
 
-            //only allow good filename characters
-            fileName = fileName.Replace(@"[^a-zA-Z0-9\.\-_ ]", "");
+            var safeDownloadName = CmsFilePathSafety.SanitizeDownloadName(fileName);
+
             List<CMSFile> files = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
 
@@ -469,45 +469,55 @@ namespace Viper.Areas.CMS.Data
                 }
             }
 
-            // create a temp Zip file and populate it with the files
-            string tempFileName = CMS.GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
-
-            using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.OpenOrCreate))
+            if (files.Count == 0)
             {
-                using ZipArchive archive = new(fs, ZipArchiveMode.Update);
-                foreach (var file in files)
-                {
-                    if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
-                    {
-                        ZipArchiveEntry fileEntry = archive.CreateEntry(file.FriendlyName);
-                        using StreamWriter writer = new(fileEntry.Open());
-                        byte[] filebytes = System.IO.File.ReadAllBytes(file.FilePath);
-                        filebytes = DecryptFile(filebytes, file.Key);
-
-                        if (filebytes != null)
-                        {
-                            writer.BaseStream.Write(filebytes, 0, filebytes.Length);
-                        }
-                    }
-                    else
-                    {
-                        archive.CreateEntryFromFile(file.FilePath, file.FriendlyName);
-                    }
-
-                }
+                return controller.NotFound();
             }
 
-            // read the temp zip file then delete it
-            byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
-            if (bytes == null)
-                return controller.NotFound();
+            string tempFileName = CmsFilePathSafety.BuildTempArchivePath(CmsFilePathSafety.GetZipTempFolder());
 
-            System.IO.File.Delete(tempFileName);
+            try
+            {
+                using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.Create))
+                using (ZipArchive archive = new(fs, ZipArchiveMode.Create))
+                {
+                    foreach (var file in files)
+                    {
+                        var entryName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
 
-            string extension = "zip";
+                        if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
+                        {
+                            ZipArchiveEntry fileEntry = archive.CreateEntry(entryName);
+                            using var entryStream = fileEntry.Open();
+                            byte[] filebytes = System.IO.File.ReadAllBytes(file.FilePath);
+                            filebytes = DecryptFile(filebytes, file.Key);
 
-            return controller.File(bytes, MimeTypes[extension.ToLower()], fileName);
+                            entryStream.Write(filebytes, 0, filebytes.Length);
+                        }
+                        else
+                        {
+                            archive.CreateEntryFromFile(file.FilePath, entryName);
+                        }
+                    }
+                }
 
+                byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
+                return controller.File(bytes, MimeTypes["zip"], safeDownloadName);
+            }
+            finally
+            {
+                // Best-effort cleanup: swallow filesystem exceptions so we don't
+                // mask an earlier exception from archive creation or the response.
+                try
+                {
+                    if (System.IO.File.Exists(tempFileName))
+                    {
+                        System.IO.File.Delete(tempFileName);
+                    }
+                }
+                catch (IOException) { /* ignored */ }
+                catch (UnauthorizedAccessException) { /* ignored */ }
+            }
         }
         #endregion
 
