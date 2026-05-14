@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
@@ -217,7 +218,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     }
 #pragma warning restore S3267
                 }
+#pragma warning disable CA1031 // Intentional broad catch: post-transaction work (email/audit notifications) must not roll back the successful database changes above.
                 catch (Exception postTransactionEx)
+#pragma warning restore CA1031
                 {
                     // Log warning but don't fail the operation - the database changes were successful
                     _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor {MothraId} in rotation {RotationId}, but database changes were successful",
@@ -239,7 +242,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Re-throw InvalidOperationException without wrapping (includes "already scheduled" messages)
                 throw;
             }
-            catch (Exception saveEx)
+            catch (Exception saveEx) when (saveEx is DbUpdateException or SqlException)
             {
                 _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
                     LogSanitizer.SanitizeId(mothraId), rotationId, string.Join(",", weekIds));
@@ -333,7 +336,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
                     }
                 }
+#pragma warning disable CA1031 // Intentional broad catch: post-transaction work (email/audit notifications) must not roll back the successful database changes above.
                 catch (Exception postTransactionEx)
+#pragma warning restore CA1031
                 {
                     // Log warning but don't fail the operation - the database changes were successful
                     _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor removal {ScheduleId}, but database changes were successful",
@@ -355,7 +360,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Re-throw InvalidOperationException without wrapping (includes "Cannot remove primary evaluator" message)
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException)
             {
                 _logger.LogError(ex, "Error removing instructor schedule {ScheduleId}", instructorScheduleId);
                 throw new InvalidOperationException("Failed to remove instructor schedule. Please try again or contact support if the problem persists.", ex);
@@ -452,7 +457,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken, null, requiresPrimaryEvaluator);
                     }
                 }
+#pragma warning disable CA1031 // Intentional broad catch: post-transaction work (email/audit notifications) must not roll back the successful database changes above.
                 catch (Exception postTransactionEx)
+#pragma warning restore CA1031
                 {
                     // Log warning but don't fail the operation - the database changes were successful
                     _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for primary evaluator update {ScheduleId}, but database changes were successful",
@@ -464,7 +471,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return (true, previousPrimaryName);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error setting primary evaluator for instructor schedule {ScheduleId} to {IsPrimary}", instructorScheduleId, isPrimary);
                 throw new InvalidOperationException("Failed to update primary evaluator status. Please try again or contact support if the problem persists.", ex);
@@ -489,7 +496,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // All instructors can now be removed, including primary evaluators
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error checking if instructor schedule {ScheduleId} can be removed", instructorScheduleId);
                 return false;
@@ -531,7 +538,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return await query.ToListAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error checking other rotation schedules for {MothraId} on weeks {WeekIds} for grad year {GradYear}",
                     LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds), LogSanitizer.SanitizeYear(gradYear));
@@ -559,7 +566,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .Where(s => s.RotationId == rotationId && weekIds.Contains(s.WeekId))
                     .ToListAsync(cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error getting scheduled instructors for rotation {RotationId} on weeks {WeekIds}", rotationId, string.Join(",", weekIds));
                 throw new InvalidOperationException("Failed to retrieve scheduled instructors. Please try again or contact support if the problem persists.", ex);
@@ -662,7 +669,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
                 {
                     _logger.LogWarning(ex, "Could not retrieve instructor name for {MothraId} in email notification", LogSanitizer.SanitizeId(schedule.MothraId));
                 }
@@ -695,7 +702,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         weekNumber = weekGradYear.WeekNum.ToString();
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
                 {
                     _logger.LogWarning(ex, "Could not retrieve week number for {WeekId} in email notification", schedule.WeekId);
                 }
@@ -720,7 +727,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                             : "";
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
                 {
                     _logger.LogWarning(ex, "Could not retrieve modifier information for {MothraId} in email notification", modifiedByMothraId);
                 }
@@ -771,9 +778,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     _logger.LogInformation("No notification recipients configured for Primary Evaluator Removal; skipped email. Rotation={RotationName}, Week={WeekNumber}", rotationName, weekNumber);
                 }
             }
+#pragma warning disable CA1031 // Intentional broad catch: email notification is secondary to the schedule removal; any failure must be logged but not propagated.
             catch (Exception ex)
+#pragma warning restore CA1031
             {
-                // Log error but don't fail the transaction - email is secondary to the schedule removal
                 _logger.LogError(ex, "Failed to send primary evaluator removal notification for {MothraId} from rotation {RotationId} week {WeekId} (rotation: {RotationName})",
                     LogSanitizer.SanitizeId(schedule.MothraId), schedule.RotationId, schedule.WeekId, schedule.Rotation?.Name ?? "Unknown");
             }
