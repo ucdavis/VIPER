@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
@@ -45,7 +46,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     rotations.Count);
                 return rotations.Select(r => r.ToDto()).ToList();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving rotations from Clinical Scheduler");
                 throw new InvalidOperationException("Failed to retrieve rotations from Clinical Scheduler database", ex);
@@ -82,7 +83,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return rotation?.ToDto();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving rotation by ID: {RotationId}", rotationId);
                 throw new InvalidOperationException($"Failed to retrieve rotation with ID {rotationId}", ex);
@@ -124,7 +125,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return rotations;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving rotations by course - CourseNumber: {CourseNumber}, SubjectCode: {SubjectCode}",
                     courseNumber, subjectCode);
@@ -154,7 +155,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Retrieved {Count} rotations for service ID: {ServiceId}", rotations.Count, serviceId);
                 return rotations.Select(r => r.ToDto()).ToList();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving rotations by service ID: {ServiceId}", serviceId);
                 throw new InvalidOperationException($"Failed to retrieve rotations for service ID {serviceId}", ex);
@@ -180,7 +181,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Retrieved {Count} services from Clinical Scheduler", services.Count);
                 return services.Select(s => s.ToDto()).ToList();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving services from Clinical Scheduler");
                 throw new InvalidOperationException("Failed to retrieve services from Clinical Scheduler database", ex);
@@ -215,7 +216,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return service?.ToDto();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving service by ID: {ServiceId}", serviceId);
                 throw new InvalidOperationException($"Failed to retrieve service with ID {serviceId}", ex);
@@ -265,7 +266,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return schedules;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving instructor schedules for rotation ID: {RotationId}", rotationId);
                 throw new InvalidOperationException($"Failed to retrieve instructor schedules for rotation ID {rotationId}", ex);
