@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using System.Runtime.Versioning;
+using Microsoft.EntityFrameworkCore;
+using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
@@ -20,12 +21,12 @@ namespace Viper.Areas.Directory.Models
         public string? DisplayMiddleName { get; set; } = string.Empty;
         public string DisplayFullName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public bool CurrentStudent { get; set; } = false;
-        public bool FutureStudent { get; set; } = false;
-        public bool CurrentEmployee { get; set; } = false;
-        public bool FutureEmployee { get; set; } = false;
-        public int? StudentTerm { get; set; } = null!;
-        public int? EmployeeTerm { get; set; } = null!;
+        public bool CurrentStudent { get; set; }
+        public bool FutureStudent { get; set; }
+        public bool CurrentEmployee { get; set; }
+        public bool FutureEmployee { get; set; }
+        public int? StudentTerm { get; set; }
+        public int? EmployeeTerm { get; set; }
         public string? PpsId { get; set; } = string.Empty;
         public string? StudentPKey { get; set; } = string.Empty;
         public string? EmployeePKey { get; set; } = string.Empty;
@@ -34,17 +35,17 @@ namespace Viper.Areas.Directory.Models
         public int Current { get; set; } = -1;
         public int Future { get; set; } = -1;
         public string? IamId { get; set; } = string.Empty;
-        public bool? Ross { get; set; } = null!;
-        public DateTime? Added { get; set; } = null!;
-        public string? Phone { get; set; } = null!;
+        public bool? Ross { get; set; }
+        public DateTime? Added { get; set; }
+        public string? Phone { get; set; }
         public string? Nextel { get; set; } = null!;
         public string? LDPager { get; set; } = null!;
-        public string? Mobile { get; set; } = null!;
-        public string? PostalAddress { get; set; } = null!;
-        public string? UCDAffiliation { get; set; } = null!;
-        public string? UserName { get; set; } = null!;
-        public bool? SVM { get; set; } = null!;
-        public string? originalObject { get; set; } = null!;
+        public string? Mobile { get; set; }
+        public string? PostalAddress { get; set; }
+        public string? UCDAffiliation { get; set; }
+        public string? UserName { get; set; }
+        public bool? SVM { get; set; }
+        public string? originalObject { get; set; }
 
         public IndividualSearchResult() { }
 
@@ -119,7 +120,7 @@ namespace Viper.Areas.Directory.Models
         /// Must be called after construction with an injected AAUDContext.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public void LookupEmailHost(Classes.SQLContext.AAUDContext context)
+        public void LookupEmailHost(AAUDContext context)
         {
             if (MailId != null)
             {

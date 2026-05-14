@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class VfNotification
+public class VfNotification
 {
     /// <summary>
     /// ID

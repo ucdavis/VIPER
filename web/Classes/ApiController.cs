@@ -24,8 +24,8 @@ namespace Viper.Classes
                 sortOrder = sortOrder[..^4].Trim();
             }
             return sortDescending
-                ? query.OrderByDescending(q => !object.Equals(q, default(T)) ? EF.Property<object>(q!, sortOrder) : null)
-                : query.OrderBy(q => !object.Equals(q, default(T)) ? EF.Property<object>(q!, sortOrder) : null);
+                ? query.OrderByDescending(q => !Equals(q, default(T)) ? EF.Property<object>(q!, sortOrder) : null)
+                : query.OrderBy(q => !Equals(q, default(T)) ? EF.Property<object>(q!, sortOrder) : null);
         }
 
         public static IOrderedQueryable<T> Sort<T>(IQueryable<T> query, string sortColumn, bool descending)
@@ -33,8 +33,8 @@ namespace Viper.Classes
             TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
             sortColumn = textInfo.ToTitleCase(sortColumn);
             return descending
-                ? query.OrderByDescending(q => !object.Equals(q, default(T)) ? EF.Property<object>(q!, sortColumn) : null)
-                : query.OrderBy(q => !object.Equals(q, default(T)) ? EF.Property<object>(q!, sortColumn) : null);
+                ? query.OrderByDescending(q => !Equals(q, default(T)) ? EF.Property<object>(q!, sortColumn) : null)
+                : query.OrderBy(q => !Equals(q, default(T)) ? EF.Property<object>(q!, sortColumn) : null);
         }
 
         public static IQueryable<T> GetPage<T>(IQueryable<T> query, ApiPagination? pagination)

@@ -1,6 +1,13 @@
+using System.Net;
+using System.Reflection;
+using System.Security.Claims;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Amazon;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime.CredentialManagement;
+using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -11,22 +18,26 @@ using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
-using System.Text.Json.Serialization;
+using Microsoft.Extensions.Options;
 using NLog;
 using NLog.Web;
 using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
 using QuestPDF.Infrastructure;
-using System.Net;
-using System.Security.Claims;
-using System.Xml.Linq;
+using Scrutor;
 using Viper;
+using Viper.Areas.Effort;
+using Viper.Areas.Effort.Data;
+using Viper.Areas.Effort.Services.Harvest;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.SQLContext;
+using Viper.EmailTemplates.Services;
+using Viper.Services;
 using Web;
 using Web.Authorization;
+using LoadOptions = System.Xml.Linq.LoadOptions;
 
 // Load .env.local for local development only (multiple-instance support)
 // Avoid loading in production - guard by ASPNETCORE_ENVIRONMENT.
@@ -35,7 +46,7 @@ var aspNetEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
     && File.Exists(envPath))
 {
-    DotNetEnv.Env.Load(envPath);
+    Env.Load(envPath);
 }
 
 // Centralized SPA application names to avoid duplication
@@ -49,7 +60,7 @@ string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredenti
 QuestPDF.Settings.License = LicenseType.Community;
 
 // Early init of NLog to allow startup and exception logging, before host is built
-var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
 try
 {
@@ -118,7 +129,7 @@ try
     builder.Services.AddControllersWithViews(options =>
         {
             // Add global CSRF validation filter for POST/PUT/PATCH/DELETE requests
-            options.Filters.Add<Viper.Classes.CustomAntiforgeryFilter>();
+            options.Filters.Add<CustomAntiforgeryFilter>();
         })
         .AddSessionStateTempDataProvider()
         .AddJsonOptions(options =>
@@ -167,7 +178,7 @@ try
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("SVMUser", policy => policy.RequireClaim(ClaimTypes.AuthenticationMethod, "CAS"));
-        options.AddPolicy("2faAuthentication", policy => policy.RequireAuthenticatedUser().AddRequirements(new Web.Authorization.DuoAuthenticationRequirement()));
+        options.AddPolicy("2faAuthentication", policy => policy.RequireAuthenticatedUser().AddRequirements(new DuoAuthenticationRequirement()));
 
         options.DefaultPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
@@ -222,7 +233,7 @@ try
         {
             // Match our SQL Server 2016 compat level (130) so EF Core 10 generates optimal SQL for our DB version
             options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
-            if (enableDetailedErrors) options.EnableDetailedErrors(true);
+            if (enableDetailedErrors) options.EnableDetailedErrors();
         });
     }
 
@@ -235,21 +246,21 @@ try
     RegisterDbContext<ClinicalSchedulerContext>("ClinicalScheduler");
     RegisterDbContext<SISContext>("SIS");
     // Effort tables are in the VIPER database's [effort] schema.
-    RegisterDbContext<Viper.Areas.Effort.EffortDbContext>("VIPER");
-    RegisterDbContext<Viper.Areas.Effort.Data.EvalHarvestDbContext>("EvalHarvest");
+    RegisterDbContext<EffortDbContext>("VIPER");
+    RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
 
     // Register UserHelper service (must be before Scrutor to take precedence)
-    builder.Services.AddScoped<Viper.IUserHelper, Viper.UserHelper>();
+    builder.Services.AddScoped<IUserHelper, UserHelper>();
 
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
-    builder.Services.AddSingleton<Viper.Services.IHtmlSanitizerService, Viper.Services.HtmlSanitizerService>();
+    builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
-    builder.Services.Configure<Viper.Areas.Effort.EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
+    builder.Services.Configure<EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
 
     // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
     if (builder.Environment.IsDevelopment())
     {
-        builder.Services.PostConfigure<Viper.Services.EmailSettings>(settings =>
+        builder.Services.PostConfigure<EmailSettings>(settings =>
         {
             if (string.IsNullOrWhiteSpace(settings.BaseUrl))
             {
@@ -263,9 +274,9 @@ try
     }
 
     // Harvest phases (order matters for DI resolution, but phases self-order via Order property)
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.CrestHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.NonCrestHarvestPhase>();
-    builder.Services.AddScoped<Viper.Areas.Effort.Services.Harvest.IHarvestPhase, Viper.Areas.Effort.Services.Harvest.ClinicalHarvestPhase>();
+    builder.Services.AddScoped<IHarvestPhase, CrestHarvestPhase>();
+    builder.Services.AddScoped<IHarvestPhase, NonCrestHarvestPhase>();
+    builder.Services.AddScoped<IHarvestPhase, ClinicalHarvestPhase>();
 
 
     // Scrutor: auto-register services and validators by convention
@@ -280,7 +291,7 @@ try
                 "Viper.Areas.Effort.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
-        .UsingRegistrationStrategy(Scrutor.RegistrationStrategy.Skip)
+        .UsingRegistrationStrategy(RegistrationStrategy.Skip)
         .AsMatchingInterface()
         .AsSelf()
         .WithScopedLifetime());
@@ -298,14 +309,14 @@ try
     builder.Services.AddDataProtection();
 
     // Add email services
-    builder.Services.Configure<Viper.Services.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-    builder.Services.Configure<Viper.Services.EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));
-    builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<Viper.Services.EmailNotificationSettings>, Viper.Services.EmailNotificationSettingsValidator>();
-    builder.Services.AddTransient<Viper.Services.IEmailService, Viper.Services.EmailService>();
+    builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+    builder.Services.Configure<EmailNotificationSettings>(builder.Configuration.GetSection("EmailNotifications"));
+    builder.Services.AddSingleton<IValidateOptions<EmailNotificationSettings>, EmailNotificationSettingsValidator>();
+    builder.Services.AddTransient<IEmailService, EmailService>();
 
     // Add Razor email template rendering (must be after other DI registrations)
     builder.Services.AddRazorTemplating();
-    builder.Services.AddScoped<Viper.EmailTemplates.Services.IEmailTemplateRenderer, Viper.EmailTemplates.Services.EmailTemplateRenderer>();
+    builder.Services.AddScoped<IEmailTemplateRenderer, EmailTemplateRenderer>();
 
     // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
@@ -317,7 +328,7 @@ try
         {
             client.Timeout = TimeSpan.FromSeconds(30);
         })
-        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
 #pragma warning disable S4830 // Disable SSL validation for development to allow self-signed certificates
             ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
@@ -459,8 +470,8 @@ try
     foreach (var appName in VueAppNames)
     {
         var lowerAppName = appName.ToLower();
-        var escapedLowerAppName = System.Text.RegularExpressions.Regex.Escape(lowerAppName);
-        var escapedAppName = System.Text.RegularExpressions.Regex.Escape(appName);
+        var escapedLowerAppName = Regex.Escape(lowerAppName);
+        var escapedAppName = Regex.Escape(appName);
 
         // Redirect lowercase to proper case
         rewriteOptions.AddRedirect($@"^{escapedLowerAppName}(/.*)?$", $"{appName}$1", 301);
@@ -532,36 +543,35 @@ catch (Exception exception)
 finally
 {
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
-    NLog.LogManager.Shutdown();
+    LogManager.Shutdown();
 }
 
-/// <summary>
-/// Try and parse the AWS credentials XML file and store it in the encrypted JSON
-/// </summary>
+// Try and parse the AWS credentials XML file and store it in the encrypted JSON
 void SetAwsCredentials(Logger logger)
 {
     XElement xAwsCredentials = XElement.Load(awsCredentialsFilePath, LoadOptions.None);
 
-    if (!String.IsNullOrWhiteSpace(xAwsCredentials?.Element("AccessKeyId")?.Value) && !String.IsNullOrWhiteSpace(xAwsCredentials?.Element("SecretAccessKey")?.Value))
+    if (!string.IsNullOrWhiteSpace(xAwsCredentials.Element("AccessKeyId")?.Value) && !string.IsNullOrWhiteSpace(xAwsCredentials.Element("SecretAccessKey")?.Value))
     {
         // grab the credentials ouf of the xml file to stor in the encrypted json file inthe profile
         var options = new CredentialProfileOptions
         {
-            AccessKey = xAwsCredentials?.Element("AccessKeyId")?.Value.Trim(),
-            SecretKey = xAwsCredentials?.Element("SecretAccessKey")?.Value.Trim()
+            AccessKey = xAwsCredentials.Element("AccessKeyId")?.Value.Trim(),
+            SecretKey = xAwsCredentials.Element("SecretAccessKey")?.Value.Trim()
         };
 
         var profile = new CredentialProfile("default", options);
         // if a region was specified in the xml then use the specified region else default to USWest1
-        if (!string.IsNullOrWhiteSpace(xAwsCredentials?.Element("RegionEndpoint")?.Value) && xAwsCredentials?.Element("RegionEndpoint") != null)
+        var regionValue = xAwsCredentials.Element("RegionEndpoint")?.Value.Trim();
+        if (!string.IsNullOrWhiteSpace(regionValue))
         {
-#pragma warning disable CS8604 // Possible null reference argument.
-            profile.Region = typeof(Amazon.RegionEndpoint).GetField(xAwsCredentials?.Element("RegionEndpoint")?.Value)?.GetValue(null) as Amazon.RegionEndpoint;
-#pragma warning restore CS8604 // Possible null reference argument.
+            const BindingFlags regionFieldFlags = BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase;
+            profile.Region = typeof(RegionEndpoint).GetField(regionValue, regionFieldFlags)?.GetValue(null) as RegionEndpoint
+                ?? RegionEndpoint.USWest1;
         }
         else
         {
-            profile.Region = Amazon.RegionEndpoint.USWest1;
+            profile.Region = RegionEndpoint.USWest1;
         }
         var netSDKFile = new NetSDKCredentialsFile();
         netSDKFile.RegisterProfile(profile);

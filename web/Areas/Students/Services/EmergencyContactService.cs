@@ -6,6 +6,7 @@ using Viper.Areas.Students.Models.Entities;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
+using Viper.Models.RAPS;
 
 namespace Viper.Areas.Students.Services;
 
@@ -316,7 +317,7 @@ public class EmergencyContactService : IEmergencyContactService
 
         if (rolePermission == null)
         {
-            rolePermission = new Viper.Models.RAPS.TblRolePermission
+            rolePermission = new TblRolePermission
             {
                 RoleId = roleId,
                 PermissionId = permissionId,
@@ -376,24 +377,22 @@ public class EmergencyContactService : IEmergencyContactService
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
             return false;
         }
-        else
+
+        // Add individual grant
+        var memberPermission = new TblMemberPermission
         {
-            // Add individual grant
-            var memberPermission = new Viper.Models.RAPS.TblMemberPermission
-            {
-                MemberId = user.MothraId,
-                PermissionId = permissionId,
-                Access = 1,
-                AddDate = DateTime.Now,
-                ModTime = DateTime.Now,
-                ModBy = currentLoginId
-            };
-            _rapsContext.TblMemberPermissions.Add(memberPermission);
-            _rapsAuditService.AuditPermissionMemberChange(memberPermission, RAPSAuditService.AuditActionType.Create);
-            await _rapsContext.SaveChangesAsync();
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
-            return true;
-        }
+            MemberId = user.MothraId,
+            PermissionId = permissionId,
+            Access = 1,
+            AddDate = DateTime.Now,
+            ModTime = DateTime.Now,
+            ModBy = currentLoginId
+        };
+        _rapsContext.TblMemberPermissions.Add(memberPermission);
+        _rapsAuditService.AuditPermissionMemberChange(memberPermission, RAPSAuditService.AuditActionType.Create);
+        await _rapsContext.SaveChangesAsync();
+        _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
+        return true;
     }
 
     public async Task<bool> CanEditAsync(int personId, string? currentLoginId)

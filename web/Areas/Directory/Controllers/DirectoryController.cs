@@ -1,14 +1,14 @@
+using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Models.AAUD;
-using Web.Authorization;
+using Viper.Areas.Directory.Models;
+using Viper.Areas.Directory.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Areas.Directory.Models;
-using System.Runtime.Versioning;
-using Viper.Areas.Directory.Services;
 using Viper.Classes.Utilities;
+using Viper.Models.AAUD;
+using Web.Authorization;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -17,7 +17,7 @@ namespace Viper.Areas.Directory.Controllers
     [Authorize(Roles = "VMDO SVM-IT")] //locking directory for now until it's complete
     public class DirectoryController : AreaController
     {
-        public Classes.SQLContext.AAUDContext _aaud { get; private set; }
+        public AAUDContext _aaud { get; private set; }
         private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper { get; private set; }
 
@@ -43,9 +43,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
-            var nav = new List<NavMenuItem>
-            {
-            };
+            var nav = new List<NavMenuItem>();
             return await Task.Run(() => nav);
         }
 
@@ -54,7 +52,6 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory list
         /// </summary>
         /// <param name="search">search string</param>
-        /// <returns></returns>
         [SupportedOSPlatform("windows")]
         [Route("/[area]/search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
@@ -99,7 +96,6 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory list
         /// </summary>
         /// <param name="search">search string</param>
-        /// <returns></returns>
         [SupportedOSPlatform("windows")]
         [Route("/[area]/search/{search}/ucd")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
@@ -145,7 +141,6 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory results
         /// </summary>
         /// <param name="uid">User ID</param>
-        /// <returns></returns>
         [Route("/[area]/userInfo/{mothraID}")]
         public async Task<IActionResult> DirectoryResult(string mothraID)
         {

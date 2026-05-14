@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -139,10 +140,11 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         var connectionString = _context.Database.GetConnectionString()
             ?? throw new InvalidOperationException("Database connection string not configured");
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand { Connection = connection };
+        await using var command = new SqlCommand();
+        command.Connection = connection;
         var paramNames = new List<string>(clinicalJobCodes.Count);
         for (var i = 0; i < clinicalJobCodes.Count; i++)
         {
@@ -328,7 +330,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
                             var termLabel = report.AcademicYear != null
                                 ? $"Academic Year {report.TermName}"
                                 : report.TermName;
-                            row.RelativeItem(1).AlignRight().Text(termLabel).SemiBold().FontSize(12);
+                            row.RelativeItem().AlignRight().Text(termLabel).SemiBold().FontSize(12);
                         });
                 });
 

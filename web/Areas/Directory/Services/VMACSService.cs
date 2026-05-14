@@ -1,7 +1,7 @@
-using Viper.Areas.Directory.Models;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using Viper.Areas.Directory.Models;
 
 namespace Viper.Areas.Directory.Services
 {

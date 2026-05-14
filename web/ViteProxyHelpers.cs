@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace Web;
 
@@ -29,7 +30,7 @@ namespace Web;
 /// </list>
 /// </para>
 /// </remarks>
-internal static partial class ViteProxyHelpers
+internal static class ViteProxyHelpers
 {
     // Base path for Vite assets - make configurable for maintainability
     private const string ViteAssetsBasePath = "/2/vue/assets/";
@@ -60,7 +61,12 @@ internal static partial class ViteProxyHelpers
         if (_vueAppRouteRegex != null) return;
         lock (_regexInitLock)
         {
+            // Double-checked locking: another thread may have initialised the
+            // regex between the outer guard and acquiring the lock. CA1508's
+            // dataflow analysis doesn't model thread interleaving.
+#pragma warning disable CA1508
             if (_vueAppRouteRegex == null)
+#pragma warning restore CA1508
             {
                 // Escape app names to avoid regex injection and build a safe alternation list.
                 var escaped = vueAppNames.Select(Regex.Escape);
@@ -300,7 +306,7 @@ internal static partial class ViteProxyHelpers
         // Log the proxy failure with structured logging
         var targetUrl = BuildViteUrl(context.Request.Path, context.Request.QueryString, vueAppNames);
         var safeMethod = WebUtility.HtmlEncode(context.Request.Method);
-        var safeRequestPath = WebUtility.HtmlEncode((context.Request.Path + context.Request.QueryString).ToString());
+        var safeRequestPath = WebUtility.HtmlEncode((context.Request.Path + context.Request.QueryString));
         var safeTargetUrl = WebUtility.HtmlEncode(targetUrl);
         logger.LogWarning(ex, "Vite proxy failed for {Method} {RequestPath} -> {TargetUrl}",
             safeMethod,
@@ -378,7 +384,7 @@ internal static partial class ViteProxyHelpers
     /// </summary>
     public static string GetContentType(string extension)
     {
-        var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+        var provider = new FileExtensionContentTypeProvider();
         if (provider.TryGetContentType("file" + extension, out var contentType))
         {
             return contentType;

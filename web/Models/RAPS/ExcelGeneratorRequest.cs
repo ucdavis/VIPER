@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class ExcelGeneratorRequest
+public class ExcelGeneratorRequest
 {
     public int RequestId { get; set; }
 

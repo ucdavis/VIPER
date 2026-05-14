@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwMailIdsForStudent
+public class VwMailIdsForStudent
 {
     public string? IdsMailid { get; set; }
 

@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
@@ -101,7 +101,7 @@ namespace Viper.test.ClinicalScheduler
         {
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == mothraId))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = mothraId,
                     PersonDisplayFullName = $"{lastName}, {firstName}",
@@ -168,7 +168,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create primary evaluator and another instructor (so removal is allowed)
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -237,19 +237,19 @@ namespace Viper.test.ClinicalScheduler
             // Add Person entity for the instructor
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "test123"))
             {
-                await _context.Persons.AddAsync(new Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "test123",
                     PersonDisplayFullName = "Test Instructor",
                     PersonDisplayFirstName = "Test",
                     PersonDisplayLastName = "Instructor",
                     IdsMailId = "testinstructor@ucdavis.edu"
-                });
+                }, TestContext.Current.CancellationToken);
             }
 
             await _context.SaveChangesAsync();
 
-            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", rotationId, weekId, false); // Not primary
+            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", rotationId, weekId); // Not primary
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -272,7 +272,7 @@ namespace Viper.test.ClinicalScheduler
                 .Include(s => s.Rotation)
                 .Include(s => s.Person)
                 .FirstOrDefaultAsync(s => s.InstructorScheduleId == savedSchedule.InstructorScheduleId);
-            System.Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
+            Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
 
             // Act
             (bool success, bool wasPrimaryEvaluator, string? instructorName) result = (false, false, null);
@@ -284,17 +284,17 @@ namespace Viper.test.ClinicalScheduler
             catch (Exception ex)
             {
                 caughtException = ex;
-                System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
             }
 
             // Debug: Check if schedule exists after calling service
             var scheduleExistsAfterCall = await _context.InstructorSchedules
                 .AnyAsync(s => s.InstructorScheduleId == savedSchedule.InstructorScheduleId);
-            System.Console.WriteLine($"Schedule exists after call: {scheduleExistsAfterCall}, ID: {savedSchedule.InstructorScheduleId}");
-            System.Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
+            Console.WriteLine($"Schedule exists after call: {scheduleExistsAfterCall}, ID: {savedSchedule.InstructorScheduleId}");
+            Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
             if (caughtException != null)
             {
-                System.Console.WriteLine($"Exception: {caughtException}");
+                Console.WriteLine($"Exception: {caughtException}");
             }
 
             // Assert
@@ -323,12 +323,12 @@ namespace Viper.test.ClinicalScheduler
             var weekId = 10; // Use unique week ID to avoid conflict
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
-            await AddTestWeekGradYearAsync(weekId, 2025);
+            await AddTestWeekGradYearAsync(weekId);
             await AddTestRotationAsync(rotationId);
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -402,20 +402,20 @@ namespace Viper.test.ClinicalScheduler
             // Also add minimal Person for mothraId to allow Include query to work, but with minimal data to test graceful handling
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "other456"))
             {
-                await _context.Persons.AddAsync(new Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "other456",
                     PersonDisplayFullName = "Other Person",
                     PersonDisplayFirstName = "Other",
                     PersonDisplayLastName = "Person",
                     IdsMailId = "other@ucdavis.edu"
-                });
+                }, TestContext.Current.CancellationToken);
             }
 
             // Add minimal Person for unknown123 to allow Include query to work
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == mothraId))
             {
-                await _context.Persons.AddAsync(new Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = mothraId,
                     // Deliberately use empty strings to test graceful handling of missing name data
@@ -423,13 +423,13 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFirstName = "",
                     PersonDisplayLastName = "",
                     IdsMailId = null
-                });
+                }, TestContext.Current.CancellationToken);
             }
 
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -454,7 +454,7 @@ namespace Viper.test.ClinicalScheduler
                 .Include(s => s.Rotation)
                 .Include(s => s.Person)
                 .FirstOrDefaultAsync(s => s.InstructorScheduleId == savedPrimarySchedule.InstructorScheduleId);
-            System.Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
+            Console.WriteLine($"Debug schedule found: {debugSchedule != null}, Rotation: {debugSchedule?.Rotation?.Name}, Person: {debugSchedule?.Person?.PersonDisplayFullName}");
 
             // Act
             (bool success, bool wasPrimaryEvaluator, string? instructorName) result = (false, false, null);
@@ -466,13 +466,13 @@ namespace Viper.test.ClinicalScheduler
             catch (Exception ex)
             {
                 caughtException = ex;
-                System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
             }
 
-            System.Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
+            Console.WriteLine($"Result: success={result.success}, wasPrimary={result.wasPrimaryEvaluator}, name={result.instructorName}");
             if (caughtException != null)
             {
-                System.Console.WriteLine($"Exception: {caughtException}");
+                Console.WriteLine($"Exception: {caughtException}");
             }
 
             // Assert
@@ -506,7 +506,7 @@ namespace Viper.test.ClinicalScheduler
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -575,12 +575,12 @@ namespace Viper.test.ClinicalScheduler
                 _mockEmailTemplateRenderer);
 
             await AddTestPersonAsync(mothraId, "John", "Doe");
-            await AddTestWeekGradYearAsync(weekId, 2025);
+            await AddTestWeekGradYearAsync(weekId);
             await AddTestRotationAsync(rotationId, "Oncology", "ONC");
             await _context.SaveChangesAsync();
 
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -653,13 +653,13 @@ namespace Viper.test.ClinicalScheduler
             // Add the current user person - need to manually set the display name to match expected output
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "currentuser"))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "currentuser",
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
                     PersonDisplayLastName = "User",
                     PersonDisplayFirstName = "Current"
-                });
+                }, TestContext.Current.CancellationToken);
             }
             await AddTestWeekGradYearAsync(weekId, 2025, weekNum);
             await AddTestRotationAsync(rotationId, "Cardiology Rotation", "CARD");
@@ -667,7 +667,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create existing primary evaluator and new instructor
             var oldPrimarySchedule = TestDataBuilder.CreateInstructorSchedule(oldPrimaryMothraId, rotationId, weekId, true);
-            var newInstructorSchedule = TestDataBuilder.CreateInstructorSchedule(newPrimaryMothraId, rotationId, weekId, false);
+            var newInstructorSchedule = TestDataBuilder.CreateInstructorSchedule(newPrimaryMothraId, rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(oldPrimarySchedule, newInstructorSchedule);
             await _context.SaveChangesAsync();
@@ -722,13 +722,13 @@ namespace Viper.test.ClinicalScheduler
             // Add the current user person - need to manually set the display name to match expected output
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "currentuser"))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "currentuser",
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
                     PersonDisplayLastName = "User",
                     PersonDisplayFirstName = "Current"
-                });
+                }, TestContext.Current.CancellationToken);
             }
             await AddTestWeekGradYearAsync(weekIds[0], testYear, weekNum);
             await AddTestRotationAsync(rotationId, "Surgery Rotation", "SURG");
@@ -789,13 +789,13 @@ namespace Viper.test.ClinicalScheduler
             // Add the current user person - need to manually set the display name to match expected output
             if (!await _context.Persons.AnyAsync(p => p.IdsMothraId == "currentuser"))
             {
-                await _context.Persons.AddAsync(new Viper.Models.ClinicalScheduler.Person
+                await _context.Persons.AddAsync(new Person
                 {
                     IdsMothraId = "currentuser",
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
                     PersonDisplayLastName = "User",
                     PersonDisplayFirstName = "Current"
-                });
+                }, TestContext.Current.CancellationToken);
             }
             await AddTestWeekGradYearAsync(weekId, 2025, weekNum);
             await AddTestRotationAsync(rotationId, "Neurology Rotation", "NEURO");
@@ -803,7 +803,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create primary evaluator and another instructor (so unsetting is allowed)
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule(primaryMothraId, rotationId, weekId, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other789", rotationId, weekId, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other789", rotationId, weekId);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();

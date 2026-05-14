@@ -29,7 +29,7 @@ namespace Viper.Areas.CTS.Models
             if (encounter.Service != null)
             {
                 ServiceId = encounter.ServiceId;
-                ServiceName = encounter.Service?.ServiceName;
+                ServiceName = encounter.Service.ServiceName;
             }
         }
     }

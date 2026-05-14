@@ -1,5 +1,5 @@
-using Viper.Models.ClinicalScheduler;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.Areas.ClinicalScheduler.Extensions
 {

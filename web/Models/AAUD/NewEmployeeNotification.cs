@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class NewEmployeeNotification
+public class NewEmployeeNotification
 {
     public int NotificationId { get; set; }
 

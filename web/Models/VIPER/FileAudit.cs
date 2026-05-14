@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FileAudit
+public class FileAudit
 {
     public int AuditId { get; set; }
 

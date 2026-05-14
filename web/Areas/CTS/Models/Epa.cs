@@ -23,7 +23,7 @@ namespace Viper.Areas.CTS.Models
             Active = dbEpa.Active;
             foreach (var s in dbEpa.Services)
             {
-                Services.Add(new EpaService()
+                Services.Add(new EpaService
                 {
                     ServiceId = s.ServiceId,
                     ServiceName = s.ServiceName,

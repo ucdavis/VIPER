@@ -1,4 +1,5 @@
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
@@ -74,7 +75,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <returns>Normalized semester name</returns>
         protected static string GetNormalizedSemesterName(int termCode)
         {
-            var semesterName = Areas.Curriculum.Services.TermCodeService.GetTermCodeDescription(termCode);
+            var semesterName = TermCodeService.GetTermCodeDescription(termCode);
             return semesterName.StartsWith("Unknown Term") ? "Unknown Semester" : semesterName;
         }
 

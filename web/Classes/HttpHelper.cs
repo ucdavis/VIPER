@@ -20,7 +20,6 @@ namespace Viper
         /// <summary>
         /// Helper functions constructor (gets injected with the memeory cache object)
         /// </summary>
-        /// <param name="memoryCache"></param>
         public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? httpContextAccessor, IAuthorizationService? authorizationService, IDataProtectionProvider? dataProtectionProvider)
         {
             Cache = memoryCache;
@@ -52,10 +51,8 @@ namespace Viper
                 {
                     return httpContextAccessor.HttpContext;
                 }
-                else
-                {
-                    return null;
-                }
+
+                return null;
             }
         }
 
@@ -93,7 +90,7 @@ namespace Viper
                 Uri url = new(thisRequest.GetDisplayUrl());
                 rootURL = url.GetLeftPart(UriPartial.Authority);
 
-                if (url.AbsolutePath.ToString().StartsWith("/2/") && rootURL != null)
+                if (url.AbsolutePath.StartsWith("/2/"))
                 {
                     rootURL += "/2";
                 }
@@ -165,8 +162,7 @@ namespace Viper
         /// </summary>
         /// <typeparam name="T">Type of setting to be returned, e.g. string</typeparam>
         /// <param name="section">Section for Settings.GetSection()</param>
-        /// <param name="setting">Setting for section.GetValue<T>()</param>
-        /// <returns></returns>
+        /// <param name="setting">Setting for section.GetValue&lt;T&gt;()</param>
         public static T? GetSetting<T>(string section, string setting)
         {
             return Settings == null

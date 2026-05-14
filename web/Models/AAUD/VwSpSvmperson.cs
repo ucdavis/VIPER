@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwSpSvmperson
+public class VwSpSvmperson
 {
     public string PersonPKey { get; set; } = null!;
 

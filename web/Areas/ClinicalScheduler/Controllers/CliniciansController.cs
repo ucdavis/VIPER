@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Classes.SQLContext;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.Curriculum.Services;
+using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.ClinicalScheduler;
 using Web.Authorization;
-using Viper.Classes.Utilities;
 
 namespace Viper.Areas.ClinicalScheduler.Controllers
 {
@@ -372,7 +372,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         RotationName = r.Name,
                         r.Abbreviation,
                         r.ServiceId,
-                        ServiceName = r.Service!.ServiceName
+                        r.Service.ServiceName
                     })
                     .OrderBy(r => r.ServiceName)
                     .ThenBy(r => r.RotationName)
@@ -408,28 +408,26 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
                 return allAffiliates;
             }
-            else
-            {
-                // When includeAllAffiliates is false, get only scheduled clinicians
-                // but filter out those without proper names
-                var gradYearsBack = ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
 
-                var scheduledClinicians = await _personService.GetCliniciansByGradYearRangeAsync(
-                    currentGradYear - gradYearsBack,
-                    currentGradYear,
-                    cancellationToken: HttpContext.RequestAborted);
+            // When includeAllAffiliates is false, get only scheduled clinicians
+            // but filter out those without proper names
+            var gradYearsBack = ACTIVE_CLINICIANS_GRAD_YEARS_BACK;
 
-                // Filter out clinicians without proper names (those showing as "Clinician {MothraId}")
-                var cliniciansWithNames = scheduledClinicians
-                    .Where(c => !string.IsNullOrEmpty(c.FullName) &&
-                               !c.FullName.StartsWith("Clinician ", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+            var scheduledClinicians = await _personService.GetCliniciansByGradYearRangeAsync(
+                currentGradYear - gradYearsBack,
+                currentGradYear,
+                cancellationToken: HttpContext.RequestAborted);
 
-                _logger.LogDebug("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
-                    scheduledClinicians.Count, cliniciansWithNames.Count);
+            // Filter out clinicians without proper names (those showing as "Clinician {MothraId}")
+            var cliniciansWithNames = scheduledClinicians
+                .Where(c => !string.IsNullOrEmpty(c.FullName) &&
+                            !c.FullName.StartsWith("Clinician ", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-                return cliniciansWithNames;
-            }
+            _logger.LogDebug("Filtered {Original} scheduled clinicians to {Filtered} with proper names",
+                scheduledClinicians.Count, cliniciansWithNames.Count);
+
+            return cliniciansWithNames;
         }
 
         /// <summary>
@@ -461,7 +459,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="rotationIds">List of rotation IDs to load</param>
         /// <returns>Dictionary mapping rotation ID to rotation entity</returns>
-        private async Task<Dictionary<int, Viper.Models.ClinicalScheduler.Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
+        private async Task<Dictionary<int, Rotation>> LoadRotationsByIdsAsync(List<int> rotationIds)
         {
             return await _context.Rotations
                 .AsNoTracking()
@@ -531,10 +529,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Filter clinicians based on user permissions.
         /// Users with EditOwnSchedule permission should only see themselves.
         /// </summary>
-        /// <param name="clinicians">List of all available clinicians</param>
+        /// <param name="cliniciansSource">List of all available clinicians</param>
+        /// <param name="viewContext">Optional view context label used for log messages</param>
         /// <returns>Filtered list of clinicians based on user permissions</returns>
-        private IEnumerable<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> clinicians, string? viewContext = null)
+        private List<ClinicianSummary> FilterCliniciansByPermissions(IEnumerable<ClinicianSummary> cliniciansSource, string? viewContext = null)
         {
+            var clinicians = cliniciansSource.ToList();
             try
             {
                 var currentUser = _userHelper.GetCurrentUser();
@@ -567,7 +567,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     var filteredClinicians = clinicians.Where(c => c.MothraId == currentUser.MothraId).ToList();
 
                     _logger.LogDebug("Filtered {Original} clinicians to {Filtered} for own-schedule user in clinician view",
-                        clinicians.Count(), filteredClinicians.Count);
+                        clinicians.Count, filteredClinicians.Count);
 
                     return filteredClinicians;
                 }

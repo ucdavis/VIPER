@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -81,7 +80,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Level must belong to a type.");
             }
 
-            var l = new Level()
+            var l = new Level
             {
                 LevelName = level.LevelName,
                 Description = level.Description,

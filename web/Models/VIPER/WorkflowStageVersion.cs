@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class WorkflowStageVersion
+public class WorkflowStageVersion
 {
     public int WorkflowStageVersionId { get; set; }
 

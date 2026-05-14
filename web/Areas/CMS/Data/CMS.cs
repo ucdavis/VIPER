@@ -1,17 +1,17 @@
-using Microsoft.AspNetCore.Http.Extensions;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
-using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
 using Viper.Services;
+using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -72,14 +72,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks and filter based on permissions
         /// </summary>
-        /// <param name="contentBlockID"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="system"></param>
-        /// <param name="viperSectionPath"></param>
-        /// <param name="page"></param>
-        /// <param name="blockOrder"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <param name="status"></param>
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocksAllowed(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
         {
@@ -118,8 +110,8 @@ namespace Viper.Areas.CMS.Data
                 return goodBlocks;
 
             }
-            else
-            { return null; }
+
+            return null;
         }
         #endregion
 
@@ -127,14 +119,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks without filtering on permissions
         /// </summary>
-        /// <param name="contentBlockID"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="system"></param>
-        /// <param name="viperSectionPath"></param>
-        /// <param name="page"></param>
-        /// <param name="blockOrder"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <param name="status"></param>
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID = null, string? friendlyName = null, string? system = null,
             string? viperSectionPath = null, string? page = null, int? blockOrder = null,
@@ -187,12 +171,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Returns the first file that matches the parameters past (or null)
         /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="oldURL"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="folder"></param>
-        /// <param name="name"></param>
-        /// <param name="getDeleted"></param>
         /// <returns>File object</returns>
         public CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
         {
@@ -270,7 +248,7 @@ namespace Viper.Areas.CMS.Data
             return ToCMSFile(file);
         }
 
-        private static CMSFile? ToCMSFile(Viper.Models.VIPER.File? file)
+        private static CMSFile? ToCMSFile(File? file)
         {
             if (file is null)
             {
@@ -287,12 +265,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Search for matching files
         /// </summary>
-        /// <param name="folder"></param>
-        /// <param name="isPublic"></param>
-        /// <param name="search"></param>
-        /// <param name="status"></param>
-        /// <param name="encrypted"></param>
-        /// <returns></returns>
         public IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted)
         {
 
@@ -324,10 +296,8 @@ namespace Viper.Areas.CMS.Data
 
                 return cmslist;
             }
-            else
-            {
-                return new List<CMSFile>();
-            }
+
+            return new List<CMSFile>();
 
         }
         #endregion
@@ -336,9 +306,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get Friendly URL for a friendly name. Currently, always points to ColdFusion Viper
         /// </summary>
-        /// <param name="friendlyName"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <returns></returns>
         public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         {
             string rootURL = String.Empty;
@@ -358,9 +325,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get url for a fileGUID
         /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <returns></returns>
         public static string GetURL(string fileGUID, bool allowPublicAccess = false)
         {
             return (allowPublicAccess ? @"/public" : "") + @"/cms/files/?id=" + fileGUID;
@@ -371,7 +335,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get the root folder for files
         /// </summary>
-        /// <returns></returns>
         public static string GetRootFileFolder()
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development")
@@ -387,7 +350,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Replace the root folder in a file object, e.g. if the app is on secure-test but the file was added on a dev machine, or vice versa.
         /// </summary>
-        /// <param name="file"></param>
         public static void ReplaceRootFolder(CMSFile file)
         {
             string filePath = file.FilePath;
@@ -406,8 +368,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Remove root folder in the file path and change path separator to /
         /// </summary>
-        /// <param name="filePath"></param>
-        /// <returns></returns>
         public string FilePathToWebPath(string filePath)
         {
             return filePath.Replace(GetRootFileFolder(), "").Replace(@"\", @"/");
@@ -470,7 +430,7 @@ namespace Viper.Areas.CMS.Data
             }
 
             // create a temp Zip file and populate it with the files
-            string tempFileName = CMS.GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
+            string tempFileName = GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
 
             using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.OpenOrCreate))
             {
@@ -535,12 +495,14 @@ namespace Viper.Areas.CMS.Data
                 LogFileNotFound(controller, id, friendlyName, oldURL, reason: "no-db-match");
                 return controller.NotFound();
             }
-            else if (!System.IO.File.Exists(file.FilePath))
+
+            if (!System.IO.File.Exists(file.FilePath))
             {
                 LogFileNotFound(controller, id, friendlyName, oldURL, reason: "missing-on-disk");
                 return controller.NotFound();
             }
-            else if (!CheckFilePermission(file))
+
+            if (!CheckFilePermission(file))
             {
                 if (currentUser != null && _viperContext != null)
                 {
@@ -550,28 +512,23 @@ namespace Viper.Areas.CMS.Data
                 controller.Response.StatusCode = 403;
                 return controller.View("~/Views/Home/403.cshtml", (HttpStatusCode)403);
             }
-            else
+
+            if (currentUser != null && _viperContext != null)
             {
-                if (currentUser != null && _viperContext != null)
-                {
-                    AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
-                }
-
-                byte[] bytes = System.IO.File.ReadAllBytes(file.FilePath);
-
-                if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
-                {
-                    bytes = DecryptFile(bytes, file.Key);
-                }
-
-                if (bytes == null)
-                    return controller.NotFound();
-
-                string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
-                controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
-
-                return controller.File(bytes, MimeTypes[extension.ToLower()], true);
+                AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
             }
+
+            byte[] bytes = System.IO.File.ReadAllBytes(file.FilePath);
+
+            if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
+            {
+                bytes = DecryptFile(bytes, file.Key);
+            }
+
+            string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
+            controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
+
+            return controller.File(bytes, MimeTypes[extension.ToLower()], true);
 
         }
         #endregion
@@ -614,7 +571,7 @@ namespace Viper.Areas.CMS.Data
                 FilePath = file.FilePath,
                 IamId = user.IamId,
                 FileMetaData = JsonSerializer.Serialize<CMSFileMetaData>(file.MetaData),
-                ClientData = JsonSerializer.Serialize<ClientData>(userHelper.GetClientData())
+                ClientData = JsonSerializer.Serialize(userHelper.GetClientData())
             };
 
             viperContext.ChangeTracker.Clear();
@@ -647,8 +604,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Required for Unix decoding FROM https://rextester.com/TGN19503
         /// </summary>
-        /// <param name="encryptedString"></param>
-        /// <param name="Key"></param>
         /// <returns>decoded string</returns>
         public string DecryptAES(string encryptedString, string Key)
         {

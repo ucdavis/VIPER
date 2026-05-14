@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc;
-using Viper.Classes.SQLContext;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Viper;
+using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
 namespace Web.Authorization
@@ -16,7 +16,7 @@ namespace Web.Authorization
     ///         [Permission(Allow = "Item1")]
     ///         [Permission(Allow = "Item2")]
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     public class PermissionAttribute : AuthorizeAttribute, IAuthorizationFilter
     {
         public string? Allow { get; set; }

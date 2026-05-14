@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -7,8 +8,8 @@ using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
-using Viper.EmailTemplates.Services;
 using Viper.Classes.Utilities;
+using Viper.EmailTemplates.Services;
 using Viper.Services;
 
 namespace Viper.Areas.Effort.Services;
@@ -357,7 +358,7 @@ public class VerificationService : IVerificationService
         // Validate email address format
         var mailId = person.MailId.Trim();
         var recipientEmail = $"{mailId}@ucdavis.edu";
-        if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(recipientEmail))
+        if (!new EmailAddressAttribute().IsValid(recipientEmail))
         {
             var invalidEmailAuditData = new
             {

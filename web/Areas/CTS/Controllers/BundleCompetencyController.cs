@@ -68,7 +68,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Competency is already a part of this bundle.");
             }
 
-            var bundleCompetency = new BundleCompetency()
+            var bundleCompetency = new BundleCompetency
             {
                 BundleId = bundleId,
                 CompetencyId = bundleComp.CompetencyId,
@@ -87,7 +87,7 @@ namespace Viper.Areas.CTS.Controllers
                 var level = await context.Levels.FindAsync(levelId);
                 if (level != null)
                 {
-                    context.Add(new BundleCompetencyLevel()
+                    context.Add(new BundleCompetencyLevel
                     {
                         BundleCompetencyId = bundleCompetency.BundleCompetencyId,
                         LevelId = levelId
@@ -125,7 +125,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             foreach (var newLevel in bundleCompetency.LevelIds.Where(nl => !bundleComp.BundleCompetencyLevels.Any(bcl => bcl.LevelId == nl)))
             {
-                context.Add(new BundleCompetencyLevel()
+                context.Add(new BundleCompetencyLevel
                 {
                     BundleCompetencyId = bundleCompetencyId,
                     LevelId = newLevel

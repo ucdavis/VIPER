@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class TblLog
+public class TblLog
 {
     public int AuditRecordId { get; set; }
 

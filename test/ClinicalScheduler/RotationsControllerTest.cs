@@ -110,16 +110,16 @@ namespace Viper.test.ClinicalScheduler
         private void SetupMockWeekService()
         {
             var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-            var mockWeeks = new List<Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.WeekDto>
+            var mockWeeks = new List<WeekDto>
             {
-                new Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.WeekDto
+                new WeekDto
                 {
                     WeekId = 1,
                     DateStart = baseDate,
                     DateEnd = baseDate.AddDays(6),
                     TermCode = TestTermCode
                 },
-                new Viper.Areas.ClinicalScheduler.Models.DTOs.Responses.WeekDto
+                new WeekDto
                 {
                     WeekId = 2,
                     DateStart = baseDate.AddDays(7),
@@ -148,10 +148,10 @@ namespace Viper.test.ClinicalScheduler
                     .Returns(true);
 
                 // Mock GetUserEditableServicesAsync to return all services for full permissions
-                var allServices = new List<Viper.Models.ClinicalScheduler.Service>
+                var allServices = new List<Service>
                 {
-                    new Viper.Models.ClinicalScheduler.Service { ServiceId = CardiologyServiceId, ServiceName = "Cardiology" },
-                    new Viper.Models.ClinicalScheduler.Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery" }
+                    new Service { ServiceId = CardiologyServiceId, ServiceName = "Cardiology" },
+                    new Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery" }
                 };
                 _mockPermissionService.GetUserEditableServicesAsync(Arg.Any<CancellationToken>())
                     .Returns(allServices);
@@ -170,14 +170,14 @@ namespace Viper.test.ClinicalScheduler
                     .Returns(allowedServiceId.Value == SurgeryServiceId);
 
                 // Mock GetUserEditableServicesAsync to return only the allowed service
-                var allowedServices = new List<Viper.Models.ClinicalScheduler.Service>();
+                var allowedServices = new List<Service>();
                 if (allowedServiceId.Value == CardiologyServiceId)
                 {
-                    allowedServices.Add(new Viper.Models.ClinicalScheduler.Service { ServiceId = CardiologyServiceId, ServiceName = "Cardiology" });
+                    allowedServices.Add(new Service { ServiceId = CardiologyServiceId, ServiceName = "Cardiology" });
                 }
                 else if (allowedServiceId.Value == SurgeryServiceId)
                 {
-                    allowedServices.Add(new Viper.Models.ClinicalScheduler.Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery" });
+                    allowedServices.Add(new Service { ServiceId = SurgeryServiceId, ServiceName = "Surgery" });
                 }
                 _mockPermissionService.GetUserEditableServicesAsync(Arg.Any<CancellationToken>())
                     .Returns(allowedServices);
@@ -191,7 +191,7 @@ namespace Viper.test.ClinicalScheduler
 
                 // Mock GetUserEditableServicesAsync to return empty list for no permissions
                 _mockPermissionService.GetUserEditableServicesAsync(Arg.Any<CancellationToken>())
-                    .Returns(new List<Viper.Models.ClinicalScheduler.Service>());
+                    .Returns(new List<Service>());
             }
         }
 
@@ -203,10 +203,8 @@ namespace Viper.test.ClinicalScheduler
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
                 return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(okResult.Value);
             }
-            else
-            {
-                return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(result.Value);
-            }
+
+            return Assert.IsAssignableFrom<IEnumerable<RotationDto>>(result.Value);
         }
 
         [Fact]
