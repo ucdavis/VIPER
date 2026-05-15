@@ -309,11 +309,10 @@ namespace Viper.Controllers
                 var userNode = successNode?.Element(_ns + "user");
                 var validatedUserName = userNode?.Value;
 
-                // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
-                // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
+                // Log the sanitized CAS response when no username comes back, to help diagnose unexpected 403 (Access Denied) errors
                 if (string.IsNullOrEmpty(validatedUserName))
                 {
-                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + doc);
+                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + LogSanitizer.SanitizeString(doc.ToString()));
                 }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
