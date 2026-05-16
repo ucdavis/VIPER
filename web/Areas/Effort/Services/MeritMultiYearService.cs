@@ -865,16 +865,14 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
     /// </summary>
     private static decimal? CalculateMedian(int n1, int n2, int n3, int n4, int n5)
     {
-        var total = n1 + n2 + n3 + n4 + n5;
-        if (total == 0) return null;
+        if (n1 + n2 + n3 + n4 + n5 == 0) return null;
 
-        // Build sorted response list
-        var responses = new List<decimal>();
-        for (var i = 0; i < n1; i++) responses.Add(1);
-        for (var i = 0; i < n2; i++) responses.Add(2);
-        for (var i = 0; i < n3; i++) responses.Add(3);
-        for (var i = 0; i < n4; i++) responses.Add(4);
-        for (var i = 0; i < n5; i++) responses.Add(5);
+        var responses = Enumerable.Repeat(1m, n1)
+            .Concat(Enumerable.Repeat(2m, n2))
+            .Concat(Enumerable.Repeat(3m, n3))
+            .Concat(Enumerable.Repeat(4m, n4))
+            .Concat(Enumerable.Repeat(5m, n5))
+            .ToList();
 
         return CalculateListMedian(responses);
     }

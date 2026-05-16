@@ -241,16 +241,11 @@ namespace Viper.Areas.RAPS.Services
                 request.Content = content;
             }
 
-            UinformResponse<T>? uInformResponse;
             using HttpResponseMessage response = await _httpClient.SendAsync(request);
             string responseBody = await response.Content.ReadAsStringAsync();
-            if (response.IsSuccessStatusCode)
-            {
-                uInformResponse = JsonSerializer.Deserialize<UinformResponse<T>>(responseBody, _jsonOptions);
-            }
-            else
-            {
-                uInformResponse = new UinformResponse<T>()
+            return response.IsSuccessStatusCode
+                ? JsonSerializer.Deserialize<UinformResponse<T>>(responseBody, _jsonOptions)
+                : new UinformResponse<T>()
                 {
                     Success = false,
                     Error = new()
@@ -258,9 +253,6 @@ namespace Viper.Areas.RAPS.Services
                         Message = response.StatusCode.ToString()
                     }
                 };
-            }
-
-            return uInformResponse;
         }
 
         private static string GetAuthSignature(HttpMethod method, string publicKey, int epochTime)
