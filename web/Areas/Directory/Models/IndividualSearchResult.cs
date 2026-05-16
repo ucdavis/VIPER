@@ -126,11 +126,13 @@ namespace Viper.Areas.Directory.Models
                 // Sanitize MailId to prevent SQL injection in OPENQUERY (which doesn't support parameters)
                 var safeMailId = MailId.Replace("'", "''");
                 var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{safeMailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')";
-                var results = context.Database.SqlQueryRaw<string>(query).ToList();
-                foreach (var r in results)
+                var hosts = context.Database.SqlQueryRaw<string>(query)
+                    .AsEnumerable()
+                    .Select(r => r.Split("@")[^1])
+                    .ToList();
+                if (hosts.Count > 0)
                 {
-                    var parts = r.Split("@");
-                    EmailHost = parts[^1];
+                    EmailHost = hosts[^1];
                 }
             }
         }
