@@ -72,16 +72,16 @@ namespace Viper.Areas.CTS.Services
         /// <returns></returns>
         static private List<Course> CourseSessionOfferingsToCourses(List<CourseSessionOffering> csos)
         {
-            List<Course> courses = new();
-            foreach (var cso in csos.GroupBy(c => c.CourseId))
-            {
-                var rows = cso.ToList();
-                courses.Add(new Course(rows[0])
+            return csos.GroupBy(c => c.CourseId)
+                .Select(g =>
                 {
-                    Sessions = CourseSessionOfferingsToSessions(rows)
-                });
-            }
-            return courses;
+                    var rows = g.ToList();
+                    return new Course(rows[0])
+                    {
+                        Sessions = CourseSessionOfferingsToSessions(rows)
+                    };
+                })
+                .ToList();
         }
 
         /// <summary>
@@ -91,16 +91,16 @@ namespace Viper.Areas.CTS.Services
         /// <returns></returns>
         static private List<Session> CourseSessionOfferingsToSessions(List<CourseSessionOffering> csos)
         {
-            List<Session> sessions = new();
-            foreach (var cso in csos.GroupBy(c => c.SessionId))
-            {
-                var rows = cso.ToList();
-                sessions.Add(new Session(rows[0])
+            return csos.GroupBy(c => c.SessionId)
+                .Select(g =>
                 {
-                    Offerings = CourseSessionOfferingsToOfferings(rows)
-                });
-            }
-            return sessions;
+                    var rows = g.ToList();
+                    return new Session(rows[0])
+                    {
+                        Offerings = CourseSessionOfferingsToOfferings(rows)
+                    };
+                })
+                .ToList();
         }
 
         /// <summary>

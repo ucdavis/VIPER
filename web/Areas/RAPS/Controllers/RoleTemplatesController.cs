@@ -126,12 +126,9 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             RoleMemberService roleMemberService = new(_context);
-            foreach (RoleApplyPreview role in preview.Roles)
+            foreach (RoleApplyPreview role in preview.Roles.Where(r => !r.UserHasRole))
             {
-                if (!role.UserHasRole)
-                {
-                    await roleMemberService.AddMemberToRole(role.RoleId, memberId, null, null, string.Format("Added via role template {0}", roleTemplate.TemplateName));
-                }
+                await roleMemberService.AddMemberToRole(role.RoleId, memberId, null, null, string.Format("Added via role template {0}", roleTemplate.TemplateName));
             }
 
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);

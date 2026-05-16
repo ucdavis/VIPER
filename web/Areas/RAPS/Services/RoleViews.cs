@@ -86,14 +86,12 @@ namespace Viper.Areas.RAPS.Services
             //Remove members that were added via this view if they are no longer in the view. Check first that the view is not empty.
             if (members.Count > 0)
             {
-                foreach (TblRoleMember roleMember in roleMembers)
+                foreach (TblRoleMember roleMember in roleMembers.Where(rm => !string.IsNullOrEmpty(rm.MemberId.Trim())
+                    && !members.Contains(rm.MemberId)
+                    && rm.ViewName == role.ViewName))
                 {
-                    if (!string.IsNullOrEmpty(roleMember.MemberId.Trim()) && !members.Contains(roleMember.MemberId)
-                        && roleMember.ViewName == role.ViewName)
-                    {
-                        messages.Add(string.Format("Removing {0}", roleMember.MemberId));
-                        toDelete.Add(roleMember);
-                    }
+                    messages.Add(string.Format("Removing {0}", roleMember.MemberId));
+                    toDelete.Add(roleMember);
                 }
             }
             else
@@ -212,7 +210,7 @@ namespace Viper.Areas.RAPS.Services
                 "vw_vmdo_sp" => await _RAPSContext.VwVmdoSps.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmdo_svm_it" => await _RAPSContext.VwVmdoSvmIts.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmthadmissions" => await _RAPSContext.VwVmthadmissions.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
-				"vw_vmth_chiefs" => await _RAPSContext.VwVmthChiefs.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
+                "vw_vmth_chiefs" => await _RAPSContext.VwVmthChiefs.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmth_clinicians" => await _RAPSContext.VwVmthClinicians.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmth_constituents" => await _RAPSContext.VwVmthConstituents.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmthinternsmanual" => await _RAPSContext.VwVmthinternsManuals.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
@@ -225,5 +223,5 @@ namespace Viper.Areas.RAPS.Services
                 _ => new List<string?>(),
             };
         }
-	}
+    }
 }
