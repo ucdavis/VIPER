@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -90,7 +91,7 @@ public sealed class VerificationControllerTests
     public async Task GetMyEffort_ReturnsEmptyDto_WhenNoInstructorRecord()
     {
         // Arrange
-        _verificationServiceMock.GetMyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns((MyEffortDto?)null);
+        _verificationServiceMock.GetMyEffortAsync(202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetMyEffort(202410);
@@ -171,7 +172,7 @@ public sealed class VerificationControllerTests
         // Arrange
         var request = new SendVerificationEmailRequest { PersonId = 999, TermCode = 202410 };
 
-        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.SendVerificationEmail(request);
@@ -286,7 +287,7 @@ public sealed class VerificationControllerTests
     public async Task GetEmailHistory_ReturnsNotFound_WhenInstructorNotFound()
     {
         // Arrange
-        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetEmailHistory(999, 202410);
@@ -360,7 +361,7 @@ public sealed class VerificationControllerTests
     {
         // Arrange
         _permissionServiceMock.GetCurrentPersonId().Returns(123); // Different person
-        _instructorServiceMock.GetInstructorAsync(456, 202410, Arg.Any<CancellationToken>()).Returns((PersonDto?)null);
+        _instructorServiceMock.GetInstructorAsync(456, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.CanVerify(456, 202410);

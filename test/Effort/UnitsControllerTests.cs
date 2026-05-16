@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -111,7 +112,7 @@ public sealed class UnitsControllerTests
     public async Task GetUnit_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _unitServiceMock.GetUnitAsync(999, Arg.Any<CancellationToken>()).Returns((UnitDto?)null);
+        _unitServiceMock.GetUnitAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetUnit(999, CancellationToken.None);
@@ -199,7 +200,7 @@ public sealed class UnitsControllerTests
     {
         // Arrange
         var request = new UpdateUnitRequest { Name = "Updated Unit", IsActive = true };
-        _unitServiceMock.UpdateUnitAsync(999, request, Arg.Any<CancellationToken>()).Returns((UnitDto?)null);
+        _unitServiceMock.UpdateUnitAsync(999, request, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.UpdateUnit(999, request, CancellationToken.None);

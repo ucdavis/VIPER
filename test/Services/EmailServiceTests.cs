@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Models.AAUD;
 using Viper.Services;
 
@@ -122,7 +123,7 @@ public class EmailServiceTests
             UseMailpit = true,
             RedirectToCurrentUser = true
         };
-        _userHelperMock.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelperMock.GetCurrentUser().ReturnsNull();
         var service = CreateService(settings);
 
         // Act - should not throw, email is silently suppressed
@@ -208,7 +209,7 @@ public class EmailServiceTests
             UseMailpit = false,
             RedirectToCurrentUser = true
         };
-        _userHelperMock.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelperMock.GetCurrentUser().ReturnsNull();
         var service = CreateService(settings);
 
         // Act - no exception should be thrown; email is suppressed before SMTP attempt

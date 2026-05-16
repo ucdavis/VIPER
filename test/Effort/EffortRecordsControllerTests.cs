@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Exceptions;
@@ -100,7 +101,7 @@ public sealed class EffortRecordsControllerTests
     public async Task GetRecord_ReturnsNotFound_WhenRecordDoesNotExist()
     {
         // Arrange
-        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorEffortRecordDto?)null);
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetRecord(999);
@@ -270,7 +271,7 @@ public sealed class EffortRecordsControllerTests
             EffortValue = 30
         };
 
-        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorEffortRecordDto?)null);
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.UpdateRecord(999, request);
@@ -353,7 +354,7 @@ public sealed class EffortRecordsControllerTests
     public async Task DeleteRecord_ReturnsNotFound_WhenRecordDoesNotExist()
     {
         // Arrange
-        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorEffortRecordDto?)null);
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.DeleteRecord(999, null);

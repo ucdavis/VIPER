@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Controllers;
 using Viper.Areas.Students.Models;
@@ -159,7 +160,7 @@ namespace Viper.test.Students
             _mockStudentGroupService.GetStudentsByCourseAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string>(), Arg.Any<string>())
                 .Returns(new List<StudentPhoto>());
             _mockCourseService.GetCourseInfoAsync(Arg.Any<string>(), Arg.Any<string>())
-                .Returns((CourseInfo?)null);
+                .ReturnsNull();
 
             // Act
             var result = await _controller.GetCourseGallery("202409", "12345", false);

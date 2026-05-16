@@ -2,6 +2,7 @@ using Viper.Areas.RAPS.Controllers;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using MockQueryable.NSubstitute;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +56,7 @@ namespace Viper.test.RAPS
         public async Task ReturnNotFound_WhenNoRolesInTable()
         {
             // arrange
-            rapsContext.TblRoles.Returns((DbSet<TblRole>?)null);
+            rapsContext.TblRoles.ReturnsNull();
             var rolesController = new RolesController(rapsContext);
 
             // act
@@ -179,7 +180,7 @@ namespace Viper.test.RAPS
             // arrange
             int RoleId = -1;
             var mockSet = GetTestRoles().BuildMockDbSet();
-            mockSet.FindAsync(Arg.Any<object?[]?>()).Returns((TblRole?)null);
+            mockSet.FindAsync(Arg.Any<object?[]?>(), Arg.Any<CancellationToken>()).ReturnsNull();
             rapsContext.TblRoles.Returns(mockSet);
 
             var rolesController = new RolesController(rapsContext);

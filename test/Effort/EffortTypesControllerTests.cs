@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -111,7 +112,7 @@ public sealed class EffortTypesControllerTests
     public async Task GetEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
+        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetEffortType("XXX", CancellationToken.None);
@@ -217,7 +218,7 @@ public sealed class EffortTypesControllerTests
             AllowedOn199299 = false,
             AllowedOnRCourses = false
         };
-        _effortTypeServiceMock.UpdateEffortTypeAsync("XXX", request, Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
+        _effortTypeServiceMock.UpdateEffortTypeAsync("XXX", request, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.UpdateEffortType("XXX", request, CancellationToken.None);
@@ -297,7 +298,7 @@ public sealed class EffortTypesControllerTests
     public async Task DeleteEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
+        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.DeleteEffortType("XXX", CancellationToken.None);
@@ -397,7 +398,7 @@ public sealed class EffortTypesControllerTests
     public async Task CanDeleteEffortType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).Returns((EffortTypeDto?)null);
+        _effortTypeServiceMock.GetEffortTypeAsync("XXX", Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.CanDeleteEffortType("XXX", CancellationToken.None);

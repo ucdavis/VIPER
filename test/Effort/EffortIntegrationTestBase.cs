@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.Entities;
@@ -339,7 +340,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
     /// </summary>
     protected void SetupNullUser()
     {
-        MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
+        MockUserHelper.GetCurrentUser().ReturnsNull();
     }
 
     /// <summary>
@@ -349,7 +350,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
     {
         if (userMothraId == null)
         {
-            MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
+            MockUserHelper.GetCurrentUser().ReturnsNull();
             return;
         }
 

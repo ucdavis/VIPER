@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Students.Constants;
 using Viper.Areas.Students.Controllers;
@@ -64,7 +65,7 @@ public class EmergencyContactControllerTests
     [Fact]
     public async Task GetStudentContactDetail_NoUser_ReturnsUnauthorized()
     {
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var result = await _controller.GetStudentContactDetail(1);
 
@@ -225,7 +226,7 @@ public class EmergencyContactControllerTests
         _userHelper.HasPermission(_rapsContext, adminUser, EmergencyContactPermissions.SISAllStudents).Returns(false);
 
         _service.CanEditAsync(999, adminUser.LoginId).Returns(true);
-        _service.GetStudentContactDetailAsync(999, true).Returns((StudentContactDetailDto?)null);
+        _service.GetStudentContactDetailAsync(999, true).ReturnsNull();
 
         var result = await _controller.GetStudentContactDetail(999);
 
@@ -239,7 +240,7 @@ public class EmergencyContactControllerTests
     [Fact]
     public async Task UpdateStudentContact_NoUser_ReturnsUnauthorized()
     {
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var result = await _controller.UpdateStudentContact(1, new UpdateStudentContactRequest { ContactPermanent = false });
 
@@ -450,7 +451,7 @@ public class EmergencyContactControllerTests
     [Fact]
     public async Task CanEdit_NoUser_ReturnsUnauthorized()
     {
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var result = await _controller.CanEdit(1);
 

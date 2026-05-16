@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
@@ -227,7 +228,7 @@ namespace Viper.test.ClinicalScheduler
         /// </summary>
         protected void SetupNullUser()
         {
-            MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
+            MockUserHelper.GetCurrentUser().ReturnsNull();
         }
 
         /// <summary>
@@ -239,7 +240,7 @@ namespace Viper.test.ClinicalScheduler
         {
             if (userMothraId == null)
             {
-                MockUserHelper.GetCurrentUser().Returns((AaudUser?)null);
+                MockUserHelper.GetCurrentUser().ReturnsNull();
                 return;
             }
 

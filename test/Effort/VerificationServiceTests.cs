@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.EmailTemplates.Models;
@@ -627,7 +628,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendVerificationEmailAsync_ReturnsError_WhenNoSenderEmail()
     {
         // Arrange: Current user has no email
-        _permissionServiceMock.GetCurrentUserEmail().Returns((string?)null);
+        _permissionServiceMock.GetCurrentUserEmail().ReturnsNull();
 
         // Act
         var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
