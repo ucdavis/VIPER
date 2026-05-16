@@ -95,7 +95,7 @@ namespace Viper.test.ClinicalScheduler
                 }
                 _context.SaveChanges();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or InvalidOperationException)
             {
                 // Log the exception and provide a clear error message for debugging
                 Console.WriteLine($"Error seeding test data: {ex.Message}");

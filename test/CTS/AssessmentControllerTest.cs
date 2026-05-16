@@ -263,7 +263,7 @@ namespace Viper.test.CTS
                 Assert.True(result != null || forbidResult != null);
 
             }
-            catch (Exception)
+            catch (Xunit.Sdk.XunitException)
             {
                 return false;
             }
@@ -279,7 +279,7 @@ namespace Viper.test.CTS
                 var result = a.Result as NotFoundResult;
                 Assert.Equal((int)HttpStatusCode.NotFound, result?.StatusCode);
             }
-            catch (Exception)
+            catch (Xunit.Sdk.XunitException)
             {
                 return false;
             }

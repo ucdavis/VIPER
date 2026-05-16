@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -281,7 +282,7 @@ namespace Viper.test.ClinicalScheduler
             {
                 result = await _service.RemoveInstructorScheduleAsync(savedSchedule.InstructorScheduleId);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or DbUpdateException or SqlException or OperationCanceledException)
             {
                 caughtException = ex;
                 System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
@@ -463,7 +464,7 @@ namespace Viper.test.ClinicalScheduler
             {
                 result = await _service.RemoveInstructorScheduleAsync(savedPrimarySchedule.InstructorScheduleId);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or DbUpdateException or SqlException or OperationCanceledException)
             {
                 caughtException = ex;
                 System.Console.WriteLine($"Exception caught: {ex.GetType().Name}: {ex.Message}");
