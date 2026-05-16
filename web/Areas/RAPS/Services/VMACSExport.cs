@@ -300,8 +300,8 @@ namespace Viper.Areas.RAPS.Services
                         exportUsers[^1].AccessCodes = accessCodesBuilder.ToString();
                     }
                     accessCodesBuilder.Clear();
-                    string permissionIdList = permissionsByMemberId.ContainsKey(user.MothraId.Trim())
-                        ? permissionsByMemberId[user.MothraId.Trim()]
+                    string permissionIdList = permissionsByMemberId.TryGetValue(user.MothraId.Trim(), out var permIds)
+                        ? permIds
                         : "";
                     exportUsers.Add(new VMACSExportUser()
                     {
@@ -342,7 +342,7 @@ namespace Viper.Areas.RAPS.Services
         private string GetServerUrl(string instance, string server)
         {
             string key = instance.ToLower() + "-" + server.ToLower();
-            return _vmacsServers.ContainsKey(key) ? _vmacsServers[key] : "";
+            return _vmacsServers.TryGetValue(key, out var url) ? url : "";
         }
 
         private static void RecordMessage(List<string> messages, string message)

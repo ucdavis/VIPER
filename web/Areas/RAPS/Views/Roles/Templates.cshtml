@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Templates";
 }
 <h1>Role Templates</h1>
@@ -36,7 +36,7 @@
              :filter="templates.filter"
              :filter-method="filterTemplates"
              :pagination="templates.pagination">
-        @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
+        @if ((bool)(ViewData["canEditRoleTemplates"] ?? false))
         {
             <template v-slot:top-left="props">
                 <q-btn no-caps color="positive" label="Add Role Template" padding="xs md" @@click="templates.showForm = true"></q-btn>
@@ -51,11 +51,11 @@
         </template>
         <template v-slot:body-cell-links="props">
             <q-td :props="props">
-                @if (ViewData.ContainsKey("canApplyTemplates") && (bool)(ViewData["canApplyTemplates"] ?? false))
+                @if ((bool)(ViewData["canApplyTemplates"] ?? false))
                 {
                     <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="person" title="Apply Role Template to one or more users" aria-label="Apply Role Template to one or more users" :href="'RoleTemplateApply?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
                 }
-                @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
+                @if ((bool)(ViewData["canEditRoleTemplates"] ?? false))
                 {
                     <q-btn :props="props" size="sm" padding="sm" color="primary" square flat icon="security" title="View Roles for this Template" aria-label="View Roles for this Template" :href="'RoleTemplateRoles?roleTemplateId=' + props.row.roleTemplateId"></q-btn>
                 }
@@ -73,7 +73,7 @@
                 <br />
             </q-td>
         </template>
-        @if (ViewData.ContainsKey("canEditRoleTemplates") && (bool)(ViewData["canEditRoleTemplates"] ?? false))
+        @if ((bool)(ViewData["canEditRoleTemplates"] ?? false))
         {
             <template v-slot:body-cell-action="props">
                 <q-td :props="props">
