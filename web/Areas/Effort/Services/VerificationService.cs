@@ -769,15 +769,9 @@ public class VerificationService : IVerificationService
         var useWeeksForClinical = termCode >= EffortConstants.ClinicalAsWeeksStartTermCode;
 
         // Due date: ExpectedCloseDate - 7 days if set, otherwise fallback to Now + 7
-        DateTime dueDate;
-        if (expectedCloseDate.HasValue)
-        {
-            dueDate = expectedCloseDate.Value.AddDays(-_settings.VerificationReplyDays);
-        }
-        else
-        {
-            dueDate = DateTime.Now.AddDays(_settings.VerificationReplyDays);
-        }
+        DateTime dueDate = expectedCloseDate.HasValue
+            ? expectedCloseDate.Value.AddDays(-_settings.VerificationReplyDays)
+            : DateTime.Now.AddDays(_settings.VerificationReplyDays);
 
         var isPastDue = DateTime.Now.Date > dueDate.Date;
         var replyByDate = dueDate.ToString("M/d/yy");

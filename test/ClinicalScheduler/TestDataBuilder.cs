@@ -176,7 +176,7 @@ namespace Viper.test.ClinicalScheduler
         /// </summary>
         public static Week CreateWeek(int weekId, DateTime? startDate = null)
         {
-            var start = startDate ?? DateTime.UtcNow.AddDays(-7 * (10 - weekId));
+            var start = startDate ?? DateTime.UtcNow.AddDays(-7.0 * (10 - weekId));
             return new Week
             {
                 WeekId = weekId,

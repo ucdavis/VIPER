@@ -312,15 +312,10 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (_securityService.IsAllowedTo("EditRoleMembership", instance, Role))
-            {
-                return View("~/Areas/RAPS/Views/Roles/Members.cshtml");
-            }
-            else
-            {
-                //TODO: Should probably have a deny access helper function that writes logs and sets view
-                return View("~/Views/Home/403.cshtml");
-            }
+            //TODO: Should probably have a deny access helper function that writes logs and sets view
+            return _securityService.IsAllowedTo("EditRoleMembership", instance, Role)
+                ? View("~/Areas/RAPS/Views/Roles/Members.cshtml")
+                : View("~/Views/Home/403.cshtml");
         }
 
         /// <summary>
@@ -356,14 +351,9 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> RolePermissionsComparison(string instance)
         {
-            if (_securityService.IsAllowedTo("EditRoleMembership", instance))
-            {
-                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/PermissionComparison.cshtml"));
-            }
-            else
-            {
-                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
-            }
+            return _securityService.IsAllowedTo("EditRoleMembership", instance)
+                ? await Task.Run(() => View("~/Areas/RAPS/Views/Roles/PermissionComparison.cshtml"))
+                : await Task.Run(() => View("~/Views/Home/403.cshtml"));
         }
 
         /// <summary>

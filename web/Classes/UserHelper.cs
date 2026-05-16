@@ -65,15 +65,7 @@ namespace Viper
                             select role).ToList();
                 });
 
-                if (result != null)
-                {
-                    return result;
-                }
-                else
-                {
-                    return new List<TblRole>();
-                }
-
+                return result ?? new List<TblRole>();
             }
             else
             {
@@ -149,15 +141,7 @@ namespace Viper
                             select permission).ToList();
                 });
 
-                if (result != null)
-                {
-                    return result;
-                }
-                else
-                {
-                    return new List<TblPermission>();
-                }
-
+                return result ?? new List<TblPermission>();
             }
             else
             {
@@ -274,18 +258,11 @@ namespace Viper
                     }
                     else if (HttpHelper.Cache != null && aaudContext != null)
                     {
+                        var fallbackUser = user;
                         user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId, entry =>
                         {
                             AaudUser? aaudUser = aaudContext.AaudUsers.FirstOrDefault(m => m.LoginId == loginId);
-                            if (aaudUser != null)
-                            {
-                                return aaudUser;
-                            }
-                            else
-                            {
-                                return user;
-                            }
-
+                            return aaudUser ?? fallbackUser;
                         });
 
                         return user;
@@ -342,14 +319,7 @@ namespace Viper
                         ?? (AAUDContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(AAUDContext));
                     AaudUser? trueUser = GetByLoginId(aaudContext, claims?.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value);
 
-                    if (trueUser != null)
-                    {
-                        return trueUser;
-                    }
-                    else
-                    {
-                        return GetCurrentUser();
-                    }
+                    return trueUser ?? GetCurrentUser();
 
 
                 }

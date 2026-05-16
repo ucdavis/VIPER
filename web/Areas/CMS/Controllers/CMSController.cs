@@ -25,14 +25,9 @@ namespace Viper.Areas.CMS.Controllers
         {
             Data.CMS cms = new(_viperContext, _rapsContext, _sanitizerService, _cmsLogger);
 
-            if (ids.Length > 0)
-            {
-                return cms.DownloadZip(this, ids.Split(','), fileName);
-            }
-            else
-            {
-                return cms.ProvideFile(this, id, fn, oldURL);
-            }
+            return ids.Length > 0
+                ? cms.DownloadZip(this, ids.Split(','), fileName)
+                : cms.ProvideFile(this, id, fn, oldURL);
 
         }
     }
