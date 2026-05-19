@@ -286,6 +286,30 @@ function getCachedBuildOutput(projectName) {
 }
 
 /**
+ * Remove static-web-asset manifest and dswa caches under an obj/ root, leaving
+ * NuGet restore state and compiled output intact so an active `dotnet watch`
+ * session only has to redo its static-web-assets step.
+ * @param {string} objRoot - Path to a project's obj/ directory
+ */
+function clearStaticWebAssetCache(objRoot) {
+    if (!fs.existsSync(objRoot)) return
+    for (const config of fs.readdirSync(objRoot)) {
+        // Walk Debug/ and Release/ (skip files like project.assets.json at the root)
+        const configDir = path.join(objRoot, config)
+        if (!fs.statSync(configDir).isDirectory()) continue
+        for (const tfm of fs.readdirSync(configDir)) {
+            const tfmDir = path.join(configDir, tfm)
+            if (!fs.statSync(tfmDir).isDirectory()) continue
+            for (const entry of fs.readdirSync(tfmDir)) {
+                if (entry.startsWith("staticwebassets") || entry.endsWith(".dswa.cache.json")) {
+                    fs.rmSync(path.join(tfmDir, entry), { recursive: true, force: true })
+                }
+            }
+        }
+    }
+}
+
+/**
  * Clear the build cache for a specific project or all projects
  * @param {string} [projectName] - Optional project name to clear, or undefined to clear all
  */
@@ -308,6 +332,11 @@ function clearBuildCache(projectName) {
                     fs.rmSync(artifactsDir, { recursive: true, force: true })
                 }
             }
+            // Clear stale static-web-asset state in web/obj — survives across artifact-path
+            // isolation and causes confusing "asset can not be found" errors when Vite bundle
+            // hashes change. Narrowly scoped so a running `npm run dev` session doesn't have
+            // to redo a full restore.
+            clearStaticWebAssetCache(path.join(process.cwd(), "web", "obj"))
             // Clear ESLint cache
             const eslintCache = path.join(process.cwd(), "VueApp", ".eslintcache")
             if (fs.existsSync(eslintCache)) {

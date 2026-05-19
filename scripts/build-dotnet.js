@@ -21,6 +21,10 @@ const logger = createLogger("BUILD")
 
 const artifactsPath = ".artifacts-precommit"
 
+// Default execFileSync maxBuffer is 1 MB; full build output with all warnings can exceed
+// that, which would surface as a false "build failed" instead of the real result.
+const MAX_BUILD_OUTPUT = 10_485_760
+
 // Check if either project needs rebuild
 const webNeedsBuild = needsBuild("web", "Viper.csproj")
 const testNeedsBuild = needsBuild("test", "Viper.test.csproj")
@@ -52,6 +56,7 @@ try {
         {
             encoding: "utf8",
             timeout: 120_000,
+            maxBuffer: MAX_BUILD_OUTPUT,
             stdio: ["inherit", "pipe", "pipe"],
             env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
         },
