@@ -339,7 +339,7 @@ internal static partial class ViteProxyHelpers
                     }
                 }
 
-                var physicalPath = Path.Combine(context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath,
+                var physicalPath = Path.Join(context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath,
                     staticPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
                 // Prevent directory traversal: ensure the resolved physical path is within WebRootPath
