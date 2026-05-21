@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FileToPermission
+public class FileToPermission
 {
     public int FileToPermissionId { get; set; }
 

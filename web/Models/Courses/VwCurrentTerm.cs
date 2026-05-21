@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class VwCurrentTerm
+public class VwCurrentTerm
 {
     public string TermCode { get; set; } = null!;
 }

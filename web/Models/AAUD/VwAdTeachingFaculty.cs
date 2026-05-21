@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwAdTeachingFaculty
+public class VwAdTeachingFaculty
 {
     public string? LastName { get; set; }
 

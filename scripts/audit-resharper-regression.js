@@ -12,6 +12,7 @@
 //                                              [--sarif inspect-report/inspect.sarif]
 //                                              [--skip-scan]
 //                                              [--staged]
+//                                              [--exclude-rule <id> ...]
 //
 // --skip-scan reuses the SARIF from a prior `audit:resharper` run, useful in
 // CI where the full scan and the gate are split into separate steps so the
@@ -20,6 +21,11 @@
 // --staged filters findings to staged C# lines (`git diff --cached`) instead of
 // PR-diff lines. Pair with --skip-scan for fast iterative pre-commit checks
 // against an existing SARIF report.
+//
+// --exclude-rule adds a ReSharper rule id to skip (repeatable). The default
+// list covers rules known to misfire on ASP.NET Core / EF DTO patterns where
+// public surface looks unused to static analysis but is wired up at runtime
+// (JSON serialization, MVC model binding, Razor views, EF projections).
 
 const fs = require("node:fs")
 const path = require("node:path")
@@ -34,8 +40,30 @@ const MAX_BUFFER_BYTES = 268_435_456
 // Cap how many findings we print per rule before summarising the rest.
 const MAX_FINDINGS_PER_RULE = 5
 
+// Rules excluded by default because they fire false positives on the kinds of
+// public surface ASP.NET Core / EF wires up at runtime (DTO/binding/EF
+// projection types) or where ReSharper's NRT contract analysis disagrees
+// with Roslyn's flow analysis (EF nav-property dereferences after `?.`).
+const DEFAULT_EXCLUDED_RULES = new Set([
+    "UnusedAutoPropertyAccessor.Global",
+    "UnusedAutoPropertyAccessor.Local",
+    "NotAccessedPositionalProperty.Local",
+    "S3260", // SonarLint sealed-record rule, low actionable value here
+    // ReSharper trusts the NRT annotation on EF nav properties (`Rotation` is
+    // declared non-null with `null!` default), but Roslyn rightly insists on
+    // `?.` because the runtime can produce null when Include() is missing.
+    // Keep the runtime-safe `?.Nav?.Member` style and silence the ReSharper rule.
+    "ConditionalAccessQualifierIsNonNullableAccordingToAPIContract",
+])
+
 function parseArgs(argv) {
-    const args = { base: "origin/main", sarif: DEFAULT_SARIF, skipScan: false, staged: false }
+    const args = {
+        base: "origin/main",
+        sarif: DEFAULT_SARIF,
+        skipScan: false,
+        staged: false,
+        excludedRules: new Set(DEFAULT_EXCLUDED_RULES),
+    }
     const remaining = [...argv]
     while (remaining.length > 0) {
         const flag = remaining.shift()
@@ -47,6 +75,8 @@ function parseArgs(argv) {
             args.skipScan = true
         } else if (flag === "--staged") {
             args.staged = true
+        } else if (flag === "--exclude-rule") {
+            args.excludedRules.add(remaining.shift())
         } else {
             console.error(`Unknown arg: ${flag}`)
             process.exit(2)
@@ -130,7 +160,7 @@ function normalizeUri(uri) {
     return s
 }
 
-function findRegressions(sarifPath, changedLines) {
+function findRegressions(sarifPath, changedLines, excludedRules) {
     const sarif = JSON.parse(fs.readFileSync(sarifPath, "utf8"))
     const results = sarif.runs?.[0]?.results ?? []
 
@@ -142,6 +172,9 @@ function findRegressions(sarifPath, changedLines) {
     const regressions = []
     for (const r of results) {
         const ruleId = r.ruleId ?? "?"
+        if (excludedRules.has(ruleId)) {
+            continue
+        }
         for (const loc of r.locations ?? []) {
             const uri = loc.physicalLocation?.artifactLocation?.uri
             const line = loc.physicalLocation?.region?.startLine
@@ -186,7 +219,11 @@ if (changed.size === 0) {
     process.exit(0)
 }
 
-const regressions = findRegressions(args.sarif, changed)
+if (args.excludedRules.size > 0) {
+    const sortedRules = [...args.excludedRules].toSorted()
+    console.log(`Excluding ${sortedRules.length} rule(s) from gate: ${sortedRules.join(", ")}`)
+}
+const regressions = findRegressions(args.sarif, changed, args.excludedRules)
 if (regressions.length === 0) {
     console.log(`✅ No new ReSharper warnings at ${touchedLabel} lines.`)
     process.exit(0)

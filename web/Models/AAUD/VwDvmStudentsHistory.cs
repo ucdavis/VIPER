@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwDvmStudentsHistory
+public class VwDvmStudentsHistory
 {
     public string LastName { get; set; } = null!;
 

@@ -1,3 +1,4 @@
+using System.Net;
 using HtmlAgilityPack;
 
 namespace Viper.Services;
@@ -209,7 +210,7 @@ public static class HtmlToTextConverter
 
     private static string CleanupText(HtmlDocument doc)
     {
-        var text = System.Net.WebUtility.HtmlDecode(doc.DocumentNode.InnerText);
+        var text = WebUtility.HtmlDecode(doc.DocumentNode.InnerText);
 
         var lines = text.Split('\n')
             .Select(line => line.Trim())

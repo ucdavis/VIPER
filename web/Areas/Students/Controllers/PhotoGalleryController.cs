@@ -1,11 +1,13 @@
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Areas.Students.Services;
-using Viper.Areas.Curriculum.Services;
 using Viper.Classes;
 using Viper.Classes.Utilities;
 using Web.Authorization;
-using System.Text.Json;
 
 namespace Viper.Areas.Students.Controllers
 {
@@ -30,7 +32,7 @@ namespace Viper.Areas.Students.Controllers
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never
         };
 
         public PhotoGalleryController(
@@ -145,7 +147,7 @@ namespace Viper.Areas.Students.Controllers
         {
             try
             {
-                var courses = await _courseService.GetAvailableCoursesForPhotosAsync("VET");
+                var courses = await _courseService.GetAvailableCoursesForPhotosAsync();
                 return Ok(courses);
             }
             catch (InvalidOperationException ex)
@@ -245,7 +247,7 @@ namespace Viper.Areas.Students.Controllers
 
                 // Add ETag for conditional requests
                 var etag = Convert.ToBase64String(
-                    System.Security.Cryptography.SHA256.HashData(photoData)
+                    SHA256.HashData(photoData)
                 )[..16];
                 var etagHeader = $"\"{etag}\"";
                 Response.Headers.ETag = etagHeader;
@@ -407,7 +409,7 @@ namespace Viper.Areas.Students.Controllers
 
             try
             {
-                var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel, false);
+                var students = await _studentGroupService.GetStudentsByClassLevelAsync(classLevel);
                 return Ok(students);
             }
             catch (InvalidOperationException ex)

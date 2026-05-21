@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwCurrentAffiliatesForPf
+public class VwCurrentAffiliatesForPf
 {
     public string? PersonDisplayLastName { get; set; }
 

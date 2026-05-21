@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class ContentBlockToPermission
+public class ContentBlockToPermission
 {
     public int ContentBlockPermissionId { get; set; }
 

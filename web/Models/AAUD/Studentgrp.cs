@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class Studentgrp
+public class Studentgrp
 {
     public string StudentgrpPidm { get; set; } = null!;
 

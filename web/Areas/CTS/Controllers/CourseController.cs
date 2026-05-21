@@ -5,6 +5,8 @@ using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
+using Course = Viper.Models.CTS.Course;
+using Session = Viper.Models.CTS.Session;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -21,7 +23,7 @@ namespace Viper.Areas.CTS.Controllers
     {
         private readonly RAPSContext rapsContext;
         private readonly VIPERContext context;
-        private readonly List<string> CompetencySupportedSessionTypes = new List<string>()
+        private readonly List<string> CompetencySupportedSessionTypes = new List<string>
         {
             "Lab", "L/D", "Dis","Exm","AUT","JLC","PRS","CBL","PBL","D/L","TBL","ACT"
         };
@@ -94,7 +96,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 foreach (var r in toAdd)
                 {
-                    context.Add(new CourseRole()
+                    context.Add(new CourseRole
                     {
                         CourseId = courseId,
                         RoleId = r
@@ -203,7 +205,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 if (current != null)
                 {
-                    current.Levels.Add(new LevelIdAndNameDto()
+                    current.Levels.Add(new LevelIdAndNameDto
                     {
                         LevelId = sessionCompetency.LevelId,
                         LevelName = sessionCompetency.Level.LevelName,
@@ -226,7 +228,7 @@ namespace Viper.Areas.CTS.Controllers
 
             foreach (var levelId in sessionComp.LevelIds)
             {
-                var newSessionComp = new SessionCompetency()
+                var newSessionComp = new SessionCompetency
                 {
                     CompetencyId = sessionComp.CompetencyId,
                     SessionId = sessionComp.SessionId,
@@ -272,7 +274,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 foreach (var l in toAdd)
                 {
-                    var newSessionComp = new SessionCompetency()
+                    var newSessionComp = new SessionCompetency
                     {
                         CompetencyId = sessionComp.CompetencyId,
                         SessionId = sessionComp.SessionId,
@@ -387,7 +389,7 @@ namespace Viper.Areas.CTS.Controllers
         /// </summary>
         /// <param name="courseId"></param>
         /// <returns></returns>
-        private async Task<Viper.Models.CTS.Course?> GetCourseForUser(int courseId)
+        private async Task<Course?> GetCourseForUser(int courseId)
         {
             var c = await context.Courses.FindAsync(courseId);
             if (c == null)
@@ -404,7 +406,7 @@ namespace Viper.Areas.CTS.Controllers
             return c;
         }
 
-        private async Task<Viper.Models.CTS.Session?> GetCourseSession(int courseId, int sessionId)
+        private async Task<Session?> GetCourseSession(int courseId, int sessionId)
         {
             var session = await context.Sessions.FindAsync(sessionId);
             return (session != null && session.CourseId == courseId) ? session : null;
@@ -488,7 +490,7 @@ namespace Viper.Areas.CTS.Controllers
                     .ToListAsync();
             }
 
-            return context.GetMyCourses(termCode, Int32.Parse(userHelper?.GetCurrentUser()?.Pidm ?? "0"))
+            return context.GetMyCourses(termCode, Int32.Parse(userHelper.GetCurrentUser()?.Pidm ?? "0"))
                 .Select(c => c.CourseId)
                 .ToList();
         }

@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class Relationship
+public class Relationship
 {
     public int RelId { get; set; }
 

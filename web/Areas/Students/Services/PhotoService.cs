@@ -127,7 +127,7 @@ namespace Viper.Areas.Students.Services
 
         public string GetDefaultPhotoUrl()
         {
-            return $"/api/students/photos/default";
+            return "/api/students/photos/default";
         }
 
         private string? GetPhotoPath(string mailId)

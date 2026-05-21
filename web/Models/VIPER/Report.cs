@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class Report
+public class Report
 {
     public int ReportId { get; set; }
 

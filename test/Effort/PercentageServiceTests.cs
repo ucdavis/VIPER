@@ -239,7 +239,7 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task CreatePercentageAsync_ThrowsException_WhenInactiveType()
     {
         // Arrange
-        var type = await CreatePercentAssignTypeAsync("Inactive Type", "Other", isActive: false);
+        var type = await CreatePercentAssignTypeAsync("Inactive Type", isActive: false);
         var unit = await CreateUnitAsync();
         var request = new CreatePercentageRequest
         {
@@ -567,8 +567,8 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task ValidatePercentageAsync_NoOverlapWarning_WhenDifferentTypes()
     {
         // Arrange
-        var type1 = await CreatePercentAssignTypeAsync("Teaching", "Other");
-        var type2 = await CreatePercentAssignTypeAsync("Research", "Other");
+        var type1 = await CreatePercentAssignTypeAsync();
+        var type2 = await CreatePercentAssignTypeAsync("Research");
         var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, type1.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Local));
 
@@ -595,8 +595,8 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task ValidatePercentageAsync_WarnsWhenTotalExceeds100()
     {
         // Arrange
-        var type1 = await CreatePercentAssignTypeAsync("Teaching", "Other");
-        var type2 = await CreatePercentAssignTypeAsync("Research", "Other");
+        var type1 = await CreatePercentAssignTypeAsync();
+        var type2 = await CreatePercentAssignTypeAsync("Research");
         var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, type1.Id, 60, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
@@ -622,13 +622,13 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task ValidatePercentageAsync_ExcludesLeaveFromTotalCalculation()
     {
         // Arrange
-        var teachingType = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var teachingType = await CreatePercentAssignTypeAsync();
         var leaveType = await CreateLeaveTypeAsync();
         var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, teachingType.Id, 60, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
         await CreatePercentageAsync(100, leaveType.Id, 100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
-        var researchType = await CreatePercentAssignTypeAsync("Research", "Other");
+        var researchType = await CreatePercentAssignTypeAsync("Research");
         var request = new CreatePercentageRequest
         {
             PersonId = 100,
@@ -651,7 +651,7 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task ValidatePercentageAsync_DoesNotWarnForLeaveTypeEvenIfTotalHigh()
     {
         // Arrange
-        var teachingType = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var teachingType = await CreatePercentAssignTypeAsync();
         var unit = await CreateUnitAsync();
         await CreatePercentageAsync(100, teachingType.Id, 100, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 

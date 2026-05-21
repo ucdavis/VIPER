@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class BundleCompetencyLevel
+public class BundleCompetencyLevel
 {
     public int BundleCompetencyLevelId { get; set; }
 

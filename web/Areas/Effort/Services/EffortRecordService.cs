@@ -223,9 +223,9 @@ public class EffortRecordService : IEffortRecordService
                 Course = $"{course.SubjCode.Trim()} {course.CrseNumb.Trim()}",
                 EffortType = request.EffortTypeId,
                 Role = role.Description,
-                Hours = record.Hours,
-                Weeks = record.Weeks,
-                Notes = record.Notes,
+                record.Hours,
+                record.Weeks,
+                record.Notes,
                 RolesCoerced = coercedFromRoleId != null
                     ? $"{existingRecordsForCourse.Count} record(s) changed from '{coercedFromRoleDescription}' to '{role.Description}'"
                     : null
@@ -377,9 +377,9 @@ public class EffortRecordService : IEffortRecordService
             {
                 EffortType = request.EffortTypeId,
                 Role = role.Description,
-                Hours = record.Hours,
-                Weeks = record.Weeks,
-                Notes = record.Notes,
+                record.Hours,
+                record.Weeks,
+                record.Notes,
                 RolesCoerced = coercedFromRoleDescription != null
                     ? $"{existingRecordsForCourse.Count} record(s) changed from '{coercedFromRoleDescription}' to '{role.Description}'"
                     : null

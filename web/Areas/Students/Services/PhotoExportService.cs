@@ -9,8 +9,24 @@ using QuestPDF.Infrastructure;
 using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.Utilities;
+using BottomBorder = DocumentFormat.OpenXml.Wordprocessing.BottomBorder;
+using Break = DocumentFormat.OpenXml.Wordprocessing.Break;
+using InsideHorizontalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideHorizontalBorder;
+using InsideVerticalBorder = DocumentFormat.OpenXml.Wordprocessing.InsideVerticalBorder;
+using LeftBorder = DocumentFormat.OpenXml.Wordprocessing.LeftBorder;
+using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
+using ParagraphProperties = DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties;
 using WordDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 using PdfDocument = QuestPDF.Fluent.Document;
+using RightBorder = DocumentFormat.OpenXml.Wordprocessing.RightBorder;
+using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
+using RunProperties = DocumentFormat.OpenXml.Wordprocessing.RunProperties;
+using Table = DocumentFormat.OpenXml.Wordprocessing.Table;
+using TableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
+using TableProperties = DocumentFormat.OpenXml.Wordprocessing.TableProperties;
+using TableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
+using Text = DocumentFormat.OpenXml.Wordprocessing.Text;
+using TopBorder = DocumentFormat.OpenXml.Wordprocessing.TopBorder;
 
 namespace Viper.Areas.Students.Services
 {
@@ -69,14 +85,14 @@ namespace Viper.Areas.Students.Services
         private readonly IStudentGroupService _studentGroupService;
         private readonly IPhotoService _photoService;
         private readonly ILogger<PhotoExportService> _logger;
-        private readonly Curriculum.Services.TermCodeService _termCodeService;
+        private readonly TermCodeService _termCodeService;
         private readonly ICourseService _courseService;
 
         public PhotoExportService(
             IStudentGroupService studentGroupService,
             IPhotoService photoService,
             ILogger<PhotoExportService> logger,
-            Curriculum.Services.TermCodeService termCodeService,
+            TermCodeService termCodeService,
             ICourseService courseService)
         {
             _studentGroupService = studentGroupService;
@@ -187,7 +203,7 @@ namespace Viper.Areas.Students.Services
                                 if (!isFirstGroup)
                                 {
                                     var pageBreakPara = body.AppendChild(new Paragraph());
-                                    pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
+                                    pageBreakPara.AppendChild(new Run(new Break { Type = BreakValues.Page }));
                                 }
                                 isFirstGroup = false;
 
@@ -206,12 +222,12 @@ namespace Viper.Areas.Students.Services
                                 var chunkTable = body.AppendChild(new Table());
                                 var chunkTableProps = chunkTable.AppendChild(new TableProperties());
                                 chunkTableProps.AppendChild(new TableBorders(
-                                    new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                                    new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
+                                    new TopBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new BottomBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new LeftBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new RightBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new InsideHorizontalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                                    new InsideVerticalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                                 ));
                                 WordAccessibilityHelper.MarkAsLayoutTable(chunkTable, "Photo gallery layout grid");
 
@@ -230,10 +246,10 @@ namespace Viper.Areas.Students.Services
                                         {
                                             var photoParagraph = cell.AppendChild(new Paragraph());
                                             var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
-                                            photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                            photoParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                             var photoRun = photoParagraph.AppendChild(new Run());
 
-                                            var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
+                                            var imagePart = mainPart.AddImagePart(ImagePartType.Jpeg);
                                             using (var photoStream = new MemoryStream(photoBytes))
                                             {
                                                 imagePart.FeedData(photoStream);
@@ -285,7 +301,7 @@ namespace Viper.Areas.Students.Services
                                             )
                                             { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
 
-                                            var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
+                                            var drawing = new Drawing(inline);
 
                                             photoRun.AppendChild(drawing);
                                         }
@@ -293,7 +309,7 @@ namespace Viper.Areas.Students.Services
                                         // Add name (no secondary text for large layouts)
                                         var cellParagraph = cell.AppendChild(new Paragraph());
                                         var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
-                                        cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                        cellParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                         var cellRun = cellParagraph.AppendChild(new Run());
                                         cellRun.AppendChild(new Text(CollapseWhitespace(student.GroupExportName)));
                                     }
@@ -312,7 +328,7 @@ namespace Viper.Areas.Students.Services
                         if (!isFirstGroup && ShouldShowGroupHeaders(groupedStudents))
                         {
                             var pageBreakPara = body.AppendChild(new Paragraph());
-                            pageBreakPara.AppendChild(new Run(new Break() { Type = BreakValues.Page }));
+                            pageBreakPara.AppendChild(new Run(new Break { Type = BreakValues.Page }));
                         }
                         isFirstGroup = false;
 
@@ -328,12 +344,12 @@ namespace Viper.Areas.Students.Services
                         var table = body.AppendChild(new Table());
                         var tableProps = table.AppendChild(new TableProperties());
                         tableProps.AppendChild(new TableBorders(
-                            new TopBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new BottomBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new LeftBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new RightBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new InsideHorizontalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
-                            new InsideVerticalBorder() { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
+                            new TopBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new BottomBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new LeftBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new RightBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new InsideHorizontalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 },
+                            new InsideVerticalBorder { Val = new EnumValue<BorderValues>(BorderValues.None), Size = 0 }
                         ));
                         WordAccessibilityHelper.MarkAsLayoutTable(table, "Photo gallery layout grid");
 
@@ -351,10 +367,10 @@ namespace Viper.Areas.Students.Services
                                 {
                                     var photoParagraph = cell.AppendChild(new Paragraph());
                                     var photoParagraphProps = photoParagraph.AppendChild(new ParagraphProperties());
-                                    photoParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                    photoParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                     var photoRun = photoParagraph.AppendChild(new Run());
 
-                                    var imagePart = mainPart.AddImagePart(DocumentFormat.OpenXml.Packaging.ImagePartType.Jpeg);
+                                    var imagePart = mainPart.AddImagePart(ImagePartType.Jpeg);
                                     using (var photoStream = new MemoryStream(photoBytes))
                                     {
                                         imagePart.FeedData(photoStream);
@@ -405,7 +421,7 @@ namespace Viper.Areas.Students.Services
                                     )
                                     { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U };
 
-                                    var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing(inline);
+                                    var drawing = new Drawing(inline);
 
                                     photoRun.AppendChild(drawing);
                                 }
@@ -413,7 +429,7 @@ namespace Viper.Areas.Students.Services
                                 // Add name and optionally secondary text (hide group info for large layouts)
                                 var cellParagraph = cell.AppendChild(new Paragraph());
                                 var cellParagraphProps = cellParagraph.AppendChild(new ParagraphProperties());
-                                cellParagraphProps.AppendChild(new Justification() { Val = JustificationValues.Center });
+                                cellParagraphProps.AppendChild(new Justification { Val = JustificationValues.Center });
                                 var cellRun = cellParagraph.AppendChild(new Run());
                                 cellRun.AppendChild(new Text(CollapseWhitespace(useLargeLayout ? student.GroupExportName : student.FullName)));
 
@@ -891,6 +907,8 @@ namespace Viper.Areas.Students.Services
         /// Loads all student photos upfront in parallel for faster export generation.
         /// Returns a dictionary keyed by student MailId for quick lookup during rendering.
         /// </summary>
+        private sealed record StudentPhotoLoadResult(string MailId, byte[]? PhotoBytes);
+
         private async Task<Dictionary<string, byte[]>> BatchLoadPhotosAsync(List<StudentPhoto> students)
         {
             var photoCache = new Dictionary<string, byte[]>();
@@ -903,28 +921,28 @@ namespace Viper.Areas.Students.Services
                     try
                     {
                         var photoBytes = await _photoService.GetStudentPhotoAsync(s.MailId);
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)photoBytes };
+                        return new StudentPhotoLoadResult(s.MailId, photoBytes);
                     }
                     catch (IOException ex)
                     {
                         _logger.LogWarning(ex, "IO error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                     catch (HttpRequestException ex)
                     {
                         _logger.LogWarning(ex, "HTTP error loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                     catch (InvalidOperationException ex)
                     {
                         _logger.LogWarning(ex, "Invalid operation loading photo for student {MailId}", LogSanitizer.SanitizeId(s.MailId));
-                        return new { MailId = s.MailId, PhotoBytes = (byte[]?)null };
+                        return new StudentPhotoLoadResult(s.MailId, null);
                     }
                 });
 
             var photos = await Task.WhenAll(photoTasks);
 
-            foreach (var photo in photos.Where(p => p.PhotoBytes != null && p.PhotoBytes.Length > 0))
+            foreach (var photo in photos.Where(p => p.PhotoBytes is { Length: > 0 }))
             {
                 photoCache[photo.MailId] = photo.PhotoBytes!;
             }
@@ -945,7 +963,8 @@ namespace Viper.Areas.Students.Services
                 _logger.LogDebug("Found {Count} students for class level {ClassLevel}", students.Count, LogSanitizer.SanitizeString(request.ClassLevel));
                 return students;
             }
-            else if (!string.IsNullOrEmpty(request.GroupType) && !string.IsNullOrEmpty(request.GroupId))
+
+            if (!string.IsNullOrEmpty(request.GroupType) && !string.IsNullOrEmpty(request.GroupId))
             {
                 _logger.LogDebug("Fetching students by group: {GroupType}/{GroupId}",
                     LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
@@ -956,7 +975,8 @@ namespace Viper.Areas.Students.Services
                     students.Count, LogSanitizer.SanitizeString(request.GroupType), LogSanitizer.SanitizeString(request.GroupId));
                 return students;
             }
-            else if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
+
+            if (!string.IsNullOrEmpty(request.TermCode) && !string.IsNullOrEmpty(request.Crn))
             {
                 _logger.LogDebug("Fetching students by course: {TermCode}/{Crn}",
                     LogSanitizer.SanitizeString(request.TermCode), LogSanitizer.SanitizeString(request.Crn));

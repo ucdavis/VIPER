@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -190,7 +191,7 @@ public class HarvestService : IHarvestService
     public async Task ExecuteHarvestWithProgressAsync(
         int termCode,
         int modifiedBy,
-        System.Threading.Channels.ChannelWriter<HarvestProgressEvent> progressChannel,
+        ChannelWriter<HarvestProgressEvent> progressChannel,
         CancellationToken ct = default)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
@@ -469,7 +470,7 @@ public class HarvestService : IHarvestService
 
             _auditService.AddTermChangeAudit(termCode, EffortAuditActions.HarvestTerm,
                 new { Status = oldStatus },
-                new { Status = term.Status, term.HarvestedDate });
+                new { term.Status, term.HarvestedDate });
         }
     }
 

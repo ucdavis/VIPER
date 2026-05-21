@@ -52,7 +52,7 @@ namespace Viper.Areas.RAPS.Controllers
             List<MemberSearchResult> results = new();
             members.ForEach(m =>
             {
-                results.Add(new MemberSearchResult()
+                results.Add(new MemberSearchResult
                 {
                     MemberId = m.MothraId,
                     DisplayFirstName = m.DisplayFirstName,
@@ -76,7 +76,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return new MemberSearchResult()
+            return new MemberSearchResult
             {
                 MemberId = member.MothraId,
                 DisplayFirstName = member.DisplayFirstName,
@@ -93,7 +93,6 @@ namespace Viper.Areas.RAPS.Controllers
         /// Get all permissions assigned to a user (either allowed or denied) based on either role membership or direct
         /// permission assignment.
         /// </summary>
-        /// <param name="memberId"></param>
         /// <returns>A list of permission results, including a source param to determine how the permission was assigned</returns>
         [Permission(Allow = "RAPS.Admin,RAPS.RSOP")]
         [HttpGet("{memberId}/RSOP")]
@@ -157,7 +156,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 else
                 {
-                    permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = p.Role, Access = p.Access == 1 };
+                    permissions[p.PermissionId] = new PermissionResult { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = p.Role, Access = p.Access == 1 };
                 }
             }
 
@@ -182,7 +181,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 else
                 {
-                    permissions[p.PermissionId] = new PermissionResult() { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = "Member Permission", Access = p.Access == 1 };
+                    permissions[p.PermissionId] = new PermissionResult { PermissionId = p.PermissionId, PermissionName = p.Permission, Source = "Member Permission", Access = p.Access == 1 };
                 }
             }
 

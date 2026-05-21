@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class VwFederationFacultyAdjunct
+public class VwFederationFacultyAdjunct
 {
     public string? MemberId { get; set; }
 }

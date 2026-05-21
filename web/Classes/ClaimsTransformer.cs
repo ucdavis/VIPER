@@ -1,11 +1,12 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Memory;
-using System.Security.Claims;
 using Viper;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using LogLevel = NLog.LogLevel;
 
 namespace Web.Authorization
 {
@@ -52,7 +53,7 @@ namespace Web.Authorization
                 RAPSContext rapsContext = scope.ServiceProvider.GetRequiredService<RAPSContext>();
 
                 if (HttpHelper.Cache != null && loginId != null
-                    && HttpHelper.Cache.TryGetValue<string>(ClaimsTransformer.EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
+                    && HttpHelper.Cache.TryGetValue(EmulationCacheNamePrefix + loginId, out encryptedEmulatedLoginId))
                 {
                     // make sure the emulating user has permission to emulate
                     AaudUser? emulatingUser = UserHelper.GetByLoginId(aaudContext, loginId);
@@ -102,7 +103,7 @@ namespace Web.Authorization
                     // basically we don't want to be notified of RecordNotFound exception's except on production since users can be missing until the next db refresh
                     if (isProd || !(ex is RecordNotFoundException))
                     {
-                        HttpHelper.Logger.Log(NLog.LogLevel.Error, ex, ex.Message);
+                        HttpHelper.Logger.Log(LogLevel.Error, ex, ex.Message);
                     }
 
                 }

@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class VwServiceCredit
+public class VwServiceCredit
 {
     public string? MemberId { get; set; } = null!;
 }

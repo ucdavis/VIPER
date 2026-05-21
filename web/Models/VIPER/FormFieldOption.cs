@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FormFieldOption
+public class FormFieldOption
 {
     public int FormFieldOptionId { get; set; }
 

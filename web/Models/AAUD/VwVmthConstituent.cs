@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwVmthConstituent
+public class VwVmthConstituent
 {
     public int UserRecordId { get; set; }
 

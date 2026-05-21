@@ -1,4 +1,3 @@
-using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -74,7 +73,8 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return ValidationProblem("Permission name must be unique");
             }
-            else if (existingPermission != null)
+
+            if (existingPermission != null)
             {
                 _context.Entry(existingPermission).State = EntityState.Detached;
             }
@@ -93,10 +93,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -153,7 +151,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static TblPermission CreateTblPermissionFromDto(PermissionCreateUpdate permission)
         {
-            var tblPermission = new TblPermission() { Permission = permission.Permission, Description = permission.Description };
+            var tblPermission = new TblPermission { Permission = permission.Permission, Description = permission.Description };
             if (permission.PermissionId != null && permission.PermissionId > 0)
             {
                 tblPermission.PermissionId = (int)permission.PermissionId;

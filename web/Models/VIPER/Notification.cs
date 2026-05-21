@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class Notification
+public class Notification
 {
     public int NotificationId { get; set; }
 

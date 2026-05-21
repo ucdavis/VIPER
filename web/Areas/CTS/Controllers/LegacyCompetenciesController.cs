@@ -74,7 +74,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 if (current != null && sessionCompetency.DvmLevelId != null)
                 {
-                    current.Levels.Add(new LevelIdAndNameDto()
+                    current.Levels.Add(new LevelIdAndNameDto
                     {
                         LevelId = (int)sessionCompetency.DvmLevelId,
                         LevelName = sessionCompetency.DvmLevelName,

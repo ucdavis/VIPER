@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwAdconstituent
+public class VwAdconstituent
 {
     public string? LoginId { get; set; }
 

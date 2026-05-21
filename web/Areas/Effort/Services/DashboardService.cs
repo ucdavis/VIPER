@@ -398,7 +398,7 @@ public class DashboardService : IDashboardService
         // Otherwise we would incorrectly resolve alerts from other departments
         if (departmentCodes == null)
         {
-            var currentAlertKeys = alerts.Select(a => (a.AlertType, EntityId: a.EntityId)).ToHashSet();
+            var currentAlertKeys = alerts.Select(a => (a.AlertType, a.EntityId)).ToHashSet();
             foreach (var state in states.Where(s => s.Status == "Active" && !currentAlertKeys.Contains((s.AlertType, s.EntityId))))
             {
                 state.Status = "Resolved";

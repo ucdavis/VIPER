@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class VwSvmAffiliate
+public class VwSvmAffiliate
 {
     public string? LastName { get; set; }
 

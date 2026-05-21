@@ -11,6 +11,7 @@ using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
+using Viper.Models.VIPER;
 using Viper.Services;
 
 namespace Viper.test.Effort;
@@ -140,7 +141,7 @@ public sealed class VerificationServiceTests : IDisposable
             EffortDept = "VME"
         });
 
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = TestPersonId,
             MothraId = "testuser",
@@ -980,7 +981,7 @@ public sealed class VerificationServiceTests : IDisposable
         _context.Persons.Add(verifiedPerson);
         await _context.SaveChangesAsync();
 
-        _viperContext.People.Add(new Viper.Models.VIPER.Person
+        _viperContext.People.Add(new Person
         {
             PersonId = 200,
             MothraId = "verified",

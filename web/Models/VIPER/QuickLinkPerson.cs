@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class QuickLinkPerson
+public class QuickLinkPerson
 {
     public int QuickLinkPeopleId { get; set; }
 

@@ -12,12 +12,12 @@ namespace Viper.Areas.RAPS.Models
 
         public static RoleMemberCreateUpdate CreateRoleMember(TblRoleMember roleMember)
         {
-            return new RoleMemberCreateUpdate()
+            return new RoleMemberCreateUpdate
             {
                 MemberId = roleMember.MemberId,
                 RoleId = roleMember.RoleId,
-                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.StartDate) : null,
-                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((System.DateTime)roleMember.EndDate) : null
+                StartDate = roleMember.StartDate != null ? DateOnly.FromDateTime((DateTime)roleMember.StartDate) : null,
+                EndDate = roleMember.EndDate != null ? DateOnly.FromDateTime((DateTime)roleMember.EndDate) : null
             };
         }
     }

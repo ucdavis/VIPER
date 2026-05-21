@@ -1,11 +1,11 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
-using System.Net;
 
 namespace Viper.Classes
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class ApiExceptionFilterAttribute : ExceptionFilterAttribute
     {
         public override void OnException(ExceptionContext context)
@@ -54,7 +54,7 @@ namespace Viper.Classes
         private static List<string> GetErrorList(ExceptionContext context)
         {
             var errors = new List<string>();
-            System.Exception? exception = context.Exception;
+            Exception? exception = context.Exception;
             while (exception != null)
             {
                 errors.Add(exception.Message);

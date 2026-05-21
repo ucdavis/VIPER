@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class Clicker
+public class Clicker
 {
     public string ClickerStudentId { get; set; } = null!;
 

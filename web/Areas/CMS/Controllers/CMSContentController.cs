@@ -42,13 +42,13 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("fn/{friendlyName}")]
         public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
         {
-            var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null);
-            if (blocks == null || !blocks.Any())
+            var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService).GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null)?.ToList();
+            if (blocks == null || blocks.Count == 0)
             {
                 return NotFound();
             }
 
-            return blocks.First();
+            return blocks[0];
         }
 
         //PUT: content/5
@@ -79,7 +79,8 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return ValidationProblem("Friendly name must be unique");
             }
-            else if (friendlyNameCheck != null)
+
+            if (friendlyNameCheck != null)
             {
                 _context.Entry(friendlyNameCheck).State = EntityState.Detached;
             }
@@ -89,7 +90,7 @@ namespace Viper.Areas.CMS.Controllers
             _context.Entry(existingBlock).State = EntityState.Modified;
 
             //save history
-            var contentHistory = new ContentHistory()
+            var contentHistory = new ContentHistory
             {
                 ContentBlockId = contentBlockId,
                 ContentBlockContent = block.Content,
@@ -130,7 +131,7 @@ namespace Viper.Areas.CMS.Controllers
             _context.ContentBlocks.Add(newBlock);
             await _context.SaveChangesAsync();
 
-            var contentHistory = new ContentHistory()
+            var contentHistory = new ContentHistory
             {
                 ContentBlockId = block.ContentBlockId,
                 ContentBlockContent = block.Content,

@@ -18,10 +18,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Get Courses for year, or by course number or subject code
         /// </summary>
-        /// <param name="academicYear"></param>
-        /// <param name="courseNum"></param>
-        /// <param name="subjectCode"></param>
-        /// <returns></returns>
         public async Task<List<Course>> GetCourses(string? termCode, string? courseNum, string? subjectCode)
         {
             var cso = await GetCourseSessionOffering(academicYear: termCode, courseNum: courseNum, subjectCode: subjectCode);
@@ -31,8 +27,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Get a single course + sessions and offerings
         /// </summary>
-        /// <param name="courseId"></param>
-        /// <returns></returns>
         public async Task<Course?> GetCourse(int courseId)
         {
             var cso = await GetCourseSessionOffering(courseId: courseId);
@@ -42,8 +36,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Get a single session and offerings
         /// </summary>
-        /// <param name="sessionId"></param>
-        /// <returns></returns>
         public async Task<Session?> GetSession(int sessionId)
         {
             var cso = await GetCourseSessionOffering(sessionId: sessionId);
@@ -53,8 +45,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Gets sessions for a course and their offerings
         /// </summary>
-        /// <param name="courseId"></param>
-        /// <returns></returns>
         public async Task<List<Session>> GetSessions(int courseId)
         {
             var course = await GetCourse(courseId);
@@ -68,8 +58,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Turn a list of CourseSessionOfferings into a list of Course objects
         /// </summary>
-        /// <param name="csos"></param>
-        /// <returns></returns>
         static private List<Course> CourseSessionOfferingsToCourses(List<CourseSessionOffering> csos)
         {
             List<Course> courses = new();
@@ -87,8 +75,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Turn a list of CourseSessionOfferings, all from the same course, into a list of sessions for that course
         /// </summary>
-        /// <param name="csos"></param>
-        /// <returns></returns>
         static private List<Session> CourseSessionOfferingsToSessions(List<CourseSessionOffering> csos)
         {
             List<Session> sessions = new();
@@ -106,8 +92,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Turn a list of CourseSessionOfferings, all from the same session, into a list of offerings for that session
         /// </summary>
-        /// <param name="csos"></param>
-        /// <returns></returns>
         static private List<Offering> CourseSessionOfferingsToOfferings(List<CourseSessionOffering> csos)
         {
             List<Offering> offerings = new();
@@ -121,16 +105,6 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Get a list CourseSessionOffering objects from the database
         /// </summary>
-        /// <param name="academicYear"></param>
-        /// <param name="courseNum"></param>
-        /// <param name="subjectCode"></param>
-        /// <param name="crn"></param>
-        /// <param name="sessionType"></param>
-        /// <param name="room"></param>
-        /// <param name="from"></param>
-        /// <param name="to"></param>
-        /// <param name="studentGroup"></param>
-        /// <returns></returns>
         private async Task<List<CourseSessionOffering>> GetCourseSessionOffering(
             int? courseId = null, string? academicYear = null, string? courseNum = null, string? subjectCode = null,
             string? crn = null, int? sessionId = null, string? sessionType = null,

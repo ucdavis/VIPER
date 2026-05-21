@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs;
@@ -95,10 +96,10 @@ public class CourseService : ICourseService
 
         var bannerCourses = new List<BannerCourseDto>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_search_banner_courses]", connection);
+        await using var command = new SqlCommand("[effort].[sp_search_banner_courses]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@TermCode", termCode.ToString());
         command.Parameters.AddWithValue("@SubjCode", string.IsNullOrWhiteSpace(subjCode) ? DBNull.Value : subjCode.ToUpperInvariant());

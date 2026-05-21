@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class DlGradPerson
+public class DlGradPerson
 {
     public string GradPersonPKey { get; set; } = null!;
 

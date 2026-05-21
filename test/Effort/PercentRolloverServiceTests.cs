@@ -400,7 +400,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
     public async Task ExecuteRolloverAsync_HandlesMultiplePeopleAndTypes()
     {
         // Arrange - Multiple people with different types
-        var teachingType = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var teachingType = await CreatePercentAssignTypeAsync();
         var researchType = await CreatePercentAssignTypeAsync("Research", "Clinical");
         var adminType = await CreatePercentAssignTypeAsync("Admin", "Admin");
         var unit1 = await CreateUnitAsync("Surgery");
@@ -486,7 +486,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
     public async Task GetRolloverPreviewAsync_EnrichesWithPersonDetails()
     {
         // Arrange
-        var type = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var type = await CreatePercentAssignTypeAsync();
         var unit = await CreateUnitAsync("Surgery");
         await CreatePersonAsync(100, "John", "Doe", "jdoe");
 
@@ -511,7 +511,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
     public async Task GetRolloverPreviewAsync_ReturnsUnknown_WhenViperPersonMissing()
     {
         // Arrange - Create assignment for a person that has no ViperPerson record
-        var type = await CreatePercentAssignTypeAsync("Teaching", "Other");
+        var type = await CreatePercentAssignTypeAsync();
         var unit = await CreateUnitAsync("Surgery");
 
         // Directly create a Percentage without calling CreatePersonAsync (no ViperPerson seeded)

@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS;
 
-public partial class Domain
+public class Domain
 {
     public required int DomainId { get; set; }
 

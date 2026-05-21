@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Helpers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -161,7 +162,7 @@ public class HarvestController : BaseEffortController
                 await channel.Writer.WriteAsync(HarvestProgressEvent.Failed("An invalid operation occurred during harvest."), ct);
                 channel.Writer.Complete();
             }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            catch (DbUpdateException ex)
             {
                 _logger.LogError(ex, "Database error during harvest for term {TermCode}", termCode);
                 await channel.Writer.WriteAsync(HarvestProgressEvent.Failed("A database error occurred during harvest."), ct);

@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FormSubmissionSnapshot
+public class FormSubmissionSnapshot
 {
     public Guid FormsubmissionSnapshotId { get; set; }
 

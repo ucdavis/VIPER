@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.ClinicalScheduler;
+using Viper.Models.RAPS;
+using Person = Viper.Models.ClinicalScheduler.Person;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -160,9 +163,9 @@ namespace Viper.test.ClinicalScheduler
         /// <summary>
         /// Creates a test Person entity for Clinical Scheduler context
         /// </summary>
-        public static Viper.Models.ClinicalScheduler.Person CreatePerson(string mothraId, string firstName = "Test", string lastName = "User")
+        public static Person CreatePerson(string mothraId, string firstName = "Test", string lastName = "User")
         {
-            return new Viper.Models.ClinicalScheduler.Person
+            return new Person
             {
                 IdsMothraId = mothraId,
                 PersonDisplayFullName = $"{lastName}, {firstName}",
@@ -261,12 +264,12 @@ namespace Viper.test.ClinicalScheduler
                 var context = new RAPSContext(options);
 
                 // Setup HttpHelper.Cache for UserHelper permission caching
-                var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
-                    new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
-                Viper.HttpHelper.Configure(memoryCache, null!, null!, null!, null!, null!);
+                var memoryCache = new MemoryCache(
+                    new MemoryCacheOptions());
+                HttpHelper.Configure(memoryCache, null!, null!, null!, null!, null!);
 
                 // Create standard test permissions
-                var permissions = new List<Viper.Models.RAPS.TblPermission>
+                var permissions = new List<TblPermission>
                 {
                     new() { PermissionId = 1, Permission = ClinicalSchedulePermissions.Base, Description = "Clinical Scheduler Base Permission" },
                     new() { PermissionId = 2, Permission = ClinicalSchedulePermissions.Manage, Description = "Clinical Scheduler Manage Permission" },
@@ -286,14 +289,14 @@ namespace Viper.test.ClinicalScheduler
             /// </summary>
             public static void AddMemberPermissions(RAPSContext rapsContext, string mothraId, params string[] permissions)
             {
-                var memberPermissions = new List<Viper.Models.RAPS.TblMemberPermission>();
+                var memberPermissions = new List<TblMemberPermission>();
 
                 foreach (var permission in permissions)
                 {
                     var permissionEntity = rapsContext.TblPermissions.FirstOrDefault(p => p.Permission == permission);
                     if (permissionEntity != null)
                     {
-                        memberPermissions.Add(new Viper.Models.RAPS.TblMemberPermission
+                        memberPermissions.Add(new TblMemberPermission
                         {
                             MemberId = mothraId,
                             PermissionId = permissionEntity.PermissionId,

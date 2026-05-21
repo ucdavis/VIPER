@@ -112,7 +112,7 @@ namespace Viper.test.CTS
         public async Task GetCompetencyBundleAssociations_NoFilters_ReturnsOnlyUnbundledCompetencies()
         {
             // Act
-            var result = await _controller.GetCompetencyBundleAssociations(null, null, null);
+            var result = await _controller.GetCompetencyBundleAssociations();
 
             // Assert
             var okResult = Assert.IsType<ActionResult<List<CompetencyBundleAssociationDto>>>(result);

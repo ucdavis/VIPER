@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwAdVmssacscheduler
+public class VwAdVmssacscheduler
 {
     public string? LastName { get; set; }
 

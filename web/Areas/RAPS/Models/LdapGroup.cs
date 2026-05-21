@@ -40,7 +40,6 @@ namespace Viper.Areas.RAPS.Models
                     case "extensionattribute1": ExtensionAttribute1 = v.ToString(); break;
                     case "extensionattribute2": ExtensionAttribute2 = v.ToString(); break;
                     case "extensionattribute3": ExtensionAttribute3 = v.ToString(); break;
-                    default: break;
                 }
 
             }

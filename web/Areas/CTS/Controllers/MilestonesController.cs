@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Models.CTS;
 using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
@@ -80,7 +81,7 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 else
                 {
-                    context.MilestoneLevels.Add(new Viper.Models.CTS.MilestoneLevel()
+                    context.MilestoneLevels.Add(new MilestoneLevel
                     {
                         BundleId = milestoneId,
                         LevelId = ml.LevelId,

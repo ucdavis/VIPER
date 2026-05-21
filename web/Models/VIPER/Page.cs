@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class Page
+public class Page
 {
     public int PageId { get; set; }
 

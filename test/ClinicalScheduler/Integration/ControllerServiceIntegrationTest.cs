@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -107,10 +108,10 @@ namespace Viper.test.ClinicalScheduler.Integration
 
             // Assert - Verify PersonService was used and returned DTOs
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var clinicians = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<object>>(okResult.Value).ToList();
             Assert.NotEmpty(clinicians);
             // Verify the data came from PersonService by checking it matches our seed data
-            Assert.Equal(2, clinicians.Count());
+            Assert.Equal(2, clinicians.Count);
         }
 
 
@@ -314,8 +315,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 IsPrimaryEvaluator = false
             };
 
-            var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(invalidRequest);
-            var validationResults = invalidRequest.Validate(validationContext);
+            var validationContext = new ValidationContext(invalidRequest);
+            var validationResults = invalidRequest.Validate(validationContext).ToList();
 
             Assert.NotEmpty(validationResults);
             Assert.Contains(validationResults, v => v.ErrorMessage == "Week IDs must be unique");

@@ -9,6 +9,7 @@ using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using Viper.Models.AAUD;
 
 namespace Viper.Areas.Effort.Services;
 
@@ -430,7 +431,7 @@ public class InstructorService : IInstructorService
 
         // Look up employee info from AAUD through Ids table (MothraId -> pKey -> Employee)
         var termCodeStr = request.TermCode.ToString();
-        Viper.Models.AAUD.Id? idsRecord = null;
+        Id? idsRecord = null;
         if (!string.IsNullOrEmpty(person.MothraId))
         {
             idsRecord = await _aaudContext.Ids
@@ -438,7 +439,7 @@ public class InstructorService : IInstructorService
                 .FirstOrDefaultAsync(i => i.IdsTermCode == termCodeStr && i.IdsMothraid == person.MothraId, ct);
         }
 
-        Viper.Models.AAUD.Employee? employee = null;
+        Employee? employee = null;
         if (idsRecord != null)
         {
             employee = await _aaudContext.Employees
@@ -626,7 +627,7 @@ public class InstructorService : IInstructorService
 
         // Look up employee info from AAUD through Ids table (MothraId -> pKey -> Employee)
         var termCodeStr = termCode.ToString();
-        Viper.Models.AAUD.Id? idsRecord = null;
+        Id? idsRecord = null;
         if (!string.IsNullOrEmpty(person.MothraId))
         {
             idsRecord = await _aaudContext.Ids
@@ -634,7 +635,7 @@ public class InstructorService : IInstructorService
                 .FirstOrDefaultAsync(i => i.IdsTermCode == termCodeStr && i.IdsMothraid == person.MothraId, ct);
         }
 
-        Viper.Models.AAUD.Employee? employee = null;
+        Employee? employee = null;
         if (idsRecord != null)
         {
             employee = await _aaudContext.Employees
@@ -686,7 +687,7 @@ public class InstructorService : IInstructorService
     private async Task<string?> DetermineDepartmentAsync(
         string? mothraId,
         int termCode,
-        Viper.Models.AAUD.Employee? employee,
+        Employee? employee,
         Dictionary<string, string>? deptSimpleNameLookup,
         CancellationToken ct = default)
     {
@@ -848,7 +849,7 @@ public class InstructorService : IInstructorService
     /// </summary>
     private static string? DetermineDepartmentFromJobs(
         string? mothraId,
-        Viper.Models.AAUD.Employee? employee,
+        Employee? employee,
         Dictionary<string, List<string>>? jobDeptsByMothraId,
         Dictionary<string, string>? deptSimpleNameLookup)
     {

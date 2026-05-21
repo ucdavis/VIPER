@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class LeftNavItem
+public class LeftNavItem
 {
     public int LeftNavItemId { get; set; }
 

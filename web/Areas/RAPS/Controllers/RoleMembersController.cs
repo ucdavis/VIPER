@@ -1,8 +1,7 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
@@ -63,7 +62,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 roleMembers = roleMembers
                     .Where(rm => rm.MemberId == memberId)
-                    .Where(rm => application == (int)rm.Role.Application)
+                    .Where(rm => application == rm.Role.Application)
                     .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role);
             }
 
@@ -270,7 +269,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 catch
                 {
-                    return new VmacsResponse()
+                    return new VmacsResponse
                     {
                         ErrorMessage = "Could not parse response from VMACS: " + finalMessage,
                         Success = false
@@ -278,7 +277,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
-            return new VmacsResponse()
+            return new VmacsResponse
             {
                 Success = true
             };

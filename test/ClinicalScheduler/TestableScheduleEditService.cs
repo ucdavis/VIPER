@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.Services;
@@ -31,7 +32,7 @@ namespace Viper.test.ClinicalScheduler
         /// </summary>
         protected override async Task<T> ExecuteInTransactionAsync<T>(
             Func<CancellationToken, Task<T>> operation,
-            System.Data.IsolationLevel isolationLevel,
+            IsolationLevel isolationLevel,
             CancellationToken cancellationToken)
         {
             // Execute the operation directly without transaction for testing

@@ -5,6 +5,7 @@ using Viper.Areas.Effort;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.VIPER;
 
 namespace Viper.test.Effort;
 
@@ -303,7 +304,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_ThrowsException_WhenExpectedCloseDateBeforeTermEnd()
     {
         // Arrange - Term ends 2025-06-15, expected close is before that
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202510,
             Description = "Fall 2025",
@@ -323,7 +324,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_ThrowsException_WhenExpectedCloseDateOnTermEndDate()
     {
         // Arrange - Term ends 2025-06-15, expected close is the same day
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202510,
             Description = "Fall 2025",
@@ -343,7 +344,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_ThrowsException_WhenExpectedCloseDateMoreThanOneYearAfterTermEnd()
     {
         // Arrange - Term ends 2025-06-15, expected close is more than 1 year later
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202510,
             Description = "Fall 2025",
@@ -363,7 +364,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_AcceptsExpectedCloseDate_WhenDayAfterTermEnd()
     {
         // Arrange - Term ends 2025-06-15, expected close is 2025-06-16 (day after)
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202510,
             Description = "Fall 2025",
@@ -385,7 +386,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_AcceptsExpectedCloseDate_WhenExactlyOneYearAfterTermEnd()
     {
         // Arrange - Term ends 2025-06-15, expected close is exactly 1 year later
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202510,
             Description = "Fall 2025",
@@ -409,7 +410,7 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         await _context.SaveChangesAsync();
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202410,
             Description = "Fall 2024",
@@ -431,7 +432,7 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         await _context.SaveChangesAsync();
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202410,
             Description = "Fall 2024",
@@ -453,7 +454,7 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         await _context.SaveChangesAsync();
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new Term
         {
             TermCode = 202410,
             Description = "Fall 2024",
@@ -810,9 +811,9 @@ public sealed class TermServiceTests : IDisposable
 
         // Add terms to VIPER context (simulating vwTerms)
         _viperContext.Terms.AddRange(
-            new Viper.Models.VIPER.Term { TermCode = 202510, Description = "Fall 2025", StartDate = DateTime.Today.AddMonths(3), TermType = "Q" },
-            new Viper.Models.VIPER.Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" },
-            new Viper.Models.VIPER.Term { TermCode = 202530, Description = "Spring 2026", StartDate = DateTime.Today.AddMonths(9), TermType = "Q" }
+            new Term { TermCode = 202510, Description = "Fall 2025", StartDate = DateTime.Today.AddMonths(3), TermType = "Q" },
+            new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" },
+            new Term { TermCode = 202530, Description = "Spring 2026", StartDate = DateTime.Today.AddMonths(9), TermType = "Q" }
         );
         await _viperContext.SaveChangesAsync();
 
@@ -831,8 +832,8 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - Add facility schedule term to VIPER context
         _viperContext.Terms.AddRange(
-            new Viper.Models.VIPER.Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" },
-            new Viper.Models.VIPER.Term { TermCode = Viper.Models.VIPER.Term.FacilityScheduleTermCode, Description = "(DO NOT USE) Facility Schedule", StartDate = DateTime.Today.AddMonths(12), TermType = "Q" }
+            new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" },
+            new Term { TermCode = Term.FacilityScheduleTermCode, Description = "(DO NOT USE) Facility Schedule", StartDate = DateTime.Today.AddMonths(12), TermType = "Q" }
         );
         await _viperContext.SaveChangesAsync();
 
@@ -841,7 +842,7 @@ public sealed class TermServiceTests : IDisposable
 
         // Assert - Should exclude facility schedule term
         Assert.Single(available);
-        Assert.DoesNotContain(available, t => t.TermCode == Viper.Models.VIPER.Term.FacilityScheduleTermCode);
+        Assert.DoesNotContain(available, t => t.TermCode == Term.FacilityScheduleTermCode);
     }
 
     [Fact]
@@ -849,8 +850,8 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - Add past and future terms
         _viperContext.Terms.AddRange(
-            new Viper.Models.VIPER.Term { TermCode = 202310, Description = "Fall 2023", StartDate = DateTime.Today.AddMonths(-12), TermType = "Q" },
-            new Viper.Models.VIPER.Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" }
+            new Term { TermCode = 202310, Description = "Fall 2023", StartDate = DateTime.Today.AddMonths(-12), TermType = "Q" },
+            new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" }
         );
         await _viperContext.SaveChangesAsync();
 
@@ -870,7 +871,7 @@ public sealed class TermServiceTests : IDisposable
         _context.Terms.Add(new EffortTerm { TermCode = 202520 });
         await _context.SaveChangesAsync();
 
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" });
+        _viperContext.Terms.Add(new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" });
         await _viperContext.SaveChangesAsync();
 
         // Act

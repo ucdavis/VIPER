@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class LdapFacilityLink
+public class LdapFacilityLink
 {
     public string LdapUcdPersonUuid { get; set; } = null!;
 

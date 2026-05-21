@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class VwPoaPidmName
+public class VwPoaPidmName
 {
     public string PersonTermCode { get; set; } = null!;
 

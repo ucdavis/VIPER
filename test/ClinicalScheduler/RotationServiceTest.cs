@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Services;
@@ -18,7 +19,7 @@ namespace Viper.test.ClinicalScheduler
             // Use in-memory database for testing with configuration to ignore navigation properties
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
             _context = new ClinicalSchedulerContext(options);
 

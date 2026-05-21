@@ -25,7 +25,7 @@ namespace Viper.test.Students
             _mockPhotoExportService = Substitute.For<IPhotoExportService>();
             _mockCourseService = Substitute.For<ICourseService>();
             // TermCodeService requires VIPERContext and CoursesContext, mock with null using NSubstitute
-            _mockTermCodeService = Substitute.For<TermCodeService>([null!, null!]);
+            _mockTermCodeService = Substitute.For<TermCodeService>(null!, null!);
             _mockLogger = Substitute.For<ILogger<PhotoGalleryController>>();
 
             _controller = new PhotoGalleryController(
@@ -48,7 +48,7 @@ namespace Viper.test.Students
         public async Task GetClassGallery_InvalidClassLevel_ReturnsBadRequest(string classLevel)
         {
             // Act
-            var result = await _controller.GetClassGallery(classLevel, false);
+            var result = await _controller.GetClassGallery(classLevel);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -67,7 +67,7 @@ namespace Viper.test.Students
                 .Returns(new List<StudentPhoto>());
 
             // Act
-            var result = await _controller.GetClassGallery(classLevel, false);
+            var result = await _controller.GetClassGallery(classLevel);
 
             // Assert
             Assert.IsType<ContentResult>(result);
@@ -80,7 +80,7 @@ namespace Viper.test.Students
         public async Task GetGroupGallery_InvalidGroupType_ReturnsBadRequest(string groupType)
         {
             // Act
-            var result = await _controller.GetGroupGallery(groupType, "1A1", null);
+            var result = await _controller.GetGroupGallery(groupType, "1A1");
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -94,7 +94,7 @@ namespace Viper.test.Students
             var longGroupId = new string('A', 51);
 
             // Act
-            var result = await _controller.GetGroupGallery("eighths", longGroupId, null);
+            var result = await _controller.GetGroupGallery("eighths", longGroupId);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -109,7 +109,7 @@ namespace Viper.test.Students
         public async Task GetCourseGallery_InvalidTermCode_ReturnsBadRequest(string termCode)
         {
             // Act
-            var result = await _controller.GetCourseGallery(termCode, "12345", false);
+            var result = await _controller.GetCourseGallery(termCode, "12345");
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -122,7 +122,7 @@ namespace Viper.test.Students
         public async Task GetCourseGallery_InvalidCrn_ReturnsBadRequest(string crn)
         {
             // Act
-            var result = await _controller.GetCourseGallery("202409", crn, false);
+            var result = await _controller.GetCourseGallery("202409", crn);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -144,11 +144,11 @@ namespace Viper.test.Students
                 });
 
             // Act
-            var result = await _controller.GetCourseGallery("202409", "12345", false);
+            var result = await _controller.GetCourseGallery("202409", "12345");
 
             // Assert
             Assert.IsType<ContentResult>(result);
-            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202409", "12345", false, null, null);
+            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202409", "12345");
             await _mockCourseService.Received(1).GetCourseInfoAsync("202409", "12345");
         }
 
@@ -162,7 +162,7 @@ namespace Viper.test.Students
                 .Returns((CourseInfo?)null);
 
             // Act
-            var result = await _controller.GetCourseGallery("202409", "12345", false);
+            var result = await _controller.GetCourseGallery("202409", "12345");
 
             // Assert
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
@@ -401,7 +401,7 @@ namespace Viper.test.Students
                 });
 
             // Act
-            var result = await _controller.GetCourseGallery("202501", "12345", false);
+            var result = await _controller.GetCourseGallery("202501", "12345");
 
             // Assert
             Assert.IsType<ContentResult>(result);
@@ -409,7 +409,7 @@ namespace Viper.test.Students
             Assert.NotNull(contentResult?.Content);
 
             // Verify service was called
-            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202501", "12345", false, null, null);
+            await _mockStudentGroupService.Received(1).GetStudentsByCourseAsync("202501", "12345");
         }
 
         [Theory]
@@ -455,11 +455,11 @@ namespace Viper.test.Students
             var controllerType = typeof(PhotoGalleryController);
 
             // Act
-            var routeAttributes = controllerType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.RouteAttribute), false);
+            var routeAttributes = controllerType.GetCustomAttributes(typeof(RouteAttribute), false);
 
             // Assert
             Assert.NotEmpty(routeAttributes);
-            var routeAttr = (Microsoft.AspNetCore.Mvc.RouteAttribute)routeAttributes[0];
+            var routeAttr = (RouteAttribute)routeAttributes[0];
             Assert.Equal("/api/students/photos", routeAttr.Template);
         }
 

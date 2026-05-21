@@ -1,4 +1,3 @@
-using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -151,10 +150,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -186,7 +183,7 @@ namespace Viper.Areas.RAPS.Controllers
             //add new roles
             foreach (int id in roleIds)
             {
-                _context.Add(new TblAppRole()
+                _context.Add(new TblAppRole
                 {
                     RoleId = id,
                     AppRoleId = roleId
@@ -255,7 +252,7 @@ namespace Viper.Areas.RAPS.Controllers
 
         private static TblRole CreateTblRoleFromDTO(RoleCreateUpdate role)
         {
-            var tblRole = new TblRole()
+            var tblRole = new TblRole
             {
                 Role = role.Role,
                 Description = role.Description,

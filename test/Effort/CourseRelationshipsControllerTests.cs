@@ -304,9 +304,9 @@ public sealed class CourseRelationshipsControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
-        var returnedCourses = Assert.IsAssignableFrom<IEnumerable<CourseDto>>(okResult.Value);
+        var returnedCourses = Assert.IsAssignableFrom<IEnumerable<CourseDto>>(okResult.Value).ToList();
         Assert.Single(returnedCourses);
-        Assert.Equal(DvmDept, returnedCourses.First().CustDept);
+        Assert.Equal(DvmDept, returnedCourses[0].CustDept);
     }
 
     #endregion

@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class System
+public class System
 {
     public int SystemId { get; set; }
 

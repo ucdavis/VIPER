@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class LeftNavItemToPermission
+public class LeftNavItemToPermission
 {
     public int LeftNavItemPermissionId { get; set; }
 

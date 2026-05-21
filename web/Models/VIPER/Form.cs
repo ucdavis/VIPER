@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class Form
+public class Form
 {
     public Guid FormId { get; set; }
 

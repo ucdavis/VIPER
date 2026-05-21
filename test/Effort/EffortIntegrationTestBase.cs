@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using Viper.Models.RAPS;
 
 namespace Viper.test.Effort;
 
@@ -69,10 +71,10 @@ public abstract class EffortIntegrationTestBase : IDisposable
 
         // Setup HttpHelper.Cache for UserHelper permission caching
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        Viper.HttpHelper.Configure(memoryCache, null!, null!, null!, null!, null!);
+        HttpHelper.Configure(memoryCache, null!, null!, null!, null!, null!);
 
         // Create standard Effort permissions
-        var permissions = new List<Viper.Models.RAPS.TblPermission>
+        var permissions = new List<TblPermission>
         {
             new() { PermissionId = 1, Permission = EffortPermissions.Base, Description = "Effort Base Permission" },
             new() { PermissionId = 2, Permission = EffortPermissions.ViewAllDepartments, Description = "View All Departments" },
@@ -378,7 +380,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
             var permissionEntity = RapsContext.TblPermissions.FirstOrDefault(p => p.Permission == permission);
             if (permissionEntity != null)
             {
-                RapsContext.TblMemberPermissions.Add(new Viper.Models.RAPS.TblMemberPermission
+                RapsContext.TblMemberPermissions.Add(new TblMemberPermission
                 {
                     MemberId = mothraId,
                     PermissionId = permissionEntity.PermissionId,
@@ -404,9 +406,9 @@ public abstract class EffortIntegrationTestBase : IDisposable
         var httpContext = new DefaultHttpContext
         {
             RequestServices = serviceProvider,
-            User = new System.Security.Claims.ClaimsPrincipal(
-                new System.Security.Claims.ClaimsIdentity(
-                    new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, TestUserLoginId) },
+            User = new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.Name, TestUserLoginId) },
                     "test"
                 )
             )

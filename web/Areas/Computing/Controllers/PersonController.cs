@@ -4,6 +4,7 @@ using Viper.Areas.Computing.Model;
 using Viper.Areas.Computing.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models;
 using Web.Authorization;
 
@@ -58,7 +59,7 @@ namespace Viper.Areas.Computing.Controllers
         [Permission(Allow = "SVMSecure.CATS.BiorenderStudentLookup")]
         public async Task<ActionResult<List<BiorenderStudent>>> GetBiorenderStudentList(List<string> emails)
         {
-            var list = await new BiorenderStudentLookup(new Classes.Utilities.IamApi(httpFactory))
+            var list = await new BiorenderStudentLookup(new IamApi(httpFactory))
                 .GetBiorenderStudentInfo(emails);
 
             return list;

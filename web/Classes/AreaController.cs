@@ -7,8 +7,6 @@ namespace Viper.Classes
 {
     public class AreaController : Controller
     {
-        public AreaController() { }
-
         /// <summary>
         /// For Area Controller actions, update the session timeout in the database
         /// </summary>

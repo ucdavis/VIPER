@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class LdapDepartment
+public class LdapDepartment
 {
     public int LdapDeptRecordId { get; set; }
 

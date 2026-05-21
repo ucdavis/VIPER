@@ -1,6 +1,6 @@
 namespace Viper.Models.VIPER;
 
-public partial class FormFieldRelationship
+public class FormFieldRelationship
 {
     public int FormFieldRelationshipId { get; set; }
 

@@ -99,7 +99,7 @@ namespace Viper.test.ClinicalScheduler
             // Create test persons (for year-specific queries)
             var testPersons = new[]
             {
-        new Viper.Models.ClinicalScheduler.Person
+        new Person
         {
             IdsMothraId = "12345",
             PersonDisplayFullName = "Smith, John",
@@ -107,7 +107,7 @@ namespace Viper.test.ClinicalScheduler
             PersonDisplayLastName = "Smith",
             IdsMailId = "jsmith@example.com"
         },
-        new Viper.Models.ClinicalScheduler.Person
+        new Person
         {
             IdsMothraId = "67890",
             PersonDisplayFullName = "Doe, Jane",

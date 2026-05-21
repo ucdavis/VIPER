@@ -1,5 +1,5 @@
-using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
+using Viper.Classes.SQLContext;
 
 namespace Viper.Areas.ClinicalScheduler.Services
 {

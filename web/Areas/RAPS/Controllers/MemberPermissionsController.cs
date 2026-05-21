@@ -1,4 +1,3 @@
-using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +49,8 @@ namespace Viper.Areas.RAPS.Controllers
                     .OrderBy(mp => mp.Permission.Permission)
                     .ToListAsync();
             }
-            else if (permissionId != null)
+
+            if (permissionId != null)
             {
                 TblPermission? permission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
                 return permission == null
@@ -62,10 +62,8 @@ namespace Viper.Areas.RAPS.Controllers
                         .ThenBy(mp => mp.Member.DisplayFirstName)
                         .ToListAsync();
             }
-            else
-            {
-                return BadRequest("Member or Permission is required");
-            }
+
+            return BadRequest("Member or Permission is required");
         }
 
         // GET: Permissions/5/AllMembers
@@ -122,7 +120,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .Union(membersGrantedPermission)
                     .Except(membersWithRoleDenyingPermission)
                     .Except(membersDeniedPermission)
-                    .Select(aaud => new MemberSearchResult()
+                    .Select(aaud => new MemberSearchResult
                     {
                         MemberId = aaud.MothraId,
                         LoginId = aaud.LoginId,
@@ -136,10 +134,8 @@ namespace Viper.Areas.RAPS.Controllers
                     .ThenBy(result => result.MemberId)
                     .ToListAsync();
             }
-            else
-            {
-                return BadRequest("Permission is required");
-            }
+
+            return BadRequest("Permission is required");
         }
 
         // GET: Members/12345678/Permissions/5
@@ -204,10 +200,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
@@ -264,10 +258,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return Conflict();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);

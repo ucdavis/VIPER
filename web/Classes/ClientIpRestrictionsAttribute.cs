@@ -9,7 +9,7 @@ namespace Web.Authorization
     /// Use for classes or methods to require that the requestor is in one of the pre-defined list of IPs in the allow lists located in appSettings
     /// Usage: [ClientIpRestrictions("InternalAllowlist")]
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class ClientIpRestrictionsAttribute : TypeFilterAttribute
     {
         public ClientIpRestrictionsAttribute(params string[] safeListName) : base(typeof(ClientIpFilterAttribute))
@@ -20,7 +20,7 @@ namespace Web.Authorization
 
     // Taken from https://docs.microsoft.com/en-us/aspnet/core/security/ip-safelist?view=aspnetcore-2.2
     // and https://stackoverflow.com/questions/9622967/how-to-see-if-an-ip-address-belongs-inside-of-a-range-of-ips-using-cidr-notation
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class ClientIpFilterAttribute : ActionFilterAttribute
     {
         private readonly ILogger _logger;
@@ -110,7 +110,7 @@ namespace Web.Authorization
         /// <returns>Whether or not the client IP address is in the list of valid IP address ranges</returns>
         public static bool IsClientIpSafe(string safeListName)
         {
-            return IsClientIpSafe(new string[] { safeListName });
+            return IsClientIpSafe(new[] { safeListName });
         }
 
         /// <summary>

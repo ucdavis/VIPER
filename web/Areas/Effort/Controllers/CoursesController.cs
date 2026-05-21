@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -150,7 +151,7 @@ public class CoursesController : BaseEffortController
             var courses = await _courseService.SearchBannerCoursesAsync(termCode, subjCode, crseNumb, seqNumb, crn, ct);
             return Ok(courses);
         }
-        catch (Microsoft.Data.SqlClient.SqlException ex)
+        catch (SqlException ex)
         {
             // Check for linked server / connectivity issues
             if (ex.Message.Contains("UCDBanner") || ex.Message.Contains("OPENQUERY") || ex.Message.Contains("linked server"))

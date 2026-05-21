@@ -652,8 +652,8 @@ public class ClinicalImportService : IClinicalImportService
             {
                 g.Key.MothraId,
                 g.Key.CourseKey,
-                SubjCode = g.First().SubjCode,
-                CrseNumb = g.First().CrseNumb,
+                g.First().SubjCode,
+                g.First().CrseNumb,
                 Weeks = g.Select(s => s.WeekId).Distinct().Count(),
                 FirstRecord = g.First()
             })
@@ -807,8 +807,8 @@ public class ClinicalImportService : IClinicalImportService
             {
                 g.Key.MothraId,
                 g.Key.CourseKey,
-                SubjCode = g.First().SubjCode,
-                CrseNumb = g.First().CrseNumb,
+                g.First().SubjCode,
+                g.First().CrseNumb,
                 Weeks = g.Select(s => s.WeekId).Distinct().Count(),
                 FirstRecord = g.First()
             })

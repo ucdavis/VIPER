@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class DlUnexRoster
+public class DlUnexRoster
 {
     public string UnexRosterId { get; set; } = null!;
 

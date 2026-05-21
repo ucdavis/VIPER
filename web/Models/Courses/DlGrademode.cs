@@ -1,6 +1,6 @@
 namespace Viper.Models.Courses;
 
-public partial class DlGrademode
+public class DlGrademode
 {
     public string GmodePkey { get; set; } = null!;
 

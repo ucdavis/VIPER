@@ -25,7 +25,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly IEmailTemplateRenderer _mockEmailTemplateRenderer;
         private readonly ClinicalSchedulerContext _context;
         private readonly TestableScheduleEditService _service;
-        private bool _disposed = false;
+        private bool _disposed;
 
         public ScheduleEditServiceTest()
         {
@@ -154,12 +154,12 @@ namespace Viper.test.ClinicalScheduler
             {
                 TestDataBuilder.CreatePerson("test123", "Test", "User123"),
                 TestDataBuilder.CreatePerson("test456", "Test", "User456"),
-                TestDataBuilder.CreatePerson("existing456", "Existing", "User"),
-                TestDataBuilder.CreatePerson("primary123", "Primary", "User"),
-                TestDataBuilder.CreatePerson("other456", "Other", "User"),
+                TestDataBuilder.CreatePerson("existing456", "Existing"),
+                TestDataBuilder.CreatePerson("primary123", "Primary"),
+                TestDataBuilder.CreatePerson("other456", "Other"),
                 TestDataBuilder.CreatePerson("12345", "John", "Doe"),
-                TestDataBuilder.CreatePerson("currentuser", "Current", "User"),
-                TestDataBuilder.CreatePerson("testuser", "Test", "User")
+                TestDataBuilder.CreatePerson("currentuser", "Current"),
+                TestDataBuilder.CreatePerson("testuser")
             };
             _context.Persons.AddRange(persons);
 
@@ -347,7 +347,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task RemoveInstructorScheduleAsync_WithoutPermissionForOwnSchedule_ThrowsUnauthorizedAccessException()
         {
             // Arrange - User tries to remove their own schedule but lacks EditOwnSchedule permission
-            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1, false);
+            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1);
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -371,7 +371,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task RemoveInstructorScheduleAsync_UserTriesToRemoveOtherUserScheduleWithoutGeneralPermission_ThrowsUnauthorizedAccessException()
         {
             // Arrange - User tries to remove another user's schedule without general rotation permission
-            var schedule = TestDataBuilder.CreateInstructorSchedule("other456", 1, 1, false);
+            var schedule = TestDataBuilder.CreateInstructorSchedule("other456", 1, 1);
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -402,7 +402,7 @@ namespace Viper.test.ClinicalScheduler
             var user = TestDataBuilder.CreateUser("currentuser");
 
             // Create conflicting schedule - same instructor, same rotation, same week
-            var conflictingSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId, false);
+            var conflictingSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, rotationId, weekId);
             await _context.InstructorSchedules.AddAsync(conflictingSchedule);
             await _context.SaveChangesAsync();
 
@@ -431,7 +431,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task RemoveInstructorScheduleAsync_ValidSchedule_RemovesSuccessfully()
         {
             // Arrange
-            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1, false);
+            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1);
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -463,7 +463,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule("primary123", 1, 1, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", 1, 1, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", 1, 1);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -522,7 +522,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task SetPrimaryEvaluatorAsync_ValidSchedule_UpdatesSuccessfully()
         {
             // Arrange
-            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1, false);
+            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1);
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -550,7 +550,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task CanRemoveInstructorAsync_NonPrimaryEvaluator_ReturnsTrue()
         {
             // Arrange
-            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1, false);
+            var schedule = TestDataBuilder.CreateInstructorSchedule("test123", 1, 1);
             await _context.InstructorSchedules.AddAsync(schedule);
             await _context.SaveChangesAsync();
 
@@ -566,7 +566,7 @@ namespace Viper.test.ClinicalScheduler
         {
             // Arrange
             var primarySchedule = TestDataBuilder.CreateInstructorSchedule("primary123", 1, 1, true);
-            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", 1, 1, false);
+            var otherSchedule = TestDataBuilder.CreateInstructorSchedule("other456", 1, 1);
 
             await _context.InstructorSchedules.AddRangeAsync(primarySchedule, otherSchedule);
             await _context.SaveChangesAsync();
@@ -600,8 +600,8 @@ namespace Viper.test.ClinicalScheduler
             var mothraId = "test123";
             var weekIds = new[] { 1, 2 };
 
-            var conflictSchedule1 = TestDataBuilder.CreateInstructorSchedule(mothraId, 1, 1, false);
-            var conflictSchedule2 = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, 2, false);
+            var conflictSchedule1 = TestDataBuilder.CreateInstructorSchedule(mothraId, 1, 1);
+            var conflictSchedule2 = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, 2);
 
             await _context.InstructorSchedules.AddRangeAsync(conflictSchedule1, conflictSchedule2);
             await _context.SaveChangesAsync();
@@ -623,8 +623,8 @@ namespace Viper.test.ClinicalScheduler
             var weekIds = new[] { 1 };
             var excludeRotationId = 1;
 
-            var includedSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, excludeRotationId, 1, false);
-            var excludedSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, 1, false);
+            var includedSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, excludeRotationId, 1);
+            var excludedSchedule = TestDataBuilder.CreateInstructorSchedule(mothraId, 2, 1);
 
             await _context.InstructorSchedules.AddRangeAsync(includedSchedule, excludedSchedule);
             await _context.SaveChangesAsync();
@@ -686,7 +686,7 @@ namespace Viper.test.ClinicalScheduler
 
             // Create two instructor schedules for the same rotation/week
             var instructor1 = TestDataBuilder.CreateInstructorSchedule("test123", rotationId, weekId, true);  // Start as primary
-            var instructor2 = TestDataBuilder.CreateInstructorSchedule("test456", rotationId, weekId, false); // Not primary
+            var instructor2 = TestDataBuilder.CreateInstructorSchedule("test456", rotationId, weekId); // Not primary
 
             await _context.InstructorSchedules.AddRangeAsync(instructor1, instructor2);
             await _context.SaveChangesAsync();

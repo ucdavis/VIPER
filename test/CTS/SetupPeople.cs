@@ -1,7 +1,7 @@
+using MockQueryable.NSubstitute;
 using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
-using MockQueryable.NSubstitute;
 
 namespace Viper.test.CTS
 {

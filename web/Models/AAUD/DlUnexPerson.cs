@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class DlUnexPerson
+public class DlUnexPerson
 {
     public int UnexPersonRecordId { get; set; }
 

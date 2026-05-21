@@ -1,6 +1,6 @@
 namespace Viper.Models.RAPS;
 
-public partial class TblMemberPermission
+public class TblMemberPermission
 {
     public string MemberId { get; set; } = null!;
 

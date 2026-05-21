@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NLog;
 
 namespace Viper.Classes
 {
@@ -29,7 +30,7 @@ namespace Viper.Classes
             context.Response.Headers["X-Correlation-Id"] = correlationId;
 
             // Set up NLog context so correlation ID is automatically included in all log entries
-            using (NLog.ScopeContext.PushProperty("CorrelationId", correlationId))
+            using (ScopeContext.PushProperty("CorrelationId", correlationId))
             {
                 _logger.LogDebug("Request started with correlation ID: {CorrelationId}", correlationId);
                 await _next(context);

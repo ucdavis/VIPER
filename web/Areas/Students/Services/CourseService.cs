@@ -1,9 +1,9 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.Curriculum.Services;
 using Viper.Areas.Students.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
-using Viper.Areas.Curriculum.Services;
 
 namespace Viper.Areas.Students.Services
 {

@@ -1,5 +1,6 @@
 using System.Data;
 using ClosedXML.Excel;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -264,12 +265,12 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var results = new List<MeritDetailRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_report]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_report]", connection);
         command.CommandType = CommandType.StoredProcedure;
-        command.Parameters.AddWithValue("@PersonId", (object?)personId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PersonId", personId);
         command.Parameters.AddWithValue("@StartTermCode", startTermCode);
         command.Parameters.AddWithValue("@EndTermCode", endTermCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
@@ -550,10 +551,10 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var results = new List<MeritAverageRow>();
 
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(ct);
 
-        await using var command = new Microsoft.Data.SqlClient.SqlCommand("[effort].[sp_merit_average]", connection);
+        await using var command = new SqlCommand("[effort].[sp_merit_average]", connection);
         command.CommandType = CommandType.StoredProcedure;
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);

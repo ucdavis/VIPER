@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.ClinicalScheduler.Constants;
-using Viper.Models.ClinicalScheduler;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -13,7 +13,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly ILogger<ScheduleAuditService> _mockLogger;
         private readonly ScheduleAuditService _service;
         private readonly ClinicalSchedulerContext _context;
-        private bool _disposed = false;
+        private bool _disposed;
 
         public ScheduleAuditServiceTest()
         {

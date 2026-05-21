@@ -17,7 +17,7 @@ namespace Viper.Areas.CTS.Services
             {
                 encounterDate = DateTime.Now.Date;
             }
-            return new Encounter()
+            return new Encounter
             {
                 StudentUserId = studentUserId,
                 StudentLevel = studentLevel,

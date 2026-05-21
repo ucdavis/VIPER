@@ -28,9 +28,9 @@ namespace Viper.Areas.RAPS.Models
             get
             {
                 if (Source?.StartDate != null)
-                    return DateOnly.FromDateTime((System.DateTime)Source.StartDate);
+                    return DateOnly.FromDateTime((DateTime)Source.StartDate);
                 if (Target?.StartDate != null)
-                    return DateOnly.FromDateTime((System.DateTime)Target.StartDate);
+                    return DateOnly.FromDateTime((DateTime)Target.StartDate);
                 return null;
             }
         }
@@ -39,9 +39,9 @@ namespace Viper.Areas.RAPS.Models
             get
             {
                 if (Source?.EndDate != null)
-                    return DateOnly.FromDateTime((System.DateTime)Source.EndDate);
+                    return DateOnly.FromDateTime((DateTime)Source.EndDate);
                 if (Target?.EndDate != null)
-                    return DateOnly.FromDateTime((System.DateTime)Target.EndDate);
+                    return DateOnly.FromDateTime((DateTime)Target.EndDate);
                 return null;
             }
         }

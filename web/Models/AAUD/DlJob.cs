@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class DlJob
+public class DlJob
 {
     public string JobPKey { get; set; } = null!;
 

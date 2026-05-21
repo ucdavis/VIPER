@@ -1,16 +1,18 @@
-using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using LogLevel = NLog.LogLevel;
 
 namespace Viper.Areas.RAPS.Services
 {
-    public partial class VMACSExport
+    public class VMACSExport
     {
-        private readonly Classes.SQLContext.RAPSContext _RAPSContext;
+        private readonly RAPSContext _RAPSContext;
 
         public IUserHelper UserHelper { get; private set; }
         private readonly bool _onProduction;
@@ -57,7 +59,6 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="loginid">LoginId of specific user to push</param>
         /// <param name="roleIds">RoleIds of specific role(s) to push</param>
         /// <param name="mothraId">MothraId of logged in user, or hard coded user to record in log</param>
-        /// <param name="action">Action for log</param>
         /// <param name="debugOnly">If true, don't send, just log</param>
         public async Task<List<string>> ExportToInstances(string instances, string? mothraId, string? loginid = null, string? roleIds = null,
             bool debugOnly = false)
@@ -120,7 +121,7 @@ namespace Viper.Areas.RAPS.Services
                         Method = HttpMethod.Post,
                         Content = exportContent
                     };
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", GetAuthorization());
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Basic", GetAuthorization());
 
                     RecordMessage(messages, "Sending data to: " + Url);
 
@@ -133,11 +134,11 @@ namespace Viper.Areas.RAPS.Services
                     }
                     catch (Exception ex)
                     {
-                        HttpHelper.Logger.Log(NLog.LogLevel.Warn, ex);
-                        RecordMessage(messages, "Error: " + ex.Message + " " + ex?.StackTrace);
-                        if (ex?.InnerException != null)
+                        HttpHelper.Logger.Log(LogLevel.Warn, ex);
+                        RecordMessage(messages, "Error: " + ex.Message + " " + ex.StackTrace);
+                        if (ex.InnerException != null)
                         {
-                            RecordMessage(messages, "Error: " + ex.InnerException.Message + " " + ex.InnerException?.StackTrace);
+                            RecordMessage(messages, "Error: " + ex.InnerException.Message + " " + ex.InnerException.StackTrace);
                         }
                     }
                 }
@@ -148,8 +149,8 @@ namespace Viper.Areas.RAPS.Services
 
         private string GetAuthorization()
         {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(_credentials);
-            return System.Convert.ToBase64String(bytes);
+            var bytes = Encoding.UTF8.GetBytes(_credentials);
+            return Convert.ToBase64String(bytes);
         }
 
         private static async Task<VmacsResponse> ParseResponse(HttpResponseMessage response)
@@ -158,15 +159,13 @@ namespace Viper.Areas.RAPS.Services
             string responseBody = await response.Content.ReadAsStringAsync();
             try
             {
-                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (vmacsResponse == null)
                 {
                     throw new InvalidOperationException("Failed to deserialize VMACS response.");
                 }
-                else
-                {
-                    vmacsResponse.Success = response.IsSuccessStatusCode;
-                }
+
+                vmacsResponse.Success = response.IsSuccessStatusCode;
             }
             catch (Exception)
             {
@@ -188,7 +187,7 @@ namespace Viper.Areas.RAPS.Services
                         && (rm.EndDate == null || rm.EndDate > DateTime.Now)
                         && (loginId.Length > 0 || user.Current || user.Future)
                         && (role.Role.StartsWith(rolePrefix))
-                        select new UserList()
+                        select new UserList
                         {
                             LoginId = user.LoginId,
                             MothraId = user.MothraId,
@@ -218,7 +217,7 @@ namespace Viper.Areas.RAPS.Services
                 var user = _RAPSContext.VwAaudUser.Where(a => a.LoginId == loginId).FirstOrDefault();
                 if (user != null)
                 {
-                    userList.Add(new UserList()
+                    userList.Add(new UserList
                     {
                         LoginId = loginId,
                         MailId = user.MailId,
@@ -263,7 +262,7 @@ namespace Viper.Areas.RAPS.Services
                 accessCodes = new string(accessCodeArray);
 
                 var permissionSplit = permission.Permission.Split(".");
-                vmacsExportPermissions.Add(new VMACSExportPermission()
+                vmacsExportPermissions.Add(new VMACSExportPermission
                 {
                     Id = permission.PermissionId,
                     Group = permissionSplit[1],
@@ -303,7 +302,7 @@ namespace Viper.Areas.RAPS.Services
                     string permissionIdList = permissionsByMemberId.ContainsKey(user.MothraId.Trim())
                         ? permissionsByMemberId[user.MothraId.Trim()]
                         : "";
-                    exportUsers.Add(new VMACSExportUser()
+                    exportUsers.Add(new VMACSExportUser
                     {
                         CasLogin = user.LoginId,
                         Email = user.MailId + "@ucdavis.edu",
@@ -348,7 +347,7 @@ namespace Viper.Areas.RAPS.Services
         private static void RecordMessage(List<string> messages, string message)
         {
             messages.Add(message);
-            HttpHelper.Logger.Log(NLog.LogLevel.Debug, message);
+            HttpHelper.Logger.Log(LogLevel.Debug, message);
         }
 
         private sealed class UserList

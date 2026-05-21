@@ -1,6 +1,6 @@
 namespace Viper.Models.AAUD;
 
-public partial class VwUConnectUnit
+public class VwUConnectUnit
 {
     public int? UnitId { get; set; }
 

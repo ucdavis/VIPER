@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Viper.Areas.CTS.Models;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Models.CTS;
 using Web.Authorization;
@@ -27,14 +27,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Get student schedule. Access should be restricted to admins, ViewStdSchedules, and students viewing their own schedule.
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="mothraId"></param>
-        /// <param name="rotationId"></param>
-        /// <param name="serviceId"></param>
-        /// <param name="weekId"></param>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <returns></returns>
         [HttpGet("student")]
         public async Task<ActionResult<List<ClinicalScheduledStudent>>> GetStudentSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
             int? weekId, DateTime? startDate, DateTime? endDate)
@@ -50,13 +42,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Get instructor schedule. Access should be restricted to admins, ViewClnSchedules, and instructors viewing their own schedule.
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="mothraId"></param>
-        /// <param name="serviceId"></param>
-        /// <param name="weekId"></param>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <returns></returns>
         [HttpGet("instructor")]
         public async Task<ActionResult<List<InstructorSchedule>>> GetInstructorSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
                 int? weekId, DateTime? startDate, DateTime? endDate, bool active = true)
