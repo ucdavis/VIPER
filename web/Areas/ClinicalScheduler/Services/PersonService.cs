@@ -81,7 +81,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return person;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving person data for MothraId: {MothraId}", LogSanitizer.SanitizeId(mothraId));
                 throw new InvalidOperationException($"Failed to retrieve person data for MothraId {LogSanitizer.SanitizeId(mothraId)}", ex);
@@ -139,7 +139,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Found {ClinicianCount} clinicians for year {Year} with person names from vPerson view", clinicians.Count, year);
                 return clinicians;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving clinicians for year: {Year}", year);
                 throw new InvalidOperationException($"Failed to retrieve clinicians for grad year {year}. Check database connectivity and view permissions.", ex);
@@ -209,7 +209,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(ex, "Database error retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
                 throw new InvalidOperationException($"Database error retrieving clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}", ex);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving clinicians for grad year range {StartYear}-{EndYear}", LogSanitizer.SanitizeYear(startGradYear), LogSanitizer.SanitizeYear(endGradYear));
                 throw new InvalidOperationException($"Failed to retrieve clinicians for grad year range {LogSanitizer.SanitizeYear(startGradYear)}-{LogSanitizer.SanitizeYear(endGradYear)}", ex);
@@ -240,7 +240,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Found {Count} unique MothraIds in Clinical Scheduler data", mothraIds.Count);
                 return mothraIds;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving unique MothraIds");
                 throw new InvalidOperationException("Failed to retrieve unique MothraIds from database", ex);
@@ -277,7 +277,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogDebug("Found {Count} active employee affiliates from AAUD", allAffiliates.Count);
                 return allAffiliates;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving active employee affiliates from AAUD");
                 throw new InvalidOperationException("Failed to retrieve active employee affiliates from AAUD database", ex);
@@ -325,7 +325,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return clinician;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving clinician data for MothraId: {MothraId} from AAUD", LogSanitizer.SanitizeId(mothraId));
                 throw new InvalidOperationException($"Failed to retrieve clinician data for MothraId {LogSanitizer.SanitizeId(mothraId)} from AAUD", ex);

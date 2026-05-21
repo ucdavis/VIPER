@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes.SQLContext;
@@ -110,7 +111,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogInformation("Found {Count} student schedules", result.Count);
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving student schedules");
                 throw new InvalidOperationException("Failed to retrieve student schedules", ex);

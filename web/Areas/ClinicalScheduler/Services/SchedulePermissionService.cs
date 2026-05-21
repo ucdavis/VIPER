@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
@@ -87,7 +88,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return hasPermission;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var currentUser = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking edit permissions for user {MothraId} and service {ServiceId}", LogSanitizer.SanitizeId(currentUser?.MothraId), serviceId);
@@ -114,7 +115,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return await HasEditPermissionForServiceAsync(rotation.ServiceId, cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking edit permissions for user {MothraId} and rotation {RotationId}", LogSanitizer.SanitizeId(user?.MothraId), rotationId);
@@ -150,7 +151,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return editableServices;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error getting editable services for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
@@ -183,7 +184,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return permissions;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error getting service permissions for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
@@ -212,7 +213,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogDebug("Required permission for service {ServiceId}: {RequiredPermission}", serviceId, requiredPermission);
                 return requiredPermission;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error getting required permission for service {ServiceId}", serviceId);
                 return ClinicalSchedulePermissions.Manage;
@@ -258,7 +259,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                 return canEdit;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking own schedule permissions for user {MothraId} and instructor schedule {InstructorScheduleId}",
@@ -304,7 +305,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogDebug("User {MothraId} denied access to student schedules", LogSanitizer.SanitizeId(user.MothraId));
                 return Task.FromResult(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking student schedule access for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
@@ -346,7 +347,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogDebug("User {MothraId} denied access to instructor schedules", LogSanitizer.SanitizeId(user.MothraId));
                 return Task.FromResult(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 var user = _userHelper.GetCurrentUser();
                 _logger.LogError(ex, "Error checking instructor schedule access for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
