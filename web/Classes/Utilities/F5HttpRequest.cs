@@ -45,8 +45,8 @@ namespace Viper.Classes.Utilities
                 newRequest.RequestUri = request.RequestUri;
                 newRequest.Method = HttpMethod.Get;
 
-                //don't care about the response
-                await Send(newRequest);
+                //don't care about the response, but dispose it to free resources
+                using var warmupResponse = await Send(newRequest);
                 return await Send(await CopyHttpRequest(request), 1);
             }
 
