@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -122,7 +123,7 @@ public sealed class PercentAssignTypesControllerTests
     public async Task GetPercentAssignType_ReturnsNotFound_WhenMissing()
     {
         // Arrange
-        _typeServiceMock.GetPercentAssignTypeAsync(999, Arg.Any<CancellationToken>()).Returns((PercentAssignTypeDto?)null);
+        _typeServiceMock.GetPercentAssignTypeAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetPercentAssignType(999, CancellationToken.None);
@@ -201,7 +202,7 @@ public sealed class PercentAssignTypesControllerTests
     public async Task GetInstructorsByType_ReturnsNotFound_WhenTypeMissing()
     {
         // Arrange
-        _typeServiceMock.GetInstructorsByTypeAsync(999, Arg.Any<CancellationToken>()).Returns((InstructorsByPercentAssignTypeResponseDto?)null);
+        _typeServiceMock.GetInstructorsByTypeAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetInstructorsByType(999, CancellationToken.None);

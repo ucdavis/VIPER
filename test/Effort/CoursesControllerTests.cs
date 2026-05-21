@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
@@ -149,7 +150,7 @@ public sealed class CoursesControllerTests
     public async Task GetCourse_ReturnsNotFound_WhenCourseDoesNotExist()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetCourse(999);
@@ -402,7 +403,7 @@ public sealed class CoursesControllerTests
             CustDept = "VME"
         };
 
-        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.UpdateCourse(999, request);
@@ -493,7 +494,7 @@ public sealed class CoursesControllerTests
         // Arrange
         var request = new UpdateEnrollmentRequest { Enrollment = 50 };
 
-        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.UpdateCourseEnrollment(999, request);
@@ -546,7 +547,7 @@ public sealed class CoursesControllerTests
     public async Task DeleteCourse_ReturnsNotFound_WhenCourseDoesNotExist()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.DeleteCourse(999);
@@ -712,7 +713,7 @@ public sealed class CoursesControllerTests
             Crn = "99999"
         };
 
-        _courseServiceMock.GetBannerCourseAsync(202410, "99999", Arg.Any<CancellationToken>()).Returns((BannerCourseDto?)null);
+        _courseServiceMock.GetBannerCourseAsync(202410, "99999", Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.ImportCourse(request);
@@ -852,7 +853,7 @@ public sealed class CoursesControllerTests
     public async Task GetCourseEffort_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetCourseEffort(TestCourseId);
@@ -940,7 +941,7 @@ public sealed class CoursesControllerTests
     public async Task GetPossibleInstructors_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetPossibleInstructors(TestCourseId);
@@ -995,7 +996,7 @@ public sealed class CoursesControllerTests
     public async Task GetCourseEvaluations_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.GetCourseEvaluations(TestCourseId);
@@ -1090,7 +1091,7 @@ public sealed class CoursesControllerTests
     public async Task CreateEvaluation_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         var request = new CreateAdHocEvalRequest
         {
@@ -1201,7 +1202,7 @@ public sealed class CoursesControllerTests
     public async Task UpdateEvaluation_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         var request = new UpdateAdHocEvalRequest
         {
@@ -1294,7 +1295,7 @@ public sealed class CoursesControllerTests
     public async Task DeleteEvaluation_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
