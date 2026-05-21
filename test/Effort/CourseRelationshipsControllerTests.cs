@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
@@ -102,7 +103,7 @@ public sealed class CourseRelationshipsControllerTests
     public async Task GetRelationships_ReturnsNotFound_WhenCourseNotFound()
     {
         // Arrange
-        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).Returns((CourseDto?)null);
+        _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var actionResult = await _controller.GetRelationships(999);
@@ -439,7 +440,7 @@ public sealed class CourseRelationshipsControllerTests
     public async Task DeleteRelationship_ReturnsNotFound_WhenRelationshipNotFound()
     {
         // Arrange
-        _relationshipServiceMock.GetRelationshipAsync(999, Arg.Any<CancellationToken>()).Returns((CourseRelationshipDto?)null);
+        _relationshipServiceMock.GetRelationshipAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
         var actionResult = await _controller.DeleteRelationship(1, 999);

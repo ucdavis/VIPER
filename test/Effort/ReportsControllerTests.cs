@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Effort.Controllers;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services;
@@ -2731,7 +2732,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
         _sabbaticalServiceMock
-            .GetByPersonIdAsync(456, Arg.Any<CancellationToken>()).Returns((SabbaticalDto?)null);
+            .GetByPersonIdAsync(456, Arg.Any<CancellationToken>()).ReturnsNull();
 
         var result = await _controller.GetSabbatical(456);
 
