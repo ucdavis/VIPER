@@ -128,7 +128,6 @@ export {
     type CanVerifyResult,
     type EmailHistoryDto,
     type EmailSendResult,
-    type EmailFailure,
     type BulkEmailResult,
     type SendVerificationEmailRequest,
     type SendBulkEmailRequest,

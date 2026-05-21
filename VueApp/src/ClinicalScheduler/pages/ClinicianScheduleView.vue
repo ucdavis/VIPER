@@ -191,6 +191,7 @@ import { UI_CONFIG } from "../constants/app-constants"
 import { isRotationExcluded } from "../constants/rotation-constants"
 import { SCHEDULE_MESSAGES, SCHEDULE_LABELS } from "../constants/schedule-config"
 import { usePermissionChecks } from "../composables/use-permission-checks"
+import "../assets/schedule-shared.css"
 
 // Interface for clinician rotation item
 interface ClinicianRotationItem {
@@ -1353,9 +1354,6 @@ watch(
 </script>
 
 <style scoped>
-/* Import shared schedule styles */
-@import url("../assets/schedule-shared.css");
-
 /* Clinician page specific styling */
 @media (width <= 768px) {
     /* Extra spacing for clinician selector to match rotation page */

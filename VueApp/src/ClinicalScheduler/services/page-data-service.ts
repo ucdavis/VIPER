@@ -103,5 +103,3 @@ export class PageDataService {
         return result.availableGradYears
     }
 }
-
-export type { PageInitialData }

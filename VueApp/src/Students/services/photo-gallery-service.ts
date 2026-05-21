@@ -232,13 +232,12 @@ function downloadFile(blob: Blob, filename: string): void {
 
 const photoGalleryService = new PhotoGalleryService()
 
-export { photoGalleryService, PhotoGalleryService, downloadFile }
+export { photoGalleryService, downloadFile }
 export type {
     StudentPhoto,
     PhotoGalleryViewModel,
     GroupingInfo,
     CourseInfo,
-    ExportOptions,
     PhotoExportRequest,
     GalleryMenu,
     ClassYear,

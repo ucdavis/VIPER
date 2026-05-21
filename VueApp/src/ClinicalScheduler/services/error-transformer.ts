@@ -286,4 +286,4 @@ function getScheduleErrorMessage(error: unknown, operation: "add" | "remove" | "
 }
 
 // Export all functions together at the end
-export { transformError, getErrorMessage, isErrorKind, getScheduleErrorMessage }
+export { transformError, isErrorKind, getScheduleErrorMessage }

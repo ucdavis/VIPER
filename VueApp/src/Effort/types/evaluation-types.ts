@@ -85,7 +85,6 @@ type AdHocEvalResultDto = {
 }
 
 export type {
-    EvalCourseInfoDto,
     CourseEvalEntryDto,
     InstructorEvalStatusDto,
     CourseEvaluationStatusDto,

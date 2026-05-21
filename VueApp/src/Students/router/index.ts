@@ -1,17 +1,11 @@
-import { createRouter, createWebHistory } from "vue-router"
+import { createSpaRouter } from "@/shared/createSpaRouter"
 import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
-import { useRouteFocus } from "@/composables/use-route-focus"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
 
-const baseUrl = import.meta.env.VITE_VIPER_HOME
-const router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
-    history: createWebHistory(baseUrl),
-    routes,
-})
+const router = createSpaRouter(routes)
 
 // In-flight latch: dedups concurrent navigations but resets after each attempt so later
 // sessions (e.g. re-auth into an SIS role) can re-fetch instead of reusing a stale resolution.
@@ -65,7 +59,5 @@ router.beforeEach(async (to, from) => {
         }
     }
 })
-
-useRouteFocus(router)
 
 export { router }
