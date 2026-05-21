@@ -126,7 +126,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenTermCodeIsZero()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped();
+        var result = await _controller.GetTeachingActivityGrouped(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -207,7 +207,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityIndividual_ReturnsBadRequest_WhenTermCodeIsZero()
     {
         // Act
-        var result = await _controller.GetTeachingActivityIndividual();
+        var result = await _controller.GetTeachingActivityIndividual(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -725,7 +725,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetDeptSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetDeptSummary();
+        var result = await _controller.GetDeptSummary(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -866,7 +866,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSchoolSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetSchoolSummary();
+        var result = await _controller.GetSchoolSummary(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -999,7 +999,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetMeritDetail();
+        var result = await _controller.GetMeritDetail(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1158,7 +1158,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritAverage_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetMeritAverage();
+        var result = await _controller.GetMeritAverage(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1436,7 +1436,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetMeritSummary();
+        var result = await _controller.GetMeritSummary(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1755,7 +1755,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetScheduledCliWeeks_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetScheduledCliWeeks();
+        var result = await _controller.GetScheduledCliWeeks(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2086,7 +2086,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalSummary_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetEvalSummary();
+        var result = await _controller.GetEvalSummary(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2247,7 +2247,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalDetail_ReturnsBadRequest_WhenNoTermOrYear()
     {
-        var result = await _controller.GetEvalDetail();
+        var result = await _controller.GetEvalDetail(ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 

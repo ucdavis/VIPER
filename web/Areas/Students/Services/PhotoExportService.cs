@@ -1,7 +1,5 @@
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Drawing;
-using DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
@@ -944,12 +942,9 @@ namespace Viper.Areas.Students.Services
 
             var photos = await Task.WhenAll(photoTasks);
 
-            foreach (var photo in photos)
+            foreach (var photo in photos.Where(p => p.PhotoBytes is { Length: > 0 }))
             {
-                if (photo.PhotoBytes is { Length: > 0 } bytes)
-                {
-                    photoCache[photo.MailId] = bytes;
-                }
+                photoCache[photo.MailId] = photo.PhotoBytes!;
             }
 
             _logger.LogDebug("Batch loaded {Count} photos for {TotalStudents} students", photoCache.Count, students.Count);

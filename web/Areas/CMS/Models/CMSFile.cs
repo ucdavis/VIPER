@@ -2,7 +2,7 @@ using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Models
 {
-    public class CMSFile : File
+    public sealed class CMSFile : File
     {
         public string FriendlyURL { get; set; }
 

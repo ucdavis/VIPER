@@ -244,7 +244,7 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFirstName = "Test",
                     PersonDisplayLastName = "Instructor",
                     IdsMailId = "testinstructor@ucdavis.edu"
-                });
+                }, TestContext.Current.CancellationToken);
             }
 
             await _context.SaveChangesAsync();
@@ -409,7 +409,7 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFirstName = "Other",
                     PersonDisplayLastName = "Person",
                     IdsMailId = "other@ucdavis.edu"
-                });
+                }, TestContext.Current.CancellationToken);
             }
 
             // Add minimal Person for unknown123 to allow Include query to work
@@ -423,7 +423,7 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFirstName = "",
                     PersonDisplayLastName = "",
                     IdsMailId = null
-                });
+                }, TestContext.Current.CancellationToken);
             }
 
             await _context.SaveChangesAsync();
@@ -659,7 +659,7 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
                     PersonDisplayLastName = "User",
                     PersonDisplayFirstName = "Current"
-                });
+                }, TestContext.Current.CancellationToken);
             }
             await AddTestWeekGradYearAsync(weekId, 2025, weekNum);
             await AddTestRotationAsync(rotationId, "Cardiology Rotation", "CARD");
@@ -728,7 +728,7 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
                     PersonDisplayLastName = "User",
                     PersonDisplayFirstName = "Current"
-                });
+                }, TestContext.Current.CancellationToken);
             }
             await AddTestWeekGradYearAsync(weekIds[0], testYear, weekNum);
             await AddTestRotationAsync(rotationId, "Surgery Rotation", "SURG");
@@ -795,7 +795,7 @@ namespace Viper.test.ClinicalScheduler
                     PersonDisplayFullName = "Current User", // Set exact display name expected in test
                     PersonDisplayLastName = "User",
                     PersonDisplayFirstName = "Current"
-                });
+                }, TestContext.Current.CancellationToken);
             }
             await AddTestWeekGradYearAsync(weekId, 2025, weekNum);
             await AddTestRotationAsync(rotationId, "Neurology Rotation", "NEURO");
