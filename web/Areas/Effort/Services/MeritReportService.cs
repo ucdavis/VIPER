@@ -920,7 +920,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
     public MemoryStream GenerateMeritDetailExcel(MeritDetailReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Detail Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -1019,14 +1019,13 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
 
     public MemoryStream GenerateMeritAverageExcel(MeritAverageReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Average Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -1165,7 +1164,6 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

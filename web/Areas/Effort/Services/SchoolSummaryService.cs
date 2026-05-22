@@ -340,7 +340,7 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
 
     public MemoryStream GenerateReportExcel(SchoolSummaryReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "School Summary Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -481,7 +481,6 @@ public class SchoolSummaryService : BaseReportService, ISchoolSummaryService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
