@@ -277,11 +277,13 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
                 AND quant_mean > 0
             ORDER BY p.EffortDept, p.LastName, p.FirstName, course_subj_code, course_crse_numb";
 
+        var roleId = ParseRoleFilter(role);
+
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@TermCode", termCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
-        command.Parameters.AddWithValue("@PersonId", personId);
-        command.Parameters.AddWithValue("@Role", ParseRoleFilter(role));
+        command.Parameters.AddWithValue("@PersonId", personId.HasValue ? personId.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@Role", roleId.HasValue ? roleId.Value : DBNull.Value);
 
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

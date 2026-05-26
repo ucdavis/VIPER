@@ -268,7 +268,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         await using var command = new SqlCommand("[effort].[sp_merit_report]", connection);
         command.CommandType = CommandType.StoredProcedure;
-        command.Parameters.AddWithValue("@PersonId", personId);
+        command.Parameters.AddWithValue("@PersonId", personId.HasValue ? personId.Value : DBNull.Value);
         command.Parameters.AddWithValue("@StartTermCode", startTermCode);
         command.Parameters.AddWithValue("@EndTermCode", endTermCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
