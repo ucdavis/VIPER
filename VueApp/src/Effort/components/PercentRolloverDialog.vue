@@ -65,7 +65,7 @@
                     </div>
                 </StatusBanner>
 
-                <!-- Will be Rolled Forward Section (cyan, expanded by default) -->
+                <!-- Will be Rolled Forward Section (expanded by default) -->
                 <q-expansion-item
                     v-if="preview.assignments.length > 0"
                     default-opened
@@ -90,12 +90,12 @@
                             </div>
                         </div>
                     </template>
-                    <div class="bg-cyan-1 q-pa-sm">
+                    <div class="q-pa-sm">
                         <RolloverAssignmentTable :rows="preview.assignments" />
                     </div>
                 </q-expansion-item>
 
-                <!-- Already Rolled Section (grey, collapsed by default, shows first 10 with Show all option) -->
+                <!-- Already Rolled Section (collapsed by default, shows first 10 with Show all option) -->
                 <q-expansion-item
                     v-if="preview.existingAssignments.length > 0"
                     class="q-mb-md"
@@ -118,12 +118,12 @@
                             </div>
                         </div>
                     </template>
-                    <div class="bg-grey-2 q-pa-sm">
+                    <div class="q-pa-sm">
                         <RolloverAssignmentTable :rows="preview.existingAssignments" />
                     </div>
                 </q-expansion-item>
 
-                <!-- Excluded by Audit Section (orange, collapsed by default) -->
+                <!-- Excluded by Audit Section (collapsed by default) -->
                 <q-expansion-item
                     v-if="preview.excludedByAudit?.length > 0"
                     class="q-mb-md"
@@ -146,7 +146,7 @@
                             </div>
                         </div>
                     </template>
-                    <div class="bg-orange-1 q-pa-sm">
+                    <div class="q-pa-sm">
                         <StatusBanner type="warning">
                             These assignments will not be rolled forward because someone manually edited or deleted a
                             percent assignment of the same type for this instructor after the term was harvested.

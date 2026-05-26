@@ -66,6 +66,7 @@
                                 label="Boundary Year"
                                 dense
                                 outlined
+                                hide-bottom-space
                                 style="max-width: 150px"
                                 :rules="[yearRule]"
                             />
@@ -90,12 +91,14 @@
                             @click="openRolloverDialog"
                         />
                     </div>
-                    <div
+                    <StatusBanner
                         v-if="rolloverYearOverride"
-                        class="text-caption text-warning q-mt-xs"
+                        type="warning"
+                        live="assertive"
+                        class="q-mt-sm"
                     >
                         Changing the year from the default is unusual. Only do this if you need to run a past rollover.
-                    </div>
+                    </StatusBanner>
                 </div>
             </q-slide-transition>
 
@@ -580,6 +583,7 @@ import { useDateFunctions } from "@/composables/DateFunctions"
 import HarvestDialog from "../components/HarvestDialog.vue"
 import PercentRolloverDialog from "../components/PercentRolloverDialog.vue"
 import ClinicalImportDialog from "../components/ClinicalImportDialog.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { TermDto, AvailableTermDto } from "../types"
 import type { QTableColumn } from "quasar"
 
