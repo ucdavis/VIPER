@@ -18,8 +18,9 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
     public MeritMultiYearService(
         EffortDbContext context,
+        ITermService termService,
         ILogger<MeritMultiYearService> logger)
-        : base(context)
+        : base(context, termService)
     {
         _logger = logger;
     }

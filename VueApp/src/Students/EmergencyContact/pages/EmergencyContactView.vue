@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import StatusBanner from "@/components/StatusBanner.vue"
+import EmergencyContactPageShell from "../components/EmergencyContactPageShell.vue"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { stripToDigits, formatPhone } from "../utils/phone"
 import type { StudentContactDetail } from "../types"
@@ -46,24 +46,11 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="q-pa-md">
-        <q-breadcrumbs class="q-mb-sm">
-            <q-breadcrumbs-el
-                label="Emergency Contacts"
-                :to="detail?.isAdmin ? { name: 'EmergencyContactList' } : undefined"
-            />
-            <q-breadcrumbs-el :label="detail?.fullName ?? 'Loading...'" />
-        </q-breadcrumbs>
-
-        <q-spinner
-            v-if="loading"
-            color="primary"
-            size="2rem"
-            class="q-ma-lg"
-            aria-label="Loading contact information"
-        />
-
-        <template v-else-if="detail">
+    <EmergencyContactPageShell
+        :loading="loading"
+        :detail="detail"
+    >
+        <template v-if="detail">
             <h1 class="q-ma-none q-mb-md">
                 Emergency Contact: {{ detail.fullName }}
                 <q-btn
@@ -257,14 +244,7 @@ onMounted(() => {
                 </div>
             </div>
         </template>
-
-        <div
-            v-else
-            class="q-mt-md"
-        >
-            <StatusBanner type="warning"> Student contact record not found. </StatusBanner>
-        </div>
-    </div>
+    </EmergencyContactPageShell>
 </template>
 
 <style scoped>
