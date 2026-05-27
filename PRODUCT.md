@@ -54,7 +54,7 @@ The visual expression of all this, including what VIPER must not look like, is s
 
 Real assets that design work may rely on:
 
-- **Proxima Nova**, the UC Davis campus typeface, self-hosted as woff2 at regular, medium, bold, and extrabold, in both `VueApp/src/assets/fonts/proxima-nova/` and `web/wwwroot/fonts/proxima-nova/`.
+- **Proxima Nova**, the UC Davis campus typeface, at regular, medium, bold, and extrabold, loaded from the campus font server at `campusfont.ucdavis.edu`. It may not be self-hosted, so no copies live in this repo; the `@font-face` blocks in `web/wwwroot/css/site.css`, `welcome.css`, and `VueApp/src/styles/base.css` are the only references.
 - **Self-hosted Roboto and Material Icons**: `VueApp/src/assets/fonts/roboto-v51-latin.woff2`, `roboto-v51-latin-ext.woff2`, and `material-icons.woff2`, built to `web/wwwroot/vue/assets/`.
 - **Five login hero photographs** in AVIF and JPG at `web/wwwroot/images/login/`: guinea pig, horse and foal, ophthalmology, the SVM building, and vetmed admin.
 - **Brand marks**: the rod of asclepius (`rod-of-asclepius-white.avif` and `.png`), the `_ViperBrand.cshtml` lockup partial, `web/wwwroot/images/UCDSVMLogo.png`, and `nopic.jpg` as the person-photo placeholder.
@@ -74,6 +74,6 @@ Absences that future work must not paper over:
 
 ## Accessibility & Inclusion
 
-WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and fonts are self-hosted for reliable rendering.
+WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and Roboto and Material Icons are self-hosted for reliable rendering (Proxima Nova is served from the campus font server).
 
 The component-level contract that delivers this (contrast ratios, landmarks, keyboard semantics, dialog naming, live-region politeness) is specified in [DESIGN.md](DESIGN.md).
