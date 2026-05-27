@@ -24,6 +24,39 @@
         U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* Proxima Nova — UC Davis campus brand font for the blue header chrome.
+   Mirrors the @font-face set in web/wwwroot/css/site.css; here the files are
+   referenced via @/assets so Vite emits them under the SPA's base path. 900
+   is downshifted to 800 since the family caps there. */
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("@/assets/fonts/proxima-nova/proximanova-regular.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("@/assets/fonts/proxima-nova/proximanova-medium.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("@/assets/fonts/proxima-nova/proximanova-bold.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url("@/assets/fonts/proxima-nova/proximanova-extrabold.woff2") format("woff2");
+}
+
 /* Extend Quasar's body font-family cascade with OS emoji fonts so emoji
    characters render in color using the user's native emoji set (Apple on
    macOS/iOS, Segoe on Windows, Noto on Android/Linux). */
@@ -101,10 +134,58 @@ body {
 #mainLayoutHeader {
     background-color: var(--ucdavis-blue-100);
     /*background-color: white;*/
+    /* Proxima Nova brand chrome for the blue bar; the gold section nav below
+       overrides back to Roboto. Medium (500) per UC Davis guidelines. */
+    font-family:
+        "Proxima Nova",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+    font-weight: 500;
+}
+
+/* SVM brand lockup (gold rod-of-asclepius mark + school-name lockup). Mirrors
+   web/wwwroot/css/site.css .viper-brand* — keep the two in sync. */
+.viper-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.viper-brand__mark {
+    width: 2.75rem;
+    height: 2.75rem;
+    background-color: var(--ucdavis-gold-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.viper-brand__mark img {
+    height: 2.5rem; /* nearly fills the 2.75rem mark, leaving a thin inset */
+    width: auto;
+    display: block;
+}
+
+.viper-brand__name {
+    height: 2.75rem;
+    width: auto;
+    display: block;
+}
+
+/* Below lt-md the toolbar can't fit the wide lockup plus the nav controls and
+   profile, so keep only the rod mark. */
+@media (max-width: 1023.98px) {
+    .viper-brand__name {
+        display: none;
+    }
 }
 
 .mainLayoutViper {
-    font-family: Roboto;
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
@@ -145,6 +226,16 @@ div.breadcrumbs {
     min-height: 36px;
     border-bottom: 1px solid silver;
     /*padding: 0 12px;*/
+    /* Roboto here (overriding the header's Proxima) — narrower, so the many
+       section-nav items fit without crowding. */
+    font-family:
+        Roboto,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    font-weight: 400;
 }
 
 #mainLayoutHeaderSections .selectedTopNav {
@@ -155,9 +246,20 @@ div.breadcrumbs {
 #mainLayoutHeaderSections a.q-btn.navLink {
 }
 
+/* Quasar's overlay-drawer glow bleeds a stray line down the left edge. */
+.q-drawer--mobile .q-layout__shadow:after {
+    box-shadow: none;
+}
+
 /*Left Nav styles*/
 #leftNavMenu {
     overflow-x: hidden;
+}
+
+/* Keep the menu clear of the floated close button so items aren't narrowed. */
+#leftNavMenu nav,
+#leftNavMenu .q-list {
+    clear: both;
 }
 
 #leftNavMenu h2 {

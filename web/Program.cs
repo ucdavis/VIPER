@@ -136,7 +136,7 @@ try
         .AddCookie(options =>
         {
             options.Cookie.Name = "VIPER.Authentication.UCD";
-            options.LoginPath = new PathString("/login");
+            options.LoginPath = new PathString("/welcome");
             options.AccessDeniedPath = new PathString("/Error/403");
             options.ExpireTimeSpan = TimeSpan.FromHours(12);
         });
@@ -478,6 +478,17 @@ try
         FileProvider = new PhysicalFileProvider(
             Path.Join(builder.Environment.ContentRootPath, "wwwroot/vue")),
         RequestPath = "/2/vue"
+    });
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(
+            Path.Join(builder.Environment.ContentRootPath, "wwwroot/fonts")),
+        RequestPath = "/fonts",
+        OnPrepareResponse = ctx =>
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable"; // 1 year
+        }
     });
 
     // Serve other static files

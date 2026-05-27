@@ -22,9 +22,9 @@ function buildLoginUrl(returnPath: string): string {
     const fallbackPath = `${applicationBase}/`
 
     if (isValidInternalPath(returnPath)) {
-        return `${viperHome}login?ReturnUrl=${encodeURIComponent(returnPath)}`
+        return `${viperHome}welcome?ReturnUrl=${encodeURIComponent(returnPath)}`
     }
-    return `${viperHome}login?ReturnUrl=${encodeURIComponent(fallbackPath)}`
+    return `${viperHome}welcome?ReturnUrl=${encodeURIComponent(fallbackPath)}`
 }
 
 /**
