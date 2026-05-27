@@ -1,3 +1,56 @@
+/* Proxima Nova, the UC Davis brand font, for the header/footer chrome. Loaded
+   from the campus font server per IET guidance: we may not self-host it, since
+   the license does not cover redistributing the files, which is what committing
+   them to this repo would amount to. This block is mirrored verbatim in
+   welcome.css (the splash) and VueApp/src/styles/base.css (the SPAs). 900 must
+   be downshifted to 800 since the family caps there.
+
+   Three things follow from the font living on a third-party origin, all
+   expected: campusfont.ucdavis.edu has to stay in the CSP font-src allowlist
+   (web/Program.cs); the CDN only returns Access-Control-Allow-Origin to
+   *.ucdavis.edu hosts, so on localhost these requests fail CORS and the
+   fallback stack renders instead; and there is no ?v= cache-buster, because
+   campus owns these URLs and their cache lifetime. woff2 only, matching the
+   rest of this file. Campus publishes woff/ttf/svg at the same paths for
+   pre-2014 browsers. Medium (500) is absent from IET's published snippet but is
+   served from the same directory structure; if it ever goes away, 500 falls
+   back to the 400 face on its own. */
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_regular_macroman/proximanova-regular-webfont.woff2")
+        format("woff2");
+}
+
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_medium_macroman/proximanova-medium-webfont.woff2")
+        format("woff2");
+}
+
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_bold_macroman/proximanova-bold-webfont.woff2")
+        format("woff2");
+}
+
+@font-face {
+    font-family: "Proxima Nova";
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_extrabold_macroman/proximanova-extrabold-webfont.woff2")
+        format("woff2");
+}
+
 html {
     font-size: 14px;
     position: relative;
@@ -46,10 +99,63 @@ html {
     background-color: #022851; /* ucdavis-blue-100 */
 }
 
+/* Proxima Nova brand chrome for the blue header bar and the footer; body
+   content inherits Roboto from Quasar. Medium (500) per UC Davis guidelines.
+   The gold section nav overrides back to Roboto below. */
+#mainLayoutHeader,
+.q-footer {
+    font-family:
+        "Proxima Nova",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+    font-weight: 500;
+}
+
+/* Header brand mark: gold square with the white rod of asclepius, paired
+   with the SVM name lockup. Sized to align with the q-toolbar's items-end. */
+.viper-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.viper-brand__mark {
+    width: 2.75rem;
+    height: 2.75rem;
+    background-color: #ffbf00; /* ucdavis-gold-100 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.viper-brand__mark img {
+    height: 2.5rem; /* nearly fills the 2.75rem mark, leaving a thin inset */
+    width: auto;
+    display: block;
+}
+
+.viper-brand__name {
+    height: 2.75rem;
+    width: auto;
+    display: block;
+}
+
+/* Below lt-md the toolbar can't fit the wide lockup plus the nav buttons and
+   profile, so keep only the rod mark. The splash header has room and is unaffected. */
+@media (max-width: 1023.98px) {
+    .viper-brand__name {
+        display: none;
+    }
+}
+
 .mainLayoutViper {
-    font-family: Roboto;
     font-size: 1.6em !important;
-    font-weight: normal;
+    font-weight: 500;
     vertical-align: bottom;
     margin-left: 0.6em;
 }
@@ -72,15 +178,36 @@ html {
     background-color: #ffd24c; /* ucdavis-gold-70 */
     min-height: 36px;
     border-bottom: 1px solid silver;
+    /* Roboto here (overriding the header's Proxima) — narrower, so the many
+       section-nav items fit without crowding. */
+    font-family:
+        Roboto,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    font-weight: 400;
 }
 
 #mainLayoutHeaderSections .selectedTopNav {
     background-color: #ffe599; /* ucdavis-gold-40 */
 }
 
+/* Quasar's overlay-drawer glow bleeds a stray line down the left edge. */
+.q-drawer--mobile .q-layout__shadow:after {
+    box-shadow: none;
+}
+
 /*Left Nav styles*/
 #leftNavMenu {
     overflow-x: hidden;
+}
+
+/* Keep the menu clear of the floated close button so items aren't narrowed. */
+#leftNavMenu nav,
+#leftNavMenu .q-list {
+    clear: both;
 }
 
 #leftNavMenu h2 {
