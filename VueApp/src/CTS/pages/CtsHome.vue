@@ -50,7 +50,9 @@ async function initPage() {
     const r = await get(baseUrl + "loggedInUser")
     if (!r.success || !r.result.userId) {
         window.location.href =
-            import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + import.meta.env.VITE_VIPER_HOME + "CTS/"
+            import.meta.env.VITE_VIPER_HOME +
+            "welcome?ReturnUrl=" +
+            encodeURIComponent(import.meta.env.VITE_VIPER_HOME + "CTS/" + window.location.search)
     } else {
         userStore.loadUser(r.result)
     }

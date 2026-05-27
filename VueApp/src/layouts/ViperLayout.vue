@@ -12,48 +12,35 @@
             height-hint="98"
             class="no-print"
         >
-            <div
-                v-show="false"
-                id="headerPlaceholder"
-            >
-                <div
-                    id="topPlaceholder"
-                    class="row items-center"
-                >
-                    <a
-                        class="q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase q-btn--dense gt-sm text-white"
-                        tabindex="0"
-                        :href="viperHome"
-                    >
-                        <span class="q-focus-helper"></span>
-                        <span class="q-btn__content text-center col items-center q-anchor--skip justify-center row">
-                            <i
-                                class="q-icon notranslate material-icons"
-                                aria-hidden="true"
-                                role="img"
-                                >home</i
-                            >
-                            <span class="mainLayoutViper">VIPER 2.0</span>
-                            <span
-                                v-if="environment == 'DEVELOPMENT'"
-                                class="mainLayoutViperMode"
-                                >Development</span
-                            >
-                            <span
-                                v-if="environment == 'TEST'"
-                                class="mainLayoutViperMode"
-                                >Test</span
-                            >
-                        </span>
-                    </a>
-                </div>
-            </div>
             <q-toolbar class="items-end">
-                <img
-                    src="@/assets/UCDSVMLogo.png"
-                    height="50"
-                    alt="UC Davis School of Veterinary Medicine Logo"
-                />
+                <div class="viper-brand">
+                    <div
+                        class="viper-brand__mark"
+                        aria-hidden="true"
+                    >
+                        <picture>
+                            <source
+                                :srcset="rodMarkAvif"
+                                type="image/avif"
+                            />
+                            <img
+                                :src="rodMark"
+                                alt=""
+                            />
+                        </picture>
+                    </div>
+                    <picture>
+                        <source
+                            :srcset="schoolLockupAvif"
+                            type="image/avif"
+                        />
+                        <img
+                            class="viper-brand__name"
+                            :src="schoolLockup"
+                            alt="UC Davis Weill School of Veterinary Medicine"
+                        />
+                    </picture>
+                </div>
 
                 <!--Mini navigation for small screens-->
                 <q-btn
@@ -145,7 +132,7 @@
                     <router-view></router-view>
                 </div>
                 <div
-                    v-show="!userStore.isLoggedIn"
+                    v-show="!userStore.isLoggedIn && !showViewWhenNotLoggedIn"
                     class="q-pa-xl flex flex-center"
                 >
                     <q-card
@@ -194,6 +181,10 @@
 
 <script setup lang="ts">
 import { ref } from "vue"
+import rodMark from "@/assets/rod-of-asclepius-white.png"
+import rodMarkAvif from "@/assets/rod-of-asclepius-white.avif"
+import schoolLockup from "@/assets/logo-vetmed-stacked-lockup.png"
+import schoolLockupAvif from "@/assets/logo-vetmed-stacked-lockup.avif"
 import { useUserStore } from "@/store/UserStore"
 import { getLoginUrl } from "@/composables/RequireLogin"
 import LeftNav from "@/layouts/LeftNav.vue"
