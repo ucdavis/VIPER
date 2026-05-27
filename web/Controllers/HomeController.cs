@@ -52,7 +52,90 @@ namespace Viper.Controllers
         [SearchName(FriendlyName = "Viper 2 Homepage")]
         public IActionResult Index()
         {
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                // Anonymous splash served in-place at "/": mirror /welcome's
+                // [ResponseCache(NoStore, Location=None)] so it isn't cached. The
+                // authenticated home response below keeps its default caching.
+                Response.Headers["Cache-Control"] = "no-store,no-cache";
+                Response.Headers["Pragma"] = "no-cache";
+
+                ViewData["ReturnUrl"] = null;
+                ViewData["Hero"] = PickRandomHeroKey();
+                ViewData["DestinationLabel"] = null;
+                return View("Welcome");
+            }
             return View();
+        }
+
+        /// <summary>
+        /// Unauthenticated landing/splash page. Anonymous users see the welcome splash;
+        /// authenticated users are redirected to the validated ReturnUrl or "/".
+        /// </summary>
+        [Route("/[action]")]
+        [AllowAnonymous]
+        [SearchExclude]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+#pragma warning disable S6967 // Action only reads ReturnUrl, no model binding required
+        public IActionResult Welcome([FromQuery] string? ReturnUrl = null)
+#pragma warning restore S6967
+        {
+            // Normalize "~/..." to "/..." (mirrors Login) so the loop-guard catches
+            // ~/welcome and ~/login and we never emit a "~/" redirect target.
+            ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
+
+            // Null out ReturnUrl if it is not local, or if it points back to /welcome or /login (would redirect-loop).
+            if (!Url.IsLocalUrl(ReturnUrl) || IsWelcomeOrLoginPath(ReturnUrl))
+            {
+                ReturnUrl = null;
+            }
+
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl);
+            }
+
+            ViewData["ReturnUrl"] = ReturnUrl;
+            ViewData["Hero"] = PickRandomHeroKey();
+            ViewData["DestinationLabel"] = WelcomePageHelper.ResolveDestinationLabel(ReturnUrl);
+
+            return View("Welcome");
+        }
+
+        private static readonly string[] _heroKeys =
+        {
+            "svm_building",
+            "vetmed_admin",
+            "ophthalmology",
+            "guinea_pig",
+            "horse_foal",
+        };
+
+        private static string PickRandomHeroKey()
+        {
+            return _heroKeys[Random.Shared.Next(_heroKeys.Length)];
+        }
+
+        // Url.IsLocalUrl accepts app-relative "~/..." URLs, but browsers and CAS don't
+        // understand the "~", so normalize "~/..." to "/..." before validating or
+        // redirecting. Leaves all other values (including null) unchanged.
+        private static string? NormalizeAppRelativeUrl(string? returnUrl)
+            => returnUrl != null && returnUrl.StartsWith("~/") ? returnUrl[1..] : returnUrl;
+
+        // internal (not private) so the redirect-loop guard is unit-testable via InternalsVisibleTo.
+        internal static bool IsWelcomeOrLoginPath(string? url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            int cut = url.IndexOfAny(['?', '#']);
+            var path = cut >= 0 ? url[..cut] : url;
+            path = path.TrimEnd('/');
+
+            return path.Equals("/welcome", StringComparison.OrdinalIgnoreCase)
+                || path.Equals("/login", StringComparison.OrdinalIgnoreCase);
         }
 
         [Route("/[action]/")]
@@ -90,6 +173,16 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login([FromQuery] string? ReturnUrl = null)
         {
+            // Normalize app-relative "~/..." to "/..." before validating, so the
+            // /api guard below cannot be bypassed and we never forward an invalid
+            // browser URL to CAS.
+            ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
+
+            if (!Url.IsLocalUrl(ReturnUrl))
+            {
+                ReturnUrl = null;
+            }
+
             Uri url = new(Request.GetDisplayUrl());
             string baseURl = url.GetLeftPart(UriPartial.Authority);
             string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
@@ -334,6 +427,11 @@ namespace Viper.Controllers
 
                     var user = new ClaimsPrincipal(claimsIdentity);
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, user);
+
+                    if (!Url.IsLocalUrl(returnUrl))
+                    {
+                        returnUrl = null;
+                    }
 
                     return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "/");
                 }
