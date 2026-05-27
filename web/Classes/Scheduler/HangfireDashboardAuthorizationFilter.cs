@@ -8,8 +8,8 @@ namespace Viper.Classes.Scheduler
     /// scheduler API (<c>SVMSecure.CATS.scheduledJobs</c>).
     /// Unauthenticated users are handled upstream by
     /// <c>RequireAuthorization()</c> on the mapped endpoint, which triggers
-    /// the cookie auth challenge and redirects to <c>/login</c> (and on to
-    /// CAS); this filter therefore only sees authenticated principals and
+    /// the cookie auth challenge and redirects to <c>/welcome</c> (and on to the
+    /// sign-in provider); this filter therefore only sees authenticated principals and
     /// decides authorize-or-403 based on permission membership. When the
     /// filter returns false for an authenticated user, Hangfire's middleware
     /// writes a 403.

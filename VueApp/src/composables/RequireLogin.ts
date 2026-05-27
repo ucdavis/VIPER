@@ -21,13 +21,13 @@ const DOT_SEGMENTS = new Set([".", "..", "%2e", "%2e%2e", ".%2e", "%2e."])
  */
 function buildLoginUrl(returnPath: string): string {
     const base = applicationBase()
-    const loginPath = `${base}/login`
+    const welcomePath = `${base}/welcome`
     const fallbackPath = `${base}/`
 
     if (isValidInternalPath(returnPath)) {
-        return `${loginPath}?ReturnUrl=${encodeURIComponent(returnPath)}`
+        return `${welcomePath}?ReturnUrl=${encodeURIComponent(returnPath)}`
     }
-    return `${loginPath}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
+    return `${welcomePath}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
 }
 
 /**

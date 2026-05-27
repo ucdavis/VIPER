@@ -18,7 +18,6 @@ const props = defineProps<{
 }>()
 
 const userStore = useUserStore()
-const environment = import.meta.env.VITE_ENVIRONMENT
 const viperHome = import.meta.env.VITE_VIPER_HOME
 const currentYear = new Date().getFullYear()
 </script>
@@ -36,54 +35,6 @@ const currentYear = new Date().getFullYear()
             height-hint="98"
             class="bg-white text-dark"
         >
-            <div
-                v-show="false"
-                id="headerPlaceholder"
-            >
-                <a href="/"
-                    ><img
-                        src="https://viper.vetmed.ucdavis.edu/images/vetmed_logo.jpg"
-                        alt="UC Davis Veterinary Medicine logo"
-                        border="0"
-                        width="134"
-                        height="24"
-                /></a>
-                <div
-                    id="topPlaceholder"
-                    class="row items-center"
-                >
-                    <a
-                        class="q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase q-btn--dense gt-sm text-white"
-                        tabindex="0"
-                        :href="viperHome"
-                    >
-                        <span class="q-focus-helper"></span>
-                        <span class="q-btn__content text-center col items-center q-anchor--skip justify-center row">
-                            <i
-                                class="q-icon notranslate material-icons"
-                                aria-hidden="true"
-                                role="img"
-                                >home</i
-                            >
-                            <span class="mainLayoutViper">VIPER 2.0</span>
-                            <q-badge
-                                v-if="environment == 'DEVELOPMENT'"
-                                color="negative"
-                                role="presentation"
-                                class="mainLayoutViperMode"
-                                >Development</q-badge
-                            >
-                            <q-badge
-                                v-if="environment == 'TEST'"
-                                color="negative"
-                                role="presentation"
-                                class="mainLayoutViperMode"
-                                >Test</q-badge
-                            >
-                        </span>
-                    </a>
-                </div>
-            </div>
             <q-toolbar>
                 <q-btn
                     flat
