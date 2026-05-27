@@ -179,7 +179,7 @@ The system is flat by default. Surfaces sit on the page with borders and tonal f
 ### Shadow Vocabulary
 
 - **Focus ring** (`box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb`): The keyboard-focus halo on form controls and buttons. On the dark welcome splash this becomes a gold ring (`0 0 0 0.1875rem rgba(255,197,25,0.85)`) since default outlines vanish on the photo.
-- **Splash card** (`box-shadow: 0 1.875rem 5rem rgba(0,0,0,0.45)`): The single heavy elevation in the system — the white sign-in card lifting off the full-bleed hero photo. Dramatic on purpose, and used exactly once.
+- **Splash card** (`box-shadow: 0 1.875rem 5rem rgba(2,40,81,0.5)`): The single heavy elevation in the system: the white sign-in card lifting off the full-bleed hero photo. Dramatic on purpose, and used exactly once. Tinted Aggie Blue rather than black, like the splash's text halos, so every darkening layer on the page shares the hero's ambient hue.
 - **Sticky table header** (`background-color: #eee`): Tonal layering, not shadow — the sticky `q-table` header reads as elevated through fill and stickiness alone.
 
 ### Named Rules

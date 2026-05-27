@@ -1,4 +1,4 @@
-﻿@model Viper.Models.AAUD.AaudUser
+@model Viper.Models.AAUD.AaudUser
 @if (Model != null)
 {
     IUserHelper UserHelper = new UserHelper();
@@ -45,7 +45,7 @@
 }
 else
 {
-    <q-btn round flat icon="person" href="@Url.Content("~/login")">
+    <q-btn round flat icon="person" href="@Url.Content("~/welcome")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)">
         <q-tooltip>
             Login
         </q-tooltip>

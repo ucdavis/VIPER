@@ -137,7 +137,7 @@ try
         .AddCookie(options =>
         {
             options.Cookie.Name = "VIPER.Authentication.UCD";
-            options.LoginPath = new PathString("/login");
+            options.LoginPath = new PathString("/welcome");
             options.AccessDeniedPath = new PathString("/Error/403");
             options.ExpireTimeSpan = TimeSpan.FromHours(12);
         });
@@ -352,8 +352,7 @@ try
 
         // Allow fonts to be downloaded from:
         csp.AllowFonts
-            .FromSelf()// This domain
-            .From("fonts.gstatic.com");
+            .FromSelf(); // Self-hosted under /fonts - no external font CDN
 
         // Allow other sites to put this in an iframe?
         csp.AllowFraming
@@ -377,7 +376,6 @@ try
         // Allow styles
         csp.AllowStyles
             .FromSelf() // This domain
-            .From("fonts.googleapis.com") // Google Fonts stylesheets
             .AllowUnsafeInline(); // Allows inline CSS
     }));
 
@@ -430,6 +428,18 @@ try
             Path.Join(builder.Environment.WebRootPath, "vue")),
         RequestPath = "/vue",
         RedirectToAppendTrailingSlash = true
+    });
+
+    // Login screen fonts, served with long-lived cache headers.
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(
+            Path.Join(builder.Environment.WebRootPath, "fonts")),
+        RequestPath = "/fonts",
+        OnPrepareResponse = ctx =>
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable"; // 1 year
+        }
     });
 
     // General static files (favicon, /css, /js, /images, etc.).
