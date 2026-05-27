@@ -18,16 +18,16 @@ const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
  * Falls back to home if the path fails validation.
  */
 function buildLoginUrl(returnPath: string): string {
-    // Build both paths from the normalized base so VITE_VIPER_HOME="/2" gives "/2/login" (not the
-    // slash-less "/2login") and "/2///" collapses its duplicate slashes.
+    // Build both paths from the normalized base so VITE_VIPER_HOME="/2" gives "/2/welcome" (not the
+    // slash-less "/2welcome") and "/2///" collapses its duplicate slashes.
     const applicationBase = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/")
-    const loginPath = `${applicationBase}/login`
+    const welcomePath = `${applicationBase}/welcome`
     const fallbackPath = `${applicationBase}/`
 
     if (isValidInternalPath(returnPath)) {
-        return `${loginPath}?ReturnUrl=${encodeURIComponent(returnPath)}`
+        return `${welcomePath}?ReturnUrl=${encodeURIComponent(returnPath)}`
     }
-    return `${loginPath}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
+    return `${welcomePath}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
 }
 
 /**
