@@ -45,6 +45,7 @@ namespace Viper.Areas.Directory.Models
         public string? StudentPriorName { get; set; }
         public string? StudentBannerId { get; set; }
         public bool StudentConfidential { get; set; } = false;
+        public string? StudentConfidentialScope { get; set; }
         public string? StudentStatus { get; set; }
         public string? StudentPrimaryMajor { get; set; }
         public string? StudentAllMajors { get; set; }
@@ -52,6 +53,32 @@ namespace Viper.Areas.Directory.Models
         public string? StudentClassLevel { get; set; }
         public string? StudentClassOf { get; set; }
         public string? StudentTerm { get; set; }
+        public string? StudentTermDescription { get; set; }
+        public string? StudentDegreeSought { get; set; }
+        public string? StudentAcademicStanding { get; set; }
+        public string? StudentCumulativeGPA { get; set; }
+        public string? StudentClassRank { get; set; }
+        public string? StudentAdmitClassYear { get; set; }
+        public string? StudentAdmitTerm { get; set; }
+        public bool StudentIsDualDegree { get; set; } = false;
+        public bool StudentIsDVM { get; set; } = false;
+        public bool StudentIsMPVM { get; set; } = false;
+        public bool StudentIsEmployed { get; set; } = false;
+        public string? StudentEmployeeId { get; set; }
+        public string? StudentEmployer { get; set; }
+        public string? StudentGender { get; set; }
+        public string? StudentEthnicity { get; set; }
+        public string? StudentNewEthnicity { get; set; }
+        public bool StudentIsCAResident { get; set; } = false;
+        public bool StudentIsUSCitizen { get; set; } = false;
+        public string? StudentBirthDate { get; set; }
+        public string? StudentAge { get; set; }
+        public string? StudentPermanentAddress { get; set; }
+        public string? StudentMailingAddress { get; set; }
+        public string? StudentBillingAddress { get; set; }
+        public string? StudentPermanentPhone { get; set; }
+        public string? StudentMailingPhone { get; set; }
+        public string? StudentBillingPhone { get; set; }
 
         // IAM Information
         public string? PPSId { get; set; }
