@@ -1,5 +1,3 @@
-﻿using Viper.Models.CTS;
-
 namespace Viper.Models.CTS
 {
     public class EvaluateesByInstance

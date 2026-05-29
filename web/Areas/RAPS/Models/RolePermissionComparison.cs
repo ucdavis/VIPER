@@ -1,4 +1,4 @@
-﻿using Viper.Models.RAPS;
+using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
 {
@@ -14,9 +14,9 @@ namespace Viper.Areas.RAPS.Models
 
         public RolePermissionComparison(List<TblRolePermission> role1Permissions, List<TblRolePermission> role2Permissions)
         {
-            foreach(var p in role1Permissions)
+            foreach (var p in role1Permissions)
             {
-                Role1Permissions.Add(new RolePermission()
+                Role1Permissions.Add(new RolePermission
                 {
                     PermissionId = p.PermissionId,
                     Name = p.Permission.Permission,
@@ -26,7 +26,7 @@ namespace Viper.Areas.RAPS.Models
 
             foreach (var p in role2Permissions)
             {
-                Role2Permissions.Add(new RolePermission()
+                Role2Permissions.Add(new RolePermission
                 {
                     PermissionId = p.PermissionId,
                     Name = p.Permission.Permission,

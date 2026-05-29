@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class FormSubmission
+public class FormSubmission
 {
     public Guid FormSubmissionId { get; set; }
 

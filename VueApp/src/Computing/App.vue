@@ -1,18 +1,14 @@
 <template>
-    <main>
-        <component :is="$route.meta.layout || 'div'"
-                   nav="viper-cats" navarea="false" highlightedTopNav="Computing">
-        </component>
-    </main>
-    <GenericError></GenericError>
+    <component
+        :is="$route.meta.layout || 'div'"
+        nav="viper-cats"
+        :navarea="true"
+        highlighted-top-nav="Computing"
+    >
+    </component>
+    <GenericError />
 </template>
 
-<script>
-    import GenericError from '@/components/GenericError.vue'
-    export default {
-        name: 'Computing',
-        components: {
-            GenericError
-        }
-    }
+<script setup lang="ts">
+import GenericError from "@/components/GenericError.vue"
 </script>

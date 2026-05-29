@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.CTS
+namespace Viper.Models.CTS
 {
     public class LegacySessionCompetency
     {
@@ -27,12 +27,12 @@
         public string? DvmCompetencyName { get; set; }
         public int? DvmCompetencyParentId { get; set; }
         public bool? DvmCompetencyActive { get; set; }
-        
+
         //Level
         public int? DvmLevelId { get; set; }
         public string? DvmLevelName { get; set; }
-        public int? DvmLevelOrder {  get; set; }
-        
+        public int? DvmLevelOrder { get; set; }
+
         //Role
         public int? DvmRoleId { get; set; }
         public string? DvmRoleName { get; set; }

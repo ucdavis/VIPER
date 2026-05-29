@@ -107,7 +107,7 @@ namespace Viper.test.CTS
 
             // Assert
             Assert.Equal(2, dto.Bundles.Count);
-            
+
             var bundle1 = dto.Bundles.Find(b => b.BundleId == 1);
             Assert.NotNull(bundle1);
             Assert.Equal("Bundle 1", bundle1.Name);

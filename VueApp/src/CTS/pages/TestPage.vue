@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import StudentSelect from '@/components/StudentSelect.vue'
+import StudentSelect from "@/components/StudentSelect.vue"
 </script>
 
 <template>
@@ -11,30 +11,42 @@
             </div>
             <div>
                 All students
-                <StudentSelect allStudents="all"></StudentSelect>
+                <StudentSelect all-students="all"></StudentSelect>
             </div>
             <div>
                 All students with toggle
-                <StudentSelect allStudents="all" :statusToggle="true"></StudentSelect>
+                <StudentSelect
+                    all-students="all"
+                    :status-toggle="true"
+                ></StudentSelect>
             </div>
             <div>
                 Service / V4 / Active
-                <StudentSelect :serviceId="823" :classLevel="['V4']"></StudentSelect>
+                <StudentSelect
+                    :service-id="823"
+                    :class-level="['V4']"
+                ></StudentSelect>
             </div>
             <div>
                 V1 - V4
-                <StudentSelect allStudents="hide" :classLevel="['V1', 'V2', 'V3', 'V4']"></StudentSelect>
+                <StudentSelect
+                    all-students="hide"
+                    :class-level="['V1', 'V2', 'V3', 'V4']"
+                ></StudentSelect>
             </div>
             <div>
                 Active class years
-                <StudentSelect :classYears="['active']"></StudentSelect>
+                <StudentSelect :class-years="['active']"></StudentSelect>
             </div>
         </div>
         <div class="col-12 col-md-10 col-lg-8">
-
             <div>
                 All class years and class levels
-                <StudentSelect allStudents="hide" :classLevel="['V1', 'V2', 'V3', 'V4']" :classYears="['all']"></StudentSelect>
+                <StudentSelect
+                    all-students="hide"
+                    :class-level="['V1', 'V2', 'V3', 'V4']"
+                    :class-years="['all']"
+                ></StudentSelect>
             </div>
         </div>
     </div>

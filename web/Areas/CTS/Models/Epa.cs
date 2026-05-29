@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Models
 {
     public class Epa
     {
@@ -23,7 +23,7 @@
             Active = dbEpa.Active;
             foreach (var s in dbEpa.Services)
             {
-                Services.Add(new EpaService()
+                Services.Add(new EpaService
                 {
                     ServiceId = s.ServiceId,
                     ServiceName = s.ServiceName,

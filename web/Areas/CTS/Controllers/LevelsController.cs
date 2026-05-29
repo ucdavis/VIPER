@@ -1,8 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.Diagnostics;
-using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -71,7 +68,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<Level>> Createlevel(LevelCreateUpdate level)
         {
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
 
             //Make sure there isn't a level with the same description and the same level type
             if (!await CheckNameAndType(level))
@@ -83,7 +80,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("Level must belong to a type.");
             }
 
-            var l = new Level()
+            var l = new Level
             {
                 LevelName = level.LevelName,
                 Description = level.Description,
@@ -106,7 +103,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult<Level>> UpdateLevel(LevelCreateUpdate level)
         {
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
 
             if (!await CheckNameAndType(level))
             {
@@ -140,7 +137,7 @@ namespace Viper.Areas.CTS.Controllers
         [Permission(Allow = "SVMSecure.CTS.Manage")]
         public async Task<ActionResult> DeleteLevel(int levelId)
         {
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             var existing = await context.Levels.FindAsync(levelId);
             if (existing == null)
             {

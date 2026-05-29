@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class DlId
+public class DlId
 {
     public string IdsPKey { get; set; } = null!;
 

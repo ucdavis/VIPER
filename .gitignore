@@ -31,6 +31,10 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+dist/
+
+# LibMan client-side libraries (restored via libman restore)
+web/wwwroot/lib/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -385,7 +389,6 @@ FodyWeavers.xsd
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-*.code-workspace
 
 # Local History for Visual Studio Code
 .history/
@@ -486,4 +489,18 @@ awscredentials.xml
 # Used to reduce unnecessary dotnet builds
 .build-cache/
 
-CLAUDE.md
+# Precommit build artifacts (isolated from dev server)
+.artifacts-precommit/
+.artifacts-lint/
+.artifacts-resharper/
+
+# Effort migration script outputs
+web/Areas/Effort/Scripts/AnalysisOutput/
+web/Areas/Effort/Scripts/RemediationOutput/
+web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data_LEGACY.txt
+
+# Code-quality tool outputs (fallow cache + jscpd + ReSharper reports)
+.fallow/
+VueApp/.fallow/
+jscpd-report/
+inspect-report/

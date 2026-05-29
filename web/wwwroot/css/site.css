@@ -18,33 +18,32 @@ html {
     }
 }
 
-/*
-body {
-    margin-bottom: 60px;
-}
-*/
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem #258cfb;
 }
 
 /*Placeholders used when loading*/
 #headerPlaceholder {
     height: 50px;
-    background-color: #022851;
+    background-color: #022851; /* ucdavis-blue-100 */
 }
 #topPlaceholder {
     height: 50px;
 }
 #mainNavPlaceholder {
     height: 50px;
-    background-color: #1D4776;
+    background-color: #1d4776; /* ucdavis-blue-80 */
 }
 
 /*Top nav/header styles*/
 #mainLayoutHeader {
-    background-color: #022851;
-    /*background-color: white;*/
+    background-color: #022851; /* ucdavis-blue-100 */
 }
 
 .mainLayoutViper {
@@ -52,8 +51,7 @@ body {
     font-size: 1.6em !important;
     font-weight: normal;
     vertical-align: bottom;
-    margin-left: .6em;
-    padding-bottom: 1px;
+    margin-left: 0.6em;
 }
 
 .mainLayoutViperPlaceholder {
@@ -62,63 +60,41 @@ body {
 }
 
 .mainLayoutViperMode {
-    margin-left: .6em;
-    margin-top: .2em;
-    vertical-align: bottom;
-    color: red;
+    margin-left: 0.6em;
+    vertical-align: middle;
 }
 
 #topPlaceholder {
     padding: 0 12px;
 }
-/*
-#topPlaceholder a {
-    margin-top: 4px;
-}
-
-#topPlaceholder .mainLayoutViperMode {
-    margin-top: 10px;
-    margin-left: 2px;
-    height: 24px;
-}
-*/
 
 #mainLayoutHeaderSections {
-    /*background-color: #1D4776;*/
-    background-color: #FFCD00;
+    background-color: #ffd24c; /* ucdavis-gold-70 */
     min-height: 36px;
     border-bottom: 1px solid silver;
-    /*padding: 0 12px;*/
 }
 
 #mainLayoutHeaderSections .selectedTopNav {
-    /*background-color: #4F7094;*/
-    background-color: #FFE699;
-}
-
-#mainLayoutHeaderSections a.q-btn.navLink {
-    
+    background-color: #ffe599; /* ucdavis-gold-40 */
 }
 
 /*Left Nav styles*/
 #leftNavMenu {
-    /*background-color: #E5E5E5;*/
+    overflow-x: hidden;
 }
 
 #leftNavMenu h2 {
     font-size: 1.2rem;
     margin: 0;
     line-height: 1.5rem;
-    padding: .2rem .5rem .1rem .5rem;
+    padding: 0.2rem 0.5rem 0.1rem 0.5rem;
     font-weight: bold;
 }
 
 #leftNavMenu .leftNavHeader {
     font-weight: bold;
     font-size: 1rem;
-    padding: 1.5rem .5rem .1rem .5rem;
-    /*background-color: #FFD24C;*/
-    /*color: white;*/
+    padding: 1rem 0.5rem 0.1rem 0.5rem;
 }
 
 #leftNavMenu .leftNavSpacer {
@@ -126,8 +102,18 @@ body {
 }
 
 #leftNavMenu .leftNavLink {
-    padding-left: .5rem;
-    /*background-color: #CDD6E0;*/
+    padding-left: 0.5rem;
+}
+
+#leftNavMenu .leftNavActive {
+    background-color: #cdd6e0; /* ucdavis-blue-10 */
+    color: #022851; /* ucdavis-blue-100 */
+    font-weight: 500;
+}
+
+#leftNavMenu .leftNavActiveSecondary {
+    background-color: #e6ecf2; /* lighter ucdavis-blue tint */
+    color: #022851; /* ucdavis-blue-100 */
 }
 
 /*Footer styles*/
@@ -166,15 +152,15 @@ body {
 }
 
 .sticky-header-table .q-table__middle table thead tr:first-child th {
-    top: 0
+    top: 0;
 }
-    
+
 /* this is when the loading indicator appears */
 .q-table--loading thead tr:last-child th {
     /* height of all previous header rows */
     top: 48px;
 }
-    
+
 /* prevent scrolling behind sticky top row on focus */
 .sticky-header-table .q-table__middle table tbody {
     /* height of all previous header rows */
@@ -183,14 +169,14 @@ body {
 
 /* fallback */
 @font-face {
-    font-family: 'Material Icons';
+    font-family: "Material Icons";
     font-style: normal;
     font-weight: 400;
-    src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
+    src: url(https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format("woff2");
 }
 
 .material-icons {
-    font-family: 'Material Icons';
+    font-family: "Material Icons";
     font-weight: normal;
     font-style: normal;
     font-size: 24px;
@@ -201,11 +187,96 @@ body {
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
-    -webkit-font-feature-settings: 'liga';
+    -webkit-font-feature-settings: "liga";
     -webkit-font-smoothing: antialiased;
 }
 
+/* Screen reader only — visually hidden but accessible to assistive technology */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Skip to content link — visible on focus for keyboard users */
+.skip-to-content {
+    position: absolute;
+    top: -2.5rem;
+    left: 0.5rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--q-primary);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-weight: 600;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* Suppress focus outline on main content — skip link and programmatic
+   focus target for screen readers, not an interactive element */
+#main-content:focus {
+    outline: none;
+}
+
+/* Override Quasar's 0.6 opacity on input clear buttons */
+.q-field .q-field__focusable-action {
+    opacity: 1;
+}
+
+/* Status notification toast — accessible via role="status" */
+.viper-status-notification {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(1rem);
+    padding: 0.75rem 1.5rem;
+    background: var(--q-positive, #266041);
+    color: #fff;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transition:
+        opacity 0.3s,
+        transform 0.3s;
+    pointer-events: none;
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
+}
+
+.viper-status-notification--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Quasar palette AA contrast overrides (!important required to override Quasar's !important) */
+.text-grey {
+    color: var(--ucdavis-black-60, #666666) !important;
+}
+
+.bg-grey {
+    background-color: var(--ucdavis-black-60, #666666) !important;
+}
+
 /* Heading Styles */
+.q-page-container h1,
+.q-page-container .text-h1 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
 .q-page-container h2,
 .q-page-container .text-h2 {
     font-size: 1.2rem;
@@ -218,16 +289,15 @@ body {
 .q-page-container .text-h3 {
     font-size: 1.2rem;
     line-height: 1.2rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
-
 
 .q-page-container h4,
 .q-page-container .text-h4 {
     font-size: 1.1rem;
     line-height: 1.1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -235,7 +305,7 @@ body {
 .q-page-container .text-h5 {
     font-size: 1rem;
     line-height: 1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
     font-weight: bold;
 }
 
@@ -243,7 +313,7 @@ body {
 .q-page-container .text-h6 {
     font-size: 1rem;
     line-height: 1rem;
-    margin: .0rem 0rem .5rem 0rem;
+    margin: 0rem 0rem 0.5rem 0rem;
 }
 
 .q-avatar .smallPhoto {
@@ -259,4 +329,11 @@ div#directoryResults .q-avatar {
 header .q-avatar {
     height: 40px !important;
     width: 31px !important;
+}
+
+/* Mirrors VueApp's colors.css so Razor and Vue render error surfaces identically. */
+.error-surface {
+    background-color: color-mix(in srgb, var(--q-negative) 12%, white);
+    border-left: 0.25rem solid var(--q-negative);
+    color: var(--q-negative);
 }

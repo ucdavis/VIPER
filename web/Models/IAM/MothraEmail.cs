@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.IAM
+namespace Viper.Models.IAM
 {
     public class MothraEmail : IIamData
     {

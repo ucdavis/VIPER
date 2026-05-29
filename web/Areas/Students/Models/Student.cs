@@ -1,4 +1,4 @@
-﻿using Viper.Models.Students;
+using Viper.Models.Students;
 using Viper.Models.VIPER;
 
 namespace Viper.Areas.Students.Models

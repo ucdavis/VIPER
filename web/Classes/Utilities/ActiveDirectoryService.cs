@@ -1,5 +1,6 @@
-﻿using System.DirectoryServices.AccountManagement;
+using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.Protocols;
+using System.Net;
 using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 
@@ -72,7 +73,8 @@ namespace Viper.Classes.Utilities
             "ucdStudentSID"
         };
 
-        private enum Server {
+        private enum Server
+        {
             AD3,
             OU
         }
@@ -90,16 +92,12 @@ namespace Viper.Classes.Utilities
         /// <returns>List of groups</returns>
         public static List<LdapGroup> GetGroups(string? name = null)
         {
-            string filter = "(objectClass=group)";
-            if (name != null)
-            {
-                filter = string.Format("(&{0}(cn=*{1}*))", filter, name);
-            };
+            string filter = BuildGroupsFilter(name);
 
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             List<LdapGroup> groups = new();
 
-            foreach (SearchResultEntry e in searchResults.Entries)
+            foreach (SearchResultEntry e in searchResults)
             {
                 groups.Add(new LdapGroup(e));
             }
@@ -115,12 +113,16 @@ namespace Viper.Classes.Utilities
         /// <returns>The group, if found</returns>
         public static LdapGroup? GetGroup(string dn)
         {
-            string filter = string.Format("(&(objectClass=group)(distinguishedName={0}))", dn);
+            string? filter = BuildGroupFilter(dn);
+            if (filter == null)
+            {
+                return null;
+            }
             var searchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Group);
             LdapGroup? group = null;
-            if (searchResults.Entries.Count == 1)
+            if (searchResults.Count == 1)
             {
-                group = new LdapGroup(searchResults.Entries[0]);
+                group = new LdapGroup(searchResults[0]);
             }
 
             return group;
@@ -136,29 +138,12 @@ namespace Viper.Classes.Utilities
         /// <returns>List of users</returns>
         public static List<LdapUser> GetUsers(bool fromOu = false, string? name = null, string? cn = null, string? samAccountName = null)
         {
-            string filter = "(objectClass=user)";
-            string additionalFilters = "";
-            if (name != null)
-            {
-                additionalFilters += string.Format("(displayName=*{0}*)", name);
-            }
-            if (cn != null)
-            {
-                additionalFilters += string.Format("(cn=*{0}*)", cn);
-            }
-            if (samAccountName != null)
-            {
-                additionalFilters += string.Format("(samAccountName=*{0}*)", samAccountName);
-            }
-            if (additionalFilters.Length > 0)
-            {
-                filter = string.Format("(&{0}{1})", filter, additionalFilters);
-            }
+            string filter = BuildUsersFilter(name, cn, samAccountName);
 
             var searchResults = SearchActiveDirectory(filter, fromOu ? Server.OU : Server.AD3, ObjectType.Person);
 
             List<LdapUser> users = new();
-            foreach (SearchResultEntry result in searchResults.Entries)
+            foreach (SearchResultEntry result in searchResults)
             {
                 users.Add(new LdapUser(result));
             }
@@ -171,14 +156,18 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="samAccountName">samAccountName of user</param>
         /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
-        /// <returns></returns>
         public static LdapUser? GetUser(string samAccountName, bool fromOu = false)
         {
+            string? filter = BuildUserFilter(samAccountName);
+            if (filter == null)
+            {
+                return null;
+            }
             var searchResults = SearchActiveDirectory(
-                string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName),
+                filter,
                 fromOu ? Server.OU : Server.AD3,
                 ObjectType.Person);
-            return searchResults.Entries.Count == 1 ? new LdapUser(searchResults.Entries[0]) : null;
+            return searchResults.Count == 1 ? new LdapUser(searchResults[0]) : null;
         }
 
         /// <summary>
@@ -188,17 +177,21 @@ namespace Viper.Classes.Utilities
         /// <returns>List of members of the group</returns>
         public static List<LdapUser> GetGroupMembership(string groupDn)
         {
+            string? filter = BuildGroupMembershipFilter(groupDn);
+            if (filter == null)
+            {
+                return new List<LdapUser>();
+            }
             List<LdapUser> users = new();
-            string filter = string.Format("(&(objectClass=user)(memberOf={0}))", groupDn);
             ////Need to get users from both AD3 and OU
             var ouSearchResults = SearchActiveDirectory(filter, Server.OU, ObjectType.Person);
             var ad3SearchResults = SearchActiveDirectory(filter, Server.AD3, ObjectType.Person);
 
-            foreach (SearchResultEntry result in ouSearchResults.Entries)
+            foreach (SearchResultEntry result in ouSearchResults)
             {
                 users.Add(new LdapUser(result));
             }
-            foreach (SearchResultEntry result in ad3SearchResults.Entries)
+            foreach (SearchResultEntry result in ad3SearchResults)
             {
                 users.Add(new LdapUser(result));
             }
@@ -258,6 +251,66 @@ namespace Viper.Classes.Utilities
             }
         }
 
+        internal static string BuildGroupsFilter(string? name)
+        {
+            const string baseFilter = "(objectClass=group)";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return baseFilter;
+            }
+            return string.Format("(&{0}(cn=*{1}*))", baseFilter, LdapFilter.Escape(name));
+        }
+
+        internal static string? BuildGroupFilter(string? dn)
+        {
+            if (string.IsNullOrWhiteSpace(dn))
+            {
+                return null;
+            }
+            return string.Format("(&(objectClass=group)(distinguishedName={0}))", LdapFilter.Escape(dn));
+        }
+
+        internal static string? BuildUserFilter(string? samAccountName)
+        {
+            if (string.IsNullOrWhiteSpace(samAccountName))
+            {
+                return null;
+            }
+            return string.Format("(&(objectClass=user)(samAccountName={0}))", LdapFilter.Escape(samAccountName));
+        }
+
+        internal static string? BuildGroupMembershipFilter(string? groupDn)
+        {
+            if (string.IsNullOrWhiteSpace(groupDn))
+            {
+                return null;
+            }
+            return string.Format("(&(objectClass=user)(memberOf={0}))", LdapFilter.Escape(groupDn));
+        }
+
+        internal static string BuildUsersFilter(string? name, string? cn, string? samAccountName)
+        {
+            const string baseFilter = "(objectClass=user)";
+            string additionalFilters = "";
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                additionalFilters += string.Format("(displayName=*{0}*)", LdapFilter.Escape(name));
+            }
+            if (!string.IsNullOrWhiteSpace(cn))
+            {
+                additionalFilters += string.Format("(cn=*{0}*)", LdapFilter.Escape(cn));
+            }
+            if (!string.IsNullOrWhiteSpace(samAccountName))
+            {
+                additionalFilters += string.Format("(samAccountName=*{0}*)", LdapFilter.Escape(samAccountName));
+            }
+            if (additionalFilters.Length > 0)
+            {
+                return string.Format("(&{0}{1})", baseFilter, additionalFilters);
+            }
+            return baseFilter;
+        }
+
         //Sort users by description first, or sam account name
         private static List<LdapUser> SortUsers(List<LdapUser> users)
         {
@@ -270,12 +323,7 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Generic search function
         /// </summary>
-        /// <param name="searchFilter"></param>
-        /// <param name="searchStart"></param>
-        /// <param name="ou"></param>
-        /// <param name="groupProperties"></param>
-        /// <returns></returns>
-        private static SearchResponse SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
+        private static List<SearchResultEntry> SearchActiveDirectory(string searchFilter, Server server, ObjectType objectType)
         {
             var ldapIdentifier = server == Server.OU
                 ? new LdapDirectoryIdentifier(_ouServer, port)
@@ -287,15 +335,35 @@ namespace Viper.Classes.Utilities
                 ? _groupProperties
                 : _personProperties;
             var cred = HttpHelper.GetSetting<string>("Credentials", "svmadgrp") ?? "";
-            using var lc = new LdapConnection(ldapIdentifier, new System.Net.NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
+            using var lc = new LdapConnection(ldapIdentifier, new NetworkCredential(_username, cred, "ad3.ucdavis.edu"));
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(searchStart, searchFilter, SearchScope.Subtree, props);
-            var response = (SearchResponse)lc.SendRequest(searchRequest);
-            return response;
+            // AD caps a single search at 1000 entries; use paging to retrieve all results.
+            var pageRequest = new PageResultRequestControl(1000);
+            searchRequest.Controls.Add(pageRequest);
+
+            var entries = new List<SearchResultEntry>();
+            while (true)
+            {
+                var response = (SearchResponse)lc.SendRequest(searchRequest);
+                foreach (SearchResultEntry entry in response.Entries)
+                {
+                    entries.Add(entry);
+                }
+
+                var pageResponse = response.Controls
+                    .OfType<PageResultResponseControl>()
+                    .FirstOrDefault();
+                if (pageResponse == null || pageResponse.Cookie.Length == 0)
+                {
+                    break;
+                }
+                pageRequest.Cookie = pageResponse.Cookie;
+            }
+            return entries;
         }
     }
 }

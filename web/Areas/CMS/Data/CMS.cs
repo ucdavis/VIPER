@@ -1,22 +1,17 @@
-﻿using Microsoft.AspNetCore.Components.Forms;
+using System.IO.Compression;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using OWASP.AntiSamy.Html;
-using System.IO.Compression;
-using System.Net;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Security.Cryptography.Xml;
-using System.Text;
-using System.Text.Json;
 using Viper.Areas.CMS.Models;
 using Viper.Classes.SQLContext;
-using Viper.Models;
+using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
-using static System.Net.Mime.MediaTypeNames;
+using Viper.Services;
+using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -25,9 +20,12 @@ namespace Viper.Areas.CMS.Data
         #region Properties (private/public)
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
+        private readonly IHtmlSanitizerService _sanitizerService;
+        private readonly ILogger<CMS>? _logger;
 
-        public IUserHelper UserHelper;
-        public Dictionary<string, string> MimeTypes = new()
+        public IUserHelper UserHelper { get; set; }
+
+        public Dictionary<string, string> MimeTypes { get; set; } = new()
         {
             ["pdf"] = "application/pdf",
             ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -60,17 +58,12 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region Constructors
-        public CMS()
-        {
-            this._viperContext = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
-            UserHelper = new UserHelper();
-        }
-
-        public CMS(VIPERContext viperContext, RAPSContext rapsContext)
+        public CMS(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService, ILogger<CMS>? logger = null)
         {
             this._viperContext = viperContext;
             this._rapsContext = rapsContext;
+            this._sanitizerService = sanitizerService;
+            this._logger = logger;
             UserHelper = new UserHelper();
         }
         #endregion
@@ -79,49 +72,46 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks and filter based on permissions
         /// </summary>
-        /// <param name="contentBlockID"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="system"></param>
-        /// <param name="viperSectionPath"></param>
-        /// <param name="page"></param>
-        /// <param name="blockOrder"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <param name="status"></param>
         /// <returns>List of blocks</returns>
         public IEnumerable<ContentBlock>? GetContentBlocksAllowed(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
         {
-            // get blocks based on paramenters
-            var blocks = GetContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
+            // Fetch raw (no sanitization): we sanitize after the permission filter so we don't
+            // waste work on blocks the current user isn't allowed to see.
+            var blocks = FetchContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
 
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             List<ContentBlock> goodBlocks = new();
 
-            if (blocks != null && currentUser != null && _rapsContext != null)
+            if (blocks != null && _rapsContext != null)
             {
-
                 foreach (var b in blocks)
                 {
-
-                    if (b.AllowPublicAccess ||
-                        UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") ||
-                        (b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure")) ||
-                        (b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions.Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser).Any(p => string.Compare(cp.Permission, p.Permission, true) == 0))))
+                    var hasAccess = b.AllowPublicAccess; //block is available without authentication
+                    if (!hasAccess && currentUser != null)
                     {
-                        // only include blocks that the user has permission to see
+                        hasAccess =
+                            //CMS admin
+                            UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") ||
+                            //available to all logged in users
+                            b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure") ||
+                            //available due to having specific permission(s)
+                            b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions
+                                .Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser)
+                                    .Any(p => string.Compare(cp.Permission, p.Permission, true) == 0));
+                    }
+                    // only include blocks that the user has permission to see
+                    if (hasAccess)
+                    {
                         goodBlocks.Add(b);
                     }
-
                 }
 
-                if(goodBlocks.Any())
-                {
-                    Sanitize(goodBlocks);
-                }
+                SanitizeContentBlocks(goodBlocks);
                 return goodBlocks;
 
             }
-            else
-            { return null; }
+
+            return null;
         }
         #endregion
 
@@ -129,26 +119,34 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get content blocks without filtering on permissions
         /// </summary>
-        /// <param name="contentBlockId"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="system"></param>
-        /// <param name="viperSectionPath"></param>
-        /// <param name="page"></param>
-        /// <param name="blockOrder"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <param name="status"></param>
         /// <returns>List of blocks</returns>
-        public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockId = null, string? friendlyName = null, string? system = null,
+        public IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID = null, string? friendlyName = null, string? system = null,
             string? viperSectionPath = null, string? page = null, int? blockOrder = null,
             bool? allowPublicAccess = null, int? status = null)
         {
-            // get blocks based on paramenters
-            var blocks = _viperContext?.ContentBlocks
+            var blocks = FetchContentBlocks(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status);
+            if (blocks != null)
+            {
+                SanitizeContentBlocks(blocks);
+            }
+            return blocks;
+        }
+        #endregion
+
+        // AsNoTracking because SanitizeContentBlocks mutates b.Content; a later SaveChanges on a
+        // tracked entity (e.g. DeleteContentBlock setting State=Modified) would otherwise persist
+        // the sanitized HTML back to the DB as a side-effect of a read.
+        private List<ContentBlock>? FetchContentBlocks(int? contentBlockID, string? friendlyName, string? system,
+            string? viperSectionPath, string? page, int? blockOrder,
+            bool? allowPublicAccess, int? status)
+        {
+            return _viperContext?.ContentBlocks
+                    .AsNoTracking()
                     .Include(p => p.ContentBlockToPermissions)
                     .Include(f => f.ContentBlockToFiles)
                         .ThenInclude(cbf => cbf.File)
                     .Include(h => h.ContentHistories)
-                    .Where(c => c.ContentBlockId.Equals(contentBlockId) || contentBlockId == null)
+                    .Where(c => c.ContentBlockId.Equals(contentBlockID) || contentBlockID == null)
                     .Where(c => string.IsNullOrEmpty(c.FriendlyName) ? string.IsNullOrEmpty(friendlyName) : c.FriendlyName.Equals(friendlyName) || string.IsNullOrEmpty(friendlyName))
                     .Where(c => c.System.Equals(system) || string.IsNullOrEmpty(system))
                     .Where(c => string.IsNullOrEmpty(c.ViperSectionPath) ? string.IsNullOrEmpty(viperSectionPath) : c.ViperSectionPath.Equals(viperSectionPath) || string.IsNullOrEmpty(viperSectionPath))
@@ -159,39 +157,13 @@ namespace Viper.Areas.CMS.Data
                     .OrderBy(c => c.BlockOrder)
                     .AsSplitQuery()
                     .ToList();
-
-            if (blocks != null)
-            {
-                Sanitize(blocks);
-                Policy policy = Policy.GetInstance("antisamy-cms.xml");
-                var antiSamy = new AntiSamy();
-
-                foreach (var b in blocks)
-                {
-                    // sanitize content
-                    CleanResults results = antiSamy.Scan(b.Content, policy);
-                    b.Content = results.GetCleanHtml();
-
-                }
-
-                return blocks;
-
-            }
-            else
-            { return null; }
         }
-        #endregion
 
-        public void Sanitize(IEnumerable<ContentBlock> blocks)
+        private void SanitizeContentBlocks(IEnumerable<ContentBlock> blocks)
         {
-            Policy policy = Policy.GetInstance("antisamy-cms.xml");
-            var antiSamy = new AntiSamy();
-
             foreach (var b in blocks)
             {
-                // sanitize content
-                CleanResults results = antiSamy.Scan(b.Content, policy);
-                b.Content = results.GetCleanHtml();
+                b.Content = _sanitizerService.Sanitize(b.Content);
             }
         }
 
@@ -199,70 +171,93 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Returns the first file that matches the parameters past (or null)
         /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="oldURL"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="folder"></param>
-        /// <param name="name"></param>
-        /// <param name="getDeleted"></param>
         /// <returns>File object</returns>
         public CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
         {
-            var files = GetFiles(fileGUID, oldURL, friendlyName, folder, name);
+            // Dispatch to a per-identifier method so each query shape gets its own cached plan,
+            // avoiding the catch-all (@P IS NULL OR col = @P) antipattern. See VPR-143.
+            if (!string.IsNullOrEmpty(fileGUID) && Guid.TryParse(fileGUID, out var guid))
+            {
+                return GetFileByGuid(guid);
+            }
 
-            return files?.FirstOrDefault();
+            if (!string.IsNullOrEmpty(oldURL))
+            {
+                return GetFileByOldUrl(oldURL);
+            }
 
+            if (!string.IsNullOrEmpty(friendlyName))
+            {
+                return GetFileByFriendlyName(friendlyName);
+            }
+
+            if (!string.IsNullOrEmpty(folder) || !string.IsNullOrEmpty(name))
+            {
+                return GetFileByFolderAndName(folder ?? string.Empty, name ?? string.Empty);
+            }
+
+            return null;
         }
-        #endregion
 
-        #region public IEnumerable<CMSFile> GetFiles(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
-        /// <summary>
-        /// Returns all files that match the given parameters
-        /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="oldURL"></param>
-        /// <param name="friendlyName"></param>
-        /// <param name="folder">specify folder to return files in that folder (e.g. cats, students, sosa)</param>
-        /// <param name="name"></param>
-        /// <param name="getDeleted"></param>
-        /// <returns>List of file objects</returns>
-        /// <exception cref="FileNotFoundException"></exception>
-        public IEnumerable<CMSFile> GetFiles(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name)
+        public CMSFile? GetFileByGuid(Guid fileGuid)
         {
-            if (fileGUID == null && oldURL == null && friendlyName == null && folder == null && name == null)
-            {
-                throw new FileNotFoundException();
-            }
-
-            // get files based on paramenters
-            var files = _viperContext?.Files
-                    .Include(p => p.FileToPermissions)
-                    .Include(p => p.FileToPeople)
-                    .Where(f => f.FileGuid.ToString().Equals(fileGUID) || string.IsNullOrEmpty(fileGUID))
-                    .Where(f => string.IsNullOrEmpty(f.OldUrl) ? string.IsNullOrEmpty(oldURL) : f.OldUrl.Equals(oldURL) || string.IsNullOrEmpty(oldURL))
-                    .Where(f => f.FriendlyName.Equals(friendlyName) || string.IsNullOrEmpty(friendlyName))
-                    .Where(f => f.FilePath.Equals(folder + @"\" + name) || (string.IsNullOrEmpty(folder) && string.IsNullOrEmpty(name)))
-                .OrderBy(c => c.FilePath)
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
                 .AsSplitQuery()
-                .ToList();
+                .TagWith("CMS.GetFileByGuid")
+                .FirstOrDefault(f => f.FileGuid == fileGuid);
 
-            if (files != null)
+            return ToCMSFile(file);
+        }
+
+        public CMSFile? GetFileByOldUrl(string oldUrl)
+        {
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
+                .AsSplitQuery()
+                .TagWith("CMS.GetFileByOldUrl")
+                .FirstOrDefault(f => f.OldUrl == oldUrl);
+
+            return ToCMSFile(file);
+        }
+
+        public CMSFile? GetFileByFriendlyName(string friendlyName)
+        {
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
+                .AsSplitQuery()
+                .TagWith("CMS.GetFileByFriendlyName")
+                .FirstOrDefault(f => f.FriendlyName == friendlyName);
+
+            return ToCMSFile(file);
+        }
+
+        public CMSFile? GetFileByFolderAndName(string folder, string name)
+        {
+            var filePath = folder + @"\" + name;
+            var file = _viperContext?.Files
+                .Include(p => p.FileToPermissions)
+                .Include(p => p.FileToPeople)
+                .AsSplitQuery()
+                .TagWith("CMS.GetFileByFolderAndName")
+                .FirstOrDefault(f => f.FilePath == filePath);
+
+            return ToCMSFile(file);
+        }
+
+        private static CMSFile? ToCMSFile(File? file)
+        {
+            if (file is null)
             {
-                List<CMSFile> cmslist = new();
-                foreach (var f in files)
-                {
-                    CMSFile cmsf = new(f);
-                    cmslist.Add(cmsf);
-                    ReplaceRootFolder(cmsf);
-                }
-
-                return cmslist;
-            }
-            else
-            {
-                return new List<CMSFile>();
+                return null;
             }
 
+            var cmsf = new CMSFile(file);
+            ReplaceRootFolder(cmsf);
+            return cmsf;
         }
         #endregion
 
@@ -270,12 +265,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Search for matching files
         /// </summary>
-        /// <param name="folder"></param>
-        /// <param name="isPublic"></param>
-        /// <param name="search"></param>
-        /// <param name="status"></param>
-        /// <param name="encrypted"></param>
-        /// <returns></returns>
         public IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted)
         {
 
@@ -307,10 +296,8 @@ namespace Viper.Areas.CMS.Data
 
                 return cmslist;
             }
-            else
-            {
-                return new List<CMSFile>();
-            }
+
+            return new List<CMSFile>();
 
         }
         #endregion
@@ -319,9 +306,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get Friendly URL for a friendly name. Currently, always points to ColdFusion Viper
         /// </summary>
-        /// <param name="friendlyName"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <returns></returns>
         public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         {
             string rootURL = String.Empty;
@@ -341,9 +325,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get url for a fileGUID
         /// </summary>
-        /// <param name="fileGUID"></param>
-        /// <param name="allowPublicAccess"></param>
-        /// <returns></returns>
         public static string GetURL(string fileGUID, bool allowPublicAccess = false)
         {
             return (allowPublicAccess ? @"/public" : "") + @"/cms/files/?id=" + fileGUID;
@@ -354,7 +335,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Get the root folder for files
         /// </summary>
-        /// <returns></returns>
         public static string GetRootFileFolder()
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development")
@@ -370,7 +350,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Replace the root folder in a file object, e.g. if the app is on secure-test but the file was added on a dev machine, or vice versa.
         /// </summary>
-        /// <param name="file"></param>
         public static void ReplaceRootFolder(CMSFile file)
         {
             string filePath = file.FilePath;
@@ -389,8 +368,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Remove root folder in the file path and change path separator to /
         /// </summary>
-        /// <param name="filePath"></param>
-        /// <returns></returns>
         public string FilePathToWebPath(string filePath)
         {
             return filePath.Replace(GetRootFileFolder(), "").Replace(@"\", @"/");
@@ -453,7 +430,7 @@ namespace Viper.Areas.CMS.Data
             }
 
             // create a temp Zip file and populate it with the files
-            string tempFileName = CMS.GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
+            string tempFileName = GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
 
             using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.OpenOrCreate))
             {
@@ -515,13 +492,17 @@ namespace Viper.Areas.CMS.Data
 
             if (file == null)
             {
+                LogFileNotFound(controller, id, friendlyName, oldURL, reason: "no-db-match");
                 return controller.NotFound();
             }
-            else if (!System.IO.File.Exists(file.FilePath))
+
+            if (!System.IO.File.Exists(file.FilePath))
             {
+                LogFileNotFound(controller, id, friendlyName, oldURL, reason: "missing-on-disk");
                 return controller.NotFound();
             }
-            else if (!CheckFilePermission(file))
+
+            if (!CheckFilePermission(file))
             {
                 if (currentUser != null && _viperContext != null)
                 {
@@ -531,31 +512,49 @@ namespace Viper.Areas.CMS.Data
                 controller.Response.StatusCode = 403;
                 return controller.View("~/Views/Home/403.cshtml", (HttpStatusCode)403);
             }
-            else
+
+            if (currentUser != null && _viperContext != null)
             {
-                if (currentUser != null && _viperContext != null)
-                {
-                    AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
-                }
-
-                byte[] bytes = System.IO.File.ReadAllBytes(file.FilePath);
-
-                if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
-                {
-                    bytes = DecryptFile(bytes, file.Key);
-                }
-
-                if (bytes == null)
-                    return controller.NotFound();
-
-                string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
-                controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
-
-                return controller.File(bytes, MimeTypes[extension.ToLower()], true);
+                AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
             }
+
+            byte[] bytes = System.IO.File.ReadAllBytes(file.FilePath);
+
+            if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
+            {
+                bytes = DecryptFile(bytes, file.Key);
+            }
+
+            string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
+            controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
+
+            return controller.File(bytes, MimeTypes[extension.ToLower()], true);
 
         }
         #endregion
+
+        // VPR-143: [CMS-FILE-404] emits a warning whenever ProvideFile can't serve a file.
+        // Grep the NLog output directory for the tag to see the distribution of misses
+        // (legacy URLs, typos, bot probes, ACME challenges, files missing on disk).
+        private void LogFileNotFound(Controller controller, string id, string friendlyName, string oldURL, string reason)
+        {
+            if (_logger is null)
+            {
+                return;
+            }
+
+            var request = controller.Request;
+            _logger.LogWarning(
+                "[CMS-FILE-404] reason={Reason} id={Id} friendlyName={FriendlyName} oldURL={OldUrl} " +
+                "userAgent={UserAgent} referer={Referer} remoteIp={RemoteIp}",
+                LogSanitizer.SanitizeString(reason),
+                LogSanitizer.SanitizeString(id),
+                LogSanitizer.SanitizeString(friendlyName),
+                LogSanitizer.SanitizeString(oldURL),
+                LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
+                LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
+                LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
+        }
 
         #region public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
         public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
@@ -572,7 +571,7 @@ namespace Viper.Areas.CMS.Data
                 FilePath = file.FilePath,
                 IamId = user.IamId,
                 FileMetaData = JsonSerializer.Serialize<CMSFileMetaData>(file.MetaData),
-                ClientData = JsonSerializer.Serialize<ClientData>(userHelper.GetClientData())
+                ClientData = JsonSerializer.Serialize(userHelper.GetClientData())
             };
 
             viperContext.ChangeTracker.Clear();
@@ -605,8 +604,6 @@ namespace Viper.Areas.CMS.Data
         /// <summary>
         /// Required for Unix decoding FROM https://rextester.com/TGN19503
         /// </summary>
-        /// <param name="encryptedString"></param>
-        /// <param name="Key"></param>
         /// <returns>decoded string</returns>
         public string DecryptAES(string encryptedString, string Key)
         {
@@ -670,11 +667,17 @@ namespace Viper.Areas.CMS.Data
     {
         IEnumerable<ContentBlock>? GetContentBlocksAllowed(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status);
 
-        IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status);
+        IEnumerable<ContentBlock>? GetContentBlocks(int? contentBlockID = null, string? friendlyName = null, string? system = null, string? viperSectionPath = null, string? page = null, int? blockOrder = null, bool? allowPublicAccess = null, int? status = null);
 
         CMSFile? GetFile(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name);
 
-        IEnumerable<CMSFile> GetFiles(string? fileGUID, string? oldURL, string? friendlyName, string? folder, string? name);
+        CMSFile? GetFileByGuid(Guid fileGuid);
+
+        CMSFile? GetFileByOldUrl(string oldUrl);
+
+        CMSFile? GetFileByFriendlyName(string friendlyName);
+
+        CMSFile? GetFileByFolderAndName(string folder, string name);
 
         IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted);
 

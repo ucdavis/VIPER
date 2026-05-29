@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.CTS.Models;
-using Viper.Areas.CTS.Services;
 using Viper.Classes;
-using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 using Web.Authorization;
 
@@ -14,33 +13,25 @@ namespace Viper.Areas.CTS.Controllers
     /// </summary>
     [Route("/api/cts/clinicalschedule/")]
     //most people have this. each function will have more complex permission checking.
-    [Permission(Allow = "SVMSecure.ClnSched")]
+    [Permission(Allow = ClinicalSchedulePermissions.Base)]
     public class ClinicalScheduleController : ApiController
     {
-        private readonly ClinicalScheduleService clinicalSchedule;
-        private readonly ClinicalScheduleSecurityService clinicalScheduleSecurity;
-        public ClinicalScheduleController(VIPERContext context, RAPSContext rapsContext)
+        private readonly IClinicalScheduleService clinicalSchedule;
+        private readonly ISchedulePermissionService schedulePermissionService;
+        public ClinicalScheduleController(IClinicalScheduleService scheduleService, ISchedulePermissionService permissionService)
         {
-            clinicalSchedule = new(context, rapsContext);
-            clinicalScheduleSecurity = new(rapsContext);
+            clinicalSchedule = scheduleService;
+            schedulePermissionService = permissionService;
         }
 
         /// <summary>
         /// Get student schedule. Access should be restricted to admins, ViewStdSchedules, and students viewing their own schedule.
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="mothraId"></param>
-        /// <param name="rotationId"></param>
-        /// <param name="serviceId"></param>
-        /// <param name="weekId"></param>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <returns></returns>
         [HttpGet("student")]
         public async Task<ActionResult<List<ClinicalScheduledStudent>>> GetStudentSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
             int? weekId, DateTime? startDate, DateTime? endDate)
         {
-            if (!clinicalScheduleSecurity.CheckStudentScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
+            if (!await schedulePermissionService.CheckStudentScheduleParamsAsync(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
                 return ForbidApi();
             }
@@ -51,18 +42,11 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Get instructor schedule. Access should be restricted to admins, ViewClnSchedules, and instructors viewing their own schedule.
         /// </summary>
-        /// <param name="classYear"></param>
-        /// <param name="mothraId"></param>
-        /// <param name="serviceId"></param>
-        /// <param name="weekId"></param>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <returns></returns>
         [HttpGet("instructor")]
         public async Task<ActionResult<List<InstructorSchedule>>> GetInstructorSchedule(int? classYear, string? mothraId, int? rotationId, int? serviceId,
                 int? weekId, DateTime? startDate, DateTime? endDate, bool active = true)
         {
-            if (!clinicalScheduleSecurity.CheckInstructorScheduleParams(mothraId, rotationId, serviceId, weekId, startDate, endDate))
+            if (!await schedulePermissionService.CheckInstructorScheduleParamsAsync(mothraId, rotationId, serviceId, weekId, startDate, endDate))
             {
                 return ForbidApi();
             }

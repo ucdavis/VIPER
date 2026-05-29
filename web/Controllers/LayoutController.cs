@@ -1,44 +1,47 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.CMS.Data;
+using Viper.Areas.CMS.Services;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Web.Authorization;
 
 namespace Viper.Controllers
 {
     [Route("/api/layout")]
-    [Permission(Allow = "SVMSecure")]
     public class LayoutController : ApiController
     {
-        private RAPSContext _context;
-        private readonly string oldViperURL = HttpHelper.GetOldViperRootURL();
+        private readonly RAPSContext _context;
+        private readonly VIPERContext _viperContext;
+
         private readonly List<string[]> links = new()
         {
-            new string[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
-            new string[] { "~/", "VIPER Home", "SVMSecure", "VIPER Home Page" },
-            new string[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
-            new string[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
-            new string[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
-            new string[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
-            new string[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
-            new string[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },
-            new string[] { "/facilities/default.cfm", "Facilities", "SVMSecure.Facilities" },
-            new string[] { "/faculty/default.cfm", "Faculty", "SVMSecure.Faculty" },
-            new string[] { "/fiscal/default.cfm", "Fiscal", "SVMSecure.Fiscal" },
-            new string[] { "/IDCards/default.cfm", "IDCards", "SVMSecure.IDCards.Apply" },
-            new string[] { "/personnel/default.cfm", "Personnel", "SVMSecure.Personnel" },
-            new string[] { "~/Policy", "Policies", "SVMSecure" },
-            new string[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
-            new string[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
-            new string[] { "/students/default.cfm", "Students", "SVMSecure.Students" },
-            new string[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
-            new string[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
+            new[] { "/", "1.0", "SVMSecure", "VIPER 1.0" },
+            new[] { "~/", "VIPER Home", "SVMSecure", "VIPER Home Page" },
+            new[] { "/Accreditation/default.cfm", "Accreditation", "SVMSecure.Accreditation" },
+            new[] { "/Admin/default.cfm", "Admin", "SVMSecure.admin" },
+            new[] { "/Analytics/default.cfm", "Analytics", "SVMSecure.Analytics" },
+            new[] { "~/CAHFS/", "CAHFS", "SVMSecure.CAHFS" },
+            new[] { "/cats/default.cfm", "Computing", "SVMSecure.CATS" },
+            new[] { "/curriculum/default.cfm", "Curriculum", "SVMSecure.Curriculum" },
+            new[] { "/Development/default.cfm", "Development", "SVMSecure.Development" },
+            new[] { "/facilities/default.cfm", "Facilities", "SVMSecure.Facilities" },
+            new[] { "/faculty/default.cfm", "Faculty", "SVMSecure.Faculty" },
+            new[] { "/fiscal/default.cfm", "Fiscal", "SVMSecure.Fiscal" },
+            new[] { "/IDCards/default.cfm", "IDCards", "SVMSecure.IDCards.Apply" },
+            new[] { "/personnel/default.cfm", "Personnel", "SVMSecure.Personnel" },
+            new[] { "~/Policy", "Policies", "SVMSecure" },
+            new[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
+            new[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
+            new[] { "/students/default.cfm", "Students", "SVMSecure.Students" },
+            new[] { "/Hospital/default.cfm", "VMTH", "SVMSecure" },
+            new[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
         };
 
-        public LayoutController(RAPSContext context)
+        public LayoutController(RAPSContext context, VIPERContext viperContext)
         {
             _context = context;
+            _viperContext = viperContext;
         }
 
         [HttpGet("topnav")]
@@ -65,7 +68,7 @@ namespace Viper.Controllers
             }
 
             return userLinks
-                .Select(l => new NavMenuItem()
+                .Select(l => new NavMenuItem
                 {
                     MenuItemURL = l[0],
                     MenuItemText = l[1]
@@ -76,7 +79,6 @@ namespace Viper.Controllers
         [HttpGet("leftnav")]
         public ActionResult<NavMenu> GetLeftNav(bool area = true, string nav = "viper-home")
         {
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
             NavMenu? menu = null;
             if (area)
             {
@@ -85,19 +87,26 @@ namespace Viper.Controllers
                     case "cts":
                         menu = new CtsNavMenu(_context).Nav();
                         break;
+                    case "cms":
+                        menu = new CmsNavMenu(_context).Nav();
+                        break;
+                    case "viper-clinical-scheduler":
+                    case "clinicalscheduler":
+                        menu = new ClinicalSchedulerNavMenu(_context).Nav();
+                        break;
                 }
                 if (menu != null)
                 {
-                    AdjustBasePath(menu, baseUrl);
+                    AdjustBasePath(menu);
                 }
             }
             if (menu == null)
             {
-                menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: nav)?.FirstOrDefault();
+                menu = new LeftNavMenu(_viperContext, _context).GetLeftNavMenus(friendlyName: nav)?.FirstOrDefault();
                 if (menu != null)
                 {
                     ConvertNavLinksForDevelopment(menu);
-                    AdjustBasePath(menu, baseUrl);
+                    AdjustBasePath(menu);
                 }
                 else
                 {
@@ -108,24 +117,55 @@ namespace Viper.Controllers
             return menu;
         }
 
+        /// <summary>
+        /// For the development environment, links starting with '/' (but not /2) need to be changed to use http://localhost
+        /// (Viper 2 will be using https locally with a custom port)
+        /// </summary>
+        /// <param name="menu"></param>
         private static void ConvertNavLinksForDevelopment(NavMenu menu)
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development" && menu?.MenuItems != null)
             {
-                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0 && item.MenuItemURL.Substring(0, 1) == "/"))
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0
+                    && item.MenuItemURL[..1] == "/"
+                    && (item.MenuItemURL.Length < 2 || item.MenuItemURL[..2] != "/2")))
                 {
                     item.MenuItemURL = "http://localhost" + item.MenuItemURL;
                 }
             }
         }
 
-        private static void AdjustBasePath(NavMenu menu, string baseUrl)
+        /// <summary>
+        /// Modify the base path to handle two cases:
+        ///     Links starting with "/" are VIPER 1.0 links and should be changed to start with https://{{host}}/, otherwise they will point to /2/
+        ///     Links starting with "~/" or "/2" are VIPER 2.0 links and should be changed to start with "/"
+        /// </summary>
+        /// <param name="menu"></param>
+        private static void AdjustBasePath(NavMenu menu)
         {
             if (menu.MenuItems != null)
             {
-                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0 && item.MenuItemURL.Substring(0, 2) == "~/"))
+                var viper1 = HttpHelper.GetOldViperRootURL();
+
+                // Fix VIPER 1.0 links
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0
+                    && item.MenuItemURL[..1] == "/"
+                    && (item.MenuItemURL.Length < 2 || item.MenuItemURL[..2] != "/2")))
                 {
-                    item.MenuItemURL = item.MenuItemURL.Replace("~/", baseUrl);
+                    item.MenuItemURL = $"{viper1}{item.MenuItemURL}";
+                }
+
+                // Fix VIPER 2.0 links
+                foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 1))
+                {
+                    if (item.MenuItemURL[..2] == "~/")
+                    {
+                        item.MenuItemURL = item.MenuItemURL[1..]; //strip '~'
+                    }
+                    else if (item.MenuItemURL[..2] == "/2")
+                    {
+                        item.MenuItemURL = (item.MenuItemURL.Length > 2 ? item.MenuItemURL[2..] : ""); //strip '/2'
+                    }
                 }
             }
         }

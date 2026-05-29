@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class VwDvmStudentsMaxTermBk
+public class VwDvmStudentsMaxTermBk
 {
     public string PersonLastName { get; set; } = null!;
 

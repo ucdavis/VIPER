@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class VwCurrentAffiliatesForPfBk
+public class VwCurrentAffiliatesForPfBk
 {
     public string? PersonDisplayLastName { get; set; }
 

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class VwUConnectNew
+public class VwUConnectNew
 {
     public string? LastName { get; set; }
 

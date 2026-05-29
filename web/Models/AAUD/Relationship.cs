@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class Relationship
+public class Relationship
 {
     public int RelId { get; set; }
 

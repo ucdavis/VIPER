@@ -1,25 +1,26 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using System.Collections;
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using System.Security.Claims;
 using System.Xml.Linq;
-using Viper.Models;
-using Web.Authorization;
-using Microsoft.Extensions.Options;
-using Viper.Classes;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Caching.Memory;
-using Viper.Models.AAUD;
-using System.Collections;
-using System.Reflection;
 using Microsoft.AspNetCore.Http.Extensions;
-using Viper.Areas.CMS.Data;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Viper.Classes.Utilities;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using Viper.Areas.CMS.Data;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
+using Viper.Models;
+using Viper.Models.AAUD;
+using Web.Authorization;
+using LogLevel = NLog.LogLevel;
 
 namespace Viper.Controllers
 {
@@ -27,20 +28,21 @@ namespace Viper.Controllers
     {
         private readonly AAUDContext _aAUDContext;
         private readonly RAPSContext _rapsContext;
+        private readonly VIPERContext _viperContext;
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
-        private const string _strTicket = "ticket";
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
-        public IUserHelper UserHelper;
+        private readonly IUserHelper _userHelper;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
             this._aAUDContext = aAUDContext;
             this._rapsContext = rapsContext;
-            this.UserHelper = new UserHelper();
+            this._viperContext = viperContext;
+            this._userHelper = new UserHelper();
         }
         /// <summary>
         /// VIPER 2 home page
@@ -61,8 +63,10 @@ namespace Viper.Controllers
             return View();
         }
 
+#pragma warning disable S6967 // Action filter override doesn't receive model-bound data
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
+#pragma warning restore S6967
         {
             ViewData["ViperLeftNav"] = Nav();
             await base.OnActionExecutionAsync(context, next);
@@ -70,7 +74,7 @@ namespace Viper.Controllers
 
         private NavMenu Nav()
         {
-            var menu = new LeftNavMenu().GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+            var menu = new LeftNavMenu(_viperContext, _rapsContext).GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
             if (menu != null)
             {
                 ConvertNavLinksForDevelopment(menu);
@@ -84,15 +88,15 @@ namespace Viper.Controllers
         [Route("/[action]")]
         [AllowAnonymous]
         [SearchExclude]
-        public IActionResult Login()
+        public IActionResult Login([FromQuery] string? ReturnUrl = null)
         {
             Uri url = new(Request.GetDisplayUrl());
             string baseURl = url.GetLeftPart(UriPartial.Authority);
             string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
 
-            if (!string.IsNullOrEmpty(Request.Query["ReturnUrl"]))
+            if (!string.IsNullOrEmpty(ReturnUrl))
             {
-                returnURL = Request.Query["ReturnUrl"].ToString();
+                returnURL = ReturnUrl;
             }
 
             if (returnURL.StartsWith("/api"))
@@ -109,8 +113,8 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult RefreshSession()
         {
-            SessionTimeoutService.UpdateSessionTimeout();
-            return Ok(SessionTimeoutService.GetSessionTimeout());
+            SessionTimeoutService.UpdateSessionTimeout(_viperContext);
+            return Ok(SessionTimeoutService.GetSessionTimeout(_viperContext));
         }
 
         /// <summary>
@@ -119,9 +123,9 @@ namespace Viper.Controllers
         [Route("/[action]")]
         [AllowAnonymous]
         [SearchExclude]
-        public async Task<IActionResult> CasLogin()
+        public async Task<IActionResult> CasLogin([FromQuery] string? ticket = null, [FromQuery] string? ReturnUrl = null)
         {
-            return await AuthenticateCasLogin();
+            return await AuthenticateCasLogin(ticket, ReturnUrl);
         }
 
         //TODO - consider implementing IP restrictions on this method to only allow emulation from in school or on VPN locations
@@ -134,9 +138,9 @@ namespace Viper.Controllers
         [Permission(Allow = "SVMSecure.SU")]
         public IActionResult EmulateUser(string loginId)
         {
-            AaudUser? emulatedUser = UserHelper.GetByLoginId(_aAUDContext, loginId);
+            AaudUser? emulatedUser = _userHelper.GetByLoginId(_aAUDContext, loginId);
 
-            string? trueLoginId = UserHelper.GetCurrentUser()?.LoginId;
+            string? trueLoginId = _userHelper.GetCurrentUser()?.LoginId;
 
             if (emulatedUser != null && trueLoginId != null)
             {
@@ -144,7 +148,7 @@ namespace Viper.Controllers
 
                 if (protector != null && emulatedUser.LoginId != null)
                 {
-                    string? encryptedEmulatedLoginId = protector?.Protect(emulatedUser.LoginId);
+                    string encryptedEmulatedLoginId = protector.Protect(emulatedUser.LoginId);
 
                     // set emulating cached item to expire after 30 minutes of inactivity
                     HttpHelper.Cache?.Set(ClaimsTransformer.EmulationCacheNamePrefix + trueLoginId, encryptedEmulatedLoginId, (new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(30))));
@@ -163,7 +167,7 @@ namespace Viper.Controllers
         [Route("/[action]")]
         public IActionResult ClearEmulation()
         {
-            AaudUser? user = UserHelper.GetTrueCurrentUser();
+            AaudUser? user = _userHelper.GetTrueCurrentUser();
             string? trueLoginId = user?.LoginId;
 
             if (trueLoginId != null && HttpHelper.Cache != null)
@@ -179,10 +183,12 @@ namespace Viper.Controllers
         /// </summary>
         [Route("/[action]")]
         [Authorize(Roles = "VMDO SVM-IT", Policy = "2faAuthentication")]
+#pragma warning disable S3011 // Reflection used to access internal MemoryCache entries - intentional for cache clearing
         public IActionResult ClearCache()
         {
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
             var entries = HttpHelper.Cache?.GetType().GetField("_entries", flags)?.GetValue(HttpHelper.Cache);
+#pragma warning restore S3011
 
             if (entries is IDictionary cacheEntries)
             {
@@ -197,25 +203,19 @@ namespace Viper.Controllers
         }
 
         /// <summary>
-        /// Error page (not used in Development)
+        /// Error page. When no statusCode is provided, shows general error.
+        /// When statusCode is provided (e.g., /Error/404), shows appropriate status page.
         /// </summary>
+        /// <param name="statusCode">HTTP status code (optional)</param>
         [Route("/[action]")]
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        [SearchExclude]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
-
-        /// <summary>
-        /// StatusCode or 403 page. Example path: /Error/404
-        /// </summary>
-        /// <param name="statusCode"></param>
-        [Route("/[action]/{statusCode}")]
+        [Route("/[action]/{statusCode:int}")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         [SearchExclude]
+#pragma warning disable S6967 // Error handler uses simple route parameter, not form data requiring validation
         public IActionResult Error(int? statusCode = null)
+#pragma warning restore S6967
         {
             ViewBag.errorMessage = HttpContext.Items["ErrorMessage"];
 
@@ -235,7 +235,8 @@ namespace Viper.Controllers
 
                 return View(viewName, (HttpStatusCode)statusCode.Value);
             }
-            return View();
+
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         /// <summary>
@@ -246,21 +247,30 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> Logout()
         {
-            UserHelper.ClearCachedRolesAndPermissions(UserHelper.GetCurrentUser());
+            _userHelper.ClearCachedRolesAndPermissions(_userHelper.GetCurrentUser());
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return new RedirectResult(_settings.CasBaseUrl + "logout");
+
+            // Send homepage link after CAS logout
+            var returnUrl = WebUtility.UrlEncode(HttpHelper.GetRootURL());
+            return new RedirectResult(_settings.CasBaseUrl + "logout?service=" + returnUrl);
         }
 
         [Route("/[action]")]
         [SearchExclude]
         public IActionResult MyPermissions()
         {
-            var u = UserHelper.GetCurrentUser();
+            var u = _userHelper.GetCurrentUser();
             if (u != null)
             {
-                ViewData["Permissions"] = UserHelper.GetAllPermissions(_rapsContext, u)
+                ViewData["Permissions"] = _userHelper.GetAllPermissions(_rapsContext, u)
                     .OrderBy(p => p.Permission)
                     .ToList();
+
+                ViewData["Roles"] = _userHelper.GetRoles(_rapsContext, u)
+                    .OrderBy(r => r.Role)
+                    .ToList();
+
+                ViewData["Has2FA"] = DuoAuthenticationRequirement.HasDuoAuthentication(HttpContext.User);
             }
             return View();
         }
@@ -280,11 +290,8 @@ namespace Viper.Controllers
         /// <summary>
         /// Processes the CAS login and sets the user
         /// </summary>
-        private async Task<IActionResult> AuthenticateCasLogin()
+        private async Task<IActionResult> AuthenticateCasLogin(string? ticket, string? returnUrl)
         {
-            // get ticket & service
-            string? ticket = Request.Query[_strTicket];
-            string? returnUrl = Request.Query["ReturnUrl"];
             string service = WebUtility.UrlEncode(BuildRedirectUri(Request.Path) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
 
             var client = _clientFactory.CreateClient("CAS");
@@ -306,7 +313,7 @@ namespace Viper.Controllers
                 // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
                 if (string.IsNullOrEmpty(validatedUserName))
                 {
-                    HttpHelper.Logger.Log(NLog.LogLevel.Warn, "No username. CAS response: " + doc.ToString());
+                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + doc);
                 }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
@@ -332,8 +339,9 @@ namespace Viper.Controllers
                 }
             }
             catch (TaskCanceledException ex)
-            {// usually caused because the user aborts the page load (HttpContext.RequestAborted)
-                HttpHelper.Logger.Log(NLog.LogLevel.Info, "TaskCanceledException: " + ex.Message.ToString());
+            {
+                // usually caused because the user aborts the page load (HttpContext.RequestAborted)
+                HttpHelper.Logger.Log(LogLevel.Info, ex, "TaskCanceledException during CAS login");
             }
 
             return new ForbidResult();

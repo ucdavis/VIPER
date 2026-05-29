@@ -1,8 +1,8 @@
-﻿using Viper.Models.Students;
+using Viper.Models.Students;
 
 namespace Viper.Models.VIPER
 {
-    public partial class Person
+    public class Person
     {
         public int PersonId { get; set; }
         public string ClientId { get; set; } = null!;

@@ -1,46 +1,105 @@
 <template>
     <div id="pageTop"></div>
+    <a
+        href="#main-content"
+        class="skip-to-content"
+        >Skip to main content</a
+    >
     <q-layout view="hHh lpR fFf">
-        <q-header elevated id="mainLayoutHeader" height-hint="98" v-cloak>
-            <div v-show="false" id="headerPlaceholder">
-                <div id="topPlaceholder" class="row items-center">
-                    <a class="q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase q-btn--dense gt-sm text-white"
-                       tabindex="0" :href="viperHome">
+        <q-header
+            elevated
+            id="mainLayoutHeader"
+            height-hint="98"
+            class="no-print"
+        >
+            <div
+                v-show="false"
+                id="headerPlaceholder"
+            >
+                <div
+                    id="topPlaceholder"
+                    class="row items-center"
+                >
+                    <a
+                        class="q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase q-btn--dense gt-sm text-white"
+                        tabindex="0"
+                        :href="viperHome"
+                    >
                         <span class="q-focus-helper"></span>
                         <span class="q-btn__content text-center col items-center q-anchor--skip justify-center row">
-                            <i class="q-icon notranslate material-icons" aria-hidden="true" role="img">home</i>
+                            <i
+                                class="q-icon notranslate material-icons"
+                                aria-hidden="true"
+                                role="img"
+                                >home</i
+                            >
                             <span class="mainLayoutViper">VIPER 2.0</span>
-                            <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
-                            <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
+                            <span
+                                v-if="environment == 'DEVELOPMENT'"
+                                class="mainLayoutViperMode"
+                                >Development</span
+                            >
+                            <span
+                                v-if="environment == 'TEST'"
+                                class="mainLayoutViperMode"
+                                >Test</span
+                            >
                         </span>
                     </a>
                 </div>
             </div>
-            <q-toolbar v-cloak class="items-end">
-                <img src="@/assets/UCDSVMLogo.png" height="50" />
+            <q-toolbar class="items-end">
+                <img
+                    src="@/assets/UCDSVMLogo.png"
+                    height="50"
+                    alt="UC Davis School of Veterinary Medicine Logo"
+                />
 
                 <!--Mini navigation for small screens-->
-                <q-btn flat dense icon="menu" class="q-mr-xs lt-md">
+                <q-btn
+                    flat
+                    dense
+                    icon="menu"
+                    aria-label="Navigation menu"
+                    class="q-mr-xs lt-md"
+                >
                     <MiniNav v-if="userStore.isLoggedIn"></MiniNav>
                 </q-btn>
-                <q-btn flat dense icon="list" class="q-mr-xs lt-md" @click="mainLeftDrawer = !mainLeftDrawer"></q-btn>
-                <q-btn flat dense label="Viper 2.0" class="lt-md" :href="viperHome">
-                    <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Dev</span>
-                    <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
+                <q-btn
+                    flat
+                    dense
+                    icon="list"
+                    aria-label="Toggle sidebar"
+                    class="q-mr-xs lt-md"
+                    @click="mainLeftDrawer = !mainLeftDrawer"
+                ></q-btn>
+                <q-btn
+                    flat
+                    dense
+                    label="Viper 2.0"
+                    class="lt-md"
+                    :href="viperHome"
+                >
+                    <q-badge
+                        v-if="environment == 'DEVELOPMENT'"
+                        color="negative"
+                        role="presentation"
+                        class="mainLayoutViperMode"
+                        >Dev</q-badge
+                    >
+                    <q-badge
+                        v-if="environment == 'TEST'"
+                        color="negative"
+                        role="presentation"
+                        class="mainLayoutViperMode"
+                        >Test</q-badge
+                    >
                 </q-btn>
 
                 <!--For medium+ screens-->
-                <q-btn flat dense no-caps class="gt-sm text-white q-py-none q-ml-md self-end" :href="viperHome">
-                    <span class="mainLayoutViper">VIPER 2.0</span>
-                    <span v-if="environment == 'DEVELOPMENT'" class="mainLayoutViperMode">Development</span>
-                    <span v-if="environment == 'TEST'" class="mainLayoutViperMode">Test</span>
-                </q-btn>
+                <ViperBrandButton />
 
-                <q-banner v-if="userStore.isEmulating" dense rounded inline-actions class="bg-warning text-black q-ml-lg">
-                    <strong>EMULATING:</strong>
-                    {{ userStore.userInfo.firstName }} {{ userStore.userInfo.lastName }}
-                    <q-btn no-caps dense :href="clearEmulationHref" color="secondary" class="text-white q-px-sm q-ml-md">End Emulation</q-btn>
-                </q-banner>
+                <EmulationBanner />
 
                 <q-space></q-space>
 
@@ -58,86 +117,115 @@
                 <ProfilePic></ProfilePic>
             </q-toolbar>
 
-            <MainNav v-if="userStore.isLoggedIn" :highlightedTopNav="highlightedTopNav"></MainNav>
+            <MainNav :highlighted-top-nav="highlightedTopNav"></MainNav>
         </q-header>
 
-        <LeftNav v-if="userStore.isLoggedIn"
-                 :nav="nav"
-                 :navarea="navarea"
-                 :mainLeftDrawer="mainLeftDrawer"
-                 @drawer-change="handleDrawerChange"></LeftNav>
+        <slot
+            name="left-nav"
+            :drawer-open="mainLeftDrawer"
+            :on-drawer-change="handleDrawerChange"
+        >
+            <LeftNav
+                :nav="nav"
+                :navarea="navarea"
+                :main-left-drawer="mainLeftDrawer"
+                @drawer-change="handleDrawerChange"
+            ></LeftNav>
+        </slot>
 
         <q-page-container id="mainLayoutBody">
-            <div class="q-pa-md" v-cloak v-show="userStore.isLoggedIn">
-                <router-view></router-view>
-            </div>
+            <main
+                id="main-content"
+                tabindex="-1"
+            >
+                <div
+                    class="q-pa-md"
+                    v-show="userStore.isLoggedIn || showViewWhenNotLoggedIn"
+                >
+                    <router-view></router-view>
+                </div>
+                <div
+                    v-show="!userStore.isLoggedIn"
+                    class="q-pa-xl flex flex-center"
+                >
+                    <q-card
+                        class="text-center"
+                        style="max-width: 400px"
+                    >
+                        <q-card-section>
+                            <div class="text-h6">Welcome to VIPER</div>
+                            <div class="text-body1 q-mt-sm text-grey-7">Please log in to access this application.</div>
+                        </q-card-section>
+                        <q-card-actions
+                            align="center"
+                            class="q-pb-md"
+                        >
+                            <q-btn
+                                color="primary"
+                                label="Log In"
+                                :href="loginHref"
+                                no-caps
+                            />
+                        </q-card-actions>
+                    </q-card>
+                </div>
+            </main>
         </q-page-container>
 
-        <q-footer elevated class="bg-white" v-cloak>
-            <div class="q-py-sm q-px-md q-gutter-xs text-caption row" id="footerNavLinks">
+        <q-footer
+            elevated
+            class="bg-white no-print"
+        >
+            <div
+                class="q-py-sm q-px-md q-gutter-xs text-caption row"
+                id="footerNavLinks"
+            >
                 <div class="col-12 col-md q-pl-md">
-                    <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="help_center" size="xs"></q-icon>
-                        SVM-IT ServiceDesk
-                    </a>
-                    <span class="text-primary q-px-sm">|</span>
-                    <a href="http://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="navigation" size="xs"></q-icon>
-                        SVM Home
-                    </a>
-                    <span class="text-primary q-px-sm">|</span>
-                    <a href="http://www.ucdavis.edu/" target="_blank" rel="noopener" class="text-primary">
-                        <q-icon color="primary" name="school" size="xs"></q-icon>
-                        UC Davis
-                    </a>
+                    <FooterLinks />
                 </div>
                 <div class="col-12 col-md-auto gt-sm text-black">
-                    &copy; 2023 School of Veterinary Medicine
+                    &copy; {{ currentYear }} School of Veterinary Medicine
                 </div>
             </div>
         </q-footer>
         <SessionTimeout />
     </q-layout>
 </template>
-<script lang="ts">
-    import { ref } from 'vue'
-    import { useUserStore } from '@/store/UserStore'
-    import LeftNav from '@/layouts/LeftNav.vue'
-    import MainNav from '@/layouts/MainNav.vue'
-    import MiniNav from '@/layouts/MiniNav.vue'
-    import ProfilePic from '@/layouts/ProfilePic.vue'
-    import SessionTimeout from '@/components/SessionTimeout.vue'
-    export default {
-        name: 'ViperLayout',
-        setup() {
-            const userStore = useUserStore()
-            const mainLeftDrawer = ref(false)
-            return { userStore, mainLeftDrawer }
-        },
-        props: {
-            nav: String,
-            navarea: Boolean,
-            highlightedTopNav: String
-        },
-        components: {
-            LeftNav,
-            MainNav,
-            MiniNav,
-            ProfilePic
-        },
-        data() {
-            return {
-                topNav: [],
-                leftNav: [],
-                clearEmulationHref: ref(import.meta.env.VITE_VIPER_HOME + "ClearEmulation"),
-                environment: ref(import.meta.env.VITE_ENVIRONMENT),
-                viperHome: ref(import.meta.env.VITE_VIPER_HOME),
-            }
-        },
-        methods: {
-            handleDrawerChange(newDrawerValue: boolean): void {
-                this.mainLeftDrawer = newDrawerValue
-            }
-        },
-    }
+
+<script setup lang="ts">
+import { ref } from "vue"
+import { useUserStore } from "@/store/UserStore"
+import { getLoginUrl } from "@/composables/RequireLogin"
+import LeftNav from "@/layouts/LeftNav.vue"
+import MainNav from "@/layouts/MainNav.vue"
+import MiniNav from "@/layouts/MiniNav.vue"
+import ProfilePic from "@/layouts/ProfilePic.vue"
+import EmulationBanner from "@/layouts/EmulationBanner.vue"
+import FooterLinks from "@/layouts/FooterLinks.vue"
+import ViperBrandButton from "@/layouts/ViperBrandButton.vue"
+import SessionTimeout from "@/components/SessionTimeout.vue"
+
+type BreadCrumb = {
+    url: string
+    name: string
+}
+
+defineProps<{
+    nav?: string
+    navarea?: boolean
+    highlightedTopNav?: string
+    breadcrumbs?: BreadCrumb[]
+    showViewWhenNotLoggedIn?: boolean
+}>()
+
+const userStore = useUserStore()
+const mainLeftDrawer = ref(false)
+const environment = import.meta.env.VITE_ENVIRONMENT
+const viperHome = import.meta.env.VITE_VIPER_HOME
+const loginHref = getLoginUrl()
+const currentYear = new Date().getFullYear()
+
+function handleDrawerChange(newDrawerValue: boolean): void {
+    mainLeftDrawer.value = newDrawerValue
+}
 </script>

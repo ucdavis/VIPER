@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
@@ -16,13 +15,18 @@ namespace Viper.Areas.RAPS.Services
         }
 
         private readonly RAPSContext _context;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
         private readonly RAPSSecurityService _securityService;
 
         public RAPSAuditService(RAPSContext context)
+            : this(context, new UserHelper())
+        {
+        }
+
+        public RAPSAuditService(RAPSContext context, IUserHelper userHelper)
         {
             _context = context;
-            UserHelper = new UserHelper();
+            UserHelper = userHelper;
             _securityService = new(_context);
         }
 
@@ -30,15 +34,7 @@ namespace Viper.Areas.RAPS.Services
         /// Search the audit table and return AuditLog entries. AuditLog entries are TblLog with additional fields (because TblLog does
         /// not have foreign keys for permission, role, member, group ids
         /// </summary>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <param name="auditType"></param>
-        /// <param name="modBy"></param>
-        /// <param name="modifiedUser"></param>
-        /// <param name="roleId"></param>
-        /// <param name="permissionId"></param>
         /// <param name="search">Searches modified user names, modifier names, role and permission names, detail, comment and audit action</param>
-        /// <returns></returns>
         public async Task<List<AuditLog>> GetAuditEntries(DateOnly? startDate = null, DateOnly? endDate = null, string? auditType = null,
             string? modBy = null, string? modifiedUser = null, int? roleId = null,
             int? permissionId = null, string? search = null, string? instance = null)
@@ -80,7 +76,7 @@ namespace Viper.Areas.RAPS.Services
                             || ((instance.StartsWith("VMACS.") || instance == "VIPERForms") && role.Role.StartsWith(instance))
                             || (
                                 !(instance.StartsWith("VMACS.") || instance == "VIPERForms")
-                                && !role.Role.StartsWith("VMACS.") 
+                                && !role.Role.StartsWith("VMACS.")
                                 && !role.Role.StartsWith("VIPERForms")
                                 )
                         )
@@ -92,7 +88,7 @@ namespace Viper.Areas.RAPS.Services
                             || (instance == "VIPERForms" && permission.Permission.StartsWith("VIPERForms"))
                             || (
                                 !(instance.StartsWith("VMACS.") || instance == "VIPERForms")
-                                && !permission.Permission.StartsWith("VMACS") 
+                                && !permission.Permission.StartsWith("VMACS")
                                 && !permission.Permission.StartsWith("VIPERForms")
                                 )
                         )
@@ -131,28 +127,27 @@ namespace Viper.Areas.RAPS.Services
             List<AuditLog> auditEntries = await GetAuditEntries(instance: instance, modifiedUser: memberId, startDate: startDate);
             bool canModifyPermissions = _securityService.IsAllowedTo("RevertPermissions", instance);
             List<string> auditTypes = new() { "AddRoleForMember", "DelRoleForMember", "UpdateRoleForMember" };
-            if(canModifyPermissions)
+            if (canModifyPermissions)
             {
-                auditTypes.AddRange(new List<string>() { "CreateMemberPermission", "UpdateMemberPermission", "DelPermissionForMember" });
+                auditTypes.AddRange(new List<string> { "CreateMemberPermission", "UpdateMemberPermission", "DelPermissionForMember" });
             }
             auditEntries = auditEntries.Where(a => auditTypes.Contains(a.Audit)).ToList();
 
             //keep track of roles and permissions that were created/updated/removed from this user
             Dictionary<string, List<string>> actionsPerformedOnObject = new();
-            foreach(AuditLog auditLog in auditEntries)
+            foreach (AuditLog auditLog in auditEntries)
             {
-                if(auditLog?.RoleId != null || auditLog?.PermissionId != null)
+                if (auditLog?.RoleId != null || auditLog?.PermissionId != null)
                 {
-                    string key = auditLog?.RoleId != null 
-                        ? "role-" + auditLog.RoleId 
+                    string key = auditLog?.RoleId != null
+                        ? "role-" + auditLog.RoleId
                         : "permission-" + auditLog!.PermissionId;
-                    if (actionsPerformedOnObject.ContainsKey(key))
+                    if (actionsPerformedOnObject.TryGetValue(key, out var moreRecentActions))
                     {
-                        List<string> moreRecentActions = actionsPerformedOnObject[key];
                         bool undone = false;
-                        switch(auditLog.Audit)
+                        switch (auditLog.Audit)
                         {
-                            case "DelRoleForMember": 
+                            case "DelRoleForMember":
                                 undone = moreRecentActions.Contains("AddRoleForMember") || moreRecentActions.Contains("UpdateRoleForMember"); break;
                             case "AddRoleForMember":
                                 undone = moreRecentActions.Contains("DelRoleForMember"); break;
@@ -164,14 +159,13 @@ namespace Viper.Areas.RAPS.Services
                                 undone = moreRecentActions.Contains("DelPermissionForMember"); break;
                             case "UpdateMemberPermission":
                                 undone = moreRecentActions.Contains("UpdateMemberPermission") || moreRecentActions.Contains("DelPermissionForMember"); break;
-                            default: break;
                         }
                         auditLog.Undone = undone;
                     }
                     else
                     {
                         //nothing done on this role or permission before
-                        actionsPerformedOnObject.Add(key, new List<string>() { auditLog.Audit });
+                        actionsPerformedOnObject.Add(key, new List<string> { auditLog.Audit });
                     }
                 }
             }
@@ -187,7 +181,7 @@ namespace Viper.Areas.RAPS.Services
         public void AuditRoleChange(TblRole role, AuditActionType actionType)
         {
             TblLog tblLog = new() { RoleId = role.RoleId, ModTime = DateTime.Now, ModBy = UserHelper.GetCurrentUser()?.LoginId };
-            switch(actionType)
+            switch (actionType)
             {
                 case AuditActionType.Create:
                     tblLog.Audit = "CreateRole";
@@ -196,15 +190,15 @@ namespace Viper.Areas.RAPS.Services
                 case AuditActionType.Update:
                     tblLog.Audit = "UpdateRole";
                     tblLog.Detail = "Name: " + role.Role;
-                    if(!string.IsNullOrEmpty(role.DisplayName)) 
+                    if (!string.IsNullOrEmpty(role.DisplayName))
                     {
                         tblLog.Detail += " Display Name: " + role.DisplayName;
                     }
-                    if(!string.IsNullOrEmpty(role.ViewName))
+                    if (!string.IsNullOrEmpty(role.ViewName))
                     {
                         tblLog.Detail += " View: " + role.ViewName;
                     }
-                    if(!string.IsNullOrEmpty(role.AccessCode))
+                    if (!string.IsNullOrEmpty(role.AccessCode))
                     {
                         tblLog.Detail += " Access Code: " + role.AccessCode;
                     }
@@ -226,11 +220,11 @@ namespace Viper.Areas.RAPS.Services
         public void AuditPermissionChange(TblPermission permission, AuditActionType actionType)
         {
             TblLog tblLog = new()
-            { 
-                PermissionId = permission.PermissionId, 
+            {
+                PermissionId = permission.PermissionId,
                 Detail = permission.Permission,
-                ModTime = DateTime.Now, 
-                ModBy = UserHelper.GetCurrentUser()?.LoginId 
+                ModTime = DateTime.Now,
+                ModBy = UserHelper.GetCurrentUser()?.LoginId
             };
             switch (actionType)
             {
@@ -259,24 +253,24 @@ namespace Viper.Areas.RAPS.Services
                 MemberId = roleMember.MemberId,
                 Comment = comment
             };
-            if(actionType == AuditActionType.Create || actionType == AuditActionType.Update)
+            if (actionType == AuditActionType.Create || actionType == AuditActionType.Update)
             {
-                string Detail = ""; 
+                string Detail = "";
                 if (roleMember.StartDate != null)
                 {
                     Detail += "\"StartDate\":\"" + roleMember.StartDate.Value.ToString("yyyyMMdd") + "\"";
                 }
                 if (roleMember.EndDate != null)
                 {
-                    Detail += (!string.IsNullOrEmpty(Detail) ? "," : "") 
+                    Detail += (!string.IsNullOrEmpty(Detail) ? "," : "")
                             + "\"EndDate\":\"" + roleMember.EndDate.Value.ToString("yyyyMMdd") + "\"";
                 }
-                if(actionType == AuditActionType.Create && !string.IsNullOrEmpty(roleMember.ViewName))
+                if (actionType == AuditActionType.Create && !string.IsNullOrEmpty(roleMember.ViewName))
                 {
-                    Detail += (!string.IsNullOrEmpty(Detail) ? "," : "") 
+                    Detail += (!string.IsNullOrEmpty(Detail) ? "," : "")
                             + "\"ViewName\":\"" + roleMember.ViewName + "\"";
                 }
-                if(!string.IsNullOrEmpty(Detail))
+                if (!string.IsNullOrEmpty(Detail))
                 {
                     Detail = "{" + Detail + "}";
                     tblLog.Detail = Detail;
@@ -289,10 +283,10 @@ namespace Viper.Areas.RAPS.Services
                     tblLog.Audit = "AddRoleForMember";
                     break;
                 case AuditActionType.Update:
-                    tblLog.Audit = "UpdateRoleForMember"; 
+                    tblLog.Audit = "UpdateRoleForMember";
                     break;
                 case AuditActionType.Delete:
-                    tblLog.Audit = "DelRoleForMember"; 
+                    tblLog.Audit = "DelRoleForMember";
                     break;
             }
             _context.Add(tblLog);
@@ -312,8 +306,6 @@ namespace Viper.Areas.RAPS.Services
             switch (actionType)
             {
                 case AuditActionType.Create:
-                    tblLog.Audit = "UpdateRolePermission";
-                    break;
                 case AuditActionType.Update:
                     tblLog.Audit = "UpdateRolePermission";
                     break;
@@ -324,7 +316,7 @@ namespace Viper.Areas.RAPS.Services
             _context.Add(tblLog);
         }
 
-        public void AuditPermissionMemberChange(TblMemberPermission memberPermission, AuditActionType actionType) 
+        public void AuditPermissionMemberChange(TblMemberPermission memberPermission, AuditActionType actionType)
         {
             TblLog tblLog = new()
             {
@@ -371,8 +363,8 @@ namespace Viper.Areas.RAPS.Services
                 OuGroupId = group.OugroupId,
                 ModTime = DateTime.Now,
                 ModBy = UserHelper.GetCurrentUser()?.LoginId,
-                Detail = (actionType == AuditActionType.Create || actionType == AuditActionType.Update) 
-                    ? group.Name 
+                Detail = (actionType == AuditActionType.Create || actionType == AuditActionType.Update)
+                    ? group.Name
                     : string.Format("Deleting {0}", group.Name)
             };
 
@@ -415,7 +407,7 @@ namespace Viper.Areas.RAPS.Services
 
         public void AuditGroupMemberChange(GroupMember member, int groupId, string groupName, AuditActionType actionType)
         {
-            string detail = actionType == AuditActionType.Create 
+            string detail = actionType == AuditActionType.Create
                 ? "Adding " + member.LoginId + " " + member.DisplayName + " to "
                 : "Removing " + member.LoginId + " " + member.DisplayName + " from ";
             TblLog tblLog = new()

@@ -1,11 +1,11 @@
-﻿using MockQueryable.Moq;
-using Moq;
+using MockQueryable.NSubstitute;
+using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
 
 namespace Viper.test.CTS
 {
-    internal class SetupServices
+    internal static class SetupServices
     {
         public static readonly List<Service> Services = new()
         {
@@ -37,13 +37,13 @@ namespace Viper.test.CTS
             }
         };
 
-        public static void SetupServicesTable(Mock<VIPERContext> context)
+        public static void SetupServicesTable(VIPERContext context)
         {
-            var mockSet = Services.AsAsyncQueryable().BuildMockDbSet();
-            context.Setup(c => c.Services).Returns(mockSet.Object);
+            var mockSet = Services.BuildMockDbSet();
+            context.Services.Returns(mockSet);
 
-            var mockSet2 = ServiceChiefs.AsAsyncQueryable().BuildMockDbSet();
-            context.Setup(c => c.ServiceChiefs).Returns(mockSet2.Object);
+            var mockSet2 = ServiceChiefs.BuildMockDbSet();
+            context.ServiceChiefs.Returns(mockSet2);
         }
     }
 }

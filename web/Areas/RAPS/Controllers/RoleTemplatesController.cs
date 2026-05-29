@@ -1,13 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Connections.Features;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
@@ -24,14 +16,12 @@ namespace Viper.Areas.RAPS.Controllers
     public class RoleTemplatesController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSSecurityService _securityService;
         private readonly RAPSCacheService _rapsCacheService;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         public RoleTemplatesController(RAPSContext context, AAUDContext aaudContext)
         {
             _context = context;
-            _securityService = new(context);
             UserHelper = new UserHelper();
             _rapsCacheService = new RAPSCacheService(context, aaudContext, UserHelper);
         }
@@ -124,9 +114,9 @@ namespace Viper.Areas.RAPS.Controllers
 
             if (memberId.StartsWith("loginid:"))
             {
-                var userIdLookup = _context.VwAaudUser
+                var userIdLookup = await _context.VwAaudUser
                     .Where(u => u.LoginId == memberId.Substring(memberId.IndexOf(":") + 1))
-                    .FirstOrDefault();
+                    .FirstOrDefaultAsync();
                 if (userIdLookup == null)
                 {
                     return NotFound();
@@ -169,7 +159,6 @@ namespace Viper.Areas.RAPS.Controllers
                     : u.MothraId == memberId)
                 .FirstOrDefaultAsync();
 
-            List<TblRole> userRoles = new();
             List<RoleApplyPreview> rolesToApply = new();
 
             //if user is not found, return the object with placeholder text
@@ -178,14 +167,14 @@ namespace Viper.Areas.RAPS.Controllers
                 return null;
             }
 
-            userRoles = await _context.TblRoleMembers
+            List<TblRole> userRoles = await _context.TblRoleMembers
                 .Include(rm => rm.Role)
                 .Where(rm => rm.MemberId == user.MothraId)
                 .Select(rm => rm.Role)
                 .ToListAsync();
             foreach (var role in roleTemplate.RoleTemplateRoles)
             {
-                rolesToApply.Add(new RoleApplyPreview()
+                rolesToApply.Add(new RoleApplyPreview
                 {
                     RoleId = role.Role.RoleId,
                     RoleName = role.Role.FriendlyName,
@@ -194,7 +183,7 @@ namespace Viper.Areas.RAPS.Controllers
                 });
             }
 
-            return new RoleTemplateApplyPreview()
+            return new RoleTemplateApplyPreview
             {
                 DisplayName = user?.DisplayFullName ?? "User not found",
                 MemberId = user?.MothraId ?? "",
@@ -217,7 +206,7 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(rt => rt.RoleTemplateId == roleTemplateId)
                 .FirstOrDefaultAsync();
 
-            if (roleTemplate == null || !_securityService.RoleTemplateBelongsToInstance(instance, roleTemplate))
+            if (roleTemplate == null || !RAPSSecurityService.RoleTemplateBelongsToInstance(instance, roleTemplate))
             {
                 return NotFound();
             }
@@ -237,7 +226,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (roleTemplateId != roleTemplate.RoleTemplateId || !_securityService.RoleTemplateBelongsToInstance(instance, rt))
+            if (roleTemplateId != roleTemplate.RoleTemplateId || !RAPSSecurityService.RoleTemplateBelongsToInstance(instance, rt))
             {
                 return BadRequest();
             }
@@ -256,10 +245,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -292,7 +279,7 @@ namespace Viper.Areas.RAPS.Controllers
             //add new roles
             foreach (int id in roleIds)
             {
-                _context.Add(new RoleTemplateRole()
+                _context.Add(new RoleTemplateRole
                 {
                     RoleTemplateRoleRoleId = id,
                     RoleTemplateTemplateId = roleTemplateId,
@@ -319,7 +306,7 @@ namespace Viper.Areas.RAPS.Controllers
                 Description = roleTemplate.Description ?? ""
             };
 
-            if (!_securityService.RoleTemplateBelongsToInstance(instance, rt))
+            if (!RAPSSecurityService.RoleTemplateBelongsToInstance(instance, rt))
             {
                 return BadRequest();
             }

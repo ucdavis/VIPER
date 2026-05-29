@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.Courses;
 
-public partial class Terminfo
+public class Terminfo
 {
     public string TermAcademicYear { get; set; } = null!;
 

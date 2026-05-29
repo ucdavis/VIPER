@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.CTS;
 
-public partial class MilestoneLevel
+public class MilestoneLevel
 {
     public int MilestoneLevelId { get; set; }
 

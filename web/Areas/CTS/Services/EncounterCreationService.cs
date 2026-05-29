@@ -1,4 +1,4 @@
-﻿using Viper.Models.CTS;
+using Viper.Models.CTS;
 
 namespace Viper.Areas.CTS.Services
 {
@@ -10,14 +10,14 @@ namespace Viper.Areas.CTS.Services
         {
             Epa = 1
         }
-        public static Encounter CreateEncounterForEpa(int studentUserId, string studentLevel, int enteredBy, int serviceId, 
+        public static Encounter CreateEncounterForEpa(int studentUserId, string studentLevel, int enteredBy, int serviceId,
             int epaId, int levelId, string? comment = "", DateTime? encounterDate = null)
         {
             if (encounterDate == null)
             {
                 encounterDate = DateTime.Now.Date;
             }
-            return new Encounter()
+            return new Encounter
             {
                 StudentUserId = studentUserId,
                 StudentLevel = studentLevel,

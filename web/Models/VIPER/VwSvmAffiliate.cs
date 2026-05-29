@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class VwSvmAffiliate
+public class VwSvmAffiliate
 {
     public string? LastName { get; set; }
 

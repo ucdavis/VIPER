@@ -1,23 +1,19 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.Elfie.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.CMS.Data;
 using Viper.Classes.SQLContext;
 using Viper.Models.VIPER;
+using Viper.Services;
 
 namespace Viper.Views.Shared.Components.ProfilePic
 {
     [ViewComponent(Name = "CMSBlocks")]
     public class CMSBlocksViewComponent : ViewComponent
     {
-        private readonly VIPERContext _VIPERContext;
-        private readonly RAPSContext _RAPSContext;
-        public ICMS CMS;
+        public ICMS CMS { get; private set; }
 
-        public CMSBlocksViewComponent(VIPERContext viperContext, RAPSContext rapsContext)
+        public CMSBlocksViewComponent(VIPERContext viperContext, RAPSContext rapsContext, IHtmlSanitizerService sanitizerService)
         {
-            _VIPERContext = viperContext;
-            _RAPSContext = rapsContext;
-            CMS = new CMS(_VIPERContext, _RAPSContext);
+            CMS = new CMS(viperContext, rapsContext, sanitizerService);
         }
 
         public async Task<IViewComponentResult> InvokeAsync(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)

@@ -1,6 +1,9 @@
-﻿<div class="row">
+﻿@{
+    ViewData["Title"] = "Class Year Import";
+}
+<div class="row">
     <div class="col">
-        <h2>Student Class Year Import</h2>
+        <h1>Student Class Year Import</h1>
     </div>
 </div>
 
@@ -36,7 +39,7 @@
                 </q-item-section>
                 <q-item-section avatar>
                     <q-avatar square>
-                        <img :src="'https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" />
+                        <img :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?altphoto=1&mailId=' + student.mailId" class="smallPhoto" :alt="student.firstName + ' ' + student.lastName + '\'s photo'" />
                     </q-avatar>
                 </q-item-section>
                 <q-item-section>

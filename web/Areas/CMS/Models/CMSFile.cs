@@ -1,14 +1,14 @@
-﻿using Viper.Models.VIPER;
+using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Models
 {
-    public partial class CMSFile : Viper.Models.VIPER.File
+    public sealed class CMSFile : File
     {
-        public string FriendlyURL;
+        public string FriendlyURL { get; set; }
 
-        public string URL;
+        public string URL { get; set; }
 
-        public CMSFileMetaData MetaData;
+        public CMSFileMetaData MetaData { get; set; }
 
         public CMSFile()
         {
@@ -23,7 +23,7 @@ namespace Viper.Areas.CMS.Models
                 ModifiedBy = this.ModifiedBy
             };
         }
-        public CMSFile(Viper.Models.VIPER.File file)
+        public CMSFile(File file)
         {
             this.AllowPublicAccess = file.AllowPublicAccess;
             this.ContentBlockToFiles = file.ContentBlockToFiles;

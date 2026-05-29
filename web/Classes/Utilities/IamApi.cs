@@ -1,11 +1,8 @@
-﻿using NLog;
-using NuGet.Protocol.Plugins;
-using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography.Pkcs;
+using System.Text;
 using System.Text.Json;
 using System.Web;
+using NLog;
 using Viper.Models.IAM;
 
 namespace Viper.Classes.Utilities
@@ -18,6 +15,7 @@ namespace Viper.Classes.Utilities
     {
         private const string apiBase = "https://iet-ws.ucdavis.edu/api/";
         private static readonly List<string> reservedParamKeys = new() { "key", "v" };
+        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
         private const string version = "1.0";
         private readonly IHttpClientFactory _factory;
         private readonly Logger _logger = LogManager.GetLogger("IAM");
@@ -33,18 +31,14 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Get Ids from IAM
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <returns></returns>
         public async Task<Response<Ids>> GetIamIds(string iamId)
         {
-            return await Send<Ids>("iam/people/ids/search", new NameValueCollection() { { "iamId", iamId } });
+            return await Send<Ids>("iam/people/ids/search", new NameValueCollection { { "iamId", iamId } });
         }
 
         /// <summary>
         /// Get kerberos for a single user
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <returns></returns>
         public async Task<Response<Kerberos>> GetKerberos(string iamId)
         {
             return await Send<Kerberos>("iam/people/prikerbacct/" + iamId);
@@ -53,8 +47,6 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Get kerberos info for one or more iam ids
         /// </summary>
-        /// <param name="iamIds"></param>
-        /// <returns></returns>
         public async Task<Response<Kerberos>> GetKerberos(List<string> iamIds)
         {
             var callList = new List<Tuple<string, NameValueCollection?>>();
@@ -71,8 +63,6 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Get people from a list of iam ids
         /// </summary>
-        /// <param name="iamIds"></param>
-        /// <returns></returns>
         public async Task<Response<CorePerson>> GetByIamIds(List<string> iamIds)
         {
             var callList = new List<Tuple<string, NameValueCollection?>>();
@@ -86,13 +76,6 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Search for a person or people by name or ids
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <param name="mothraId"></param>
-        /// <param name="employeeId"></param>
-        /// <param name="studentId"></param>
-        /// <param name="firstName"></param>
-        /// <param name="lastName"></param>
-        /// <returns></returns>
         public async Task<Response<CorePerson>> SearchForPerson(string? iamId = null, string? mothraId = null, string? employeeId = null, string? studentId = null,
             string? firstName = null, string? lastName = null)
         {
@@ -127,16 +110,14 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Given a name, search for people with either first or last matching the name
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
         public async Task<Response<CorePerson>> SearchForPersonByName(string name)
         {
             var callList = new List<Tuple<string, NameValueCollection?>>
             {
-                new("iam/people/search", new NameValueCollection() { { "dFirstName", name } }),
-                new("iam/people/search", new NameValueCollection() { { "dLastName", name } }),
-                new("iam/people/search", new NameValueCollection() { { "oFirstName", name } }),
-                new("iam/people/search", new NameValueCollection() { { "oLastName", name } })
+                new("iam/people/search", new NameValueCollection { { "dFirstName", name } }),
+                new("iam/people/search", new NameValueCollection { { "dLastName", name } }),
+                new("iam/people/search", new NameValueCollection { { "oFirstName", name } }),
+                new("iam/people/search", new NameValueCollection { { "oLastName", name } })
             };
             return await SendMultiple<CorePerson>(callList, true);
         }
@@ -144,32 +125,26 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Get contact info by email address
         /// </summary>
-        /// <param name="email"></param>
-        /// <returns></returns>
         public async Task<Response<ContactInfo>> GetContactInfoByEmail(string email)
         {
             if (!email.Contains('@'))
             {
                 email += "@ucdavis.edu";
             }
-            return await Send<ContactInfo>("iam/people/contactinfo/search", new NameValueCollection() { { "email", email } });
+            return await Send<ContactInfo>("iam/people/contactinfo/search", new NameValueCollection { { "email", email } });
         }
 
-        // <summary>
+        /// <summary>
         /// Get contact info by iam id
         /// </summary>
-        /// <param name="email"></param>
-        /// <returns></returns>
         public async Task<Response<ContactInfo>> GetContactInfo(string iamId)
         {
-            return await Send<ContactInfo>("iam/people/contactinfo/" + iamId, null);
+            return await Send<ContactInfo>("iam/people/contactinfo/" + iamId);
         }
 
-        // <summary>
+        /// <summary>
         /// Get contact info by iam id list
         /// </summary>
-        /// <param name="email"></param>
-        /// <returns></returns>
         public async Task<Response<ContactInfo>> GetContactInfo(List<string> iamIds)
         {
             var callList = new List<Tuple<string, NameValueCollection?>>();
@@ -177,7 +152,7 @@ namespace Viper.Classes.Utilities
             {
                 callList.Add(new Tuple<string, NameValueCollection?>("iam/people/contactinfo/" + iamId, null));
             }
-            return await SendMultiple<ContactInfo>(callList, false);
+            return await SendMultiple<ContactInfo>(callList);
         }
 
         /*
@@ -186,61 +161,43 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Get all employee associations for an individual
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <returns></returns>
         public async Task<Response<EmployeeAssociation>> GetEmployeeAssociations(string iamId)
         {
-            return await Send<EmployeeAssociation>("iam/associations/pps/" + iamId, null);
+            return await Send<EmployeeAssociation>("iam/associations/pps/" + iamId);
         }
 
         /// <summary>
         /// Get all employee associations for a department
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <returns></returns>
         public async Task<Response<EmployeeAssociation>> GetEmployeeAssociationsByDept(string deptCode)
         {
-            return await Send<EmployeeAssociation>("iam/associations/pps/search", new NameValueCollection() { { "apptDeptCode", deptCode } });
+            return await Send<EmployeeAssociation>("iam/associations/pps/search", new NameValueCollection { { "apptDeptCode", deptCode } });
         }
 
         /// <summary>
         /// Get employee associations for multiple dept codes
         /// </summary>
-        /// <param name="deptCode"></param>
-        /// <returns></returns>
         public async Task<Response<EmployeeAssociation>> GetEmployeeAssociationsByDept(List<string> deptCodes)
         {
             var callList = new List<Tuple<string, NameValueCollection?>>();
             foreach (var deptCode in deptCodes)
             {
-                callList.Add(new Tuple<string, NameValueCollection?>("iam/associations/pps/search", new NameValueCollection() { { "apptDeptCode", deptCode } }));
+                callList.Add(new Tuple<string, NameValueCollection?>("iam/associations/pps/search", new NameValueCollection { { "apptDeptCode", deptCode } }));
             }
-            return await SendMultiple<EmployeeAssociation>(callList, false);
+            return await SendMultiple<EmployeeAssociation>(callList);
         }
 
         /// <summary>
         /// Get SIS associations by iamid
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <returns></returns>
         public async Task<Response<SisAssociation>> GetSisAssociations(string iamId)
         {
-            return await Send<SisAssociation>("iam/associations/sis/" + iamId, null);
+            return await Send<SisAssociation>("iam/associations/sis/" + iamId);
         }
 
         /// <summary>
         /// Search SIS associations by level, class, college, major
         /// </summary>
-        /// <param name="levelCode"></param>
-        /// <param name="levelName"></param>
-        /// <param name="classCode"></param>
-        /// <param name="className"></param>
-        /// <param name="collegeCode"></param>
-        /// <param name="collegeName"></param>
-        /// <param name="assocRank"></param>
-        /// <param name="majorCode"></param>
-        /// <param name="majorName"></param>
-        /// <returns></returns>
         public async Task<Response<SisAssociation>> SearchSisAssociations(string? levelCode = null, string? levelName = null, string? classCode = null,
             string? className = null, string? collegeCode = null, string? collegeName = null,
             string? assocRank = null, string? majorCode = null, string? majorName = null)
@@ -288,11 +245,9 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Get directory associations for a person
         /// </summary>
-        /// <param name="iamId"></param>
-        /// <returns></returns>
         public async Task<Response<DirectoryAssociation>> GetDirectoryAssociations(string iamId)
         {
-            return await Send<DirectoryAssociation>("iam/associations/odr/" + iamId, null);
+            return await Send<DirectoryAssociation>("iam/associations/odr/" + iamId);
         }
 
         /*
@@ -302,7 +257,6 @@ namespace Viper.Classes.Utilities
         /// <summary>
         /// Create and return the HttpClient using the client factory
         /// </summary>
-        /// <returns></returns>
         private HttpClient GetHttpClient()
         {
             var client = _factory.CreateClient();
@@ -316,9 +270,6 @@ namespace Viper.Classes.Utilities
         /// Send a request and return the response.
         /// </summary>
         /// <typeparam name="T">The type of object from IAM</typeparam>
-        /// <param name="url"></param>
-        /// <param name="requestParams"></param>
-        /// <returns></returns>
         private async Task<Response<T>> Send<T>(string url, NameValueCollection? requestParams = null) where T : IIamData
         {
             if (!url.StartsWith(apiBase))
@@ -359,8 +310,6 @@ namespace Viper.Classes.Utilities
         /// Send multiple requests and return a single response. Used for paginated calls and getting single records for multiple users.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="sendArguments"></param>
-        /// <returns></returns>
         private async Task<Response<T>> SendMultiple<T>(List<Tuple<string, NameValueCollection?>> sendArguments, bool filterToUnique = false) where T : IIamData
         {
             List<Task<Response<T>>> resultList = new();
@@ -371,11 +320,16 @@ namespace Viper.Classes.Utilities
 
             var taskResults = await Task.WhenAll(resultList);
             var r = new Response<T>();
+            var errorMessages = new StringBuilder();
             foreach (var t in taskResults)
             {
                 if (!string.IsNullOrEmpty(t.ErrorMessage))
                 {
-                    r.ErrorMessage += (!string.IsNullOrEmpty(r.ErrorMessage) ? ", " : "") + t.ErrorMessage;
+                    if (errorMessages.Length > 0)
+                    {
+                        errorMessages.Append(", ");
+                    }
+                    errorMessages.Append(t.ErrorMessage);
                 }
 
                 r.Data ??= new List<T>();
@@ -389,18 +343,20 @@ namespace Viper.Classes.Utilities
                     r.Data = r.Data.Concat(t.Data).ToList();
                 }
             }
+            if (errorMessages.Length > 0)
+            {
+                r.ErrorMessage = errorMessages.ToString();
+            }
             return r;
         }
 
         /// <summary>
-        /// Parse the JSON response into the simplified Response<T> object
+        /// Parse the JSON response into the simplified Response&lt;T&gt; object
         /// </summary>
         /// <typeparam name="T">The type of object from IAM</typeparam>
-        /// <param name="response"></param>
-        /// <returns></returns>
         static private async Task<Response<T>> ParseResponse<T>(HttpResponseMessage? response) where T : IIamData
         {
-            var r = new Response<T>()
+            var r = new Response<T>
             {
                 Data = null,
                 ErrorMessage = null
@@ -415,7 +371,7 @@ namespace Viper.Classes.Utilities
                 else
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    var content = Newtonsoft.Json.JsonConvert.DeserializeObject<IntermediateResponse<T>>(responseContent);
+                    var content = JsonSerializer.Deserialize<IntermediateResponse<T>>(responseContent, _jsonOptions);
                     if (content == null)
                     {
                         r.ErrorMessage = "Could not parse response.";
@@ -478,11 +434,11 @@ namespace Viper.Classes.Utilities
         /// https://ucdavis.jira.com/wiki/spaces/IAM/pages/688849434/IAM+Web+Services+IAM-WS#IAMWebServices(IAM-WS)-BasicResponseFormat
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private class IntermediateResponse<T> where T : IIamData
+        private sealed class IntermediateResponse<T> where T : IIamData
         {
             public string ResponseDetails { get; set; } = string.Empty;
-            public int ResponseStatus { get; set; }
-#pragma warning disable CS0649 // Assigned by JsonConvert.DeserializeObject
+            public int ResponseStatus { get; }
+#pragma warning disable CS0649 // Assigned by JsonSerializer.Deserialize
             public DataArray<T>? ResponseData;
 #pragma warning restore CS0649 // Field 'IamApi.IntermediateResponse<T>.ResponseData' is never assigned to, and will always have its default value null
         }
@@ -491,7 +447,7 @@ namespace Viper.Classes.Utilities
         /// Data array is an object with a single key - results - that contains an array of data (even for things that return one record)
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private class DataArray<T> where T : IIamData
+        private sealed class DataArray<T> where T : IIamData
         {
             public IEnumerable<T> Results { get; set; } = new List<T>();
         }

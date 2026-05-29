@@ -1,4 +1,7 @@
-﻿
+﻿@{
+    ViewData["Title"] = "Manage EPAs";
+}
+<h1>Manage EPAs</h1>
 <q-form @@submit="submitEpa()" v-if="showForm" class="q-mb-md">
     <h2>{{epa?.epaId ? 'Updating EPA' : 'Creating EPA'}}</h2>
     <div class="row">
@@ -14,30 +17,36 @@
                     [ 'bold', 'italic', 'underline', 'strike' ],
                     ['quote', 'unordered', 'ordered', 'outdent', 'indent'],
                     [ 'undo', 'redo' ],
-                    ['viewsource'] ]"></q-editor>
+                    ['viewsource'] ]"
+></q-editor>
     </div>
     <div class="row">
         <q-toggle label="Active" v-model="epa.active"></q-toggle>
     </div>
     <div class="row">
         <q-select outlined dense options-dense label="Services" class="col col-lg-4" emit-value map-options
-                  v-model="epaServices" use-chips multiple :options="services"></q-select>
+                  v-model="epaServices" use-chips multiple :options="services"
+></q-select>
     </div>
     <div class="row">
         <q-btn dense no-caps type="submit" :label="(epa?.epaId ? 'Update' : 'Create') + ' EPA'" color="primary"
-               class="q-mt-sm col col-4 col-md-4 col-lg-1"></q-btn>
+               class="q-mt-sm col col-4 col-md-4 col-lg-1"
+></q-btn>
         <q-btn dense no-caps type="button" label="Clear" color="secondary" @@click="clearEpa()"
                v-if="epa?.epaId"
-               class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"></q-btn>
-        <q-btn dense no-caps type="button" label="Delete EPA" color="red" @@click="deleteEpa()"
+               class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"
+></q-btn>
+        <q-btn dense no-caps type="button" label="Delete EPA" color="negative" @@click="deleteEpa()"
                v-if="epa?.epaId"
-               class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"></q-btn>
+               class="q-mt-sm q-ml-lg col col-4 col-md-4 col-lg-1"
+></q-btn>
     </div>
     <hr />
 </q-form>
 
 <h3>
-    <q-btn no-caps size="md" label="Add EPA" color="green" @@click="this.showForm=true"></q-btn>
+    Add New EPA
+    <q-btn no-caps size="md" label="Add EPA" color="positive" @@click="this.showForm=true" class="q-ml-sm"></q-btn>
 </h3>
 
 <q-list separator>
@@ -56,15 +65,15 @@
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-4">Description</q-item-section>
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-3">Services</q-item-section>
     </q-item>
-    <q-item v-for="epa in epas">
+    <q-item v-for="epa in epas" :key="epa.epaId">
         <q-item-section top side class="text-dark col-5 col-md-4 col-lg-2">
             <template v-slot:default>
                 <span class="row fit">
                     <span class="col">
-                        <q-btn dense no-caps size="md" icon="edit" color="primary" @@click="selectEpa(epa)"></q-btn>
+                        <q-btn dense no-caps size="md" icon="edit" color="primary" :aria-label="'Edit EPA: ' + epa.name" @@click="selectEpa(epa)"></q-btn>
                     </span>
                     <span class="col">
-                        <q-icon :name="epa.active ? 'check' : 'close'" :color="epa.active ? 'green' : 'red'" size="md"></q-icon>
+                        <q-icon :name="epa.active ? 'check' : 'close'" :color="epa.active ? 'positive' : 'negative'" size="md"></q-icon>
                     </span>
                     <span class="col">
                         {{epa.order}}
@@ -76,9 +85,10 @@
             {{epa.name}}
         </q-item-section>
         @*v-html - this is sanitized in EpaController*@
+        @* eslint-disable-next-line vue/no-v-html *@
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-4" v-html="epa.description"></q-item-section>
         <q-item-section top class="text-dark col-12 col-md-6 col-lg-3">
-            <span v-for="epaService in epa.services">
+            <span v-for="epaService in epa.services" :key="epaService.serviceId">
                 {{epaService.serviceName}}
             </span>
         </q-item-section>
@@ -111,7 +121,14 @@
                 submitEpa: async function () {
                     var u = this.epa?.epaId ? ("epas/" + this.epa.epaId) : "epas"
                     //submit epa
-                    let { services: _, ...epaObj } = this.epa
+                    // Create EPA object without services (handled separately via API)
+                    var epaObj = {
+                        epaId: this.epa.epaId,
+                        order: this.epa.order,
+                        name: this.epa.name,
+                        description: this.epa.description,
+                        active: this.epa.active
+                    }
                     var updatedEpa = await viperFetch(this, u, {
                         method: this.epa?.epaId ? "PUT" : "POST",
                         body: JSON.stringify(epaObj),
@@ -123,7 +140,7 @@
                         body: JSON.stringify(this.epaServices),
                         headers: { "Content-Type": "application/json" }
                     })
-                    
+
                     //reload
                     this.getEpas()
                 },
@@ -140,7 +157,6 @@
                 getServices: async function () {
                     viperFetch(this, "clinicalservices")
                         .then(data => this.services = data.map(d => ({ label: d.serviceName, value: d.serviceId })))
-                    //var scheduledServices = viperFetch(this, "clinicalschedule/instructor?mothraId=" + this.userId)
                 }
             },
             mounted: async function () {

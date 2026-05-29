@@ -1,13 +1,13 @@
-﻿using System.Runtime.Versioning;
-using Viper.Models.AAUD;
+using System.Runtime.Versioning;
 using System.Text.Json;
+using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
 {
-    public class IndividualSearchResultCreator
+    public static class IndividualSearchResultCreator
     {
         [SupportedOSPlatform("windows")]
-        public static IndividualSearchResult CreateIndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact, bool includeDetail=false)
+        public static IndividualSearchResult CreateIndividualSearchResult(AaudUser? aaudUser, LdapUserContact? ldapUserContact, bool includeDetail = false)
         {
             if (includeDetail)
             {
@@ -82,17 +82,17 @@ namespace Viper.Areas.Directory.Models
         [SupportedOSPlatform("windows")]
         private static void AddLdapContact(IndividualSearchResult indiv, LdapUserContact ldapUserContact)
         {
-            indiv.originalObject = System.Text.Json.JsonSerializer.Serialize(ldapUserContact);
+            indiv.originalObject = JsonSerializer.Serialize(ldapUserContact);
             indiv.Title = ldapUserContact.Title;
             indiv.Department = ldapUserContact.Ou;
             indiv.Phone = ldapUserContact.TelephoneNumber;
             indiv.Mobile = ldapUserContact.Mobile;
             indiv.UserName = ldapUserContact.Uid;
-            if(string.IsNullOrEmpty(indiv.DisplayFullName))
+            if (string.IsNullOrEmpty(indiv.DisplayFullName))
             {
                 indiv.DisplayFullName = ldapUserContact.DisplayName;
             }
-            if(string.IsNullOrEmpty(indiv.Name))
+            if (string.IsNullOrEmpty(indiv.Name))
             {
                 indiv.Name = ldapUserContact.DisplayName;
             }

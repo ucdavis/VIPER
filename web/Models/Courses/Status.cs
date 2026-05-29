@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.Courses;
 
-public partial class Status
+public class Status
 {
     public int StatusRecordId { get; set; }
 

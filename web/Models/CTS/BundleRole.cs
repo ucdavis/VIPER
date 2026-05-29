@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.CTS;
 
-public partial class BundleRole
+public class BundleRole
 {
     public int BundleRoleId { get; set; }
 

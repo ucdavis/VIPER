@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class FormVersion
+public class FormVersion
 {
     public int FormVersionId { get; set; }
 

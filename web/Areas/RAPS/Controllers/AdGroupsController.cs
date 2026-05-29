@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using System.Runtime.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
-using System.Runtime.Versioning;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Areas.RAPS.Services;
@@ -31,18 +30,18 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Models.Group>>> GetOuGroups(string? search = null)
+        public async Task<ActionResult<IEnumerable<Group>>> GetOuGroups(string? search = null)
         {
             if (_context.OuGroups == null)
             {
                 return NotFound();
             }
-            
+
             return await _ouGroupService.GetAllGroups(search);
         }
 
         [HttpGet("{groupId}")]
-        public async Task<ActionResult<Models.Group>> GetOuGroup(int groupId)
+        public async Task<ActionResult<Group>> GetOuGroup(int groupId)
         {
             if (_context.OuGroups == null)
             {
@@ -55,8 +54,8 @@ namespace Viper.Areas.RAPS.Controllers
                 .ThenInclude(r => r.TblRoleMembers)
                 .Where(g => g.OugroupId == groupId)
                 .FirstOrDefaultAsync();
-            return group != null 
-                ? new Models.Group(group)
+            return group != null
+                ? new Group(group)
                 : NotFound();
         }
 
@@ -79,13 +78,13 @@ namespace Viper.Areas.RAPS.Controllers
         [HttpPut("{groupId}")]
         public async Task<IActionResult> UpdateGroup(int groupId, GroupAddEdit group)
         {
-            if(groupId != group.GroupId)
+            if (groupId != group.GroupId)
             {
                 BadRequest();
             }
-           
+
             OuGroup? ouGroup = await _context.OuGroups.FindAsync(groupId);
-            if(ouGroup == null)
+            if (ouGroup == null)
             {
                 return NotFound();
             }
@@ -104,7 +103,7 @@ namespace Viper.Areas.RAPS.Controllers
             OuGroup? ouGroup = await _context.OuGroups
                 .Where(g => g.Name == group.Name)
                 .FirstOrDefaultAsync();
-            if(ouGroup != null)
+            if (ouGroup != null)
             {
                 return ValidationProblem("A group with this name is already managed by RAPS");
             }
@@ -114,7 +113,7 @@ namespace Viper.Areas.RAPS.Controllers
                 OuGroup newOuGroup = await _ouGroupService.CreateRapsGroup(group.Name, group.Description);
                 return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId }, newOuGroup);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //Exception message could be indication user is trying to create a group that exists or is invalid.
                 return ValidationProblem(ex.Message);
@@ -149,19 +148,19 @@ namespace Viper.Areas.RAPS.Controllers
         public async Task<ActionResult<List<GroupMember>>> GetAllMembers(int groupId)
         {
             OuGroup? group = await _context.OuGroups.FindAsync(groupId);
-            if(group == null)
+            if (group == null)
             {
                 return NotFound();
             }
             List<GroupMember> members = await _ouGroupService.GetAllMembers(groupId, group.Name);
-            
+
             return members;
         }
 
         [HttpPost("{groupId}/Sync")]
         public async Task<ActionResult> SyncGroup(int groupId)
         {
-            OuGroup? group = _context.OuGroups.Find(groupId);
+            OuGroup? group = await _context.OuGroups.FindAsync(groupId);
             if (group == null)
             {
                 return NotFound();

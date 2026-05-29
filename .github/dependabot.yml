@@ -1,0 +1,53 @@
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      dotnet:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      npm-root:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /VueApp
+    schedule:
+      interval: monthly
+      day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      npm-vueapp:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 5

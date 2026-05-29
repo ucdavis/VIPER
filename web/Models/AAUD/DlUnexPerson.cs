@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class DlUnexPerson
+public class DlUnexPerson
 {
     public int UnexPersonRecordId { get; set; }
 

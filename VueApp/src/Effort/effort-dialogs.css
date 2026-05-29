@@ -1,0 +1,22 @@
+/* Shared dialog card sizing — replaces inline styles on q-card inside q-dialog.
+   Usage: <q-card class="dialog-card-sm"> */
+
+.dialog-card-sm {
+    width: 100%;
+    max-width: 31.25rem; /* 500px */
+}
+
+.dialog-card-md {
+    width: 100%;
+    max-width: 37.5rem; /* 600px */
+}
+
+.dialog-card-lg {
+    width: 100%;
+    max-width: 56.25rem; /* 900px */
+}
+
+.dialog-card-xl {
+    width: 100%;
+    max-width: 68.75rem; /* 1100px */
+}

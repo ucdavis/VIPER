@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.Courses;
 
-public partial class Grademode
+public class Grademode
 {
     public string GmodePkey { get; set; } = null!;
 

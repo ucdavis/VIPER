@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class TestId
+public class TestId
 {
     public string IdsPKey { get; set; } = null!;
 

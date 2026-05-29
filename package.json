@@ -1,0 +1,62 @@
+{
+    "name": "viper2",
+    "version": "2.0.0",
+    "private": true,
+    "engines": {
+        "node": ">=24"
+    },
+    "scripts": {
+        "clear-cache": "node -e \"require('./scripts/lib/build-cache').clearBuildCache()\"",
+        "dev": "npm run dev:libman && concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND,BROWSER\" --prefix-colors \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:browser\"",
+        "dev:backend": "npm run mailpit:start && cd web && cross-env DOTNET_USE_COMPILER_SERVER=1 DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true dotnet watch run --launch-profile https",
+        "dev:backend-build-only": "npm run dev:frontend-build && dotnet publish ./web/Viper.csproj -c Release -p:EnvironmentName=Development -o ./dist/dev",
+        "dev:backend-run": "node --env-file-if-exists=.env.local scripts/run-backend.js",
+        "dev:browser": "node --env-file-if-exists=.env.local scripts/launch-open-browser.js",
+        "dev:build": "npm run mailpit:start && npm run dev:backend-build-only && concurrently --kill-others-on-fail --names \"BACKEND,BROWSER\" --prefix-colors \"blue,yellow\" \"npm run dev:backend-run\" \"npm run dev:browser\"",
+        "dev:frontend": "cd VueApp && npm install && npm run dev:typed",
+        "dev:frontend-build": "cd VueApp && npm install && npm run build-dev",
+        "dev:libman": "dotnet tool restore && cd web && dotnet tool run libman restore",
+        "dev:stop": "node --env-file-if-exists=.env.local scripts/stop-dev-services.js",
+        "lint": "cross-env LINT_BLOCK_ON_WARNINGS=true DOTNET_USE_COMPILER_SERVER=1 node scripts/lint-any.js",
+        "lint:staged": "node scripts/lint-staged-runner.js",
+        "audit": "node scripts/audit.js",
+        "audit:fallow": "node scripts/audit-fallow.js",
+        "audit:dupes": "node scripts/audit-jscpd.js",
+        "audit:resharper": "node scripts/audit-resharper.js",
+        "audit:resharper:pr": "node scripts/audit-resharper-regression.js",
+        "audit:resharper-staged": "node scripts/audit-resharper-regression.js --staged",
+        "mailpit:start": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js start",
+        "mailpit:status": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js status",
+        "mailpit:stop": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js stop",
+        "merge": "node scripts/merge-to-dev.js",
+        "precommit": "node scripts/precommit.js",
+        "prepare": "husky",
+        "test": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" --success all \"npm run test:backend\" \"npm run test:frontend\" && echo. && echo ALL TESTS PASSED || (echo. && echo TESTS FAILED - Check output above && exit 1)",
+        "test:backend": "cross-env DOTNET_USE_COMPILER_SERVER=1 node scripts/test-dotnet.js",
+        "test:frontend": "cd VueApp && npm run test:run",
+        "verify:build": "node scripts/verify-build.js"
+    },
+    "devDependencies": {
+        "@double-great/stylelint-a11y": "^3.4.10",
+        "@eslint/js": "^10.0.0",
+        "concurrently": "^9.0.1",
+        "cross-env": "^10.0.0",
+        "eslint": "^10.2.1",
+        "eslint-plugin-html": "^8.1.4",
+        "eslint-plugin-security": "^4.0.0",
+        "fallow": "^2.38.0",
+        "husky": "^9.1.7",
+        "jscpd": "^4.0.9",
+        "oxfmt": "^0.46.0",
+        "oxlint": "^1.61.0",
+        "oxlint-tsgolint": "^0.21.1",
+        "postcss-html": "^1.8.0",
+        "stylelint": "^17.9.0",
+        "stylelint-config-standard": "^40.0.0",
+        "yauzl": "^3.2.0"
+    },
+    "volta": {
+        "node": "24.14.1",
+        "npm": "11.12.0"
+    }
+}

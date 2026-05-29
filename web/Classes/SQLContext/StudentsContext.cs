@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Viper.Models.Students;
 
 namespace Viper.Classes.SQLContext;

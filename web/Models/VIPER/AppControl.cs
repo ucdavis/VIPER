@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class AppControl
+public class AppControl
 {
     public int Id { get; set; }
 

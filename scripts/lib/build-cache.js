@@ -1,0 +1,596 @@
+#!/usr/bin/env node
+
+const fs = require("node:fs")
+const path = require("node:path")
+const crypto = require("node:crypto")
+const { execFileSync } = require("node:child_process")
+const { createLogger } = require("./script-utils")
+
+const { env } = process
+const logger = createLogger("Cache")
+
+// Quiet mode suppresses info logs (only show warnings/errors)
+// Enable via QUIET_CACHE=1 environment variable
+const quietMode = env.QUIET_CACHE === "1"
+
+// Staged mode uses git staged content for hashing instead of working directory
+// Automatically detected when running via lint-staged, or can be forced via USE_STAGED_CONTENT=1
+const useStagedContent = env.USE_STAGED_CONTENT === "1" || env.npm_lifecycle_event === "lint:staged"
+
+/**
+ * Build caching utilities using content hashing
+ * Tracks file content hashes to determine if rebuilds are needed
+ * More reliable than timestamp-based caching - eliminates need for --force flag
+ */
+
+// Cache directory
+const CACHE_DIR = path.join(__dirname, "..", "..", ".build-cache")
+const CACHE_FILE = path.join(CACHE_DIR, "build-hashes.json")
+
+// Hash display length for log messages
+const HASH_DISPLAY_LENGTH = 12
+
+// Max buffer size for reading staged file content (10MB)
+const MAX_STAGED_BUFFER = 10_485_760
+
+// Ensure cache directory exists
+function ensureCacheDir() {
+    if (!fs.existsSync(CACHE_DIR)) {
+        fs.mkdirSync(CACHE_DIR, { recursive: true })
+    }
+}
+
+/**
+ * Recursively find all files matching extensions in a directory
+ * @param {string} dir - Directory to search
+ * @param {string[]} extensions - File extensions to include (e.g., ['.cs', '.csproj'])
+ * @param {string[]} excludeDirs - Directories to exclude (e.g., ['bin', 'obj', 'node_modules'])
+ * @returns {string[]} - Array of absolute file paths
+ */
+function findFiles(dir, extensions = [".cs", ".csproj"], excludeDirs = ["bin", "obj", "node_modules", ".git"]) {
+    const files = []
+
+    function scan(currentDir) {
+        try {
+            const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+
+            for (const entry of entries) {
+                const fullPath = path.join(currentDir, entry.name)
+
+                if (entry.isDirectory()) {
+                    // Skip excluded directories
+                    if (!excludeDirs.includes(entry.name)) {
+                        scan(fullPath)
+                    }
+                } else if (entry.isFile()) {
+                    const ext = path.extname(entry.name).toLowerCase()
+                    if (extensions.includes(ext)) {
+                        files.push(fullPath)
+                    }
+                }
+            }
+        } catch (error) {
+            logger.warning(`Could not scan directory ${currentDir}: ${error.message}`)
+        }
+    }
+
+    scan(dir)
+    return files.toSorted((a, b) => a.localeCompare(b)) // Sort for consistent ordering
+}
+
+/**
+ * Get the staged content of a file from git index
+ * @param {string} filePath - Path to the file (absolute or relative)
+ * @returns {Buffer} - File content from staging area, or null if not staged/error
+ */
+function getStagedContent(filePath) {
+    try {
+        // Convert to relative path for git
+        const relativePath = path.relative(process.cwd(), filePath).replaceAll("\\", "/")
+
+        // Use git show :path to get staged content (: prefix means index/staging area)
+        const content = execFileSync("git", ["show", `:${relativePath}`], {
+            encoding: "buffer",
+            stdio: ["pipe", "pipe", "pipe"],
+            maxBuffer: MAX_STAGED_BUFFER,
+        })
+
+        return content
+    } catch {
+        // File not staged or git error - return null to fall back to working directory
+        return null
+    }
+}
+
+/**
+ * Compute SHA-256 hash of a single file
+ * Uses staged content when useStagedContent is enabled, falls back to working directory
+ * @param {string} filePath - Path to the file
+ * @returns {string} - Hex-encoded hash
+ */
+function hashFile(filePath) {
+    try {
+        const hash = crypto.createHash("sha256")
+
+        // When in staged mode, try to get content from git staging area first
+        let content = null
+        if (useStagedContent) {
+            content = getStagedContent(filePath)
+        }
+
+        // Fall back to working directory if not using staged content or file not staged
+        if (content === null) {
+            content = fs.readFileSync(filePath)
+        }
+
+        hash.update(content)
+        return hash.digest("hex")
+    } catch (error) {
+        logger.warning(`Could not hash file ${filePath}: ${error.message}`)
+        return "0"
+    }
+}
+
+/**
+ * Compute combined hash of all relevant files in a project
+ * @param {string} projectPath - Path to the project directory
+ * @param {string[]} extensions - File extensions to check (e.g., ['.cs', '.csproj'])
+ * @returns {string} - Hex-encoded hash of all file contents
+ */
+function computeProjectHash(projectPath, extensions = [".cs", ".csproj"]) {
+    try {
+        const files = findFiles(projectPath, extensions)
+
+        if (files.length === 0) {
+            logger.warning(`No files found in ${projectPath} with extensions ${extensions.join(", ")}`)
+            return "0"
+        }
+
+        // Hash each file individually, then combine hashes
+        const combinedHash = crypto.createHash("sha256")
+
+        for (const file of files) {
+            const fileHash = hashFile(file)
+            combinedHash.update(fileHash)
+        }
+
+        return combinedHash.digest("hex")
+    } catch (error) {
+        logger.warning(`Could not compute hash for ${projectPath}: ${error.message}`)
+        return "0"
+    }
+}
+
+/**
+ * Load build cache from disk
+ * @returns {Object} - Cache object with project hashes and build outputs
+ */
+function loadBuildCache() {
+    ensureCacheDir()
+
+    try {
+        if (fs.existsSync(CACHE_FILE)) {
+            return JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"))
+        }
+    } catch (error) {
+        logger.warning(`Could not load build cache: ${error.message}`)
+    }
+
+    return {}
+}
+
+/**
+ * Save build cache to disk
+ * @param {Object} cache - Cache object to save
+ */
+function saveBuildCache(cache) {
+    ensureCacheDir()
+
+    try {
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2))
+    } catch (error) {
+        logger.warning(`Could not save build cache: ${error.message}`)
+    }
+}
+
+/**
+ * Check if a project needs to be built based on file content hashes
+ * @param {string} projectPath - Path to the project directory
+ * @param {string} projectName - Name of the project for caching
+ * @returns {boolean} - True if build is needed
+ */
+function needsBuild(projectPath, projectName) {
+    const cache = loadBuildCache()
+    const currentHash = computeProjectHash(projectPath)
+    const cacheEntry = cache[projectName]
+
+    // Always rebuild if no cache entry exists
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        if (!quietMode) {
+            logger.info(`📝 Build needed for ${projectName}: no valid cache entry found`)
+        }
+        return true
+    }
+
+    const cachedHash = cacheEntry.hash || "0"
+
+    // Compare content hashes
+    const needsRebuild = currentHash !== cachedHash
+
+    if (!quietMode) {
+        if (needsRebuild) {
+            logger.info(
+                `📝 Build needed for ${projectName}: file content has changed (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        } else {
+            logger.info(
+                `✅ Skipping build for ${projectName}: no changes detected (hash: ${currentHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        }
+    }
+
+    return needsRebuild
+}
+
+/**
+ * Mark a project as built and cache the build output
+ * @param {string} projectPath - Path to the project directory
+ * @param {string} projectName - Name of the project
+ * @param {string} buildOutput - Build output to cache
+ * @param {boolean} success - Whether the build succeeded (default: true)
+ */
+function markAsBuilt(projectPath, projectName, buildOutput = "", success = true) {
+    const cache = loadBuildCache()
+    const currentHash = computeProjectHash(projectPath)
+
+    cache[projectName] = {
+        hash: currentHash,
+        timestamp: Date.now(),
+        output: buildOutput,
+        success,
+    }
+    saveBuildCache(cache)
+}
+
+/**
+ * Check if a cached build was successful
+ * @param {string} projectName - Name of the project
+ * @returns {boolean|null} - true if successful, false if failed, null if not cached
+ */
+function wasBuildSuccessful(projectName) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[projectName]
+
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        return null
+    }
+
+    // Legacy cache entries without success field are assumed successful
+    return cacheEntry.success !== false
+}
+
+/**
+ * Get cached build output for a project
+ * @param {string} projectName - Name of the project
+ * @returns {string|null} - Cached build output or null if not cached or cache invalid
+ */
+function getCachedBuildOutput(projectName) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[projectName]
+
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        return null
+    }
+
+    return cacheEntry.output || ""
+}
+
+/**
+ * Remove static-web-asset manifest and dswa caches under an obj/ root, leaving
+ * NuGet restore state and compiled output intact so an active `dotnet watch`
+ * session only has to redo its static-web-assets step.
+ * @param {string} objRoot - Path to a project's obj/ directory
+ */
+function clearStaticWebAssetCache(objRoot) {
+    if (!fs.existsSync(objRoot)) return
+    for (const config of fs.readdirSync(objRoot)) {
+        // Walk Debug/ and Release/ (skip files like project.assets.json at the root)
+        const configDir = path.join(objRoot, config)
+        if (!fs.statSync(configDir).isDirectory()) continue
+        for (const tfm of fs.readdirSync(configDir)) {
+            const tfmDir = path.join(configDir, tfm)
+            if (!fs.statSync(tfmDir).isDirectory()) continue
+            for (const entry of fs.readdirSync(tfmDir)) {
+                if (entry.startsWith("staticwebassets") || entry.endsWith(".dswa.cache.json")) {
+                    fs.rmSync(path.join(tfmDir, entry), { recursive: true, force: true })
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Clear the build cache for a specific project or all projects
+ * @param {string} [projectName] - Optional project name to clear, or undefined to clear all
+ */
+function clearBuildCache(projectName) {
+    if (projectName) {
+        const cache = loadBuildCache()
+        delete cache[projectName]
+        saveBuildCache(cache)
+        logger.info(`🧹 Cleared build cache for ${projectName}`)
+    } else {
+        try {
+            if (fs.existsSync(CACHE_FILE)) {
+                fs.unlinkSync(CACHE_FILE)
+            }
+            // Also clear the isolated artifacts directories used by verify:build and lint
+            const artifactsDirs = [".artifacts-precommit", ".artifacts-lint"]
+            for (const dir of artifactsDirs) {
+                const artifactsDir = path.join(process.cwd(), dir)
+                if (fs.existsSync(artifactsDir)) {
+                    fs.rmSync(artifactsDir, { recursive: true, force: true })
+                }
+            }
+            // Clear stale static-web-asset state in web/obj — survives across artifact-path
+            // isolation and causes confusing "asset can not be found" errors when Vite bundle
+            // hashes change. Narrowly scoped so a running `npm run dev` session doesn't have
+            // to redo a full restore.
+            clearStaticWebAssetCache(path.join(process.cwd(), "web", "obj"))
+            // Clear ESLint cache
+            const eslintCache = path.join(process.cwd(), "VueApp", ".eslintcache")
+            if (fs.existsSync(eslintCache)) {
+                fs.unlinkSync(eslintCache)
+            }
+            logger.info("🧹 Cleared all build cache")
+        } catch (error) {
+            logger.warning(`Could not clear build cache: ${error.message}`)
+        }
+    }
+}
+
+/**
+ * Run a build command only if needed
+ * @param {string} projectPath - Path to the project directory
+ * @param {string} projectName - Name of the project for caching
+ * @param {string[]} buildArgs - Arguments to pass to dotnet build
+ * @param {Object} options - Options for execFileSync
+ * @returns {Object} - { success: boolean, output: string, wasCached: boolean }
+ */
+function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options = {}) {
+    if (!needsBuild(projectPath, projectName)) {
+        // Return cached build output if available
+        const cache = loadBuildCache()
+        const cacheEntry = cache[projectName]
+        const cachedOutput = cacheEntry && typeof cacheEntry === "object" ? cacheEntry.output : "Build skipped (cached)"
+
+        return { success: true, output: cachedOutput, wasCached: true }
+    }
+
+    try {
+        logger.info(`🔨 Building ${projectName}...`)
+        const result = execFileSync("dotnet", buildArgs, {
+            cwd: projectPath,
+            encoding: "utf8",
+            timeout: 180_000,
+            ...options,
+        })
+
+        markAsBuilt(projectPath, projectName, result)
+        logger.success(`✅ Build completed for ${projectName}`)
+
+        return { success: true, output: result, wasCached: false }
+    } catch (error) {
+        // For analyzer tools, we want to capture the output even if build fails
+        // The stderr/stdout contains the analyzer warnings/errors we need
+        const buildOutput = (error.stdout || "") + (error.stderr || "")
+
+        // Store the build output even for failed builds so analyzers can process it
+        markAsBuilt(projectPath, projectName, buildOutput)
+
+        logger.warning(`⚠️  Build completed with errors for ${projectName} (analyzer output captured)`)
+
+        // Return success=true so analyzers can process the output
+        // The analyzer will determine if the errors should block the commit
+        return { success: true, output: buildOutput, wasCached: false }
+    }
+}
+
+/**
+ * Check if format check is needed for specific files based on content hashes
+ * @param {string[]} filePaths - Array of file paths to check
+ * @param {string} cacheKey - Unique key for this format check (e.g., "web-format")
+ * @returns {boolean} - True if format check is needed
+ */
+function needsFormatCheck(filePaths, cacheKey) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[cacheKey]
+
+    // Compute combined hash of all specified files
+    const currentHash = crypto.createHash("sha256")
+    const sortedPaths = [...filePaths].toSorted((a, b) => a.localeCompare(b)) // Ensure consistent ordering
+
+    for (const filePath of sortedPaths) {
+        try {
+            const fileHash = hashFile(filePath)
+            currentHash.update(fileHash)
+        } catch (error) {
+            logger.warning(`Could not hash file ${filePath}: ${error.message}`)
+            return true // If we can't hash, assume format check is needed
+        }
+    }
+
+    const currentHashDigest = currentHash.digest("hex")
+
+    // Check if cache entry exists and hash matches
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        if (!quietMode) {
+            logger.info(`📝 Format check needed for ${cacheKey}: no valid cache entry found`)
+        }
+        return true
+    }
+
+    const cachedHash = cacheEntry.hash || "0"
+    const needsCheck = currentHashDigest !== cachedHash
+
+    if (!quietMode) {
+        if (needsCheck) {
+            logger.info(
+                `📝 Format check needed for ${cacheKey}: file content changed (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}... != cached: ${cachedHash.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        } else {
+            logger.info(
+                `✅ Skipping format check for ${cacheKey}: no changes detected (hash: ${currentHashDigest.slice(0, HASH_DISPLAY_LENGTH)}...)`,
+            )
+        }
+    }
+
+    return needsCheck
+}
+
+/**
+ * Mark format check as complete and cache the results
+ * @param {string[]} filePaths - Array of file paths that were checked
+ * @param {string} cacheKey - Unique key for this format check
+ * @param {string} formatOutput - Format check output to cache
+ */
+function markFormatChecked(filePaths, cacheKey, formatOutput = "") {
+    const cache = loadBuildCache()
+
+    // Compute hash of all specified files
+    const currentHash = crypto.createHash("sha256")
+    const sortedPaths = [...filePaths].toSorted((a, b) => a.localeCompare(b))
+
+    for (const filePath of sortedPaths) {
+        try {
+            const fileHash = hashFile(filePath)
+            currentHash.update(fileHash)
+        } catch (error) {
+            logger.warning(`Could not hash file ${filePath}: ${error.message}`)
+            return
+        }
+    }
+
+    const currentHashDigest = currentHash.digest("hex")
+
+    cache[cacheKey] = {
+        hash: currentHashDigest,
+        timestamp: Date.now(),
+        output: formatOutput,
+        files: sortedPaths, // Store file list for debugging
+    }
+
+    saveBuildCache(cache)
+}
+
+/**
+ * Get cached format check output
+ * @param {string} cacheKey - Unique key for this format check
+ * @returns {string|null} - Cached format output or null if not cached
+ */
+function getCachedFormatOutput(cacheKey) {
+    const cache = loadBuildCache()
+    const cacheEntry = cache[cacheKey]
+
+    if (!cacheEntry || typeof cacheEntry !== "object") {
+        return null
+    }
+
+    return cacheEntry.output || ""
+}
+
+// Matches any MSBuild error line with an error code (e.g., ": error CS1234", ": error NETSDK1045")
+const ERROR_PATTERN = /:\s*error\s+[A-Z]+\d+/i
+
+// Matches MSBuild summary line showing 0 errors (e.g., "0 Error(s)")
+const ZERO_ERRORS_PATTERN = /\b0\s+Error\(s\)/i
+
+// Matches "Build succeeded" message from MSBuild
+const BUILD_SUCCEEDED_PATTERN = /Build succeeded\./i
+
+/**
+ * Filter build output to show only error lines (not warnings)
+ * @param {string} output - Full build output
+ * @returns {string} - Filtered output with only errors, or original output if no error lines matched
+ */
+function filterBuildErrors(output) {
+    if (!output || !output.trim()) {
+        return ""
+    }
+    const errorLines = output
+        .split("\n")
+        .filter(
+            (line) =>
+                // Any MSBuild error with error code (CS, MSB, NETSDK, NU, SDK, VBC, etc.)
+                ERROR_PATTERN.test(line) ||
+                // Build failure indicators
+                line.includes("Build FAILED") ||
+                // Generic error indicators (no error code)
+                line.includes("MSBUILD : error") ||
+                // File locking errors
+                line.includes("is being used by another process") ||
+                line.includes("Could not copy") ||
+                // SDK/CLI errors
+                line.includes("It was not possible to find any installed .NET SDKs") ||
+                line.includes("Could not find a part of the path") ||
+                line.includes("Unhandled exception"),
+        )
+        .join("\n")
+        .trim()
+    // Fall back to original output when no error lines matched to avoid silent failures
+    return errorLines || output
+}
+
+/**
+ * Check if build output confirms success with only warnings (no actual errors).
+ * Returns true ONLY if we can positively confirm the build succeeded with 0 errors.
+ * This is the inverse of error detection - we fail by default unless we confirm success.
+ * @param {string} output - Full build output
+ * @returns {boolean} - True if build confirmed successful with only warnings
+ */
+function isConfirmedWarningsOnly(output) {
+    if (!output || !output.trim()) {
+        return false
+    }
+    // Must have positive confirmation of success: "0 Error(s)" or "Build succeeded."
+    // This ensures we don't miss errors due to pattern gaps
+    return ZERO_ERRORS_PATTERN.test(output) || BUILD_SUCCEEDED_PATTERN.test(output)
+}
+
+/**
+ * Check if --clear-cache flag is present in command line arguments
+ * @returns {boolean} - True if cache should be cleared
+ */
+function shouldClearCache() {
+    return process.argv.includes("--clear-cache")
+}
+
+/**
+ * Clear cache if --clear-cache flag is present
+ * Call this at the start of scripts that use caching
+ * @returns {boolean} - True if cache was cleared
+ */
+function clearCacheIfRequested() {
+    if (shouldClearCache()) {
+        clearBuildCache()
+        return true
+    }
+    return false
+}
+
+module.exports = {
+    needsBuild,
+    markAsBuilt,
+    wasBuildSuccessful,
+    getCachedBuildOutput,
+    filterBuildErrors,
+    isConfirmedWarningsOnly,
+    clearBuildCache,
+    buildIfNeeded,
+    computeProjectHash,
+    needsFormatCheck,
+    markFormatChecked,
+    getCachedFormatOutput,
+    shouldClearCache,
+    clearCacheIfRequested,
+}

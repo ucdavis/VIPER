@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.RAPS.Models
+namespace Viper.Areas.RAPS.Models
 {
     public class MemberSearchResult
     {

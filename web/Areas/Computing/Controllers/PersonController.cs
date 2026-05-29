@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Computing.Model;
 using Viper.Areas.Computing.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models;
 using Web.Authorization;
 
@@ -30,7 +31,7 @@ namespace Viper.Areas.Computing.Controllers
             {
                 people = people.Where(p => p.Current == 1 || p.Future == 1);
             }
-            if(name != null)
+            if (name != null)
             {
                 people = people.Where(p => p.FirstName.Contains(name) || p.LastName.Contains(name));
             }
@@ -47,7 +48,7 @@ namespace Viper.Areas.Computing.Controllers
         public async Task<ActionResult<PersonSimple>> GetPerson(int personId)
         {
             var p = await context.People.FindAsync(personId);
-            if(p == null)
+            if (p == null)
             {
                 return NotFound();
             }
@@ -58,7 +59,7 @@ namespace Viper.Areas.Computing.Controllers
         [Permission(Allow = "SVMSecure.CATS.BiorenderStudentLookup")]
         public async Task<ActionResult<List<BiorenderStudent>>> GetBiorenderStudentList(List<string> emails)
         {
-            var list = await new BiorenderStudentLookup(new Classes.Utilities.IamApi(httpFactory))
+            var list = await new BiorenderStudentLookup(new IamApi(httpFactory))
                 .GetBiorenderStudentInfo(emails);
 
             return list;

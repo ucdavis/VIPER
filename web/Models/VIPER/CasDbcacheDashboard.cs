@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class CasDbcacheDashboard
+public class CasDbcacheDashboard
 {
     public string CookieId { get; set; } = null!;
 

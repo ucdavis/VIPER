@@ -1,0 +1,414 @@
+/* Base styles extracted from site.css - layout, typography, and non-color styles */
+
+/* Roboto v51 variable font — one file covers all weights 100..900 */
+@font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 100 900;
+    font-stretch: 100%;
+    font-display: swap;
+    src: url("@/assets/fonts/roboto-v51-latin.woff2") format("woff2");
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 100 900;
+    font-stretch: 100%;
+    font-display: swap;
+    src: url("@/assets/fonts/roboto-v51-latin-ext.woff2") format("woff2");
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+        U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Extend Quasar's body font-family cascade with OS emoji fonts so emoji
+   characters render in color using the user's native emoji set (Apple on
+   macOS/iOS, Segoe on Windows, Noto on Android/Linux). */
+body {
+    font-family:
+        "Roboto",
+        -apple-system,
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Noto Color Emoji",
+        sans-serif;
+}
+
+@font-face {
+    font-family: "Material Icons";
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url("@/assets/fonts/material-icons.woff2") format("woff2");
+}
+
+html {
+    font-size: 14px;
+    position: relative;
+    min-height: 100%;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+
+    #mainLayoutHeader {
+        min-height: 86px;
+    }
+
+    #mainLeftDrawer {
+        min-width: 300px;
+    }
+}
+
+body {
+    margin-bottom: 60px;
+}
+
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem #258cfb;
+}
+
+/*Placeholders used when loading*/
+#headerPlaceholder {
+    height: 50px;
+    background-color: var(--ucdavis-blue-100);
+}
+
+#topPlaceholder {
+    height: 50px;
+}
+
+#mainNavPlaceholder {
+    height: 50px;
+    background-color: var(--ucdavis-blue-80);
+}
+
+/*Top nav/header styles*/
+#mainLayoutHeader {
+    background-color: var(--ucdavis-blue-100);
+    /*background-color: white;*/
+}
+
+.mainLayoutViper {
+    font-family: Roboto;
+    font-size: 1.6em !important;
+    font-weight: normal;
+    vertical-align: bottom;
+    margin-left: 0.6em;
+}
+
+.mainLayoutViperPlaceholder {
+    margin-left: 10px;
+    height: 24px;
+}
+
+.mainLayoutViperMode {
+    margin-left: 0.6em;
+    vertical-align: middle;
+}
+
+#topPlaceholder {
+    padding: 0 12px;
+}
+/*
+#topPlaceholder a {
+    margin-top: 4px;
+}
+
+#topPlaceholder .mainLayoutViperMode {
+    margin-top: 10px;
+    margin-left: 2px;
+    height: 24px;
+}
+*/
+
+div.breadcrumbs {
+    font-size: 0.75rem;
+}
+
+#mainLayoutHeaderSections {
+    background-color: var(--ucdavis-gold-70);
+    min-height: 36px;
+    border-bottom: 1px solid silver;
+    /*padding: 0 12px;*/
+}
+
+#mainLayoutHeaderSections .selectedTopNav {
+    /*background-color: #4F7094;*/
+    background-color: var(--ucdavis-gold-40);
+}
+
+#mainLayoutHeaderSections a.q-btn.navLink {
+}
+
+/*Left Nav styles*/
+#leftNavMenu {
+    overflow-x: hidden;
+}
+
+#leftNavMenu h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    line-height: 1.5rem;
+    padding: 0.2rem 0.5rem 0.1rem 0.5rem;
+    font-weight: bold;
+}
+
+#leftNavMenu .leftNavHeader {
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 1rem 0.5rem 0.1rem 0.5rem;
+}
+
+#leftNavMenu .leftNavSubHeader {
+    font-weight: 500;
+    padding-left: 0.5rem;
+}
+
+#leftNavMenu .leftNavSpacer {
+    border: 0;
+}
+
+#leftNavMenu .leftNavLink {
+    padding-left: 0.5rem;
+}
+
+#leftNavMenu .leftNavIndent1 {
+    padding-left: 1.5rem;
+}
+
+#leftNavMenu .leftNavIndent2 {
+    padding-left: 2.5rem;
+}
+
+/* Active state for left nav menu items */
+#leftNavMenu .q-item.q-router-link--active,
+#leftNavMenu .q-item.q-router-link--exact-active {
+    background-color: var(--ucdavis-blue-10);
+    color: var(--q-primary);
+    font-weight: 500;
+}
+
+#leftNavMenu .q-item.q-router-link--active .q-item__label,
+#leftNavMenu .q-item.q-router-link--exact-active .q-item__label {
+    color: var(--q-primary);
+}
+
+/*Footer styles*/
+#footerNavLinks a {
+    text-decoration: none;
+}
+
+#footerNavLinks a:hover {
+    text-decoration: underline;
+}
+
+.sticky-header-table {
+    /* height or max-height is important */
+    height: 600px;
+}
+
+[v-cloak] {
+    display: none;
+}
+
+.q-table__top,
+.q-table__bottom,
+.q-table__middle table thead tr:first-child th {
+    /* bg color is important for th; just specify one */
+    background-color: #eee;
+    white-space: nowrap;
+}
+
+.q-table__container {
+    margin-bottom: 1.5rem;
+}
+
+.sticky-header-table .q-table__middle table thead tr th {
+    position: sticky;
+    z-index: 1;
+}
+
+.sticky-header-table .q-table__middle table thead tr:first-child th {
+    top: 0;
+}
+
+/* this is when the loading indicator appears */
+.q-table--loading thead tr:last-child th {
+    /* height of all previous header rows */
+    top: 48px;
+}
+
+/* prevent scrolling behind sticky top row on focus */
+.sticky-header-table .q-table__middle table tbody {
+    /* height of all previous header rows */
+    scroll-margin-top: 48px;
+}
+
+.material-icons {
+    font-family: "Material Icons";
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Heading Styles */
+.q-dialog h1,
+.q-dialog .text-h1,
+.q-page-container h1,
+.q-page-container .text-h1 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
+.q-dialog h2,
+.q-dialog .text-h2,
+.q-page-container h2,
+.q-page-container .text-h2 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 1rem 0rem;
+    font-weight: bold;
+}
+
+.q-dialog h3,
+.q-dialog .text-h3,
+.q-page-container h3,
+.q-page-container .text-h3 {
+    font-size: 1.2rem;
+    line-height: 1.2rem;
+    margin: 0rem 0rem 0.5rem 0rem;
+    font-weight: bold;
+}
+
+.q-dialog h4,
+.q-dialog .text-h4,
+.q-page-container h4,
+.q-page-container .text-h4 {
+    font-size: 1.1rem;
+    line-height: 1.1rem;
+    margin: 0rem 0rem 0.5rem 0rem;
+    font-weight: bold;
+}
+
+.q-dialog h5,
+.q-dialog .text-h5,
+.q-page-container h5,
+.q-page-container .text-h5 {
+    font-size: 1rem;
+    line-height: 1rem;
+    margin: 0rem 0rem 0.5rem 0rem;
+    font-weight: bold;
+}
+
+.q-dialog h6,
+.q-dialog .text-h6,
+.q-page-container h6,
+.q-page-container .text-h6 {
+    font-size: 1rem;
+    line-height: 1rem;
+    margin: 0rem 0rem 0.5rem 0rem;
+}
+
+.q-avatar .smallPhoto {
+    height: 40px !important;
+    width: 31px !important;
+}
+
+div#directoryResults .q-avatar {
+    height: 111px !important;
+    width: 87px !important;
+}
+
+header .q-avatar {
+    height: 40px !important;
+    width: 31px !important;
+}
+
+/* Skip to content link — visible on focus for keyboard users */
+.skip-to-content {
+    position: absolute;
+    top: -2.5rem;
+    left: 0.5rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--q-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    font-weight: 600;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* Suppress focus outline on main content — useRouteFocus sets focus
+   programmatically for screen reader announcements only */
+#main-content:focus {
+    outline: none;
+}
+
+/* Quasar palette AA contrast overrides (!important required to override Quasar's !important).
+   Kept in sync with web/wwwroot/css/site.css so Razor and SPA render the same color. */
+.text-grey {
+    color: var(--ucdavis-black-60, #666666) !important;
+}
+
+.bg-grey {
+    background-color: var(--ucdavis-black-60, #666666) !important;
+}
+
+/* Prevent Quasar from fading inactive tab text below WCAG contrast */
+.q-tabs.tabs-no-fade .q-tab.q-tab--inactive {
+    opacity: 1;
+}
+
+/* Override Quasar's 0.6 opacity on input clear buttons */
+.q-field .q-field__focusable-action {
+    opacity: 1;
+}
+
+/* Ensure q-tree expand/collapse arrows meet WCAG contrast requirements */
+.q-tree .q-tree__arrow {
+    color: var(--ucdavis-blue-70);
+    font-size: 1.4rem;
+}
+
+/* Screen reader only — visually hidden but accessible to assistive technology */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

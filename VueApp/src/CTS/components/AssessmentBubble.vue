@@ -1,77 +1,79 @@
 <script setup lang="ts">
-    import { defineProps, defineEmits, ref, watch } from 'vue'
+import { computed } from "vue"
 
-    const props = defineProps({
-        maxValue: {
-            type: Number,
-            required: true
-        },
-        value: {
-            type: Number,
-            required: true
-        },
-        text: {
-            type: String
-        },
-        type: {
-            type: String,
-            default: "bubble"
-        },
-        id: {
-            type: Number,
-            required: false
-        },
-    })
+const props = withDefaults(
+    defineProps<{
+        maxValue: number
+        value: number
+        levelName?: string
+        text?: string
+        id?: number
+    }>(),
+    {
+        levelName: "",
+        text: undefined,
+        id: undefined,
+    },
+)
 
-    const emit = defineEmits(["bubbleClick"])
+const emit = defineEmits<{
+    "bubble-click": [id: number]
+}>()
 
-    const classes5 = ["assessmentBubble5_1", "assessmentBubble5_2", "assessmentBubble5_3", "assessmentBubble5_4", "assessmentBubble5_5"]
-    const classes5_closer = ["assessmentBubbleCloser5_1", "assessmentBubbleCloser5_2", "assessmentBubbleCloser5_3", "assessmentBubbleCloser5_4", "assessmentBubbleCloser5_5"]
-    const clockIcons5 = ["sym_o_clock_loader_10", "sym_o_clock_loader_40", "sym_o_clock_loader_60", "sym_o_clock_loader_80", "circle"]
-    const barIcons5 = ["horizontal_rule", "density_large", "density_medium", "desnity_small", "format_align_justify"]
-    
-    const bubbleClass = ref("")
-    const bubbleIcon = ref("")
+const classes5 = [
+    "assessmentBubble5_1",
+    "assessmentBubble5_2",
+    "assessmentBubble5_3",
+    "assessmentBubble5_4",
+    "assessmentBubble5_5",
+]
 
-    watch(props, () => {
-        setBubbleAttrs()
-    })
+const isValidValue = computed(() => props.maxValue === 5 && props.value > 0 && props.value <= 5)
 
-    function clickBubble() {
-        if (props.id !== undefined) {
-            emit("bubbleClick", props.id)
-        }
+const bubbleClasses = computed(() => {
+    const classes: string[] = ["assessmentBubble"]
+    if (isValidValue.value) classes.push(classes5[props.value - 1] ?? "")
+    return classes
+})
+
+// Decorative span variant: when no levelName is provided the bubble carries no
+// meaning for assistive tech, so drop the role="img" + empty aria-label and
+// treat it as purely decorative (aria-hidden). The clickable variant always
+// has a meaningful action label so it never falls through to this branch.
+const spanIsDecorative = computed(() => props.levelName.length === 0)
+
+function clickBubble() {
+    if (props.id !== undefined) {
+        emit("bubble-click", props.id)
     }
-
-    function setBubbleAttrs() {
-        if (props.maxValue == 5 && props.value <= 5 && props.value > 0) {
-            switch(props.type) {
-                case "clock":
-                    bubbleIcon.value = clockIcons5[props.value - 1]
-                    bubbleClass.value = classes5_closer[props.value - 1]
-                    break;
-                case "bar":
-                    bubbleIcon.value = barIcons5[props.value - 1]
-                    bubbleClass.value = classes5_closer[props.value - 1]
-                    break;
-                case "bubble":
-                default:
-                    bubbleIcon.value = "circle"
-                    bubbleClass.value = classes5[props.value - 1]
-                    break;
-
-            }
-        }
-    }
-
-    setBubbleAttrs()
+}
 </script>
 <template>
-    <q-icon :name="bubbleIcon" size="sm" :class="'assessmentIcon cursor-pointer ' + bubbleClass" @click="clickBubble">
-        <q-tooltip style="white-space:pre-wrap;" class="text-body2">
-            <strong>Click to open details</strong>
-            <br />
-            {{ props.text }}
+    <button
+        v-if="id !== undefined"
+        type="button"
+        class="assessmentBubbleTrigger"
+        :aria-label="levelName ? `${levelName}, open assessment details` : 'Open assessment details'"
+        @click="clickBubble"
+    >
+        <span
+            :class="bubbleClasses"
+            aria-hidden="true"
+        />
+        <q-tooltip class="text-body2">
+            <div><strong>Click to open details</strong></div>
+            <div class="assessmentBubbleTooltipText">{{ props.text }}</div>
         </q-tooltip>
-    </q-icon>
+    </button>
+    <span
+        v-else-if="spanIsDecorative"
+        :class="bubbleClasses"
+        aria-hidden="true"
+    />
+    <span
+        v-else
+        :class="bubbleClasses"
+        role="img"
+        :aria-label="levelName"
+    />
 </template>

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Viper.Models.AAUD;
 
 namespace Viper.Views.Shared.Components.MiniNav
@@ -7,10 +7,6 @@ namespace Viper.Views.Shared.Components.MiniNav
     public class MiniNavViewComponent : ViewComponent
     {
         private readonly string oldViperURL = HttpHelper.GetOldViperRootURL();
-
-        public MiniNavViewComponent()
-        {
-        }
 
         public async Task<IViewComponentResult> InvokeAsync(AaudUser user)
         {

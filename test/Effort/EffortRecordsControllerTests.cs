@@ -1,0 +1,545 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+using NSubstitute.ReturnsExtensions;
+using NSubstitute.ExceptionExtensions;
+using Viper.Areas.Effort.Controllers;
+using Viper.Areas.Effort.Exceptions;
+using Viper.Areas.Effort.Models.DTOs.Requests;
+using Viper.Areas.Effort.Models.DTOs.Responses;
+using Viper.Areas.Effort.Services;
+
+namespace Viper.test.Effort;
+
+/// <summary>
+/// Unit tests for EffortRecordsController API endpoints.
+/// </summary>
+public sealed class EffortRecordsControllerTests
+{
+    private readonly IEffortRecordService _recordServiceMock;
+    private readonly IEffortPermissionService _permissionServiceMock;
+    private readonly ILogger<EffortRecordsController> _loggerMock;
+    private readonly EffortRecordsController _controller;
+
+    private const int TestRecordId = 1;
+    private const int TestPersonId = 100;
+    private const int TestTermCode = 202410;
+
+    public EffortRecordsControllerTests()
+    {
+        _recordServiceMock = Substitute.For<IEffortRecordService>();
+        _permissionServiceMock = Substitute.For<IEffortPermissionService>();
+        _loggerMock = Substitute.For<ILogger<EffortRecordsController>>();
+
+        _controller = new EffortRecordsController(
+            _recordServiceMock,
+            _permissionServiceMock,
+            _loggerMock);
+
+        SetupControllerContext();
+    }
+
+    private void SetupControllerContext()
+    {
+        var serviceProvider = new ServiceCollection().BuildServiceProvider();
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                RequestServices = serviceProvider
+            }
+        };
+    }
+
+    private static InstructorEffortRecordDto CreateTestRecord(int id = TestRecordId) => new()
+    {
+        Id = id,
+        CourseId = 1,
+        PersonId = TestPersonId,
+        TermCode = TestTermCode,
+        EffortType = "LEC",
+        Role = 1,
+        RoleDescription = "Instructor of Record",
+        Hours = 40,
+        Course = new CourseDto
+        {
+            Id = 1,
+            Crn = "12345",
+            TermCode = TestTermCode,
+            SubjCode = "VET",
+            CrseNumb = "410",
+            SeqNumb = "01",
+            Enrollment = 20,
+            Units = 4,
+            CustDept = "VME"
+        }
+    };
+
+    #region GetRecord Tests
+
+    [Fact]
+    public async Task GetRecord_ReturnsOk_WhenRecordExistsAndAuthorized()
+    {
+        // Arrange
+        var record = CreateTestRecord();
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(record);
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+
+        // Act
+        var result = await _controller.GetRecord(TestRecordId);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedRecord = Assert.IsType<InstructorEffortRecordDto>(okResult.Value);
+        Assert.Equal(TestRecordId, returnedRecord.Id);
+    }
+
+    [Fact]
+    public async Task GetRecord_ReturnsNotFound_WhenRecordDoesNotExist()
+    {
+        // Arrange
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
+
+        // Act
+        var result = await _controller.GetRecord(999);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetRecord_ReturnsNotFound_WhenUserNotAuthorized()
+    {
+        // Arrange
+        var record = CreateTestRecord();
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(record);
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _controller.GetRecord(TestRecordId);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    #endregion
+
+    #region CreateRecord Tests
+
+    [Fact]
+    public async Task CreateRecord_ReturnsCreatedAtAction_WhenSuccessful()
+    {
+        // Arrange
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            CourseId = 1,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+        var record = CreateTestRecord();
+
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Returns((record, (string?)null));
+
+        // Act
+        var result = await _controller.CreateRecord(request);
+
+        // Assert
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+        Assert.Equal(nameof(_controller.GetRecord), createdResult.ActionName);
+    }
+
+    [Fact]
+    public async Task CreateRecord_ReturnsNotFound_WhenUserNotAuthorized()
+    {
+        // Arrange - CanEditPersonEffortAsync returns false when user lacks permission
+        // OR when term is not editable (both checked by CanEditPersonEffortAsync)
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            CourseId = 1,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _controller.CreateRecord(request);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task CreateRecord_ReturnsBadRequest_WhenInvalidOperationException()
+    {
+        // Arrange
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            CourseId = 1,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Duplicate record"));
+
+        // Act
+        var result = await _controller.CreateRecord(request);
+
+        // Assert
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Equal("Duplicate record", badRequest.Value);
+    }
+
+    [Fact]
+    public async Task CreateRecord_ReturnsBadRequest_WhenDbUpdateException()
+    {
+        // Arrange
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = TestPersonId,
+            TermCode = TestTermCode,
+            CourseId = 1,
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("DB error"));
+
+        // Act
+        var result = await _controller.CreateRecord(request);
+
+        // Assert
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Contains("Failed to create", badRequest.Value?.ToString());
+    }
+
+    #endregion
+
+    #region UpdateRecord Tests
+
+    [Fact]
+    public async Task UpdateRecord_ReturnsOk_WhenSuccessful()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30
+        };
+
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.UpdateEffortRecordAsync(TestRecordId, request, Arg.Any<CancellationToken>()).Returns((existingRecord, (string?)null));
+
+        // Act
+        var result = await _controller.UpdateRecord(TestRecordId, request);
+
+        // Assert
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateRecord_ReturnsNotFound_WhenRecordDoesNotExist()
+    {
+        // Arrange
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30
+        };
+
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
+
+        // Act
+        var result = await _controller.UpdateRecord(999, request);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateRecord_ReturnsNotFound_WhenUserNotAuthorized()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30
+        };
+
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _controller.UpdateRecord(TestRecordId, request);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateRecord_ReturnsConflict_WhenConcurrencyConflict()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+        var request = new UpdateEffortRecordRequest
+        {
+            EffortTypeId = "LAB",
+            RoleId = 2,
+            EffortValue = 30,
+            OriginalModifiedDate = DateTime.Now.AddHours(-1)
+        };
+
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.UpdateEffortRecordAsync(TestRecordId, request, Arg.Any<CancellationToken>()).Throws(new ConcurrencyConflictException(TestRecordId));
+
+        // Act
+        var result = await _controller.UpdateRecord(TestRecordId, request);
+
+        // Assert
+        var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.NotNull(conflictResult.Value);
+    }
+
+    #endregion
+
+    #region DeleteRecord Tests
+
+    [Fact]
+    public async Task DeleteRecord_ReturnsNoContent_WhenSuccessful()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.DeleteEffortRecordAsync(TestRecordId, Arg.Any<DateTime?>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        // Act
+        var result = await _controller.DeleteRecord(TestRecordId, null);
+
+        // Assert
+        Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteRecord_ReturnsNotFound_WhenRecordDoesNotExist()
+    {
+        // Arrange
+        _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
+
+        // Act
+        var result = await _controller.DeleteRecord(999, null);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteRecord_ReturnsNotFound_WhenUserNotAuthorized()
+    {
+        // Arrange - CanEditPersonEffortAsync returns false when user lacks permission
+        // OR when term is not editable (both checked by CanEditPersonEffortAsync)
+        var existingRecord = CreateTestRecord();
+
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _controller.DeleteRecord(TestRecordId, null);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteRecord_ReturnsConflict_WhenConcurrencyConflict()
+    {
+        // Arrange
+        var existingRecord = CreateTestRecord();
+        var staleModifiedDate = DateTime.Now.AddHours(-1);
+
+        _recordServiceMock.GetEffortRecordAsync(TestRecordId, Arg.Any<CancellationToken>()).Returns(existingRecord);
+        _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.DeleteEffortRecordAsync(TestRecordId, staleModifiedDate, Arg.Any<CancellationToken>()).Throws(new ConcurrencyConflictException(TestRecordId));
+
+        // Act
+        var result = await _controller.DeleteRecord(TestRecordId, staleModifiedDate);
+
+        // Assert
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    #endregion
+
+    #region GetAvailableCourses Tests
+
+    [Fact]
+    public async Task GetAvailableCourses_ReturnsOk_WhenAuthorized()
+    {
+        // Arrange
+        var courses = new AvailableCoursesDto
+        {
+            ExistingCourses = new List<CourseOptionDto>(),
+            AllCourses = new List<CourseOptionDto>
+            {
+                new() { Id = 1, SubjCode = "VET", CrseNumb = "410", SeqNumb = "01", Label = "VET 410-01 (4 units)" }
+            }
+        };
+
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+        _recordServiceMock.GetAvailableCoursesAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(courses);
+
+        // Act
+        var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedCourses = Assert.IsType<AvailableCoursesDto>(okResult.Value);
+        Assert.Single(returnedCourses.AllCourses);
+    }
+
+    [Fact]
+    public async Task GetAvailableCourses_ReturnsNotFound_WhenUserNotAuthorized()
+    {
+        // Arrange
+        _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode);
+
+        // Assert
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+    }
+
+    #endregion
+
+    #region GetEffortTypes Tests
+
+    [Fact]
+    public async Task GetEffortTypes_ReturnsOk_WithEffortTypeList()
+    {
+        // Arrange
+        var effortTypes = new List<EffortTypeOptionDto>
+        {
+            new() { Id = "LEC", Description = "Lecture" },
+            new() { Id = "LAB", Description = "Laboratory" }
+        };
+
+        _recordServiceMock.GetEffortTypeOptionsAsync(Arg.Any<CancellationToken>()).Returns(effortTypes);
+
+        // Act
+        var result = await _controller.GetEffortTypes();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedTypes = Assert.IsAssignableFrom<List<EffortTypeOptionDto>>(okResult.Value);
+        Assert.Equal(2, returnedTypes.Count);
+    }
+
+    #endregion
+
+    #region GetRoles Tests
+
+    [Fact]
+    public async Task GetRoles_ReturnsOk_WithRoleList()
+    {
+        // Arrange
+        var roles = new List<RoleOptionDto>
+        {
+            new() { Id = 1, Description = "Instructor of Record" },
+            new() { Id = 2, Description = "Co-Instructor" }
+        };
+
+        _recordServiceMock.GetRoleOptionsAsync(Arg.Any<CancellationToken>()).Returns(roles);
+
+        // Act
+        var result = await _controller.GetRoles();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var returnedRoles = Assert.IsAssignableFrom<List<RoleOptionDto>>(okResult.Value);
+        Assert.Equal(2, returnedRoles.Count);
+    }
+
+    #endregion
+
+    #region CanEditTerm Tests
+
+    [Fact]
+    public async Task CanEditTerm_ReturnsTrue_WhenTermEditable()
+    {
+        // Arrange
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
+
+        // Act
+        var result = await _controller.CanEditTerm(TestTermCode);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True((bool)okResult.Value!);
+    }
+
+    [Fact]
+    public async Task CanEditTerm_ReturnsFalse_WhenTermNotEditable()
+    {
+        // Arrange
+        _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _controller.CanEditTerm(TestTermCode);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.False((bool)okResult.Value!);
+    }
+
+    #endregion
+
+    #region UsesWeeks Tests
+
+    [Fact]
+    public void UsesWeeks_ReturnsCorrectValue()
+    {
+        // Arrange
+        _recordServiceMock.UsesWeeks("CLI", TestTermCode).Returns(true);
+
+        // Act
+        var result = _controller.UsesWeeks("CLI", TestTermCode);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True((bool)okResult.Value!);
+    }
+
+    #endregion
+}

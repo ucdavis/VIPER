@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Areas.CMS.Models;
+using Microsoft.EntityFrameworkCore;
 using Viper.Models.VIPER;
+using File = Viper.Models.VIPER.File;
 
 namespace Viper.Classes.SQLContext;
 
@@ -35,7 +37,7 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<FieldType> FieldTypes { get; set; }
 
-    public virtual DbSet<Viper.Models.VIPER.File> Files { get; set; }
+    public virtual DbSet<File> Files { get; set; }
 
     public virtual DbSet<FileAudit> FileAudits { get; set; }
 
@@ -87,11 +89,11 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<SecureMediaAudit> SecureMediaAudits { get; set; }
 
-    public virtual DbSet<SessionTimeout> SessionTimeouts{ get; set; }
+    public virtual DbSet<SessionTimeout> SessionTimeouts { get; set; }
 
     public virtual DbSet<SlowPage> SlowPages { get; set; }
 
-    public virtual DbSet<Viper.Models.VIPER.System> Systems { get; set; }
+    public virtual DbSet<Models.VIPER.System> Systems { get; set; }
 
     public virtual DbSet<TbSecuremediamanager> TbSecuremediamanagers { get; set; }
 
@@ -109,16 +111,13 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<WorkflowStageVersion> WorkflowStageVersions { get; set; }
 
+    public DbSet<LinkCollection> LinkCollections { get; set; }
+    public DbSet<LinkCollectionTagCategory> LinkCollectionTagCategories { get; set; }
+    public DbSet<Link> Links { get; set; }
+    public DbSet<LinkTag> LinkTags { get; set; }
+
     /* users */
     public virtual DbSet<Person> People { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:VIPER"]);
-        }
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -337,13 +336,29 @@ public partial class VIPERContext : DbContext
                 .HasColumnName("publicEditAllowed");
         });
 
-        modelBuilder.Entity<Viper.Models.VIPER.File>(entity =>
+        modelBuilder.Entity<File>(entity =>
         {
             entity.HasKey(e => e.FileGuid);
 
             entity.ToTable("files");
 
             entity.HasIndex(e => e.FriendlyName, "UX_files_friendlyName").IsUnique();
+
+            // Covering index for /CMS/Files?oldURL=... lookups. See VPR-143.
+            entity.HasIndex(e => e.OldUrl, "IX_files_oldURL")
+                .IncludeProperties(e => new
+                {
+                    e.FilePath,
+                    e.Folder,
+                    e.FriendlyName,
+                    e.Encrypted,
+                    e.Key,
+                    e.Description,
+                    e.AllowPublicAccess,
+                    e.ModifiedOn,
+                    e.ModifiedBy,
+                    e.DeletedOn,
+                });
 
             entity.Property(e => e.FileGuid)
                 .ValueGeneratedNever()
@@ -357,6 +372,7 @@ public partial class VIPERContext : DbContext
                 .HasColumnName("description");
             entity.Property(e => e.Encrypted).HasColumnName("encrypted");
             entity.Property(e => e.FilePath)
+                .HasMaxLength(256)
                 .IsUnicode(false)
                 .HasColumnName("filePath");
             entity.Property(e => e.Folder)
@@ -379,6 +395,7 @@ public partial class VIPERContext : DbContext
                 .HasColumnType("datetime")
                 .HasColumnName("modifiedOn");
             entity.Property(e => e.OldUrl)
+                .HasMaxLength(256)
                 .IsUnicode(false)
                 .HasColumnName("oldURL");
         });
@@ -1076,7 +1093,7 @@ public partial class VIPERContext : DbContext
                 .IsUnicode(false);
         });
 
-        modelBuilder.Entity<Viper.Models.VIPER.System>(entity =>
+        modelBuilder.Entity<Models.VIPER.System>(entity =>
         {
             entity.HasNoKey();
 
@@ -1315,6 +1332,67 @@ public partial class VIPERContext : DbContext
                 .HasConstraintName("FK_WorkflowStageVersion_WorkflowStage");
         });
 
+        // LinkCollection configuration
+        modelBuilder.Entity<LinkCollection>(entity =>
+        {
+            entity.HasKey(e => e.LinkCollectionId);
+            entity.Property(e => e.LinkCollectionId).UseIdentityColumn();
+            entity.Property(e => e.LinkCollectionName).IsRequired().HasMaxLength(100);
+        });
+
+        // LinkCollectionTagCategory configuration
+        modelBuilder.Entity<LinkCollectionTagCategory>(entity =>
+        {
+            entity.HasKey(e => e.LinkCollectionTagCategoryId);
+            entity.Property(e => e.LinkCollectionTagCategoryId).UseIdentityColumn();
+            entity.Property(e => e.LinkCollectionTagCategoryName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SortOrder).IsRequired();
+
+            entity.HasOne(e => e.LinkCollection)
+                .WithMany(lc => lc.LinkCollectionTagCategories)
+                .HasForeignKey(e => e.LinkCollectionId)
+                .HasConstraintName("FK_LinkCollectionTagCategory_LinkCollection")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Link configuration
+        modelBuilder.Entity<Link>(entity =>
+        {
+            entity.HasKey(e => e.LinkId);
+            entity.Property(e => e.LinkId).UseIdentityColumn();
+            entity.Property(e => e.Url).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasColumnType("VARCHAR(MAX)");
+            entity.Property(e => e.SortOrder).IsRequired();
+
+            entity.HasOne(e => e.LinkCollection)
+                .WithMany(lc => lc.Links)
+                .HasForeignKey(e => e.LinkCollectionId)
+                .HasConstraintName("FK_Link_LinkCollection")
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // LinkTag configuration
+        modelBuilder.Entity<LinkTag>(entity =>
+        {
+            entity.HasKey(e => e.LinkTagId);
+            entity.Property(e => e.LinkTagId).UseIdentityColumn();
+            entity.Property(e => e.SortOrder).IsRequired();
+            entity.Property(e => e.Value).HasMaxLength(50);
+
+            entity.HasOne(e => e.Link)
+                .WithMany(l => l.LinkTags)
+                .HasForeignKey(e => e.LinkId)
+                .HasConstraintName("FK_LinkTag_Link")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.LinkCollectionTagCategory)
+                .WithMany(ltc => ltc.LinkTags)
+                .HasForeignKey(e => e.LinkCollectionTagCategoryId)
+                .HasConstraintName("FK_LinkTag_LinkCollectionTagCategory")
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
         /* users */
         modelBuilder.Entity<Person>(entity =>
         {
@@ -1328,7 +1406,6 @@ public partial class VIPERContext : DbContext
         OnModelCreatingStudents(modelBuilder);
     }
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     partial void OnModelCreatingCTS(ModelBuilder modelBuilder);
     partial void OnModelCreatingStudents(ModelBuilder modelBuilder);
 }

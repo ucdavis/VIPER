@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class DlGradFlag
+public class DlGradFlag
 {
     public string GradFlagsPKey { get; set; } = null!;
 

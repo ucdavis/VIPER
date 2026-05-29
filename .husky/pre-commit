@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# Check if this is a merge commit or rebase
+if git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1; then
+    echo "🔀 Merge commit detected - skipping linting, running tests and build verification..."
+    # Build first to avoid race condition between TEST and VERIFY writing to same output dir
+    echo "🔨 Building .NET projects..."
+    node scripts/build-dotnet.js || exit 1
+    node scripts/run-parallel.js \
+        "TEST:npm run test" \
+        "VERIFY:npm run verify:build"
+    exit $?
+elif [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
+    echo "🔄 Rebase in progress - skipping pre-commit checks..."
+    exit 0
+fi
+
+echo "🔍 Running pre-commit checks..."
+
+# Suppress verbose cache logging during precommit
+export QUIET_CACHE=1
+
+# Get staged files (excluding deleted files)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d)
+export STAGED_FILES
+
+# Phase 1: Build .NET (required for tests and linting)
+# Always build since tests always run and need the build
+echo "🔨 Building .NET projects..."
+node scripts/build-dotnet.js || exit 1
+
+# Phase 2: Run all validation in parallel (suppress output, show only on failure)
+echo "🧪 Running lint, tests, and build verification in parallel..."
+node scripts/run-parallel.js \
+    "LINT:node scripts/precommit-lint.js" \
+    "TEST:npm run test" \
+    "VERIFY:npm run verify:build"
+exit $?

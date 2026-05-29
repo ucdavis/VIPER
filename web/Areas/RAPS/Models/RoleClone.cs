@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.RAPS.Models
+namespace Viper.Areas.RAPS.Models
 {
     public class RoleClone
     {
@@ -14,7 +14,7 @@
         public RoleMemberCreateUpdate? Target { get; set; }
 
         public string Role { get; set; } = null!;
-        public int RoleId 
+        public int RoleId
         {
             get
             {
@@ -36,7 +36,8 @@
             }
         }
 
-        public string ActionText { 
+        public string ActionText
+        {
             get
             {
                 return Action switch
@@ -46,7 +47,7 @@
                     CloneAction.Delete => "Role will be removed",
                     _ => ""
                 };
-            } 
+            }
         }
     }
 }

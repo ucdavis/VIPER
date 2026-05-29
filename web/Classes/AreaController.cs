@@ -1,14 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Linq;
+using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Classes
 {
     public class AreaController : Controller
     {
-        public AreaController() { }
-
         /// <summary>
         /// For Area Controller actions, update the session timeout in the database
         /// </summary>
@@ -18,11 +16,12 @@ namespace Viper.Classes
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
-            SessionTimeoutService.UpdateSessionTimeout();
+            var viperContext = context.HttpContext.RequestServices.GetRequiredService<VIPERContext>();
+            SessionTimeoutService.UpdateSessionTimeout(viperContext);
             await next();
         }
 
-        protected void ConvertNavLinksForDevelopment(NavMenu menu)
+        protected static void ConvertNavLinksForDevelopment(NavMenu menu)
         {
             if (HttpHelper.Environment?.EnvironmentName == "Development" && menu?.MenuItems != null)
             {

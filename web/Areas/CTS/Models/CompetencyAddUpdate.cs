@@ -1,13 +1,13 @@
-﻿namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Models
 {
     public class CompetencyAddUpdate
     {
         public int? CompetencyId { get; set; }
-        public int DomainId { get; set; }
+        public required int DomainId { get; set; }
         public int? ParentId { get; set; }
-        public string Number { get; set; } = null!;
-        public string Name { get; set; } = null!;
+        public required string Number { get; set; }
+        public required string Name { get; set; }
         public string? Description { get; set; }
-        public bool CanLinkToStudent { get; set; }
+        public required bool CanLinkToStudent { get; set; }
     }
 }

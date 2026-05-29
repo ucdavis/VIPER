@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class VwAdVetstaff
+public class VwAdVetstaff
 {
     public string? LastName { get; set; }
 

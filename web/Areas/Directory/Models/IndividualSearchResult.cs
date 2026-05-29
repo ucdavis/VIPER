@@ -1,7 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
-using Viper.Areas.Directory.Services;
+using Microsoft.EntityFrameworkCore;
+using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
@@ -22,12 +21,12 @@ namespace Viper.Areas.Directory.Models
         public string? DisplayMiddleName { get; set; } = string.Empty;
         public string DisplayFullName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public bool CurrentStudent { get; set; } = false;
-        public bool FutureStudent { get; set; } = false;
-        public bool CurrentEmployee { get; set; } = false;
-        public bool FutureEmployee { get; set; } = false;
-        public int? StudentTerm { get; set; } = null!;
-        public int? EmployeeTerm { get; set; } = null!;
+        public bool CurrentStudent { get; set; }
+        public bool FutureStudent { get; set; }
+        public bool CurrentEmployee { get; set; }
+        public bool FutureEmployee { get; set; }
+        public int? StudentTerm { get; set; }
+        public int? EmployeeTerm { get; set; }
         public string? PpsId { get; set; } = string.Empty;
         public string? StudentPKey { get; set; } = string.Empty;
         public string? EmployeePKey { get; set; } = string.Empty;
@@ -36,17 +35,17 @@ namespace Viper.Areas.Directory.Models
         public int Current { get; set; } = -1;
         public int Future { get; set; } = -1;
         public string? IamId { get; set; } = string.Empty;
-        public bool? Ross { get; set; } = null!;
-        public DateTime? Added { get; set; } = null!;
-        public string? Phone { get; set; } = null!;
+        public bool? Ross { get; set; }
+        public DateTime? Added { get; set; }
+        public string? Phone { get; set; }
         public string? Nextel { get; set; } = null!;
         public string? LDPager { get; set; } = null!;
-        public string? Mobile { get; set; } = null!;
-        public string? PostalAddress { get; set; } = null!;
-        public string? UCDAffiliation { get; set; } = null!;
-        public string? UserName { get; set; } = null!;
-        public bool? SVM { get; set; } = null!;
-        public string? originalObject { get; set; } = null!;
+        public string? Mobile { get; set; }
+        public string? PostalAddress { get; set; }
+        public string? UCDAffiliation { get; set; }
+        public string? UserName { get; set; }
+        public bool? SVM { get; set; }
+        public string? originalObject { get; set; }
 
         public IndividualSearchResult() { }
 
@@ -55,11 +54,12 @@ namespace Viper.Areas.Directory.Models
         {
             SVM = false;
             originalObject = "";
-            if (aaudUser != null) {
+            if (aaudUser != null)
+            {
                 MothraId = aaudUser.MothraId;
                 LoginId = aaudUser.LoginId;
                 Email = aaudUser.MailId;
-                MailId = aaudUser.MailId?.Split("@").First();
+                MailId = aaudUser.MailId?.Split("@")[0];
                 LastName = aaudUser.LastName;
                 FirstName = aaudUser.FirstName;
                 MiddleName = aaudUser.MiddleName;
@@ -87,7 +87,7 @@ namespace Viper.Areas.Directory.Models
             }
             if (ldapUserContact != null)
             {
-                // displayname=Francisco Javier Acosta,ucdPersonAffiliation=student:undergraduate,ucdPersonUUID=02198608,mail=facosta@ucdavis.edu,ucdPersonPIDM=3817514,ucdStudentSID=921084299,sn=Acosta,givenName=Francisco,employeeNumber=10665044,ucdStudentLevel=Sophomore,title=STDT 2,ucdPersonIAMID=1000459572,uid=fcobay04,ou=STUDENT HOUSING DINING SVCS
+                // displayname=Jane Doe,ucdPersonAffiliation=student:undergraduate,ucdPersonUUID=00000001,mail=jdoe@ucdavis.edu,ucdPersonPIDM=1234567,ucdStudentSID=900000001,sn=Doe,givenName=Jane,employeeNumber=10000001,ucdStudentLevel=Sophomore,title=STDT 2,ucdPersonIAMID=1000000001,uid=jdoe,ou=STUDENT HOUSING DINING SVCS
                 DisplayFullName = ldapUserContact.DisplayName;
                 FirstName = ldapUserContact.GivenName;
                 MiddleName = ldapUserContact.MiddleName;
@@ -97,7 +97,7 @@ namespace Viper.Areas.Directory.Models
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
                 Email = ldapUserContact.Mail;
-                MailId = ldapUserContact.Mail?.Split("@").First();
+                MailId = ldapUserContact.Mail?.Split("@")[0];
                 UserName = ldapUserContact.Uid;
                 PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
@@ -113,16 +113,25 @@ namespace Viper.Areas.Directory.Models
             }
 
 
-            using (var context = new Classes.SQLContext.AAUDContext())
+        }
+
+        /// <summary>
+        /// Looks up the email host from the Mothra linked server using the MailId.
+        /// Must be called after construction with an injected AAUDContext.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        public void LookupEmailHost(AAUDContext context)
+        {
+            if (MailId != null)
             {
-                if (MailId != null)
+                // Sanitize MailId to prevent SQL injection in OPENQUERY (which doesn't support parameters)
+                var safeMailId = MailId.Replace("'", "''");
+                var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{safeMailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')";
+                var results = context.Database.SqlQueryRaw<string>(query).ToList();
+                foreach (var r in results)
                 {
-                    var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{MailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')".ToString();
-                    var results = context.Database.SqlQuery<string>(FormattableStringFactory.Create(query)).ToList();
-                    foreach (var r in results)
-                    {
-                        EmailHost = r.Split("@").Last();
-                    }
+                    var parts = r.Split("@");
+                    EmailHost = parts[^1];
                 }
             }
         }

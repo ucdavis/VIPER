@@ -1,4 +1,3 @@
-﻿using System.Data;
 using System.Linq.Expressions;
 using Viper.Models.RAPS;
 
@@ -30,17 +29,17 @@ namespace Viper.Areas.RAPS.Services
 
         public bool RoleBelongsToInstance(string instance, TblRole role)
         {
-            return _RAPSSecurityService.RoleBelongsToInstance(instance, role);
+            return RAPSSecurityService.RoleBelongsToInstance(instance, role);
         }
 
         public bool PermissionBelongsToInstance(string instance, TblPermission permission)
         {
-            return _RAPSSecurityService.PermissionBelongsToInstance(instance, permission);
+            return RAPSSecurityService.PermissionBelongsToInstance(instance, permission);
         }
 
         public bool PermissionBelongsToInstance(string instance, string permission)
         {
-            return _RAPSSecurityService.PermissionBelongsToInstance(instance, permission);
+            return RAPSSecurityService.PermissionBelongsToInstance(instance, permission);
         }
 
         public bool IsAllowedTo(string action, string? Instance)
@@ -62,7 +61,7 @@ namespace Viper.Areas.RAPS.Services
         {
             return _RAPSSecurityService.GetControlledRoleIds(userId);
         }
-        
+
         public string GetDefaultInstanceForUser()
         {
             return _RAPSSecurityService.GetDefaultInstanceForUser();

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class SlowPage
+public class SlowPage
 {
     public int Id { get; set; }
 

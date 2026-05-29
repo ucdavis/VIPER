@@ -1,0 +1,17 @@
+{
+  "watchOptions": {
+    "suppressBrowserRefresh": true,
+    "suppressLaunchBrowser": true,
+    "suppressHotReload": false,
+    "rudeEditAction": "restart",
+    "ignorePatterns": [
+      "**/wwwroot/**",
+      "**/bin/**",
+      "**/obj/**",
+      "**/*.tmp",
+      "**/.git/**",
+      "**/node_modules/**",
+      "**/VueApp/**"
+    ]
+  }
+}

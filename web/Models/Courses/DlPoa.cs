@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.Courses;
 
-public partial class DlPoa
+public class DlPoa
 {
     public string PoaPkey { get; set; } = null!;
 

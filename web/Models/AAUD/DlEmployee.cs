@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class DlEmployee
+public class DlEmployee
 {
     public string EmpPKey { get; set; } = null!;
 

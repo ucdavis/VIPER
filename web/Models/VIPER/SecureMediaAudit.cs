@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class SecureMediaAudit
+public class SecureMediaAudit
 {
     public int Id { get; set; }
 

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class PageToFormField
+public class PageToFormField
 {
     public int PageToFormFieldId { get; set; }
 

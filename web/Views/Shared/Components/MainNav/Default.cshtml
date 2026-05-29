@@ -8,14 +8,14 @@
     {
         if (tabLink[0] == "https://ucdsvm.knowledgeowl.com/help")
         {
-            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" class="q-px-md text-primary" v-cloak>
+            <q-btn flat href="@Url.Content(tabLink[0])" icon="help" aria-label="Help" class="q-px-md text-primary" v-cloak>
                 <q-tooltip>Help</q-tooltip>
             </q-btn>
             <hr class="q-separator q-separator--vertical q-separator--dark" aria-orientation="vertical">
         }
         else
         {
-            <a class="q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-medium navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
+            <a class="q-btn q-btn--flat q-btn--actionable q-btn--no-uppercase q-hoverable q-px-md text-primary text-weight-regular navLink @(tabLink[1] == (string)(ViewData["SelectedTopNav"] ?? "") ? " selectedTopNav" : "")"
                href="@Url.Content(tabLink[0])">
                 <span class="q-focus-helper"></span>
                 <span class="q-btn__content" style="padding-top:2px">

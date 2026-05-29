@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+
+const { execFileSync } = require("node:child_process")
+const path = require("node:path")
+const fs = require("node:fs")
+const { createLogger } = require("./lib/script-utils")
+const {
+    needsBuild,
+    markAsBuilt,
+    wasBuildSuccessful,
+    getCachedBuildOutput,
+    filterBuildErrors,
+} = require("./lib/build-cache")
+
+const { env } = process
+const logger = createLogger("TEST")
+
+// Uses --artifacts-path for full isolation from dev server (avoids file lock conflicts)
+const MAX_BUILD_BUFFER = 20_971_520 // 20 MB for .NET build output
+const artifactsPath = ".artifacts-precommit"
+const projectPath = "test"
+const projectName = "Viper.test.csproj"
+const precommitDll = path.join(artifactsPath, "bin", "Viper.test", "debug", "Viper.test.dll")
+
+/**
+ * Check if precommit build exists (called from pre-commit hook)
+ */
+function precommitBuildExists() {
+    return fs.existsSync(precommitDll)
+}
+
+/**
+ * Build to .artifacts-precommit if needed (for standalone runs)
+ * @returns {boolean} - Success status
+ */
+function ensureBuild() {
+    // Check if precommit build exists and cache says no rebuild needed
+    if (precommitBuildExists() && !needsBuild(projectPath, projectName)) {
+        // Check if cached build was successful
+        if (wasBuildSuccessful(projectName) === false) {
+            logger.error("Build failed (cached) - fix the error below and try again:")
+            console.error(filterBuildErrors(getCachedBuildOutput(projectName)))
+            return false
+        }
+        logger.success("Using existing precommit build")
+        return true
+    }
+
+    logger.info(`Building test project → ${artifactsPath}`)
+
+    try {
+        const result = execFileSync(
+            "dotnet",
+            [
+                "build",
+                `${projectPath}/`,
+                "--artifacts-path",
+                artifactsPath,
+                "--verbosity",
+                "quiet",
+                "--nologo",
+                "-p:WarningLevel=0",
+            ],
+            {
+                encoding: "utf8",
+                maxBuffer: MAX_BUILD_BUFFER,
+                timeout: 120_000,
+                stdio: ["inherit", "pipe", "pipe"],
+                env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
+            },
+        )
+
+        markAsBuilt(projectPath, projectName, result, true)
+        logger.success("Build completed")
+        return true
+    } catch (error) {
+        const output = (error.stdout || "") + (error.stderr || "")
+        // Cache failure to avoid redundant rebuild attempts
+        markAsBuilt(projectPath, projectName, output, false)
+        logger.error("Build failed!")
+        console.error(output)
+        return false
+    }
+}
+
+/**
+ * Run dotnet test
+ * @returns {boolean} - Success status
+ */
+function runTests() {
+    logger.info("Running tests...")
+    try {
+        execFileSync("dotnet", ["test", precommitDll, "--verbosity=normal", "--nologo"], {
+            encoding: "utf8",
+            timeout: 300_000, // 5 minute timeout for tests
+            stdio: "inherit",
+        })
+
+        logger.success("All tests passed!")
+        return true
+    } catch {
+        logger.error("Tests failed!")
+        return false
+    }
+}
+
+/**
+ * Main execution
+ */
+function main() {
+    // Ensure build exists (either from precommit or build now)
+    // To clear cache first, run: npm run clear-cache && npm run test:backend
+    if (!ensureBuild()) {
+        process.exit(1)
+    }
+
+    // Run tests
+    const testSuccess = runTests()
+    process.exit(testSuccess ? 0 : 1)
+}
+
+// Handle errors
+process.on("unhandledRejection", (error) => {
+    logger.error(`Unhandled error: ${error.message}`)
+    process.exit(1)
+})
+
+// Run
+main()

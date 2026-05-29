@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -12,28 +12,32 @@ namespace Viper.Areas.CTS.Controllers
     public class PermissionsController : ApiController
     {
         private readonly CtsSecurityService ctsSecurityService;
-        private readonly RAPSContext _rapsContext;
-        private readonly VIPERContext _viperContext;
 
         public PermissionsController(VIPERContext context, RAPSContext rapsContext)
         {
-            _viperContext = context;
-            _rapsContext = rapsContext;
-            ctsSecurityService = new CtsSecurityService(rapsContext, _viperContext);
+            ctsSecurityService = new CtsSecurityService(rapsContext, context);
         }
 
         [HttpGet]
-        public ActionResult<bool> HasAccess(string access, int studentId)
+        public ActionResult<PermissionDto> HasAccess(string access, int studentId)
         {
-            var userHelper = new UserHelper();
-            switch(access)
+            switch (access)
             {
                 case "ViewStudentAssessments":
-                    return ctsSecurityService.CheckStudentAssessmentViewAccess(studentId);
+                    return new PermissionDto
+                    {
+                        HasAccess = ctsSecurityService.CheckStudentAssessmentViewAccess(studentId)
+                    };
                 case "ViewAllAssessments":
-                    return ctsSecurityService.CheckStudentAssessmentViewAccess();
+                    return new PermissionDto
+                    {
+                        HasAccess = ctsSecurityService.CheckStudentAssessmentViewAccess()
+                    };
             }
-            return false;
+            return new PermissionDto
+            {
+                HasAccess = false
+            };
         }
     }
 }

@@ -1,4 +1,7 @@
-﻿<h2>Select source and target users</h2>
+﻿@{
+    ViewData["Title"] = "Clone Member";
+}
+<h1>Select source and target users</h1>
 <q-form @@submit="return false;">
     <div class="row q-mb-sm">
         <q-select outlined dense options-dense clearable use-input input-debounce="300" class="col col-md-4 col-lg-3"
@@ -42,7 +45,7 @@
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
             <q-icon size="xs" :name="!props.row?.source?.roleId ? 'close' : (props.row?.target?.roleId ? 'edit' : 'add')"
-                    :color="!props.row?.source?.roleId ? 'red' : (props.row?.target?.roleId ? 'grey' : 'green')"></q-icon>
+                    :color="!props.row?.source?.roleId ? 'negative' : (props.row?.target?.roleId ? 'secondary' : 'positive')"></q-icon>
         </q-td>
     </template>
 </q-table>
@@ -59,7 +62,7 @@
     <template v-slot:body-cell-action="props">
         <q-td :props="props">
             <q-icon size="xs" :name="!props.row?.source?.permissionId ? 'close' : (props.row?.target?.permissionId ? 'edit' : 'add')"
-                    :color="!props.row?.source?.permissionId ? 'red' : (props.row?.target?.permissionId ? 'grey' : 'green')"></q-icon>
+                    :color="!props.row?.source?.permissionId ? 'negative' : (props.row?.target?.permissionId ? 'secondary' : 'positive')"></q-icon>
         </q-td>
     </template>
 </q-table>
@@ -92,16 +95,17 @@
                         return
                     }
                     update(() => {
-                        var res = viperFetch(this, "Members?active=recent&search=" + val)
+                        viperFetch(this, "Members?active=recent&search=" + val)
                             .then(data => {
                                 data = data.map(m => ({
                                     label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
                                     value: m.memberId
                                 }))
-                                if (target)
+                                if (target) {
                                     this.targetUserResults = data
-                                else
+                                } else {
                                     this.sourceUserResults = data
+                                }
                             })
 
                     })
@@ -130,14 +134,14 @@
                     dataLoaded: false,
                     VMACSPush: false,
                     rolesColumns: [
-                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "action", label: "Actions", field: "", align: "left", sortable: true },
                         { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
                         { name: "role", label: "Role", field: "role", align: "left", sortable: true },
                         { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
                         { name: "enddate", label: "End Date", field: "endDate", align: "left", format: v => formatDate(v) }
                     ],
                     permissionColumns: [
-                        { name: "action", field: "", align: "left", sortable: true },
+                        { name: "action", label: "Actions", field: "", align: "left", sortable: true },
                         { name: "actionText", label: "Action", field: "actionText", align: "left", sortable: true },
                         { name: "permission", label: "Permission", field: "permission", align: "left", sortable: true },
                         { name: "startdate", label: "Start Date", field: "startDate", align: "left", format: v => formatDate(v) },
@@ -149,7 +153,7 @@
                 //if both source and target user are selected, load the roles/permissions to clone
                 checkUsersSelected: function () {
                     if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
-                        var res = viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
+                        viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
                             .then(data => {
                                 this.cloneObject = data
                                 this.dataLoaded = true

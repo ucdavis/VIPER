@@ -1,17 +1,13 @@
-﻿using Microsoft.AspNetCore.Connections.Features;
-using Microsoft.Identity.Client;
+using System.Collections.Immutable;
 
 namespace Viper.Areas.Students.Services
 {
     /// <summary>
     /// Helper class for translating between grad year and class level + term code
     /// </summary>
-    public class GradYearClassLevel
+    public static class GradYearClassLevel
     {
-        static public readonly List<string> ValidClassYears = new()
-        {
-            "V1", "V2", "V3", "V4"
-        };
+        public static readonly ImmutableArray<string> ValidClassYears = ["V1", "V2", "V3", "V4"];
 
         /// <summary>
         /// Get the grad year for a classlevel and a term code.
@@ -25,15 +21,13 @@ namespace Viper.Areas.Students.Services
             int term = termCode % 100;
             int? classYear = GetDvmYear(classLevel);
 
-            if (classYear != null && year >= 2000 && year < 2100)
+            //202309: V1 2027 V4 2024
+            //202402: V1 2027 V4 2024
+            //202404: V4 2025
+            if (classYear != null && year >= 2000 && year < 2100
+                && (term == 2 || term == 4 || term == 9))
             {
-                //202309: V1 2027 V4 2024
-                //202402: V1 2027 V4 2024
-                //202404: V4 2025
-                if (term == 2 || term == 4 || term == 9)
-                {
-                    return year + (5 - classYear) - (term == 2 ? 1 : 0);
-                }
+                return year + (5 - classYear) - (term == 2 ? 1 : 0);
             }
             return null;
         }
@@ -60,10 +54,10 @@ namespace Viper.Areas.Students.Services
             switch (termPart)
             {
                 case 2:
-                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (4 - (gradYear - termYear)).ToString());
+                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (4 - (gradYear - termYear)));
                     break;
                 case 9:
-                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (5 - (gradYear - termYear)).ToString());
+                    termAndClassLevel = Tuple.Create(currentTerm, "V" + (5 - (gradYear - termYear)));
                     break;
                 case 4:
                     if (gradYear - termYear == 1)
@@ -72,7 +66,7 @@ namespace Viper.Areas.Students.Services
                     }
                     else
                     {
-                        termAndClassLevel = Tuple.Create((termYear * 100) + 9, "V" + (5 - (gradYear - termYear)).ToString());
+                        termAndClassLevel = Tuple.Create((termYear * 100) + 9, "V" + (5 - (gradYear - termYear)));
                     }
                     break;
             }
@@ -96,7 +90,6 @@ namespace Viper.Areas.Students.Services
         {
             var classLevel = "";
             int term = termCode % 100;
-            int year = termCode / 100;
             int currentYear = DateTime.Now.Year;
 
             //Spring Semester - if they graduate this year, class level is V4, if they graduate next year, V3, etc.
@@ -109,7 +102,6 @@ namespace Viper.Areas.Students.Services
                     case 1: classLevel = "V3"; break;
                     case 2: classLevel = "V2"; break;
                     case 3: classLevel = "V1"; break;
-                    default: break;
                 }
             }
             //Summer and Fall - if they graduate next year, V4, if they graduate two years from now, V3, etc.}
@@ -122,7 +114,6 @@ namespace Viper.Areas.Students.Services
                     case 2: classLevel = "V3"; break;
                     case 3: classLevel = "V2"; break;
                     case 4: classLevel = "V1"; break;
-                    default: break;
                 }
             }
 

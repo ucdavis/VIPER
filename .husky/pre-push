@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Load Jenkins config from .env.local (not in git)
+ENV_FILE="$(dirname "$0")/../.env.local"
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    source <(grep '^JENKINS_' "$ENV_FILE")
+    set +a
+fi
+
+# Validate required variables exist
+if [ -z "$JENKINS_USER" ] || [ -z "$JENKINS_API_TOKEN" ] || [ -z "$JENKINS_JOB_TOKEN" ] || [ -z "$JENKINS_URL" ]; then
+    echo "Warning: Jenkins config not found in .env.local, skipping build trigger"
+    exit 0
+fi
+
+# Validate format: user/tokens must be alphanumeric (with common token chars), URL must be https
+TOKEN_PATTERN='^[a-zA-Z0-9._-]+$'
+URL_PATTERN='^https://[a-zA-Z0-9._-]+(:[0-9]+)?(/[a-zA-Z0-9._/%+-]*)*$'
+
+for var in JENKINS_USER JENKINS_API_TOKEN JENKINS_JOB_TOKEN; do
+    if [[ ! "${!var}" =~ $TOKEN_PATTERN ]]; then
+        echo "Error: $var contains invalid characters"
+        exit 0
+    fi
+done
+if [[ ! "$JENKINS_URL" =~ $URL_PATTERN ]]; then
+    echo "Error: JENKINS_URL must be a valid HTTPS URL"
+    exit 0
+fi
+
+while read local_ref local_sha remote_ref remote_sha; do
+    if [[ "$remote_ref" == "refs/heads/Development" ]]; then
+        echo "Jenkins build will be triggered in 10 seconds..."
+        # Run in background with delay so push completes first
+        # Credentials passed via stdin to avoid exposure in process listings
+        (
+            sleep 10
+            curl -s -X POST --ssl-revoke-best-effort --config - <<EOF
+user = "${JENKINS_USER}:${JENKINS_API_TOKEN}"
+url = "${JENKINS_URL}?token=${JENKINS_JOB_TOKEN}&Branch=Development&cause=Git+push+to+Development"
+EOF
+        ) > /dev/null 2>&1 &
+    fi
+done
+
+exit 0

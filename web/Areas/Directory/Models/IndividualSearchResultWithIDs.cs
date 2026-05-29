@@ -1,9 +1,9 @@
-﻿using System.Runtime.Versioning;
+using System.Runtime.Versioning;
 using Viper.Models.AAUD;
 
 namespace Viper.Areas.Directory.Models
 {
-    public class IndividualSearchResultWithIDs: IndividualSearchResult
+    public class IndividualSearchResultWithIDs : IndividualSearchResult
     {
         public string? SpridenId { get; set; } = string.Empty;
 
@@ -11,13 +11,13 @@ namespace Viper.Areas.Directory.Models
 
         public string? EmployeeId { get; set; } = string.Empty;
 
-        public int? VmacsId { get; set; } = null!;
+        public int? VmacsId { get; set; }
 
         public string? VmcasId { get; set; } = string.Empty;
 
         public string? UnexId { get; set; } = string.Empty;
 
-        public int? MivId { get; set; } = null!;
+        public int? MivId { get; set; }
 
         public IndividualSearchResultWithIDs()
         {
@@ -38,8 +38,8 @@ namespace Viper.Areas.Directory.Models
                 MothraId = aaudUser.MothraId;
                 IamId = aaudUser.IamId;
                 MivId = aaudUser.MivId;
-        }
-        else if(ldapUserContact != null)
+            }
+            else if (ldapUserContact != null)
             {
                 Title = ldapUserContact.Title;
                 Department = ldapUserContact.Ou;

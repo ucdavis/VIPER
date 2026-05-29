@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class ContentBlockToFile
+public class ContentBlockToFile
 {
     public int ContentBlockFileId { get; set; }
 

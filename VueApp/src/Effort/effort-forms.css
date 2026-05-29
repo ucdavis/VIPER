@@ -1,0 +1,20 @@
+@import "@/styles/compact-form.css";
+
+.effort-form > .q-field,
+.effort-form > .q-checkbox,
+.effort-form > .row,
+.effort-form > .q-banner {
+    margin-bottom: 0.5rem;
+}
+
+/* Add spacing above hints/counters so they don't sit flush */
+.effort-form .q-field:not(.q-field--error) .q-field__messages,
+.effort-form .q-field .q-field__counter {
+    padding-top: 0.25rem;
+}
+
+/* Standalone message chip — matches error chip sizing */
+.effort-form .form-message-chip {
+    margin-top: -0.25rem;
+    font-size: 0.75rem;
+}

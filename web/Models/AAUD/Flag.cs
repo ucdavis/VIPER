@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class Flag
+public class Flag
 {
     public string FlagsPKey { get; set; } = null!;
 

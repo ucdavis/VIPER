@@ -1,4 +1,4 @@
-﻿namespace Viper.Models.CTS
+namespace Viper.Models.CTS
 {
     public class StudentEpa
     {
@@ -6,7 +6,7 @@
         public int EpaId { get; set; }
         public int LevelId { get; set; }
         public int EncounterId { get; set; }
-        public string? Comment { get; set; } 
+        public string? Comment { get; set; }
 
         public virtual Epa Epa { get; set; } = null!;
         public virtual Level Level { get; set; } = null!;

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.Courses;
 
-public partial class SupportPerson
+public class SupportPerson
 {
     public string SupportCourseId { get; set; } = null!;
 

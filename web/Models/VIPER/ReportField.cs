@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class ReportField
+public class ReportField
 {
     public int ReportFieldId { get; set; }
 

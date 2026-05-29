@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
@@ -25,7 +19,7 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
         private readonly RAPSCacheService _rapsCacheService;
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
         public MemberPermissionsController(RAPSContext context, AAUDContext aaudContext)
         {
@@ -55,7 +49,8 @@ namespace Viper.Areas.RAPS.Controllers
                     .OrderBy(mp => mp.Permission.Permission)
                     .ToListAsync();
             }
-            else if (permissionId != null)
+
+            if (permissionId != null)
             {
                 TblPermission? permission = _securityService.GetPermissionInInstance(instance, (int)permissionId);
                 return permission == null
@@ -67,10 +62,8 @@ namespace Viper.Areas.RAPS.Controllers
                         .ThenBy(mp => mp.Member.DisplayFirstName)
                         .ToListAsync();
             }
-            else
-            {
-                return BadRequest("Member or Permission is required");
-            }
+
+            return BadRequest("Member or Permission is required");
         }
 
         // GET: Permissions/5/AllMembers
@@ -127,7 +120,7 @@ namespace Viper.Areas.RAPS.Controllers
                     .Union(membersGrantedPermission)
                     .Except(membersWithRoleDenyingPermission)
                     .Except(membersDeniedPermission)
-                    .Select(aaud => new MemberSearchResult()
+                    .Select(aaud => new MemberSearchResult
                     {
                         MemberId = aaud.MothraId,
                         LoginId = aaud.LoginId,
@@ -141,10 +134,8 @@ namespace Viper.Areas.RAPS.Controllers
                     .ThenBy(result => result.MemberId)
                     .ToListAsync();
             }
-            else
-            {
-                return BadRequest("Permission is required");
-            }
+
+            return BadRequest("Permission is required");
         }
 
         // GET: Members/12345678/Permissions/5
@@ -191,12 +182,11 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            if (!_securityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
+            if (!RAPSSecurityService.PermissionBelongsToInstance(instance, tblPermission.Permission))
             {
                 return BadRequest();
             }
             UpdateTblMemberPermission(tblMemberPermission, memberPermission);
-            //_context.Entry(tblMemberPermission).State = EntityState.Modified;
 
             try
             {
@@ -210,10 +200,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
@@ -251,18 +239,18 @@ namespace Viper.Areas.RAPS.Controllers
             TblMemberPermission tblMemberPermission = new() { MemberId = memberId, PermissionId = (int)permissionId };
             try
             {
-                using var transaction = _context.Database.BeginTransaction();
+                using var transaction = await _context.Database.BeginTransactionAsync();
                 UpdateTblMemberPermission(tblMemberPermission, memberPermission);
                 _context.TblMemberPermissions.Add(tblMemberPermission);
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
                 if (memberPermission.Access == 0)
                 {
                     //SaveChanges() changes this to 1 if it's set to 0?
                     tblMemberPermission.Access = 0;
                 }
                 _auditService.AuditPermissionMemberChange(tblMemberPermission, RAPSAuditService.AuditActionType.Create);
-                _context.SaveChanges();
-                transaction.Commit();
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch (DbUpdateException)
             {
@@ -270,10 +258,8 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     return Conflict();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);

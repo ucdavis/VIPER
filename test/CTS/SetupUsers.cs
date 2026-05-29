@@ -1,10 +1,10 @@
-using Moq;
+using NSubstitute;
 using Viper.Areas.CTS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
-using Viper.Models.RAPS;
 
 namespace Viper.test.CTS;
+
 static internal class SetupUsers
 {
     public enum UserType
@@ -67,32 +67,28 @@ static internal class SetupUsers
 
     public static CtsSecurityService GetCtsSecurityService(RAPSContext rapsContext, VIPERContext viperContext, UserType userType)
     {
-        return new CtsSecurityService(rapsContext, viperContext, GetUserHelperForUserType(userType).Object);
+        return new CtsSecurityService(rapsContext, viperContext, GetUserHelperForUserType(userType));
     }
 
     public static IUserHelper GetUserHelper(UserType userType)
     {
-        var mockUser = new Mock<UserHelper>();
-        mockUser.As<IUserHelper>()
-            .Setup(m => m.GetCurrentUser())
-            .Returns(facultyUser);
-        return mockUser.Object;
+        var mockUser = Substitute.For<IUserHelper>();
+        mockUser.GetCurrentUser().Returns(facultyUser);
+        return mockUser;
     }
 
-    public static Mock<IUserHelper> GetUserHelperForUserType(UserType userType)
+    public static IUserHelper GetUserHelperForUserType(UserType userType)
     {
-        var mockUser = new Mock<IUserHelper>();
-        mockUser.As<IUserHelper>()
-            .Setup(m => m.GetCurrentUser())
-            .Returns(userType switch
-            {
-                UserType.Faculty => facultyUser,
-                UserType.Student => studentUser1,
-                UserType.Manager => managerUser,
-                UserType.CSTeam => csTeamUser,
-                UserType.Chief => chief,
-                _ => null
-            });
+        var mockUser = Substitute.For<IUserHelper>();
+        mockUser.GetCurrentUser().Returns(userType switch
+        {
+            UserType.Faculty => facultyUser,
+            UserType.Student => studentUser1,
+            UserType.Manager => managerUser,
+            UserType.CSTeam => csTeamUser,
+            UserType.Chief => chief,
+            _ => null
+        });
         Func<string, bool> func = userType switch
         {
             UserType.Manager => EmulateManagerPermission,
@@ -102,9 +98,8 @@ static internal class SetupUsers
             UserType.Chief => EmulateChiefPermission,
             _ => throw new NotImplementedException(),
         };
-        mockUser.As<IUserHelper>()
-            .Setup(m => m.HasPermission(It.IsAny<RAPSContext>(), It.IsAny<AaudUser>(), It.IsAny<string>()))
-            .Returns((RAPSContext? _, AaudUser? _, string permission) => func.Invoke(permission));
+        mockUser.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
+            .Returns(callInfo => func.Invoke(callInfo.ArgAt<string>(2)));
         return mockUser;
     }
 
@@ -140,12 +135,6 @@ static internal class SetupUsers
             "SVMSecure.CTS.ViewStudentEncounters " => true,
             _ => false
         };
-    }
-
-    //Looks like the same as faculty, but without student assessments
-    static bool EmulateClinicianPermission(string permission)
-    {
-        return permission == "SVMSecure.CTS.StudentAssessments" ? false : EmulateFacultyPermission(permission);
     }
 
     //Same as faculty

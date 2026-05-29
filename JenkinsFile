@@ -1,7 +1,7 @@
 @Library('AdminAppsSharedLibrary') _
 def copyOperations = [
 	[
-		source: ".\\web\\bin\\Release\\net8.0\\publish",
+		source: ".\\web\\bin\\Release\\net10.0\\publish",
 		testDestination: "%vipertestnet%",
 		prodDestination: "%viperprodnet%",
 		includeFiles: "*.*",
@@ -23,29 +23,55 @@ def copyOfflineOperations = [
 ]
 pipeline {
     agent any
-	tools { nodejs "NodeJS 20.6.1" }
+	tools { nodejs "NodeJS 24.14.1" }
     options {
         skipStagesAfterUnstable()
+        skipDefaultCheckout()
     }
-    stages { 
-        stage('Restore packages') {
+    stages {
+        stage('Clean Previous Build') {
 		  steps {
-			bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
+			checkout([$class: 'GitSCM',
+				branches: scm.branches,
+				extensions: [],
+				userRemoteConfigs: scm.userRemoteConfigs])
+			script {
+				if (params.ClearCache) {
+					echo 'ClearCache enabled - performing full clean (including node_modules)'
+					bat 'git reset --hard && git clean -fdx'
+				} else {
+					echo 'Preserving caches (node_modules with .tsbuildinfo inside)'
+					bat 'git reset --hard && git clean -fdx -e VueApp/node_modules/'
+				}
+			}
 		  }
 		}
-        stage('Clean Previous Build') {
-			steps {
-				bat '"C:\\Program Files\\dotnet\\dotnet" clean Viper.sln'
+        stage('Restore packages') {
+		  steps {
+			script {
+				parallel(
+					npm: {
+						bat 'pushd VueApp && npm install --prefer-offline --no-audit --no-fund && popd'
+						catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+							bat 'npm audit --prefix VueApp --omit=dev --audit-level=high'
+						}
+					},
+					dotnet: {
+						bat '"C:\\Program Files\\dotnet\\dotnet" tool restore'
+						bat 'pushd web && "C:\\Program Files\\dotnet\\dotnet" tool run libman restore && popd'
+						bat '"C:\\Program Files\\dotnet\\dotnet" restore Viper.sln'
+					}
+				)
 			}
+		  }
 		}
 		stage('Build for test') {
 			when {
-				expression { params.Branch == 'development' }
+				expression { params.Branch == 'Development' }
 			}
 			steps {
-				bat 'pushd VueApp && npm install && popd'
 				bat 'npm run --prefix VueApp build-test'
-				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test'
+				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Test --nologo -v:minimal'
 			}
 		}
 		stage('Build for prod') {
@@ -53,47 +79,104 @@ pipeline {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
-				bat 'pushd VueApp && npm install && popd'
 				bat 'npm run --prefix VueApp build'
-				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production'
+				bat '"C:\\Program Files\\dotnet\\dotnet" publish ./web/Viper.csproj -c "Release" /p:EnvironmentName=Production --nologo -v:minimal'
 			}
 		}
 		stage('Tests') {
 			steps {
                 bat 'type NUL > app_offline.htm'
-				bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+				script {
+					parallel(
+						backend: {
+							bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+						},
+						frontend: {
+							bat 'npm run --prefix VueApp test:run'
+						}
+					)
+				}
             }
 		}
 		stage('Deploy to test') {
+			environment {
+				NETWORK_SHARE_CRED = credentials('ViperNetworkShare')
+			}
 			when {
-				expression { params.Branch == 'development' }
+				expression { params.Branch == 'Development' }
 			}
 			steps {
+				networkShares()
 				filecopy copyOfflineOperations, 'test', env.WORKSPACE
 				filecopy copyOperations, 'test', env.WORKSPACE
+				powershell label: 'Verify /health returns 200', script: '''
+					$url = "https://secure-test.vetmed.ucdavis.edu/2/health"
+					$maxAttempts = 15
+					for ($i = 1; $i -le $maxAttempts; $i++) {
+						# 2s for the first few attempts then 4s - absorbs IIS app-pool warm-up
+						$delay = if ($i -le 5) { 2 } else { 4 }
+						try {
+							$response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+							if ($response.StatusCode -eq 200) {
+								Write-Host "Attempt ${i}: $url returned 200 OK"
+								exit 0
+							}
+							Write-Host "Attempt ${i}: $url returned $($response.StatusCode)"
+						} catch {
+							Write-Host "Attempt ${i}: $($_.Exception.Message)"
+						}
+						if ($i -lt $maxAttempts) { Start-Sleep -Seconds $delay }
+					}
+					Write-Error "Health check at $url failed after $maxAttempts attempts"
+					exit 1
+				'''
 			}
 		}
 		stage('Deploy to prod') {
+			environment {
+				NETWORK_SHARE_CRED = credentials('ViperNetworkShare')
+			}
 			when {
 				expression { params.Branch == 'master' || params.Branch == "main" }
 			}
 			steps {
+				networkShares()
 				filecopy copyOfflineOperations, 'prod', env.WORKSPACE
 				filecopy copyOperations, 'prod', env.WORKSPACE
+				powershell label: 'Verify /health returns 200', script: '''
+					$url = "https://secure.vetmed.ucdavis.edu/2/health"
+					$maxAttempts = 15
+					for ($i = 1; $i -le $maxAttempts; $i++) {
+						$delay = if ($i -le 5) { 2 } else { 4 }
+						try {
+							$response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+							if ($response.StatusCode -eq 200) {
+								Write-Host "Attempt ${i}: $url returned 200 OK"
+								exit 0
+							}
+							Write-Host "Attempt ${i}: $url returned $($response.StatusCode)"
+						} catch {
+							Write-Host "Attempt ${i}: $($_.Exception.Message)"
+						}
+						if ($i -lt $maxAttempts) { Start-Sleep -Seconds $delay }
+					}
+					Write-Error "Health check at $url failed after $maxAttempts attempts"
+					exit 1
+				'''
 			}
 		}
     }
 	post {
-			always {
-				//Run junit on the test report to build output
-				script {
-					if(fileExists('test/TestResults/TestResults.xml')) {
-						junit testResults: 'test/TestResults/TestResults.xml', skipPublishingChecks: true
-					}
+		always {
+			//Run junit on the test report to build output
+			script {
+				if(fileExists('test/TestResults/TestResults.xml')) {
+					junit testResults: 'test/TestResults/TestResults.xml', skipPublishingChecks: true
 				}
-
-				//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
-				archiveArtifacts artifacts: 'web/bin/Release/net8.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
 			}
+
+			//Archive the artifacts - in this case, all files - so that the restore job can re-deploy them.
+			archiveArtifacts artifacts: 'web/bin/Release/net10.0/publish/**/*', fingerprint: true, onlyIfSuccessful: true
 		}
+	}
 }

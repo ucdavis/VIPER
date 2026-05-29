@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class File
+public class File
 {
     public Guid FileGuid { get; set; }
 

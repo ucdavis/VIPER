@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.RAPS;
 
-public partial class TblRoleMember
+public class TblRoleMember
 {
     public int RoleId { get; set; }
 

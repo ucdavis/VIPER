@@ -1,0 +1,13 @@
+{
+    "ignore": [
+        "**/__tests__/**",
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/coverage/**",
+        "**/bin/**",
+        "**/obj/**"
+    ],
+    "ignorePattern": [
+        "^\\s*import\\s+.*from\\s+['\"][^'\"]+['\"]\\s*;?\\s*$"
+    ]
+}

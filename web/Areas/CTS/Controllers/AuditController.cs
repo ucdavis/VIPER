@@ -1,11 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models;
-using Viper.Models.CTS;
 using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
@@ -15,12 +14,10 @@ namespace Viper.Areas.CTS.Controllers
     public class AuditController : ApiController
     {
         private readonly VIPERContext context;
-        private AuditService auditService;
 
         public AuditController(VIPERContext context)
         {
             this.context = context;
-            auditService = new AuditService(context);
         }
 
         [HttpGet]
@@ -50,11 +47,11 @@ namespace Viper.Areas.CTS.Controllers
             {
                 audit = audit.Where(a => a.ModifiedBy == modifiedById);
             }
-            if(dateFrom != null)
+            if (dateFrom != null)
             {
                 audit = audit.Where(a => a.TimeStamp >= dateFrom);
             }
-            if(dateTo != null)
+            if (dateTo != null)
             {
                 audit = audit.Where(a => a.TimeStamp <= dateTo);
             }
@@ -72,7 +69,7 @@ namespace Viper.Areas.CTS.Controllers
                                 .ThenByDescending(a => a.Encounter != null ? a.Encounter.Student.FirstName : "")
                             : audit.OrderBy(a => a.Encounter != null ? a.Encounter.Student.LastName : "")
                                 .ThenBy(a => a.Encounter != null ? a.Encounter.Student.FirstName : "");
-                            break;
+                        break;
                     case "modifiedby":
                         audit = descending
                             ? audit.OrderByDescending(a => a.Modifier.LastName)
@@ -84,7 +81,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (pagination != null)
             {
-                pagination.TotalRecords = audit.Count();
+                pagination.TotalRecords = await audit.CountAsync();
                 audit = GetPage(audit, pagination);
             }
 
@@ -95,9 +92,9 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet("areas")]
-        public ActionResult<List<string>> GetAuditAreas()
+        public ActionResult<IReadOnlyList<string>> GetAuditAreas()
         {
-            return AuditService.AuditAreas;
+            return Ok(AuditService.AuditAreas);
         }
 
         [HttpGet("actions")]

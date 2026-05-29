@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.Courses;
 
-public partial class Baseinfo
+public class Baseinfo
 {
     public string BaseinfoPkey { get; set; } = null!;
 

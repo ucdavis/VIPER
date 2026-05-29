@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class VwSftFaculty
+public class VwSftFaculty
 {
     public string? EmpTermCode { get; set; }
 

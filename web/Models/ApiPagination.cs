@@ -1,5 +1,9 @@
-﻿namespace Viper.Models
+namespace Viper.Models
 {
+    /// <summary>
+    /// Pagination metadata for API responses. Properties have default values
+    /// for fallback scenarios when pagination is not applicable.
+    /// </summary>
     public class ApiPagination
     {
         public int Page { get; set; }

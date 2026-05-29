@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.RAPS;
 
-public partial class VwVmdoAp
+public class VwVmdoAp
 {
     public string? MemberId { get; set; }
 

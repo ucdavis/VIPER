@@ -1,6 +1,9 @@
-﻿<h2>Search for a user</h2>
+@{
+    ViewData["Title"] = "Members";
+}
+<h1>Search for a user</h1>
 <q-form @@submit="return false;">
-    <div class="row">
+    <div class="row q-mb-md">
         <q-input 
             class="q-ml-xs q-mr-xs col-12 col-sm-8 col-md-4" 
             dense 
@@ -31,19 +34,19 @@
     no-results-label="No results found">
     <template v-slot:body-cell-links="props">
         <q-td :props="props">
-            @if(ViewData.ContainsKey("CanRSOP") && (bool)(ViewData["CanRSOP"] ?? false))
+            @if((bool)(ViewData["CanRSOP"] ?? false))
             {
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="policy" title="Combined permissions for user" :href="'RSOP?memberId=' + props.row.memberId"></q-btn>
             }
-            @if (ViewData.ContainsKey("canEditRoleMembership") && (bool)(ViewData["canEditRoleMembership"] ?? false))
+            @if ((bool)(ViewData["canEditRoleMembership"] ?? false))
             {
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="security" title="Show Roles for this user" :href="'MemberRoles?memberId=' + props.row.memberId"></q-btn>
             }
-            @if (ViewData.ContainsKey("canEditMemberPermissions") && (bool)(ViewData["canEditMemberPermissions"] ?? false))
+            @if ((bool)(ViewData["canEditMemberPermissions"] ?? false))
             {
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="lock" title="Show individual permissions for this user" :href="'MemberPermissions?memberId=' + props.row.memberId"></q-btn>
             }
-            @if (ViewData.ContainsKey("canViewHistory") && (bool)(ViewData["canViewHistory"] ?? false))
+            @if ((bool)(ViewData["canViewHistory"] ?? false))
             {
                 <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="history" title="Show History" :href="'MemberHistory?memberId=' + props.row.memberId"></q-btn>
             }            
@@ -55,7 +58,7 @@
         </q-td>
     </template>
     <template v-slot:body-cell-active="props">
-        <q-td :props="props" :class="props.row.current ? '' : 'bg-red-5 text-white'" width="25px">
+        <q-td :props="props" :class="props.row.current ? '' : 'bg-negative text-white'" width="25px">
             {{props.row.current ? "Y" : "N"}}
         </q-td>
     </template>
@@ -72,7 +75,7 @@
                         keys: ["memberId"],
                         urlBase: "Members",
                         columns: [
-                            { name: "links", label: "", field: "", align: "left", style: "width:100px;" },
+                            { name: "links", label: "Actions", field: "", align: "left", style: "width:100px;" },
                             { name: "member", label: "Member", field: "", align: "left", sortable: true },
                             { name: "active", label: "Active", field: "current", align: "left", sortable: true },
                             { name: "countRoles", label: "Count Roles", field: "countRoles", align: "left", sortable: true },
@@ -84,10 +87,12 @@
             },
             methods: {
                 findUsers: async function () {
-                    this.members.urlBase = "Members?search=" + this.userSearch + "&active=" + (this.includeInactive ? "all" : "active")
-                    if (this.userSearch.trim().length >= 2) {
-                        this.members.load(this)
+                    if (!this.userSearch || this.userSearch.trim().length < 2) {
+                        this.members.rows = []
+                        return
                     }
+                    this.members.urlBase = "Members?search=" + this.userSearch + "&active=" + (this.includeInactive ? "all" : "active")
+                    this.members.load(this)
                 }
             },
             mounted() {

@@ -1,12 +1,10 @@
-﻿using Viper.Classes;
-using Web.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Viper.Classes.SQLContext;
 using Microsoft.EntityFrameworkCore;
-using Viper.Models.CTS;
 using Viper.Areas.CTS.Models;
-using System.DirectoryServices.ActiveDirectory;
-using AutoMapper;
+using Viper.Classes;
+using Viper.Classes.SQLContext;
+using Viper.Models.CTS;
+using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -15,12 +13,10 @@ namespace Viper.Areas.CTS.Controllers
     public class CompetencyController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly IMapper mapper;
 
-        public CompetencyController(VIPERContext context, IMapper mapper)
+        public CompetencyController(VIPERContext context)
         {
             this.context = context;
-            this.mapper = mapper;
         }
 
         [HttpGet]
@@ -71,7 +67,7 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(c => c.Order)
                 .ToListAsync();
             var compHierarchy = new List<CompetencyHierarchyDto>();
-            var allCompDtos = mapper.Map<List<CompetencyHierarchyDto>>(comps);
+            var allCompDtos = CtsMapper.ToCompetencyHierarchyDtos(comps);
             foreach (var comp in allCompDtos)
             {
                 if (comp.ParentId == null)
@@ -80,10 +76,10 @@ namespace Viper.Areas.CTS.Controllers
                 }
                 else
                 {
-                    var parent = allCompDtos.Where(c => c.CompetencyId == comp.ParentId).FirstOrDefault();
+                    var parent = allCompDtos.FirstOrDefault(c => c.CompetencyId == comp.ParentId);
                     if (parent != null)
                     {
-                        parent.Children.Append(comp);
+                        parent.Children.Add(comp);
                     }
                 }
             }
@@ -110,7 +106,7 @@ namespace Viper.Areas.CTS.Controllers
                 return BadRequest("A competency with this number exists already.");
             }
 
-            var comp = new Competency()
+            var comp = new Competency
             {
                 Name = competency.Name,
                 Number = competency.Number,
@@ -140,10 +136,6 @@ namespace Viper.Areas.CTS.Controllers
                 return NotFound();
             }
 
-            if (competency.CompetencyId == null || competency.CompetencyId <= 0)
-            {
-                return BadRequest("CompetencyId is required.");
-            }
             if (competency.Name.Length < 2 || competency.Number.Length < 1)
             {
                 return BadRequest("Name and Number are required.");

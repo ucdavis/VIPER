@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.CTS;
 
-public partial class CourseRole
+public class CourseRole
 {
     public int CourseRoleId { get; set; }
 

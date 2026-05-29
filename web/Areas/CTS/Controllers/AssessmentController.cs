@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Dynamic.Core;
 using Viper.Areas.CTS.Models;
 using Viper.Areas.CTS.Services;
 using Viper.Classes;
@@ -33,14 +32,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Generic assessment get with params - note that this returns StudentAssessments of derived types
         /// </summary>
-        /// <param name="type"></param>
-        /// <param name="studentUserId"></param>
-        /// <param name="enteredById"></param>
-        /// <param name="serviceId"></param>
-        /// <param name="epaId"></param>
-        /// <param name="dateFrom"></param>
-        /// <param name="dateTo"></param>
-        /// <returns></returns>
         [HttpGet]
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical,SVMSecure.CTS.MyAssessments")]
         [ApiPagination(DefaultPerPage = 100, MaxPerPage = 100)]
@@ -50,10 +41,11 @@ namespace Viper.Areas.CTS.Controllers
         {
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(studentUserId, enteredById, serviceId))
             {
-                return (ActionResult<List<StudentAssessment>>)ForbidApi();
+                return ForbidApi();
             }
 
             var assessments = context.Encounters
+                .AsNoTracking()
                 .Include(e => e.Epa)
                 .Include(e => e.Level)
                 .Include(e => e.EnteredByPerson)
@@ -125,8 +117,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (pagination != null)
             {
-                var s = (pagination.PerPage - 1) * pagination.Page;
-                pagination.TotalRecords = assessments.Count();
+                pagination.TotalRecords = await assessments.CountAsync();
                 assessments = assessments
                     .Skip((pagination.Page - 1) * pagination.PerPage)
                     .Take(pagination.PerPage);
@@ -134,9 +125,6 @@ namespace Viper.Areas.CTS.Controllers
 
             var assessmentsList = await assessments
                 .ToListAsync();
-
-            //if this is not a student viewing their own assessments, set the editable flag
-            var userHelper = new UserHelper();
 
             List<StudentAssessment> studentAssessments = new();
             foreach (var a in assessmentsList)
@@ -197,8 +185,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Get single student epa assessment
         /// </summary>
-        /// <param name="encounterId"></param>
-        /// <returns></returns>
         [HttpGet("{encounterId}")]
         [Permission(Allow = "SVMSecure.CTS.Manage,SVMSecure.CTS.StudentAssessments,SVMSecure.CTS.AssessClinical,SVMSecure.CTS.MyAssessments")]
         public async Task<ActionResult<StudentAssessment>> GetStudentAssessment(int encounterId)
@@ -217,7 +203,7 @@ namespace Viper.Areas.CTS.Controllers
             }
             if (!ctsSecurityService.CheckStudentAssessmentViewAccess(encounter.StudentUserId, encounter.EnteredBy, encounter.ServiceId))
             {
-                return (ActionResult<StudentAssessment>)ForbidApi();
+                return ForbidApi();
             }
             var sa = CreateStudentAssessment(encounter);
             sa.Editable = ctsSecurityService.CanEditStudentAssessment(sa.EnteredBy, sa.EnteredOn);
@@ -228,14 +214,11 @@ namespace Viper.Areas.CTS.Controllers
         /// Given an Eval360 instance id, get the list of student evalautees for this evaluator and whether or not they have an EPA during
         /// this rotation.
         /// </summary>
-        /// <param name="instanceId"></param>
-        /// <returns></returns>
         [HttpGet("epacompletion")]
         [Permission(Allow = "SVMSecure")]
         public async Task<ActionResult<List<EvaluateeWithEpaCompletion>>> EvalauteeStudentsWithEpas(int instanceId)
         {
             List<EvaluateeWithEpaCompletion> evaluateesWithCompletion = new();
-            var userHelper = new UserHelper();
             var user = userHelper.GetCurrentUser();
             //get instance and check to make sure it belongs to the logged in user, or the logged in user has an admin permission
             var instance = await context.Instances.FindAsync(instanceId);
@@ -259,16 +242,30 @@ namespace Viper.Areas.CTS.Controllers
                 .ThenBy(e => e.PersonId)
                 .ToListAsync();
 
-            //for each evaluatee, get the epas for this service that are dated within the block start/end, and mark that an EPA has been done or not done
-            foreach (var e in evaluatees)
+            if (evaluatees.Count > 0)
             {
-                var epaAssessments = await context.Encounters
+                var personIds = evaluatees.Select(e => e.PersonId).Distinct().ToList();
+                var serviceIds = evaluatees.Select(e => e.ServiceId).Distinct().ToList();
+                var minDate = evaluatees.Min(e => e.StartDate);
+                var maxDate = evaluatees.Max(e => e.EndDate);
+
+                var epaEncounters = await context.Encounters
                     .Where(enc => enc.EncounterType == (int)EncounterCreationService.EncounterType.Epa)
-                    .Where(enc => enc.EncounterDate >= e.StartDate && enc.EncounterDate <= e.EndDate)
-                    .Where(enc => enc.Student.PersonId == e.PersonId)
-                    .Where(enc => enc.ServiceId == e.ServiceId)
-                    .CountAsync();
-                evaluateesWithCompletion.Add(new(e, epaAssessments > 0));
+                    .Where(enc => personIds.Contains(enc.StudentUserId))
+                    .Where(enc => enc.ServiceId != null && serviceIds.Contains((int)enc.ServiceId))
+                    .Where(enc => enc.EncounterDate >= minDate && enc.EncounterDate <= maxDate)
+                    .Select(enc => new { enc.StudentUserId, enc.ServiceId, enc.EncounterDate })
+                    .ToListAsync();
+
+                foreach (var e in evaluatees)
+                {
+                    var hasEpa = epaEncounters.Any(enc =>
+                        enc.StudentUserId == e.PersonId
+                        && enc.ServiceId == e.ServiceId
+                        && enc.EncounterDate >= e.StartDate
+                        && enc.EncounterDate <= e.EndDate);
+                    evaluateesWithCompletion.Add(new(e, hasEpa));
+                }
             }
 
             return evaluateesWithCompletion;
@@ -277,8 +274,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Create a new epa assessment
         /// </summary>
-        /// <param name="epaData"></param>
-        /// <returns></returns>
         [HttpPost("epa")]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
         public async Task<ActionResult<CreateUpdateStudentEpa>> CreateStudentEpa(CreateUpdateStudentEpa epaData)
@@ -287,7 +282,7 @@ namespace Viper.Areas.CTS.Controllers
                     .Include(p => p.StudentInfo)
                     .Where(p => p.PersonId == epaData.StudentId)
                     .FirstOrDefaultAsync();
-            if (student == null || student?.StudentInfo?.ClassLevel == null)
+            if (student == null || student.StudentInfo?.ClassLevel == null)
             {
                 return BadRequest("Student not found");
             }
@@ -298,7 +293,7 @@ namespace Viper.Areas.CTS.Controllers
                 return Unauthorized(); //shouldn't happen
             }
 
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             var encounter = EncounterCreationService.CreateEncounterForEpa(epaData.StudentId, student.StudentInfo.ClassLevel, (int)personId, epaData.ServiceId,
                 epaData.EpaId, epaData.LevelId, epaData.Comment);
             context.Add(encounter);
@@ -307,7 +302,7 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, AuditService.AuditActionType.Create, (int)personId);
             await trans.CommitAsync();
 
-            return new CreateUpdateStudentEpa()
+            return new CreateUpdateStudentEpa
             {
                 EncounterId = encounter.EncounterId,
                 EpaId = epaData.EpaId,
@@ -322,9 +317,6 @@ namespace Viper.Areas.CTS.Controllers
         /// <summary>
         /// Update an EPA
         /// </summary>
-        /// <param name="encounterId"></param>
-        /// <param name="epaData"></param>
-        /// <returns></returns>
         [HttpPut("epa/{encounterId}")]
         [Permission(Allow = "SVMSecure.CTS.AssessClinical,SVMSecure.CTS.Manage")]
         public async Task<ActionResult<CreateUpdateStudentEpa>> UpdateStudentEpa(int encounterId, CreateUpdateStudentEpa epaData)
@@ -347,7 +339,7 @@ namespace Viper.Areas.CTS.Controllers
                 return Unauthorized(); //shouldn't happen
             }
 
-            using var trans = context.Database.BeginTransaction();
+            using var trans = await context.Database.BeginTransactionAsync();
             encounter.Comment = epaData.Comment;
             encounter.LevelId = epaData.LevelId;
             if (epaData.EncounterDate != null)
@@ -361,7 +353,7 @@ namespace Viper.Areas.CTS.Controllers
             await auditService.AuditStudentEpa(encounter, AuditService.AuditActionType.Update, (int)personId);
             await trans.CommitAsync();
 
-            return new CreateUpdateStudentEpa()
+            return new CreateUpdateStudentEpa
             {
                 EncounterId = encounter.EncounterId,
                 EpaId = epaData.EpaId,

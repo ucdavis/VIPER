@@ -1,8 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Viper.Areas.CMS.Models;
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.VIPER;
 
 namespace Viper.Areas.CMS.Data
 {
@@ -11,12 +9,12 @@ namespace Viper.Areas.CMS.Data
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
 
-        public IUserHelper UserHelper;
+        public IUserHelper UserHelper { get; private set; }
 
-        public LeftNavMenu()
+        public LeftNavMenu(VIPERContext viperContext, RAPSContext rapsContext)
         {
-            this._viperContext = (VIPERContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(VIPERContext));
-            this._rapsContext = (RAPSContext?)HttpHelper.HttpContext?.RequestServices.GetService(typeof(RAPSContext));
+            this._viperContext = viperContext;
+            this._rapsContext = rapsContext;
             UserHelper = new UserHelper();
         }
 
@@ -31,7 +29,7 @@ namespace Viper.Areas.CMS.Data
         /// <param name="filterItemsByPermissions">If true, filter items based on the permission of the logged in user. Should be set to false for CMS management functions.</param>
         /// <returns>List of menus matching the arguments</returns>
         public IEnumerable<NavMenu>? GetLeftNavMenus(int? leftNavMenuId = null, string? friendlyName = null, string? system = null,
-                string? viperSectionPath = null, string? page = null, bool filterItemsByPermissions=true)
+                string? viperSectionPath = null, string? page = null, bool filterItemsByPermissions = true)
         {
             var menus = _viperContext?.LeftNavMenus
                 .Include(m => m.LeftNavItems
@@ -43,36 +41,21 @@ namespace Viper.Areas.CMS.Data
                 .Where(m => string.IsNullOrEmpty(viperSectionPath) || m.ViperSectionPath == viperSectionPath)
                 .Where(m => string.IsNullOrEmpty(page) || m.Page == page)
                 .ToList();
-            if(menus == null)
+            if (menus == null)
             {
                 return null;
             }
 
             var currentUser = UserHelper.GetCurrentUser();
             List<NavMenu> cmsMenus = new();
-            foreach(var m in menus)
+            foreach (var m in menus)
             {
                 //by default, filter items based on user permissions
-                List<NavMenuItem> items = new();
-                foreach(var item in m.LeftNavItems)
-                {
-                    bool includeItem = !filterItemsByPermissions;
-                    if(filterItemsByPermissions)
-                    {
-                        foreach (var p in item.LeftNavItemToPermissions)
-                        {
-                            if (UserHelper.HasPermission(_rapsContext, currentUser, p.Permission))
-                            {
-                                includeItem = true;
-                                break;
-                            }
-                        }
-                    }
-                    if(includeItem)
-                    {
-                        items.Add(new(item));
-                    }
-                }
+                List<NavMenuItem> items = m.LeftNavItems
+                    .Where(item => !filterItemsByPermissions
+                        || item.LeftNavItemToPermissions.Any(p => UserHelper.HasPermission(_rapsContext, currentUser, p.Permission)))
+                    .Select(item => new NavMenuItem(item))
+                    .ToList();
                 cmsMenus.Add(new(m.MenuHeaderText, items));
             }
             return cmsMenus;

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class Student
+public class Student
 {
     public string StudentsPKey { get; set; } = null!;
 

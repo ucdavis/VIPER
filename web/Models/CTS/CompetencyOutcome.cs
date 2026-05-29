@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.CTS;
 
-public partial class CompetencyOutcome
+public class CompetencyOutcome
 {
     public int CompetencyOutcomeId { get; set; }
 

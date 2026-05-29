@@ -1,0 +1,328 @@
+<template>
+    <div class="q-pa-md">
+        <h1>Merit &amp; Promotion Report - Clinical Effort</h1>
+
+        <!-- Custom filter form — academic year + clinical type only -->
+        <div class="filter-form q-mb-md">
+            <div class="row q-gutter-sm items-end q-mb-sm">
+                <q-select
+                    v-model="selectedYear"
+                    :options="yearOptions"
+                    label="Academic Year"
+                    dense
+                    options-dense
+                    outlined
+                    emit-value
+                    map-options
+                    class="col-auto"
+                    style="min-width: 10rem"
+                />
+                <q-select
+                    v-model="selectedType"
+                    :options="clinicalTypeOptions"
+                    label="Clinical Type"
+                    dense
+                    options-dense
+                    outlined
+                    emit-value
+                    map-options
+                    class="col-auto"
+                    style="min-width: 8rem"
+                />
+            </div>
+            <div class="row items-center q-mb-md">
+                <q-btn
+                    color="primary"
+                    icon="assessment"
+                    label="Generate Report"
+                    :loading="loading"
+                    :disable="!selectedYear"
+                    @click="generateReport"
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        Generate Report
+                    </template>
+                </q-btn>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div
+            v-if="loading"
+            role="status"
+            class="text-center q-my-lg"
+        >
+            <q-spinner-dots
+                size="3rem"
+                color="primary"
+            />
+            <div class="q-mt-md text-body1">Loading report...</div>
+        </div>
+
+        <!-- Report content -->
+        <ReportLayout v-else-if="report">
+            <template #header>
+                <div class="col text-h6">Clinical Effort</div>
+                <div class="col-auto no-print">
+                    <ExportToolbar
+                        :pdf-export="handlePrint"
+                        :excel-export="handleExcelDownload"
+                    />
+                </div>
+            </template>
+
+            <template v-if="report.jobGroups.length === 0">
+                <div
+                    role="status"
+                    class="text-grey-7 text-center q-pa-lg"
+                >
+                    No data found for the selected filters.
+                </div>
+            </template>
+
+            <template v-else>
+                <div
+                    v-for="jobGroup in report.jobGroups"
+                    :key="jobGroup.jobGroupDescription"
+                    class="job-group-section"
+                >
+                    <h2 class="job-group-header">{{ jobGroup.jobGroupDescription }}</h2>
+
+                    <table class="report-table">
+                        <caption class="sr-only">
+                            Clinical effort for
+                            {{
+                                jobGroup.jobGroupDescription
+                            }}
+                        </caption>
+                        <thead>
+                            <tr>
+                                <th
+                                    scope="col"
+                                    class="col-instructor"
+                                >
+                                    Instructor
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="col-percent text-center"
+                                >
+                                    Clinical %
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="col-effort text-center"
+                                >
+                                    <abbr title="Clinical Activity">CLI</abbr>
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="col-ratio text-center"
+                                >
+                                    CLI Ratio
+                                    <div>CLI Weeks / Percent</div>
+                                </th>
+                                <th
+                                    v-for="type in effortTypesWithoutCli"
+                                    :key="type"
+                                    scope="col"
+                                    class="col-effort text-center"
+                                >
+                                    <abbr :title="getEffortTypeLabel(type)">{{ type }}</abbr>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="instructor in jobGroup.instructors"
+                                :key="instructor.mothraId"
+                            >
+                                <td>{{ instructor.instructor }}</td>
+                                <td class="text-center">{{ formatPercent(instructor.clinicalPercent) }}</td>
+                                <td class="text-center">{{ getTotalValue(instructor.effortByType, "CLI") }}</td>
+                                <td class="text-center">{{ formatRatio(instructor.cliRatio) }}</td>
+                                <td
+                                    v-for="type in effortTypesWithoutCli"
+                                    :key="type"
+                                    class="text-center"
+                                >
+                                    {{ getTotalValue(instructor.effortByType, type) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </ReportLayout>
+
+        <!-- No report generated yet -->
+        <div
+            v-else-if="!loading"
+            class="text-grey-7 text-center q-pa-lg"
+        >
+            Select an academic year and clinical type, then click "Generate Report" to view data.
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { useQuasar } from "quasar"
+import { useTitle } from "@vueuse/core"
+import { reportService } from "../services/report-service"
+import { termService } from "../services/term-service"
+import { useEffortTypeColumns, getEffortTypeLabel, loadEffortTypeLabels } from "../composables/use-effort-type-columns"
+import ExportToolbar from "@/components/ExportToolbar.vue"
+import ReportLayout from "../components/ReportLayout.vue"
+import type { ClinicalEffortReport } from "../types"
+import "../report-tables.css"
+
+const $q = useQuasar()
+const route = useRoute()
+const router = useRouter()
+
+const loading = ref(false)
+const excelLoading = ref(false)
+const report = ref<ClinicalEffortReport | null>(null)
+useTitle(
+    computed(() => {
+        const r = report.value
+        const term = r?.academicYear || r?.termName
+        return term ? `Clinical Effort Report - ${term} | VIPER` : "Clinical Effort Report | VIPER"
+    }),
+)
+const yearOptions = ref<{ label: string; value: string }[]>([])
+
+const clinicalTypeOptions = [
+    { label: "VMTH", value: 1 },
+    { label: "CAHFS", value: 25 },
+]
+
+// Default academic year from route term code
+const selectedYear = ref("")
+const selectedType = ref(1)
+
+function getAcademicYear(termCode: number): string {
+    const year = Math.floor(termCode / 100)
+    const term = termCode % 100
+    const startYear = term >= 1 && term <= 3 ? year - 1 : year
+    return `${startYear}-${startYear + 1}`
+}
+
+const effortTypes = computed(() => report.value?.effortTypes ?? [])
+const { effortColumns, getTotalValue } = useEffortTypeColumns(effortTypes, {
+    showZero: true,
+    legacyColumnOrder: true,
+})
+const orderedEffortTypes = computed(() => effortColumns.value.map((c) => c.label))
+const effortTypesWithoutCli = computed(() => orderedEffortTypes.value.filter((t) => t !== "CLI"))
+
+function formatPercent(value: number): string {
+    if (value === 0) return ""
+    return `${value.toFixed(1)}%`
+}
+
+function formatRatio(value: number | null): string {
+    if (value === null) return ""
+    return value.toFixed(1)
+}
+
+async function generateReport() {
+    if (!selectedYear.value) return
+    router.replace({ query: { academicYear: selectedYear.value, clinicalType: selectedType.value.toString() } })
+    loading.value = true
+    try {
+        const [data] = await Promise.all([
+            reportService.getClinicalEffort(selectedYear.value, selectedType.value),
+            loadEffortTypeLabels(),
+        ])
+        report.value = data
+    } finally {
+        loading.value = false
+    }
+}
+
+function handlePrint() {
+    if (!selectedYear.value) return
+    if (!report.value || report.value.jobGroups.length === 0) {
+        $q.notify({ type: "warning", message: "No data to export for the selected filters." })
+        return
+    }
+    reportService.openClinicalEffortPdf(selectedYear.value, selectedType.value)
+}
+
+async function handleExcelDownload() {
+    if (!selectedYear.value) return
+    excelLoading.value = true
+    try {
+        const success = await reportService.downloadClinicalEffortExcel(selectedYear.value, selectedType.value)
+        if (!success) {
+            $q.notify({ type: "warning", message: "No data to export for the selected filters." })
+        }
+    } finally {
+        excelLoading.value = false
+    }
+}
+
+async function initPage() {
+    // Build academic year options from available terms
+    const terms = await termService.getTerms()
+    if (terms) {
+        const years = new Set<string>()
+        for (const term of terms) {
+            years.add(getAcademicYear(term.termCode))
+        }
+        yearOptions.value = Array.from(years)
+            .sort()
+            .reverse()
+            .map((y) => ({ label: y, value: y }))
+    }
+
+    // Restore from URL query params (bookmarkable)
+    const q = route.query
+    if (q.academicYear) {
+        selectedYear.value = q.academicYear as string
+        if (q.clinicalType) {
+            selectedType.value = parseInt(q.clinicalType as string, 10)
+        }
+        await generateReport()
+        return
+    }
+
+    // Default from route
+    const tc = route.params.termCode
+    if (tc) {
+        selectedYear.value = getAcademicYear(parseInt(tc as string, 10))
+    }
+}
+
+onMounted(() => initPage())
+</script>
+
+<style scoped>
+:deep(.report-table tbody tr) {
+    border-bottom: 1px solid var(--ucdavis-black-20);
+}
+
+:deep(.report-table th.text-center) {
+    text-align: center;
+}
+
+.col-percent {
+    min-width: 4.5rem;
+}
+
+.col-ratio {
+    min-width: 4.5rem;
+}
+
+.col-instructor {
+    min-width: 10rem;
+    text-align: left;
+}
+</style>

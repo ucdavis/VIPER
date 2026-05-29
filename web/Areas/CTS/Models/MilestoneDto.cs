@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.CTS.Models
+namespace Viper.Areas.CTS.Models
 {
     public class MilestoneDto
     {

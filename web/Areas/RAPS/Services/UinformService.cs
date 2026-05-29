@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using NuGet.Protocol;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Viper.Areas.RAPS.Models.Uinform;
 
 namespace Viper.Areas.RAPS.Services
@@ -9,7 +9,7 @@ namespace Viper.Areas.RAPS.Services
     public class UinformService
     {
         private static readonly HttpClient _httpClient = new();
-        //private readonly NLog.Logger _logger;
+        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
         private readonly string _apiBase;
         private static readonly List<HttpMethod> _allowedHttpMethods = new()
         {
@@ -20,8 +20,8 @@ namespace Viper.Areas.RAPS.Services
         //this is added to an extension attrbiute to mark a group as being "ours"
         private static readonly string _ourGroupIdentifier = "SVMManagedGroup";
 
-        public UinformService() {
-            //_logger = HttpHelper.Logger;
+        public UinformService()
+        {
             _apiBase = (HttpHelper.Environment?.IsProduction() ?? false)
                 ? "https://ws.uinform.ucdavis.edu/"
                 : "https://ws.uinform-test.ucdavis.edu/";
@@ -41,10 +41,11 @@ namespace Viper.Areas.RAPS.Services
             HttpMethod method = HttpMethod.Get;
             string body = "";
 
-            if (!string.IsNullOrEmpty(search)) {
+            if (!string.IsNullOrEmpty(search))
+            {
                 url += "Search";
                 method = HttpMethod.Post;
-                body = new SearchClass() { Value = search }.ToJson();
+                body = JsonSerializer.Serialize(new SearchClass { Value = search });
             }
             else if (!string.IsNullOrEmpty(ownerSamAccountName))
             {
@@ -58,7 +59,7 @@ namespace Viper.Areas.RAPS.Services
             {
                 url += "Search";
                 method = HttpMethod.Post;
-                body = new SearchClass() { Value = _ourGroupIdentifier }.ToJson();
+                body = JsonSerializer.Serialize(new SearchClass { Value = _ourGroupIdentifier });
             }
 
             var response = await SendRequest<List<ManagedGroup>>(url, method, body);
@@ -68,17 +69,14 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Get a single managed group by distinguished name or guid
         /// </summary>
-        /// <param name="distinguishedName"></param>
-        /// <param name="guid"></param>
-        /// <returns></returns>
         public async Task<ManagedGroup> GetManagedGroup(string? distinguishedName = null, string? guid = null)
         {
             string url = "ManagedGroups/";
-            if(!string.IsNullOrEmpty(distinguishedName))
+            if (!string.IsNullOrEmpty(distinguishedName))
             {
                 url += "dn/" + distinguishedName;
             }
-            else if(!string.IsNullOrEmpty(guid))
+            else if (!string.IsNullOrEmpty(guid))
             {
                 url += "guid/" + guid;
             }
@@ -91,13 +89,10 @@ namespace Viper.Areas.RAPS.Services
         /// Create a managed group. Does not return anything because the group creation is scheduled and is done by uInform asynchronously
         /// </summary>
         /// <param name="groupName">The name of the group. Must start with SVM- and be unique within AD3.</param>
-        /// <param name="displayName"></param>
-        /// <param name="description"></param>
         /// <param name="maxMembers">max members, or 0 for no max</param>
-        /// <returns></returns>
         public async Task CreateManagedGroup(string groupName, string displayName, string description, int maxMembers = 0)
         {
-            if(!groupName.StartsWith("SVM-"))
+            if (!groupName.StartsWith("SVM-"))
             {
                 groupName = "SVM-" + groupName;
             }
@@ -108,18 +103,14 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            _ = await SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, newGroup.ToJson());
+            _ = await SendRequest<ManagedGroup>("ManagedGroups", HttpMethod.Post, JsonSerializer.Serialize(newGroup));
         }
 
         /// <summary>
         /// Update the managed group with the given guid. Does not return anything because the group creation is scheduled and is done by uInform asynchronously
         /// </summary>
-        /// <param name="guid"></param>
-        /// <param name="displayName"></param>
-        /// <param name="description"></param>
         /// <param name="maxMembers">Max members, or 0 for no max</param>
-        /// <returns></returns>
-        public void UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
+        public async Task UpdateManagedGroup(string guid, string displayName, string description, int maxMembers = 0)
         {
             ManagedGroupAddEdit newGroup = new()
             {
@@ -127,14 +118,12 @@ namespace Viper.Areas.RAPS.Services
                 Description = description,
                 MaxMembers = maxMembers
             };
-            _ = SendRequest<ManagedGroup>("ManagedGroups/" + guid, HttpMethod.Put, newGroup.ToJson());
+            _ = await SendRequest<ManagedGroup>("ManagedGroups/" + guid, HttpMethod.Put, JsonSerializer.Serialize(newGroup));
         }
 
         /// <summary>
         /// Get members of the group with the given guid
         /// </summary>
-        /// <param name="guid"></param>
-        /// <returns></returns>
         public async Task<List<AdUser>> GetGroupMembers(string guid)
         {
             var response = await SendRequest<List<AdUser>>($"ManagedGroups/{guid}/members", HttpMethod.Get);
@@ -144,45 +133,34 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Add a user to a group
         /// </summary>
-        /// <param name="groupGuid"></param>
-        /// <param name="userGuid"></param>
-        /// <returns></returns>
         public async Task AddGroupMember(string groupGuid, string userGuid)
         {
-            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember
             {
                 UserGuid = userGuid,
                 Action = "add"
-            }.ToJson());
+            }));
         }
 
         /// <summary>
         /// Remove a user from a group
         /// </summary>
-        /// <param name="groupGuid"></param>
-        /// <param name="userGuid"></param>
-        /// <returns></returns>
         public async Task RemoveGroupMember(string groupGuid, string userGuid)
         {
-            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, new AddRemoveMember()
+            await SendRequest<List<AdUser>>($"ManagedGroups/{groupGuid}/members", HttpMethod.Post, JsonSerializer.Serialize(new AddRemoveMember
             {
                 UserGuid = userGuid,
                 Action = "remove"
-            }.ToJson());
+            }));
         }
 
         /// <summary>
         /// Get user by one of the identifiers
         /// </summary>
-        /// <param name="guid"></param>
-        /// <param name="userPrincipalName"></param>
-        /// <param name="mail"></param>
-        /// <param name="samAccountName"></param>
-        /// <returns></returns>
         public async Task<AdUser> GetUser(string? guid = null, string? userPrincipalName = null, string? mail = null, string? samAccountName = null)
         {
             string url = "AdUsers/";
-            if(!string.IsNullOrEmpty(guid))
+            if (!string.IsNullOrEmpty(guid))
             {
                 url += "guid/" + guid;
             }
@@ -203,26 +181,25 @@ namespace Viper.Areas.RAPS.Services
         }
 
         /// <summary>
-        /// Helper function to send a request. Create auth header and parses the response into a UinformResponse<T>
+        /// Helper function to send a request. Create auth header and parses the response into a UinformResponse&lt;T&gt;
         /// </summary>
         /// <typeparam name="T">One of the uInform response object types</typeparam>
         /// <param name="url">URL to send the request</param>
         /// <param name="method">HTTP method (Get, Post, Put)</param>
         /// <param name="body">If needed, the JSON body</param>
-        /// <returns></returns>
         private async Task<UinformResponse<T>?> SendRequest<T>(string url, HttpMethod method, string? body = null)
         {
-            if(!url.StartsWith(_apiBase))
+            if (!url.StartsWith(_apiBase))
             {
                 url = _apiBase + url;
             }
 
             if (!_allowedHttpMethods.Contains(method))
             {
-                throw new Exception("Invalid Method: " + method.Method);
+                throw new ArgumentException($"Invalid HTTP method: {method.Method}", nameof(method));
             }
 
-            int epochTime = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            int epochTime = (int)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
             string publicKey = HttpHelper.GetSetting<string>("Credentials", "uInformPublicKey") ?? "";
             string sig = GetAuthSignature(method, publicKey, epochTime);
             string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(publicKey + ":" + sig));
@@ -232,11 +209,12 @@ namespace Viper.Areas.RAPS.Services
                 RequestUri = new Uri(url),
                 Method = method
             };
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
             request.Headers.Add("Accept", "application/json");
             request.Headers.Add("X-UTIMESTAMP", epochTime.ToString());
             using StringContent content = new(body ?? "", Encoding.UTF8, "application/json");
-            if (!string.IsNullOrEmpty(body)) {
+            if (!string.IsNullOrEmpty(body))
+            {
                 request.Content = content;
             }
 
@@ -245,11 +223,12 @@ namespace Viper.Areas.RAPS.Services
             string responseBody = await response.Content.ReadAsStringAsync();
             if (response.IsSuccessStatusCode)
             {
-                uInformResponse = JsonConvert.DeserializeObject<UinformResponse<T>>(responseBody);
+                uInformResponse = JsonSerializer.Deserialize<UinformResponse<T>>(responseBody, _jsonOptions);
             }
             else
             {
-                uInformResponse = new UinformResponse<T>() {
+                uInformResponse = new UinformResponse<T>
+                {
                     Success = false,
                     Error = new()
                     {
@@ -269,8 +248,11 @@ namespace Viper.Areas.RAPS.Services
             //take "{METHOD}:{epochTime}:{publicKey}" and sign it with the privateKey, then convert to base64
             if (!string.IsNullOrEmpty(publicKey) && !string.IsNullOrEmpty(privateKey))
             {
-                string toSign = method.Method.ToUpper() + ":" + epochTime.ToString() + ":" + publicKey;
+                string toSign = method.Method.ToUpper() + ":" + epochTime + ":" + publicKey;
+                // Legacy API requires HMACSHA1 - third-party system constraint
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                 using var sha1 = new HMACSHA1(Encoding.ASCII.GetBytes(privateKey));
+#pragma warning restore CA5350
                 byte[] hashed = sha1.ComputeHash(Encoding.ASCII.GetBytes(toSign));
                 return Convert.ToBase64String(hashed);
             }
@@ -279,23 +261,23 @@ namespace Viper.Areas.RAPS.Services
         }
 
         //Private classes used to communicate with the API
-        private class SearchClass
+        private sealed class SearchClass
         {
             public string Property { get; set; } = "ExtensionAttribute6";
             public string Value { get; set; } = string.Empty;
             public string MatchType { get; set; } = "LIKE";
         }
 
-        private class ManagedGroupAddEdit
+        private sealed class ManagedGroupAddEdit
         {
             public string GroupName { get; set; } = string.Empty;
             public string DisplayName { get; set; } = string.Empty;
             public string Description { get; set; } = string.Empty;
-            public int MaxMembers { get; set; } = 0;
+            public int MaxMembers { get; set; }
             public string ExtensionAttribute6 { get; set; } = _ourGroupIdentifier;
         }
 
-        private class AddRemoveMember
+        private sealed class AddRemoveMember
         {
             public string UserGuid { get; set; } = string.Empty;
             public string Action { get; set; } = string.Empty;

@@ -1,0 +1,14 @@
+{
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": true,
+    "files.insertFinalNewline": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "eslint.validate": ["vue"],
+    "eslint.workingDirectories": [
+        "./VueApp"
+    ],
+    "oxc.typeAware": true,
+    "oxc.unusedDisableDirectives": "warn"
+}

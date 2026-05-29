@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.RAPS;
 
-public partial class RoleTemplateRole
+public class RoleTemplateRole
 {
     public int RoleTemplateRoleId { get; set; }
 

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.CTS;
 
-public partial class Patient
+public class Patient
 {
     public int PatientId { get; set; }
 

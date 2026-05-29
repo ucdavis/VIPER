@@ -1,4 +1,3 @@
-﻿using Microsoft.Identity.Client;
 using System.Text.Json;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
@@ -13,7 +12,7 @@ namespace Viper.Areas.CTS.Services
             Update,
             Delete
         }
-        public static readonly List<string> AuditAreas = new()
+        public static readonly IReadOnlyList<string> AuditAreas = new[]
         {
             "Student Epa",
         };
@@ -27,14 +26,10 @@ namespace Viper.Areas.CTS.Services
         /// <summary>
         /// Audit the creation, update, or delete of a student EPA assessment
         /// </summary>
-        /// <param name="encounter"></param>
-        /// <param name="studentEpa"></param>
-        /// <param name="actionType"></param>
-        /// <param name="modifier"></param>
-        /// <returns></returns>
         public async Task AuditStudentEpa(Encounter encounter, AuditActionType actionType, int modifier)
         {
-            var details = JsonSerializer.Serialize(new {
+            var details = JsonSerializer.Serialize(new
+            {
                 encounter.EncounterDate,
                 encounter.ServiceId,
                 encounter.StudentLevel,
@@ -43,7 +38,7 @@ namespace Viper.Areas.CTS.Services
                 encounter.LevelId,
                 encounter.Comment
             });
-            var audit = new CtsAudit()
+            var audit = new CtsAudit
             {
                 ModifiedBy = modifier,
                 TimeStamp = DateTime.Now,

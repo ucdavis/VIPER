@@ -1,15 +1,12 @@
-﻿using System.Runtime.Versioning;
-using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.Protocols;
-using System.Reflection;
-using Amazon.Runtime.Internal.Transform;
-using Viper.Models.AAUD;
+using System.Net;
+using System.Runtime.Versioning;
 using Viper.Areas.Directory.Models;
 
 namespace Viper.Classes.Utilities
 {
     [SupportedOSPlatform("windows")]
-    public class LdapService
+    public static class LdapService
     {
         private const string _ldapUsername = "UID=vetmed,OU=Special Users,DC=ucdavis,DC=edu";
         private const string _ldapServer = "ldap.ucdavis.edu";
@@ -22,21 +19,16 @@ namespace Viper.Classes.Utilities
             "ucdStudentLevel","labeledUri","title","uid","ucdPersonPIDM","ucdPersonIAMID","employeeNumber",
             "ucdStudentSID","ucdPersonUUID","eduPersonNickname","ucdPersonAffiliation","displayname"
         };
-        private static readonly string[] CFParams =
-        {
-            "accountexpires","adspath","badpasswordtime","badpwdcount","cn","codepage","company","countrycode","deliverandredirect","department","deptname","departmentnumber","Description","displayname","distinguishedname","dscorepropagationdata","edupersonaffiliation","edupersonprincipalname","employeenumber","extensionattribute10","extensionattribute11","extensionattribute12","extensionattribute13","extensionattribute14","extensionattribute15","extensionattribute5","extensionattribute6","extensionattribute7","extensionattribute8","extensionattribute9","gidnumber","givenname","instancetype","internetencoding","l","lastlogoff","lastlogon","lastlogontimestamp","legacyexchangedn","lockouttime","logoncount","mail","mailnickname","mapirecipient","memberof","mobile","msexcharchiveguid","msexcharchivename","msexcharchivestatus","msexchblockedsendershash","msexchcomanagedobjectsbl","msexchextensionattribute16","msexchextensionattribute17","msexchmailboxguid","msexchpoliciesexcluded","msexchrecipientdisplaytype","msexchrecipienttypedetails","msexchremoterecipienttype","msexchsafesendershash","msexchtextmessagingstate","msexchumdtmfmap","msexchuseraccountcontrol","msexchversion","msexchwhenmailboxcreated","name","objectcategory","objectclass","objectguid","objectsid","ou","pager","phone","physicaldeliveryofficename","postaladdress","postalcode","primarygroupid","proxyaddresses","pwdlastset","SamAccountName","samaccounttype","showinaddressbook","sn","st","street","streetaddress","targetaddress","telephonenumber","textencodedoraddress","title","ucdappointmentdepartmentcode","ucdappointmenttitlecode","ucdpersonaffiliation","ucdpersoniamid","ucdpersonnetid","ucdpersonpidm","ucdpersonppsid","ucdpersonuuid","ucdpublishitemflag","ucdstudentsid","uid","uidnumber","useraccountcontrol","username","userprincipalname","usnchanged","usncreated","whenchanged","whencreated"
-        };
 
         private static SearchResponse SearchLdap(string searchFilter)
         {
             var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, _ldapSSLPort);
             var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
             using var lc = new LdapConnection(ldapIdentifier,
-                    new System.Net.NetworkCredential(_ldapUsername, cred),
+                    new NetworkCredential(_ldapUsername, cred),
                     AuthType.Basic);
             lc.SessionOptions.ProtocolVersion = 3;
             lc.SessionOptions.SecureSocketLayer = true;
-            lc.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
             lc.Bind();
 
             var searchRequest = new SearchRequest(_ldapStart, searchFilter, SearchScope.Subtree, personAttributes);
@@ -52,7 +44,8 @@ namespace Viper.Classes.Utilities
         public static List<LdapUserContact> GetUsersContact(string search)
         {
             List<LdapUserContact> users = new();
-            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            string? filter = BuildUsersContactFilter(search);
+            if (filter == null) return users;
             var results = SearchLdap(filter);
 
             foreach (SearchResultEntry entry in results.Entries)
@@ -71,10 +64,11 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="search">Searches all fields (phone number, SN, given name, UID, CN, mail) for this value</param>
         /// <returns>Dictionary of Users, indexed by mothraID</returns>
-        public Dictionary<string, LdapUserContact> GetUsersContactDictionary(string search)
+        public static Dictionary<string, LdapUserContact> GetUsersContactDictionary(string search)
         {
             Dictionary<string, LdapUserContact> users = new();
-            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            string? filter = BuildUsersContactFilter(search);
+            if (filter == null) return users;
             var results = SearchLdap(filter);
             foreach (SearchResultEntry entry in results.Entries)
             {
@@ -92,9 +86,10 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="search">Search string for looking up user</param>
         /// <returns>LdapUserContact</returns>
-        public LdapUserContact? GetUserContact(string search)
+        public static LdapUserContact? GetUserContact(string search)
         {
-            string filter = string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", search);
+            string? filter = BuildUsersContactFilter(search);
+            if (filter == null) return null;
             var results = SearchLdap(filter);
 
             if (results.Entries.Count > 0)
@@ -110,10 +105,10 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="id">iamID for looking up user</param>
         /// <returns>LdapUserContact</returns>
-        public LdapUserContact? GetUserByID(string? id)
+        public static LdapUserContact? GetUserByID(string? id)
         {
-            if (id == null) return null;
-            string filter = string.Format("(ucdpersoniamid = {0})", id);
+            string? filter = BuildUserByIDFilter(id);
+            if (filter == null) return null;
             var results = SearchLdap(filter);
             if (results.Entries.Count > 0)
             {
@@ -145,13 +140,10 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="ids">List of MothraIDs for looking up users</param>
         /// <returns>Dictionary of Users, indexed by mothraID</returns>
-        public Dictionary<string, LdapUserContact> GetUsersByIDs(List<string> ids)
+        public static Dictionary<string, LdapUserContact> GetUsersByIDs(List<string> ids)
         {
-            string filter = "(|";
-            foreach (string i in ids) {
-                filter += string.Format("(ucdpersonuuid = {0})", i);
-            }
-            filter += ")";
+            string? filter = BuildUsersByIDsFilter(ids);
+            if (filter == null) return new Dictionary<string, LdapUserContact>();
             var results = SearchLdap(filter);
             var users = new Dictionary<string, LdapUserContact>();
             foreach (SearchResultEntry entry in results.Entries)
@@ -164,22 +156,52 @@ namespace Viper.Classes.Utilities
             }
             return users;
         }
-        
+
         /// <summary>
         /// Gets a single user from ou or ad3
         /// </summary>
         /// <param name="samAccountName">samAccountName of user</param>
-        /// <param name="fromOu">If true, searches the SVM OU in ou.ad3.ucdavis.edu, otherwise, searches ucdUsers in ad3</param>
-        /// <returns></returns>
-        public LdapUserContact? GetUserBySamAccountName(string? samAccountName)
+        public static LdapUserContact? GetUserBySamAccountName(string? samAccountName)
         {
-            string filter = string.Format("(&(objectClass=user)(samAccountName={0}))", samAccountName);
+            string? filter = BuildUserBySamAccountNameFilter(samAccountName);
+            if (filter == null) return null;
             var results = SearchLdap(filter);
             if (results.Entries.Count > 0)
             {
                 return new LdapUserContact(results.Entries[0]);
             }
             return null;
+        }
+
+        internal static string? BuildUsersContactFilter(string? search)
+        {
+            if (string.IsNullOrWhiteSpace(search)) return null;
+            var escaped = LdapFilter.Escape(search);
+            return string.Format("(|(telephoneNumber=*{0})(sn={0}*)(givenName={0}*)(uid={0}*)(cn={0})(mail={0}*))", escaped);
+        }
+
+        internal static string? BuildUserByIDFilter(string? id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            var escaped = LdapFilter.Escape(id);
+            return string.Format("(ucdpersoniamid = {0})", escaped);
+        }
+
+        internal static string? BuildUsersByIDsFilter(List<string>? ids)
+        {
+            if (ids == null) return null;
+            var clauses = ids
+                .Where(i => !string.IsNullOrEmpty(i))
+                .Select(i => $"(ucdpersonuuid = {LdapFilter.Escape(i)})")
+                .ToList();
+            return clauses.Count == 0 ? null : $"(|{string.Concat(clauses)})";
+        }
+
+        internal static string? BuildUserBySamAccountNameFilter(string? samAccountName)
+        {
+            if (string.IsNullOrEmpty(samAccountName)) return null;
+            var escaped = LdapFilter.Escape(samAccountName);
+            return string.Format("(&(objectClass=user)(samAccountName={0}))", escaped);
         }
 
         //Sort users by description first, or sam account name

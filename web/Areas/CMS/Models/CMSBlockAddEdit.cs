@@ -1,10 +1,8 @@
-﻿using Viper.Models.VIPER;
-
 namespace Viper.Areas.CMS.Models
 {
     public class CMSBlockAddEdit
     {
-        public int ContentBlockId { get; set; }
+        public required int ContentBlockId { get; set; }
 
         public string Content { get; set; } = null!;
 
@@ -22,8 +20,8 @@ namespace Viper.Areas.CMS.Models
 
         public string? FriendlyName { get; set; }
 
-        public bool AllowPublicAccess { get; set; }
-        
+        public required bool AllowPublicAccess { get; set; }
+
         public ICollection<string> Permissions { get; set; } = new List<string>();
     }
 }

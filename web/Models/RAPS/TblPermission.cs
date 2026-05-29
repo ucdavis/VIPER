@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.RAPS;
 
-public partial class TblPermission
+public class TblPermission
 {
     public int PermissionId { get; set; }
 

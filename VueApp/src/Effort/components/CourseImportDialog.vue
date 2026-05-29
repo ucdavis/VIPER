@@ -1,0 +1,572 @@
+<template>
+    <q-dialog
+        :model-value="modelValue"
+        persistent
+        maximized-on-mobile
+        aria-labelledby="course-import-title"
+        @keydown.escape="handleClose"
+    >
+        <q-card style="width: 100%; max-width: 900px; position: relative">
+            <q-btn
+                icon="close"
+                flat
+                round
+                dense
+                aria-label="Close dialog"
+                class="absolute-top-right q-ma-sm"
+                style="z-index: 1"
+                @click="handleClose"
+            />
+            <q-card-section class="q-pb-none q-pr-xl">
+                <div
+                    id="course-import-title"
+                    class="text-h6"
+                >
+                    Import Course from Banner ({{ termName }})
+                </div>
+                <div class="text-caption text-grey-7">Enter one or more fields to search</div>
+            </q-card-section>
+
+            <q-card-section>
+                <!-- Search Form -->
+                <div class="row q-col-gutter-sm items-end q-mb-md">
+                    <div class="col-12 col-sm-3">
+                        <q-input
+                            v-model="searchSubjCode"
+                            label="Subject Code"
+                            dense
+                            outlined
+                            placeholder="e.g., VME"
+                            @keyup.enter="searchCourses"
+                        />
+                    </div>
+                    <div class="col-12 col-sm-3">
+                        <q-input
+                            v-model="searchCrseNumb"
+                            label="Course Number"
+                            dense
+                            outlined
+                            placeholder="e.g., 443"
+                            @keyup.enter="searchCourses"
+                        />
+                    </div>
+                    <div class="col-12 col-sm-2">
+                        <q-input
+                            v-model="searchSeqNumb"
+                            label="Section"
+                            dense
+                            outlined
+                            placeholder="e.g., 001"
+                            @keyup.enter="searchCourses"
+                        />
+                    </div>
+                    <div class="col-12 col-sm-2">
+                        <q-input
+                            v-model="searchCrn"
+                            label="CRN"
+                            dense
+                            outlined
+                            placeholder="e.g., 5-digit number"
+                            @keyup.enter="searchCourses"
+                        />
+                    </div>
+                    <div class="col-12 col-sm-auto self-center">
+                        <q-btn
+                            label="Search"
+                            color="primary"
+                            :loading="isSearching"
+                            :disable="!canSearch"
+                            class="full-width-xs loading-btn"
+                            @click="searchCourses"
+                        >
+                            <template #loading>
+                                <div class="row no-wrap items-center text-no-wrap">
+                                    <q-spinner
+                                        size="1em"
+                                        class="q-mr-sm"
+                                    />
+                                    Search
+                                </div>
+                            </template>
+                        </q-btn>
+                    </div>
+                </div>
+
+                <StatusBanner
+                    v-if="searchError"
+                    type="error"
+                >
+                    {{ searchError }}
+                </StatusBanner>
+
+                <!-- No results message (self mode - richer banner) -->
+                <StatusBanner
+                    v-if="isSelfMode && hasSearched && !isSearching && searchResults.length === 0"
+                    type="info"
+                >
+                    <div>
+                        No courses found.
+                        <ul class="q-mt-sm q-mb-none">
+                            <li>Make sure you are searching for the correct term</li>
+                            <li>You may need to wait for Banner data to sync</li>
+                        </ul>
+                    </div>
+                </StatusBanner>
+
+                <!-- Search Results - Card view for mobile -->
+                <div
+                    v-if="searchResults.length > 0"
+                    class="lt-sm"
+                >
+                    <q-card
+                        v-for="course in searchResults"
+                        :key="course.crn"
+                        flat
+                        bordered
+                        class="q-mb-sm"
+                    >
+                        <q-card-section class="q-py-sm">
+                            <div class="row items-center justify-between q-mb-xs">
+                                <div>
+                                    <span class="text-weight-bold">{{ course.courseCode }}</span
+                                    ><span class="text-grey-7">-{{ course.seqNumb }}</span>
+                                </div>
+                                <StatusBadge
+                                    v-if="course.alreadyImported"
+                                    color="grey-5"
+                                    >Already Imported</StatusBadge
+                                >
+                                <StatusBadge
+                                    v-else-if="course.importedUnitValues.length > 0"
+                                    color="warning"
+                                    >Imported: {{ course.importedUnitValues.join(", ") }} units</StatusBadge
+                                >
+                                <StatusBadge
+                                    v-else
+                                    color="positive"
+                                    >Available</StatusBadge
+                                >
+                            </div>
+                            <div class="text-body2">{{ course.title }}</div>
+                            <div class="text-caption text-grey-7">
+                                CRN: {{ course.crn }} |
+                                <template v-if="course.isVariableUnits">
+                                    Units: {{ course.unitLow }}-{{ course.unitHigh }}
+                                    <StatusBadge
+                                        color="info"
+                                        class="q-ml-xs"
+                                        >Variable</StatusBadge
+                                    >
+                                </template>
+                                <template v-else> Units: {{ course.unitLow }} </template>
+                                | Enrollment: {{ course.enrollment }}
+                            </div>
+                            <div
+                                v-if="shouldShowImportButton(isSelfMode, course)"
+                                class="q-mt-sm"
+                            >
+                                <q-btn
+                                    :label="importButtonLabel(isSelfMode, course)"
+                                    color="primary"
+                                    dense
+                                    size="sm"
+                                    :loading="importingCrn === course.crn"
+                                    @click="startImport(course)"
+                                >
+                                    <template #loading>
+                                        <div class="row no-wrap items-center text-no-wrap">
+                                            <q-spinner
+                                                size="1em"
+                                                class="q-mr-sm"
+                                            />
+                                            {{ importButtonLabel(isSelfMode, course) }}
+                                        </div>
+                                    </template>
+                                </q-btn>
+                            </div>
+                        </q-card-section>
+                    </q-card>
+                </div>
+
+                <!-- Search Results - Table view for larger screens -->
+                <q-table
+                    v-if="searchResults.length > 0"
+                    class="gt-xs"
+                    :rows="searchResults"
+                    :columns="columns"
+                    row-key="crn"
+                    dense
+                    flat
+                    bordered
+                    :pagination="{ rowsPerPage: 10 }"
+                >
+                    <template #body-cell-courseCode="slotProps">
+                        <q-td :props="slotProps">
+                            <span class="text-weight-medium">{{ slotProps.row.courseCode }}</span
+                            ><span class="text-grey-7">-{{ slotProps.row.seqNumb }}</span>
+                        </q-td>
+                    </template>
+                    <template #body-cell-units="slotProps">
+                        <q-td
+                            :props="slotProps"
+                            class="text-center"
+                        >
+                            <template v-if="slotProps.row.isVariableUnits">
+                                {{ slotProps.row.unitLow }} - {{ slotProps.row.unitHigh }}
+                                <StatusBadge
+                                    color="info"
+                                    class="q-ml-xs"
+                                    >Variable</StatusBadge
+                                >
+                            </template>
+                            <template v-else>
+                                {{ slotProps.row.unitLow }}
+                            </template>
+                        </q-td>
+                    </template>
+                    <template #body-cell-status="slotProps">
+                        <q-td :props="slotProps">
+                            <template v-if="slotProps.row.alreadyImported">
+                                <StatusBadge color="grey-5">Already Imported</StatusBadge>
+                            </template>
+                            <template v-else-if="slotProps.row.importedUnitValues.length > 0">
+                                <StatusBadge color="warning"
+                                    >Imported: {{ slotProps.row.importedUnitValues.join(", ") }} units</StatusBadge
+                                >
+                            </template>
+                            <template v-else>
+                                <StatusBadge color="positive">Available</StatusBadge>
+                            </template>
+                        </q-td>
+                    </template>
+                    <template #body-cell-actions="slotProps">
+                        <q-td :props="slotProps">
+                            <q-btn
+                                v-if="shouldShowImportButton(isSelfMode, slotProps.row)"
+                                :label="importButtonLabel(isSelfMode, slotProps.row)"
+                                color="primary"
+                                dense
+                                size="sm"
+                                :loading="importingCrn === slotProps.row.crn"
+                                @click="startImport(slotProps.row)"
+                            >
+                                <template #loading>
+                                    <div class="row no-wrap items-center text-no-wrap">
+                                        <q-spinner
+                                            size="1em"
+                                            class="q-mr-sm"
+                                        />
+                                        {{ importButtonLabel(isSelfMode, slotProps.row) }}
+                                    </div>
+                                </template>
+                            </q-btn>
+                        </q-td>
+                    </template>
+                </q-table>
+
+                <!-- No results (staff mode - plain text) -->
+                <div
+                    v-if="!isSelfMode && hasSearched && !isSearching && searchResults.length === 0"
+                    class="text-grey text-center q-py-lg"
+                >
+                    No courses found matching your search criteria.
+                </div>
+            </q-card-section>
+        </q-card>
+    </q-dialog>
+
+    <!-- Import Options Dialog -->
+    <q-dialog
+        v-model="showImportOptionsDialog"
+        persistent
+        aria-labelledby="import-options-title"
+    >
+        <q-card style="min-width: 350px">
+            <q-card-section>
+                <div
+                    id="import-options-title"
+                    class="text-h6"
+                >
+                    Import Options
+                </div>
+                <div class="text-subtitle2 text-grey q-mt-sm">
+                    {{ selectedBannerCourse?.courseCode }}-{{ selectedBannerCourse?.seqNumb }}
+                </div>
+            </q-card-section>
+
+            <q-card-section>
+                <!-- Variable units input -->
+                <template v-if="selectedBannerCourse?.isVariableUnits">
+                    <p class="text-body2">
+                        This is a variable-unit course. Please enter the units for this import ({{
+                            selectedBannerCourse?.unitLow
+                        }}
+                        - {{ selectedBannerCourse?.unitHigh }}).
+                    </p>
+                    <q-input
+                        v-model.number="importUnits"
+                        type="number"
+                        label="Units"
+                        dense
+                        outlined
+                        class="q-mb-md"
+                        :min="selectedBannerCourse?.unitLow"
+                        :max="selectedBannerCourse?.unitHigh"
+                        step="0.5"
+                        :rules="[
+                            (v: number) =>
+                                (v >= (selectedBannerCourse?.unitLow ?? 0) &&
+                                    v <= (selectedBannerCourse?.unitHigh ?? 99)) ||
+                                `Units must be between ${selectedBannerCourse?.unitLow} and ${selectedBannerCourse?.unitHigh}`,
+                        ]"
+                    />
+                    <div
+                        v-if="selectedBannerCourse?.importedUnitValues.length"
+                        class="text-caption text-warning q-mb-md"
+                    >
+                        Already imported with: {{ selectedBannerCourse.importedUnitValues.join(", ") }} units
+                    </div>
+                </template>
+
+                <!-- Import error display -->
+                <StatusBanner
+                    v-if="importError"
+                    type="error"
+                >
+                    {{ importError }}
+                </StatusBanner>
+            </q-card-section>
+
+            <q-card-actions align="right">
+                <q-btn
+                    v-close-popup
+                    label="Cancel"
+                    flat
+                />
+                <q-btn
+                    :label="importButtonLabel(isSelfMode, selectedBannerCourse ?? { alreadyImported: false })"
+                    color="primary"
+                    :loading="isImporting"
+                    :disable="!canImport"
+                    class="loading-btn loading-btn--wide"
+                    @click="doImport"
+                >
+                    <template #loading>
+                        <div class="row no-wrap items-center text-no-wrap">
+                            <q-spinner
+                                size="1em"
+                                class="q-mr-sm"
+                            />
+                            {{ importButtonLabel(isSelfMode, selectedBannerCourse ?? { alreadyImported: false }) }}
+                        </div>
+                    </template>
+                </q-btn>
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from "vue"
+import { useQuasar } from "quasar"
+import StatusBanner from "@/components/StatusBanner.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
+import { courseService } from "../services/course-service"
+import type { BannerCourseDto } from "../types"
+import type { QTableColumn } from "quasar"
+import { shouldShowImportButton, importButtonLabel, shouldShortcutToImport } from "../utils/import-button-rules"
+
+const props = withDefaults(
+    defineProps<{
+        modelValue: boolean
+        termCode: number | null
+        termName: string
+        mode?: "self" | "staff"
+    }>(),
+    {
+        mode: "staff",
+    },
+)
+
+const emit = defineEmits<{
+    "update:modelValue": [value: boolean]
+    imported: [courseId: number]
+}>()
+
+const $q = useQuasar()
+
+const isSelfMode = computed(() => props.mode === "self")
+
+function handleClose() {
+    emit("update:modelValue", false)
+}
+
+// Search state
+const searchSubjCode = ref("")
+const searchCrseNumb = ref("")
+const searchSeqNumb = ref("")
+const searchCrn = ref("")
+const searchResults = ref<BannerCourseDto[]>([])
+const isSearching = ref(false)
+const hasSearched = ref(false)
+const searchError = ref("")
+
+// Import state
+const showImportOptionsDialog = ref(false)
+const selectedBannerCourse = ref<BannerCourseDto | null>(null)
+const importUnits = ref<number>(0)
+const isImporting = ref(false)
+const importingCrn = ref<string | null>(null)
+const importError = ref<string | null>(null)
+
+const canSearch = computed(
+    () =>
+        props.termCode &&
+        (searchSubjCode.value.trim() ||
+            searchCrseNumb.value.trim() ||
+            searchSeqNumb.value.trim() ||
+            searchCrn.value.trim()),
+)
+
+const canImport = computed(() => {
+    if (!selectedBannerCourse.value) return false
+
+    if (selectedBannerCourse.value.isVariableUnits) {
+        if (
+            importUnits.value < selectedBannerCourse.value.unitLow ||
+            importUnits.value > selectedBannerCourse.value.unitHigh
+        ) {
+            return false
+        }
+    }
+
+    return true
+})
+
+const columns: QTableColumn[] = [
+    { name: "courseCode", label: "Course", field: "courseCode", align: "left" },
+    { name: "crn", label: "CRN", field: "crn", align: "left" },
+    { name: "title", label: "Title", field: "title", align: "left" },
+    { name: "enrollment", label: "Enrollment", field: "enrollment", align: "center" },
+    { name: "units", label: "Units", field: "unitLow", align: "center" },
+    { name: "status", label: "Status", field: "alreadyImported", align: "center" },
+    { name: "actions", label: "Actions", field: "actions", align: "center" },
+]
+
+// Reset search when dialog opens
+watch(
+    () => props.modelValue,
+    (open) => {
+        if (open) {
+            searchSubjCode.value = ""
+            searchCrseNumb.value = ""
+            searchSeqNumb.value = ""
+            searchCrn.value = ""
+            searchResults.value = []
+            hasSearched.value = false
+            searchError.value = ""
+        }
+    },
+)
+
+async function searchCourses() {
+    if (!canSearch.value || !props.termCode) return
+
+    isSearching.value = true
+    searchError.value = ""
+    hasSearched.value = true
+
+    try {
+        const searchParams = {
+            subjCode: searchSubjCode.value.trim() || undefined,
+            crseNumb: searchCrseNumb.value.trim() || undefined,
+            seqNumb: searchSeqNumb.value.trim() || undefined,
+            crn: searchCrn.value.trim() || undefined,
+        }
+
+        searchResults.value = isSelfMode.value
+            ? await courseService.searchBannerCoursesForSelf(props.termCode, searchParams)
+            : await courseService.searchBannerCourses(props.termCode, searchParams)
+    } catch (err) {
+        searchError.value = err instanceof Error ? err.message : "Error searching for courses"
+        searchResults.value = []
+    } finally {
+        isSearching.value = false
+    }
+}
+
+function startImport(course: BannerCourseDto) {
+    selectedBannerCourse.value = course
+    importUnits.value = course.unitLow
+    importError.value = null
+
+    // Self mode: already-imported shortcut (bypass options dialog).
+    // Backend returns the existing row by CRN match.
+    // Variable-unit courses must go through the dialog so the user can choose the unit value.
+    if (shouldShortcutToImport(isSelfMode.value, course)) {
+        doImport()
+        return
+    }
+
+    showImportOptionsDialog.value = true
+}
+
+async function doImport() {
+    if (!selectedBannerCourse.value || !props.termCode) return
+
+    isImporting.value = true
+    importingCrn.value = selectedBannerCourse.value.crn
+    importError.value = null
+
+    try {
+        const request = {
+            termCode: props.termCode,
+            crn: selectedBannerCourse.value.crn,
+            units: selectedBannerCourse.value.isVariableUnits ? importUnits.value : undefined,
+        }
+
+        if (isSelfMode.value) {
+            const result = await courseService.importCourseForSelf(request)
+            if (result.success && result.course) {
+                showImportOptionsDialog.value = false
+                emit("update:modelValue", false)
+                emit("imported", result.course.id)
+                if (result.wasExisting) {
+                    $q.notify({ type: "info", message: "Course was already imported" })
+                }
+            } else {
+                importError.value = result.error ?? "Failed to import course"
+                $q.notify({ type: "negative", message: importError.value })
+            }
+        } else {
+            const result = await courseService.importCourse(request)
+            if (result.success && result.course) {
+                showImportOptionsDialog.value = false
+                emit("update:modelValue", false)
+                emit("imported", result.course.id)
+            } else {
+                importError.value = result.error ?? "Failed to import course"
+                $q.notify({ type: "negative", message: importError.value })
+            }
+        }
+    } catch (err) {
+        importError.value = err instanceof Error ? err.message : "Failed to import course"
+        $q.notify({ type: "negative", message: importError.value })
+    } finally {
+        isImporting.value = false
+        importingCrn.value = null
+    }
+}
+</script>
+
+<style scoped>
+/* Width reserved for the spinner + label loading overlay. */
+.loading-btn {
+    min-width: 8rem;
+}
+
+/* Footer "Use Course" button needs more room than the table-row variant. */
+.loading-btn--wide {
+    min-width: 9rem;
+}
+</style>

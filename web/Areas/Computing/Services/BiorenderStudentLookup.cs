@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using System.Net.Mail;
 using Viper.Areas.Computing.Model;
 using Viper.Classes.Utilities;
 
@@ -49,16 +49,7 @@ namespace Viper.Areas.Computing.Services
             }
 
             var taskResults = await Task.WhenAll(resultList);
-            List<BiorenderStudent> students = new();
-            foreach (var t in taskResults)
-            {
-                if (t != null)
-                {
-                    students.Add(t);
-                }
-            }
-
-            return students;
+            return taskResults.Where(t => t != null).ToList()!;
         }
 
         /// <summary>
@@ -68,7 +59,7 @@ namespace Viper.Areas.Computing.Services
         /// <returns></returns>
         public async Task<BiorenderStudent> GetSingleStudent(string email)
         {
-            var std = new BiorenderStudent() { Email = email };
+            var std = new BiorenderStudent { Email = email };
 
             //get iam info by email
             var iamContact = await iam.GetContactInfoByEmail(email);
@@ -85,7 +76,7 @@ namespace Viper.Areas.Computing.Services
                 std.StudentAssociations = stdAssoc.Data.ToList();
             }
 
-            var iamPerson = await iam.GetByIamIds(new List<string>() { std.IamId });
+            var iamPerson = await iam.GetByIamIds(new List<string> { std.IamId });
             std.FirstName = iamPerson?.Data?.FirstOrDefault()?.DFirstName;
             std.LastName = iamPerson?.Data?.FirstOrDefault()?.DLastName;
 
@@ -95,13 +86,13 @@ namespace Viper.Areas.Computing.Services
         static private bool IsValidEmail(string email)
         {
             var trimmed = email.Trim();
-            if (trimmed.Length == 0 || trimmed.EndsWith("."))
+            if (trimmed.Length == 0 || trimmed.EndsWith('.'))
             {
                 return false;
             }
             try
             {
-                var addr = new System.Net.Mail.MailAddress(email);
+                var addr = new MailAddress(email);
                 return addr.Address == trimmed;
             }
             catch

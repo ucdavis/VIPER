@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class NightlyJob
+public class NightlyJob
 {
     public int NightlyJobRecordId { get; set; }
 

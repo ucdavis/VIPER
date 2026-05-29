@@ -1,10 +1,10 @@
-﻿using Ganss.Xss;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Models.CTS;
+using Viper.Services;
 using Web.Authorization;
+using Epa = Viper.Areas.CTS.Models.Epa;
 
 namespace Viper.Areas.CTS.Controllers
 {
@@ -13,25 +13,25 @@ namespace Viper.Areas.CTS.Controllers
     public class EpaController : ApiController
     {
         private readonly VIPERContext context;
-        private readonly HtmlSanitizer sanitizer; //EPAs contain HTML in the description. Sanitize on both input and output.
+        private readonly IHtmlSanitizerService sanitizer; //EPAs contain HTML in the description. Sanitize on both input and output.
 
-        public EpaController(VIPERContext context)
+        public EpaController(VIPERContext context, IHtmlSanitizerService sanitizer)
         {
             this.context = context;
-            sanitizer = new HtmlSanitizer();
+            this.sanitizer = sanitizer;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Models.Epa>>> GetEpas(int? serviceId)
+        public async Task<ActionResult<List<Epa>>> GetEpas(int? serviceId)
         {
             var epas = await context.Epas
                 .AsNoTracking()
                 .Include(e => e.Services)
                 .Where(e => serviceId == null || e.Services.Any(s => s.ServiceId == serviceId))
                 .OrderBy(e => e.Name)
-                .Select(e => new Models.Epa(e))
+                .Select(e => new Epa(e))
                 .ToListAsync();
-            
+
             epas.ForEach(e =>
             {
                 e.Description = e.Description != null ? sanitizer.Sanitize(e.Description) : null;
@@ -42,13 +42,13 @@ namespace Viper.Areas.CTS.Controllers
         }
 
         [HttpGet("{epaId}")]
-        public async Task<ActionResult<Models.Epa>> GetEpa(int epaId)
+        public async Task<ActionResult<Epa>> GetEpa(int epaId)
         {
             var epa = await context.Epas
                 .AsNoTracking()
                 .Include(e => e.Services)
                 .Where(e => e.EpaId == epaId)
-                .Select(e => new Models.Epa(e))
+                .Select(e => new Epa(e))
                 .FirstOrDefaultAsync();
             if (epa == null)
             {
@@ -61,7 +61,7 @@ namespace Viper.Areas.CTS.Controllers
 
         [HttpPost]
         [Permission(Allow = "SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<Epa>> AddEpa(Epa epa)
+        public async Task<ActionResult<Viper.Models.CTS.Epa>> AddEpa(Viper.Models.CTS.Epa epa)
         {
             if (epa.Description != null)
             {
@@ -74,7 +74,7 @@ namespace Viper.Areas.CTS.Controllers
 
         [HttpPut("{epaId}")]
         [Permission(Allow = "SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<Epa>> UpdateEpa(int epaId, Epa epa)
+        public async Task<ActionResult<Viper.Models.CTS.Epa>> UpdateEpa(int epaId, Viper.Models.CTS.Epa epa)
         {
             if (epaId != epa.EpaId)
             {
@@ -92,7 +92,7 @@ namespace Viper.Areas.CTS.Controllers
 
         [HttpDelete("{epaId}")]
         [Permission(Allow = "SVMSecure.CTS.Manage")]
-        public async Task<ActionResult<Epa>> DeleteEpa(int epaId)
+        public async Task<ActionResult<Viper.Models.CTS.Epa>> DeleteEpa(int epaId)
         {
             var epa = await context.Epas.FindAsync(epaId);
             if (epa == null)
@@ -130,16 +130,13 @@ namespace Viper.Areas.CTS.Controllers
             bool modified = removed > 0;
 
             //look for services to add
-            foreach (var serviceId in serviceIds)
+            foreach (var serviceId in serviceIds.Where(id => epa.Services.Find(e => e.ServiceId == id) == null))
             {
-                if (epa.Services.Find(e => e.ServiceId == serviceId) == null)
+                var s = await context.Services.FindAsync(serviceId);
+                if (s != null)
                 {
-                    var s = await context.Services.FindAsync(serviceId);
-                    if (s != null)
-                    {
-                        epa.Services.Add(s);
-                        modified = true;
-                    }
+                    epa.Services.Add(s);
+                    modified = true;
                 }
             }
 

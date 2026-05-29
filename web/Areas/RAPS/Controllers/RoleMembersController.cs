@@ -1,9 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Polly;
-using System.Text.Json;
-using System.Data;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
@@ -64,12 +62,12 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 roleMembers = roleMembers
                     .Where(rm => rm.MemberId == memberId)
-                    .Where(rm => application == (int)rm.Role.Application)
+                    .Where(rm => application == rm.Role.Application)
                     .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role);
             }
 
             return (await roleMembers.ToListAsync())
-                .FindAll(rm => _securityService.RoleBelongsToInstance(instance, rm.Role))
+                .FindAll(rm => RAPSSecurityService.RoleBelongsToInstance(instance, rm.Role))
                 .Select(rm => new RoleMember(rm))
                 .ToList();
         }
@@ -229,8 +227,8 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return result;
             }
-            var user = _context.VwAaudUser
-                    .FirstOrDefault(u => u.MothraId == memberId);
+            var user = await _context.VwAaudUser
+                    .FirstOrDefaultAsync(u => u.MothraId == memberId);
             if (user == null || string.IsNullOrEmpty(user.LoginId))
             {
                 return NotFound();
@@ -260,7 +258,7 @@ namespace Viper.Areas.RAPS.Controllers
             //only return vmacs response for admins
             if (_securityService.IsAllowedTo("RAPS.Admin") && messages.Count > 1)
             {
-                var finalMessage = messages.Last();
+                var finalMessage = messages[^1];
                 try
                 {
                     var vmacsResponse = JsonSerializer.Deserialize<VmacsResponse>(finalMessage);
@@ -271,7 +269,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
                 catch
                 {
-                    return new VmacsResponse()
+                    return new VmacsResponse
                     {
                         ErrorMessage = "Could not parse response from VMACS: " + finalMessage,
                         Success = false
@@ -279,7 +277,7 @@ namespace Viper.Areas.RAPS.Controllers
                 }
             }
 
-            return new VmacsResponse()
+            return new VmacsResponse
             {
                 Success = true
             };

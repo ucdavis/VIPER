@@ -1,8 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Viper.Models.RAPS;
 
 namespace Viper.test.RAPS
@@ -11,7 +6,7 @@ namespace Viper.test.RAPS
     {
         public static readonly List<TblRole> MockRoles = new()
         {
-            new TblRole()
+            new TblRole
             {
                 RoleId = 1,
                 Role = "VIPER.TestRole",
@@ -19,7 +14,7 @@ namespace Viper.test.RAPS
                 UpdateFreq = 1,
                 AllowAllUsers = true
             },
-            new TblRole()
+            new TblRole
             {
                 RoleId = 2,
                 Role = "VIPER.AnotherTestRole",
@@ -27,7 +22,7 @@ namespace Viper.test.RAPS
                 UpdateFreq = 1,
                 AllowAllUsers = true
             },
-            new TblRole()
+            new TblRole
             {
                 RoleId = 3,
                 Role = "VMACS.VMTH.TestVMACSRole",

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.AAUD;
 
-public partial class VwEmployeesForAaud
+public class VwEmployeesForAaud
 {
     public string? Emplid { get; set; }
 

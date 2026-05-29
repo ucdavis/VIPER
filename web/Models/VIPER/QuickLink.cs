@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.VIPER;
 
-public partial class QuickLink
+public class QuickLink
 {
     public int QuickLinkId { get; set; }
 

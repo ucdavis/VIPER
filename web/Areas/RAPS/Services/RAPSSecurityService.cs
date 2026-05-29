@@ -1,11 +1,5 @@
-﻿using Microsoft.AspNetCore.Connections.Features;
-using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
-using Polly;
-using System.Data;
 using System.Linq.Expressions;
-using System.Security.Cryptography;
-using Viper.Classes;
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
@@ -38,7 +32,6 @@ namespace Viper.Areas.RAPS.Services
                 case "VMACS.VMTH": return true;
                 case "VMACS.VMLF": return true;
                 case "VMACS.UCVMCSD": return true;
-                default: break;
             }
             return false;
         }
@@ -71,11 +64,12 @@ namespace Viper.Areas.RAPS.Services
 
         static public Expression<Func<TblPermission, bool>> FilterPermissionsToInstance(string instance)
         {
-            return p =>
-                instance.ToUpper().StartsWith("VMACS.") ? p.Permission.StartsWith("VMACS")
-                    : instance.ToUpper().StartsWith("VIPERFORMS") ? p.Permission.StartsWith("VIPERForms")
-                    : (!p.Permission.StartsWith("VMACS") && !p.Permission.StartsWith("VIPERForms"));
-
+            var upper = instance.ToUpper();
+            if (upper.StartsWith("VMACS."))
+                return p => p.Permission.StartsWith("VMACS");
+            if (upper.StartsWith("VIPERFORMS"))
+                return p => p.Permission.StartsWith("VIPERForms");
+            return p => !p.Permission.StartsWith("VMACS") && !p.Permission.StartsWith("VIPERForms");
         }
 
         /// <summary>
@@ -84,7 +78,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="instance">The instance</param>
         /// <param name="role">The role</param>
         /// <returns>true if the role belongs to the instance, false otherwise</returns>
-        public bool RoleBelongsToInstance(string instance, TblRole role)
+        public static bool RoleBelongsToInstance(string instance, TblRole role)
         {
             string roleName = role.Role.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -97,10 +91,7 @@ namespace Viper.Areas.RAPS.Services
         /// <summary>
         /// Check that the role template belongs to the given instance by checking the tgemplate name
         /// </summary>
-        /// <param name="instance"></param>
-        /// <param name="roleTemplate"></param>
-        /// <returns></returns>
-        public bool RoleTemplateBelongsToInstance(string instance, RoleTemplate roleTemplate)
+        public static bool RoleTemplateBelongsToInstance(string instance, RoleTemplate roleTemplate)
         {
             string name = roleTemplate.TemplateName.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -116,7 +107,7 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="instance">The instance</param>
         /// <param name="permission">The permission</param>
         /// <returns>true if the permission belongs to the instance, false otherwise</returns>
-        public bool PermissionBelongsToInstance(string instance, TblPermission permission)
+        public static bool PermissionBelongsToInstance(string instance, TblPermission permission)
         {
             string permissionName = permission.Permission.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -130,7 +121,7 @@ namespace Viper.Areas.RAPS.Services
             return permissionName.StartsWith(instance.ToUpper());
         }
 
-        public bool PermissionBelongsToInstance(string instance, string permission)
+        public static bool PermissionBelongsToInstance(string instance, string permission)
         {
             string permissionName = permission.ToUpper();
             if (instance.ToUpper() == "VIPER")
@@ -187,7 +178,7 @@ namespace Viper.Areas.RAPS.Services
         /// Check to see if the user can perform the action on a particular role.
         /// </summary>
         /// <param name="action">Action to perform</param>
-        /// <param name="Instance">Instance the user is working with</param>
+        /// <param name="instance">Instance the user is working with</param>
         /// <param name="Role">The specific role, used to check if the user has access to this particular role</param>
         /// <returns>true/false</returns>
         public bool IsAllowedTo(string action, string instance, TblRole Role)

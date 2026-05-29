@@ -1,4 +1,3 @@
-﻿using Microsoft.Identity.Client;
 using Viper.Models.VIPER;
 
 namespace Viper.Areas.CTS.Models
@@ -12,7 +11,7 @@ namespace Viper.Areas.CTS.Models
 
         public string FullName => $"{FirstName} {LastName}";
         public string FullNameLastFirst => $"{LastName}, {FirstName}";
-        
+
         public Assessor() { }
         public Assessor(Person p)
         {

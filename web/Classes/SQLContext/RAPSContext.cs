@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
 using Viper.Models.RAPS;
 
 namespace Viper.Classes.SQLContext;
@@ -162,6 +163,8 @@ public partial class RAPSContext : DbContext
 
     public virtual DbSet<VwVmdoSvmIt> VwVmdoSvmIts { get; set; }
 
+    [UsedImplicitly]
+    public virtual DbSet<VwVmthChief> VwVmthChiefs { get; set; }
     public virtual DbSet<VwVmthClinician> VwVmthClinicians { get; set; }
 
     public virtual DbSet<VwVmthConstituent> VwVmthConstituents { get; set; }
@@ -185,14 +188,6 @@ public partial class RAPSContext : DbContext
     public virtual DbSet<GetVmacsUserPermissionsResult> GetVMACSUserPermissionsResult { get; set; }
 
     public virtual DbSet<GetAllRapsViews> GetAllRapsViews { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:RAPS"]);
-        }
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -320,7 +315,7 @@ public partial class RAPSContext : DbContext
         {
             entity.HasKey(e => e.AuditRecordId);
             entity.ToTable("tblLog");
-            
+
             entity.Property(e => e.AuditRecordId).HasColumnName("auditRecordId");
             entity.Property(e => e.Audit)
                 .HasMaxLength(50)
@@ -369,7 +364,7 @@ public partial class RAPSContext : DbContext
                 .HasForeignKey(d => d.PermissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_tblMemberPermissions_tblPermissions");
-            
+
             entity.HasOne(e => e.Member).WithMany(m => m.TblMemberPermissions)
                 .HasForeignKey(e => e.MemberId);
         });
@@ -393,7 +388,7 @@ public partial class RAPSContext : DbContext
         {
             entity.HasKey(e => e.RoleId);
 
-			entity.ToTable("tblRoles");
+            entity.ToTable("tblRoles");
 
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.AccessCode)
@@ -458,7 +453,6 @@ public partial class RAPSContext : DbContext
 
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.PermissionId).HasColumnName("PermissionID");
-            //entity.Property(e => e.Access).HasDefaultValueSql("(1)");
             entity.Property(e => e.ModBy)
                 .HasMaxLength(8)
                 .IsUnicode(false);
@@ -518,7 +512,7 @@ public partial class RAPSContext : DbContext
         });
 
         modelBuilder.Entity<VwAaudUser>(entity =>
-        { 
+        {
             entity.Property(e => e.AaudUserId).HasColumnName("aaudUserID");
             entity.Property(e => e.IamId).HasColumnName("iam_id");
             entity.Property(e => e.MothraId).HasColumnName("mothraId");
@@ -1353,6 +1347,18 @@ public partial class RAPSContext : DbContext
                 .HasColumnName("MemberID");
         });
 
+        modelBuilder.Entity<VwVmthChief>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vw_VMTH_Chiefs");
+
+            entity.Property(e => e.MemberId)
+                .HasMaxLength(8)
+                .IsUnicode(false)
+                .HasColumnName("MemberID");
+        });
+
         modelBuilder.Entity<VwVmthClinician>(entity =>
         {
             entity
@@ -1507,8 +1513,8 @@ public partial class RAPSContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 
-	public virtual void SetModified(object entity)
-	{
-		Entry(entity).State = EntityState.Modified;
-	}
+    public virtual void SetModified(object entity)
+    {
+        Entry(entity).State = EntityState.Modified;
+    }
 }

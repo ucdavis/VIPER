@@ -19,32 +19,35 @@
     padding: 8px;
     display: block;
 }
-.directory .ids, .directory .tools {
+.directory .ids,
+.directory .tools {
     padding: 8px;
 }
-    .directory .contact div, .directory .ids div, .directory .tools div {
-        flex: 0 0 95%;
-    }
-        .directory .ids div {
-            font-weight: bold;
-        }
-        .directory .ids div span {
-            font-weight: normal;
-            display: inline-block;
-            width: 85px;
-            text-align: right;
-            margin-right: 0;
-        }
+.directory .contact div,
+.directory .ids div,
+.directory .tools div {
+    flex: 0 0 95%;
+}
+.directory .ids div {
+    font-weight: bold;
+}
+.directory .ids div span {
+    font-weight: normal;
+    display: inline-block;
+    width: 85px;
+    text-align: right;
+    margin-right: 0;
+}
 .directory .contact {
     margin-top: 1em;
 }
 .directory div {
 }
 .directory .card_header {
-    background-color: #adb5bd; 
+    background-color: var(--ucdavis-black-60, #666);
 }
 .directory .SVM {
-    background-color: #1D4776;
+    background-color: #1d4776;
 }
 
 .directory .photo {
@@ -66,207 +69,47 @@
     border: 1px solid #fff;
 }
 
-.directory h1, .directory h2, .directory h3, .directory h4, .directory h5, .directory h6, .directory h7, .directory h8 { line-height: 1.5; margin: 0; padding: 0; }
-.directory h1 {
+.directory .directory-name,
+.directory .directory-username,
+.directory .directory-detail,
+.directory .directory-level,
+.directory .directory-tag {
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+}
+.directory .directory-name {
     font-size: 15px;
     font-weight: 600;
 }
-.directory h2 {
+.directory .directory-detail {
     font-size: 12px;
     font-weight: 400;
 }
-.directory h3 {
+.directory .directory-level {
     font-size: 12px;
 }
-.directory h4 {
+.directory .directory-tag {
     font-size: 11px;
-    color: #868e96;
+    color: var(--ucdavis-black-60);
     font-weight: bold;
 }
-.directory h5 {
+.directory .directory-username {
     font-size: 10px;
 }
-    .directory .top_button {
-        color: #fff;
-        text-align: center;
-        line-height: 40px;
-        height: 40px;
-        width: 12%;
-        max-width: 40px;
-        color: #a4b5c8;
-    }
-    .directory .top_button:hover {
-        color: #fff;
-    }
-.userinfo div, .userinfo ul, .userinfo p, .userinfo h1, .userinfo h2, .userinfo h3, .userinfo h4 {
-    padding: 0;
-    margin: 0;
-    list-style: none;
+
+.directory .top_button {
+    color: #fff;
+    text-align: center;
+    line-height: 40px;
+    height: 40px;
+    width: 12%;
+    max-width: 40px;
 }
-
-.userinfo {
-    font-family: 'Source Sans Pro', sans-serif;
-    font-size: 11pt;
-    color: #212529;
+.directory .SVM .top_button {
+    color: #a4b5c8;
 }
-
-    .userinfo h1, .userinfo h2, .userinfo h3, .userinfo h4, .userinfo h5 {
-        font-weight: bold;
-        color: #212529;
-        margin-top: 1rem;
-    }
-
-        .userinfo h1 a, .userinfo h2 a, .userinfo h1 a:visited, .userinfo h2 a:visited {
-            color: #1864ab;
-            text-decoration: underline #adb5bd;
-        }
-
-            .userinfo h1 a:hover, .userinfo h2 a:hover {
-                color: #1864ab;
-                text-decoration: underline;
-            }
-
-        .userinfo h1:first-child, .userinfo h2:first-child, .userinfo h3:first-child, .userinfo h4:first-child, .userinfo h5:first-child {
-            margin-top: 0;
-        }
-
-    .userinfo h2 {
-        font-size: 16pt;
-        font-weight: bold;
-    }
-
-    .userinfo h3 {
-        font-size: 13pt;
-        font-weight: bold;
-    }
-
-    .userinfo p.note {
-        color: #495057;
-        font-size: 10pt;
-        font-style: italic;
-        margin: 0.5rem 0 1rem 0;
-    }
-
-    .userinfo div + div {
-        margin-top: 1em;
-        padding-top: 1em;
-        border-top: 1px solid #888;
-    }
-
-.direct {
-    position: relative;
-    min-height: 17rem;
-}
-
-    .direct span.photo {
-        position: absolute;
-        top: 3rem;
-        left: 25rem;
-    }
-
-    .direct span.photo2 {
-        position: absolute;
-        top: 10.5rem;
-        left: 25rem;
-    }
-
-    .direct ul {
-        width: 23rem;
-    }
-
-.userinfo table {
-    width: 75%;
-    min-width: 40rem;
-}
-
-    .userinfo table thead {
-        background-color: #495057;
-        color: #f8f9fa;
-        font-weight: bold;
-    }
-
-    .userinfo table th {
-        text-align: center;
-        padding: 0.2rem;
-    }
-
-    .userinfo table td {
-        text-align: center;
-        padding: 0.2rem;
-    }
-
-        .userinfo table td:first-child {
-            text-align: left;
-        }
-
-        .userinfo table td.center {
-            text-align: center;
-        }
-
-        .userinfo table td.just {
-            text-align: left;
-        }
-
-.userinfo .roles table {
-    width: 100%;
-}
-
-.userinfo .roles td {
-    text-align: left;
-    width: 20%;
-    min-width: 20%;
-    max-width: 20%;
-}
-
-.userinfo table tbody tr:nth-child(odd) {
-    background-color: #f1f3f5;
-}
-
-.userinfo ul + ul {
-    margin-top: 0.5rem;
-}
-
-.userinfo ul li {
-    padding: 0.2rem;
-    margin-left: -0.2rem;
-}
-
-    .userinfo ul li:nth-child(odd) {
-        background-color: #f1f3f5;
-    }
-
-    .userinfo ul li ul li {
-        padding-left: -0.2rem;
-        margin-left: 2.2rem;
-    }
-
-    .userinfo ul li:nth-child(odd) ul li:nth-child(odd) {
-        background-color: #fff;
-    }
-
-    .userinfo ul li:nth-child(odd) ul li:nth-child(even) {
-        background-color: #f1f3f5;
-    }
-
-    .userinfo ul li:nth-child(even) ul li:nth-child(even) {
-        background-color: #fff;
-    }
-
-    .userinfo ul li:nth-child(even) ul li:nth-child(odd) {
-        background-color: #f1f3f5;
-    }
-
-.userinfo .closed {
-    display: none;
-}
-
-.userinfo .disclose {
-    cursor: pointer;
-    font-size: 10pt;
-    color: #4dabf7;
-    user-select: none;
-    -moz-user-select: none;
-    -khtml-user-select: none;
-    -webkit-user-select: none;
-    -o-user-select: none;
+.directory .top_button:hover,
+.directory .SVM .top_button:hover {
+    color: #fff;
 }

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace Viper.Models.RAPS;
 
-public partial class OuGroupRole
+public class OuGroupRole
 {
     public int OugroupId { get; set; }
 

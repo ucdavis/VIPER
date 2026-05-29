@@ -1,6 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
-using System.Numerics;
-using Viper.Areas.Curriculum.Services;
+using System.Text.Json.Serialization;
 using Viper.Models.CTS;
 
 namespace Viper.Areas.CTS.Models
@@ -8,6 +6,8 @@ namespace Viper.Areas.CTS.Models
     /// <summary>
     /// A base class to contain common properties for student assessments. Derived by specific assessment types (epas, dops, etc.)
     /// </summary>
+    [JsonDerivedType(typeof(StudentAssessment), typeDiscriminator: "Base")]
+    [JsonDerivedType(typeof(StudentEpaAssessment), typeDiscriminator: "EPA")]
     public class StudentAssessment
     {
         public virtual string AssessmentType { get; } = null!; //should be overridden by derived classes
@@ -35,17 +35,6 @@ namespace Viper.Areas.CTS.Models
         //can the logged in user edit
         public bool? Editable { get; set; }
 
-        //not common properties - should go into derived type when it is created
-        //public int? RoleId { get; set; }
-        //public int? PatientId { get; set; }
-        //public int? ClinicianId { get; set; }
-        //public string? VisitNumber { get; set; }
-        //public string? PresentingComplaint { get; set; }
-        //public string? Diagnosis { get; set; }
-        //public int? TermCode { get; set; }
-        //public bool Complete { get; set; }
-        //public string? StudentLevel { get; set; }
-
         public StudentAssessment()
         {
 
@@ -53,13 +42,13 @@ namespace Viper.Areas.CTS.Models
 
         public StudentAssessment(Encounter enc, Level? level)
         {
-            if(level != null)
+            if (level != null)
             {
                 LevelId = level.LevelId;
                 LevelName = level.LevelName;
                 LevelValue = level.Order;
             }
-            
+
             EncounterId = enc.EncounterId;
             StudentUserId = enc.StudentUserId;
             EncounterType = enc.EncounterType;
