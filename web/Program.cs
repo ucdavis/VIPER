@@ -167,20 +167,23 @@ try
     });
 
 
-    builder.Services.AddDbContext<VIPERContext>(opt =>
+    // Enable detailed errors in non-production environments.
+    void ConfigureDbContextOptions(DbContextOptionsBuilder options)
     {
         if (builder.Environment.EnvironmentName != "Production")
         {
-            opt.EnableDetailedErrors(true);
+            options.EnableDetailedErrors(true);
         }
-    });
-    builder.Services.AddDbContext<AAUDContext>();
-    builder.Services.AddDbContext<CoursesContext>();
-    builder.Services.AddDbContext<RAPSContext>();
-    builder.Services.AddDbContext<EquipmentLoanContext>();
-    builder.Services.AddDbContext<PPSContext>();
-    builder.Services.AddDbContext<IDCardsContext>();
-    builder.Services.AddDbContext<KeysContext>();
+    }
+
+    builder.Services.AddDbContext<VIPERContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<AAUDContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<CoursesContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<RAPSContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<EquipmentLoanContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<PPSContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<IDCardsContext>(ConfigureDbContextOptions);
+    builder.Services.AddDbContext<KeysContext>(ConfigureDbContextOptions);
 
     // Add HttpClient support
     builder.Services.AddHttpClient();
