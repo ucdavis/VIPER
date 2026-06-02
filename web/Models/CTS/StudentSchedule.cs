@@ -1,6 +1,6 @@
 namespace Viper.Models.CTS
 {
-    public class StudentSchedule
+    public class StudentSchedule : IScheduleEntity
     {
         public int StudentScheduleId { get; set; }
         public int PersonId { get; set; }
