@@ -37,23 +37,23 @@
         "verify:build": "node scripts/verify-build.js"
     },
     "devDependencies": {
-        "@double-great/stylelint-a11y": "^3.4.10",
+        "@double-great/stylelint-a11y": "^3.4.14",
         "@eslint/js": "^10.0.0",
         "concurrently": "^9.0.1",
         "cross-env": "^10.0.0",
-        "eslint": "^10.2.1",
+        "eslint": "^10.4.0",
         "eslint-plugin-html": "^8.1.4",
         "eslint-plugin-security": "^4.0.0",
-        "fallow": "^2.38.0",
+        "fallow": "^2.82.0",
         "husky": "^9.1.7",
-        "jscpd": "^4.0.9",
-        "oxfmt": "^0.46.0",
-        "oxlint": "^1.61.0",
-        "oxlint-tsgolint": "^0.21.1",
+        "jscpd": "^4.2.4",
+        "oxfmt": "^0.52.0",
+        "oxlint": "^1.67.0",
+        "oxlint-tsgolint": "^0.23.0",
         "postcss-html": "^1.8.0",
-        "stylelint": "^17.9.0",
+        "stylelint": "^17.12.0",
         "stylelint-config-standard": "^40.0.0",
-        "yauzl": "^3.2.0"
+        "yauzl": "^3.3.1"
     },
     "volta": {
         "node": "24.14.1",
