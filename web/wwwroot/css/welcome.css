@@ -230,8 +230,8 @@ body {
     background-image:
         linear-gradient(90deg, rgba(2, 40, 81, 0.72) 0%, rgba(2, 40, 81, 0.55) 45%, rgba(2, 40, 81, 0.15) 100%),
         image-set(
-            url("/images/login/photo-svm-building.avif") type("image/avif"),
-            url("/images/login/photo-svm-building.jpg") type("image/jpeg")
+            url("../images/login/photo-svm-building.avif") type("image/avif"),
+            url("../images/login/photo-svm-building.jpg") type("image/jpeg")
         );
     background-position: center center;
 }
@@ -240,8 +240,8 @@ body {
     background-image:
         linear-gradient(90deg, rgba(2, 40, 81, 0.62) 0%, rgba(2, 40, 81, 0.55) 45%, rgba(2, 40, 81, 0.15) 100%),
         image-set(
-            url("/images/login/photo-vetmed-admin.avif") type("image/avif"),
-            url("/images/login/photo-vetmed-admin.jpg") type("image/jpeg")
+            url("../images/login/photo-vetmed-admin.avif") type("image/avif"),
+            url("../images/login/photo-vetmed-admin.jpg") type("image/jpeg")
         );
     background-position: center center;
 }
@@ -250,8 +250,8 @@ body {
     background-image:
         linear-gradient(90deg, rgba(2, 40, 81, 0.74) 0%, rgba(2, 40, 81, 0.48) 45%, rgba(2, 40, 81, 0.18) 100%),
         image-set(
-            url("/images/login/photo-ophthalmology.avif") type("image/avif"),
-            url("/images/login/photo-ophthalmology.jpg") type("image/jpeg")
+            url("../images/login/photo-ophthalmology.avif") type("image/avif"),
+            url("../images/login/photo-ophthalmology.jpg") type("image/jpeg")
         );
     background-position: center center;
 }
@@ -260,8 +260,8 @@ body {
     background-image:
         linear-gradient(90deg, rgba(2, 40, 81, 0.78) 0%, rgba(2, 40, 81, 0.58) 50%, rgba(2, 40, 81, 0.3) 100%),
         image-set(
-            url("/images/login/photo-guinea-pig.avif") type("image/avif"),
-            url("/images/login/photo-guinea-pig.jpg") type("image/jpeg")
+            url("../images/login/photo-guinea-pig.avif") type("image/avif"),
+            url("../images/login/photo-guinea-pig.jpg") type("image/jpeg")
         );
     background-position: right center;
 }
@@ -270,8 +270,8 @@ body {
     background-image:
         linear-gradient(90deg, rgba(2, 40, 81, 0.72) 0%, rgba(2, 40, 81, 0.55) 45%, rgba(2, 40, 81, 0.18) 100%),
         image-set(
-            url("/images/login/photo-horse-foal.avif") type("image/avif"),
-            url("/images/login/photo-horse-foal.jpg") type("image/jpeg")
+            url("../images/login/photo-horse-foal.avif") type("image/avif"),
+            url("../images/login/photo-horse-foal.jpg") type("image/jpeg")
         );
     background-position: center 22%;
 }
@@ -493,8 +493,8 @@ body {
                 rgba(2, 40, 81, 0.97) 100%
             ),
             image-set(
-                url("/images/login/photo-svm-building.avif") type("image/avif"),
-                url("/images/login/photo-svm-building.jpg") type("image/jpeg")
+                url("../images/login/photo-svm-building.avif") type("image/avif"),
+                url("../images/login/photo-svm-building.jpg") type("image/jpeg")
             );
     }
 
@@ -508,8 +508,8 @@ body {
                 rgba(2, 40, 81, 0.97) 100%
             ),
             image-set(
-                url("/images/login/photo-vetmed-admin.avif") type("image/avif"),
-                url("/images/login/photo-vetmed-admin.jpg") type("image/jpeg")
+                url("../images/login/photo-vetmed-admin.avif") type("image/avif"),
+                url("../images/login/photo-vetmed-admin.jpg") type("image/jpeg")
             );
     }
 
@@ -523,8 +523,8 @@ body {
                 rgba(2, 40, 81, 0.97) 100%
             ),
             image-set(
-                url("/images/login/photo-ophthalmology.avif") type("image/avif"),
-                url("/images/login/photo-ophthalmology.jpg") type("image/jpeg")
+                url("../images/login/photo-ophthalmology.avif") type("image/avif"),
+                url("../images/login/photo-ophthalmology.jpg") type("image/jpeg")
             );
     }
 
@@ -538,8 +538,8 @@ body {
                 rgba(2, 40, 81, 0.97) 100%
             ),
             image-set(
-                url("/images/login/photo-guinea-pig.avif") type("image/avif"),
-                url("/images/login/photo-guinea-pig.jpg") type("image/jpeg")
+                url("../images/login/photo-guinea-pig.avif") type("image/avif"),
+                url("../images/login/photo-guinea-pig.jpg") type("image/jpeg")
             );
     }
 
@@ -553,8 +553,8 @@ body {
                 rgba(2, 40, 81, 0.97) 100%
             ),
             image-set(
-                url("/images/login/photo-horse-foal.avif") type("image/avif"),
-                url("/images/login/photo-horse-foal.jpg") type("image/jpeg")
+                url("../images/login/photo-horse-foal.avif") type("image/avif"),
+                url("../images/login/photo-horse-foal.jpg") type("image/jpeg")
             );
     }
 
