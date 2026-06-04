@@ -38,7 +38,10 @@ import { storeToRefs } from "pinia"
 const errorStore = useErrorStore()
 const { errorMessage, status } = storeToRefs(errorStore)
 const showErrorMessage = computed(() => errorMessage.value !== null && errorMessage.value.length > 0)
-const loginUrl = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + window.location.pathname
+const loginUrl =
+    import.meta.env.VITE_VIPER_HOME +
+    "welcome?ReturnUrl=" +
+    encodeURIComponent(window.location.pathname + window.location.search)
 
 const showError = ref(false)
 const showLogin = ref(false)
