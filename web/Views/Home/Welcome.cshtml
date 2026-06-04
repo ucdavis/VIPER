@@ -11,7 +11,7 @@
     // Preload the AVIF that the CSS image-set() picks on capable browsers (must
     // match that URL byte-for-byte to be reused). The type hint below lets
     // browsers without AVIF skip the preload and fall back to the JPEG.
-    var heroImageUrl = $"/images/login/photo-{hero.Replace("_", "-")}.avif";
+    var heroImageUrl = Url.Content($"~/images/login/photo-{hero.Replace("_", "-")}.avif");
 }
 <!doctype html>
 <html lang="en">
