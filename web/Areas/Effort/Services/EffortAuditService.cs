@@ -600,26 +600,19 @@ public class EffortAuditService : IEffortAuditService
 
         var auditRecordIds = auditQuery.Select(a => a.RecordId);
 
-        IQueryable<int> courseIds;
-
-        if (termCode.HasValue)
-        {
-            // When filtering by term, start from Records (very selective on TermCode)
-            // and use a semi-join for audit existence instead of a full Audits→Records join
-            courseIds = _context.Records
+        // When filtering by term, start from Records (very selective on TermCode)
+        // and use a semi-join for audit existence instead of a full Audits→Records join
+        IQueryable<int> courseIds = termCode.HasValue
+            ? _context.Records
                 .AsNoTracking()
                 .Where(r => r.TermCode == termCode.Value)
                 .Where(r => auditRecordIds.Contains(r.Id))
                 .Select(r => r.CourseId)
-                .Distinct();
-        }
-        else
-        {
-            courseIds = auditQuery
+                .Distinct()
+            : auditQuery
                 .Join(_context.Records, a => a.RecordId, r => r.Id, (a, r) => r)
                 .Select(r => r.CourseId)
                 .Distinct();
-        }
 
         return _context.Courses
             .AsNoTracking()
