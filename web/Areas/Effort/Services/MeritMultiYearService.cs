@@ -1263,7 +1263,7 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
     public MemoryStream GenerateReportExcel(MultiYearReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Report - Multi-Year";
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
             subject: $"Multi-year merit and evaluation summary for {report.Instructor}");
@@ -1496,7 +1496,6 @@ public class MeritMultiYearService : BaseReportService, IMeritMultiYearService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

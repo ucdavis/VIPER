@@ -42,14 +42,12 @@ namespace Viper.Classes.Utilities
             if (request.Method != HttpMethod.Get && attemptNumber == 0)
             {
                 //Try a send to the original url, with a get and empty body.
-                HttpRequestMessage newRequest = new()
-                {
-                    RequestUri = request.RequestUri,
-                    Method = HttpMethod.Get
-                };
+                using HttpRequestMessage newRequest = new();
+                newRequest.RequestUri = request.RequestUri;
+                newRequest.Method = HttpMethod.Get;
 
-                //don't care about the response
-                await Send(newRequest);
+                //don't care about the response, but dispose it to free resources
+                using var warmupResponse = await Send(newRequest);
                 return await Send(await CopyHttpRequest(request), 1);
             }
 
