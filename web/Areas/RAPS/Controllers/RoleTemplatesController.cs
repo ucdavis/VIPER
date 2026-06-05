@@ -41,12 +41,9 @@ namespace Viper.Areas.RAPS.Controllers
                 .OrderBy(rt => rt.TemplateName)
                 .ToListAsync();
 
-            List<RoleTemplateSimplified> roleTemplates = new();
-            foreach (var rt in dbRoleTemplates)
-            {
-                roleTemplates.Add(new RoleTemplateSimplified(rt));
-            }
-            return roleTemplates;
+            return dbRoleTemplates
+                .Select(rt => new RoleTemplateSimplified(rt))
+                .ToList();
         }
 
         // GET: RoleTemplates/5
@@ -159,9 +156,6 @@ namespace Viper.Areas.RAPS.Controllers
                     : u.MothraId == memberId)
                 .FirstOrDefaultAsync();
 
-            List<RoleApplyPreview> rolesToApply = new();
-
-            //if user is not found, return the object with placeholder text
             if (user == null)
             {
                 return null;
@@ -172,21 +166,21 @@ namespace Viper.Areas.RAPS.Controllers
                 .Where(rm => rm.MemberId == user.MothraId)
                 .Select(rm => rm.Role)
                 .ToListAsync();
-            foreach (var role in roleTemplate.RoleTemplateRoles)
-            {
-                rolesToApply.Add(new RoleApplyPreview
+            HashSet<int> userRoleIds = userRoles.Select(r => r.RoleId).ToHashSet();
+            List<RoleApplyPreview> rolesToApply = roleTemplate.RoleTemplateRoles
+                .Select(role => new RoleApplyPreview
                 {
                     RoleId = role.Role.RoleId,
                     RoleName = role.Role.FriendlyName,
                     Description = role.Role.Description,
-                    UserHasRole = userRoles.Find(r => r.RoleId == role.RoleTemplateRoleRoleId) != null
-                });
-            }
+                    UserHasRole = userRoleIds.Contains(role.RoleTemplateRoleRoleId)
+                })
+                .ToList();
 
             return new RoleTemplateApplyPreview
             {
-                DisplayName = user?.DisplayFullName ?? "User not found",
-                MemberId = user?.MothraId ?? "",
+                DisplayName = user.DisplayFullName,
+                MemberId = user.MothraId,
                 Roles = rolesToApply
             };
         }

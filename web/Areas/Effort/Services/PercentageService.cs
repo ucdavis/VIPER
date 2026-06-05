@@ -306,7 +306,8 @@ public class PercentageService : IPercentageService
             .Where(p => !string.Equals(p.PercentAssignType.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
             .Sum(p => (decimal)EffortConstants.ToDisplayPercent(p.PercentageValue));
 
-        if (isNewActive && type != null && !string.Equals(type.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
+        // type is guaranteed non-null here: early-return above when result.IsValid==false (set when type==null).
+        if (isNewActive && !string.Equals(type!.Class, LeaveTypeClass, StringComparison.OrdinalIgnoreCase))
         {
             var newTotal = activeNonLeaveTotal + Math.Round(request.PercentageValue, EffortConstants.PercentDisplayDecimals);
             if (newTotal > 100)

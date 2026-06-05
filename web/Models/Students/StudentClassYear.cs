@@ -3,7 +3,7 @@ using Viper.Models.VIPER;
 
 namespace Viper.Models.Students
 {
-    public class StudentClassYear
+    public sealed class StudentClassYear
     {
 
         public int StudentClassYearId { get; set; }
@@ -20,10 +20,10 @@ namespace Viper.Models.Students
         public int? UpdatedBy { get; set; }
         public string? Comment { get; set; }
 
-        public virtual Person? Student { get; set; }
-        public virtual ClassYearLeftReason? ClassYearLeftReason { get; set; }
-        public virtual Person? AddedByPerson { get; set; }
-        public virtual Person? UpdatedByPerson { get; set; }
+        public Person? Student { get; set; }
+        public ClassYearLeftReason? ClassYearLeftReason { get; set; }
+        public Person? AddedByPerson { get; set; }
+        public Person? UpdatedByPerson { get; set; }
 
         [NotMapped]
         public string? LeftReasonText

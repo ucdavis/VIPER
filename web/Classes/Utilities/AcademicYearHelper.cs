@@ -52,8 +52,14 @@ public static class AcademicYearHelper
     /// </summary>
     public static DateTime GetAcademicYearStart(DateTime date)
     {
-        var year = date.Month < 7 ? date.Year - 1 : date.Year;
-        return new DateTime(year, 7, 1, 0, 0, 0, DateTimeKind.Local);
+        // A date before July of year 1 has no representable academic-year start (year 0 is invalid).
+        if (date.Year == 1 && date.Month < 7)
+        {
+            throw new ArgumentOutOfRangeException(nameof(date),
+                "Date must be on or after July 1, year 1 for academic year calculation.");
+        }
+        var julyOfYear = new DateTime(date.Year, 7, 1, 0, 0, 0, DateTimeKind.Local);
+        return date.Month < 7 ? julyOfYear.AddYears(-1) : julyOfYear;
     }
 
     /// <summary>
