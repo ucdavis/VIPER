@@ -9,14 +9,11 @@ namespace Viper.Areas.Effort.Services;
 
 public class TeachingActivityService : BaseReportService, ITeachingActivityService
 {
-    private readonly ITermService _termService;
-
     public TeachingActivityService(
         EffortDbContext context,
         ITermService termService)
-        : base(context)
+        : base(context, termService)
     {
-        _termService = termService;
     }
 
     public async Task<TeachingActivityReport> GetTeachingActivityReportAsync(
@@ -27,21 +24,19 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
         string? jobGroupId = null,
         CancellationToken ct = default)
     {
-        var rows = await ExecuteGeneralReportForDepartmentsAsync(termCode, departments, personId, role, jobGroupId, ct);
-        var term = await _termService.GetTermAsync(termCode, ct);
-        var filterDept = departments is { Count: 1 } ? departments[0] : null;
+        var ctx = await LoadSingleTermContextAsync(termCode, departments, personId, role, jobGroupId, ct);
 
         var report = new TeachingActivityReport
         {
             TermCode = termCode,
-            TermName = term?.TermName ?? _termService.GetTermName(termCode),
-            FilterDepartment = filterDept,
+            TermName = ctx.TermName,
+            FilterDepartment = ctx.FilterDepartment,
             FilterPerson = personId?.ToString(),
             FilterRole = role,
             FilterTitle = jobGroupId
         };
 
-        return BuildReport(report, rows);
+        return BuildReport(report, ctx.Rows);
     }
 
     public async Task<TeachingActivityReport> GetTeachingActivityReportByYearAsync(
@@ -52,45 +47,33 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
         string? jobGroupId = null,
         CancellationToken ct = default)
     {
-        var startYear = ParseAcademicYearStart(academicYear);
-        var filterDept = departments is { Count: 1 } ? departments[0] : null;
+        var ctx = await LoadYearlyReportContextAsync(academicYear, departments, personId, role, jobGroupId, ct);
 
-        // Resolve all term codes in this academic year from TermStatus
-        var termCodes = await GetTermCodesForAcademicYearAsync(startYear, ct);
-
-        if (termCodes.Count == 0)
+        if (ctx.TermCodes.Count == 0)
         {
             return new TeachingActivityReport
             {
                 TermName = academicYear,
                 AcademicYear = academicYear,
-                FilterDepartment = filterDept,
+                FilterDepartment = ctx.FilterDepartment,
                 FilterPerson = personId?.ToString(),
                 FilterRole = role,
                 FilterTitle = jobGroupId
             };
         }
 
-        // Call SP for each term (and each department) and merge all rows
-        var allRows = new List<TeachingActivityRow>();
-        foreach (var tc in termCodes)
-        {
-            var rows = await ExecuteGeneralReportForDepartmentsAsync(tc, departments, personId, role, jobGroupId, ct);
-            allRows.AddRange(rows);
-        }
-
         var report = new TeachingActivityReport
         {
-            TermCode = termCodes[0],
+            TermCode = ctx.TermCodes[0],
             TermName = academicYear,
             AcademicYear = academicYear,
-            FilterDepartment = filterDept,
+            FilterDepartment = ctx.FilterDepartment,
             FilterPerson = personId?.ToString(),
             FilterRole = role,
             FilterTitle = jobGroupId
         };
 
-        return BuildReport(report, allRows);
+        return BuildReport(report, ctx.Rows);
     }
 
     private static TeachingActivityReport BuildReport(TeachingActivityReport report, List<TeachingActivityRow> rows)

@@ -17,10 +17,12 @@ namespace Viper.Areas.Effort.Services;
 public abstract partial class BaseReportService
 {
     protected readonly EffortDbContext _context;
+    protected readonly ITermService _termService;
 
-    protected BaseReportService(EffortDbContext context)
+    protected BaseReportService(EffortDbContext context, ITermService termService)
     {
         _context = context;
+        _termService = termService;
     }
 
     // ── Academic Year ────────────────────────────────────────────────
@@ -139,6 +141,91 @@ public abstract partial class BaseReportService
             allRows.AddRange(rows);
         }
         return allRows;
+    }
+
+    // ── Report Data Bundles ─────────────────────────────────────────
+
+    /// <summary>
+    /// Shared single-term report data: rows from the general report SP,
+    /// the resolved term name, and the set of clinical faculty MothraIds.
+    /// </summary>
+    protected sealed record SingleTermReportContext(
+        List<TeachingActivityRow> Rows,
+        string TermName,
+        string? FilterDepartment,
+        HashSet<string> ClinicalMothraIds);
+
+    /// <summary>
+    /// Shared academic-year report data: union of rows across all term codes,
+    /// the resolved term codes list, and the set of clinical faculty MothraIds.
+    /// </summary>
+    protected sealed record YearlyReportContext(
+        List<TeachingActivityRow> Rows,
+        List<int> TermCodes,
+        string? FilterDepartment,
+        HashSet<string> ClinicalMothraIds);
+
+    /// <summary>
+    /// Load report data for a single term: rows, term name, and clinical faculty IDs.
+    /// Used by TeachingActivityService, DeptSummaryService, and SchoolSummaryService.
+    /// </summary>
+    protected async Task<SingleTermReportContext> LoadSingleTermContextAsync(
+        int termCode,
+        IReadOnlyList<string>? departments,
+        int? personId, string? role, string? jobGroupId,
+        CancellationToken ct)
+    {
+        var rows = await ExecuteGeneralReportForDepartmentsAsync(termCode, departments, personId, role, jobGroupId, ct);
+        var term = await _termService.GetTermAsync(termCode, ct);
+        var filterDept = departments is { Count: 1 } ? departments[0] : null;
+        var academicYear = AcademicYearHelper.GetAcademicYearFromTermCode(termCode);
+        var clinicalMothraIds = await GetClinicalFacultyMothraIdsAsync(academicYear, ct);
+        var termName = term?.TermName ?? _termService.GetTermName(termCode);
+        return new SingleTermReportContext(rows, termName, filterDept, clinicalMothraIds);
+    }
+
+    /// <summary>
+    /// Load report data for an academic year: rows across all terms, term codes, and clinical faculty IDs.
+    /// Returns an empty rows list when the academic year has no terms.
+    /// </summary>
+    protected async Task<YearlyReportContext> LoadYearlyReportContextAsync(
+        string academicYear,
+        IReadOnlyList<string>? departments,
+        int? personId, string? role, string? jobGroupId,
+        CancellationToken ct)
+    {
+        var startYear = ParseAcademicYearStart(academicYear);
+        var termCodes = await GetTermCodesForAcademicYearAsync(startYear, ct);
+        var filterDept = departments is { Count: 1 } ? departments[0] : null;
+
+        if (termCodes.Count == 0)
+        {
+            return new YearlyReportContext([], termCodes, filterDept, []);
+        }
+
+        var allRows = new List<TeachingActivityRow>();
+        foreach (var tc in termCodes)
+        {
+            var rows = await ExecuteGeneralReportForDepartmentsAsync(tc, departments, personId, role, jobGroupId, ct);
+            allRows.AddRange(rows);
+        }
+
+        var clinicalMothraIds = await GetClinicalFacultyMothraIdsAsync(academicYear, ct);
+        return new YearlyReportContext(allRows, termCodes, filterDept, clinicalMothraIds);
+    }
+
+    /// <summary>
+    /// Extract distinct effort types from the rows, trimmed and alphabetically ordered.
+    /// Matches the projection used by every BuildReport in the effort report services.
+    /// </summary>
+    protected static List<string> ExtractDistinctEffortTypes(List<TeachingActivityRow> rows)
+    {
+        return rows
+            .Where(r => !string.IsNullOrWhiteSpace(r.EffortTypeId))
+            .Select(r => r.EffortTypeId.Trim())
+            .Distinct()
+            .OrderBy(t => t)
+            .ToList();
     }
 
     // ── Clinical Faculty Lookup ─────────────────────────────────────

@@ -11,7 +11,7 @@ public sealed class BaseReportServiceTests
     // Concrete subclass to expose protected static methods for testing
     private class TestableReportService : BaseReportService
     {
-        public TestableReportService() : base(null!) { }
+        public TestableReportService() : base(null!, null!) { }
 
         public static int TestParseAcademicYearStart(string academicYear)
             => ParseAcademicYearStart(academicYear);
