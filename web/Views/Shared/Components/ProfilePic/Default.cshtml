@@ -45,7 +45,7 @@
 }
 else
 {
-    <q-btn round flat icon="person" href="@Url.Content("~/welcome")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)">
+    <q-btn round flat icon="person" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)">
         <q-tooltip>
             Login
         </q-tooltip>
