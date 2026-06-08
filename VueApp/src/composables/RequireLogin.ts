@@ -19,15 +19,20 @@ const DOT_SEGMENTS = new Set([".", "..", "%2e", "%2e%2e", ".%2e", "%2e."])
  * Builds a login URL with a validated return path.
  * Falls back to home if the path fails validation.
  */
-function buildLoginUrl(returnPath: string): string {
+// The endpoint param selects the destination: "welcome" is the passive splash (auth-challenge /
+// guard redirects); "login" goes straight to CAS for explicit "Log in" buttons, so a deliberate
+// click isn't met with another sign-in screen.
+function buildLoginUrl(returnPath: string, endpoint: "welcome" | "login" = "welcome"): string {
+    // Build both paths from the normalized base so VITE_VIPER_HOME="/2" gives "/2/welcome" (not the
+    // slash-less "/2welcome") and "/2///" collapses its duplicate slashes.
     const base = applicationBase()
-    const welcomePath = `${base}/welcome`
+    const endpointPath = `${base}/${endpoint}`
     const fallbackPath = `${base}/`
 
     if (isValidInternalPath(returnPath)) {
-        return `${welcomePath}?ReturnUrl=${encodeURIComponent(returnPath)}`
+        return `${endpointPath}?ReturnUrl=${encodeURIComponent(returnPath)}`
     }
-    return `${welcomePath}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
+    return `${endpointPath}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
 }
 
 /**
@@ -39,7 +44,7 @@ function getLoginUrl(): ComputedRef<string> {
     const base = applicationBase()
     // Reading route.fullPath makes this recompute after navigation; fullPath omits the app base the
     // router was created with, so prefix it back.
-    return computed(() => buildLoginUrl(`${base}${route.fullPath}`))
+    return computed(() => buildLoginUrl(`${base}${route.fullPath}`, "login"))
 }
 
 // Helper function to validate internal redirect paths (prevent open redirect attacks)
