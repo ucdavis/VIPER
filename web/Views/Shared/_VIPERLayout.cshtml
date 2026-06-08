@@ -25,7 +25,6 @@
         </text>
     }
     <link href="~/lib/quasar/dist/quasar.prod.css" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet" type="text/css">
     <script src="~/js/ucdavis-colors.js"></script>
     <script asp-add-nonce="true">
         // Apply UC Davis brand colors immediately to prevent flash
@@ -169,7 +168,7 @@
                                 </div>
                             </q-card-section>
                             <q-card-actions align="center" class="q-pb-md">
-                                <q-btn color="primary" label="Log In" href="@Url.Content("~/welcome")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
+                                <q-btn color="primary" label="Log In" href="@Url.Content("~/login")?ReturnUrl=@Uri.EscapeDataString((Context.Request.PathBase + Context.Request.Path).Value + Context.Request.QueryString)" no-caps />
                             </q-card-actions>
                         </q-card>
                     </div>
