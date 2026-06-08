@@ -53,7 +53,7 @@
 }
 
 .directory .SVM {
-    background-color: #1d4776;
+    background-color: var(--ucdavis-blue-80);
 }
 
 .directory .photo {
