@@ -40,6 +40,7 @@
     src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_regular_macroman/proximanova-regular-webfont.woff2")
         format("woff2");
 }
+
 @font-face {
     font-family: "Proxima Nova";
     font-style: normal;
@@ -48,6 +49,7 @@
     src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_medium_macroman/proximanova-medium-webfont.woff2")
         format("woff2");
 }
+
 @font-face {
     font-family: "Proxima Nova";
     font-style: normal;
@@ -56,6 +58,7 @@
     src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_bold_macroman/proximanova-bold-webfont.woff2")
         format("woff2");
 }
+
 @font-face {
     font-family: "Proxima Nova";
     font-style: normal;
@@ -153,6 +156,7 @@ html {
     background-color: var(--ucdavis-blue-100);
 
     /* background-color: white; */
+
     /* Proxima Nova brand chrome for the blue bar; the gold section nav below
        overrides back to Roboto. Medium (500) per UC Davis guidelines. */
     font-family:
@@ -198,7 +202,7 @@ html {
 
 /* Below lt-md the toolbar can't fit the wide lockup plus the nav controls and
    profile, so keep only the rod mark. */
-@media (max-width: 1023.98px) {
+@media (width <= 1023.98px) {
     .viper-brand__name {
         display: none;
     }
@@ -243,6 +247,7 @@ div.breadcrumbs {
     border-bottom: 1px solid silver;
 
     /* padding: 0 12px; */
+
     /* Roboto here (overriding the header's Proxima) — narrower, so the many
        section-nav items fit without crowding. */
     font-family:
@@ -261,7 +266,7 @@ div.breadcrumbs {
 }
 
 /* Quasar's overlay-drawer glow bleeds a stray line down the left edge. */
-.q-drawer--mobile .q-layout__shadow:after {
+.q-drawer--mobile .q-layout__shadow::after {
     box-shadow: none;
 }
 
