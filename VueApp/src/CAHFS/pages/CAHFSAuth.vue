@@ -7,7 +7,7 @@
             bordered
             class="bg-ucdavis-blue-10 q-mt-md"
         >
-            <q-card-section class="row items-center no-wrap">
+            <q-card-section class="row items-start no-wrap">
                 <q-icon
                     name="login"
                     color="primary"
@@ -19,17 +19,16 @@
                     <div class="text-body2">
                         Sign in with your UC Davis account to open web reports and section pages.
                     </div>
+                    <q-btn
+                        :href="loginHref"
+                        type="a"
+                        color="primary"
+                        no-caps
+                        label="Sign in"
+                        class="q-mt-md"
+                    />
                 </div>
             </q-card-section>
-            <q-card-actions class="q-px-md q-pb-md">
-                <q-btn
-                    :href="loginHref"
-                    type="a"
-                    color="primary"
-                    no-caps
-                    label="Sign in"
-                />
-            </q-card-actions>
         </q-card>
     </div>
 </template>

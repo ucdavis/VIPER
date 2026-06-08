@@ -16,15 +16,18 @@ const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
  * Builds a login URL with a validated return path.
  * Falls back to home if the path fails validation.
  */
-function buildLoginUrl(returnPath: string): string {
+// The endpoint param selects the destination: "welcome" is the passive splash (auth-challenge /
+// guard redirects); "login" goes straight to CAS for explicit "Log in" buttons, so a deliberate
+// click isn't met with another sign-in screen.
+function buildLoginUrl(returnPath: string, endpoint: "welcome" | "login" = "welcome"): string {
     const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
     const applicationBase = viperHome.length === 1 ? "" : viperHome.slice(0, -1)
     const fallbackPath = `${applicationBase}/`
 
     if (isValidInternalPath(returnPath)) {
-        return `${viperHome}welcome?ReturnUrl=${encodeURIComponent(returnPath)}`
+        return `${viperHome}${endpoint}?ReturnUrl=${encodeURIComponent(returnPath)}`
     }
-    return `${viperHome}welcome?ReturnUrl=${encodeURIComponent(fallbackPath)}`
+    return `${viperHome}${endpoint}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
 }
 
 /**
@@ -41,12 +44,14 @@ function getCurrentPath(): string {
  */
 function getLoginUrl(): ComputedRef<string> {
     const route = useRoute()
+    const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
+    const applicationBase = viperHome.length === 1 ? "" : viperHome.slice(0, -1)
     return computed(() => {
-        // Use route.fullPath length check to create reactive dependency while using the value
-        if (route.fullPath.length >= 0) {
-            return buildLoginUrl(getCurrentPath())
-        }
-        return buildLoginUrl(getCurrentPath())
+        // Reading route.fullPath makes this reactive (the URL recomputes after navigation), but it
+        // omits the app base the router was created with, so prefix it back (same pattern as
+        // requireLogin). Fall back to the browser location outside a router context (e.g. unit tests).
+        const returnPath = route ? `${applicationBase}${route.fullPath}` : getCurrentPath()
+        return buildLoginUrl(returnPath, "login")
     })
 }
 
@@ -56,10 +61,12 @@ function isValidInternalPath(path: string): boolean {
         return false
     }
 
-    // Reject absolute URLs, path traversal, and encoded bypasses
+    // Reject absolute URLs, path traversal, backslashes, and encoded bypasses. Backslashes are
+    // rejected because some browsers treat "/\" or "/\\" as protocol-relative (external) redirects.
     if (
         ABSOLUTE_URL_REGEX.test(path) ||
         path.includes("../") ||
+        path.includes("\\") ||
         ENCODED_SLASH_REGEX.test(path) ||
         ENCODED_DOT_REGEX.test(path)
     ) {
