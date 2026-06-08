@@ -21,6 +21,7 @@
                 <a
                     :href="loginUrl"
                     target="_blank"
+                    rel="noopener noreferrer"
                 >
                     Click to log in, and then try your action again.
                     <q-icon name="launch"></q-icon>
@@ -34,14 +35,12 @@
 import { computed, ref, watch } from "vue"
 import { useErrorStore } from "@/store/ErrorStore"
 import { storeToRefs } from "pinia"
+import { getLoginUrl } from "@/composables/RequireLogin"
 
 const errorStore = useErrorStore()
 const { errorMessage, status } = storeToRefs(errorStore)
 const showErrorMessage = computed(() => errorMessage.value !== null && errorMessage.value.length > 0)
-const loginUrl =
-    import.meta.env.VITE_VIPER_HOME +
-    "welcome?ReturnUrl=" +
-    encodeURIComponent(window.location.pathname + window.location.search)
+const loginUrl = getLoginUrl()
 
 const showError = ref(false)
 const showLogin = ref(false)
