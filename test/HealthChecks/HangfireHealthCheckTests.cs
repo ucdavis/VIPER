@@ -43,7 +43,7 @@ namespace Viper.test.HealthChecks
             });
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Equal(HealthStatus.Healthy, result.Status);
             Assert.Contains("Hangfire OK", result.Description);
@@ -58,7 +58,7 @@ namespace Viper.test.HealthChecks
             monitoring.Servers().Returns(new List<Hangfire.Storage.Monitoring.ServerDto>());
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Equal(HealthStatus.Degraded, result.Status);
             Assert.Contains("no servers registered", result.Description);
@@ -75,7 +75,7 @@ namespace Viper.test.HealthChecks
             });
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Equal(HealthStatus.Unhealthy, result.Status);
             Assert.Contains("stale", result.Description);
@@ -92,7 +92,7 @@ namespace Viper.test.HealthChecks
             });
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Equal(HealthStatus.Unhealthy, result.Status);
             Assert.Contains("never", result.Description);
@@ -110,7 +110,7 @@ namespace Viper.test.HealthChecks
             });
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Equal(HealthStatus.Healthy, result.Status);
             Assert.Contains("Hangfire OK", result.Description);
@@ -124,7 +124,7 @@ namespace Viper.test.HealthChecks
             storage.GetMonitoringApi().Returns(_ => throw boom);
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Equal(HealthStatus.Unhealthy, result.Status);
             Assert.Contains("unreachable", result.Description);
@@ -150,7 +150,7 @@ namespace Viper.test.HealthChecks
             });
 
             var sut = new HangfireHealthCheck(storage);
-            var result = await sut.CheckHealthAsync(CreateContext(sut));
+            var result = await sut.CheckHealthAsync(CreateContext(sut), TestContext.Current.CancellationToken);
 
             Assert.Contains("servers", result.Data.Keys);
             Assert.Contains("enqueued", result.Data.Keys);
