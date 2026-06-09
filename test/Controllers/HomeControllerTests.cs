@@ -258,6 +258,40 @@ public sealed class HomeControllerTests
         Assert.Equal("/2/ClinicalScheduler/rotation", redirect.RouteValues?["ReturnUrl"]);
     }
 
+    // Under a subpath deployment the loop targets arrive base-prefixed ("/2/welcome", "/2/login").
+    // The base is stripped before the loop-guard so they are still caught: the splash renders with a
+    // null ReturnUrl rather than bouncing back out to CAS. Regression guard for the pre-strip loop-guard.
+    [Theory]
+    [InlineData("/2/welcome")]
+    [InlineData("/2/login")]
+    [InlineData("/2/Welcome/")]
+    public void Welcome_Anonymous_SubpathLoopTarget_DropsReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome(returnUrl);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Welcome", view.ViewName);
+        Assert.Null(view.ViewData["ReturnUrl"]);
+    }
+
+    // Authenticated welcome with no ReturnUrl under a subpath deployment redirects to "~/" so the app
+    // root keeps its PathBase ("/2/") instead of escaping to the domain root. Regression guard for the
+    // bare "/" that sent logged-in users out to the legacy site.
+    [Fact]
+    public void Welcome_Authenticated_NoReturnUrl_RedirectsToAppRelativeRoot()
+    {
+        Arrange(authenticated: true);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome();
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("~/", redirect.Url);
+    }
+
     // Anonymous users still get the Welcome view, but any ReturnUrl that is non-local
     // (open redirect) or points back at /welcome|/login (redirect loop) is dropped.
     [Theory]
@@ -288,6 +322,8 @@ public sealed class HomeControllerTests
         Assert.Equal("/Effort/Foo", redirect.Url);
     }
 
+    // App root is "~/" (not "/") so a subpath deployment keeps its PathBase ("/2/") rather than
+    // escaping to the domain root (the legacy site).
     [Theory]
     [InlineData("https://evil.com")]
     [InlineData(null)]
@@ -298,7 +334,7 @@ public sealed class HomeControllerTests
         var result = _controller.Welcome(returnUrl);
 
         var redirect = Assert.IsType<LocalRedirectResult>(result);
-        Assert.Equal("/", redirect.Url);
+        Assert.Equal("~/", redirect.Url);
     }
 
     [Theory]
@@ -307,6 +343,22 @@ public sealed class HomeControllerTests
     public void Login_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
     {
         Arrange(authenticated: false);
+
+        var result = _controller.Login(returnUrl);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    // Under a subpath deployment the /api ReturnUrl arrives base-prefixed ("/2/api/..."). The base is
+    // stripped before the guard so it is still rejected and never forwarded to CAS. Regression guard for
+    // the pre-strip /api check that a "/2/api/..." ReturnUrl slipped past.
+    [Theory]
+    [InlineData("/2/api/secret")]
+    [InlineData("~/2/api/secret")] // app-relative + base-prefixed must not bypass the guard either
+    public void Login_RejectsSubpathApiReturnUrl_WithUnauthorized(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
 
         var result = _controller.Login(returnUrl);
 
