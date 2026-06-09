@@ -23,29 +23,30 @@ namespace Viper.Areas.Computing.Services
             using var throttler = new SemaphoreSlim(initialCount: 20);
             foreach (var email in emails)
             {
-                await throttler.WaitAsync();
-
                 var emailTrimmed = email.Trim();
                 if (!emailTrimmed.Contains('@'))
                 {
                     emailTrimmed += "@ucdavis.edu";
                 }
-                if (IsValidEmail(emailTrimmed))
+                if (!IsValidEmail(emailTrimmed))
                 {
-                    resultList.Add(
-                        Task.Run(async () =>
-                        {
-                            try
-                            {
-                                return await GetSingleStudent(emailTrimmed);
-                            }
-                            finally
-                            {
-                                throttler.Release();
-                            }
-                        })
-                    );
+                    continue;
                 }
+
+                await throttler.WaitAsync();
+                resultList.Add(
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            return await GetSingleStudent(emailTrimmed);
+                        }
+                        finally
+                        {
+                            throttler.Release();
+                        }
+                    })
+                );
             }
 
             var taskResults = await Task.WhenAll(resultList);
