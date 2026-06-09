@@ -286,7 +286,7 @@ public sealed class HomeControllerTests
         Arrange(authenticated: true);
         _controller.HttpContext.Request.PathBase = "/2";
 
-        var result = _controller.Welcome(null);
+        var result = _controller.Welcome();
 
         var redirect = Assert.IsType<LocalRedirectResult>(result);
         Assert.Equal("~/", redirect.Url);
