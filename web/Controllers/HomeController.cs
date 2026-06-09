@@ -88,24 +88,28 @@ namespace Viper.Controllers
             // ~/welcome and ~/login and we never emit a "~/" redirect target.
             ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
 
+            // In a subpath deployment the ReturnUrl carries the PathBase (e.g. "/2/ClinicalScheduler"),
+            // so strip it once here — the loop-guard, classifier, and label resolver all need it
+            // root-relative. The full ReturnUrl is preserved for the redirect/links back.
+            var relativeReturnUrl = StripPathBase(ReturnUrl, Request.PathBase.Value);
+
             // Null out ReturnUrl if it is not local, or if it points back to /welcome or /login (would redirect-loop).
-            if (!Url.IsLocalUrl(ReturnUrl) || IsWelcomeOrLoginPath(ReturnUrl))
+            if (!Url.IsLocalUrl(ReturnUrl) || IsWelcomeOrLoginPath(relativeReturnUrl))
             {
                 ReturnUrl = null;
+                relativeReturnUrl = null;
             }
 
             if (User.Identity?.IsAuthenticated == true)
             {
-                return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl);
+                // "~/" (not "/") so the app root keeps the PathBase ("/2/") in a subpath deployment
+                // instead of redirecting out to the domain root (the legacy site).
+                return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "~/" : ReturnUrl);
             }
 
             // Only passive arrivals get the splash: the bare site root or a top-level area
             // landing page (e.g. "/ClinicalScheduler"). A deep link (e.g. "/ClinicalScheduler/rotation")
             // skips the interstitial and goes straight to CAS so we don't interrupt a targeted workflow.
-            // In a subpath deployment the ReturnUrl carries the PathBase (e.g. "/2/ClinicalScheduler"),
-            // so normalize it to an app-relative path before classifying or labeling it. The full
-            // ReturnUrl is preserved in ViewData so the splash sends the user back to the right place.
-            var relativeReturnUrl = StripPathBase(ReturnUrl, Request.PathBase.Value);
             if (!IsSplashTarget(relativeReturnUrl, GetAreaNames()))
             {
                 return RedirectToAction(nameof(Login), new { ReturnUrl });
@@ -289,7 +293,10 @@ namespace Viper.Controllers
                 returnURL = ReturnUrl;
             }
 
-            if (returnURL.StartsWith("/api"))
+            // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
+            // "/2/api/..." ReturnUrl can't slip past this root-relative check and get
+            // forwarded to CAS.
+            if (StripPathBase(returnURL, Request.PathBase.Value)?.StartsWith("/api") == true)
             {
                 return Unauthorized();
             }
@@ -531,7 +538,8 @@ namespace Viper.Controllers
                         returnUrl = null;
                     }
 
-                    return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "/");
+                    // "~/" (not "/") so a subpath deployment ("/2") lands on the app root, not the domain root.
+                    return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "~/");
                 }
             }
             catch (TaskCanceledException ex)
