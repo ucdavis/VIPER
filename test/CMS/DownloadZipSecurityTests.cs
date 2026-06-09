@@ -105,6 +105,36 @@ public sealed class DownloadZipSecurityTests
 
     #endregion
 
+    #region LooksLikeTraversalAttempt
+
+    [Theory]
+    [InlineData(@"\..\..\evil.zip")]
+    [InlineData("../../evil.zip")]
+    [InlineData(@"C:\Windows\Temp\evil.zip")]
+    [InlineData("../evil")]
+    [InlineData("..")]
+    [InlineData("nested/file.zip")]
+    [InlineData(@"nested\file.zip")]
+    public void LooksLikeTraversalAttempt_PathShapedInput_IsFlagged(string input)
+    {
+        Assert.True(CmsData.LooksLikeTraversalAttempt(input));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("export")]
+    [InlineData("monthly-report.zip")]
+    [InlineData("My_File-01 v2.zip")]
+    [InlineData("report.final.zip")]
+    public void LooksLikeTraversalAttempt_PlainName_IsNotFlagged(string? input)
+    {
+        Assert.False(CmsData.LooksLikeTraversalAttempt(input));
+    }
+
+    #endregion
+
     #region Regression guard (VPR-138)
 
     // Before the fix, DownloadZip built the on-disk temp archive path by

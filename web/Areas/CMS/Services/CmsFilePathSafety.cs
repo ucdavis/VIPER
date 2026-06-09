@@ -67,6 +67,24 @@ namespace Viper.Areas.CMS.Services
         }
 
         /// <summary>
+        /// True when <paramref name="userInput"/> carried path structure — a path
+        /// separator or a parent-directory segment — that <see cref="SanitizeDownloadName"/>
+        /// had to strip. Used purely to log a traversal-shaped download name; it never
+        /// affects what is served (the file set comes from DB GUIDs and the temp path
+        /// from a server-generated GUID, so a hostile name cannot reach the filesystem).
+        /// </summary>
+        public static bool LooksLikeTraversalAttempt(string? userInput)
+        {
+            if (string.IsNullOrWhiteSpace(userInput))
+            {
+                return false;
+            }
+
+            var normalized = userInput.Replace('\\', '/');
+            return normalized.Contains('/') || normalized.Contains("..", StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// Builds a per-request temp archive path under <paramref name="tempRoot"/>
         /// using a server-generated GUID, and asserts the resolved path stays
         /// inside that root.
@@ -132,6 +150,7 @@ namespace Viper.Areas.CMS.Services
     public interface ICmsFilePathSafety
     {
         string SanitizeDownloadName(string? userInput);
+        bool LooksLikeTraversalAttempt(string? userInput);
         string BuildTempArchivePath(string tempRoot);
         string GetZipTempFolder();
         string SanitizeZipEntryName(string? friendlyName, string fallback);
@@ -142,6 +161,9 @@ namespace Viper.Areas.CMS.Services
     {
         public string SanitizeDownloadName(string? userInput) =>
             CmsFilePathSafety.SanitizeDownloadName(userInput);
+
+        public bool LooksLikeTraversalAttempt(string? userInput) =>
+            CmsFilePathSafety.LooksLikeTraversalAttempt(userInput);
 
         public string BuildTempArchivePath(string tempRoot) =>
             CmsFilePathSafety.BuildTempArchivePath(tempRoot);

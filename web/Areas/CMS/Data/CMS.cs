@@ -413,6 +413,11 @@ namespace Viper.Areas.CMS.Data
             List<CMSFile> files = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
 
+            if (CmsFilePathSafety.LooksLikeTraversalAttempt(fileName))
+            {
+                LogSuspiciousDownloadName(controller, fileName, safeDownloadName, currentUser);
+            }
+
             foreach (var guid in fileGUIDs)
             {
                 CMSFile? file = GetFile(guid, null, null, null, null);
@@ -561,6 +566,30 @@ namespace Viper.Areas.CMS.Data
                 LogSanitizer.SanitizeString(id),
                 LogSanitizer.SanitizeString(friendlyName),
                 LogSanitizer.SanitizeString(oldURL),
+                LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
+                LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
+                LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
+        }
+
+        // VPR-138: emits a warning when a DownloadZip request supplies a fileName that
+        // carries path structure (separators or ".." segments). The name only ever feeds
+        // the Content-Disposition header - the served files come from DB GUIDs and the
+        // temp path from a server-generated GUID - so this is detection signal for probing,
+        // not a block. Grep the tag to see who is poking at the download surface.
+        private void LogSuspiciousDownloadName(Controller controller, string rawFileName, string sanitizedName, AaudUser? currentUser)
+        {
+            if (_logger is null)
+            {
+                return;
+            }
+
+            var request = controller.Request;
+            _logger.LogWarning(
+                "[CMS-DOWNLOAD-NAME] traversal-shaped download name loginId={LoginId} rawFileName={RawFileName} " +
+                "servedAs={SanitizedName} userAgent={UserAgent} referer={Referer} remoteIp={RemoteIp}",
+                LogSanitizer.SanitizeString(currentUser?.LoginId ?? string.Empty),
+                LogSanitizer.SanitizeString(rawFileName),
+                LogSanitizer.SanitizeString(sanitizedName),
                 LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
                 LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
                 LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
