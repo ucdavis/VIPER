@@ -3,15 +3,20 @@ import { computed, inject } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
 import { useRouter, useRoute } from "vue-router"
-import { stripTrailingSlashes } from "@/shared/strip-trailing-slashes"
+import { applicationBase } from "@/shared/application-base"
 import type { ComputedRef } from "vue"
 import type { RouteLocationNormalized } from "vue-router"
 
-// Module-level regex constants to avoid recreation on each function call
-const ABSOLUTE_URL_REGEX = /^(https?:)?\/\//
-const ENCODED_SLASH_REGEX = /%2f/i
-const ENCODED_DOT_REGEX = /%2e/i
+// Module-level constants to avoid recreation on each function call
+const ABSOLUTE_URL_REGEX = /^(?:https?:)?\/\//u
+const ENCODED_SLASH_REGEX = /%2f/iu
+const QUERY_OR_FRAGMENT_REGEX = /[?#]/u
 const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
+
+// Mirrors HomeController._dotSegments: browsers resolve dot-segments before issuing the request,
+// and the URL spec counts the percent-encoded spellings too ("%2e" is ".", ".%2e"/"%2e."/"%2e%2e"
+// are ".."), all ASCII case-insensitive.
+const DOT_SEGMENTS = new Set([".", "..", "%2e", "%2e%2e", ".%2e", "%2e."])
 
 /**
  * Builds a login URL with a validated return path.
@@ -23,9 +28,9 @@ const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
 function buildLoginUrl(returnPath: string, endpoint: "welcome" | "login" = "welcome"): string {
     // Build both paths from the normalized base so VITE_VIPER_HOME="/2" gives "/2/welcome" (not the
     // slash-less "/2welcome") and "/2///" collapses its duplicate slashes.
-    const applicationBase = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/")
-    const endpointPath = `${applicationBase}/${endpoint}`
-    const fallbackPath = `${applicationBase}/`
+    const base = applicationBase()
+    const endpointPath = `${base}/${endpoint}`
+    const fallbackPath = `${base}/`
 
     if (isValidInternalPath(returnPath)) {
         return `${endpointPath}?ReturnUrl=${encodeURIComponent(returnPath)}`
@@ -47,14 +52,21 @@ function getCurrentPath(): string {
  */
 function getLoginUrl(): ComputedRef<string> {
     const route = useRoute()
-    const applicationBase = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/")
+    const base = applicationBase()
     return computed(() => {
         // Reading route.fullPath makes this reactive (the URL recomputes after navigation), but it
         // omits the app base the router was created with, so prefix it back (same pattern as
         // requireLogin). Fall back to the browser location outside a router context (e.g. unit tests).
-        const returnPath = route ? `${applicationBase}${route.fullPath}` : getCurrentPath()
+        const returnPath = route ? `${base}${route.fullPath}` : getCurrentPath()
         return buildLoginUrl(returnPath, "login")
     })
+}
+
+// Everything before the query or fragment. Mirrors HomeController.PathWithoutQuery: only the path
+// participates in URL resolution, so only the path is screened for traversal and encoded bypasses.
+function pathWithoutQuery(url: string): string {
+    const cut = url.search(QUERY_OR_FRAGMENT_REGEX)
+    return cut >= 0 ? url.slice(0, cut) : url
 }
 
 // Helper function to validate internal redirect paths (prevent open redirect attacks)
@@ -63,15 +75,23 @@ function isValidInternalPath(path: string): boolean {
         return false
     }
 
-    // Reject absolute URLs, path traversal, backslashes, and encoded bypasses. Backslashes are
-    // rejected because some browsers treat "/\" or "/\\" as protocol-relative (external) redirects.
-    if (
-        ABSOLUTE_URL_REGEX.test(path) ||
-        path.includes("../") ||
-        path.includes("\\") ||
-        ENCODED_SLASH_REGEX.test(path) ||
-        ENCODED_DOT_REGEX.test(path)
-    ) {
+    // Rejected across the whole string: an absolute URL can only appear at the front, and a raw
+    // backslash has no legitimate place in an internal ReturnUrl (some browsers treat "/\" or "/\\"
+    // as protocol-relative, i.e. external, redirects).
+    if (ABSOLUTE_URL_REGEX.test(path) || path.includes("\\")) {
+        return false
+    }
+
+    // Traversal and encoded bypasses are screened on the path alone. Percent-encoding inside a query
+    // value is ordinary ("?sendBackTo=%2Fcts%2Fepa", which the CTS landing forwards verbatim) and
+    // cannot affect path resolution, so it must not disqualify an otherwise-valid ReturnUrl.
+    const urlPath = pathWithoutQuery(path)
+    if (ENCODED_SLASH_REGEX.test(urlPath)) {
+        return false
+    }
+
+    // Whole-segment match, so "/Effort/.." is caught while a legitimate "/Effort/%2ename" is not.
+    if (urlPath.split("/").some((segment) => DOT_SEGMENTS.has(segment.toLowerCase()))) {
         return false
     }
 
@@ -121,10 +141,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
             }
 
             // Build return path with application base prefix for test/prod
-            const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
-            const applicationBase = stripTrailingSlashes(viperHome)
-            const fullReturnPath = `${applicationBase}${to.fullPath}`
-            globalThis.location.href = buildLoginUrl(fullReturnPath)
+            globalThis.location.href = buildLoginUrl(`${applicationBase()}${to.fullPath}`)
             return false
         }
         //Store the logged in user info
@@ -176,4 +193,4 @@ function handleSendBackToRedirect(route: ReturnType<typeof useRoute>, router: Re
     router.push({ path: redirectPath, query: params ?? null })
 }
 
-export { getLoginUrl, useRequireLogin }
+export { buildLoginUrl, getLoginUrl, isValidInternalPath, useRequireLogin }
