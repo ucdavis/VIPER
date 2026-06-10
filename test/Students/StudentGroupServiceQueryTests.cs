@@ -210,7 +210,7 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
             StartTerm = int.Parse(Term),
             EndTerm = null
         });
-        _sisContext.SaveChanges();
+        await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         foreach (var (pkey, pidm) in new[] { ("RST1", "PIDM1"), ("RST9", "PIDM9") })
         {
