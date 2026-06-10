@@ -7,7 +7,7 @@ namespace Viper.Areas.CMS.Services
     ///
     /// Two surfaces: the static class is used by the legacy
     /// <c>CMS.DownloadZip</c> call site (no DI plumbing); the
-    /// <see cref="ICmsFilePathSafety"/> interface is the contract the
+    /// <see cref="ICmsFilePathSafetyService"/> interface is the contract the
     /// PLAN-CMS migration's <c>IFileStorageService</c> / new download
     /// controller depends on. See PLAN-CMS.md §11.7.
     /// </summary>
@@ -147,7 +147,7 @@ namespace Viper.Areas.CMS.Services
     /// (see PLAN-CMS.md §11.7) depends on this interface so the underlying
     /// implementation can evolve without touching call sites.
     /// </summary>
-    public interface ICmsFilePathSafety
+    public interface ICmsFilePathSafetyService
     {
         string SanitizeDownloadName(string? userInput);
         bool LooksLikeTraversalAttempt(string? userInput);
@@ -156,8 +156,8 @@ namespace Viper.Areas.CMS.Services
         string SanitizeZipEntryName(string? friendlyName, string fallback);
     }
 
-    /// <inheritdoc cref="ICmsFilePathSafety"/>
-    public sealed class CmsFilePathSafetyService : ICmsFilePathSafety
+    /// <inheritdoc cref="ICmsFilePathSafetyService"/>
+    public sealed class CmsFilePathSafetyService : ICmsFilePathSafetyService
     {
         public string SanitizeDownloadName(string? userInput) =>
             CmsFilePathSafety.SanitizeDownloadName(userInput);
