@@ -248,7 +248,7 @@ namespace Viper.Services
                 await tcpClient.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort);
                 return tcpClient.Connected;
             }
-            catch
+            catch (SocketException)
             {
                 return false;
             }
