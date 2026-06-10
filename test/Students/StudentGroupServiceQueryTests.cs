@@ -8,6 +8,7 @@ using Viper.Areas.Students.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.Courses;
+using ViperTerm = Viper.Models.VIPER.Term;
 
 namespace Viper.test.Students;
 
@@ -74,7 +75,7 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
         _coursesContext = new CoursesContext(InMemory<CoursesContext>("Courses"));
         _viperContext = new VIPERContext(InMemory<VIPERContext>("VIPER"));
 
-        _viperContext.Terms.Add(new Viper.Models.VIPER.Term
+        _viperContext.Terms.Add(new ViperTerm
         {
             TermCode = int.Parse(Term),
             CurrentTerm = true,
@@ -187,7 +188,7 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
             RosterEnrollStatus = "RE",
             RosterPidm = "PIDM1"
         });
-        await _coursesContext.SaveChangesAsync();
+        await _coursesContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetStudentsByCourseAsync(Term, "12345");
 
