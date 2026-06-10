@@ -4,8 +4,6 @@ using System.Text.Json;
 using System.Web;
 using NLog;
 using Viper.Models.IAM;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
 
 namespace Viper.Classes.Utilities
 {
@@ -400,9 +398,10 @@ namespace Viper.Classes.Utilities
 
                 }
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
             {
-                r.ErrorMessage = "Invalid response: " + ex.Message + ".";
+                LogManager.GetLogger("IAM").Warn(ex, "Failed to parse IAM response.");
+                r.ErrorMessage = "Invalid response.";
             }
 
             return r;

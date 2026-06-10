@@ -71,7 +71,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     rotations.Count, filteredRotations.Count);
                 return Ok(filteredRotations);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext(new Dictionary<string, object>
@@ -132,7 +132,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved rotation via RotationService: {RotationName}", rotation.Name);
                 return Ok(response);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("RotationId", id);
@@ -234,7 +234,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(BuildRotationScheduleResponse(rotation, targetYear, groupedSchedules, recentCliniciansList));
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("RotationId", id);
@@ -299,7 +299,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, LogSanitizer.SanitizeYear(targetYear), filteredRotations.Count);
                 return Ok(filteredRotations);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("Year", year?.ToString() ?? "null");

@@ -159,7 +159,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 AdjustBundleCompetencyOrders(bundleComp);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Cannot delete this bundle competency.");
             }

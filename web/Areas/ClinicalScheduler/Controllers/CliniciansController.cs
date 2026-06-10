@@ -335,7 +335,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     schedules.Count, LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeYear(targetYear));
                 return Ok(result);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("MothraId", mothraId);
@@ -382,7 +382,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 _logger.LogDebug("Found {RotationCount} unique rotations for clinician {MothraId}", rotations.Count, LogSanitizer.SanitizeId(mothraId));
                 return Ok(rotations);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 // Store context for ApiExceptionFilter to use in logging
                 SetExceptionContext("MothraId", mothraId);
@@ -576,7 +576,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 // All other cases (Admin, Manage, EditClnSchedules, rotation view, or service-specific permissions) see all clinicians
                 return clinicians;
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error filtering clinicians by permissions. Returning unfiltered list.");
                 return clinicians; // Return unfiltered list on error to avoid breaking functionality
@@ -654,7 +654,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     LogSanitizer.SanitizeId(currentUser.MothraId), LogSanitizer.SanitizeId(targetMothraId));
                 return false;
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error checking clinician schedule view permission for target {TargetMothraId}", LogSanitizer.SanitizeId(targetMothraId));
                 return false; // Deny access on error

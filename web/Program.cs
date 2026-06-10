@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Amazon;
 using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
@@ -14,7 +15,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
@@ -87,7 +87,7 @@ try
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
     }
-    catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+    catch (Exception ex) when (ex is AmazonServiceException or AmazonClientException)
     {
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
@@ -568,9 +568,8 @@ void SetAwsCredentials(Logger logger)
         {
             File.Delete(awsCredentialsFilePath);
         }
-        catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
             logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
         }
     }

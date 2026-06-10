@@ -108,7 +108,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 return HandleInvalidOperation(ex, correlationId);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException)
             {
                 return HandleSystemError(ex, request.RotationId!.Value, correlationId);
             }
@@ -337,7 +337,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     userMessage,
                     correlationId));
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException)
             {
                 _logger.LogError(ex, "Error removing instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
                     instructorScheduleId, correlationId);
@@ -416,7 +416,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     instructorScheduleId, correlationId);
                 return Forbid();
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error setting primary evaluator for instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
                     instructorScheduleId, correlationId);
@@ -509,7 +509,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error checking schedule conflicts for {MothraId}", LogSanitizer.SanitizeId(mothraId));
                 return StatusCode(500, "An error occurred while checking for schedule conflicts");
@@ -534,7 +534,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 var auditHistory = await _auditService.GetInstructorScheduleAuditHistoryAsync(instructorScheduleId, cancellationToken);
                 return Ok(auditHistory);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for instructor schedule {ScheduleId}", instructorScheduleId);
                 return StatusCode(500, "An error occurred while retrieving audit history");

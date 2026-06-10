@@ -5,8 +5,6 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Web.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
 
 namespace Viper.Classes
 {
@@ -87,7 +85,12 @@ namespace Viper.Classes
                         await memoryStream.CopyToAsync(stream, bytes.Length);
                     }
                 }
-                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+                // Middleware boundary: any sitemap-generation failure (DB, IO,
+                // reflection, etc.) must fall through to the pipeline rather than
+                // break the request.
+#pragma warning disable CA1031
+                catch (Exception)
+#pragma warning restore CA1031
                 {
                     await _next(context);
                 }

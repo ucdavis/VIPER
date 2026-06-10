@@ -106,7 +106,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Could not set roles.");
             }
@@ -280,7 +280,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Could not update levels.");
             }

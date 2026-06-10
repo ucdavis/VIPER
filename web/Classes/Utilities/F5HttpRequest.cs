@@ -1,7 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
 
 namespace Viper.Classes.Utilities
 {
@@ -24,7 +22,7 @@ namespace Viper.Classes.Utilities
             {
                 response = await _httpClient.SendAsync(request);
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
                 response = await HandleConnectionFail(request, attemptNumber);
             }

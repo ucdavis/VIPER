@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Classes.SQLContext;
@@ -133,7 +132,7 @@ namespace Viper.Areas.RAPS.Services
                         VmacsResponse vmacsResponse = await ParseResponse(response);
                         RecordMessage(messages, JsonSerializer.Serialize(vmacsResponse));
                     }
-                    catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+                    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
                     {
                         HttpHelper.Logger.Log(LogLevel.Warn, ex);
                         RecordMessage(messages, "Error: " + ex.Message + " " + ex.StackTrace);
@@ -168,7 +167,7 @@ namespace Viper.Areas.RAPS.Services
 
                 vmacsResponse.Success = response.IsSuccessStatusCode;
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
             {
                 vmacsResponse = new()
                 {

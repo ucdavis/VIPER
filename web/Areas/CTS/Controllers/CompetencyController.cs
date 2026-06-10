@@ -177,9 +177,9 @@ namespace Viper.Areas.CTS.Controllers
             {
                 await context.SaveChangesAsync();
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                return BadRequest("Could not remove domain. It may be linked to other objects.");
+                return BadRequest("Could not remove competency. It may be linked to other objects.");
             }
             await UpdateCompetencyOrders();
             return new CompetencyDto(c);

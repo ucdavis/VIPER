@@ -92,7 +92,7 @@ namespace Web.Authorization
 
 
                 }
-                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or RecordNotFoundException)
                 {
                     bool isProd = false;
 
