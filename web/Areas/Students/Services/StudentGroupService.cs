@@ -109,7 +109,7 @@ namespace Viper.Areas.Students.Services
                             join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
                             from sg in sgGroup.DefaultIfEmpty()
                             where s.StudentsClassLevel == classLevel && i.IdsTermCode == currentTerm
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !EF.Parameter(rossIamIds).Contains(i.IdsIamId!))
                             orderby p.PersonLastName, p.PersonDisplayFirstName ?? p.PersonFirstName
                             select new StudentBaseRecord(
                                 i.IdsMailid,
@@ -209,7 +209,7 @@ namespace Viper.Areas.Students.Services
 
                 // Get all AAUD records for Ross students (any term <= current term)
                 var allAaudRecords = await _aaudContext.Ids
-                    .Where(ids => ids.IdsIamId != null && rossIamIds.Contains(ids.IdsIamId))
+                    .Where(ids => ids.IdsIamId != null && EF.Parameter(rossIamIds).Contains(ids.IdsIamId))
                     .Where(ids => ids.IdsTermCode.CompareTo(currentTermString) <= 0)
                     .ToListAsync();
 
@@ -310,7 +310,7 @@ namespace Viper.Areas.Students.Services
                                 join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
                                 join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm
                                 where i.IdsTermCode == currentTerm
-                                      && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId))
+                                      && (string.IsNullOrEmpty(i.IdsIamId) || !EF.Parameter(rossIamIds).Contains(i.IdsIamId))
                                 select new { i, p, s, sg };
 
                 // Filter by class level first if provided
@@ -401,9 +401,9 @@ namespace Viper.Areas.Students.Services
                                 join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
                                 join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
                                 from sg in sgGroup.DefaultIfEmpty()
-                                where enrolledPidms.Contains(i.IdsPidm)
+                                where EF.Parameter(enrolledPidms).Contains(i.IdsPidm)
                                       && i.IdsTermCode == termCode
-                                      && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
+                                      && (string.IsNullOrEmpty(i.IdsIamId) || !EF.Parameter(rossIamIds).Contains(i.IdsIamId!))
                                 select new { i, p, s, sg };
 
                 // Apply group filtering if specified
@@ -450,7 +450,7 @@ namespace Viper.Areas.Students.Services
                                                       where r.RosterTermCode == termCode
                                                             && r.RosterCrn == crn
                                                             && i.IdsIamId != null
-                                                            && rossIamIds.Contains(i.IdsIamId)
+                                                            && EF.Parameter(rossIamIds).Contains(i.IdsIamId)
                                                       select i.IdsIamId)
                                                      .Distinct()
                                                      .ToListAsync();
