@@ -8,6 +8,7 @@ using Viper.Areas.Students.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.Courses;
+using Viper.Models.SIS;
 using ViperTerm = Viper.Models.VIPER.Term;
 
 namespace Viper.test.Students;
@@ -194,6 +195,44 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
 
         Assert.Single(result);
         Assert.Equal("Adams", result[0].LastName);
+    }
+
+    [Fact]
+    public async Task GetStudentsByCourseAsync_IncludeRoss_ReturnsRossStudentEnrolledInCourse()
+    {
+        // A regular V3 student and a Ross student, both enrolled (RE) in the same course.
+        SeedStudent("P1", "PIDM1", "Adams", "Bob", "V3");
+        SeedStudent("P9", "PIDM9", "Reardon", "Chelsea", "V3");
+        _sisContext.StudentDesignations.Add(new StudentDesignation
+        {
+            DesignationType = "Ross",
+            IamId = "IAMP9", // matches SeedStudent's "IAM" + pKey
+            StartTerm = int.Parse(Term),
+            EndTerm = null
+        });
+        _sisContext.SaveChanges();
+
+        foreach (var (pkey, pidm) in new[] { ("RST1", "PIDM1"), ("RST9", "PIDM9") })
+        {
+            _coursesContext.Rosters.Add(new Roster
+            {
+                RosterPkey = pkey,
+                RosterTermCode = Term,
+                RosterCrn = "12345",
+                RosterEnrollStatus = "RE",
+                RosterPidm = pidm
+            });
+        }
+        await _coursesContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // The Ross-inclusion branch must not join the Courses and AAUD DbContexts in one
+        // query: EF cannot translate a cross-context join and throws at execution, which the
+        // service surfaces as a failure (previously swallowed into an empty gallery).
+        var result = await _service.GetStudentsByCourseAsync(Term, "12345", includeRossStudents: true);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, s => s.LastName == "Adams" && !s.IsRossStudent);
+        Assert.Contains(result, s => s.LastName == "Reardon" && s.IsRossStudent);
     }
 
     public void Dispose()
