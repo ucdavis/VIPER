@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
@@ -541,9 +542,22 @@ namespace Viper.Areas.CMS.Data
             }
 
             string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
-            controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
+            if (!MimeTypes.TryGetValue(extension.ToLower(), out var contentType))
+            {
+                // Unknown/missing extension: fall back to a generic binary type so an
+                // unlisted file type downloads instead of throwing (was a 500 via the indexer).
+                contentType = "application/octet-stream";
+            }
 
-            return controller.File(bytes, MimeTypes[extension.ToLower()], true);
+            // Build Content-Disposition from the stored record's name, not the user-supplied
+            // friendlyName param, and let the framework encode it so a hostile fn cannot shape
+            // the header. Mirrors the DownloadZip download-name hardening.
+            var downloadName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
+            var contentDisposition = new ContentDispositionHeaderValue("inline");
+            contentDisposition.SetHttpFileName(downloadName);
+            controller.Response.Headers.ContentDisposition = contentDisposition.ToString();
+
+            return controller.File(bytes, contentType, true);
 
         }
         #endregion
