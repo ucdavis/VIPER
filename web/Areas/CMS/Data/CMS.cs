@@ -5,7 +5,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using Viper.Areas.CMS.Models;
+using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
@@ -402,16 +404,20 @@ namespace Viper.Areas.CMS.Data
         #region public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         {
-            if (fileGUIDs.Length == 0 && fileName.Length == 0)
+            if (fileGUIDs.Length == 0)
             {
-                ArgumentNullException argumentNullException = new(nameof(fileGUIDs), "Missing fileGUIDs and file name parameters");
-                throw argumentNullException;
+                return controller.BadRequest("Missing fileGUIDs parameter.");
             }
 
-            //only allow good filename characters
-            fileName = fileName.Replace(@"[^a-zA-Z0-9\.\-_ ]", "");
+            var safeDownloadName = CmsFilePathSafety.SanitizeDownloadName(fileName);
+
             List<CMSFile> files = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
+
+            if (CmsFilePathSafety.LooksLikeTraversalAttempt(fileName))
+            {
+                LogSuspiciousDownloadName(controller, fileName, safeDownloadName, currentUser);
+            }
 
             foreach (var guid in fileGUIDs)
             {
@@ -429,45 +435,59 @@ namespace Viper.Areas.CMS.Data
                 }
             }
 
-            // create a temp Zip file and populate it with the files
-            string tempFileName = GetRootFileFolder() + @"\" + DateTime.Now.Ticks + fileName;
-
-            using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.OpenOrCreate))
+            if (files.Count == 0)
             {
-                using ZipArchive archive = new(fs, ZipArchiveMode.Update);
-                foreach (var file in files)
-                {
-                    if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
-                    {
-                        ZipArchiveEntry fileEntry = archive.CreateEntry(file.FriendlyName);
-                        using StreamWriter writer = new(fileEntry.Open());
-                        byte[] filebytes = System.IO.File.ReadAllBytes(file.FilePath);
-                        filebytes = DecryptFile(filebytes, file.Key);
-
-                        if (filebytes != null)
-                        {
-                            writer.BaseStream.Write(filebytes, 0, filebytes.Length);
-                        }
-                    }
-                    else
-                    {
-                        archive.CreateEntryFromFile(file.FilePath, file.FriendlyName);
-                    }
-
-                }
+                return controller.NotFound();
             }
 
-            // read the temp zip file then delete it
-            byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
-            if (bytes == null)
-                return controller.NotFound();
+            var zipTempFolder = CmsFilePathSafety.GetZipTempFolder();
+            // Create on demand so a download survives the OS or an admin sweeping %TEMP%
+            // mid-run; otherwise File.Open below throws DirectoryNotFoundException.
+            System.IO.Directory.CreateDirectory(zipTempFolder);
+            string tempFileName = CmsFilePathSafety.BuildTempArchivePath(zipTempFolder);
 
-            System.IO.File.Delete(tempFileName);
+            try
+            {
+                using (FileStream fs = System.IO.File.Open(tempFileName, FileMode.Create))
+                using (ZipArchive archive = new(fs, ZipArchiveMode.Create))
+                {
+                    foreach (var file in files)
+                    {
+                        var entryName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
 
-            string extension = "zip";
+                        if (file.Encrypted && !string.IsNullOrEmpty(file.Key))
+                        {
+                            ZipArchiveEntry fileEntry = archive.CreateEntry(entryName);
+                            using var entryStream = fileEntry.Open();
+                            byte[] filebytes = System.IO.File.ReadAllBytes(file.FilePath);
+                            filebytes = DecryptFile(filebytes, file.Key);
 
-            return controller.File(bytes, MimeTypes[extension.ToLower()], fileName);
+                            entryStream.Write(filebytes, 0, filebytes.Length);
+                        }
+                        else
+                        {
+                            archive.CreateEntryFromFile(file.FilePath, entryName);
+                        }
+                    }
+                }
 
+                byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
+                return controller.File(bytes, MimeTypes["zip"], safeDownloadName);
+            }
+            finally
+            {
+                // Best-effort cleanup: swallow filesystem exceptions so we don't
+                // mask an earlier exception from archive creation or the response.
+                try
+                {
+                    if (System.IO.File.Exists(tempFileName))
+                    {
+                        System.IO.File.Delete(tempFileName);
+                    }
+                }
+                catch (IOException) { /* ignored */ }
+                catch (UnauthorizedAccessException) { /* ignored */ }
+            }
         }
         #endregion
 
@@ -526,9 +546,22 @@ namespace Viper.Areas.CMS.Data
             }
 
             string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
-            controller.Response.Headers["Content-Disposition"] = "inline; filename=" + friendlyName;
+            if (!MimeTypes.TryGetValue(extension.ToLower(), out var contentType))
+            {
+                // Unknown/missing extension: fall back to a generic binary type so an
+                // unlisted file type downloads instead of throwing (was a 500 via the indexer).
+                contentType = "application/octet-stream";
+            }
 
-            return controller.File(bytes, MimeTypes[extension.ToLower()], true);
+            // Build Content-Disposition from the stored record's name, not the user-supplied
+            // friendlyName param, and let the framework encode it so a hostile fn cannot shape
+            // the header. Mirrors the DownloadZip download-name hardening.
+            var downloadName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
+            var contentDisposition = new ContentDispositionHeaderValue("inline");
+            contentDisposition.SetHttpFileName(downloadName);
+            controller.Response.Headers.ContentDisposition = contentDisposition.ToString();
+
+            return controller.File(bytes, contentType, true);
 
         }
         #endregion
@@ -551,6 +584,30 @@ namespace Viper.Areas.CMS.Data
                 LogSanitizer.SanitizeString(id),
                 LogSanitizer.SanitizeString(friendlyName),
                 LogSanitizer.SanitizeString(oldURL),
+                LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
+                LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
+                LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
+        }
+
+        // VPR-138: emits a warning when a DownloadZip request supplies a fileName that
+        // carries path structure (separators or ".." segments). The name only ever feeds
+        // the Content-Disposition header - the served files come from DB GUIDs and the
+        // temp path from a server-generated GUID - so this is detection signal for probing,
+        // not a block. Grep the tag to see who is poking at the download surface.
+        private void LogSuspiciousDownloadName(Controller controller, string rawFileName, string sanitizedName, AaudUser? currentUser)
+        {
+            if (_logger is null)
+            {
+                return;
+            }
+
+            var request = controller.Request;
+            _logger.LogWarning(
+                "[CMS-DOWNLOAD-NAME] traversal-shaped download name loginId={LoginId} rawFileName={RawFileName} " +
+                "servedAs={SanitizedName} userAgent={UserAgent} referer={Referer} remoteIp={RemoteIp}",
+                LogSanitizer.SanitizeString(currentUser?.LoginId ?? string.Empty),
+                LogSanitizer.SanitizeString(rawFileName),
+                LogSanitizer.SanitizeString(sanitizedName),
                 LogSanitizer.SanitizeString(request.Headers.UserAgent.ToString()),
                 LogSanitizer.SanitizeString(request.Headers.Referer.ToString()),
                 LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
