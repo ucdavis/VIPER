@@ -110,6 +110,7 @@ namespace Viper.Areas.Students.Services
                             from sg in sgGroup.DefaultIfEmpty()
                             where s.StudentsClassLevel == classLevel && i.IdsTermCode == currentTerm
                                   && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
+                            orderby p.PersonLastName, p.PersonDisplayFirstName ?? p.PersonFirstName
                             select new StudentBaseRecord(
                                 i.IdsMailid,
                                 p.PersonDisplayFirstName ?? p.PersonFirstName,
@@ -123,7 +124,7 @@ namespace Viper.Areas.Students.Services
                                 sg != null ? sg.StudentgrpTeamno : null,
                                 sg != null ? sg.StudentgrpV3grp : null);
 
-                var students = await query.AsNoTracking().OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var students = await query.AsNoTracking().ToListAsync();
 
                 var photoStudents = await BuildStudentPhotoListAsync(students);
 
@@ -146,13 +147,11 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Failed to load students for class level {LogSanitizer.SanitizeString(classLevel)}.", ex);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Database error loading students for class level {LogSanitizer.SanitizeString(classLevel)}.", ex);
             }
         }
 
@@ -338,32 +337,33 @@ namespace Viper.Areas.Students.Services
                     queryBase = queryBase.Where(x => x.sg.StudentgrpV3grp == groupId);
                 }
 
-                var query = queryBase.Select(x => new StudentBaseRecord(
-                    x.i.IdsMailid,
-                    x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
-                    x.p.PersonLastName,
-                    x.p.PersonMiddleName,
-                    x.i.IdsIamId,
-                    x.i.IdsClientid,
-                    x.s.StudentsClassLevel,
-                    x.sg.StudentgrpGrp,
-                    x.sg.Studentgrp20,
-                    x.sg.StudentgrpTeamno,
-                    x.sg.StudentgrpV3grp));
+                var query = queryBase
+                    .OrderBy(x => x.p.PersonLastName)
+                    .ThenBy(x => x.p.PersonDisplayFirstName ?? x.p.PersonFirstName)
+                    .Select(x => new StudentBaseRecord(
+                        x.i.IdsMailid,
+                        x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
+                        x.p.PersonLastName,
+                        x.p.PersonMiddleName,
+                        x.i.IdsIamId,
+                        x.i.IdsClientid,
+                        x.s.StudentsClassLevel,
+                        x.sg.StudentgrpGrp,
+                        x.sg.Studentgrp20,
+                        x.sg.StudentgrpTeamno,
+                        x.sg.StudentgrpV3grp));
 
-                var students = await query.AsNoTracking().OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var students = await query.AsNoTracking().ToListAsync();
 
                 return await BuildStudentPhotoListAsync(students);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Failed to load students for group {LogSanitizer.SanitizeString(groupType)}/{LogSanitizer.SanitizeString(groupId)}.", ex);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Database error loading students for group {LogSanitizer.SanitizeString(groupType)}/{LogSanitizer.SanitizeString(groupId)}.", ex);
             }
         }
 
@@ -396,41 +396,46 @@ namespace Viper.Areas.Students.Services
                 }
 
                 // Step 2: Query AAUD database with the enrolled PIDMs
-                var query = from i in _aaudContext.Ids
-                            join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
-                            join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
-                            join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
-                            from sg in sgGroup.DefaultIfEmpty()
-                            where enrolledPidms.Contains(i.IdsPidm)
-                                  && i.IdsTermCode == termCode
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
-                            select new StudentBaseRecord(
-                                i.IdsMailid,
-                                p.PersonDisplayFirstName ?? p.PersonFirstName,
-                                p.PersonLastName,
-                                p.PersonMiddleName,
-                                i.IdsIamId,
-                                i.IdsClientid,
-                                s.StudentsClassLevel,
-                                sg != null ? sg.StudentgrpGrp : null,
-                                sg != null ? sg.Studentgrp20 : null,
-                                sg != null ? sg.StudentgrpTeamno : null,
-                                sg != null ? sg.StudentgrpV3grp : null);
+                var queryBase = from i in _aaudContext.Ids
+                                join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
+                                join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
+                                join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
+                                from sg in sgGroup.DefaultIfEmpty()
+                                where enrolledPidms.Contains(i.IdsPidm)
+                                      && i.IdsTermCode == termCode
+                                      && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
+                                select new { i, p, s, sg };
 
                 // Apply group filtering if specified
                 if (!string.IsNullOrEmpty(groupType) && !string.IsNullOrEmpty(groupId))
                 {
-                    query = groupType.ToLower() switch
+                    queryBase = groupType.ToLower() switch
                     {
-                        "eighths" => query.Where(s => s.EighthsGroup == groupId),
-                        "twentieths" => query.Where(s => s.TwentiethsGroup == groupId),
-                        "teams" => query.Where(s => s.TeamNumber == groupId),
-                        "v3specialty" => query.Where(s => s.V3SpecialtyGroup == groupId),
-                        _ => query
+                        "eighths" => queryBase.Where(x => x.sg.StudentgrpGrp == groupId),
+                        "twentieths" => queryBase.Where(x => x.sg.Studentgrp20 == groupId),
+                        "teams" => queryBase.Where(x => x.sg.StudentgrpTeamno == groupId),
+                        "v3specialty" => queryBase.Where(x => x.sg.StudentgrpV3grp == groupId),
+                        _ => queryBase
                     };
                 }
 
-                var students = await query.AsNoTracking().OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var query = queryBase
+                    .OrderBy(x => x.p.PersonLastName)
+                    .ThenBy(x => x.p.PersonDisplayFirstName ?? x.p.PersonFirstName)
+                    .Select(x => new StudentBaseRecord(
+                        x.i.IdsMailid,
+                        x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
+                        x.p.PersonLastName,
+                        x.p.PersonMiddleName,
+                        x.i.IdsIamId,
+                        x.i.IdsClientid,
+                        x.s.StudentsClassLevel,
+                        x.sg != null ? x.sg.StudentgrpGrp : null,
+                        x.sg != null ? x.sg.Studentgrp20 : null,
+                        x.sg != null ? x.sg.StudentgrpTeamno : null,
+                        x.sg != null ? x.sg.StudentgrpV3grp : null));
+
+                var students = await query.AsNoTracking().ToListAsync();
 
                 var photoStudents = await BuildStudentPhotoListAsync(students);
 
@@ -513,13 +518,11 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Failed to load students for course {LogSanitizer.SanitizeString(termCode)}/{LogSanitizer.SanitizeString(crn)}.", ex);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Database error loading students for course {LogSanitizer.SanitizeString(termCode)}/{LogSanitizer.SanitizeString(crn)}.", ex);
             }
         }
 
