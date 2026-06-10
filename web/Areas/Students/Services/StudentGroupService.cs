@@ -444,16 +444,13 @@ namespace Viper.Areas.Students.Services
                 {
                     _logger.LogDebug("Including Ross students for course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
 
-                    // Get Ross students who are enrolled in this course
-                    var rossStudentsInCourse = await (from r in _coursesContext.Rosters
-                                                      join i in _aaudContext.Ids on r.RosterPidm equals i.IdsPidm
-                                                      where r.RosterTermCode == termCode
-                                                            && r.RosterCrn == crn
-                                                            && i.IdsIamId != null
-                                                            && EF.Parameter(rossIamIds).Contains(i.IdsIamId)
-                                                      select i.IdsIamId)
-                                                     .Distinct()
-                                                     .ToListAsync();
+                    var rossStudentsInCourse = await _aaudContext.Ids
+                        .Where(i => i.IdsIamId != null
+                                    && EF.Parameter(enrolledPidms).Contains(i.IdsPidm)
+                                    && EF.Parameter(rossIamIds).Contains(i.IdsIamId))
+                        .Select(i => i.IdsIamId)
+                        .Distinct()
+                        .ToListAsync();
 
                     if (rossStudentsInCourse.Any())
                     {
