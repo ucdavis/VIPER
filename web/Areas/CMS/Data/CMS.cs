@@ -404,7 +404,10 @@ namespace Viper.Areas.CMS.Data
         #region public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         {
-            if (fileGUIDs.Length == 0)
+            // Treat an empty array or one of only blank segments (e.g. "ids=,,") as a
+            // missing parameter, and drop blanks so the loop skips no-op GetFile lookups.
+            var guids = fileGUIDs.Where(g => !string.IsNullOrWhiteSpace(g)).ToArray();
+            if (guids.Length == 0)
             {
                 return controller.BadRequest("Missing fileGUIDs parameter.");
             }
@@ -419,7 +422,7 @@ namespace Viper.Areas.CMS.Data
                 LogSuspiciousDownloadName(controller, fileName, safeDownloadName, currentUser);
             }
 
-            foreach (var guid in fileGUIDs)
+            foreach (var guid in guids)
             {
                 CMSFile? file = GetFile(guid, null, null, null, null);
 
@@ -546,7 +549,7 @@ namespace Viper.Areas.CMS.Data
             }
 
             string extension = file.FilePath[(file.FilePath.LastIndexOf('.') + 1)..];
-            if (!MimeTypes.TryGetValue(extension.ToLower(), out var contentType))
+            if (!MimeTypes.TryGetValue(extension.ToLowerInvariant(), out var contentType))
             {
                 // Unknown/missing extension: fall back to a generic binary type so an
                 // unlisted file type downloads instead of throwing (was a 500 via the indexer).

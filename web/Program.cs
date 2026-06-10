@@ -426,7 +426,7 @@ try
     {
         DefaultFileNames = new List<string> { "index.html" },
         FileProvider = new PhysicalFileProvider(
-            Path.Join(builder.Environment.ContentRootPath, "wwwroot", "vue")),
+            Path.Join(builder.Environment.WebRootPath, "vue")),
         RequestPath = "/vue",
         RedirectToAppendTrailingSlash = true
     });
@@ -434,7 +434,7 @@ try
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(
-            Path.Join(builder.Environment.ContentRootPath, "wwwroot/fonts")),
+            Path.Join(builder.Environment.WebRootPath, "fonts")),
         RequestPath = "/fonts",
         OnPrepareResponse = ctx =>
         {
@@ -496,7 +496,7 @@ try
             branch.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(
-                    Path.Join(builder.Environment.ContentRootPath, "wwwroot", "vue")),
+                    Path.Join(builder.Environment.WebRootPath, "vue")),
                 RequestPath = "/2/vue"
             });
         });

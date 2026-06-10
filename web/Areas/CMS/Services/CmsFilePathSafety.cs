@@ -22,7 +22,7 @@ namespace Viper.Areas.CMS.Services
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
         };
 
-        private static readonly Regex SafeFileNameAllowList = new(@"[^a-zA-Z0-9._\- ]", RegexOptions.Compiled);
+        private static readonly Regex DisallowedFileNameChars = new(@"[^a-zA-Z0-9._\- ]", RegexOptions.Compiled);
 
         /// <summary>
         /// Returns a filename safe to use in a Content-Disposition response header.
@@ -38,7 +38,7 @@ namespace Viper.Areas.CMS.Services
             }
 
             var fileNamePart = StripPathComponents(userInput);
-            var filtered = SafeFileNameAllowList.Replace(fileNamePart, string.Empty).Trim();
+            var filtered = DisallowedFileNameChars.Replace(fileNamePart, string.Empty).Trim();
 
             // Reject names that collapse to only dots/spaces: ".", ".." etc. would
             // become "..zip" after the suffix step, which is traversal-shaped.
