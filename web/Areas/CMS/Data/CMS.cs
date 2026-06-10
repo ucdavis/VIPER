@@ -440,7 +440,11 @@ namespace Viper.Areas.CMS.Data
                 return controller.NotFound();
             }
 
-            string tempFileName = CmsFilePathSafety.BuildTempArchivePath(CmsFilePathSafety.GetZipTempFolder());
+            var zipTempFolder = CmsFilePathSafety.GetZipTempFolder();
+            // Create on demand so a download survives the OS or an admin sweeping %TEMP%
+            // mid-run; otherwise File.Open below throws DirectoryNotFoundException.
+            System.IO.Directory.CreateDirectory(zipTempFolder);
+            string tempFileName = CmsFilePathSafety.BuildTempArchivePath(zipTempFolder);
 
             try
             {

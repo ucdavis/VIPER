@@ -67,11 +67,12 @@ namespace Viper.Areas.CMS.Services
         }
 
         /// <summary>
-        /// True when <paramref name="userInput"/> carried path structure — a path
-        /// separator or a parent-directory segment — that <see cref="SanitizeDownloadName"/>
-        /// had to strip. Used purely to log a traversal-shaped download name; it never
-        /// affects what is served (the file set comes from DB GUIDs and the temp path
-        /// from a server-generated GUID, so a hostile name cannot reach the filesystem).
+        /// True when <paramref name="userInput"/> carried path structure: a path
+        /// separator, or ".." as a distinct segment. Used purely to log a
+        /// traversal-shaped download name; it never affects what is served (the file
+        /// set comes from DB GUIDs and the temp path from a server-generated GUID, so a
+        /// hostile name cannot reach the filesystem). A ".." inside a longer name
+        /// (e.g. "report..final.zip") is not treated as traversal.
         /// </summary>
         public static bool LooksLikeTraversalAttempt(string? userInput)
         {
@@ -80,8 +81,10 @@ namespace Viper.Areas.CMS.Services
                 return false;
             }
 
+            // A download name should be a single segment: any separator, or a bare ".."
+            // segment, is traversal-shaped. ".." inside a name (e.g. "report..final") is not.
             var normalized = userInput.Replace('\\', '/');
-            return normalized.Contains('/') || normalized.Contains("..", StringComparison.Ordinal);
+            return normalized.Contains('/') || normalized == "..";
         }
 
         /// <summary>
@@ -100,7 +103,14 @@ namespace Viper.Areas.CMS.Services
             var candidate = Path.Join(resolvedRoot, Guid.NewGuid().ToString("N") + ".zip");
             var resolved = Path.GetFullPath(candidate);
 
-            if (!resolved.StartsWith(resolvedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            // TrimEndingDirectorySeparator leaves a filesystem root (e.g. "C:\" or "/")
+            // with its trailing separator, so append one only when it isn't already there
+            // to avoid a doubled separator that would break the containment check.
+            var rootPrefix = Path.EndsInDirectorySeparator(resolvedRoot)
+                ? resolvedRoot
+                : resolvedRoot + Path.DirectorySeparatorChar;
+
+            if (!resolved.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("Generated temp path escaped the configured root.");
             }

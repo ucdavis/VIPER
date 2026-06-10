@@ -313,10 +313,6 @@ try
 
     var app = builder.Build();
 
-    // Ensure the per-request CMS ZIP temp folder exists once at startup
-    // rather than on every download request.
-    Directory.CreateDirectory(Viper.Areas.CMS.Services.CmsFilePathSafety.GetZipTempFolder());
-
     // Add Content Security Policy. Skip for HealthChecks.UI paths - the bundled UI
     // uses inline scripts and data: fonts that our strict CSP would block. Those
     // paths are already IP-gated to trusted SVM admin subnets, so relaxing CSP
@@ -453,12 +449,9 @@ try
 
     // Routing first so subsequent middleware can defer to a matched MVC endpoint.
     app.UseRouting();
-    app.UseAuthentication();
-    app.UseAuthorization();
-    app.UseCookiePolicy();
-    app.UseSession();
 
-    // SPA shell serving — Vue app prefixes like /CMS, /Effort, etc.
+    // SPA shell serving for Vue app prefixes like /CMS, /Effort, etc. Runs before
+    // auth/session so static Vue assets skip that per-request overhead.
     // Only runs when no MVC controller endpoint claimed the path, so attribute-routed
     // legacy endpoints (e.g. /CMS/Files → CMSController.Files) reach the controller
     // instead of being rewritten to the SPA shell.
@@ -507,6 +500,13 @@ try
                 RequestPath = "/2/vue"
             });
         });
+
+    // Auth/session run after the SPA shell block so built Vue assets skip them, but
+    // still before health checks, Hangfire, and controllers, which need an authenticated user.
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.UseCookiePolicy();
+    app.UseSession();
 
     // All health-check pipeline wiring lives in HealthCheckExtensions.
     app.UseViperHealthChecks();

@@ -128,6 +128,8 @@ public sealed class DownloadZipSecurityTests
     [InlineData("monthly-report.zip")]
     [InlineData("My_File-01 v2.zip")]
     [InlineData("report.final.zip")]
+    [InlineData("report..final.zip")]
+    [InlineData("a..b")]
     public void LooksLikeTraversalAttempt_PlainName_IsNotFlagged(string? input)
     {
         Assert.False(CmsData.LooksLikeTraversalAttempt(input));
@@ -272,6 +274,20 @@ public sealed class DownloadZipSecurityTests
         {
             Cleanup(tempRoot);
         }
+    }
+
+    [Fact]
+    public void BuildTempArchivePath_AcceptsFilesystemRoot()
+    {
+        // A filesystem root (e.g. "C:\" or "/") keeps its trailing separator after
+        // TrimEndingDirectorySeparator; the containment check must not double the
+        // separator and wrongly reject a path that is genuinely inside the root.
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+
+        var path = CmsData.BuildTempArchivePath(root);
+
+        Assert.StartsWith(Path.GetFullPath(root), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(".zip", path, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
