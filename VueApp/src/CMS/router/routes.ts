@@ -20,6 +20,20 @@ const routes = [
         component: () => import("@/CMS/pages/ManageLinkCollections.vue"),
     },
     {
+        // Not /CMS/Files: that path is the MVC download handler (CMSController.Files),
+        // which takes precedence over the SPA shell.
+        path: "/CMS/ManageFiles",
+        name: "CmsFiles",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.AllFiles"] },
+        component: () => import("@/CMS/pages/Files.vue"),
+    },
+    {
+        path: "/CMS/ManageFiles/Audit",
+        name: "CmsFileAudit",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.AllFiles"] },
+        component: () => import("@/CMS/pages/FileAuditLog.vue"),
+    },
+    {
         path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
         component: () => import("@/pages/Error404.vue"),

@@ -4,6 +4,49 @@ type ContentBlock = {
     title: string | null
 }
 
+type CmsFile = {
+    fileGuid: string
+    fileName: string
+    folder: string | null
+    friendlyName: string
+    encrypted: boolean
+    description: string
+    allowPublicAccess: boolean
+    oldUrl: string | null
+    modifiedOn: string
+    modifiedBy: string
+    deletedOn: string | null
+    permissions: string[]
+    people: CmsFilePerson[]
+    url: string
+    friendlyUrl: string
+}
+
+type CmsFilePerson = {
+    iamId: string
+    name: string | null
+}
+
+type CmsPersonOption = {
+    iamId: string
+    name: string
+    loginId: string | null
+    mailId: string | null
+}
+
+type CmsFileAudit = {
+    auditId: number
+    timestamp: string
+    loginid: string | null
+    action: string
+    detail: string | null
+    fileGuid: string | null
+    filePath: string | null
+    iamId: string | null
+    fileMetaData: string | null
+    clientData: string | null
+}
+
 type LinkCollection = {
     linkCollectionId: number
     linkCollection: string
@@ -49,4 +92,16 @@ type LinkWithTags = {
     sortOrder: number
 }
 
-export type { ContentBlock, LinkCollection, LinkCollectionTagCategory, Link, LinkTag, LinkTagFilter, LinkWithTags }
+export type {
+    ContentBlock,
+    CmsFile,
+    CmsFilePerson,
+    CmsPersonOption,
+    CmsFileAudit,
+    LinkCollection,
+    LinkCollectionTagCategory,
+    Link,
+    LinkTag,
+    LinkTagFilter,
+    LinkWithTags,
+}
