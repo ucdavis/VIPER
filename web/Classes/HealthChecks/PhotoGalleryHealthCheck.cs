@@ -4,10 +4,7 @@ namespace Viper.Classes.HealthChecks
 {
     /// <summary>
     /// Verifies the ID-card photo directory is reachable and holds more than one
-    /// photo. Complements disk-space-photos: that check only reports free space on
-    /// the hosting drive and would happily pass an empty or wrong-but-mounted share
-    /// (failed sync, remounted blank, misconfigured path). This check catches the
-    /// "drive is fine but there are no photos" failure that free space misses.
+    /// photo.
     /// Severity reflects user impact: an unreachable directory is Degraded (the app
     /// still works, falling back to the default image), while a reachable but
     /// near-empty directory is Unhealthy (the photo data itself is gone).
