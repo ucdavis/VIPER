@@ -46,6 +46,18 @@ const routes = [
         component: () => import("@/CMS/pages/ContentBlockEdit.vue"),
     },
     {
+        path: "/CMS/ManageLeftNav",
+        name: "CmsLeftNavMenus",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageNavigation"] },
+        component: () => import("@/CMS/pages/LeftNavMenus.vue"),
+    },
+    {
+        path: "/CMS/ManageLeftNav/Edit/:id?",
+        name: "CmsLeftNavEdit",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageNavigation"] },
+        component: () => import("@/CMS/pages/LeftNavEdit.vue"),
+    },
+    {
         path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
         component: () => import("@/pages/Error404.vue"),

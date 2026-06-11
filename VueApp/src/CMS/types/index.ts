@@ -64,6 +64,27 @@ type CmsContentHistoryItem = {
     modifiedBy: string | null
 }
 
+type CmsLeftNavMenu = {
+    leftNavMenuId: number
+    menuHeaderText: string | null
+    system: string
+    viperSectionPath: string | null
+    page: string | null
+    friendlyName: string | null
+    modifiedOn: string
+    modifiedBy: string
+    items: CmsLeftNavItem[]
+}
+
+type CmsLeftNavItem = {
+    leftNavItemId: number
+    menuItemText: string | null
+    isHeader: boolean
+    url: string | null
+    displayOrder: number | null
+    permissions: string[]
+}
+
 type CmsFileAudit = {
     auditId: number
     timestamp: string
@@ -127,6 +148,7 @@ export type {
     CmsContentBlock,
     CmsContentBlockFile,
     CmsContentHistoryItem,
+    CmsLeftNavMenu,
     CmsFile,
     CmsFilePerson,
     CmsPersonOption,
