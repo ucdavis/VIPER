@@ -121,11 +121,12 @@
 <script setup lang="ts">
 import { inject, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { type QTableProps } from "quasar"
+import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import type { CmsFileAudit } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/audit"
+const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const { get, createUrlSearchParams } = useFetch()
@@ -196,6 +197,8 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
         pagination.value.rowsNumber = res.pagination?.totalRecords ?? res.result.length
         pagination.value.page = page
         pagination.value.rowsPerPage = rowsPerPage
+    } else {
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load audit log" })
     }
     loading.value = false
 }
