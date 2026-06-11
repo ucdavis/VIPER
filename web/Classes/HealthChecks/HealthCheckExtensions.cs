@@ -72,6 +72,18 @@ namespace Viper.Classes.HealthChecks
                     tags: new[] { "ready" });
             }
 
+            // Content check distinct from the disk-space probe above. A reachable
+            // directory with more than one photo is Healthy; an unreachable one is
+            // Degraded; a reachable but near-empty share is Unhealthy. Registered
+            // unconditionally so a missing/blank IDCardPhotoPath surfaces as
+            // Unhealthy rather than silently dropping the check.
+            builder.AddCheck(
+                "photo-gallery",
+                WithAdaptivePolling(new PhotoGalleryHealthCheck(
+                    photoPath,
+                    healthyWhenMissing: environment.IsDevelopment())),
+                tags: new[] { "ready" });
+
             // CMS files drive. Same pattern as photos - the drive (S:\) is a network
             // share unmounted on developer machines, so skip in dev. Path mirrors
             // Areas/CMS/Data/CMS.GetRootFileFolder().
