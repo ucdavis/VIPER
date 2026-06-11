@@ -63,6 +63,8 @@ const sections: Section[] = [
         actions: [
             { label: "Manage Files", to: { name: "CmsFiles" } },
             { label: "Audit Log", to: { name: "CmsFileAudit" } },
+            { label: "Import", to: { name: "CmsFileImport" } },
+            { label: "Bulk Encrypt", to: { name: "CmsBulkEncrypt" } },
         ],
     },
     {

@@ -267,6 +267,8 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
         pagination.value.rowsPerPage = rowsPerPage
         pagination.value.sortBy = sortBy
         pagination.value.descending = descending
+    } else {
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load files" })
     }
     loading.value = false
 }

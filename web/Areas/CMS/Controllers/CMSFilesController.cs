@@ -24,17 +24,19 @@ namespace Viper.Areas.CMS.Controllers
         private readonly ICmsFileService _fileService;
         private readonly ICmsFileStorageService _storage;
         private readonly ICmsFileAuditService _auditService;
+        private readonly ICmsFileImportService _importService;
         private readonly RAPSContext _rapsContext;
         private readonly ILogger<CMSFilesController> _logger;
         private readonly IUserHelper _userHelper;
 
         public CMSFilesController(ICmsFileService fileService, ICmsFileStorageService storage,
-            ICmsFileAuditService auditService, RAPSContext rapsContext, ILogger<CMSFilesController> logger,
-            IUserHelper userHelper)
+            ICmsFileAuditService auditService, ICmsFileImportService importService, RAPSContext rapsContext,
+            ILogger<CMSFilesController> logger, IUserHelper userHelper)
         {
             _fileService = fileService;
             _storage = storage;
             _auditService = auditService;
+            _importService = importService;
             _rapsContext = rapsContext;
             _logger = logger;
             _userHelper = userHelper;
@@ -191,6 +193,42 @@ namespace Viper.Areas.CMS.Controllers
         public async Task<IActionResult> RestoreFile(Guid fileGuid, CancellationToken ct = default)
         {
             return await _fileService.RestoreFileAsync(fileGuid, ct) ? Ok() : NotFound();
+        }
+
+        // POST /api/cms/files/import — move files from the legacy VIPER webroot into the store
+        [HttpPost("import")]
+        public async Task<ActionResult<List<CmsFileImportResult>>> ImportFiles(CmsFileImportRequest request,
+            CancellationToken ct = default)
+        {
+            if (request.FilePaths.Count == 0)
+            {
+                return BadRequest("At least one file path is required.");
+            }
+
+            try
+            {
+                return await _importService.ImportFilesAsync(request, ct);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // POST /api/cms/files/bulk-encrypt
+        [HttpPost("bulk-encrypt")]
+        public async Task<ActionResult<List<CmsBulkEncryptResult>>> BulkEncrypt(List<Guid> fileGuids,
+            CancellationToken ct = default)
+        {
+            if (fileGuids.Count == 0)
+            {
+                return BadRequest("At least one file is required.");
+            }
+            return await _importService.BulkEncryptAsync(fileGuids, ct);
         }
 
         private void LogFileConflict(string operation, string? folder, string? fileName, Exception ex)

@@ -34,6 +34,18 @@ const routes = [
         component: () => import("@/CMS/pages/FileAuditLog.vue"),
     },
     {
+        path: "/CMS/ManageFiles/Import",
+        name: "CmsFileImport",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.AllFiles"] },
+        component: () => import("@/CMS/pages/ImportFiles.vue"),
+    },
+    {
+        path: "/CMS/ManageFiles/BulkEncrypt",
+        name: "CmsBulkEncrypt",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.AllFiles"] },
+        component: () => import("@/CMS/pages/BulkEncrypt.vue"),
+    },
+    {
         path: "/CMS/ManageContentBlocks",
         name: "CmsContentBlocks",
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
