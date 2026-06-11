@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using System.Net;
-using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -27,35 +26,8 @@ namespace Viper.Areas.CMS.Data
 
         public IUserHelper UserHelper { get; set; }
 
-        public Dictionary<string, string> MimeTypes { get; set; } = new()
-        {
-            ["pdf"] = "application/pdf",
-            ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ["doc"] = "application/msword",
-            ["xls"] = "application/vnd.ms-excel",
-            ["xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ["csv"] = "text/csv",
-            ["ppt"] = "application/vnd.ms-powerpoint",
-            ["pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ["pptm"] = "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
-            ["txt"] = "text/plain",
-            ["html"] = "application/xhtml+xml",
-            ["gif"] = "image/gif",
-            ["png"] = "image/png",
-            ["jpg"] = "image/jpeg",
-            ["jpeg"] = "image/jpeg",
-            ["tiff"] = "image/tiff",
-            ["mp3"] = "audio/mpeg",
-            ["wav"] = "audio/wav",
-            ["mp4"] = "video/mp4",
-            ["webm"] = "video/webm",
-            ["oft"] = "application/vnd.ms-outlook",
-            ["eps"] = "application/postscript",
-            ["zip"] = "application/zip",
-            ["7z"] = "application/x-7z-compressed",
-            ["dmg"] = "application/x-apple-diskimage",
-            ["exe"] = "application/vnd.microsoft.portable-executable"
-        };
+        public Dictionary<string, string> MimeTypes { get; set; } =
+            new(Constants.CmsFileTypes.MimeTypes, StringComparer.OrdinalIgnoreCase);
 
         #endregion
 
@@ -664,81 +636,19 @@ namespace Viper.Areas.CMS.Data
         #region public byte[] DecryptFile(byte[] encryptedData, string keystring)
         public byte[] DecryptFile(byte[] encryptedData, string keystring)
         {
-            byte[] secretkey = GetSecretKey(keystring);
-
-            using Aes aes = Aes.Create();
-            aes.Mode = CipherMode.ECB;
-
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, aes.CreateDecryptor(secretkey, null), CryptoStreamMode.Write))
-            {
-                cs.Write(encryptedData, 0, encryptedData.Length);
-            }
-            byte[] decryptedData = ms.ToArray();
-
-            return decryptedData;
-
+            string masterKey = CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetDefaultKeyFilePath());
+            return CmsFileCrypto.DecryptBytes(encryptedData, CmsFileCrypto.DecryptDbKey(keystring, masterKey));
         }
         #endregion
 
         #region public string DecryptAES(string encryptedString, string Key)
         /// <summary>
-        /// Required for Unix decoding FROM https://rextester.com/TGN19503
+        /// Decrypt a CF-format (UU-encoded AES-ECB) string with the given base64 key.
         /// </summary>
         /// <returns>decoded string</returns>
         public string DecryptAES(string encryptedString, string Key)
         {
-            //First write to memory
-            using MemoryStream mmsStream = new();
-            using StreamWriter srwTemp = new(mmsStream);
-            srwTemp.Write(encryptedString);
-            srwTemp.Flush();
-            mmsStream.Position = 0;
-
-            using MemoryStream outstream = new();
-
-            //CallingUUDecode
-            Codecs.UUDecode(mmsStream, outstream);
-
-            //Extract the bytes of each of the values
-            byte[] input = outstream.ToArray();
-            byte[] key = Convert.FromBase64String(Key);
-
-            string? decryptedText = null;
-
-            using (Aes aes = Aes.Create())
-            {
-                // initialize settings to match those used by CF
-                aes.Mode = CipherMode.ECB;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.BlockSize = 128;
-                aes.KeySize = 128;
-                aes.Key = key;
-
-                ICryptoTransform decryptor = aes.CreateDecryptor();
-
-                using MemoryStream msDecrypt = new(input);
-                using CryptoStream csDecrypt = new(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using StreamReader srDecrypt = new(csDecrypt);
-                decryptedText = srDecrypt.ReadToEnd();
-            }
-            return decryptedText;
-        }
-        #endregion
-
-        #region private byte[] getSecretKey(string key)
-        private byte[] GetSecretKey(string key)
-        {
-            string keyFileFolder = @"S:\Settings\";
-
-            if (HttpHelper.Environment?.EnvironmentName == "Development")
-            {
-                keyFileFolder = @"C:\Sites\Settings\";
-            }
-            string keyString = System.IO.File.ReadLines(keyFileFolder + "viperfiles.txt").Skip(1).Take(1).First();
-
-            byte[] hiddenKey = Convert.FromBase64String(DecryptAES(key, keyString));
-            return hiddenKey;
+            return CmsFileCrypto.DecryptDbKey(encryptedString, Key);
         }
         #endregion
 
