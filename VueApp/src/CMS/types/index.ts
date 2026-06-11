@@ -34,6 +34,36 @@ type CmsPersonOption = {
     mailId: string | null
 }
 
+type CmsContentBlock = {
+    contentBlockId: number
+    content: string
+    title: string | null
+    system: string
+    application: string | null
+    page: string | null
+    viperSectionPath: string | null
+    blockOrder: number | null
+    friendlyName: string | null
+    allowPublicAccess: boolean
+    modifiedOn: string
+    modifiedBy: string
+    deletedOn: string | null
+    permissions: string[]
+    files: CmsContentBlockFile[]
+}
+
+type CmsContentBlockFile = {
+    fileGuid: string
+    friendlyName: string
+    url: string
+}
+
+type CmsContentHistoryItem = {
+    contentHistoryId: number
+    modifiedOn: string | null
+    modifiedBy: string | null
+}
+
 type CmsFileAudit = {
     auditId: number
     timestamp: string
@@ -94,6 +124,9 @@ type LinkWithTags = {
 
 export type {
     ContentBlock,
+    CmsContentBlock,
+    CmsContentBlockFile,
+    CmsContentHistoryItem,
     CmsFile,
     CmsFilePerson,
     CmsPersonOption,

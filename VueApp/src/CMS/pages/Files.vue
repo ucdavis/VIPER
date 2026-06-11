@@ -122,42 +122,10 @@
 
             <template #body-cell-permissions="cellProps">
                 <q-td :props="cellProps">
-                    <template v-if="cellProps.row.permissions.length || cellProps.row.people.length">
-                        <q-chip
-                            v-for="p in cellProps.row.permissions.slice(0, 2)"
-                            :key="p"
-                            dense
-                            square
-                            size="sm"
-                        >
-                            {{ p }}
-                        </q-chip>
-                        <q-chip
-                            v-if="cellProps.row.permissions.length > 2"
-                            dense
-                            square
-                            size="sm"
-                            color="grey-4"
-                        >
-                            +{{ cellProps.row.permissions.length - 2 }} more
-                        </q-chip>
-                        <q-chip
-                            v-if="cellProps.row.people.length"
-                            dense
-                            square
-                            size="sm"
-                            icon="person"
-                            color="grey-4"
-                        >
-                            {{ cellProps.row.people.length }}
-                        </q-chip>
-                    </template>
-                    <span
-                        v-else
-                        class="text-grey-7"
-                    >
-                        All VIPER users
-                    </span>
+                    <PermissionChips
+                        :permissions="cellProps.row.permissions"
+                        :people-count="cellProps.row.people.length"
+                    />
                 </q-td>
             </template>
 
@@ -206,32 +174,12 @@
                     >
                         <q-tooltip>Copy link</q-tooltip>
                     </q-btn>
-                    <q-btn
-                        v-if="!cellProps.row.deletedOn"
-                        dense
-                        flat
-                        no-caps
-                        size="sm"
-                        color="negative"
-                        icon="delete"
-                        aria-label="Delete file"
-                        @click="deleteFile(cellProps.row)"
-                    >
-                        <q-tooltip>Delete</q-tooltip>
-                    </q-btn>
-                    <q-btn
-                        v-else
-                        dense
-                        flat
-                        no-caps
-                        size="sm"
-                        color="positive"
-                        icon="restore_from_trash"
-                        aria-label="Restore file"
-                        @click="restoreFile(cellProps.row)"
-                    >
-                        <q-tooltip>Restore</q-tooltip>
-                    </q-btn>
+                    <DeleteRestoreButtons
+                        :deleted="!!cellProps.row.deletedOn"
+                        entity-name="file"
+                        @delete="deleteFile(cellProps.row)"
+                        @restore="restoreFile(cellProps.row)"
+                    />
                 </q-td>
             </template>
         </q-table>
@@ -250,6 +198,8 @@ import { inject, onMounted, ref } from "vue"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
+import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
+import PermissionChips from "@/CMS/components/PermissionChips.vue"
 import type { CmsFile } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/"
