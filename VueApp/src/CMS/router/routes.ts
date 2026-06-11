@@ -34,6 +34,18 @@ const routes = [
         component: () => import("@/CMS/pages/FileAuditLog.vue"),
     },
     {
+        path: "/CMS/ManageContentBlocks",
+        name: "CmsContentBlocks",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
+        component: () => import("@/CMS/pages/ContentBlocks.vue"),
+    },
+    {
+        path: "/CMS/ManageContentBlocks/Edit/:id?",
+        name: "CmsContentBlockEdit",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
+        component: () => import("@/CMS/pages/ContentBlockEdit.vue"),
+    },
+    {
         path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
         component: () => import("@/pages/Error404.vue"),

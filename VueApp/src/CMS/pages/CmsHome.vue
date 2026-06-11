@@ -66,6 +66,16 @@ const sections: Section[] = [
         ],
     },
     {
+        title: "Content Blocks",
+        icon: "article",
+        description: "Edit page content with version history, permissions, and attached files.",
+        permission: "SVMSecure.CMS.ManageContentBlocks",
+        actions: [
+            { label: "Manage Content Blocks", to: { name: "CmsContentBlocks" } },
+            { label: "New Content Block", to: { name: "CmsContentBlockEdit" } },
+        ],
+    },
+    {
         title: "Link Collections",
         icon: "link",
         description: "Curate collections of links with tags and ordering.",
