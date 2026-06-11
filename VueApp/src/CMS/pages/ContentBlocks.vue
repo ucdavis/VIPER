@@ -110,26 +110,15 @@
             </template>
 
             <template #body-cell-modifiedOn="cellProps">
-                <q-td :props="cellProps">
-                    {{ formatDate(cellProps.row.modifiedOn) }}
-                    <span class="text-grey-7">{{ cellProps.row.modifiedBy }}</span>
-                </q-td>
+                <ModifiedStamp :cell-props="cellProps" />
             </template>
 
             <template #body-cell-actions="cellProps">
                 <q-td :props="cellProps">
-                    <q-btn
-                        dense
-                        flat
-                        no-caps
-                        size="sm"
-                        color="secondary"
-                        icon="edit"
-                        aria-label="Edit content block"
+                    <EditButton
+                        entity-name="content block"
                         :to="{ name: 'CmsContentBlockEdit', params: { id: cellProps.row.contentBlockId } }"
-                    >
-                        <q-tooltip>Edit</q-tooltip>
-                    </q-btn>
+                    />
                     <DeleteRestoreButtons
                         :deleted="!!cellProps.row.deletedOn"
                         entity-name="content block"
@@ -147,6 +136,8 @@ import { inject, onMounted, ref } from "vue"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
+import EditButton from "@/CMS/components/EditButton.vue"
+import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import PermissionChips from "@/CMS/components/PermissionChips.vue"
 import type { CmsContentBlock } from "@/CMS/types/"
 
@@ -231,10 +222,6 @@ async function restoreBlock(block: CmsContentBlock) {
     }
     $q.notify({ type: "positive", message: "Content block restored" })
     loadBlocks()
-}
-
-function formatDate(value: string): string {
-    return new Date(value).toLocaleDateString("en-US", { year: "2-digit", month: "2-digit", day: "2-digit" })
 }
 
 onMounted(() => {

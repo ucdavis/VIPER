@@ -82,6 +82,13 @@ const sections: Section[] = [
         permission: "SVMSecure.CMS.ManageContentBlocks",
         actions: [{ label: "Manage Link Collections", to: { name: "ManageLinkCollections" } }],
     },
+    {
+        title: "Left Navigation",
+        icon: "menu",
+        description: "Build left-nav menus with headers, links, ordering, and per-item visibility.",
+        permission: "SVMSecure.CMS.ManageNavigation",
+        actions: [{ label: "Manage Left Nav Menus", to: { name: "CmsLeftNavMenus" } }],
+    },
 ]
 
 const visibleSections = computed(() => sections.filter((s) => userStore.userInfo.permissions.includes(s.permission)))
