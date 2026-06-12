@@ -387,6 +387,19 @@ header .q-avatar {
     outline: none;
 }
 
+/* Workspace links carry the brand (DESIGN.md: Aggie Blue is the link color);
+   without this, content anchors fall back to browser default blue/purple.
+   Buttons, nav items, and tabs manage their own colors. */
+#main-content a:not(.q-btn):not(.q-item):not(.q-tab) {
+    color: var(--q-primary);
+}
+
+/* Dense table action buttons keep a 24px minimum hit area (WCAG 2.2 SC 2.5.8) */
+.q-td .q-btn {
+    min-width: 24px;
+    min-height: 24px;
+}
+
 /* Quasar palette AA contrast overrides (!important required to override Quasar's !important).
    Kept in sync with web/wwwroot/css/site.css so Razor and SPA render the same color. */
 .text-grey {

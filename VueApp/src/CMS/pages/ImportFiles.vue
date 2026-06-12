@@ -14,10 +14,7 @@
             />
         </div>
 
-        <p
-            class="text-body2 text-grey-8"
-            style="max-width: 60rem"
-        >
+        <p class="text-body2 text-grey-8 intro-copy">
             Moves files out of the legacy VIPER webroot into the managed file store. The original path is saved as the
             file's Old URL, so existing links keep working through the file handler. Enter one path per line, relative
             to the legacy webroot (e.g.
@@ -77,7 +74,15 @@
                             no-caps
                             class="q-pr-md"
                             :loading="importing"
-                        />
+                        >
+                            <template #loading>
+                                <q-spinner
+                                    size="1em"
+                                    class="q-mr-sm"
+                                />
+                                Import Files
+                            </template>
+                        </q-btn>
                     </div>
                 </div>
             </div>
@@ -102,6 +107,7 @@
                             :color="cellProps.row.success ? 'positive' : 'negative'"
                             size="sm"
                         />
+                        <span class="sr-only">{{ cellProps.row.success ? "Imported" : "Failed" }}</span>
                     </q-td>
                 </template>
             </q-table>
@@ -111,6 +117,7 @@
 
 <script setup lang="ts">
 import { inject, onMounted, ref } from "vue"
+import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
@@ -141,7 +148,7 @@ const options = ref({
 })
 
 const resultColumns: QTableProps["columns"] = [
-    { name: "success", label: "", field: "success", align: "center" },
+    { name: "success", label: "Result", field: "success", align: "center" },
     { name: "filePath", label: "Path", field: "filePath", align: "left" },
     { name: "friendlyName", label: "Imported as", field: "friendlyName", align: "left" },
     { name: "message", label: "Message", field: "message", align: "left" },
@@ -178,7 +185,7 @@ async function runImport() {
     const succeeded = res.result.filter((r: ImportResult) => r.success).length
     $q.notify({
         type: succeeded === res.result.length ? "positive" : "warning",
-        message: `${succeeded} of ${res.result.length} files imported`,
+        message: `${succeeded} of ${res.result.length} ${inflect("file", res.result.length)} imported`,
     })
     // Imported paths are consumed; keep failures in the textarea for fixing.
     paths.value = res.result
@@ -189,3 +196,9 @@ async function runImport() {
 
 onMounted(loadFolders)
 </script>
+
+<style scoped>
+.intro-copy {
+    max-width: 60rem;
+}
+</style>

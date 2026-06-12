@@ -6,7 +6,7 @@
             <q-btn
                 color="positive"
                 icon="add"
-                label="New Menu"
+                label="Add Left-Nav Menu"
                 no-caps
                 dense
                 class="q-pr-md"
