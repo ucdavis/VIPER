@@ -57,20 +57,18 @@ namespace Viper.Classes.HealthChecks
                 .AddDbContextCheck<VIPERContext>("db-viper", tags: new[] { "ready" })
                 .AddCheck("disk-space-app", new DiskSpaceHealthCheck(), tags: new[] { "ready" });
 
-            // Photo gallery drive. Always registered so operators can see the check
-            // exists; in Development the drive is a network share not mounted locally,
-            // so healthyWhenMissing=true treats "drive absent" as a pass (with a
-            // "skipped" description) rather than a permanent Unhealthy in dev.
             var photoPath = configuration["PhotoGallery:IDCardPhotoPath"];
-            if (!string.IsNullOrWhiteSpace(photoPath))
-            {
-                builder.AddCheck(
-                    "disk-space-photos",
-                    new DiskSpaceHealthCheck(
-                        explicitDrivePath: photoPath,
-                        healthyWhenMissing: environment.IsDevelopment()),
-                    tags: new[] { "ready" });
-            }
+
+            // Content check. A reachable directory with more than one photo is Healthy;
+            // an unreachable one is Degraded; a reachable but near-empty share is Unhealthy.
+            // Registered unconditionally so a missing/blank IDCardPhotoPath surfaces as
+            // Unhealthy rather than silently dropping the check.
+            builder.AddCheck(
+                "photo-gallery",
+                WithAdaptivePolling(new PhotoGalleryHealthCheck(
+                    photoPath,
+                    healthyWhenMissing: environment.IsDevelopment())),
+                tags: new[] { "ready" });
 
             // CMS files drive. Same pattern as photos - the drive (S:\) is a network
             // share unmounted on developer machines, so skip in dev. Path mirrors
