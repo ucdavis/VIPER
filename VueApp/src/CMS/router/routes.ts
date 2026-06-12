@@ -1,4 +1,6 @@
 import ViperLayout from "@/layouts/ViperLayout.vue"
+import type { RouteLocationNormalized } from "vue-router"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
 const routes = [
     {
@@ -54,7 +56,15 @@ const routes = [
     {
         path: "/CMS/ManageContentBlocks/Edit/:id?",
         name: "CmsContentBlockEdit",
-        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
+        // CreateContentBlock-only users may create via this route (no id);
+        // editing an existing block requires ManageContentBlocks, matching
+        // the API, which gates GET/PUT of existing blocks the same way.
+        meta: {
+            layout: ViperLayout,
+            permissions: ["SVMSecure.CMS.ManageContentBlocks", "SVMSecure.CMS.CreateContentBlock"],
+        },
+        beforeEnter: (to: RouteLocationNormalized) =>
+            !to.params.id || checkHasOnePermission(["SVMSecure.CMS.ManageContentBlocks"]) ? true : { name: "CmsAuth" },
         component: () => import("@/CMS/pages/ContentBlockEdit.vue"),
     },
     {

@@ -82,6 +82,14 @@ body {
         0 0 0 0.25rem #258cfb;
 }
 
+/* Flat q-btn links suppress Quasar's focus helper enough to fail
+   WCAG 2.4.7; restore the system focus ring for keyboard users. */
+.q-card__actions .q-btn:focus-visible {
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem #258cfb;
+}
+
 /*Placeholders used when loading*/
 #headerPlaceholder {
     height: 50px;
@@ -371,6 +379,11 @@ header .q-avatar {
 /* Suppress focus outline on main content — useRouteFocus sets focus
    programmatically for screen reader announcements only */
 #main-content:focus {
+    outline: none;
+}
+
+/* Same treatment for the drawer container targeted by "Skip to section menu" */
+#leftNavMenu:focus {
     outline: none;
 }
 

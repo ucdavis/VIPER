@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h1 class="text-h4 text-primary q-my-none">Content Blocks</h1>
+            <h1 class="q-my-none">Manage Content Blocks</h1>
             <q-space />
             <q-btn
                 color="positive"

@@ -14,6 +14,7 @@
             <div
                 class="q-pa-sm"
                 id="leftNavMenu"
+                tabindex="-1"
             >
                 <q-btn
                     dense
@@ -29,10 +30,12 @@
                     {{ navHeader }}
                 </h2>
                 <nav :aria-label="navHeader || 'Section navigation'">
+                    <!-- QItem hardcodes role="listitem", which overrides the native link
+                         role on anchors; explicit roles restore link semantics, so no
+                         role="list" wrapper (headers/spacers are presentational). -->
                     <q-list
                         dense
                         separator
-                        role="list"
                     >
                         <template
                             v-for="(menuItem, index) in menuItems"
@@ -45,6 +48,7 @@
                                 :to="menuItem.routeTo"
                                 :active="isItemActive(menuItem.routeTo)"
                                 :class="menuItem.displayClass"
+                                role="link"
                             >
                                 <q-item-section>
                                     <q-item-label
@@ -63,6 +67,7 @@
                                 :target="menuItem.isExternalSite ? '_blank' : undefined"
                                 :rel="menuItem.isExternalSite ? 'noopener noreferrer' : undefined"
                                 :class="menuItem.displayClass"
+                                role="link"
                             >
                                 <q-item-section>
                                     <q-item-label
@@ -87,6 +92,7 @@
                             <q-item
                                 v-else
                                 :class="menuItem.displayClass"
+                                role="presentation"
                             >
                                 <q-item-section>
                                     <q-item-label
@@ -319,5 +325,10 @@ watch(
     },
 )
 
-onMounted(() => getLeftNav())
+onMounted(() => {
+    getLeftNav()
+    // QDrawer drops fallthrough attrs on its content div, so the complementary
+    // landmark (the <aside> root) must be labeled directly.
+    document.getElementById("leftNavMenu")?.closest("aside")?.setAttribute("aria-label", "Section menu")
+})
 </script>

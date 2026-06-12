@@ -1,8 +1,34 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h1 class="text-h4 text-primary q-my-none">File Management</h1>
+            <h1 class="q-my-none">Manage Files</h1>
             <q-space />
+            <q-btn-dropdown
+                flat
+                dense
+                no-caps
+                color="primary"
+                label="File Tools"
+                class="q-mr-sm"
+            >
+                <q-list dense>
+                    <q-item
+                        v-for="tool in fileTools"
+                        :key="tool.label"
+                        v-close-popup
+                        clickable
+                        :to="tool.to"
+                    >
+                        <q-item-section side>
+                            <q-icon
+                                :name="tool.icon"
+                                size="xs"
+                            />
+                        </q-item-section>
+                        <q-item-section>{{ tool.label }}</q-item-section>
+                    </q-item>
+                </q-list>
+            </q-btn-dropdown>
             <q-btn
                 color="positive"
                 icon="add"
@@ -183,7 +209,8 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue"
+import { inject, nextTick, onMounted, ref, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
@@ -194,6 +221,8 @@ import PermissionChips from "@/CMS/components/PermissionChips.vue"
 import type { CmsFile } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/"
+const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 const { get, del, post, createUrlSearchParams } = useFetch()
 
@@ -206,7 +235,8 @@ const editingFile = ref<CmsFile | null>(null)
 const filters = ref({
     folder: null as string | null,
     status: "active",
-    search: "",
+    // The hub's recent-activity rail deep-links here with ?search=<file name>
+    search: typeof route.query.search === "string" ? route.query.search : "",
     encryptedOnly: false,
 })
 
@@ -214,6 +244,12 @@ const statusOptions = [
     { label: "Active", value: "active" },
     { label: "Deleted", value: "deleted" },
     { label: "All", value: "all" },
+]
+
+const fileTools = [
+    { label: "Audit Log", icon: "history", to: { name: "CmsFileAudit" } },
+    { label: "Import Files", icon: "drive_file_move", to: { name: "CmsFileImport" } },
+    { label: "Bulk Encrypt", icon: "lock", to: { name: "CmsBulkEncrypt" } },
 ]
 
 const pagination = ref({
@@ -342,6 +378,22 @@ function formatDate(value: string | null): string {
     if (!value) return ""
     return new Date(value).toLocaleDateString("en-US", { year: "2-digit", month: "2-digit", day: "2-digit" })
 }
+
+// The "Upload File" left-nav link targets ?upload=1; consume the flag so
+// re-clicking the link re-opens the dialog after it has been closed.
+// Strip the query BEFORE opening: route-focus moves focus to <main> after
+// each navigation (use-route-focus.ts), which would close an already-open dialog.
+watch(
+    () => route.query.upload,
+    async (upload) => {
+        if (upload !== undefined) {
+            await router.replace({ query: { ...route.query, upload: undefined } })
+            await nextTick()
+            openUploadDialog()
+        }
+    },
+    { immediate: true },
+)
 
 onMounted(() => {
     loadFolders()
