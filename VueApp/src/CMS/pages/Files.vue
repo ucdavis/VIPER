@@ -86,17 +86,6 @@
                     @update:model-value="reload"
                 />
             </div>
-            <div class="col-auto flex items-center">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    color="primary"
-                    icon="history"
-                    label="Audit Log"
-                    :to="{ name: 'CmsFileAudit' }"
-                />
-            </div>
         </div>
 
         <q-table
@@ -120,6 +109,7 @@
                             rel="noopener"
                         >
                             {{ cellProps.row.friendlyName }}
+                            <span class="sr-only">(opens in new window)</span>
                         </a>
                         <q-icon
                             v-if="cellProps.row.encrypted"
@@ -128,6 +118,11 @@
                         >
                             <q-tooltip>Encrypted</q-tooltip>
                         </q-icon>
+                        <span
+                            v-if="cellProps.row.encrypted"
+                            class="sr-only"
+                            >Encrypted</span
+                        >
                         <q-icon
                             v-if="cellProps.row.allowPublicAccess"
                             name="public"
@@ -135,6 +130,11 @@
                         >
                             <q-tooltip>Public access</q-tooltip>
                         </q-icon>
+                        <span
+                            v-if="cellProps.row.allowPublicAccess"
+                            class="sr-only"
+                            >Public access</span
+                        >
                         <q-icon
                             v-if="cellProps.row.deletedOn"
                             name="delete_outline"
@@ -142,6 +142,11 @@
                         >
                             <q-tooltip>Deleted {{ formatDate(cellProps.row.deletedOn) }}</q-tooltip>
                         </q-icon>
+                        <span
+                            v-if="cellProps.row.deletedOn"
+                            class="sr-only"
+                            >Deleted {{ formatDate(cellProps.row.deletedOn) }}</span
+                        >
                     </div>
                 </q-td>
             </template>

@@ -16,11 +16,10 @@
             />
         </div>
 
-        <q-banner
+        <StatusBanner
             v-if="block.deletedOn"
-            class="bg-orange-2 q-mb-md"
-            dense
-            rounded
+            type="warning"
+            class="q-mb-md"
         >
             This content block is marked as deleted. Restore it to make it available again.
             <template #action>
@@ -33,7 +32,7 @@
                     @click="restoreBlock"
                 />
             </template>
-        </q-banner>
+        </StatusBanner>
 
         <q-form
             ref="formRef"
@@ -101,7 +100,7 @@
                         class="q-mb-md"
                     >
                         <q-card-section class="q-gutter-y-sm">
-                            <div class="text-h6">Settings</div>
+                            <h2 class="text-h6 q-my-none">Settings</h2>
 
                             <q-select
                                 v-model="block.system"
@@ -164,7 +163,7 @@
                         class="q-mb-md"
                     >
                         <q-card-section>
-                            <div class="text-h6 q-mb-sm">Permissions</div>
+                            <h2 class="text-h6 q-my-none q-mb-sm">Permissions</h2>
                             <PermissionSelector v-model="block.permissions" />
                         </q-card-section>
                     </q-card>
@@ -174,7 +173,7 @@
                         bordered
                     >
                         <q-card-section>
-                            <div class="text-h6 q-mb-sm">Attached Files</div>
+                            <h2 class="text-h6 q-my-none q-mb-sm">Attached Files</h2>
                             <div
                                 v-for="file in block.files"
                                 :key="file.fileGuid"
@@ -187,6 +186,7 @@
                                     class="col ellipsis"
                                 >
                                     {{ file.friendlyName }}
+                                    <span class="sr-only">(opens in new window)</span>
                                 </a>
                                 <q-btn
                                     dense
@@ -229,7 +229,15 @@
                     no-caps
                     class="q-pr-md"
                     :loading="saving"
-                />
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        {{ isNew ? "Create" : "Save" }}
+                    </template>
+                </q-btn>
                 <q-btn
                     flat
                     label="Cancel"
@@ -249,6 +257,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { CmsContentBlock, CmsContentBlockFile, CmsContentHistoryItem, CmsFile } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "CMS/content"

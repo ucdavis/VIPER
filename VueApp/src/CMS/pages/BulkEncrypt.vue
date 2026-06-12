@@ -56,7 +56,15 @@
                     :disable="!selected.length"
                     :loading="encrypting"
                     @click="encryptSelected"
-                />
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        Encrypting...
+                    </template>
+                </q-btn>
             </div>
         </div>
 
@@ -90,11 +98,12 @@
                     v-for="r in results"
                     :key="r.fileGuid"
                 >
-                    <q-item-section avatar>
+                    <q-item-section side>
                         <q-icon
                             :name="r.success ? 'check_circle' : 'error'"
                             :color="r.success ? 'positive' : 'negative'"
                         />
+                        <span class="sr-only">{{ r.success ? "Encrypted" : "Failed" }}</span>
                     </q-item-section>
                     <q-item-section>
                         <q-item-label>{{ r.friendlyName ?? r.fileGuid }}</q-item-label>
@@ -113,6 +122,7 @@
 
 <script setup lang="ts">
 import { inject, onMounted, ref } from "vue"
+import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
@@ -204,7 +214,7 @@ async function encryptSelected() {
     const confirmed = await new Promise<boolean>((resolve) => {
         $q.dialog({
             title: "Encrypt Files",
-            message: `Encrypt ${selected.value.length} file(s) in place?`,
+            message: `Encrypt ${selected.value.length} ${inflect("file", selected.value.length)} in place?`,
             cancel: { label: "Cancel", flat: true },
             persistent: true,
             ok: { label: "Encrypt", color: "primary", unelevated: true },
@@ -230,7 +240,7 @@ async function encryptSelected() {
     const succeeded = res.result.filter((r: BulkEncryptResult) => r.success).length
     $q.notify({
         type: succeeded === res.result.length ? "positive" : "warning",
-        message: `${succeeded} of ${res.result.length} files encrypted`,
+        message: `${succeeded} of ${res.result.length} ${inflect("file", res.result.length)} encrypted`,
     })
     reload()
 }

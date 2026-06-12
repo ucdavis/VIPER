@@ -23,7 +23,7 @@
                     <q-btn
                         color="positive"
                         icon="add"
-                        label="New Collection"
+                        label="Add Collection"
                         no-caps
                         dense
                         class="q-mx-lg q-pr-md"
@@ -53,7 +53,7 @@
             aria-labelledby="collection-dialog-title"
             @hide="cancelCollectionDialog"
         >
-            <q-card style="min-width: 350px">
+            <q-card class="dialog-card">
                 <q-card-section class="row items-center q-pb-none">
                     <div
                         id="collection-dialog-title"
@@ -219,7 +219,7 @@
                 aria-labelledby="link-dialog-title"
                 @keydown.escape="cancelLinkDialog"
             >
-                <q-card style="min-width: 350px">
+                <q-card class="dialog-card">
                     <q-card-section class="row items-center q-pb-none">
                         <div
                             id="link-dialog-title"
@@ -850,6 +850,10 @@ loadCollections()
 </script>
 
 <style scoped>
+.dialog-card {
+    min-width: 350px;
+}
+
 #allLinks {
     background: #fff;
     border-radius: 6px;

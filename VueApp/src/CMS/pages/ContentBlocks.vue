@@ -6,7 +6,7 @@
             <q-btn
                 color="positive"
                 icon="add"
-                label="New Content Block"
+                label="Add Content Block"
                 no-caps
                 dense
                 class="q-pr-md"
@@ -91,6 +91,11 @@
                         >
                             <q-tooltip>Public access</q-tooltip>
                         </q-icon>
+                        <span
+                            v-if="cellProps.row.allowPublicAccess"
+                            class="sr-only"
+                            >Public access</span
+                        >
                         <q-icon
                             v-if="cellProps.row.deletedOn"
                             name="delete_outline"
@@ -98,6 +103,11 @@
                         >
                             <q-tooltip>Deleted</q-tooltip>
                         </q-icon>
+                        <span
+                            v-if="cellProps.row.deletedOn"
+                            class="sr-only"
+                            >Deleted</span
+                        >
                     </div>
                     <div class="text-caption text-grey-7">{{ cellProps.row.friendlyName }}</div>
                 </q-td>

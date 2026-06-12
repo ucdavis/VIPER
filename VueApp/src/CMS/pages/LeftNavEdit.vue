@@ -23,7 +23,7 @@
                     bordered
                 >
                     <q-card-section class="q-gutter-y-sm">
-                        <div class="text-h6">Menu Settings</div>
+                        <h2 class="text-h6 q-my-none">Menu Settings</h2>
 
                         <q-form
                             ref="menuFormRef"
@@ -84,7 +84,15 @@
                                 no-caps
                                 class="q-pr-md"
                                 :loading="savingMenu"
-                            />
+                            >
+                                <template #loading>
+                                    <q-spinner
+                                        size="1em"
+                                        class="q-mr-sm"
+                                    />
+                                    {{ isNew ? "Create Menu" : "Save Menu Settings" }}
+                                </template>
+                            </q-btn>
                         </q-form>
                     </q-card-section>
                 </q-card>
@@ -100,7 +108,7 @@
                 >
                     <q-card-section>
                         <div class="row items-center q-mb-sm">
-                            <div class="text-h6">Menu Items</div>
+                            <h2 class="text-h6 q-my-none">Menu Items</h2>
                             <q-space />
                             <q-btn
                                 flat
@@ -223,7 +231,15 @@
                                 class="q-pr-md"
                                 :loading="savingItems"
                                 @click="saveItems"
-                            />
+                            >
+                                <template #loading>
+                                    <q-spinner
+                                        size="1em"
+                                        class="q-mr-sm"
+                                    />
+                                    Save Items
+                                </template>
+                            </q-btn>
                             <q-btn
                                 flat
                                 label="Revert"
