@@ -192,18 +192,6 @@
                         entity-name="file"
                         @click="openEditDialog(cellProps.row)"
                     />
-                    <q-btn
-                        dense
-                        flat
-                        no-caps
-                        size="sm"
-                        color="secondary"
-                        icon="content_copy"
-                        aria-label="Copy link"
-                        @click="copyUrl(cellProps.row)"
-                    >
-                        <q-tooltip>Copy link</q-tooltip>
-                    </q-btn>
                     <DeleteRestoreButtons
                         :deleted="!!cellProps.row.deletedOn"
                         entity-name="file"
@@ -368,15 +356,6 @@ function openUploadDialog() {
 function openEditDialog(file: CmsFile) {
     editingFile.value = file
     showDialog.value = true
-}
-
-async function copyUrl(file: CmsFile) {
-    try {
-        await navigator.clipboard.writeText(file.friendlyUrl)
-        $q.notify({ type: "positive", message: "Link copied" })
-    } catch {
-        $q.notify({ type: "negative", message: "Failed to copy link" })
-    }
 }
 
 async function deleteFile(file: CmsFile) {
