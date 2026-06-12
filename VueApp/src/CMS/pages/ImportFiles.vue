@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h1 class="text-h4 text-primary q-my-none">Import Files from VIPER</h1>
+            <h1 class="q-my-none">Import Files from VIPER</h1>
             <q-space />
             <q-btn
                 flat

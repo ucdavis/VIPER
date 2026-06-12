@@ -1,7 +1,7 @@
 <template>
     <div class="q-pa-md">
         <div class="row items-center q-mb-md">
-            <h1 class="text-h4 text-primary q-my-none">
+            <h1 class="q-my-none">
                 {{ isNew ? "Create Navigation Menu" : "Edit Navigation Menu" }}
             </h1>
             <q-space />

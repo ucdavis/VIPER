@@ -1,6 +1,6 @@
 <template>
     <div class="link-collections-page">
-        <h1 class="text-h4 text-primary q-mt-none q-mb-sm">Link Collections</h1>
+        <h1 class="q-mt-none q-mb-sm">Manage Link Collections</h1>
 
         <q-form>
             <div class="row items-center q-mb-md q-col-gutter-sm">
