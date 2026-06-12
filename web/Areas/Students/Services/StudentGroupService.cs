@@ -209,6 +209,7 @@ namespace Viper.Areas.Students.Services
 
                 // Get all AAUD records for Ross students (any term <= current term)
                 var allAaudRecords = await _aaudContext.Ids
+                    .AsNoTracking()
                     .Where(ids => ids.IdsIamId != null && EF.Parameter(rossIamIds).Contains(ids.IdsIamId))
                     .Where(ids => ids.IdsTermCode.CompareTo(currentTermString) <= 0)
                     .ToListAsync();
@@ -225,7 +226,8 @@ namespace Viper.Areas.Students.Services
                 // Then fetch People records for the latest AAUD records and join in-memory
                 var latestPersonPKeys = latestAaudRecords.Where(r => r != null).Select(r => r!.IdsPKey).Distinct().ToList();
                 var peopleDict = (await _aaudContext.People
-                    .Where(person => latestPersonPKeys.Contains(person.PersonPKey))
+                    .AsNoTracking()
+                    .Where(person => EF.Parameter(latestPersonPKeys).Contains(person.PersonPKey))
                     .ToListAsync())
                     .ToDictionary(p => p.PersonPKey, p => p);
 
@@ -445,6 +447,7 @@ namespace Viper.Areas.Students.Services
                     _logger.LogDebug("Including Ross students for course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
 
                     var rossStudentsInCourse = await _aaudContext.Ids
+                        .AsNoTracking()
                         .Where(i => i.IdsIamId != null
                                     && EF.Parameter(enrolledPidms).Contains(i.IdsPidm)
                                     && EF.Parameter(rossIamIds).Contains(i.IdsIamId))
@@ -459,7 +462,7 @@ namespace Viper.Areas.Students.Services
                         var rossStudentData = await (from i in _aaudContext.Ids
                                                      join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
                                                      join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
-                                                     where i.IdsIamId != null && rossStudentsInCourse.Contains(i.IdsIamId)
+                                                     where i.IdsIamId != null && EF.Parameter(rossStudentsInCourse).Contains(i.IdsIamId)
                                                      orderby i.IdsIamId, i.IdsTermCode descending
                                                      select new
                                                      {
