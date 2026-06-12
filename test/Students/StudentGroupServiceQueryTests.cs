@@ -203,6 +203,9 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
         // A regular V3 student and a Ross student, both enrolled (RE) in the same course.
         SeedStudent("P1", "PIDM1", "Adams", "Bob", "V3");
         SeedStudent("P9", "PIDM9", "Reardon", "Chelsea", "V3");
+        // A Ross student not enrolled (withdrawn / WD) in the course.
+        SeedStudent("P10", "PIDM10", "Smith", "John", "V3");
+
         _sisContext.StudentDesignations.Add(new StudentDesignation
         {
             DesignationType = "Ross",
@@ -210,16 +213,23 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
             StartTerm = int.Parse(Term),
             EndTerm = null
         });
+        _sisContext.StudentDesignations.Add(new StudentDesignation
+        {
+            DesignationType = "Ross",
+            IamId = "IAMP10",
+            StartTerm = int.Parse(Term),
+            EndTerm = null
+        });
         await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        foreach (var (pkey, pidm) in new[] { ("RST1", "PIDM1"), ("RST9", "PIDM9") })
+        foreach (var (pkey, pidm, status) in new[] { ("RST1", "PIDM1", "RE"), ("RST9", "PIDM9", "RE"), ("RST10", "PIDM10", "WD") })
         {
             _coursesContext.Rosters.Add(new Roster
             {
                 RosterPkey = pkey,
                 RosterTermCode = Term,
                 RosterCrn = "12345",
-                RosterEnrollStatus = "RE",
+                RosterEnrollStatus = status,
                 RosterPidm = pidm
             });
         }
@@ -233,6 +243,7 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
         Assert.Equal(2, result.Count);
         Assert.Contains(result, s => s.LastName == "Adams" && !s.IsRossStudent);
         Assert.Contains(result, s => s.LastName == "Reardon" && s.IsRossStudent);
+        Assert.DoesNotContain(result, s => s.LastName == "Smith");
     }
 
     public void Dispose()

@@ -444,18 +444,9 @@ namespace Viper.Areas.Students.Services
                 {
                     _logger.LogDebug("Including Ross students for course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
 
-                    // Get Ross students enrolled in this course. Use a two-step query (like the
-                    // enrollment lookup above) to avoid joining the Courses and AAUD DbContexts
-                    // in a single query, which EF cannot translate.
-                    var courseRosterPidms = await _coursesContext.Rosters
-                        .Where(r => r.RosterTermCode == termCode && r.RosterCrn == crn)
-                        .Select(r => r.RosterPidm)
-                        .Distinct()
-                        .ToListAsync();
-
                     var rossStudentsInCourse = await _aaudContext.Ids
                         .Where(i => i.IdsIamId != null
-                                    && EF.Parameter(courseRosterPidms).Contains(i.IdsPidm)
+                                    && EF.Parameter(enrolledPidms).Contains(i.IdsPidm)
                                     && EF.Parameter(rossIamIds).Contains(i.IdsIamId))
                         .Select(i => i.IdsIamId)
                         .Distinct()
@@ -740,7 +731,9 @@ namespace Viper.Areas.Students.Services
             {
                 var displayName = FormatStudentDisplayName(student.LastName, student.FirstName ?? string.Empty, student.MiddleName);
                 var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
-                var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
+                var eighthsGroup = student.EighthsGroup?.Trim();
+                var twentiethsGroup = student.TwentiethsGroup?.Trim();
+                var groupAssignment = FormatGroupAssignment(eighthsGroup, twentiethsGroup);
 
                 result.Add(new StudentPhoto
                 {
@@ -750,8 +743,8 @@ namespace Viper.Areas.Students.Services
                     DisplayName = displayName,
                     PhotoUrl = photoUrl,
                     GroupAssignment = groupAssignment,
-                    EighthsGroup = student.EighthsGroup?.Trim(),
-                    TwentiethsGroup = student.TwentiethsGroup?.Trim(),
+                    EighthsGroup = eighthsGroup,
+                    TwentiethsGroup = twentiethsGroup,
                     TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
                     V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
                     HasPhoto = hasPhoto,
