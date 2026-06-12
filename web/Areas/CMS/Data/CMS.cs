@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
@@ -278,20 +277,24 @@ namespace Viper.Areas.CMS.Data
 
         #region public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         /// <summary>
-        /// Get Friendly URL for a friendly name. Currently, always points to ColdFusion Viper
+        /// Get Friendly URL for a friendly name. Points to the VIPER 2 download handler
+        /// (CMSController.Files), which checks permissions internally and serves public
+        /// files anonymously, so no separate /public URL shape is needed.
         /// </summary>
         public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         {
             string rootURL = String.Empty;
+            string pathBase = String.Empty;
             HttpRequest? thisRequest = HttpHelper.HttpContext?.Request;
 
             if (thisRequest != null)
             {
-                Uri url = new(thisRequest.GetDisplayUrl());
-                rootURL = url.Scheme + Uri.SchemeDelimiter + url.Host;
+                // Request.Host keeps any non-default port (url.Host would drop it)
+                rootURL = thisRequest.Scheme + Uri.SchemeDelimiter + thisRequest.Host;
+                pathBase = thisRequest.PathBase;
             }
 
-            return rootURL + (allowPublicAccess ? @"/public" : "") + @"/cms/files/?fn=" + WebUtility.UrlEncode(friendlyName);
+            return rootURL + pathBase + @"/CMS/Files?fn=" + WebUtility.UrlEncode(friendlyName);
         }
         #endregion
 
@@ -301,7 +304,8 @@ namespace Viper.Areas.CMS.Data
         /// </summary>
         public static string GetURL(string fileGUID, bool allowPublicAccess = false)
         {
-            return (allowPublicAccess ? @"/public" : "") + @"/cms/files/?id=" + fileGUID;
+            string pathBase = HttpHelper.HttpContext?.Request.PathBase ?? String.Empty;
+            return pathBase + @"/CMS/Files?id=" + fileGUID;
         }
         #endregion
 

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Constants;
 using Viper.Classes.SQLContext;
 
@@ -9,6 +10,13 @@ namespace Viper.Areas.CMS.Services
 
         /// <summary>Top-level folders ("VIPER apps") that files can be stored under.</summary>
         List<string> GetTopLevelFolders();
+
+        /// <summary>
+        /// Top-level folders for FILTERING: the upload allow-list (disk) unioned with
+        /// folders that only exist on file records (e.g. created on another environment's
+        /// disk). Not valid as upload destinations.
+        /// </summary>
+        Task<List<string>> GetFilterFoldersAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Validate a user-supplied folder (may contain subfolders, e.g. "cats\photos").
@@ -66,6 +74,18 @@ namespace Viper.Areas.CMS.Services
                 .Select(d => Path.GetFileName(d) ?? string.Empty)
                 .Where(d => !string.IsNullOrEmpty(d))
                 .OrderBy(d => d)
+                .ToList();
+        }
+
+        public async Task<List<string>> GetFilterFoldersAsync(CancellationToken ct = default)
+        {
+            var dbFolders = await _context.Files.Select(f => f.Folder).Distinct().ToListAsync(ct);
+            var topLevel = dbFolders
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Select(f => f!.Split(new[] { '\\', '/' })[0]);
+            return GetTopLevelFolders()
+                .Union(topLevel, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
