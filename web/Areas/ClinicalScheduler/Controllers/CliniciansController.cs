@@ -578,8 +578,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                _logger.LogError(ex, "Error filtering clinicians by permissions. Returning unfiltered list.");
-                return clinicians; // Return unfiltered list on error to avoid breaking functionality
+                _logger.LogError(ex, "Error filtering clinicians by permissions. Returning empty list.");
+                return new List<ClinicianSummary>(); // Fail closed: don't expose unfiltered data when permission checks fail
             }
         }
 
