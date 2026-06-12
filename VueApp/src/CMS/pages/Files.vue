@@ -262,9 +262,12 @@ function syncFiltersToUrl() {
     })
 }
 
-// The download handler is an MVC route, so the SPA base must be prepended.
+// The old URL is the file's original VIPER 1 webroot path, kept so links
+// that predate the import still resolve (via the 404 -> missingFile -> CMS
+// lookup chain). Link it on the VIPER 1 host, matching the legacy UI, so
+// clicking exercises the same path end users' old links take.
 function oldUrlHref(oldUrl: string): string {
-    return `${import.meta.env.VITE_VIPER_HOME}CMS/Files?oldURL=${encodeURIComponent(oldUrl)}`
+    return import.meta.env.VITE_VIPER_1_HOME + oldUrl.replace(/^\//, "")
 }
 
 const statusOptions = [
