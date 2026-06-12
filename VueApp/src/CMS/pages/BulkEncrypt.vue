@@ -206,7 +206,8 @@ function reload() {
 }
 
 async function loadFolders() {
-    const res = await get(apiURL + "folders")
+    // Union of disk + record-only folders; this filters records, not uploads.
+    const res = await get(apiURL + "folders?includeData=true")
     folders.value = res.success ? res.result : []
 }
 

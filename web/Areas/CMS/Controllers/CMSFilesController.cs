@@ -68,10 +68,12 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         // GET /api/cms/files/folders
+        // includeData=true unions in folders that exist only on file records (for
+        // filtering); the default disk-backed list is the upload destination allow-list.
         [HttpGet("folders")]
-        public ActionResult<List<string>> GetFolders()
+        public async Task<ActionResult<List<string>>> GetFolders(bool includeData = false, CancellationToken ct = default)
         {
-            return _storage.GetTopLevelFolders();
+            return includeData ? await _storage.GetFilterFoldersAsync(ct) : _storage.GetTopLevelFolders();
         }
 
         // GET /api/cms/files/audit

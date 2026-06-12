@@ -46,9 +46,8 @@
                     v-model="filters.folder"
                     dense
                     options-dense
-                    clearable
                     label="VIPER app"
-                    :options="folders"
+                    :options="filterFolders"
                     @update:model-value="reload"
                 />
             </div>
@@ -83,6 +82,14 @@
                     v-model="filters.encryptedOnly"
                     dense
                     label="Encrypted only"
+                    @update:model-value="reload"
+                />
+            </div>
+            <div class="col-auto flex items-center">
+                <q-toggle
+                    v-model="filters.publicOnly"
+                    dense
+                    label="Public only"
                     @update:model-value="reload"
                 />
             </div>
@@ -162,13 +169,16 @@
 
             <template #body-cell-oldUrl="cellProps">
                 <q-td :props="cellProps">
-                    <span
+                    <a
                         v-if="cellProps.row.oldUrl"
-                        class="ellipsis old-url"
+                        :href="oldUrlHref(cellProps.row.oldUrl)"
+                        target="_blank"
+                        rel="noopener"
                     >
-                        {{ cellProps.row.oldUrl }}
+                        Old URL
+                        <span class="sr-only">{{ cellProps.row.oldUrl }} (opens in new window)</span>
                         <q-tooltip>{{ cellProps.row.oldUrl }}</q-tooltip>
-                    </span>
+                    </a>
                 </q-td>
             </template>
 
@@ -231,19 +241,43 @@ const router = useRouter()
 const $q = useQuasar()
 const { get, del, post, createUrlSearchParams } = useFetch()
 
+const ALL_FOLDERS = "All"
+
 const files = ref<CmsFile[]>([])
 const folders = ref<string[]>([])
+const filterFolders = ref<string[]>([ALL_FOLDERS])
 const loading = ref(false)
 const showDialog = ref(false)
 const editingFile = ref<CmsFile | null>(null)
 
+// Filters initialize from the URL so views can be shared/deep-linked
+// (the hub's recent-activity rail uses ?search=<file name>).
 const filters = ref({
-    folder: null as string | null,
-    status: "active",
-    // The hub's recent-activity rail deep-links here with ?search=<file name>
+    folder: typeof route.query.folder === "string" ? route.query.folder : ALL_FOLDERS,
+    status: typeof route.query.status === "string" ? route.query.status : "active",
     search: typeof route.query.search === "string" ? route.query.search : "",
-    encryptedOnly: false,
+    encryptedOnly: route.query.encrypted === "1",
+    publicOnly: route.query.public === "1",
 })
+
+// Reflect the active filters back into the URL (defaults are omitted).
+function syncFiltersToUrl() {
+    void router.replace({
+        query: {
+            ...route.query,
+            folder: filters.value.folder !== ALL_FOLDERS ? filters.value.folder : undefined,
+            status: filters.value.status !== "active" ? filters.value.status : undefined,
+            search: filters.value.search || undefined,
+            encrypted: filters.value.encryptedOnly ? "1" : undefined,
+            public: filters.value.publicOnly ? "1" : undefined,
+        },
+    })
+}
+
+// The download handler is an MVC route, so the SPA base must be prepended.
+function oldUrlHref(oldUrl: string): string {
+    return `${import.meta.env.VITE_VIPER_HOME}CMS/Files?oldURL=${encodeURIComponent(oldUrl)}`
+}
 
 const statusOptions = [
     { label: "Active", value: "active" },
@@ -275,8 +309,14 @@ const columns: QTableProps["columns"] = [
 ]
 
 async function loadFolders() {
-    const res = await get(apiURL + "folders")
-    folders.value = res.success ? res.result : []
+    // Upload destinations (disk allow-list) and filter options (union with
+    // folders that only exist on file records) are different lists.
+    const [destinations, filterable] = await Promise.all([
+        get(apiURL + "folders"),
+        get(apiURL + "folders?includeData=true"),
+    ])
+    folders.value = destinations.success ? destinations.result : []
+    filterFolders.value = [ALL_FOLDERS, ...(filterable.success ? filterable.result : [])]
 }
 
 type TableRequestPagination = {
@@ -291,10 +331,11 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
     const { page, rowsPerPage, sortBy, descending } = requestProps.pagination
     loading.value = true
     const params = createUrlSearchParams({
-        folder: filters.value.folder,
+        folder: filters.value.folder !== ALL_FOLDERS ? filters.value.folder : null,
         status: filters.value.status,
         search: filters.value.search || null,
         encrypted: filters.value.encryptedOnly ? "true" : null,
+        isPublic: filters.value.publicOnly ? "true" : null,
         page,
         perPage: rowsPerPage,
         sortBy: sortBy ?? "friendlyName",
@@ -315,6 +356,7 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
 }
 
 function reload() {
+    syncFiltersToUrl()
     void onRequest({ pagination: { ...pagination.value, page: 1 } })
 }
 
@@ -405,11 +447,3 @@ onMounted(() => {
     reload()
 })
 </script>
-
-<style scoped>
-.old-url {
-    max-width: 200px;
-    display: inline-block;
-    vertical-align: middle;
-}
-</style>

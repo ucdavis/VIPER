@@ -11,41 +11,37 @@
 
         <div class="row q-col-gutter-lg cms-home-grid">
             <div class="col-12 col-lg-8">
-                <div class="row q-col-gutter-md">
-                    <div
+                <div class="cms-home-cards">
+                    <q-card
                         v-for="section in visibleSections"
                         :key="section.title"
-                        class="col-12 col-sm-6"
+                        flat
+                        bordered
                     >
-                        <q-card
-                            flat
-                            bordered
-                        >
-                            <q-card-section>
-                                <h2 class="text-h6 text-primary q-my-none">
-                                    <q-icon
-                                        :name="section.icon"
-                                        size="sm"
-                                        class="q-mr-sm"
-                                    />
-                                    {{ section.title }}
-                                </h2>
-                                <div class="text-body2 text-grey-8 q-mt-xs">{{ section.description }}</div>
-                            </q-card-section>
-                            <q-card-actions>
-                                <q-btn
-                                    v-for="action in section.actions"
-                                    :key="action.label"
-                                    flat
-                                    dense
-                                    no-caps
-                                    color="primary"
-                                    :label="action.label"
-                                    :to="action.to"
+                        <q-card-section>
+                            <h2 class="text-h6 text-primary q-my-none">
+                                <q-icon
+                                    :name="section.icon"
+                                    size="sm"
+                                    class="q-mr-sm"
                                 />
-                            </q-card-actions>
-                        </q-card>
-                    </div>
+                                {{ section.title }}
+                            </h2>
+                            <div class="text-body2 text-grey-8 q-mt-xs">{{ section.description }}</div>
+                        </q-card-section>
+                        <q-card-actions>
+                            <q-btn
+                                v-for="action in section.actions"
+                                :key="action.label"
+                                flat
+                                dense
+                                no-caps
+                                color="primary"
+                                :label="action.label"
+                                :to="action.to"
+                            />
+                        </q-card-actions>
+                    </q-card>
                 </div>
             </div>
             <div
@@ -144,5 +140,23 @@ const showRecentActivity = computed(() => canManageBlocks.value || canManageFile
    so neither stretches into low-density slabs on wide monitors. */
 .cms-home-grid {
     max-width: 80rem;
+}
+
+/* CSS grid with equal rows so all four cards render as same-size tiles
+   regardless of description length; collapses to one column when narrow. */
+.cms-home-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 16px;
+}
+
+.cms-home-cards .q-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.cms-home-cards .q-card .q-card__actions {
+    margin-top: auto;
 }
 </style>
