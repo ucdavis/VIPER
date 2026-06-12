@@ -5,9 +5,9 @@ const student = ref("")
 
 // Mock data for prototype; real implementation will replace with API data.
 const loggedInStudents = [
-    { id: 23631, name: "Montserrat Armero", time: "10/16/24 2:29:01 PM" },
-    { id: 34123, name: "Hailey Atwood", time: "10/16/24 2:29:01 PM" },
-    { id: 34158, name: "Xander Avila", time: "10/16/24 2:29:01 PM" },
+    { id: 10001, name: "John Doe", time: "10/16/24 2:29:01 PM" },
+    { id: 10002, name: "Jane Smith", time: "10/16/24 2:29:01 PM" },
+    { id: 10003, name: "Bob Johnson", time: "10/16/24 2:29:01 PM" },
 ]
 </script>
 <template>
