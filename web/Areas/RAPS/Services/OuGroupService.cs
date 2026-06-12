@@ -1,3 +1,4 @@
+using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -8,7 +9,6 @@ using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.RAPS;
 using static Viper.Areas.RAPS.Services.RAPSAuditService;
-using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.RAPS.Services
 {
@@ -44,9 +44,9 @@ namespace Viper.Areas.RAPS.Services
             List<LdapGroup> ldapGroups = new();
             try
             {
-                ActiveDirectoryService.GetGroups();
+                ldapGroups = ActiveDirectoryService.GetGroups();
             }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
+            catch (Exception ex) when (ex is LdapException or DirectoryOperationException)
             {
                 Logger logger = LogManager.GetCurrentClassLogger();
                 logger.Error(ex);
@@ -54,14 +54,23 @@ namespace Viper.Areas.RAPS.Services
 
             List<ManagedGroup> managedGroups = await _uInformService.GetManagedGroups();
 
+            HashSet<string> boxSyncGroupDns = ldapGroups
+                .Where(lg => string.Equals(lg.ExtensionAttribute3, "ucdboxsync", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(lg.DistinguishedName))
+                .Select(lg => lg.DistinguishedName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string?> displayNamesByDn = managedGroups
+                .Where(mg => !string.IsNullOrEmpty(mg.DistinguishedName))
+                .GroupBy(mg => mg.DistinguishedName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().DisplayName, StringComparer.OrdinalIgnoreCase);
+
             List<Group> groups = new();
             foreach (OuGroup group in result)
             {
                 //for OU groups, look up the box sync attribute
-                bool BoxSync = ldapGroups.FirstOrDefault(lg => lg.DistinguishedName.ToLower() == group.Name.ToLower())
-                    ?.ExtensionAttribute3?.ToLower() == "ucdboxsync";
+                bool BoxSync = boxSyncGroupDns.Contains(group.Name);
                 //for AD3 groups, look up display name
-                string? displayName = managedGroups.FirstOrDefault(mg => mg.DistinguishedName.ToLower() == group.Name.ToLower())?.DisplayName;
+                string? displayName = displayNamesByDn.GetValueOrDefault(group.Name);
                 Group g = new(group)
                 {
                     BoxSyncEnabled = BoxSync,
