@@ -46,6 +46,8 @@
                     v-model="filters.folder"
                     dense
                     options-dense
+                    emit-value
+                    map-options
                     label="VIPER app"
                     :options="filterFolders"
                     @update:model-value="reload"
@@ -118,42 +120,24 @@
                             {{ cellProps.row.friendlyName }}
                             <span class="sr-only">(opens in new window)</span>
                         </a>
-                        <q-icon
+                        <StatusIcon
                             v-if="cellProps.row.encrypted"
-                            name="lock"
+                            icon="lock"
                             color="warning"
-                        >
-                            <q-tooltip>Encrypted</q-tooltip>
-                        </q-icon>
-                        <span
-                            v-if="cellProps.row.encrypted"
-                            class="sr-only"
-                            >Encrypted</span
-                        >
-                        <q-icon
+                            label="Encrypted"
+                        />
+                        <StatusIcon
                             v-if="cellProps.row.allowPublicAccess"
-                            name="public"
+                            icon="public"
                             color="positive"
-                        >
-                            <q-tooltip>Public access</q-tooltip>
-                        </q-icon>
-                        <span
-                            v-if="cellProps.row.allowPublicAccess"
-                            class="sr-only"
-                            >Public access</span
-                        >
-                        <q-icon
+                            label="Public access"
+                        />
+                        <StatusIcon
                             v-if="cellProps.row.deletedOn"
-                            name="delete_outline"
+                            icon="delete_outline"
                             color="negative"
-                        >
-                            <q-tooltip>Deleted {{ formatDate(cellProps.row.deletedOn) }}</q-tooltip>
-                        </q-icon>
-                        <span
-                            v-if="cellProps.row.deletedOn"
-                            class="sr-only"
-                            >Deleted {{ formatDate(cellProps.row.deletedOn) }}</span
-                        >
+                            :label="`Deleted ${formatDate(cellProps.row.deletedOn)}`"
+                        />
                     </div>
                 </q-td>
             </template>
@@ -221,6 +205,7 @@ import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import PermissionChips from "@/CMS/components/PermissionChips.vue"
+import StatusIcon from "@/CMS/components/StatusIcon.vue"
 import type { CmsFile } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/"
@@ -233,7 +218,9 @@ const ALL_FOLDERS = "All"
 
 const files = ref<CmsFile[]>([])
 const folders = ref<string[]>([])
-const filterFolders = ref<string[]>([ALL_FOLDERS])
+type FolderOption = { label: string; value: string }
+
+const filterFolders = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLDERS }])
 const loading = ref(false)
 const showDialog = ref(false)
 const editingFile = ref<CmsFile | null>(null)
@@ -277,7 +264,7 @@ const statusOptions = [
 ]
 
 const fileTools = [
-    { label: "Audit Log", icon: "history", to: { name: "CmsFileAudit" } },
+    { label: "Audit Trail", icon: "history", to: { name: "CmsFileAudit" } },
     { label: "Import Files", icon: "drive_file_move", to: { name: "CmsFileImport" } },
     { label: "Bulk Encrypt", icon: "lock", to: { name: "CmsBulkEncrypt" } },
 ]
@@ -300,14 +287,32 @@ const columns: QTableProps["columns"] = [
 ]
 
 async function loadFolders() {
-    // Upload destinations (disk allow-list) and filter options (union with
-    // folders that only exist on file records) are different lists.
-    const [destinations, filterable] = await Promise.all([
-        get(apiURL + "folders"),
-        get(apiURL + "folders?includeData=true"),
-    ])
+    // Upload destinations are the disk allow-list; the filter dropdown is built
+    // separately (loadFolderOptions) from record folders plus per-folder counts.
+    const destinations = await get(apiURL + "folders")
     folders.value = destinations.success ? destinations.result : []
-    filterFolders.value = [ALL_FOLDERS, ...(filterable.success ? filterable.result : [])]
+}
+
+async function loadFolderOptions() {
+    // Counts reflect the status/encrypted/public filters so they match the list;
+    // search is intentionally excluded (the dropdown is a folder inventory).
+    const countParams = createUrlSearchParams({
+        status: filters.value.status,
+        encrypted: filters.value.encryptedOnly ? "true" : null,
+        isPublic: filters.value.publicOnly ? "true" : null,
+    })
+    const [filterable, countsRes] = await Promise.all([
+        get(apiURL + "folders?includeData=true"),
+        get(apiURL + "folder-counts?" + countParams),
+    ])
+    const counts: { folder: string; count: number }[] = countsRes.success ? countsRes.result : []
+    const countByFolder = new Map(counts.map((c) => [c.folder.toLowerCase(), c.count]))
+    const names: string[] = filterable.success ? filterable.result : []
+    const total = counts.reduce((sum, c) => sum + c.count, 0)
+    filterFolders.value = [
+        { label: `${ALL_FOLDERS} (${total})`, value: ALL_FOLDERS },
+        ...names.map((n) => ({ label: `${n} (${countByFolder.get(n.toLowerCase()) ?? 0})`, value: n })),
+    ]
 }
 
 type TableRequestPagination = {
@@ -348,6 +353,7 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
 
 function reload() {
     syncFiltersToUrl()
+    void loadFolderOptions()
     void onRequest({ pagination: { ...pagination.value, page: 1 } })
 }
 
@@ -407,6 +413,36 @@ function formatDate(value: string | null): string {
     if (!value) return ""
     return new Date(value).toLocaleDateString("en-US", { year: "2-digit", month: "2-digit", day: "2-digit" })
 }
+
+// When in-app navigation reuses this view with a different query (e.g. re-clicking the
+// left-nav "Manage Files" link while a filter is active, or a hub deep-link), the component
+// instance is kept, so re-sync the filters from the URL. The equality guard skips our own
+// syncFiltersToUrl write, which would otherwise trigger a redundant second fetch.
+watch(
+    () => route.query,
+    (query) => {
+        const next = {
+            folder: typeof query.folder === "string" ? query.folder : ALL_FOLDERS,
+            status: typeof query.status === "string" ? query.status : "active",
+            search: typeof query.search === "string" ? query.search : "",
+            encryptedOnly: query.encrypted === "1",
+            publicOnly: query.public === "1",
+        }
+        const f = filters.value
+        if (
+            next.folder === f.folder &&
+            next.status === f.status &&
+            next.search === f.search &&
+            next.encryptedOnly === f.encryptedOnly &&
+            next.publicOnly === f.publicOnly
+        ) {
+            return
+        }
+        filters.value = next
+        void loadFolderOptions()
+        void onRequest({ pagination: { ...pagination.value, page: 1 } })
+    },
+)
 
 // The "Upload File" left-nav link targets ?upload=1; consume the flag so
 // re-clicking the link re-opens the dialog after it has been closed.

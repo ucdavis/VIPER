@@ -1,18 +1,10 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
-            <h1 class="q-my-none">File Audit Log</h1>
-            <q-space />
-            <q-btn
-                flat
-                dense
-                no-caps
-                color="primary"
-                icon="arrow_back"
-                label="Back to Files"
-                :to="{ name: 'CmsFiles' }"
-            />
-        </div>
+        <BreadcrumbHeading
+            label="Audit Trail"
+            parent-label="Manage Files"
+            :parent-to="{ name: 'CmsFiles' }"
+        />
 
         <div class="row q-col-gutter-md q-mb-sm">
             <div class="col-12 col-sm-3 col-lg-2">
@@ -103,7 +95,14 @@
         >
             <template #body-cell-timestamp="cellProps">
                 <q-td :props="cellProps">
-                    {{ formatDateTime(cellProps.row.timestamp) }}
+                    {{ formatDateTime(cellProps.row.timestamp, { dateStyle: "short", timeStyle: "short" }) }}
+                </q-td>
+            </template>
+            <template #body-cell-action="cellProps">
+                <q-td :props="cellProps">
+                    <StatusBadge :color="getActionColor(cellProps.row.action)">
+                        {{ cellProps.row.action }}
+                    </StatusBadge>
                 </q-td>
             </template>
             <template #body-cell-filePath="cellProps">
@@ -119,10 +118,13 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue"
+import { inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useDateFunctions } from "@/composables/DateFunctions"
+import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import type { CmsFileAudit } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/audit"
@@ -130,18 +132,34 @@ const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const { get, createUrlSearchParams } = useFetch()
+const { formatDateTime } = useDateFunctions()
 
 const entries = ref<CmsFileAudit[]>([])
 const loading = ref(false)
 const fileGuid = ref<string | null>((route.query.fileGuid as string) || null)
 
+// Filters initialize from the URL so filtered views can be shared/deep-linked.
 const filters = ref({
-    action: null as string | null,
-    loginId: "",
-    from: "",
-    to: "",
-    search: "",
+    action: typeof route.query.action === "string" ? route.query.action : null,
+    loginId: typeof route.query.loginId === "string" ? route.query.loginId : "",
+    from: typeof route.query.from === "string" ? route.query.from : "",
+    to: typeof route.query.to === "string" ? route.query.to : "",
+    search: typeof route.query.search === "string" ? route.query.search : "",
 })
+
+// Reflect the active filters back into the URL (empty values are omitted).
+function syncFiltersToUrl() {
+    void router.replace({
+        query: {
+            fileGuid: fileGuid.value || undefined,
+            action: filters.value.action || undefined,
+            loginId: filters.value.loginId || undefined,
+            from: filters.value.from || undefined,
+            to: filters.value.to || undefined,
+            search: filters.value.search || undefined,
+        },
+    })
+}
 
 const actionOptions = [
     "AccessFile",
@@ -162,13 +180,27 @@ const pagination = ref({
     rowsNumber: 0,
 })
 
+// Column order mirrors the Effort audit trail: date, who, what was affected,
+// then the action badge and its detail.
 const columns: QTableProps["columns"] = [
-    { name: "timestamp", label: "When", field: "timestamp", align: "left" },
-    { name: "loginid", label: "User", field: "loginid", align: "left" },
+    { name: "timestamp", label: "Date", field: "timestamp", align: "left" },
+    { name: "loginid", label: "Modified By", field: "loginid", align: "left" },
+    { name: "filePath", label: "File", field: "filePath", align: "left" },
     { name: "action", label: "Action", field: "action", align: "left" },
     { name: "detail", label: "Detail", field: "detail", align: "left" },
-    { name: "filePath", label: "File", field: "filePath", align: "left" },
 ]
+
+// Same palette logic as the Effort audit trail (AuditList.getActionColor):
+// create-like is green, edits blue, deletes red, restores teal, imports cyan.
+function getActionColor(action: string): string {
+    if (action === "AccessFileDenied") return "warning"
+    if (action.startsWith("Add") || action.startsWith("Upload")) return "positive"
+    if (action.startsWith("Edit")) return "primary"
+    if (action.startsWith("Delete")) return "negative"
+    if (action.startsWith("CancelDelete")) return "secondary"
+    if (action.startsWith("Import")) return "info"
+    return "grey-8"
+}
 
 type TableRequestPagination = {
     sortBy: string
@@ -198,31 +230,51 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
         pagination.value.page = page
         pagination.value.rowsPerPage = rowsPerPage
     } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load audit log" })
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load audit trail" })
     }
     loading.value = false
 }
 
 function reload() {
+    syncFiltersToUrl()
     void onRequest({ pagination: { ...pagination.value, page: 1 } })
 }
 
 function clearFileFilter() {
     fileGuid.value = null
-    void router.replace({ query: {} })
     reload()
 }
 
-function formatDateTime(value: string | null): string {
-    if (!value) return ""
-    return new Date(value).toLocaleString("en-US", {
-        year: "2-digit",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "numeric",
-        minute: "2-digit",
-    })
-}
+// Re-sync filters from the URL when in-app navigation reuses this view with a different
+// query (e.g. re-clicking the left-nav link, or a per-file ?fileGuid deep-link). The
+// equality guard skips our own syncFiltersToUrl write so it doesn't double-fetch.
+watch(
+    () => route.query,
+    (query) => {
+        const nextGuid = typeof query.fileGuid === "string" ? query.fileGuid : null
+        const next = {
+            action: typeof query.action === "string" ? query.action : null,
+            loginId: typeof query.loginId === "string" ? query.loginId : "",
+            from: typeof query.from === "string" ? query.from : "",
+            to: typeof query.to === "string" ? query.to : "",
+            search: typeof query.search === "string" ? query.search : "",
+        }
+        const f = filters.value
+        if (
+            nextGuid === fileGuid.value &&
+            next.action === f.action &&
+            next.loginId === f.loginId &&
+            next.from === f.from &&
+            next.to === f.to &&
+            next.search === f.search
+        ) {
+            return
+        }
+        fileGuid.value = nextGuid
+        filters.value = next
+        void onRequest({ pagination: { ...pagination.value, page: 1 } })
+    },
+)
 
 onMounted(reload)
 </script>

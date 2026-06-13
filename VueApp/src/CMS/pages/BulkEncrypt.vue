@@ -1,18 +1,10 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
-            <h1 class="q-my-none">Bulk Encrypt Files</h1>
-            <q-space />
-            <q-btn
-                flat
-                dense
-                no-caps
-                color="primary"
-                icon="arrow_back"
-                label="Back to Files"
-                :to="{ name: 'CmsFiles' }"
-            />
-        </div>
+        <BreadcrumbHeading
+            label="Bulk Encrypt"
+            parent-label="Manage Files"
+            :parent-to="{ name: 'CmsFiles' }"
+        />
 
         <p class="text-body2 text-grey-8">
             Lists active files that are not encrypted. Select files and encrypt them in place; downloads decrypt
@@ -25,9 +17,10 @@
                     v-model="filters.folder"
                     dense
                     options-dense
-                    clearable
+                    emit-value
+                    map-options
                     label="VIPER app"
-                    :options="folders"
+                    :options="folderOptions"
                     @update:model-value="reload"
                 />
             </div>
@@ -125,6 +118,7 @@ import { inject, onMounted, ref } from "vue"
 import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import type { CmsFile } from "@/CMS/types/"
 
@@ -139,15 +133,19 @@ const apiURL = inject("apiURL") + "cms/files/"
 const $q = useQuasar()
 const { get, post, createUrlSearchParams } = useFetch()
 
+type FolderOption = { label: string; value: string }
+
+const ALL_FOLDERS = "All"
+
 const files = ref<CmsFile[]>([])
-const folders = ref<string[]>([])
+const folderOptions = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLDERS }])
 const selected = ref<CmsFile[]>([])
 const results = ref<BulkEncryptResult[]>([])
 const loading = ref(false)
 const encrypting = ref(false)
 
 const filters = ref({
-    folder: null as string | null,
+    folder: ALL_FOLDERS,
     search: "",
 })
 
@@ -177,7 +175,7 @@ async function onRequest(requestProps: { pagination: TableRequestPagination }) {
     const { page, rowsPerPage, sortBy, descending } = requestProps.pagination
     loading.value = true
     const params = createUrlSearchParams({
-        folder: filters.value.folder,
+        folder: filters.value.folder !== ALL_FOLDERS ? filters.value.folder : null,
         status: "active",
         encrypted: "false",
         search: filters.value.search || null,
@@ -206,9 +204,14 @@ function reload() {
 }
 
 async function loadFolders() {
-    // Union of disk + record-only folders; this filters records, not uploads.
-    const res = await get(apiURL + "folders?includeData=true")
-    folders.value = res.success ? res.result : []
+    // Counts match what this page lists: active, unencrypted files per VIPER app.
+    const res = await get(apiURL + "folder-counts?status=active&encrypted=false")
+    const counts: { folder: string; count: number }[] = res.success ? res.result : []
+    const total = counts.reduce((sum, c) => sum + c.count, 0)
+    folderOptions.value = [
+        { label: `${ALL_FOLDERS} (${total})`, value: ALL_FOLDERS },
+        ...counts.map((c) => ({ label: `${c.folder} (${c.count})`, value: c.folder })),
+    ]
 }
 
 async function encryptSelected() {
@@ -244,6 +247,7 @@ async function encryptSelected() {
         message: `${succeeded} of ${res.result.length} ${inflect("file", res.result.length)} encrypted`,
     })
     reload()
+    void loadFolders()
 }
 
 onMounted(() => {

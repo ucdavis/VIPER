@@ -24,4 +24,26 @@ namespace Viper.Areas.CMS.Models.DTOs
         public string IamId { get; set; } = string.Empty;
         public string? Name { get; set; }
     }
+
+    public class CmsFolderCountDto
+    {
+        public string Folder { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
+
+    /// <summary>Result of a pre-upload name availability check for a folder.</summary>
+    public class CmsFileNameCheckDto
+    {
+        public bool InUse { get; set; }
+
+        /// <summary>The name an auto-rename would store the file under (the name itself when free).</summary>
+        public string SuggestedName { get; set; } = string.Empty;
+
+        /// <summary>Set when the conflicting name belongs to an existing file record.</summary>
+        public Guid? ExistingFileGuid { get; set; }
+
+        public string? ExistingFriendlyName { get; set; }
+
+        public bool ExistingDeleted { get; set; }
+    }
 }

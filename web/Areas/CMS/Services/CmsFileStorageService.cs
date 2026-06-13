@@ -28,6 +28,15 @@ namespace Viper.Areas.CMS.Services
         /// <summary>True if the name exists on disk or in the files table for this folder.</summary>
         bool FileNameInUse(string folder, string fileName);
 
+        /// <summary>
+        /// The name MoveIntoPlace would store folder\fileName under: the name itself when free,
+        /// otherwise the first free name_0..name_999 candidate.
+        /// </summary>
+        string GetAvailableFileName(string folder, string fileName);
+
+        /// <summary>Resolved managed path for folder\fileName (validated to stay under the root).</summary>
+        string BuildManagedPath(string folder, string fileName);
+
         /// <summary>Save an upload to a temp file (outside the storage root); returns the temp path.</summary>
         Task<string> SaveToTempAsync(IFormFile file, CancellationToken ct = default);
 
@@ -82,7 +91,7 @@ namespace Viper.Areas.CMS.Services
             var dbFolders = await _context.Files.Select(f => f.Folder).Distinct().ToListAsync(ct);
             var topLevel = dbFolders
                 .Where(f => !string.IsNullOrWhiteSpace(f))
-                .Select(f => f!.Split(new[] { '\\', '/' })[0]);
+                .Select(f => f!.Split(['\\', '/'], StringSplitOptions.None)[0]);
             return GetTopLevelFolders()
                 .Union(topLevel, StringComparer.OrdinalIgnoreCase)
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
@@ -123,6 +132,17 @@ namespace Viper.Areas.CMS.Services
             // Also check the DB in case a record exists whose disk file is missing; a new file
             // at that path would be served under the orphaned record's permissions.
             return _context.Files.Any(f => f.FilePath == targetPath);
+        }
+
+        public string GetAvailableFileName(string folder, string fileName)
+        {
+            string finalName = Path.GetFileName(fileName);
+            return FileNameInUse(folder, finalName) ? GetUniqueFileName(folder, finalName) : finalName;
+        }
+
+        public string BuildManagedPath(string folder, string fileName)
+        {
+            return BuildTargetPath(folder, fileName);
         }
 
         public async Task<string> SaveToTempAsync(IFormFile file, CancellationToken ct = default)

@@ -121,11 +121,6 @@
                             v-model="form.encrypt"
                             label="Encrypt file"
                         />
-                        <q-checkbox
-                            v-if="!isEdit"
-                            v-model="form.makeUnique"
-                            label="Rename automatically if name exists"
-                        />
                     </div>
                 </q-card-section>
 
@@ -148,6 +143,63 @@
                     />
                 </q-card-actions>
             </q-form>
+
+            <q-dialog
+                v-model="showConflict"
+                persistent
+                aria-labelledby="conflict-dialog-title"
+            >
+                <q-card style="width: 480px; max-width: 95vw">
+                    <q-card-section class="row items-center q-pb-none">
+                        <div
+                            id="conflict-dialog-title"
+                            class="text-h6"
+                        >
+                            File name already exists
+                        </div>
+                        <q-space />
+                        <q-btn
+                            icon="close"
+                            flat
+                            round
+                            dense
+                            aria-label="Close dialog"
+                            @click="showConflict = false"
+                        />
+                    </q-card-section>
+                    <q-card-section>
+                        <p class="text-body2">
+                            <strong>{{ form.upload?.name }}</strong> already exists in <strong>{{ form.folder }}</strong
+                            >{{ conflictDetail }}. Choose how to continue:
+                        </p>
+                        <q-option-group
+                            v-model="conflictChoice"
+                            :options="conflictOptions"
+                        />
+                        <q-input
+                            v-if="conflictChoice === 'rename'"
+                            v-model="renameTo"
+                            dense
+                            outlined
+                            label="New file name"
+                            class="q-mt-sm"
+                            :rules="[(v: string) => !!v?.trim() || 'Enter a file name']"
+                            hide-bottom-space
+                        />
+                    </q-card-section>
+                    <q-card-actions align="right">
+                        <q-btn
+                            color="primary"
+                            dense
+                            no-caps
+                            class="q-pr-md"
+                            :label="conflictChoice === 'rename' ? 'Upload with new name' : 'Overwrite'"
+                            :loading="saving"
+                            @click="resolveConflict"
+                        />
+                    </q-card-actions>
+                </q-card>
+            </q-dialog>
         </q-card>
     </q-dialog>
 </template>
@@ -173,6 +225,7 @@ const emit = defineEmits<{
 
 const apiURL = inject("apiURL") + "cms/files/"
 const $q = useQuasar()
+const { get, postForm, putForm, createUrlSearchParams } = useFetch()
 
 const acceptedExtensions =
     ".pdf,.docx,.doc,.xls,.xlsx,.csv,.ppt,.pptx,.pptm,.txt,.html,.gif,.png,.jpg,.jpeg,.tiff,.mp3,.wav,.mp4,.webm,.oft,.eps,.zip,.7z,.dmg,.exe"
@@ -188,9 +241,16 @@ type FileForm = {
     oldUrl: string
     allowPublicAccess: boolean
     encrypt: boolean
-    makeUnique: boolean
     permissions: string[]
     people: CmsFilePerson[]
+}
+
+type NameCheck = {
+    inUse: boolean
+    suggestedName: string
+    existingFileGuid: string | null
+    existingFriendlyName: string | null
+    existingDeleted: boolean
 }
 
 const emptyForm = (): FileForm => ({
@@ -200,12 +260,31 @@ const emptyForm = (): FileForm => ({
     oldUrl: "",
     allowPublicAccess: false,
     encrypt: false,
-    makeUnique: false,
     permissions: [],
     people: [],
 })
 
 const form = ref<FileForm>(emptyForm())
+
+const conflict = ref<NameCheck | null>(null)
+const showConflict = ref(false)
+const conflictChoice = ref<"rename" | "overwrite">("rename")
+const renameTo = ref("")
+
+const conflictOptions = computed(() => [
+    { label: "Upload with a new name", value: "rename" },
+    {
+        label: conflict.value?.existingFileGuid
+            ? "Overwrite the existing file (replaces its content and details)"
+            : "Overwrite the existing file on disk",
+        value: "overwrite",
+    },
+])
+
+const conflictDetail = computed(() => {
+    if (!conflict.value?.existingFriendlyName) return ""
+    return ` (${conflict.value.existingFriendlyName}${conflict.value.existingDeleted ? ", deleted" : ""})`
+})
 
 watch(
     () => [props.modelValue, props.file] as const,
@@ -219,7 +298,6 @@ watch(
                 oldUrl: props.file.oldUrl ?? "",
                 allowPublicAccess: props.file.allowPublicAccess,
                 encrypt: props.file.encrypted,
-                makeUnique: false,
                 permissions: [...props.file.permissions],
                 people: props.file.people.map((p) => ({ ...p })),
             }
@@ -231,6 +309,8 @@ watch(
 
 function resetForm() {
     form.value = emptyForm()
+    conflict.value = null
+    showConflict.value = false
     formRef.value?.resetValidation()
 }
 
@@ -244,14 +324,25 @@ async function copyUrl() {
     }
 }
 
-function buildFormData(): FormData {
+type SubmitOptions = {
+    fileName?: string
+    overwrite?: boolean
+    overwriteGuid?: string
+}
+
+function buildFormData(opts: SubmitOptions = {}): FormData {
     const data = new FormData()
     if (form.value.upload) {
         data.append("file", form.value.upload)
     }
-    if (!isEdit.value) {
+    if (!isEdit.value && !opts.overwriteGuid) {
         data.append("folder", form.value.folder ?? "")
-        data.append("makeUnique", form.value.makeUnique.toString())
+        if (opts.fileName) {
+            data.append("fileName", opts.fileName)
+        }
+        if (opts.overwrite) {
+            data.append("overwrite", "true")
+        }
     }
     data.append("description", form.value.description)
     data.append("oldUrl", form.value.oldUrl)
@@ -267,14 +358,55 @@ function buildFormData(): FormData {
 }
 
 async function save() {
+    if (saving.value) return
     const valid = await formRef.value?.validate()
     if (!valid) return
 
+    // New uploads check the destination name first; a conflict prompts for rename/overwrite.
+    if (!isEdit.value && form.value.upload && form.value.folder) {
+        saving.value = true
+        const params = createUrlSearchParams({ folder: form.value.folder, fileName: form.value.upload.name })
+        const check = await get(apiURL + "check-name?" + params)
+        saving.value = false
+        if (check.success && check.result.inUse) {
+            conflict.value = check.result
+            conflictChoice.value = "rename"
+            renameTo.value = check.result.suggestedName
+            showConflict.value = true
+            return
+        }
+    }
+    await submitSave()
+}
+
+async function resolveConflict() {
+    if (saving.value) return
+    // Keep the conflict dialog open until the upload succeeds, so its buttons show the
+    // loading state and a failure leaves the user here instead of stranded on the form.
+    if (conflictChoice.value === "rename") {
+        const name = renameTo.value.trim()
+        if (!name) return
+        if (await submitSave({ fileName: name })) showConflict.value = false
+        return
+    }
+    const opts: SubmitOptions = conflict.value?.existingFileGuid
+        ? { overwriteGuid: conflict.value.existingFileGuid }
+        : { overwrite: true }
+    if (await submitSave(opts)) showConflict.value = false
+}
+
+async function submitSave(opts: SubmitOptions = {}): Promise<boolean> {
+    if (saving.value) return false
     saving.value = true
-    const { postForm, putForm } = useFetch()
-    const res = isEdit.value
-        ? await putForm(apiURL + props.file!.fileGuid, buildFormData())
-        : await postForm(apiURL, buildFormData())
+    let res
+    if (isEdit.value) {
+        res = await putForm(apiURL + props.file!.fileGuid, buildFormData())
+    } else if (opts.overwriteGuid) {
+        // Overwriting a managed file replaces the existing record's content and details.
+        res = await putForm(apiURL + opts.overwriteGuid, buildFormData(opts))
+    } else {
+        res = await postForm(apiURL, buildFormData(opts))
+    }
     saving.value = false
 
     if (!res.success) {
@@ -282,11 +414,16 @@ async function save() {
             type: "negative",
             message: res.errors?.[0] ?? `Failed to ${isEdit.value ? "save" : "upload"} file`,
         })
-        return
+        return false
     }
 
-    $q.notify({ type: "positive", message: isEdit.value ? "File updated" : "File uploaded" })
+    const overwrote = opts.overwrite || opts.overwriteGuid
+    $q.notify({
+        type: "positive",
+        message: isEdit.value ? "File updated" : overwrote ? "File overwritten" : "File uploaded",
+    })
     emit("saved", res.result)
     emit("update:modelValue", false)
+    return true
 }
 </script>

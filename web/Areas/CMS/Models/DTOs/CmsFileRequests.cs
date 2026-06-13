@@ -24,8 +24,15 @@ namespace Viper.Areas.CMS.Models.DTOs
 
         public bool? Encrypt { get; set; }
 
-        /// <summary>When true, auto-rename on name conflict (name_0..name_999) instead of failing.</summary>
-        public bool? MakeUnique { get; set; }
+        /// <summary>Optional stored-name override; defaults to the uploaded file's name.</summary>
+        [MaxLength(256)]
+        public string? FileName { get; set; }
+
+        /// <summary>
+        /// When true, overwrite a same-named disk file that has no file record. A conflict with
+        /// a managed record still fails (replace it by editing that record instead).
+        /// </summary>
+        public bool? Overwrite { get; set; }
     }
 
     /// <summary>
