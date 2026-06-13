@@ -85,7 +85,12 @@ namespace Viper.Classes
                         await memoryStream.CopyToAsync(stream, bytes.Length);
                     }
                 }
+                // Middleware boundary: any sitemap-generation failure (DB, IO,
+                // reflection, etc.) must fall through to the pipeline rather than
+                // break the request.
+#pragma warning disable CA1031
                 catch (Exception)
+#pragma warning restore CA1031
                 {
                     await _next(context);
                 }

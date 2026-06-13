@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper;
 using Viper.Classes;
@@ -90,7 +92,7 @@ namespace Web.Authorization
 
 
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or RecordNotFoundException)
                 {
                     bool isProd = false;
 

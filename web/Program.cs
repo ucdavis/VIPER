@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Amazon;
 using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
@@ -86,7 +87,7 @@ try
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
     }
-    catch (Exception ex)
+    catch (Exception ex) when (ex is AmazonServiceException or AmazonClientException)
     {
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
@@ -519,7 +520,9 @@ try
     app.Run();
 #pragma warning restore S6966
 }
+#pragma warning disable CA1031 // Top-level app startup must catch any exception to log fatal and rethrow as InvalidOperationException with context for hosting platform.
 catch (Exception exception)
+#pragma warning restore CA1031
 {
     // NLog: catch setup errors
     logger.Fatal(exception, "Stopped program because of exception");
@@ -565,9 +568,8 @@ void SetAwsCredentials(Logger logger)
         {
             File.Delete(awsCredentialsFilePath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
             logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
         }
     }
