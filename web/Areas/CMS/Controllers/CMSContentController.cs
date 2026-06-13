@@ -39,9 +39,10 @@ namespace Viper.Areas.CMS.Controllers
             string? system = null,
             string? viperSectionPath = null,
             string? search = null,
+            bool? isPublic = null,
             CancellationToken ct = default)
         {
-            return await _blockService.GetContentBlocksAsync(status, system, viperSectionPath, search, ct);
+            return await _blockService.GetContentBlocksAsync(status, system, viperSectionPath, search, isPublic, ct);
         }
 
         //GET: content/section-paths

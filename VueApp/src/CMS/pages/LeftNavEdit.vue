@@ -1,20 +1,10 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
-            <h1 class="q-my-none">
-                {{ isNew ? "Create Navigation Menu" : "Edit Navigation Menu" }}
-            </h1>
-            <q-space />
-            <q-btn
-                flat
-                dense
-                no-caps
-                color="primary"
-                icon="arrow_back"
-                label="Back to Menus"
-                :to="{ name: 'CmsLeftNavMenus' }"
-            />
-        </div>
+        <BreadcrumbHeading
+            :label="isNew ? 'Add Left-Nav Menu' : 'Edit Left-Nav Menu'"
+            parent-label="Manage Left-Nav Menus"
+            :parent-to="{ name: 'CmsLeftNavMenus' }"
+        />
 
         <div class="row q-col-gutter-lg">
             <div class="col-12 col-md-4">
@@ -29,52 +19,17 @@
                             ref="menuFormRef"
                             greedy
                             @submit.prevent="saveMenu"
+                            @validation-error="onMenuValidationError"
                         >
-                            <q-input
-                                v-model="menu.menuHeaderText"
-                                dense
-                                outlined
-                                label="Menu header"
-                                class="required-field q-mb-sm"
-                                :rules="[(v: string | null) => (v && v.trim().length > 0) || 'Menu header is required']"
-                                aria-required="true"
-                                hide-bottom-space
-                            />
+                            <LeftNavMenuSettingsFields v-model="menu" />
 
-                            <q-select
-                                v-model="menu.system"
-                                dense
-                                options-dense
-                                outlined
-                                label="System"
+                            <StatusBanner
+                                v-if="menuFormError"
+                                type="error"
                                 class="q-mb-sm"
-                                :options="['Viper', 'Public']"
-                            />
-
-                            <q-input
-                                v-model="menu.viperSectionPath"
-                                dense
-                                outlined
-                                label="VIPER section path"
-                                class="q-mb-sm"
-                            />
-
-                            <q-input
-                                v-model="menu.page"
-                                dense
-                                outlined
-                                label="Page"
-                                class="q-mb-sm"
-                            />
-
-                            <q-input
-                                v-model="menu.friendlyName"
-                                dense
-                                outlined
-                                label="Friendly name"
-                                hint="Used by pages to look up this menu"
-                                class="q-mb-sm"
-                            />
+                            >
+                                {{ menuFormError }}
+                            </StatusBanner>
 
                             <q-btn
                                 type="submit"
@@ -82,7 +37,6 @@
                                 :label="isNew ? 'Create Menu' : 'Save Menu Settings'"
                                 dense
                                 no-caps
-                                class="q-pr-md"
                                 :loading="savingMenu"
                             >
                                 <template #loading>
@@ -222,13 +176,20 @@
                             No items yet — add a header or link above.
                         </div>
 
+                        <StatusBanner
+                            v-if="itemsError"
+                            type="error"
+                            class="q-mt-md"
+                        >
+                            {{ itemsError }}
+                        </StatusBanner>
+
                         <div class="q-mt-md">
                             <q-btn
                                 color="primary"
                                 label="Save Items"
                                 dense
                                 no-caps
-                                class="q-pr-md"
                                 :loading="savingItems"
                                 @click="saveItems"
                             >
@@ -258,11 +219,15 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { VueDraggable } from "vue-draggable-plus"
 import { useFetch } from "@/composables/ViperFetch"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
+import LeftNavMenuSettingsFields from "@/CMS/components/LeftNavMenuSettingsFields.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { CmsLeftNavMenu } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/left-navs"
@@ -277,6 +242,8 @@ const isNew = computed(() => menuId.value === null)
 const menuFormRef = ref()
 const savingMenu = ref(false)
 const savingItems = ref(false)
+const menuFormError = ref("")
+const itemsError = ref("")
 
 const menu = ref({
     menuHeaderText: "" as string | null,
@@ -298,6 +265,13 @@ type EditableItem = {
 const items = ref<EditableItem[]>([])
 let savedMenu: CmsLeftNavMenu | null = null
 let nextKey = -1
+
+// Dirty tracking spans both the menu settings and the items list, so unsaved edits in
+// either half prompt before navigating away (matching the Effort forms' guard).
+const formSnapshot = computed(() => ({ menu: menu.value, items: items.value }))
+const { setInitialState, resetDirtyState, confirmClose } = useUnsavedChanges(formSnapshot)
+
+onBeforeRouteLeave(async () => await confirmClose())
 
 function toEditableItems(source: CmsLeftNavMenu): EditableItem[] {
     return source.items.map((i) => ({
@@ -327,11 +301,19 @@ async function loadMenu() {
         friendlyName: res.result.friendlyName,
     }
     items.value = toEditableItems(res.result)
+    setInitialState()
+}
+
+// The q-form focuses the first invalid field on a failed submit; this surfaces a matching
+// message next to the save button so the failure is obvious without scrolling up.
+function onMenuValidationError() {
+    menuFormError.value = isNew.value
+        ? "Please complete the required fields before creating this menu."
+        : "Please complete the required fields before saving."
 }
 
 async function saveMenu() {
-    const valid = await menuFormRef.value?.validate()
-    if (!valid) return
+    menuFormError.value = ""
 
     savingMenu.value = true
     const payload = {
@@ -345,10 +327,11 @@ async function saveMenu() {
     savingMenu.value = false
 
     if (!res.success) {
-        $q.notify({ type: "negative", message: "Failed to save menu" })
+        menuFormError.value = res.errors?.[0] ?? "Failed to save menu"
         return
     }
     $q.notify({ type: "positive", message: isNew.value ? "Menu created — now add items" : "Menu settings saved" })
+    resetDirtyState()
     if (isNew.value) {
         // the menuId watch loads the created menu once the route changes
         void router.push({ name: "CmsLeftNavEdit", params: { id: res.result.leftNavMenuId } })
@@ -378,9 +361,10 @@ function moveItem(index: number, direction: -1 | 1) {
 }
 
 async function saveItems() {
+    itemsError.value = ""
     const emptyItem = items.value.find((i) => !i.menuItemText || i.menuItemText.trim() === "")
     if (emptyItem) {
-        $q.notify({ type: "negative", message: "Every item needs text" })
+        itemsError.value = "Every item needs text — fill in the empty item before saving."
         return
     }
 
@@ -396,17 +380,19 @@ async function saveItems() {
     savingItems.value = false
 
     if (!res.success) {
-        $q.notify({ type: "negative", message: "Failed to save items" })
+        itemsError.value = res.errors?.[0] ?? "Failed to save items"
         return
     }
     $q.notify({ type: "positive", message: "Items saved" })
     savedMenu = res.result
     items.value = toEditableItems(res.result)
+    resetDirtyState()
 }
 
 function revertItems() {
     if (savedMenu) {
         items.value = toEditableItems(savedMenu)
+        itemsError.value = ""
         $q.notify({ type: "info", message: "Items reverted to last saved state" })
     }
 }
@@ -425,12 +411,21 @@ watch(menuId, (id) => {
         }
         items.value = []
         savedMenu = null
+        menuFormError.value = ""
+        itemsError.value = ""
+        setInitialState()
     } else {
         void loadMenu()
     }
 })
 
-onMounted(loadMenu)
+onMounted(() => {
+    loadMenu()
+    // loadMenu sets the baseline for an existing menu; a brand-new form's baseline is empty.
+    if (isNew.value) {
+        setInitialState()
+    }
+})
 </script>
 
 <style scoped>
@@ -451,10 +446,5 @@ onMounted(loadMenu)
 
 .handle:active {
     cursor: grabbing;
-}
-
-.required-field :deep(.q-field__label)::after {
-    content: " *";
-    color: var(--q-negative);
 }
 </style>

@@ -32,10 +32,9 @@
             <q-btn
                 color="positive"
                 icon="add"
-                label="Upload File"
+                label="Add File"
                 no-caps
                 dense
-                class="q-pr-md"
                 @click="openUploadDialog"
             />
         </div>

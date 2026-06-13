@@ -9,8 +9,7 @@
                 label="Add Left-Nav Menu"
                 no-caps
                 dense
-                class="q-pr-md"
-                :to="{ name: 'CmsLeftNavEdit' }"
+                @click="showAddDialog = true"
             />
         </div>
 
@@ -20,9 +19,10 @@
                     v-model="filters.system"
                     dense
                     options-dense
-                    clearable
+                    emit-value
+                    map-options
                     label="System"
-                    :options="['Viper', 'Public']"
+                    :options="systemOptions"
                     @update:model-value="loadMenus"
                 />
             </div>
@@ -90,28 +90,44 @@
                 </q-td>
             </template>
         </q-table>
+
+        <LeftNavMenuDialog
+            v-model="showAddDialog"
+            @created="onMenuCreated"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { inject, onMounted, ref } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import EditButton from "@/CMS/components/EditButton.vue"
+import LeftNavMenuDialog from "@/CMS/components/LeftNavMenuDialog.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import type { CmsLeftNavMenu } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/left-navs"
+const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 const { get, del, createUrlSearchParams } = useFetch()
 
 const menus = ref<CmsLeftNavMenu[]>([])
 const loading = ref(false)
+const showAddDialog = ref(false)
 
 const filters = ref({
     system: null as string | null,
     search: "",
 })
+
+const systemOptions = [
+    { label: "All", value: null },
+    { label: "Viper", value: "Viper" },
+    { label: "Public", value: "Public" },
+]
 
 const columns: QTableProps["columns"] = [
     { name: "menuHeaderText", label: "Menu Header", field: "menuHeaderText", align: "left", sortable: true },
@@ -158,5 +174,16 @@ async function deleteMenu(menu: CmsLeftNavMenu) {
     loadMenus()
 }
 
-onMounted(loadMenus)
+function onMenuCreated(leftNavMenuId: number) {
+    // After creating the menu's settings, go to the page to manage its items.
+    void router.push({ name: "CmsLeftNavEdit", params: { id: leftNavMenuId } })
+}
+
+onMounted(() => {
+    // The "Add Left-Nav Menu" nav entry deep-links here with ?add=1 to open the dialog.
+    if (route.query.add === "1") {
+        showAddDialog.value = true
+    }
+    loadMenus()
+})
 </script>

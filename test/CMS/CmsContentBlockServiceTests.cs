@@ -83,9 +83,9 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         await SeedBlockAsync();
         await SeedBlockAsync(b => b.DeletedOn = DateTime.Now);
 
-        var active = await _service.GetContentBlocksAsync("active", null, null, null, TestContext.Current.CancellationToken);
-        var deleted = await _service.GetContentBlocksAsync("deleted", null, null, null, TestContext.Current.CancellationToken);
-        var all = await _service.GetContentBlocksAsync("all", null, null, null, TestContext.Current.CancellationToken);
+        var active = await _service.GetContentBlocksAsync("active", null, null, null, ct: TestContext.Current.CancellationToken);
+        var deleted = await _service.GetContentBlocksAsync("deleted", null, null, null, ct: TestContext.Current.CancellationToken);
+        var all = await _service.GetContentBlocksAsync("all", null, null, null, ct: TestContext.Current.CancellationToken);
 
         Assert.Single(active);
         Assert.Single(deleted);
@@ -97,7 +97,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     {
         await SeedBlockAsync();
 
-        var list = await _service.GetContentBlocksAsync("active", null, null, null, TestContext.Current.CancellationToken);
+        var list = await _service.GetContentBlocksAsync("active", null, null, null, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(string.Empty, list[0].Content);
     }

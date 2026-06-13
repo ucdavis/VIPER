@@ -49,14 +49,14 @@ namespace Viper.Areas.CMS.Services
             {
                 nav.Add(new NavMenuItem { MenuItemText = "Files", IsHeader = true });
                 nav.Add(new NavMenuItem { MenuItemText = "Manage Files", MenuItemURL = "ManageFiles", IndentLevel = 1 });
-                nav.Add(new NavMenuItem { MenuItemText = "Upload File", MenuItemURL = "ManageFiles?upload=1", IndentLevel = 1 });
+                nav.Add(new NavMenuItem { MenuItemText = "Add File", MenuItemURL = "ManageFiles?upload=1", IndentLevel = 1 });
             }
 
             if (canManageNav)
             {
                 nav.Add(new NavMenuItem { MenuItemText = "Left Navigation Menus", IsHeader = true });
                 nav.Add(new NavMenuItem { MenuItemText = "Manage Left-Nav Menus", MenuItemURL = "ManageLeftNav", IndentLevel = 1 });
-                nav.Add(new NavMenuItem { MenuItemText = "Add Left-Nav Menu", MenuItemURL = "ManageLeftNav/Edit", IndentLevel = 1 });
+                nav.Add(new NavMenuItem { MenuItemText = "Add Left-Nav Menu", MenuItemURL = "ManageLeftNav?add=1", IndentLevel = 1 });
             }
 
             return new NavMenu("Content Management System", nav);

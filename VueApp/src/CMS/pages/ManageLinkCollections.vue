@@ -211,7 +211,7 @@
                 label="Add Link"
                 @click="showLinkDialog = true"
                 no-caps
-                class="q-pr-md q-mt-sm"
+                class="q-mt-sm"
             />
             <q-dialog
                 v-model="showLinkDialog"
@@ -309,6 +309,14 @@
                             />
                         </fieldset>
                     </q-card-section>
+                    <q-card-section
+                        v-if="linkFormError"
+                        class="q-pt-none"
+                    >
+                        <StatusBanner type="error">
+                            {{ linkFormError }}
+                        </StatusBanner>
+                    </q-card-section>
                     <q-card-actions align="right">
                         <q-btn
                             v-if="link.linkId > 0"
@@ -317,7 +325,6 @@
                             dense
                             no-caps
                             color="negative"
-                            class="q-pr-md"
                         />
                         <q-btn
                             label="Save"
@@ -325,7 +332,6 @@
                             dense
                             no-caps
                             color="primary"
-                            class="q-pr-md"
                         />
                     </q-card-actions>
                 </q-card>
@@ -460,6 +466,8 @@ import type { Ref } from "vue"
 import { VueDraggable } from "vue-draggable-plus"
 import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from "@/CMS/types/"
 import { useFetch } from "@/composables/ViperFetch"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { isSafeUrl } from "@/CMS/utils/url"
 
 const apiURL = (inject("apiURL") + "cms/linkCollections/") as string
@@ -484,6 +492,16 @@ const links: Ref<LinkWithTags[]> = ref([])
 const link: Ref<LinkWithTags> = ref({ linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 })
 const showLinkDialog: Ref<boolean> = ref(false)
 const linkFormRef: Ref<any> = ref(null)
+const linkFormError = ref("")
+const { setInitialState: setLinkBaseline, confirmClose: confirmLinkClose } = useUnsavedChanges(link)
+
+// Capture the dialog's clean baseline whenever it opens, for the unsaved-changes guard.
+watch(showLinkDialog, (open) => {
+    if (open) {
+        linkFormError.value = ""
+        setLinkBaseline()
+    }
+})
 
 const justMovedLinkId: Ref<number | null> = ref(null)
 const justMovedTagId: Ref<number | null> = ref(null)
@@ -673,8 +691,12 @@ function getTagsForCategory(element: LinkWithTags, categoryId: number) {
 }
 
 async function saveLink() {
+    linkFormError.value = ""
     const valid = await linkFormRef.value?.validate()
-    if (!valid) return
+    if (!valid) {
+        linkFormError.value = "Please complete the required fields before saving this link."
+        return
+    }
     const { post, put } = useFetch()
     const isEdit = link.value.linkId !== 0
     let saveRes
@@ -698,13 +720,13 @@ async function saveLink() {
     }
 
     if (!saveRes.success) {
-        $q.notify({ type: "negative", message: `Failed to ${isEdit ? "update" : "create"} link` })
+        linkFormError.value = saveRes.errors?.[0] ?? `Failed to ${isEdit ? "update" : "create"} link`
         return
     }
 
     const tagsRes = await put(apiURL + collectionId.value + "/links/" + link.value.linkId + "/tags", link.value.tags)
     if (!tagsRes.success) {
-        $q.notify({ type: "negative", message: "Link saved but tags failed to update" })
+        linkFormError.value = "Link saved but tags failed to update"
         return
     }
 
@@ -719,9 +741,11 @@ function clickLink(li: LinkWithTags) {
     showLinkDialog.value = true
 }
 
-function cancelLinkDialog() {
+async function cancelLinkDialog() {
+    if (!(await confirmLinkClose())) return
     link.value = { linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 }
     showLinkDialog.value = false
+    linkFormError.value = ""
     linkFormRef.value?.resetValidation()
 }
 
