@@ -219,7 +219,7 @@ namespace Viper.Services
                 // For production, assume the SMTP server is available
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is SocketException or ArgumentException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error checking email service availability");
                 return false;
@@ -246,7 +246,7 @@ namespace Viper.Services
                 await tcpClient.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort);
                 return tcpClient.Connected;
             }
-            catch
+            catch (SocketException)
             {
                 return false;
             }
