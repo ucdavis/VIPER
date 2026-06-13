@@ -90,7 +90,7 @@ const sections: Section[] = [
         permissions: ["SVMSecure.CMS.AllFiles"],
         actions: [
             { label: "Manage Files", to: { name: "CmsFiles" } },
-            { label: "Audit Log", to: { name: "CmsFileAudit" } },
+            { label: "Audit Trail", to: { name: "CmsFileAudit" } },
         ],
     },
     {

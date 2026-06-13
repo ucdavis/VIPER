@@ -84,30 +84,18 @@
                         >
                             {{ cellProps.row.title || "(untitled)" }}
                         </router-link>
-                        <q-icon
+                        <StatusIcon
                             v-if="cellProps.row.allowPublicAccess"
-                            name="public"
+                            icon="public"
                             color="positive"
-                        >
-                            <q-tooltip>Public access</q-tooltip>
-                        </q-icon>
-                        <span
-                            v-if="cellProps.row.allowPublicAccess"
-                            class="sr-only"
-                            >Public access</span
-                        >
-                        <q-icon
+                            label="Public access"
+                        />
+                        <StatusIcon
                             v-if="cellProps.row.deletedOn"
-                            name="delete_outline"
+                            icon="delete_outline"
                             color="negative"
-                        >
-                            <q-tooltip>Deleted</q-tooltip>
-                        </q-icon>
-                        <span
-                            v-if="cellProps.row.deletedOn"
-                            class="sr-only"
-                            >Deleted</span
-                        >
+                            label="Deleted"
+                        />
                     </div>
                     <div class="text-caption text-grey-7">{{ cellProps.row.friendlyName }}</div>
                 </q-td>
@@ -149,6 +137,7 @@ import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import PermissionChips from "@/CMS/components/PermissionChips.vue"
+import StatusIcon from "@/CMS/components/StatusIcon.vue"
 import type { CmsContentBlock } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "CMS/content"

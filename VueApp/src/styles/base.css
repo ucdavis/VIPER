@@ -294,6 +294,16 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
+/* Breadcrumb-style parent links inside page headings */
+.q-page-container h1 a {
+    text-decoration: none;
+}
+
+.q-page-container h1 a:hover,
+.q-page-container h1 a:focus {
+    text-decoration: underline;
+}
+
 .q-dialog h2,
 .q-dialog .text-h2,
 .q-page-container h2,

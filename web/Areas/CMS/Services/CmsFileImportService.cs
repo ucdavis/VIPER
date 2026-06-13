@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models.DTOs;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Services
@@ -10,6 +11,9 @@ namespace Viper.Areas.CMS.Services
     public interface ICmsFileImportService
     {
         Task<List<CmsFileImportResult>> ImportFilesAsync(CmsFileImportRequest request, CancellationToken ct = default);
+
+        /// <summary>Dry-run of an import request: validates each path and reports the resulting names without moving anything.</summary>
+        Task<List<CmsFileImportPreviewResult>> PreviewImportAsync(CmsFileImportRequest request, CancellationToken ct = default);
 
         Task<List<CmsBulkEncryptResult>> BulkEncryptAsync(List<Guid> fileGuids, CancellationToken ct = default);
     }
@@ -26,17 +30,19 @@ namespace Viper.Areas.CMS.Services
         private readonly ICmsFileEncryptionService _encryption;
         private readonly ICmsFileAuditService _audit;
         private readonly IUserHelper _userHelper;
+        private readonly ILogger<CmsFileImportService> _logger;
         private readonly string? _legacyWebroot;
 
         public CmsFileImportService(VIPERContext context, ICmsFileStorageService storage,
             ICmsFileEncryptionService encryption, ICmsFileAuditService audit, IUserHelper userHelper,
-            IConfiguration configuration)
+            IConfiguration configuration, ILogger<CmsFileImportService> logger)
         {
             _context = context;
             _storage = storage;
             _encryption = encryption;
             _audit = audit;
             _userHelper = userHelper;
+            _logger = logger;
             _legacyWebroot = configuration["CMS:LegacyWebrootPath"]
                 ?? (HttpHelper.Environment?.EnvironmentName == "Development" ? @"C:\Sites\https\VIPER" : null);
         }
@@ -71,31 +77,113 @@ namespace Viper.Areas.CMS.Services
             return results;
         }
 
+        public async Task<List<CmsFileImportPreviewResult>> PreviewImportAsync(CmsFileImportRequest request, CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(_legacyWebroot))
+            {
+                throw new InvalidOperationException("CMS:LegacyWebrootPath is not configured for this environment.");
+            }
+            if (!_storage.IsValidFolder(request.Folder))
+            {
+                throw new ArgumentException("Invalid folder.");
+            }
+
+            var results = new List<CmsFileImportPreviewResult>();
+            var seenSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var plannedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var rawPath in request.FilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()))
+            {
+                var result = new CmsFileImportPreviewResult { FilePath = rawPath };
+                results.Add(result);
+
+                var source = ResolveSource(rawPath);
+                if (source.Error != null)
+                {
+                    result.Message = source.Error;
+                    continue;
+                }
+                if (!seenSources.Add(source.SourcePath))
+                {
+                    result.Message = "Duplicate of an earlier line.";
+                    continue;
+                }
+
+                string finalName = _storage.GetAvailableFileName(request.Folder, source.FileName);
+                string friendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, finalName);
+                if (await _context.Files.AnyAsync(f => f.FriendlyName == friendlyName, ct))
+                {
+                    result.Message = $"A file with the name {friendlyName} already exists.";
+                    continue;
+                }
+
+                result.CanImport = true;
+                result.FileName = finalName;
+                if (!string.Equals(finalName, source.FileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.RenamedFrom = source.FileName;
+                }
+                result.FriendlyName = friendlyName;
+                result.OldUrl = "/" + source.Relative.Replace('\\', '/');
+                if (!plannedNames.Add(finalName))
+                {
+                    result.Message = "Another line uses the same file name; this one will be renamed during import.";
+                }
+            }
+            return results;
+        }
+
+        private sealed record SourceResolution(string Relative, string SourcePath, string FileName, string? Error);
+
+        /// <summary>
+        /// Resolves a legacy-webroot path and runs the validations shared by preview and
+        /// import, so the preview can't promise something the import would reject.
+        /// </summary>
+        private SourceResolution ResolveSource(string rawPath)
+        {
+            string relative = rawPath.TrimStart('/', '\\').Replace('/', '\\');
+            string sourcePath;
+            string fileName;
+            try
+            {
+                sourcePath = Path.GetFullPath(Path.Join(_legacyWebroot, relative));
+                fileName = Path.GetFileName(sourcePath);
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return new SourceResolution(relative, string.Empty, string.Empty, "Path is not valid.");
+            }
+            string webroot = Path.GetFullPath(_legacyWebroot! + Path.DirectorySeparatorChar);
+
+            string? error = null;
+            if (!sourcePath.StartsWith(webroot, StringComparison.OrdinalIgnoreCase))
+            {
+                error = "Path is outside the legacy webroot.";
+            }
+            else if (!System.IO.File.Exists(sourcePath))
+            {
+                error = "File not found.";
+            }
+            else if (!CmsFileTypes.IsAllowedFileName(fileName))
+            {
+                error = "File type is not allowed.";
+            }
+            return new SourceResolution(relative, sourcePath, fileName, error);
+        }
+
         private async Task<CmsFileImportResult> ImportSingleFileAsync(string rawPath, CmsFileImportRequest request,
             List<string> permissions, CancellationToken ct)
         {
             var result = new CmsFileImportResult { FilePath = rawPath };
             try
             {
-                string relative = rawPath.TrimStart('/', '\\').Replace('/', '\\');
-                string sourcePath = Path.GetFullPath(Path.Join(_legacyWebroot, relative));
-                string webroot = Path.GetFullPath(_legacyWebroot! + Path.DirectorySeparatorChar);
-                if (!sourcePath.StartsWith(webroot, StringComparison.OrdinalIgnoreCase))
+                var source = ResolveSource(rawPath);
+                if (source.Error != null)
                 {
-                    result.Message = "Path is outside the legacy webroot.";
+                    result.Message = source.Error;
                     return result;
                 }
-                if (!System.IO.File.Exists(sourcePath))
-                {
-                    result.Message = "File not found.";
-                    return result;
-                }
-                string fileName = Path.GetFileName(sourcePath);
-                if (!CmsFileTypes.IsAllowedFileName(fileName))
-                {
-                    result.Message = "File type is not allowed.";
-                    return result;
-                }
+                string sourcePath = source.SourcePath;
 
                 bool encrypt = request.Encrypt ?? false;
                 string? dbKey = encrypt ? _encryption.GenerateKeyForDb() : null;
@@ -104,16 +192,17 @@ namespace Viper.Areas.CMS.Services
                 // after the import fully succeeds (legacy used move semantics).
                 string tempPath = Path.Join(Path.GetTempPath(), "Viper-CMS-Uploads", Guid.NewGuid().ToString("N"));
                 System.IO.Directory.CreateDirectory(Path.GetDirectoryName(tempPath)!);
-                System.IO.File.Copy(sourcePath, tempPath);
 
                 string finalPath;
                 try
                 {
+                    // Copy inside the try so a partial copy (e.g. disk full) is removed by the finally.
+                    System.IO.File.Copy(sourcePath, tempPath);
                     if (dbKey != null)
                     {
                         _encryption.EncryptFileInPlace(tempPath, dbKey);
                     }
-                    finalPath = _storage.MoveIntoPlace(tempPath, request.Folder, fileName, makeUnique: true);
+                    finalPath = _storage.MoveIntoPlace(tempPath, request.Folder, source.FileName, makeUnique: true);
                 }
                 finally
                 {
@@ -123,7 +212,7 @@ namespace Viper.Areas.CMS.Services
                     }
                 }
 
-                string friendlyName = request.Folder.Replace('\\', '-').Replace('/', '-') + "-" + Path.GetFileName(finalPath);
+                string friendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, Path.GetFileName(finalPath));
                 if (await _context.Files.AnyAsync(f => f.FriendlyName == friendlyName, ct))
                 {
                     _storage.DeleteManagedFile(finalPath);
@@ -141,7 +230,7 @@ namespace Viper.Areas.CMS.Services
                     Key = dbKey,
                     Description = "Automatically imported from Viper",
                     AllowPublicAccess = request.AllowPublicAccess ?? false,
-                    OldUrl = "/" + relative.Replace('\\', '/'),
+                    OldUrl = "/" + source.Relative.Replace('\\', '/'),
                     ModifiedOn = DateTime.Now,
                     ModifiedBy = CurrentLoginId()
                 };
@@ -156,7 +245,15 @@ namespace Viper.Areas.CMS.Services
                 {
                     await _context.SaveChangesAsync(ct);
                 }
-                catch (Exception ex) when (ex is DbUpdateException or SqlException)
+                catch (OperationCanceledException)
+                {
+                    // A cancelled save never persisted the record: drop the pending entity and the
+                    // stored copy so the abort leaves nothing orphaned, then let it propagate.
+                    _context.ChangeTracker.Clear();
+                    _storage.DeleteManagedFile(finalPath);
+                    throw;
+                }
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
                 {
                     // Drop the failed entities so they can't poison later saves in this batch,
                     // and remove the stored copy; the untouched source can be re-imported.
@@ -166,7 +263,19 @@ namespace Viper.Areas.CMS.Services
                     return result;
                 }
 
-                System.IO.File.Delete(sourcePath);
+                try
+                {
+                    System.IO.File.Delete(sourcePath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // The record is saved and the managed copy is in place, so the import
+                    // succeeded; only the legacy source could not be removed. Re-importing it
+                    // would now fail on the duplicate name, so report success with a note.
+                    _logger.LogWarning(ex, "CMS import succeeded but the legacy source could not be removed: {Path}",
+                        LogSanitizer.SanitizeString(sourcePath));
+                    result.Message = "Imported, but the original file could not be removed from the legacy webroot.";
+                }
 
                 result.Success = true;
                 result.FileGuid = entity.FileGuid;
@@ -236,14 +345,19 @@ namespace Viper.Areas.CMS.Services
                 file.ModifiedOn = DateTime.Now;
                 file.ModifiedBy = CurrentLoginId();
                 _audit.Audit(file, CmsFileAuditActions.EditFile, "Encrypted file (bulk)");
-                // The file is already encrypted on disk; cancelling this save would lose the
-                // key, so it runs to completion even if the request is aborted.
-                await _context.SaveChangesAsync(CancellationToken.None);
-                result.Success = true;
-            }
-            catch (Exception ex) when (ex is DbUpdateException or SqlException)
-            {
-                RollBackUnsavedEncryption(file, dbKey!, ex, result);
+                try
+                {
+                    // The file is already encrypted on disk; cancelling this save would lose the
+                    // key, so it runs to completion even if the request is aborted.
+                    await _context.SaveChangesAsync(CancellationToken.None);
+                    result.Success = true;
+                }
+                catch (Exception ex)
+                {
+                    // Any save failure, whatever the exception type, means the key was not
+                    // persisted; the file must be decrypted back or it is unrecoverable.
+                    RollBackUnsavedEncryption(file, dbKey, ex, result);
+                }
             }
             catch (IOException ex)
             {

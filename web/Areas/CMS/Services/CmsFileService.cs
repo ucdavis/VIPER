@@ -12,6 +12,10 @@ namespace Viper.Areas.CMS.Services
         Task<(List<CmsFileDto> Files, int Total)> GetFilesAsync(string? folder, string status, string? search,
             bool? encrypted, bool? isPublic, int page, int perPage, string? sortBy, bool descending, CancellationToken ct = default);
 
+        Task<List<CmsFolderCountDto>> GetFolderCountsAsync(string status, bool? encrypted, bool? isPublic, CancellationToken ct = default);
+
+        Task<CmsFileNameCheckDto> CheckNameAsync(string folder, string fileName, CancellationToken ct = default);
+
         Task<CmsFileDto?> GetFileAsync(Guid fileGuid, CancellationToken ct = default);
 
         Task<CmsFileDto> CreateFileAsync(CmsFileCreateRequest request, IFormFile file, CancellationToken ct = default);
@@ -39,9 +43,11 @@ namespace Viper.Areas.CMS.Services
         private readonly ICmsFileEncryptionService _encryption;
         private readonly ICmsFileAuditService _audit;
         private readonly IUserHelper _userHelper;
+        private readonly ILogger<CmsFileService> _logger;
 
         public CmsFileService(VIPERContext context, AAUDContext aaudContext, ICmsFileStorageService storage,
-            ICmsFileEncryptionService encryption, ICmsFileAuditService audit, IUserHelper userHelper)
+            ICmsFileEncryptionService encryption, ICmsFileAuditService audit, IUserHelper userHelper,
+            ILogger<CmsFileService> logger)
         {
             _context = context;
             _aaudContext = aaudContext;
@@ -49,6 +55,7 @@ namespace Viper.Areas.CMS.Services
             _encryption = encryption;
             _audit = audit;
             _userHelper = userHelper;
+            _logger = logger;
         }
 
         public async Task<(List<CmsFileDto> Files, int Total)> GetFilesAsync(string? folder, string status, string? search,
@@ -69,12 +76,7 @@ namespace Viper.Areas.CMS.Services
                 query = query.Where(f => f.Folder == folder || (f.Folder != null && f.Folder.StartsWith(folderPrefix)));
             }
 
-            query = status.ToLowerInvariant() switch
-            {
-                "active" => query.Where(f => f.DeletedOn == null),
-                "deleted" => query.Where(f => f.DeletedOn != null),
-                _ => query
-            };
+            query = ApplyStatusFilter(query, status);
 
             if (encrypted != null)
             {
@@ -117,6 +119,51 @@ namespace Viper.Areas.CMS.Services
             return (files.Select(f => CmsFileMapper.ToCmsFileDto(f, names)).ToList(), total);
         }
 
+        public async Task<List<CmsFolderCountDto>> GetFolderCountsAsync(string status, bool? encrypted, bool? isPublic,
+            CancellationToken ct = default)
+        {
+            var query = _context.Files
+                .AsNoTracking()
+                .TagWith("CmsFileService.GetFolderCounts")
+                .AsQueryable();
+
+            query = ApplyStatusFilter(query, status);
+
+            if (encrypted != null)
+            {
+                query = query.Where(f => f.Encrypted == encrypted);
+            }
+
+            if (isPublic != null)
+            {
+                query = query.Where(f => f.AllowPublicAccess == isPublic);
+            }
+
+            var byFolder = await query
+                .GroupBy(f => f.Folder)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+
+            // Folders may have subfolders stored as "folder\sub"; roll counts up to the
+            // top-level folder so they match the list's folder filter (GetFilesAsync).
+            return byFolder
+                .GroupBy(x => (x.Key ?? string.Empty).Split(['\\', '/'], StringSplitOptions.None)[0], StringComparer.OrdinalIgnoreCase)
+                .Where(g => !string.IsNullOrWhiteSpace(g.Key))
+                .Select(g => new CmsFolderCountDto { Folder = g.Key, Count = g.Sum(x => x.Count) })
+                .OrderBy(c => c.Folder, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static IQueryable<File> ApplyStatusFilter(IQueryable<File> query, string? status)
+        {
+            return status?.ToLowerInvariant() switch
+            {
+                "active" => query.Where(f => f.DeletedOn == null),
+                "deleted" => query.Where(f => f.DeletedOn != null),
+                _ => query
+            };
+        }
+
         public async Task<CmsFileDto?> GetFileAsync(Guid fileGuid, CancellationToken ct = default)
         {
             var file = await LoadFileAsync(fileGuid, tracking: false, ct);
@@ -128,13 +175,42 @@ namespace Viper.Areas.CMS.Services
             return CmsFileMapper.ToCmsFileDto(file, names);
         }
 
+        public async Task<CmsFileNameCheckDto> CheckNameAsync(string folder, string fileName, CancellationToken ct = default)
+        {
+            if (!_storage.IsValidFolder(folder))
+            {
+                throw new ArgumentException("Invalid folder.");
+            }
+            string name = Path.GetFileName(fileName);
+            if (string.IsNullOrWhiteSpace(name) || !CmsFileTypes.IsAllowedFileName(name))
+            {
+                throw new ArgumentException("File type is not allowed.");
+            }
+
+            string targetPath = _storage.BuildManagedPath(folder, name);
+            var existing = await _context.Files
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f => f.FilePath == targetPath, ct);
+            bool inUse = existing != null || _storage.FileNameInUse(folder, name);
+            return new CmsFileNameCheckDto
+            {
+                InUse = inUse,
+                SuggestedName = inUse ? _storage.GetAvailableFileName(folder, name) : name,
+                ExistingFileGuid = existing?.FileGuid,
+                ExistingFriendlyName = existing?.FriendlyName,
+                ExistingDeleted = existing?.DeletedOn != null
+            };
+        }
+
         public async Task<CmsFileDto> CreateFileAsync(CmsFileCreateRequest request, IFormFile file, CancellationToken ct = default)
         {
             if (!_storage.IsValidFolder(request.Folder))
             {
                 throw new ArgumentException("Invalid folder.");
             }
-            if (!CmsFileTypes.IsAllowedFileName(file.FileName))
+            string uploadName = Path.GetFileName(
+                string.IsNullOrWhiteSpace(request.FileName) ? file.FileName : request.FileName);
+            if (string.IsNullOrWhiteSpace(uploadName) || !CmsFileTypes.IsAllowedFileName(uploadName))
             {
                 throw new ArgumentException("File type is not allowed.");
             }
@@ -150,7 +226,21 @@ namespace Viper.Areas.CMS.Services
                 {
                     _encryption.EncryptFileInPlace(tempPath, dbKey);
                 }
-                finalPath = _storage.MoveIntoPlace(tempPath, request.Folder, file.FileName, request.MakeUnique ?? false);
+                if (request.Overwrite == true && _storage.FileNameInUse(request.Folder, uploadName))
+                {
+                    string targetPath = _storage.BuildManagedPath(request.Folder, uploadName);
+                    if (await _context.Files.AnyAsync(f => f.FilePath == targetPath, ct))
+                    {
+                        throw new InvalidOperationException(
+                            $"{uploadName} belongs to an existing file record; replace its content by editing that file.");
+                    }
+                    _storage.ReplaceInPlace(tempPath, targetPath);
+                    finalPath = targetPath;
+                }
+                else
+                {
+                    finalPath = _storage.MoveIntoPlace(tempPath, request.Folder, uploadName, makeUnique: false);
+                }
             }
             finally
             {
@@ -160,7 +250,7 @@ namespace Viper.Areas.CMS.Services
                 }
             }
 
-            string friendlyName = BuildFriendlyName(request.Folder, Path.GetFileName(finalPath));
+            string friendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, Path.GetFileName(finalPath));
             if (await _context.Files.AnyAsync(f => f.FriendlyName == friendlyName, ct))
             {
                 _storage.DeleteManagedFile(finalPath);
@@ -194,7 +284,18 @@ namespace Viper.Areas.CMS.Services
             _context.Files.Add(entity);
             _audit.Audit(entity, CmsFileAuditActions.AddFile, BuildCreateDetail(entity));
             _audit.Audit(entity, CmsFileAuditActions.UploadFile, "NewFile");
-            await _context.SaveChangesAsync(ct);
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            catch (Exception)
+            {
+                // The upload is already in the managed store; any failed save would orphan it on
+                // disk, so drop the pending changes and remove the stored copy before rethrowing.
+                _context.ChangeTracker.Clear();
+                _storage.DeleteManagedFile(finalPath);
+                throw;
+            }
 
             var names = await GetNamesByIamIdAsync(entity.FileToPeople.Select(p => p.IamId), ct);
             return CmsFileMapper.ToCmsFileDto(entity, names);
@@ -211,6 +312,12 @@ namespace Viper.Areas.CMS.Services
             var changes = new List<string>();
             bool encrypt = request.Encrypt ?? false;
             bool allowPublicAccess = request.AllowPublicAccess ?? false;
+
+            // The crypto toggle and any replacement upload below transform the file on disk before
+            // the metadata save. Capture the pre-change state so a failed save can reconcile the
+            // on-disk file back to it (mirrors the import service's encryption rollback).
+            bool originalEncrypted = entity.Encrypted;
+            string? originalKey = entity.Key;
 
             // Encryption toggle happens before any file replacement so the replacement upload
             // is written with the file's final encryption state.
@@ -263,6 +370,14 @@ namespace Viper.Areas.CMS.Services
                 {
                     throw new ArgumentException("File type is not allowed.");
                 }
+                // The replacement keeps the existing record's name and path, so its bytes must
+                // stay the same type; a mismatched extension would leave the stored .pdf holding
+                // .png bytes and serve a corrupt download.
+                string currentExt = Path.GetExtension(entity.FilePath);
+                if (!string.Equals(currentExt, Path.GetExtension(file.FileName), StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException($"The replacement file must be the same type as the original ({currentExt}).");
+                }
                 string tempPath = await _storage.SaveToTempAsync(file, ct);
                 try
                 {
@@ -280,16 +395,69 @@ namespace Viper.Areas.CMS.Services
                     }
                 }
                 _audit.Audit(entity, CmsFileAuditActions.UploadFile, "ReplacingFile");
+
+                // Uploading new content into a soft-deleted record (the overwrite-conflict
+                // flow) makes it live again; metadata-only edits leave deletion state alone.
+                if (entity.DeletedOn != null)
+                {
+                    entity.DeletedOn = null;
+                    changes.Add("Restored file");
+                }
             }
 
             entity.ModifiedOn = DateTime.Now;
             entity.ModifiedBy = CurrentLoginId();
 
             _audit.Audit(entity, CmsFileAuditActions.EditFile, string.Join("; ", changes));
-            await _context.SaveChangesAsync(ct);
+            try
+            {
+                // The file on disk may already be in its new encryption state; cancelling the save
+                // would strand it without a matching key, so it runs to completion even if aborted.
+                await _context.SaveChangesAsync(CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Any failure type means the new state was not persisted; drop the pending changes
+                // and reconcile the on-disk file back to its original encryption state before rethrowing.
+                _context.ChangeTracker.Clear();
+                RevertCryptoOnSaveFailure(entity, originalEncrypted, originalKey);
+                throw;
+            }
 
             var names = await GetNamesByIamIdAsync(entity.FileToPeople.Select(p => p.IamId), ct);
             return CmsFileMapper.ToCmsFileDto(entity, names);
+        }
+
+        /// <summary>
+        /// A failed metadata save rolls the database back to the file's original encryption state,
+        /// but the on-disk file was already transformed to the new state. Reconcile it back, or a
+        /// download would read bytes that don't match the stored key. A failure to revert leaves the
+        /// file unreadable, so it is logged as critical rather than swallowed.
+        /// </summary>
+        private void RevertCryptoOnSaveFailure(File entity, bool originalEncrypted, string? originalKey)
+        {
+            if (entity.Encrypted == originalEncrypted || !_storage.ManagedFileExists(entity.FilePath))
+            {
+                return;
+            }
+            try
+            {
+                if (originalEncrypted && !string.IsNullOrEmpty(originalKey))
+                {
+                    // The file had been decrypted; re-encrypt it with the original key.
+                    _encryption.EncryptFileInPlace(entity.FilePath, originalKey);
+                }
+                else if (!originalEncrypted && !string.IsNullOrEmpty(entity.Key))
+                {
+                    // The file had been encrypted; decrypt it with the key that was generated.
+                    _encryption.DecryptFileInPlace(entity.FilePath, entity.Key);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogCritical(ex, "CMS file {FileGuid} could not be reverted after a failed save; "
+                    + "its on-disk encryption no longer matches the database.", entity.FileGuid);
+            }
         }
 
         public async Task<bool> SoftDeleteFileAsync(Guid fileGuid, CancellationToken ct = default)
@@ -432,11 +600,6 @@ namespace Viper.Areas.CMS.Services
         private string CurrentLoginId()
         {
             return _userHelper.GetCurrentUser()?.LoginId ?? "unknown";
-        }
-
-        private static string BuildFriendlyName(string folder, string fileName)
-        {
-            return folder.Replace('\\', '-').Replace('/', '-') + "-" + fileName;
         }
 
         private static string BuildCreateDetail(File entity)

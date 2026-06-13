@@ -76,6 +76,16 @@ namespace Viper.Areas.CMS.Controllers
             return includeData ? await _storage.GetFilterFoldersAsync(ct) : _storage.GetTopLevelFolders();
         }
 
+        // GET /api/cms/files/folder-counts
+        // File counts per top-level folder for filter dropdowns; same status/encrypted/isPublic
+        // semantics as the list endpoint.
+        [HttpGet("folder-counts")]
+        public async Task<ActionResult<List<CmsFolderCountDto>>> GetFolderCounts(
+            bool? encrypted, bool? isPublic, string status = "active", CancellationToken ct = default)
+        {
+            return await _fileService.GetFolderCountsAsync(status, encrypted, isPublic, ct);
+        }
+
         // GET /api/cms/files/audit
         [HttpGet("audit")]
         [ApiPagination(DefaultPerPage = 50, MaxPerPage = 500)]
@@ -118,6 +128,21 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
             return file;
+        }
+
+        // GET /api/cms/files/check-name — pre-upload conflict check for a folder + file name
+        [HttpGet("check-name")]
+        public async Task<ActionResult<CmsFileNameCheckDto>> CheckName(string folder, string fileName,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                return await _fileService.CheckNameAsync(folder, fileName, ct);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // POST /api/cms/files
@@ -210,6 +235,30 @@ namespace Viper.Areas.CMS.Controllers
             try
             {
                 return await _importService.ImportFilesAsync(request, ct);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // POST /api/cms/files/import/preview — dry-run validation of an import request
+        [HttpPost("import/preview")]
+        public async Task<ActionResult<List<CmsFileImportPreviewResult>>> PreviewImport(CmsFileImportRequest request,
+            CancellationToken ct = default)
+        {
+            if (request.FilePaths.Count == 0)
+            {
+                return BadRequest("At least one file path is required.");
+            }
+
+            try
+            {
+                return await _importService.PreviewImportAsync(request, ct);
             }
             catch (ArgumentException ex)
             {
