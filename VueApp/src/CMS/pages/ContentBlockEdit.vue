@@ -1,20 +1,10 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
-            <h1 class="q-my-none">
-                {{ isNew ? "Create Content Block" : "Edit Content Block" }}
-            </h1>
-            <q-space />
-            <q-btn
-                flat
-                dense
-                no-caps
-                color="primary"
-                icon="arrow_back"
-                label="Back to Content Blocks"
-                :to="{ name: 'CmsContentBlocks' }"
-            />
-        </div>
+        <BreadcrumbHeading
+            :label="isNew ? 'Add Content Block' : 'Edit Content Block'"
+            parent-label="Manage Content Blocks"
+            :parent-to="{ name: 'CmsContentBlocks' }"
+        />
 
         <StatusBanner
             v-if="block.deletedOn"
@@ -38,6 +28,7 @@
             ref="formRef"
             greedy
             @submit.prevent="saveBlock"
+            @validation-error="onValidationError"
         >
             <div class="row q-col-gutter-lg">
                 <div class="col-12 col-lg-8">
@@ -111,6 +102,7 @@
                                 :options="['Viper', 'Public']"
                                 :rules="[(v: string | null) => !!v || 'System is required']"
                                 hide-bottom-space
+                                @update:model-value="onSystemChange"
                             />
 
                             <q-select
@@ -153,7 +145,17 @@
                             <q-toggle
                                 v-model="block.allowPublicAccess"
                                 label="Public access"
+                                @update:model-value="autoEnabledPublicAccess = false"
                             />
+
+                            <StatusBanner
+                                v-if="autoEnabledPublicAccess"
+                                type="info"
+                                live="assertive"
+                            >
+                                Public system content is visible to everyone, so we turned on Public access. Switch it
+                                off if this block should stay restricted.
+                            </StatusBanner>
                         </q-card-section>
                     </q-card>
 
@@ -220,6 +222,14 @@
                 </div>
             </div>
 
+            <StatusBanner
+                v-if="formError"
+                type="error"
+                class="q-mt-md"
+            >
+                {{ formError }}
+            </StatusBanner>
+
             <div class="q-mt-md">
                 <q-btn
                     type="submit"
@@ -227,7 +237,6 @@
                     :label="isNew ? 'Create' : 'Save'"
                     dense
                     no-caps
-                    class="q-pr-md"
                     :loading="saving"
                 >
                     <template #loading>
@@ -253,9 +262,11 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import type { CmsContentBlock, CmsContentBlockFile, CmsContentHistoryItem, CmsFile } from "@/CMS/types/"
@@ -272,6 +283,7 @@ const isNew = computed(() => blockId.value === null)
 
 const formRef = ref()
 const saving = ref(false)
+const formError = ref("")
 
 const emptyBlock = (): CmsContentBlock => ({
     contentBlockId: 0,
@@ -292,10 +304,17 @@ const emptyBlock = (): CmsContentBlock => ({
 })
 
 const block = ref<CmsContentBlock>(emptyBlock())
+
+const { setInitialState, resetDirtyState, confirmClose } = useUnsavedChanges(block)
+
+// Prompt before leaving with unsaved edits, matching the Effort forms' guard.
+onBeforeRouteLeave(async () => await confirmClose())
+
 const sectionPaths = ref<string[]>([])
 const history = ref<CmsContentHistoryItem[]>([])
 const selectedHistory = ref<CmsContentHistoryItem | null>(null)
 const viewingVersion = ref(false)
+const autoEnabledPublicAccess = ref(false)
 
 const fileToAttach = ref<CmsFile | null>(null)
 const fileOptions = ref<CmsFile[]>([])
@@ -319,6 +338,8 @@ async function loadBlock() {
         return
     }
     block.value = res.result
+    autoEnabledPublicAccess.value = false
+    setInitialState()
     await loadHistory()
 }
 
@@ -385,9 +406,29 @@ function detachFile(file: CmsContentBlockFile) {
     block.value.files = block.value.files.filter((f) => f.fileGuid !== file.fileGuid)
 }
 
+// "Public" system content is publicly visible by convention, but AllowPublicAccess is the only
+// field that actually gates unauthenticated access. Enable it for the user and tell them, so the
+// two stay in sync without silently exposing a block they meant to keep restricted.
+function onSystemChange(value: string | null) {
+    if (value === "Public" && !block.value.allowPublicAccess) {
+        block.value.allowPublicAccess = true
+        autoEnabledPublicAccess.value = true
+    } else {
+        autoEnabledPublicAccess.value = false
+    }
+}
+
+// Fires when the form's submit-time validation fails. The q-form focuses the first invalid
+// field; this surfaces a matching message next to the Create button so the failure is obvious
+// without scrolling back up to the field.
+function onValidationError() {
+    formError.value = isNew.value
+        ? "Please complete the required fields before creating this content block."
+        : "Please complete the required fields before saving your changes."
+}
+
 async function saveBlock() {
-    const valid = await formRef.value?.validate()
-    if (!valid) return
+    formError.value = ""
 
     saving.value = true
     const payload = {
@@ -429,20 +470,23 @@ async function saveBlock() {
     }
 
     if (!res.success) {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to save content block" })
+        formError.value = res.errors?.[0] ?? "Failed to save content block"
         return
     }
 
     $q.notify({ type: "positive", message: isNew.value ? "Content block created" : "Content block saved" })
     viewingVersion.value = false
     selectedHistory.value = null
+    autoEnabledPublicAccess.value = false
 
     if (isNew.value) {
         void router.push({ name: "CmsContentBlockEdit", params: { id: res.result.contentBlockId } })
         block.value = res.result
+        resetDirtyState()
         await loadHistory()
     } else {
         block.value = res.result
+        resetDirtyState()
         await loadHistory()
     }
 }
@@ -458,6 +502,11 @@ async function restoreBlock() {
 onMounted(() => {
     loadSectionPaths()
     loadBlock()
+    // loadBlock sets the baseline for an existing block after it loads; a brand-new form's
+    // baseline is just the empty block, so capture it synchronously here.
+    if (isNew.value) {
+        setInitialState()
+    }
 })
 </script>
 

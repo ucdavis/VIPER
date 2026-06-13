@@ -1,9 +1,11 @@
 <template>
     <q-dialog
         :model-value="modelValue"
+        persistent
         aria-labelledby="file-dialog-title"
         @update:model-value="emit('update:modelValue', $event)"
         @hide="resetForm"
+        @keydown.escape="handleClose"
     >
         <q-card style="width: 600px; max-width: 95vw">
             <q-card-section class="row items-center q-pb-none">
@@ -11,7 +13,7 @@
                     id="file-dialog-title"
                     class="text-h6"
                 >
-                    {{ isEdit ? "Edit File" : "Upload File" }}
+                    {{ isEdit ? "Edit File" : "Add File" }}
                 </div>
                 <q-space />
                 <q-btn
@@ -20,7 +22,7 @@
                     round
                     dense
                     aria-label="Close dialog"
-                    v-close-popup
+                    @click="handleClose"
                 />
             </q-card-section>
 
@@ -28,6 +30,7 @@
                 ref="formRef"
                 greedy
                 @submit.prevent="save"
+                @validation-error="onValidationError"
             >
                 <q-card-section class="q-gutter-y-sm">
                     <div
@@ -122,6 +125,13 @@
                             label="Encrypt file"
                         />
                     </div>
+
+                    <StatusBanner
+                        v-if="formError"
+                        type="error"
+                    >
+                        {{ formError }}
+                    </StatusBanner>
                 </q-card-section>
 
                 <q-card-actions align="right">
@@ -130,7 +140,7 @@
                         label="Cancel"
                         dense
                         no-caps
-                        v-close-popup
+                        @click="handleClose"
                     />
                     <q-btn
                         type="submit"
@@ -138,7 +148,6 @@
                         color="primary"
                         dense
                         no-caps
-                        class="q-pr-md"
                         :loading="saving"
                     />
                 </q-card-actions>
@@ -192,7 +201,6 @@
                             color="primary"
                             dense
                             no-caps
-                            class="q-pr-md"
                             :label="conflictChoice === 'rename' ? 'Upload with new name' : 'Overwrite'"
                             :loading="saving"
                             @click="resolveConflict"
@@ -208,8 +216,10 @@
 import { computed, inject, ref, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import PersonSelector from "@/CMS/components/PersonSelector.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type { CmsFile, CmsFilePerson } from "@/CMS/types/"
 
 const props = defineProps<{
@@ -233,6 +243,7 @@ const acceptedExtensions =
 const isEdit = computed(() => props.file !== null)
 const formRef = ref()
 const saving = ref(false)
+const formError = ref("")
 
 type FileForm = {
     upload: File | null
@@ -265,6 +276,8 @@ const emptyForm = (): FileForm => ({
 })
 
 const form = ref<FileForm>(emptyForm())
+
+const { setInitialState, confirmClose } = useUnsavedChanges(form)
 
 const conflict = ref<NameCheck | null>(null)
 const showConflict = ref(false)
@@ -304,6 +317,8 @@ watch(
         } else {
             form.value = emptyForm()
         }
+        formError.value = ""
+        setInitialState()
     },
 )
 
@@ -311,7 +326,22 @@ function resetForm() {
     form.value = emptyForm()
     conflict.value = null
     showConflict.value = false
+    formError.value = ""
     formRef.value?.resetValidation()
+}
+
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
+
+// The q-form focuses the first invalid field on a failed submit; this surfaces a matching
+// message next to the action buttons so the failure is obvious.
+function onValidationError() {
+    formError.value = isEdit.value
+        ? "Please complete the required fields before saving."
+        : "Please choose a file and complete the required fields before uploading."
 }
 
 async function copyUrl() {
@@ -359,8 +389,7 @@ function buildFormData(opts: SubmitOptions = {}): FormData {
 
 async function save() {
     if (saving.value) return
-    const valid = await formRef.value?.validate()
-    if (!valid) return
+    formError.value = ""
 
     // New uploads check the destination name first; a conflict prompts for rename/overwrite.
     if (!isEdit.value && form.value.upload && form.value.folder) {
@@ -410,10 +439,14 @@ async function submitSave(opts: SubmitOptions = {}): Promise<boolean> {
     saving.value = false
 
     if (!res.success) {
-        $q.notify({
-            type: "negative",
-            message: res.errors?.[0] ?? `Failed to ${isEdit.value ? "save" : "upload"} file`,
-        })
+        const message = res.errors?.[0] ?? `Failed to ${isEdit.value ? "save" : "upload"} file`
+        // During conflict resolution the user is in the conflict sub-dialog, so a toast is the
+        // only place they'd see the error; otherwise surface it on the main form banner.
+        if (showConflict.value) {
+            $q.notify({ type: "negative", message })
+        } else {
+            formError.value = message
+        }
         return false
     }
 

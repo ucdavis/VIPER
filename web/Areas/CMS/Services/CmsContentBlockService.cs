@@ -19,7 +19,7 @@ namespace Viper.Areas.CMS.Services
     public interface ICmsContentBlockService
     {
         Task<List<ContentBlockDto>> GetContentBlocksAsync(string status, string? system, string? viperSectionPath,
-            string? search, CancellationToken ct = default);
+            string? search, bool? isPublic = null, CancellationToken ct = default);
 
         Task<ContentBlockDto?> GetContentBlockAsync(int contentBlockId, CancellationToken ct = default);
 
@@ -62,7 +62,7 @@ namespace Viper.Areas.CMS.Services
         }
 
         public async Task<List<ContentBlockDto>> GetContentBlocksAsync(string status, string? system,
-            string? viperSectionPath, string? search, CancellationToken ct = default)
+            string? viperSectionPath, string? search, bool? isPublic = null, CancellationToken ct = default)
         {
             var query = _context.ContentBlocks
                 .AsNoTracking()
@@ -84,6 +84,10 @@ namespace Viper.Areas.CMS.Services
             if (!string.IsNullOrEmpty(viperSectionPath))
             {
                 query = query.Where(b => b.ViperSectionPath == viperSectionPath);
+            }
+            if (isPublic != null)
+            {
+                query = query.Where(b => b.AllowPublicAccess == isPublic);
             }
             if (!string.IsNullOrEmpty(search))
             {

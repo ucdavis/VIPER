@@ -9,7 +9,6 @@
                 label="Add Content Block"
                 no-caps
                 dense
-                class="q-pr-md"
                 :to="{ name: 'CmsContentBlockEdit' }"
             />
         </div>
@@ -32,9 +31,10 @@
                     v-model="filters.system"
                     dense
                     options-dense
-                    clearable
+                    emit-value
+                    map-options
                     label="System"
-                    :options="['Viper', 'Public']"
+                    :options="systemOptions"
                     @update:model-value="loadBlocks"
                 />
             </div>
@@ -62,6 +62,14 @@
                         <q-icon name="search" />
                     </template>
                 </q-input>
+            </div>
+            <div class="col-auto flex items-center">
+                <q-toggle
+                    v-model="filters.publicOnly"
+                    dense
+                    label="Public only"
+                    @update:model-value="loadBlocks"
+                />
             </div>
         </div>
 
@@ -153,12 +161,19 @@ const filters = ref({
     system: null as string | null,
     viperSectionPath: null as string | null,
     search: "",
+    publicOnly: false,
 })
 
 const statusOptions = [
     { label: "Active", value: "active" },
     { label: "Deleted", value: "deleted" },
     { label: "All", value: "all" },
+]
+
+const systemOptions = [
+    { label: "All", value: null },
+    { label: "Viper", value: "Viper" },
+    { label: "Public", value: "Public" },
 ]
 
 const columns: QTableProps["columns"] = [
@@ -179,6 +194,7 @@ async function loadBlocks() {
         system: filters.value.system,
         viperSectionPath: filters.value.viperSectionPath,
         search: filters.value.search || null,
+        isPublic: filters.value.publicOnly ? "true" : null,
     })
     const res = await get(apiURL + "?" + params)
     blocks.value = res.success ? res.result : []
