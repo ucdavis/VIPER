@@ -111,10 +111,10 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<WorkflowStageVersion> WorkflowStageVersions { get; set; }
 
-    public DbSet<LinkCollection> LinkCollections { get; set; }
-    public DbSet<LinkCollectionTagCategory> LinkCollectionTagCategories { get; set; }
-    public DbSet<Link> Links { get; set; }
-    public DbSet<LinkTag> LinkTags { get; set; }
+    public virtual DbSet<LinkCollection> LinkCollections { get; set; }
+    public virtual DbSet<LinkCollectionTagCategory> LinkCollectionTagCategories { get; set; }
+    public virtual DbSet<Link> Links { get; set; }
+    public virtual DbSet<LinkTag> LinkTags { get; set; }
 
     /* users */
     public virtual DbSet<Person> People { get; set; }

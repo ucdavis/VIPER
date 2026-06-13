@@ -133,8 +133,9 @@ const tableRows = computed<CliWeeksRow[]>(() => {
     if (!report.value) return []
     return report.value.instructors.map((inst) => {
         const row: CliWeeksRow = { mothraId: inst.mothraId, instructor: inst.instructor }
+        const termsByName = new Map(inst.terms.map((t) => [t.termName, t]))
         for (const termName of report.value!.termNames) {
-            const term = inst.terms.find((t) => t.termName === termName)
+            const term = termsByName.get(termName)
             if (term) {
                 row[termName] = Object.entries(term.weeksByService)
                     .filter(([, weeks]) => weeks > 0)

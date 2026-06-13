@@ -62,25 +62,23 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<CompetencyHierarchyDto>>> GetCompetencyHierarchy()
         {
             var comps = await context.Competencies
+                .AsNoTracking()
                 .Include(c => c.Domain)
                 .OrderBy(c => c.Domain.Order)
                 .ThenBy(c => c.Order)
                 .ToListAsync();
             var compHierarchy = new List<CompetencyHierarchyDto>();
             var allCompDtos = CtsMapper.ToCompetencyHierarchyDtos(comps);
+            var compsById = allCompDtos.ToDictionary(c => c.CompetencyId);
             foreach (var comp in allCompDtos)
             {
                 if (comp.ParentId == null)
                 {
                     compHierarchy.Add(comp);
                 }
-                else
+                else if (compsById.TryGetValue(comp.ParentId.Value, out var parent))
                 {
-                    var parent = allCompDtos.FirstOrDefault(c => c.CompetencyId == comp.ParentId);
-                    if (parent != null)
-                    {
-                        parent.Children.Add(comp);
-                    }
+                    parent.Children.Add(comp);
                 }
             }
             return compHierarchy;
