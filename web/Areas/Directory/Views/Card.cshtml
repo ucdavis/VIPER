@@ -1,4 +1,4 @@
-﻿@using Viper.Classes.SQLContext;
+@using Viper.Classes.SQLContext;
 @model Viper.Areas.Directory.Models.DirectoryUser;
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
@@ -23,16 +23,17 @@
     </q-toggle>
     @if (Model.CanDisplayIDs)
     {
-    <q-toggle v-model="ids"
-              color="primary"
-              label="Display IDs">
-    </q-toggle>
+        <q-toggle v-model="ids"
+        color="primary"
+        label="Display IDs">
+        </q-toggle>
+    }
     <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
 </q-form>
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
         <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
             <q-card-section class="grid row card_header" :class="[user.svm ? 'SVM' : '']">
-                <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetOldViperRootURL()/default.cfm?page=userinfo&id='+ user.iamId + '&mothraID=' + user.mothraId" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
+                <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
                     <q-icon name="person" size="xs"></q-icon>
                     <q-tooltip>User Information</q-tooltip>
                 </a>

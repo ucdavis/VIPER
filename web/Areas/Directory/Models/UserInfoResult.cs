@@ -1,5 +1,6 @@
-﻿using Viper.Models.AAUD;
+using Viper.Models.AAUD;
 using Viper.Areas.RAPS.Models;
+using Viper.Models.IAM;
 
 namespace Viper.Areas.Directory.Models
 {
@@ -104,6 +105,8 @@ namespace Viper.Areas.Directory.Models
         public string? AssociationsPercentFulltime { get; set; }
         public DateTime? AssociationsStartDate { get; set; }
         public DateTime? AssociationsEndDate { get; set; }
+        public List<CorePerson> IamPeople { get; set; } = new List<CorePerson>();
+        public List<EmployeeAssociation> IamAssociations { get; set; } = new List<EmployeeAssociation>();
 
         // System Roles and Permissions
         public List<SystemRole> SystemRoles { get; set; } = new List<SystemRole>();

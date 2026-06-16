@@ -248,6 +248,10 @@ try
     // Effort tables are in the VIPER database's [effort] schema.
     RegisterDbContext<EffortDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
+    RegisterDbContext<EquipmentLoanContext>("VIPER");
+    RegisterDbContext<PPSContext>("VIPER");
+    RegisterDbContext<IDCardsContext>("VIPER");
+    RegisterDbContext<KeysContext>("VIPER");
 
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();

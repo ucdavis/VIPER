@@ -122,7 +122,7 @@ namespace Viper.Classes.Utilities
         /// </summary>
         /// <param name="id">iamID for looking up user</param>
         /// <returns>LdapUserContact</returns>
-        public LdapUserContact? GetUserByMothraID(string? id)
+        public static LdapUserContact? GetUserByMothraID(string? id)
         {
             if (id == null) return null;
             string filter = string.Format("(ucdpersonuuid = {0})", id);
