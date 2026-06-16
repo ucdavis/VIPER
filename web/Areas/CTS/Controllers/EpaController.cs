@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -105,9 +106,9 @@ namespace Viper.Areas.CTS.Controllers
                 context.Entry(epa).State = EntityState.Deleted;
                 await context.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                return BadRequest(ex.Message);
+                return BadRequest("Could not delete EPA. It may be linked to other objects.");
             }
 
             return epa;

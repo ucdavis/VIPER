@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
@@ -105,7 +106,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Could not set roles.");
             }
@@ -279,7 +280,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Could not update levels.");
             }

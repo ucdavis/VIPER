@@ -6,6 +6,7 @@ using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.RAPS;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -218,13 +219,13 @@ namespace Viper.Areas.RAPS.Controllers
 
                 return CreatedAtAction("GetTblRole", new { id = tblRole.RoleId }, tblRole);
             }
-            catch (DbUpdateConcurrencyException ex)
+            catch (DbUpdateConcurrencyException)
             {
-                return Problem("The record was not updated because it was locked. " + ex.InnerException?.Message);
+                return Problem("The record was not updated because it was locked.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                return Problem("There was a problem updating the database. " + ex.InnerException?.Message);
+                return Problem("There was a problem updating the database.");
             }
 
         }

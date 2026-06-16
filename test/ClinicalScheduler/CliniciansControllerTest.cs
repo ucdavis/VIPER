@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.AAUD;
 
 namespace Viper.test.ClinicalScheduler
 {
@@ -268,6 +270,38 @@ namespace Viper.test.ClinicalScheduler
             var okResult = Assert.IsType<OkObjectResult>(result);
             var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
             Assert.Equal(2, clinicians.Count()); // Should see all clinicians to assign to rotations
+        }
+
+        [Fact]
+        public async Task GetClinicians_WhenPermissionCheckThrows_ReturnsEmptyList()
+        {
+            // Fail closed: if evaluating permissions throws, the endpoint must return no
+            // clinicians rather than leak the unfiltered roster. Admin would normally see all.
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.Admin });
+            MockUserHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
+                .Throws(new InvalidOperationException("Simulated permission store failure"));
+            RecreateController();
+
+            var result = await _controller.GetClinicians();
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var clinicians = Assert.IsAssignableFrom<IEnumerable<dynamic>>(okResult.Value);
+            Assert.Empty(clinicians);
+        }
+
+        [Fact]
+        public async Task GetClinicianSchedule_WhenPermissionCheckThrows_ReturnsForbid()
+        {
+            // Deny on error: if evaluating permissions throws, access must be denied even for a
+            // user (Admin) who would otherwise be allowed to view any clinician's schedule.
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.Admin });
+            MockUserHelper.HasPermission(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), Arg.Any<string>())
+                .Throws(new InvalidOperationException("Simulated permission store failure"));
+            RecreateController();
+
+            var result = await _controller.GetClinicianSchedule("67890"); // Requesting other user's schedule
+
+            Assert.IsType<ForbidResult>(result);
         }
 
         protected override void Dispose(bool disposing)

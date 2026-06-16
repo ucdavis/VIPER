@@ -398,9 +398,10 @@ namespace Viper.Classes.Utilities
 
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
             {
-                r.ErrorMessage = "Invalid response: " + ex.Message + ".";
+                LogManager.GetLogger("IAM").Warn(ex, "Failed to parse IAM response.");
+                r.ErrorMessage = "Invalid response.";
             }
 
             return r;
