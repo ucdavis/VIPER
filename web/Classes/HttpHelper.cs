@@ -18,7 +18,7 @@ namespace Viper
         private static IDataProtectionProvider? dataProtectionProvider;
 
         /// <summary>
-        /// Helper functions constructor (gets injected with the memeory cache object)
+        /// Configures the helper with system-wide services (memory cache, configuration, environment, context accessor, authorization, data protection)
         /// </summary>
         public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? httpContextAccessor, IAuthorizationService? authorizationService, IDataProtectionProvider? dataProtectionProvider)
         {
