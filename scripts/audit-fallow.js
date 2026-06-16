@@ -10,14 +10,10 @@ const { spawnSync } = require("node:child_process")
 const PROJECT_ROOT = path.join(__dirname, "..")
 const VUEAPP_DIR = path.join(PROJECT_ROOT, "VueApp")
 
-function runFallow(subcommand, extraArgs = []) {
-    const jsEntry = path.join(PROJECT_ROOT, "node_modules", "fallow", "bin", "fallow")
-    if (!fs.existsSync(jsEntry)) {
-        console.error("❌ fallow not found. Run 'npm install' at the repo root.")
-        process.exit(1)
-    }
+const JS_ENTRY = path.join(PROJECT_ROOT, "node_modules", "fallow", "bin", "fallow")
 
-    const args = [jsEntry, subcommand, ...extraArgs]
+const runFallow = (subcommand, extraArgs = []) => {
+    const args = [JS_ENTRY, subcommand, ...extraArgs]
 
     console.log(`\n━━━ fallow ${subcommand} ━━━`)
     const result = spawnSync(process.execPath, args, {
@@ -26,19 +22,28 @@ function runFallow(subcommand, extraArgs = []) {
         windowsHide: true,
     })
     if (result.error) {
-        console.error(`❌ fallow ${subcommand} failed: ${result.error.message}`)
-        process.exit(1)
+        console.error(`❌ fallow ${subcommand} failed to start: ${result.error.message}`)
+        return 1
     }
     if (result.signal) {
         console.error(`❌ fallow ${subcommand} terminated by signal ${result.signal}`)
-        process.exit(1)
+        return 1
     }
-    if (result.status !== 0) {
-        console.error(`❌ fallow ${subcommand} exited with code ${result.status}`)
-        process.exit(result.status ?? 1)
-    }
+    // A non-zero status means findings were reported (dead-code exits non-zero
+    // whenever anything is found), not a crash. Surface it via the aggregate
+    // exit code, but keep running the remaining analyses.
+    return result.status ?? 1
 }
 
-runFallow("dead-code")
-runFallow("dupes")
-runFallow("health")
+if (!fs.existsSync(JS_ENTRY)) {
+    console.error("❌ fallow not found. Run 'npm install' at the repo root.")
+    process.exit(1)
+}
+
+// Run every analysis unconditionally so findings in one don't hide the others'
+// reports; aggregate exit codes at the end (mirrors scripts/audit.js).
+const codes = ["dead-code", "dupes", "health"].map((cmd) => runFallow(cmd))
+const max = Math.max(0, ...codes)
+if (max !== 0) {
+    process.exit(max)
+}
