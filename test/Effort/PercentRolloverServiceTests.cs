@@ -234,6 +234,17 @@ public sealed class PercentRolloverServiceTests : IDisposable
         Assert.Equal(new DateTime(2026, 6, 30, 0, 0, 0, DateTimeKind.Local), assignment.ProposedEndDate);
     }
 
+    [Theory]
+    [InlineData(0)]      // below DateTime's minimum year (1)
+    [InlineData(9999)]   // valid year, but year+1 (10000) exceeds DateTime's maximum year
+    public async Task GetRolloverPreviewAsync_ThrowsForYearOutsideSupportedRange(int year)
+    {
+        // Both year and year+1 are used to construct DateTime boundaries, so the service
+        // must reject years outside [1, 9998] before any date is built.
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => _rolloverService.GetRolloverPreviewAsync(year, TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task GetRolloverPreviewAsync_ExcludesAlreadyRolledAssignments()
     {
