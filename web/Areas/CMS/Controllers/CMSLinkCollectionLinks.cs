@@ -117,7 +117,7 @@ namespace Viper.Areas.CMS.Controllers
             _context.Links.Add(link);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(link), new { id = link.LinkId }, new LinkDto
+            return CreatedAtAction(nameof(GetLinks), new { collectionId }, new LinkDto
             {
                 LinkId = link.LinkId,
                 LinkCollectionId = link.LinkCollectionId,
