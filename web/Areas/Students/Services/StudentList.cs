@@ -223,10 +223,10 @@ namespace Viper.Areas.Students.Services
                         LastName = std.Student.LastName,
                         MiddleName = std.Student.MiddleName,
                         FullName = std.Student.FullName,
-                        ClassLevel = std.Student?.StudentInfo?.ClassLevel,
-                        TermCode = std.Student?.StudentInfo?.TermCode,
+                        ClassLevel = std.Student.StudentInfo?.ClassLevel,
+                        TermCode = std.Student.StudentInfo?.TermCode,
                         ClassYear = std.ClassYear,
-                        Active = std?.Student?.Current == 1 || std?.Student?.Future == 1
+                        Active = std.Student.Current == 1 || std.Student.Future == 1
                     };
 
                     var classYears = activeYearOnly

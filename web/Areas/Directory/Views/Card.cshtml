@@ -41,10 +41,13 @@
                     <q-icon name="email" size="xs"></q-icon>
                     <q-tooltip>Email {{user.mailId}}@@ucdavis.edu</q-tooltip>
                 </a>
+                @if (Model.CanEmulate)
+                {
                 <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
                 </a>
+                }
                 <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
@@ -90,7 +93,7 @@
                     </q-img>
                 </q-card-section>
                 <q-card-section class="col">
-                    <div v-if="user.userName" class="directory-username">{{user.userName}}</div>
+                    <div v-if="ids && user.userName" class="directory-username">{{user.userName}}</div>
                     <h2 class="directory-name">{{user.name}}</h2>
                     <div v-if="user.title" class="directory-detail">{{user.title}}</div>
                     <div v-if="user.department" class="directory-detail">{{user.department}}</div>

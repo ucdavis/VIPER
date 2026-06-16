@@ -612,8 +612,8 @@ import {
     loadEffortTypeLabels,
 } from "../composables/use-effort-type-columns"
 import { useEffortPermissions } from "../composables/use-effort-permissions"
-import StatusBanner from "@/components/StatusBanner.vue"
 import ExportToolbar from "@/components/ExportToolbar.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import ReportLayout from "../components/ReportLayout.vue"
 import LeaveEditorModal from "../components/LeaveEditorModal.vue"
 import type { MultiYearReport, PersonDto, TermDto, SabbaticalDto } from "../types"

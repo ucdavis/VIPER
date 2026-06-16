@@ -14,10 +14,10 @@ namespace Viper.Areas.Directory.Controllers
 {
     [Area("Directory")]
     [Permission(Allow = "SVMSecure")]
-    [Authorize(Roles = "VMDO SVM-IT")] //locking directory for now until it's complete
     public class DirectoryController : AreaController
     {
         public AAUDContext _aaud { get; private set; }
+        public DirectoryUser User;
         private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper { get; private set; }
 
@@ -133,19 +133,7 @@ namespace Viper.Areas.Directory.Controllers
                 if (vm != null && vm.item != null && vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
                 if (vm != null && vm.item != null && vm.item.Unit != null) result.Department = vm.item.Unit[0];
             }
-
             return results;
-        }
-
-        /// <summary>
-        /// Directory results
-        /// </summary>
-        /// <param name="uid">User ID</param>
-        [Route("/[area]/userInfo/{mothraID}")]
-        public async Task<IActionResult> DirectoryResult(string mothraID)
-        {
-            // pull in the user based on uid
-            return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
         }
     }
 }

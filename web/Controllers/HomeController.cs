@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Viper.Areas.CMS.Data;
@@ -34,8 +36,9 @@ namespace Viper.Controllers
         private readonly CasSettings _settings;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         private readonly IUserHelper _userHelper;
+        private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext, IActionDescriptorCollectionProvider actionDescriptorProvider)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
@@ -43,6 +46,7 @@ namespace Viper.Controllers
             this._rapsContext = rapsContext;
             this._viperContext = viperContext;
             this._userHelper = new UserHelper();
+            this._actionDescriptorProvider = actionDescriptorProvider;
         }
         /// <summary>
         /// VIPER 2 home page
@@ -52,7 +56,187 @@ namespace Viper.Controllers
         [SearchName(FriendlyName = "Viper 2 Homepage")]
         public IActionResult Index()
         {
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                // Anonymous splash served in-place at "/": mirror /welcome's
+                // [ResponseCache(NoStore, Location=None)] so it isn't cached. The
+                // authenticated home response below keeps its default caching.
+                Response.Headers["Cache-Control"] = "no-store,no-cache";
+                Response.Headers["Pragma"] = "no-cache";
+
+                ViewData["ReturnUrl"] = null;
+                ViewData["Hero"] = PickRandomHeroKey();
+                ViewData["DestinationLabel"] = null;
+                return View("Welcome");
+            }
             return View();
+        }
+
+        /// <summary>
+        /// Unauthenticated landing/splash page. Anonymous users see the welcome splash;
+        /// authenticated users are redirected to the validated ReturnUrl or "/".
+        /// </summary>
+        [Route("/[action]")]
+        [AllowAnonymous]
+        [SearchExclude]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+#pragma warning disable S6967 // Action only reads ReturnUrl, no model binding required
+        public IActionResult Welcome([FromQuery] string? ReturnUrl = null)
+#pragma warning restore S6967
+        {
+            // Normalize "~/..." to "/..." (mirrors Login) so the loop-guard catches
+            // ~/welcome and ~/login and we never emit a "~/" redirect target.
+            ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
+
+            // In a subpath deployment the ReturnUrl carries the PathBase (e.g. "/2/ClinicalScheduler"),
+            // so strip it once here — the loop-guard, classifier, and label resolver all need it
+            // root-relative. The full ReturnUrl is preserved for the redirect/links back.
+            var relativeReturnUrl = StripPathBase(ReturnUrl, Request.PathBase.Value);
+
+            // Null out ReturnUrl if it is not local, or if it points back to /welcome or /login (would redirect-loop).
+            if (!Url.IsLocalUrl(ReturnUrl) || IsWelcomeOrLoginPath(relativeReturnUrl))
+            {
+                ReturnUrl = null;
+                relativeReturnUrl = null;
+            }
+
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                // "~/" (not "/") so the app root keeps the PathBase ("/2/") in a subpath deployment
+                // instead of redirecting out to the domain root (the legacy site).
+                return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "~/" : ReturnUrl);
+            }
+
+            // Only passive arrivals get the splash: the bare site root or a top-level area
+            // landing page (e.g. "/ClinicalScheduler"). A deep link (e.g. "/ClinicalScheduler/rotation")
+            // skips the interstitial and goes straight to CAS so we don't interrupt a targeted workflow.
+            if (!IsSplashTarget(relativeReturnUrl, GetAreaNames()))
+            {
+                return RedirectToAction(nameof(Login), new { ReturnUrl });
+            }
+
+            ViewData["ReturnUrl"] = ReturnUrl;
+            ViewData["Hero"] = PickRandomHeroKey();
+            ViewData["DestinationLabel"] = WelcomePageHelper.ResolveDestinationLabel(relativeReturnUrl);
+
+            return View("Welcome");
+        }
+
+        private static readonly string[] _heroKeys =
+        {
+            "svm_building",
+            "vetmed_admin",
+            "ophthalmology",
+            "guinea_pig",
+            "horse_foal",
+        };
+
+        private static string PickRandomHeroKey()
+        {
+            return _heroKeys[Random.Shared.Next(_heroKeys.Length)];
+        }
+
+        // Url.IsLocalUrl accepts app-relative "~/..." URLs, but browsers and CAS don't
+        // understand the "~", so normalize "~/..." to "/..." before validating or
+        // redirecting. Leaves all other values (including null) unchanged.
+        private static string? NormalizeAppRelativeUrl(string? returnUrl)
+            => returnUrl != null && returnUrl.StartsWith("~/") ? returnUrl[1..] : returnUrl;
+
+        // internal (not private) so the redirect-loop guard is unit-testable via InternalsVisibleTo.
+        internal static bool IsWelcomeOrLoginPath(string? url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            int cut = url.IndexOfAny(['?', '#']);
+            var path = cut >= 0 ? url[..cut] : url;
+            path = path.TrimEnd('/');
+
+            return path.Equals("/welcome", StringComparison.OrdinalIgnoreCase)
+                || path.Equals("/login", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Controllers under web/Areas live in the "Viper.Areas.<Area>.…" namespace. Deriving the area
+        // set from controller namespaces (rather than the [Area] route value) covers every area —
+        // including SPA areas whose controllers are API-only and carry no [Area] attribute — and needs
+        // no hand-maintained list: add an area the usual way and it is picked up automatically.
+        private const string AreaNamespacePrefix = "Viper.Areas.";
+
+        // The set of top-level area names (e.g. "Effort", "ClinicalScheduler"). Used to tell an area
+        // landing page ("/Effort" → splash) apart from a deep link ("/Effort/Reports" → CAS).
+        private HashSet<string> GetAreaNames()
+        {
+            return _actionDescriptorProvider.ActionDescriptors.Items
+                .OfType<ControllerActionDescriptor>()
+                .Select(d => AreaFromControllerNamespace(d.ControllerTypeInfo.Namespace))
+                .Where(area => area != null)
+                .Select(area => area!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Extracts the area segment from a controller namespace, e.g. "Viper.Areas.Effort.Controllers"
+        // → "Effort". Returns null for non-area namespaces. internal so it is unit-testable.
+        internal static string? AreaFromControllerNamespace(string? ns)
+        {
+            if (ns == null || !ns.StartsWith(AreaNamespacePrefix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            var rest = ns[AreaNamespacePrefix.Length..];
+            int dot = rest.IndexOf('.');
+            var area = dot >= 0 ? rest[..dot] : rest;
+            return area.Length == 0 ? null : area;
+        }
+
+        // The welcome splash is reserved for passive arrivals: the bare site root or a top-level
+        // area landing page (a single path segment matching a registered area). Anything deeper is
+        // a deep link that should bypass the interstitial. Null/empty ReturnUrl is the front door.
+        // internal (not private) so the classifier is unit-testable via InternalsVisibleTo.
+        internal static bool IsSplashTarget(string? url, ISet<string> areaNames)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return true;
+            }
+
+            int cut = url.IndexOfAny(['?', '#']);
+            var path = (cut >= 0 ? url[..cut] : url).Trim('/');
+
+            if (path.Length == 0)
+            {
+                return true;
+            }
+
+            if (path.Contains('/'))
+            {
+                return false;
+            }
+
+            return areaNames.Contains(path);
+        }
+
+        // Removes the application's PathBase prefix (e.g. "/2" in a subpath deployment) from a return
+        // URL so the splash classifier and label resolver can treat it as root-relative. Matches on a
+        // segment boundary so "/2" never strips from an unrelated "/22/...". Returns the URL unchanged
+        // when there is no base to strip (e.g. local dev, where PathBase is empty).
+        // internal (not private) so it is unit-testable via InternalsVisibleTo.
+        internal static string? StripPathBase(string? url, string? pathBase)
+        {
+            if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(pathBase))
+            {
+                return url;
+            }
+
+            if (url.StartsWith(pathBase, StringComparison.OrdinalIgnoreCase)
+                && (url.Length == pathBase.Length || url[pathBase.Length] is '/' or '?' or '#'))
+            {
+                return url[pathBase.Length..];
+            }
+
+            return url;
         }
 
         [Route("/[action]/")]
@@ -90,6 +274,16 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login([FromQuery] string? ReturnUrl = null)
         {
+            // Normalize app-relative "~/..." to "/..." before validating, so the
+            // /api guard below cannot be bypassed and we never forward an invalid
+            // browser URL to CAS.
+            ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
+
+            if (!Url.IsLocalUrl(ReturnUrl))
+            {
+                ReturnUrl = null;
+            }
+
             Uri url = new(Request.GetDisplayUrl());
             string baseURl = url.GetLeftPart(UriPartial.Authority);
             string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
@@ -99,7 +293,10 @@ namespace Viper.Controllers
                 returnURL = ReturnUrl;
             }
 
-            if (returnURL.StartsWith("/api"))
+            // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
+            // "/2/api/..." ReturnUrl can't slip past this root-relative check and get
+            // forwarded to CAS.
+            if (StripPathBase(returnURL, Request.PathBase.Value)?.StartsWith("/api") == true)
             {
                 return Unauthorized();
             }
@@ -335,7 +532,13 @@ namespace Viper.Controllers
                     var user = new ClaimsPrincipal(claimsIdentity);
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, user);
 
-                    return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "/");
+                    if (!Url.IsLocalUrl(returnUrl))
+                    {
+                        returnUrl = null;
+                    }
+
+                    // "~/" (not "/") so a subpath deployment ("/2") lands on the app root, not the domain root.
+                    return new LocalRedirectResult(!String.IsNullOrWhiteSpace(returnUrl) ? returnUrl : "~/");
                 }
             }
             catch (TaskCanceledException ex)
