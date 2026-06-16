@@ -3,6 +3,11 @@ name: "VIPER CodeQL config"
 queries:
   - uses: security-and-quality
 
+# Generated and build-output code. The *.g.cs / *.Designer.cs globs catch
+# source-generator output that C# autobuild extracts despite obj/ being ignored.
 paths-ignore:
   - "**/obj/**"
   - "**/bin/**"
+  - "**/*.g.cs"
+  - "**/*.generated.cs"
+  - "**/*.Designer.cs"
