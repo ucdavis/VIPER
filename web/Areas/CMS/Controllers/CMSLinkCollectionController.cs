@@ -68,7 +68,7 @@ namespace Viper.Areas.CMS.Controllers
                 LinkCollectionTagCategories = new List<LinkCollectionTagCategoryDto>()
             };
 
-            return CreatedAtAction(nameof(linkCollection), new { id = linkCollection.LinkCollectionId }, result);
+            return CreatedAtAction(nameof(GetLinkCollections), new { linkCollectionName = linkCollection.LinkCollectionName }, result);
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
@@ -161,7 +161,7 @@ namespace Viper.Areas.CMS.Controllers
             };
             _context.LinkCollectionTagCategories.Add(tagCategory);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(tagCategory), new { id = tagCategory.LinkCollectionTagCategoryId }, createLinkTagCategoryDto);
+            return CreatedAtAction(nameof(GetLinkCollectionTagCategories), new { collectionId }, createLinkTagCategoryDto);
         }
 
         [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
