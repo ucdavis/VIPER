@@ -19,8 +19,8 @@ namespace Viper.test.RAPS
         /// <summary>
         /// Use the _sqlLiteConnection (see RejectAddRole_WhenDuplicateRoleId() to validate unique contraints or to do create, edit, delete actions
         /// </summary>
-        static SqliteConnection _sqlLiteConnection = new SqliteConnection("Filename=:memory:");
-        static DbContextOptions<RAPSContext> _sqlLiteContextOptions = new DbContextOptionsBuilder<RAPSContext>()
+        static readonly SqliteConnection _sqlLiteConnection = new SqliteConnection("Filename=:memory:");
+        static readonly DbContextOptions<RAPSContext> _sqlLiteContextOptions = new DbContextOptionsBuilder<RAPSContext>()
                 .UseSqlite(_sqlLiteConnection)
                 .Options;
 
