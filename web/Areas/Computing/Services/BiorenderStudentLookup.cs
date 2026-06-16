@@ -23,6 +23,10 @@ namespace Viper.Areas.Computing.Services
             using var throttler = new SemaphoreSlim(initialCount: 20);
             foreach (var email in emails)
             {
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    continue;
+                }
                 var emailTrimmed = email.Trim();
                 if (!emailTrimmed.Contains('@'))
                 {
