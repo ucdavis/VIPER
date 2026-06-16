@@ -91,15 +91,4 @@ export class PageDataService {
         }
         return result.currentGradYear
     }
-
-    /**
-     * Gets available grad years from cached data
-     */
-    static async getAvailableYears(): Promise<number[]> {
-        const result = await this.getPageData()
-        if (!Array.isArray(result.availableGradYears) || result.availableGradYears.length === 0) {
-            throw new Error("Available grad years not configured. Please contact support.")
-        }
-        return result.availableGradYears
-    }
 }
