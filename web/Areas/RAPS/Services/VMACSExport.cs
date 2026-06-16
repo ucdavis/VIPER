@@ -132,7 +132,7 @@ namespace Viper.Areas.RAPS.Services
                         VmacsResponse vmacsResponse = await ParseResponse(response);
                         RecordMessage(messages, JsonSerializer.Serialize(vmacsResponse));
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
                     {
                         HttpHelper.Logger.Log(LogLevel.Warn, ex);
                         RecordMessage(messages, "Error: " + ex.Message + " " + ex.StackTrace);
@@ -167,7 +167,7 @@ namespace Viper.Areas.RAPS.Services
 
                 vmacsResponse.Success = response.IsSuccessStatusCode;
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
             {
                 vmacsResponse = new()
                 {

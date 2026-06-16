@@ -219,7 +219,7 @@ namespace Viper.Classes.Utilities
                     group.Save();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is PrincipalException or System.DirectoryServices.DirectoryServicesCOMException)
             {
                 HttpHelper.Logger.Error(ex);
             }
@@ -245,7 +245,7 @@ namespace Viper.Classes.Utilities
                     group.Save();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is PrincipalException or System.DirectoryServices.DirectoryServicesCOMException)
             {
                 HttpHelper.Logger.Error(ex);
             }

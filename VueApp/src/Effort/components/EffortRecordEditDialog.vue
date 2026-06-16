@@ -66,88 +66,27 @@
                         lazy-rules="ondemand"
                     />
 
-                    <!-- Role Selection -->
-                    <q-select
-                        v-model="selectedRole"
-                        :options="roles"
-                        label="Role"
-                        dense
-                        options-dense
-                        outlined
-                        option-value="id"
-                        option-label="description"
-                        emit-value
-                        map-options
-                        :loading="isLoadingOptions"
-                        :rules="[requiredRule('Role')]"
-                        lazy-rules="ondemand"
+                    <EffortRecordSharedFields
+                        v-model:selected-role="selectedRole"
+                        v-model:effort-value="effortValue"
+                        v-model:notes="notes"
+                        :roles="roles"
+                        :is-loading-options="isLoadingOptions"
+                        :effort-label="effortLabel"
+                        :show-notes="props.record?.course.isGenericRCourse ?? false"
+                        :notes-hint="notesHint"
+                        :warning-message="warningMessage"
+                        :error-message="errorMessage"
                     />
-
-                    <!-- Effort Value -->
-                    <q-input
-                        v-model.number="effortValue"
-                        :label="effortLabel"
-                        type="number"
-                        dense
-                        outlined
-                        min="0"
-                        :rules="effortValueRules"
-                        lazy-rules="ondemand"
-                    />
-
-                    <!-- Notes (generic R-Course only) -->
-                    <q-input
-                        v-if="props.record?.course.isGenericRCourse"
-                        v-model="notes"
-                        label="Notes"
-                        type="textarea"
-                        dense
-                        outlined
-                        maxlength="500"
-                        counter
-                        autogrow
-                        :hint="notesHint"
-                    />
-
-                    <!-- Warning Message -->
-                    <StatusBanner
-                        v-if="warningMessage"
-                        type="warning"
-                    >
-                        {{ warningMessage }}
-                    </StatusBanner>
-
-                    <!-- Error Message -->
-                    <StatusBanner
-                        v-if="errorMessage"
-                        type="error"
-                    >
-                        {{ errorMessage }}
-                    </StatusBanner>
                 </q-form>
             </q-card-section>
 
-            <q-card-actions align="right">
-                <q-btn
-                    flat
-                    label="Cancel"
-                    @click="handleClose"
-                />
-                <q-btn
-                    color="primary"
-                    label="Save"
-                    :loading="isSaving"
-                    @click="updateRecord"
-                >
-                    <template #loading>
-                        <q-spinner
-                            size="1em"
-                            class="q-mr-sm"
-                        />
-                        Save
-                    </template>
-                </q-btn>
-            </q-card-actions>
+            <DialogSubmitActions
+                submit-label="Save"
+                :is-saving="isSaving"
+                @cancel="handleClose"
+                @submit="updateRecord"
+            />
         </q-card>
     </q-dialog>
 </template>
@@ -157,9 +96,11 @@ import { ref, computed, watch } from "vue"
 import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
+import DialogSubmitActions from "./DialogSubmitActions.vue"
+import EffortRecordSharedFields from "./EffortRecordSharedFields.vue"
 import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
-import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
+import { requiredRule, notesMaxHint } from "../validation"
 import "../effort-forms.css"
 
 const props = defineProps<{

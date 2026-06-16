@@ -1,5 +1,5 @@
 <template>
-    <!-- Content sanitized by CMS.cs using OWASP AntiSamy -->
+    <!-- Content sanitized by CMS.cs using HtmlSanitizerService -->
     <!-- eslint-disable vue/no-v-html -->
     <div
         v-html="contentBlock?.content"

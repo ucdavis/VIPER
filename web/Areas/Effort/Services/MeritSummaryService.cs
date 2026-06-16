@@ -12,16 +12,14 @@ namespace Viper.Areas.Effort.Services;
 
 public class MeritSummaryService : BaseReportService, IMeritSummaryService
 {
-    private readonly ITermService _termService;
     private readonly ILogger<MeritSummaryService> _logger;
 
     public MeritSummaryService(
         EffortDbContext context,
         ITermService termService,
         ILogger<MeritSummaryService> logger)
-        : base(context)
+        : base(context, termService)
     {
-        _termService = termService;
         _logger = logger;
     }
 
@@ -369,7 +367,7 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
     public MemoryStream GenerateReportExcel(MeritSummaryReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Summary Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -457,7 +455,6 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

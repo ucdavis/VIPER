@@ -6,9 +6,11 @@ namespace Viper.Areas.RAPS.Services
 {
     public class RoleViews
     {
+        /// <summary>Default audit actor when no caller-supplied value is given (e.g. legacy callers).</summary>
+        public const string DefaultModBy = "__system";
+
         private readonly RAPSContext _RAPSContext;
         private readonly RAPSAuditService _auditService;
-        private static readonly string _ModByName = "__system";
         private static readonly string _AddComment = "Adding to role based on view {0}";
         private static readonly string _DeleteComment = "Removing from role based on view {0}";
 
@@ -18,6 +20,9 @@ namespace Viper.Areas.RAPS.Services
             _auditService = new RAPSAuditService(RAPSContext);
         }
 
+        private static string ResolveActor(string? modBy)
+            => string.IsNullOrWhiteSpace(modBy) ? DefaultModBy : modBy;
+
         public async Task<List<string>> GetViewNames()
         {
             List<GetAllRapsViews> allViews = await _RAPSContext.GetAllRapsViews.FromSql($"dbo.usp_getAllRapsViews")
@@ -26,19 +31,27 @@ namespace Viper.Areas.RAPS.Services
         }
 
         /// <summary>
-        /// Update the membership of all roles defined by a view
+        /// Update the membership of all roles defined by a view.
         /// </summary>
-        /// <param name="debugOnly"></param>
-        /// <returns></returns>
-        public async Task<List<string>> UpdateRoles(bool debugOnly = false)
+        /// <param name="modBy">
+        /// Audit actor stamped on every <c>TblRoleMember</c> and <c>TblLog</c>
+        /// row written by this run. Pass <c>"__sched"</c> for nightly
+        /// recurring runs, the LoginId for manual admin runs, or rely on the
+        /// <see cref="DefaultModBy"/> for legacy callers.
+        /// </param>
+        /// <param name="debugOnly">If true, only write messages, don't change the DB.</param>
+        /// <param name="ct">Honored between roles so Hangfire-driven runs can be cancelled cleanly during deploys or shutdown.</param>
+        public async Task<List<string>> UpdateRoles(string? modBy = null, bool debugOnly = false, CancellationToken ct = default)
         {
+            var actor = ResolveActor(modBy);
             List<string> messages = new();
             var roles = await _RAPSContext.TblRoles
                     .Where(r => !string.IsNullOrEmpty(r.ViewName))
-                    .ToListAsync();
+                    .ToListAsync(ct);
             foreach (var role in roles)
             {
-                await UpdateRole(role, messages, debugOnly);
+                ct.ThrowIfCancellationRequested();
+                await UpdateRole(role, messages, debugOnly, actor);
             }
             return messages;
         }
@@ -49,7 +62,8 @@ namespace Viper.Areas.RAPS.Services
         /// <param name="role">The role</param>
         /// <param name="messages">If running as a routine for multiple roles, the messages will be appended to this list.</param>
         /// <param name="debugOnly">If true, only write messages, don't change the DB</param>
-        public async Task<List<string>> UpdateRole(TblRole role, List<string>? messages = null, bool debugOnly = false)
+        /// <param name="modBy">Audit actor; defaults to <see cref="DefaultModBy"/>.</param>
+        public async Task<List<string>> UpdateRole(TblRole role, List<string>? messages = null, bool debugOnly = false, string? modBy = null)
         {
             if (string.IsNullOrEmpty(role.ViewName))
             {
@@ -84,14 +98,12 @@ namespace Viper.Areas.RAPS.Services
             //Remove members that were added via this view if they are no longer in the view. Check first that the view is not empty.
             if (members.Count > 0)
             {
-                foreach (TblRoleMember roleMember in roleMembers)
+                foreach (TblRoleMember roleMember in roleMembers.Where(rm => !string.IsNullOrEmpty(rm.MemberId.Trim())
+                    && !members.Contains(rm.MemberId)
+                    && rm.ViewName == role.ViewName))
                 {
-                    if (!string.IsNullOrEmpty(roleMember.MemberId.Trim()) && !members.Contains(roleMember.MemberId)
-                        && roleMember.ViewName == role.ViewName)
-                    {
-                        messages.Add(string.Format("Removing {0}", roleMember.MemberId));
-                        toDelete.Add(roleMember);
-                    }
+                    messages.Add(string.Format("Removing {0}", roleMember.MemberId));
+                    toDelete.Add(roleMember);
                 }
             }
             else
@@ -99,21 +111,22 @@ namespace Viper.Areas.RAPS.Services
                 messages.Add(string.Format("View {0} has 0 members", role.ViewName));
             }
 
+            var actor = ResolveActor(modBy);
             if (!debugOnly)
             {
                 foreach (string toAddMemberId in toAdd)
                 {
-                    AddRoleMember(role.RoleId, toAddMemberId, role.ViewName);
+                    AddRoleMember(role.RoleId, toAddMemberId, role.ViewName, actor);
                 }
                 foreach (TblRoleMember toDeleteMember in toDelete)
                 {
-                    DeleteRoleMember(toDeleteMember, role.ViewName);
+                    DeleteRoleMember(toDeleteMember, role.ViewName, actor);
                 }
             }
             return messages;
         }
 
-        private void AddRoleMember(int roleId, string memberId, string viewName)
+        private void AddRoleMember(int roleId, string memberId, string viewName, string modBy)
         {
             using var transaction = _RAPSContext.Database.BeginTransaction();
             TblRoleMember tblRoleMember = new()
@@ -122,19 +135,19 @@ namespace Viper.Areas.RAPS.Services
                 MemberId = memberId,
                 ViewName = viewName,
                 ModTime = DateTime.Now,
-                ModBy = _ModByName
+                ModBy = modBy
             };
             _RAPSContext.TblRoleMembers.Add(tblRoleMember);
             _RAPSContext.SaveChanges();
-            _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Create, string.Format(_AddComment, viewName));
+            _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Create, string.Format(_AddComment, viewName), modBy);
             _RAPSContext.SaveChanges();
             transaction.Commit();
         }
 
-        private void DeleteRoleMember(TblRoleMember deleteMember, string viewName)
+        private void DeleteRoleMember(TblRoleMember deleteMember, string viewName, string modBy)
         {
             _RAPSContext.TblRoleMembers.Remove(deleteMember);
-            _auditService.AuditRoleMemberChange(deleteMember, RAPSAuditService.AuditActionType.Delete, string.Format(_DeleteComment, viewName));
+            _auditService.AuditRoleMemberChange(deleteMember, RAPSAuditService.AuditActionType.Delete, string.Format(_DeleteComment, viewName), modBy);
             _RAPSContext.SaveChanges();
         }
 
@@ -210,7 +223,7 @@ namespace Viper.Areas.RAPS.Services
                 "vw_vmdo_sp" => await _RAPSContext.VwVmdoSps.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmdo_svm_it" => await _RAPSContext.VwVmdoSvmIts.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmthadmissions" => await _RAPSContext.VwVmthadmissions.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
-				"vw_vmth_chiefs" => await _RAPSContext.VwVmthChiefs.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
+                "vw_vmth_chiefs" => await _RAPSContext.VwVmthChiefs.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmth_clinicians" => await _RAPSContext.VwVmthClinicians.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmth_constituents" => await _RAPSContext.VwVmthConstituents.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
                 "vw_vmthinternsmanual" => await _RAPSContext.VwVmthinternsManuals.AsNoTracking().Select(v => v.MemberId).ToListAsync(),
@@ -223,5 +236,5 @@ namespace Viper.Areas.RAPS.Services
                 _ => new List<string?>(),
             };
         }
-	}
+    }
 }

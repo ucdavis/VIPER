@@ -5,6 +5,8 @@ using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.RAPS;
 using Web.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Viper
 {
@@ -92,22 +94,7 @@ namespace Viper
             if (user.LoginId == HttpHelper.HttpContext?.User?.Identity?.Name)
             {
                 var claims = HttpHelper.HttpContext?.User?.Claims;
-
-                if (claims != null)
-                {
-
-                    foreach (var claim in claims)
-                    {
-                        if (claim.Type == ClaimTypes.Role && claim.Value == roleName)
-                        {
-                            return true;
-                        }
-
-                    }
-
-                }
-
-                return false;
+                return claims?.Any(c => c.Type == ClaimTypes.Role && c.Value == roleName) == true;
             }
 
             var roles = GetRoles(rapsContext, user);
@@ -270,7 +257,7 @@ namespace Viper
                         return user;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
                 {
                     HttpHelper.Logger.Error(ex);
                     return null;
@@ -297,7 +284,7 @@ namespace Viper
 
                 return currentUser;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 HttpHelper.Logger.Error(ex);
                 return null;
@@ -329,7 +316,7 @@ namespace Viper
 
                 return GetCurrentUser();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 HttpHelper.Logger.Error(ex);
                 return null;

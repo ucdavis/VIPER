@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
@@ -62,25 +63,23 @@ namespace Viper.Areas.CTS.Controllers
         public async Task<ActionResult<List<CompetencyHierarchyDto>>> GetCompetencyHierarchy()
         {
             var comps = await context.Competencies
+                .AsNoTracking()
                 .Include(c => c.Domain)
                 .OrderBy(c => c.Domain.Order)
                 .ThenBy(c => c.Order)
                 .ToListAsync();
             var compHierarchy = new List<CompetencyHierarchyDto>();
             var allCompDtos = CtsMapper.ToCompetencyHierarchyDtos(comps);
+            var compsById = allCompDtos.ToDictionary(c => c.CompetencyId);
             foreach (var comp in allCompDtos)
             {
                 if (comp.ParentId == null)
                 {
                     compHierarchy.Add(comp);
                 }
-                else
+                else if (compsById.TryGetValue(comp.ParentId.Value, out var parent))
                 {
-                    var parent = allCompDtos.FirstOrDefault(c => c.CompetencyId == comp.ParentId);
-                    if (parent != null)
-                    {
-                        parent.Children.Add(comp);
-                    }
+                    parent.Children.Add(comp);
                 }
             }
             return compHierarchy;
@@ -176,9 +175,9 @@ namespace Viper.Areas.CTS.Controllers
             {
                 await context.SaveChangesAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                return BadRequest("Could not remove domain. It may be linked to other objects.");
+                return BadRequest("Could not remove competency. It may be linked to other objects.");
             }
             await UpdateCompetencyOrders();
             return new CompetencyDto(c);

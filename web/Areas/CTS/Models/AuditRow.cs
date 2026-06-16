@@ -22,10 +22,10 @@ namespace Viper.Areas.CTS.Models
             Timestamp = dbAudit.TimeStamp;
             ModifiedById = dbAudit.ModifiedBy;
             ModifiedByName = dbAudit.Modifier.LastName + ", " + dbAudit.Modifier.FirstName;
-            if (dbAudit?.Encounter?.Student != null)
+            if (dbAudit.Encounter?.Student != null)
             {
-                ModifiedPersonId = dbAudit.Encounter?.StudentUserId;
-                ModifiedPersonName = dbAudit.Encounter?.Student?.LastName + ", " + dbAudit.Encounter?.Student?.FirstName;
+                ModifiedPersonId = dbAudit.Encounter.StudentUserId;
+                ModifiedPersonName = dbAudit.Encounter.Student.LastName + ", " + dbAudit.Encounter.Student.FirstName;
             }
 
         }

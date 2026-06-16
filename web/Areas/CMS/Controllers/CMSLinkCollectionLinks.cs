@@ -21,12 +21,13 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("{collectionId}/links")]
         public async Task<ActionResult<IEnumerable<LinkDto>>> GetLinks(int collectionId, string? groupByTagCategory = null)
         {
-            if (await _context.LinkCollections.FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
+            if (await _context.LinkCollections.AsNoTracking().FirstOrDefaultAsync(lc => lc.LinkCollectionId == collectionId) == null)
             {
                 return NotFound();
             }
 
             var links = await _context.Links
+                .AsNoTracking()
                 .Include(l => l.LinkTags.OrderBy(lt => lt.LinkCollectionTagCategory.SortOrder).ThenBy(lt => lt.SortOrder).ThenBy(lt => lt.Value))
                     .ThenInclude(lt => lt.LinkCollectionTagCategory)
                 .Where(l => l.LinkCollectionId == collectionId)
@@ -50,11 +51,12 @@ namespace Viper.Areas.CMS.Controllers
                     Value = lt.Value,
                     CategoryName = lt.LinkCollectionTagCategory.LinkCollectionTagCategoryName
                 }).OrderBy(lt => lt.Value).ToList()
-            });
+            }).ToList();
 
             if (!string.IsNullOrEmpty(groupByTagCategory))
             {
                 var tagCategories = await _context.LinkCollectionTagCategories
+                    .AsNoTracking()
                     .Where(tc => tc.LinkCollectionId == collectionId)
                     .Where(tc => tc.LinkCollectionTagCategoryName.ToLower() == groupByTagCategory.ToLower())
                     .FirstOrDefaultAsync();
@@ -63,21 +65,30 @@ namespace Viper.Areas.CMS.Controllers
                     return BadRequest("Invalid tag category to group by.");
                 }
 
-                var allValues = await _context.LinkTags
-                    .Where(lt => lt.LinkCollectionTagCategoryId == tagCategories.LinkCollectionTagCategoryId)
-                    .Select(lt => lt.Value)
-                    .Distinct()
-                    .ToListAsync();
+                var categoryId = tagCategories.LinkCollectionTagCategoryId;
 
-                var orderedGroupedResult = new List<LinkDto>();
-                var added = new HashSet<int>();
-                foreach (var r in allValues
-                    .SelectMany(v => result
-                        .Where(r => r.LinkTags.Any(lt => lt.Value == v && lt.LinkCollectionTagCategoryId == tagCategories.LinkCollectionTagCategoryId) && !added.Contains(r.LinkId))))
-                {
-                    added.Add(r.LinkId);
-                    orderedGroupedResult.Add(r);
-                }
+                // Group links by tag value, taking the value order from the already-ordered
+                // in-memory result. LINQ GroupBy keeps first-occurrence key order, so the response
+                // is deterministic (unlike a SELECT DISTINCT with no ORDER BY) and avoids an extra
+                // round-trip. A link with several values lands in each group, so DistinctBy below
+                // keeps it at its first position.
+                var groupedLinks = result
+                    .SelectMany(r => r.LinkTags
+                        .Where(lt => lt.LinkCollectionTagCategoryId == categoryId && lt.Value != null)
+                        .Select(lt => new { Value = lt.Value!, Link = r }))
+                    .GroupBy(x => x.Value)
+                    .SelectMany(g => g.Select(x => x.Link));
+
+                // A link with a tag in this category but no non-null value counts as uncategorized,
+                // so append those links to keep the value grouping from dropping them.
+                var uncategorizedLinks = result.Where(r =>
+                    r.LinkTags.Any(lt => lt.LinkCollectionTagCategoryId == categoryId && lt.Value == null)
+                    && !r.LinkTags.Any(lt => lt.LinkCollectionTagCategoryId == categoryId && lt.Value != null));
+
+                var orderedGroupedResult = groupedLinks
+                    .Concat(uncategorizedLinks)
+                    .DistinctBy(r => r.LinkId)
+                    .ToList();
 
                 return Ok(orderedGroupedResult);
             }

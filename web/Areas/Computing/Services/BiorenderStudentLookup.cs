@@ -20,32 +20,40 @@ namespace Viper.Areas.Computing.Services
         public async Task<List<BiorenderStudent>> GetBiorenderStudentInfo(List<string> emails)
         {
             List<Task<BiorenderStudent>> resultList = new();
-            var throttler = new SemaphoreSlim(initialCount: 20);
+            using var throttler = new SemaphoreSlim(initialCount: 20);
             foreach (var email in emails)
             {
-                await throttler.WaitAsync();
-
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    continue;
+                }
                 var emailTrimmed = email.Trim();
                 if (!emailTrimmed.Contains('@'))
                 {
                     emailTrimmed += "@ucdavis.edu";
                 }
-                if (IsValidEmail(emailTrimmed))
+                if (!IsValidEmail(emailTrimmed))
                 {
-                    resultList.Add(
-                        Task.Run(async () =>
-                        {
-                            try
-                            {
-                                return await GetSingleStudent(emailTrimmed);
-                            }
-                            finally
-                            {
-                                throttler.Release();
-                            }
-                        })
-                    );
+                    continue;
                 }
+
+                // Acquire only after validation so skipped emails can't leak permits and stall the loop
+                await throttler.WaitAsync();
+                resultList.Add(
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            return await GetSingleStudent(emailTrimmed);
+                        }
+                        finally
+                        {
+                            // Safe: Task.WhenAll below awaits every task before the using-scope disposes the throttler
+                            // ReSharper disable once AccessToDisposedClosure
+                            throttler.Release();
+                        }
+                    })
+                );
             }
 
             var taskResults = await Task.WhenAll(resultList);
@@ -95,7 +103,7 @@ namespace Viper.Areas.Computing.Services
                 var addr = new MailAddress(email);
                 return addr.Address == trimmed;
             }
-            catch
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
             {
                 return false;
             }

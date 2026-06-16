@@ -39,7 +39,7 @@
     "devDependencies": {
         "@double-great/stylelint-a11y": "^3.4.10",
         "@eslint/js": "^10.0.0",
-        "concurrently": "^9.0.1",
+        "concurrently": "^10.0.3",
         "cross-env": "^10.0.0",
         "eslint": "^10.2.1",
         "eslint-plugin-html": "^8.1.4",
@@ -47,16 +47,16 @@
         "fallow": "^2.38.0",
         "husky": "^9.1.7",
         "jscpd": "^4.0.9",
-        "oxfmt": "^0.46.0",
+        "oxfmt": "^0.52.0",
         "oxlint": "^1.61.0",
-        "oxlint-tsgolint": "^0.21.1",
+        "oxlint-tsgolint": "^0.23.0",
         "postcss-html": "^1.8.0",
         "stylelint": "^17.9.0",
         "stylelint-config-standard": "^40.0.0",
         "yauzl": "^3.2.0"
     },
     "volta": {
-        "node": "24.14.1",
-        "npm": "11.12.0"
+        "node": "24.16.0",
+        "npm": "11.13.0"
     }
 }

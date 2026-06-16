@@ -309,18 +309,18 @@ namespace Viper.Controllers
                 var userNode = successNode?.Element(_ns + "user");
                 var validatedUserName = userNode?.Value;
 
-                // uncomment this line temporarily if you ever have issues with users getting unexpected 403(Access Denied) errors in the logs
-                // uncommenting this line will log what CAS is sending. When the user in question logs in while trying to access our site
+                // Log the sanitized CAS response when no username comes back, to help diagnose unexpected 403 (Access Denied) errors
                 if (string.IsNullOrEmpty(validatedUserName))
                 {
-                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + doc);
+                    HttpHelper.Logger.Log(LogLevel.Warn, "No username. CAS response: " + LogSanitizer.SanitizeString(doc.ToString()));
                 }
 
                 if (!string.IsNullOrEmpty(validatedUserName))
                 {
                     var claimsIdentity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, validatedUserName), new Claim(ClaimTypes.NameIdentifier, validatedUserName), new Claim(ClaimTypes.AuthenticationMethod, "CAS") }, CookieAuthenticationDefaults.AuthenticationScheme);
 
-                    XElement? attributesNode = successNode?.Element(_ns + "attributes");
+                    // successNode is guaranteed non-null here: validatedUserName is derived from successNode?.Element(user)?.Value.
+                    XElement? attributesNode = successNode!.Element(_ns + "attributes");
                     if (attributesNode != null)
                     {
                         foreach (string attributeName in _casAttributesToCapture)

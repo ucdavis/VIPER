@@ -10,6 +10,7 @@ using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.RAPS;
 using Web.Authorization;
+using Microsoft.Data.SqlClient;
 
 namespace Viper.Areas.RAPS.Controllers
 {
@@ -113,10 +114,10 @@ namespace Viper.Areas.RAPS.Controllers
                 OuGroup newOuGroup = await _ouGroupService.CreateRapsGroup(group.Name, group.Description);
                 return CreatedAtAction("CreateGroup", new { id = newOuGroup.OugroupId }, newOuGroup);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                //Exception message could be indication user is trying to create a group that exists or is invalid.
-                return ValidationProblem(ex.Message);
+                // Return a generic message; the raw exception may reveal internal details.
+                return ValidationProblem("Unable to create or update the group. Verify the request and try again.");
             }
         }
 

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CTS.Models;
 using Viper.Classes;
@@ -105,7 +106,7 @@ namespace Viper.Areas.CTS.Controllers
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Could not set roles.");
             }
@@ -226,18 +227,14 @@ namespace Viper.Areas.CTS.Controllers
                 return checkResult;
             }
 
-            foreach (var levelId in sessionComp.LevelIds)
+            context.AddRange(sessionComp.LevelIds.Select(levelId => new SessionCompetency()
             {
-                var newSessionComp = new SessionCompetency
-                {
-                    CompetencyId = sessionComp.CompetencyId,
-                    SessionId = sessionComp.SessionId,
-                    LevelId = levelId,
-                    RoleId = sessionComp.RoleId,
-                    Order = sessionComp.Order ?? 0
-                };
-                context.Add(newSessionComp);
-            }
+                CompetencyId = sessionComp.CompetencyId,
+                SessionId = sessionComp.SessionId,
+                LevelId = levelId,
+                RoleId = sessionComp.RoleId,
+                Order = sessionComp.Order ?? 0
+            }));
             await context.SaveChangesAsync();
 
             var sessionComps = await context.SessionCompetencies
@@ -272,22 +269,18 @@ namespace Viper.Areas.CTS.Controllers
                 {
                     context.Remove(r);
                 }
-                foreach (var l in toAdd)
+                context.AddRange(toAdd.Select(l => new SessionCompetency()
                 {
-                    var newSessionComp = new SessionCompetency
-                    {
-                        CompetencyId = sessionComp.CompetencyId,
-                        SessionId = sessionComp.SessionId,
-                        LevelId = l,
-                        RoleId = sessionComp.RoleId,
-                        Order = sessionComp.Order ?? 0
-                    };
-                    context.Add(newSessionComp);
-                }
+                    CompetencyId = sessionComp.CompetencyId,
+                    SessionId = sessionComp.SessionId,
+                    LevelId = l,
+                    RoleId = sessionComp.RoleId,
+                    Order = sessionComp.Order ?? 0
+                }));
                 await context.SaveChangesAsync();
                 await trans.CommitAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 return BadRequest("Could not update levels.");
             }

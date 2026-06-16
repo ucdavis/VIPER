@@ -12,16 +12,14 @@ namespace Viper.Areas.Effort.Services;
 
 public class MeritReportService : BaseReportService, IMeritReportService
 {
-    private readonly ITermService _termService;
     private readonly ILogger<MeritReportService> _logger;
 
     public MeritReportService(
         EffortDbContext context,
         ITermService termService,
         ILogger<MeritReportService> logger)
-        : base(context)
+        : base(context, termService)
     {
-        _termService = termService;
         _logger = logger;
     }
 
@@ -270,7 +268,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         await using var command = new SqlCommand("[effort].[sp_merit_report]", connection);
         command.CommandType = CommandType.StoredProcedure;
-        command.Parameters.AddWithValue("@PersonId", personId);
+        command.Parameters.AddWithValue("@PersonId", personId.HasValue ? personId.Value : DBNull.Value);
         command.Parameters.AddWithValue("@StartTermCode", startTermCode);
         command.Parameters.AddWithValue("@EndTermCode", endTermCode);
         command.Parameters.AddWithValue("@Department", (object?)department ?? DBNull.Value);
@@ -919,7 +917,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
     public MemoryStream GenerateMeritDetailExcel(MeritDetailReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Detail Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -1018,14 +1016,13 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }
 
     public MemoryStream GenerateMeritAverageExcel(MeritAverageReport report)
     {
-        var wb = new XLWorkbook();
+        using var wb = new XLWorkbook();
         const string reportTitle = "Merit & Promotion Average Report";
         var termName = report.AcademicYear ?? report.TermName;
         ExcelAccessibilityHelper.SetCoreProperties(wb, reportTitle,
@@ -1164,7 +1161,6 @@ public class MeritReportService : BaseReportService, IMeritReportService
 
         var stream = new MemoryStream();
         wb.SaveAs(stream);
-        wb.Dispose();
         stream.Position = 0;
         return stream;
     }

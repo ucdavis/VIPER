@@ -137,11 +137,11 @@ namespace Viper.Areas.RAPS.Services
             Dictionary<string, List<string>> actionsPerformedOnObject = new();
             foreach (AuditLog auditLog in auditEntries)
             {
-                if (auditLog?.RoleId != null || auditLog?.PermissionId != null)
+                if (auditLog.RoleId != null || auditLog.PermissionId != null)
                 {
-                    string key = auditLog?.RoleId != null
+                    string key = auditLog.RoleId != null
                         ? "role-" + auditLog.RoleId
-                        : "permission-" + auditLog!.PermissionId;
+                        : "permission-" + auditLog.PermissionId;
                     if (actionsPerformedOnObject.TryGetValue(key, out var moreRecentActions))
                     {
                         bool undone = false;
@@ -243,12 +243,14 @@ namespace Viper.Areas.RAPS.Services
         /// </summary>
         /// <param name="roleMember">The rolemember object</param>
         /// <param name="actionType">Create Update or Delete</param>
-        public void AuditRoleMemberChange(TblRoleMember roleMember, AuditActionType actionType, string? comment)
+        /// <param name="comment">Optional free-text reason recorded on the audit row.</param>
+        /// <param name="modBy">Audit actor; falls back to the current CAS user when null or blank.</param>
+        public void AuditRoleMemberChange(TblRoleMember roleMember, AuditActionType actionType, string? comment, string? modBy = null)
         {
             TblLog tblLog = new()
             {
                 ModTime = DateTime.Now,
-                ModBy = UserHelper.GetCurrentUser()?.LoginId,
+                ModBy = string.IsNullOrWhiteSpace(modBy) ? UserHelper.GetCurrentUser()?.LoginId : modBy,
                 RoleId = roleMember.RoleId,
                 MemberId = roleMember.MemberId,
                 Comment = comment

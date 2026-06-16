@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Amazon;
 using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
@@ -13,7 +14,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -32,6 +32,7 @@ using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
+using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
@@ -86,44 +87,14 @@ try
             .AddSystemsManager("/" + builder.Environment.EnvironmentName, awsOptions)
             .AddSystemsManager("/Shared", awsOptions);
     }
-    catch (Exception ex)
+    catch (Exception ex) when (ex is AmazonServiceException or AmazonClientException)
     {
         logger.Fatal(ex, "Failed to get secrets from AWS");
     }
 
-    //Use forwarded for headers on test and prod. UseForwardedHeaders is
-    //only enabled outside Development (see below), so skip the cloudflare.com
-    //fetch in dev to avoid a network call on every local startup.
-    if (!builder.Environment.IsDevelopment())
-    {
-        var cloudflareCidrs = CloudflareNetworks.FetchOrFallback(logger);
-        builder.Services.Configure<ForwardedHeadersOptions>(options =>
-        {
-            options.ForwardedHeaders =
-                ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            options.KnownProxies.Add(IPAddress.Parse("192.168.56.134")); //The F5's internal IP
-
-            // Cloudflare fronts vetmed.ucdavis.edu. The chain is
-            // User -> Cloudflare -> F5 -> app, so the middleware must walk two
-            // proxy hops to land on the real client IP. Default ForwardLimit
-            // is 1, which stops at the CF edge - bump to 2.
-            options.ForwardLimit = 2;
-            foreach (var cidr in cloudflareCidrs)
-            {
-                // cidrs come from cloudflare.com (or our hardcoded fallback). A
-                // single malformed entry in the live response shouldn't crash
-                // startup - skip it and keep the rest of the allowlist.
-                try
-                {
-                    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
-                }
-                catch (FormatException ex)
-                {
-                    logger.Warn(ex, "Skipping invalid Cloudflare CIDR: {Cidr}", cidr);
-                }
-            }
-        });
-    }
+    // Forwarded-headers wiring (Cloudflare + F5 trusted proxies). No-op
+    // in Development. See ForwardedHeadersExtensions.
+    builder.Services.AddViperForwardedHeaders(builder.Environment, logger);
 
     // Add services to the container.
     builder.Services.AddControllersWithViews(options =>
@@ -292,7 +263,8 @@ try
                 "Viper.Areas.ClinicalScheduler.Validators",
                 "Viper.Areas.Students.Services",
                 "Viper.Areas.Curriculum.Services",
-                "Viper.Areas.Effort.Services"
+                "Viper.Areas.Effort.Services",
+                "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
         .UsingRegistrationStrategy(RegistrationStrategy.Skip)
@@ -324,6 +296,9 @@ try
 
     // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
+
+    // Hangfire scheduler. No-op when Hangfire:Enabled is false.
+    builder.Services.AddViperHangfire(builder.Configuration, logger);
 
     // Add HttpClient for Vite proxy (development only)
     if (builder.Environment.IsDevelopment())
@@ -430,43 +405,10 @@ try
 
     }
 
-    // In development, set up Vite proxy BEFORE rewrite rules so it can handle .ts/.js files
-    if (app.Environment.IsDevelopment())
-    {
-        // Development: Proxy Vue.js assets to Vite dev server for hot module replacement (HMR)
-        // This middleware intercepts requests for Vue assets and forwards them to the Vite dev server
-        app.Use(async (context, next) =>
-        {
-            if (ViteProxyHelpers.ShouldProxyToVite(context, VueAppNames))
-            {
-                try
-                {
-                    // Use the registered HttpClient from dependency injection
-                    var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
-                    var httpClient = httpClientFactory.CreateClient("ViteProxy");
-
-                    // Build the Vite server URL and try to proxy directly
-                    var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
-                    var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
-                    using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
-
-                    // Copy the response back to the client
-                    await ViteProxyHelpers.CopyProxyResponse(context, response);
-                    return; // Successfully proxied, don't continue to static files
-                }
-                catch (Exception ex)
-                {
-                    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-                    logger.LogDebug(ex, "Vite server not available, falling back to static files for {Path}",
-                        Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
-                    // Fall through to static file serving
-                }
-            }
-
-            // Continue to static file serving (either Vite not needed or not available)
-            await next();
-        });
-    }
+    // Re-execute bare status-code responses (403, 404, etc.) through HomeController.Error
+    // so middleware that writes raw status codes — e.g. Hangfire's dashboard middleware
+    // when our auth filter denies — gets the same Razor error view as the rest of the app.
+    app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
     var rewriteOptions = new RewriteOptions();
 
@@ -484,36 +426,77 @@ try
         rewriteOptions.AddRewrite($@"(?i)^{escapedAppName}", $"/2/vue/src/{lowerAppName}/index.html", true);
     }
 
-    app.UseRewriter(rewriteOptions);
-
-    //for the vue src files, use directories in the url but serve index.html
+    // Default-file convention for /vue (legacy path).
     app.UseDefaultFiles(new DefaultFilesOptions
     {
         DefaultFileNames = new List<string> { "index.html" },
         FileProvider = new PhysicalFileProvider(
-            Path.Join(builder.Environment.ContentRootPath, "wwwroot/vue")),
+            Path.Join(builder.Environment.WebRootPath, "vue")),
         RequestPath = "/vue",
         RedirectToAppendTrailingSlash = true
     });
 
-    // Static file serving configuration
-    // Serve built Vue files - in development proxy middleware runs first,
-    // in production these files are served directly
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(
-            Path.Join(builder.Environment.ContentRootPath, "wwwroot/vue")),
-        RequestPath = "/2/vue"
-    });
-
-    // Serve other static files
+    // General static files (favicon, /css, /js, /images, etc.).
     app.UseStaticFiles();
 
-    // Add sitemap middleware after static file handling
     app.UseSitemapMiddleware();
 
-    // apply settings define earlier
+    // Routing first so subsequent middleware can defer to a matched MVC endpoint.
     app.UseRouting();
+
+    // SPA shell serving for Vue app prefixes like /CMS, /Effort, etc. Runs before
+    // auth/session so static Vue assets skip that per-request overhead.
+    // Only runs when no MVC controller endpoint claimed the path, so attribute-routed
+    // legacy endpoints (e.g. /CMS/Files → CMSController.Files) reach the controller
+    // instead of being rewritten to the SPA shell.
+    app.UseWhen(
+        ctx => ctx.GetEndpoint() is null,
+        branch =>
+        {
+            if (app.Environment.IsDevelopment())
+            {
+                // Dev: proxy Vue assets and SPA routes to the Vite dev server (HMR).
+                branch.Use(async (context, next) =>
+                {
+                    if (ViteProxyHelpers.ShouldProxyToVite(context, VueAppNames))
+                    {
+                        try
+                        {
+                            var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
+                            var httpClient = httpClientFactory.CreateClient("ViteProxy");
+
+                            var viteUrl = ViteProxyHelpers.BuildViteUrl(context.Request.Path, context.Request.QueryString, VueAppNames);
+                            var requestMessage = ViteProxyHelpers.CreateProxyRequest(context, viteUrl);
+                            using var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+
+                            await ViteProxyHelpers.CopyProxyResponse(context, response);
+                            return;
+                        }
+                        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+                        {
+                            var viteLogger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                            viteLogger.LogDebug(ex, "Vite server not available, falling back to static files for {Path}",
+                                Uri.EscapeDataString(context.Request.Path.Value ?? "unknown"));
+                        }
+                    }
+
+                    await next();
+                });
+            }
+
+            // Prod (and dev fallback): rewrite SPA routes to the built SPA shell,
+            // then serve the static file from wwwroot/vue.
+            branch.UseRewriter(rewriteOptions);
+            branch.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(
+                    Path.Join(builder.Environment.WebRootPath, "vue")),
+                RequestPath = "/2/vue"
+            });
+        });
+
+    // Auth/session run after the SPA shell block so built Vue assets skip them, but
+    // still before health checks, Hangfire, and controllers, which need an authenticated user.
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseCookiePolicy();
@@ -521,6 +504,9 @@ try
 
     // All health-check pipeline wiring lives in HealthCheckExtensions.
     app.UseViperHealthChecks();
+
+    // Hangfire dashboard. No-op unless AddViperHangfire actually registered.
+    app.UseViperHangfire();
 
     // Define the default route mapping and require authentication by default (fail safe)
     app.MapControllerRoute(
@@ -538,7 +524,9 @@ try
     app.Run();
 #pragma warning restore S6966
 }
+#pragma warning disable CA1031 // Top-level app startup must catch any exception to log fatal and rethrow as InvalidOperationException with context for hosting platform.
 catch (Exception exception)
+#pragma warning restore CA1031
 {
     // NLog: catch setup errors
     logger.Fatal(exception, "Stopped program because of exception");
@@ -584,9 +572,8 @@ void SetAwsCredentials(Logger logger)
         {
             File.Delete(awsCredentialsFilePath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
             logger.Error(ex, $"COULD NOT DELETE THE AWS CREDENTIALS XML FILE (\"{awsCredentialsFilePath}\").  The file will need to be deleted manually.");
         }
     }

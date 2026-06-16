@@ -46,14 +46,17 @@ namespace Viper.Areas.RAPS.Controllers
             List<string>? path = HttpContext?.Request?.Path.ToString().Split("/").ToList();
             int? rapsIdx = path?.FindIndex(p => p.Equals("raps", StringComparison.OrdinalIgnoreCase));
             string instance = "VIPER";
-            if (rapsIdx != null && rapsIdx > -1 && path?.Count > rapsIdx + 1)
-            {
-                instance = path[(int)rapsIdx + 1];
-            }
             string page = "";
-            if (rapsIdx != null && rapsIdx > -1 && path?.Count > rapsIdx + 2)
+            if (path != null && rapsIdx is { } idx && idx > -1)
             {
-                page = path[(int)rapsIdx + 2];
+                if (path.Count > idx + 1)
+                {
+                    instance = path[idx + 1];
+                }
+                if (path.Count > idx + 2)
+                {
+                    page = path[idx + 2];
+                }
             }
             ViewData["ViperLeftNav"] = await Nav(roleIdValid ? roleId : null,
                 permIdValid ? permissionId : null,
