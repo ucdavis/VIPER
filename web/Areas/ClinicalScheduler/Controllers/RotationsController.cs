@@ -562,8 +562,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 .Select(mothraId => new
                 {
                     mothraId,
-                    fullName = personData.ContainsKey(mothraId)
-                        ? personData[mothraId].PersonDisplayFullName
+                    fullName = personData.TryGetValue(mothraId, out var person)
+                        ? person.PersonDisplayFullName
                         : $"Clinician {mothraId}"
                 })
                 .OrderBy(c => c.fullName)

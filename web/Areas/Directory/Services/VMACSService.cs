@@ -7,7 +7,7 @@ namespace Viper.Areas.Directory.Services
 {
     public class VMACSService
     {
-        private static HttpClient sharedClient = new()
+        private static readonly HttpClient sharedClient = new()
         {
             BaseAddress = new Uri("https://vmacs-vmth.vetmed.ucdavis.edu"),
         };

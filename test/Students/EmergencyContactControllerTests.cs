@@ -318,8 +318,8 @@ public class EmergencyContactControllerTests
         // but in unit tests without an HttpContext it stays null — assert the body shape.
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         var problem = Assert.IsType<ValidationProblemDetails>(objectResult.Value);
-        Assert.True(problem.Errors.ContainsKey("PhoneValidation"));
-        Assert.Contains("Invalid phone number: 12345", problem.Errors["PhoneValidation"]);
+        Assert.True(problem.Errors.TryGetValue("PhoneValidation", out var phoneErrors));
+        Assert.Contains("Invalid phone number: 12345", phoneErrors);
     }
 
     [Fact]
