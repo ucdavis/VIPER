@@ -25,7 +25,7 @@ namespace Viper.Areas.CMS.Services
 
             if (canManageBlocks || canCreateBlocks || canManageFiles || canManageNav)
             {
-                nav.Add(new NavMenuItem { MenuItemText = "Home", MenuItemURL = "Home" });
+                nav.Add(new NavMenuItem { MenuItemText = "Home", MenuItemURL = "Home", IndentLevel = 1 });
             }
 
             if (canManageBlocks || canCreateBlocks)
@@ -41,6 +41,7 @@ namespace Viper.Areas.CMS.Services
                 }
                 if (canManageBlocks)
                 {
+                    nav.Add(new NavMenuItem { MenuItemText = "Edit History", MenuItemURL = "ManageContentBlocks/History", IndentLevel = 1 });
                     nav.Add(new NavMenuItem { MenuItemText = "Manage Link Collections", MenuItemURL = "ManageLinkCollections", IndentLevel = 1 });
                 }
             }
@@ -50,6 +51,7 @@ namespace Viper.Areas.CMS.Services
                 nav.Add(new NavMenuItem { MenuItemText = "Files", IsHeader = true });
                 nav.Add(new NavMenuItem { MenuItemText = "Manage Files", MenuItemURL = "ManageFiles", IndentLevel = 1 });
                 nav.Add(new NavMenuItem { MenuItemText = "Add File", MenuItemURL = "ManageFiles?upload=1", IndentLevel = 1 });
+                nav.Add(new NavMenuItem { MenuItemText = "Audit Trail", MenuItemURL = "ManageFiles/Audit", IndentLevel = 1 });
             }
 
             if (canManageNav)

@@ -40,6 +40,7 @@
                 <q-item-section side>
                     <q-icon
                         :name="item.icon"
+                        :aria-label="item.typeLabel"
                         color="secondary"
                         size="sm"
                     />
@@ -50,7 +51,8 @@
                         caption
                         :title="formatFullDate(item.modifiedOn)"
                     >
-                        {{ formatTimeAgo(new Date(item.modifiedOn)) }} by {{ item.modifiedBy }}
+                        {{ item.typeLabel }} &middot; {{ formatTimeAgo(new Date(item.modifiedOn)) }} by
+                        {{ item.modifiedBy }}
                     </q-item-label>
                 </q-item-section>
             </q-item>
@@ -62,19 +64,25 @@
 import { inject, onMounted, ref } from "vue"
 import { formatTimeAgo } from "@vueuse/core"
 import { useFetch } from "@/composables/ViperFetch"
-import type { CmsContentBlock, CmsFile } from "@/CMS/types/"
+import type { CmsContentBlock, CmsFile, CmsLeftNavMenu } from "@/CMS/types/"
 
 const MAX_ITEMS = 8
 const PER_SOURCE = 5
 
-const { showBlocks = false, showFiles = false } = defineProps<{
+const {
+    showBlocks = false,
+    showFiles = false,
+    showLeftNavs = false,
+} = defineProps<{
     showBlocks?: boolean
     showFiles?: boolean
+    showLeftNavs?: boolean
 }>()
 
 type ActivityItem = {
     key: string
     icon: string
+    typeLabel: string
     label: string
     to: { name: string; params?: Record<string, string | number>; query?: Record<string, string> }
     modifiedOn: string
@@ -101,6 +109,7 @@ async function loadBlocks(): Promise<ActivityItem[]> {
         .map((b) => ({
             key: "block-" + b.contentBlockId,
             icon: "article",
+            typeLabel: "Content block",
             label: b.title || b.friendlyName || "(untitled)",
             to: { name: "CmsContentBlockEdit", params: { id: b.contentBlockId } },
             modifiedOn: b.modifiedOn,
@@ -120,7 +129,8 @@ async function loadFiles(): Promise<ActivityItem[]> {
     if (!res.success) throw new Error("files")
     return ((res.result ?? []) as CmsFile[]).map((f) => ({
         key: "file-" + f.fileGuid,
-        icon: "folder",
+        icon: "description",
+        typeLabel: "File",
         label: f.friendlyName,
         to: { name: "CmsFiles", query: { search: f.friendlyName } },
         modifiedOn: f.modifiedOn,
@@ -128,8 +138,30 @@ async function loadFiles(): Promise<ActivityItem[]> {
     }))
 }
 
+async function loadLeftNavs(): Promise<ActivityItem[]> {
+    // The left-nav list endpoint returns all menus unsorted, so sort by modifiedOn here.
+    const res = await get(apiURL + "cms/left-navs")
+    if (!res.success) throw new Error("leftNavs")
+    return [...((res.result ?? []) as CmsLeftNavMenu[])]
+        .sort((a, b) => new Date(b.modifiedOn).getTime() - new Date(a.modifiedOn).getTime())
+        .slice(0, PER_SOURCE)
+        .map((m) => ({
+            key: "leftnav-" + m.leftNavMenuId,
+            icon: "menu",
+            typeLabel: "Left-nav menu",
+            label: m.menuHeaderText || m.friendlyName || "(untitled)",
+            to: { name: "CmsLeftNavEdit", params: { id: m.leftNavMenuId } },
+            modifiedOn: m.modifiedOn,
+            modifiedBy: m.modifiedBy,
+        }))
+}
+
 async function loadActivity() {
-    const sources = [...(showBlocks ? [loadBlocks()] : []), ...(showFiles ? [loadFiles()] : [])]
+    const sources = [
+        ...(showBlocks ? [loadBlocks()] : []),
+        ...(showFiles ? [loadFiles()] : []),
+        ...(showLeftNavs ? [loadLeftNavs()] : []),
+    ]
     const results = await Promise.allSettled(sources)
     const loaded = results.filter((r) => r.status === "fulfilled").flatMap((r) => r.value)
     failed.value = sources.length > 0 && results.every((r) => r.status === "rejected")

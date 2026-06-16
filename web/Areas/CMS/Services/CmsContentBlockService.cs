@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using HtmlDiffer = HtmlDiff.HtmlDiff;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Models.DTOs;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.VIPER;
 using Viper.Services;
 
@@ -39,7 +41,28 @@ namespace Viper.Areas.CMS.Services
 
         Task<ContentHistoryDto?> GetHistoryVersionAsync(int contentBlockId, int contentHistoryId, CancellationToken ct = default);
 
+        Task<ContentHistoryDiffDto?> GetHistoryVersionDiffAsync(int contentBlockId, int contentHistoryId, CancellationToken ct = default);
+
+        Task<ContentHistoryDiffDto?> DiffContentAgainstHistoryAsync(int contentBlockId, int contentHistoryId, string currentContent, CancellationToken ct = default);
+
+        Task<List<ContentHistoryAuditDto>> GetHistoryEntriesAsync(CmsContentHistoryFilter filter, int page, int perPage, CancellationToken ct = default);
+
+        Task<int> GetHistoryEntryCountAsync(CmsContentHistoryFilter filter, CancellationToken ct = default);
+
         Task<List<string>> GetViperSectionPathsAsync(CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Filters for the cross-block edit-history viewer. Mirrors CmsFileAuditFilter so the
+    /// content-history page can reuse the file-audit page's filter UX.
+    /// </summary>
+    public class CmsContentHistoryFilter
+    {
+        public int? ContentBlockId { get; set; }
+        public string? ModifiedBy { get; set; }
+        public DateTime? From { get; set; }
+        public DateTime? To { get; set; }
+        public string? Search { get; set; }
     }
 
     /// <summary>
@@ -323,6 +346,159 @@ namespace Viper.Areas.CMS.Services
             };
         }
 
+        public async Task<ContentHistoryDiffDto?> GetHistoryVersionDiffAsync(int contentBlockId, int contentHistoryId, CancellationToken ct = default)
+        {
+            var selected = await _context.ContentHistories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(h => h.ContentBlockId == contentBlockId && h.ContentHistoryId == contentHistoryId, ct);
+            if (selected == null)
+            {
+                return null;
+            }
+
+            // The "previous version" is the next-older history row for this block, by the same
+            // newest-first ordering the history list uses. History holds superseded versions only,
+            // so the current live block is never the comparison target here.
+            var previous = await _context.ContentHistories
+                .AsNoTracking()
+                .Where(h => h.ContentBlockId == contentBlockId
+                    && (h.ModifiedOn < selected.ModifiedOn
+                        || (h.ModifiedOn == selected.ModifiedOn && h.ContentHistoryId < selected.ContentHistoryId)))
+                .OrderByDescending(h => h.ModifiedOn)
+                .ThenByDescending(h => h.ContentHistoryId)
+                .FirstOrDefaultAsync(ct);
+
+            if (previous == null)
+            {
+                // Original version: nothing older to diff against. Return its own sanitized markup.
+                return new ContentHistoryDiffDto
+                {
+                    Content = _sanitizer.Sanitize(selected.ContentBlockContent),
+                    HasComparison = false,
+                    NewModifiedOn = selected.ModifiedOn,
+                    NewModifiedBy = selected.ModifiedBy
+                };
+            }
+
+            var diffHtml = BuildDiffHtml(previous.ContentBlockContent, selected.ContentBlockContent);
+            return new ContentHistoryDiffDto
+            {
+                Content = diffHtml,
+                HasComparison = true,
+                HasChanges = DiffHasChanges(diffHtml),
+                OldModifiedOn = previous.ModifiedOn,
+                OldModifiedBy = previous.ModifiedBy,
+                NewModifiedOn = selected.ModifiedOn,
+                NewModifiedBy = selected.ModifiedBy
+            };
+        }
+
+        public async Task<ContentHistoryDiffDto?> DiffContentAgainstHistoryAsync(int contentBlockId, int contentHistoryId, string currentContent, CancellationToken ct = default)
+        {
+            var selected = await _context.ContentHistories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(h => h.ContentBlockId == contentBlockId && h.ContentHistoryId == contentHistoryId, ct);
+            if (selected == null)
+            {
+                return null;
+            }
+
+            // The history version is the "old" side and the editor's current draft is the "new" side,
+            // so ins/del read as what the draft adds/removes relative to that version.
+            var diffHtml = BuildDiffHtml(selected.ContentBlockContent, currentContent);
+            return new ContentHistoryDiffDto
+            {
+                Content = diffHtml,
+                HasComparison = true,
+                HasChanges = DiffHasChanges(diffHtml),
+                OldModifiedOn = selected.ModifiedOn,
+                OldModifiedBy = selected.ModifiedBy
+            };
+        }
+
+        // Sanitize both sides with the render-time policy first so the diff compares what actually
+        // renders, then diff, then re-sanitize the merged result. The second pass re-parses through
+        // AngleSharp (balancing/closing the malformed tags htmldiff.net can emit) and strips anything
+        // off-policy, so we no longer trust the diff library's output — SanitizeDiff keeps only the
+        // <ins>/<del> change markers on top of our normal allowlist.
+        private string BuildDiffHtml(string oldContent, string newContent)
+        {
+            var oldSafe = _sanitizer.Sanitize(oldContent ?? string.Empty);
+            var newSafe = _sanitizer.Sanitize(newContent ?? string.Empty);
+            var diff = HtmlDiffer.Execute(oldSafe, newSafe);
+            return _sanitizer.SanitizeDiff(diff);
+        }
+
+        // htmldiff.net only wraps actual changes in <ins>/<del>; identical inputs come back with
+        // neither. Their absence means the two versions render the same.
+        private static bool DiffHasChanges(string diffHtml)
+        {
+            return diffHtml.Contains("<ins", StringComparison.OrdinalIgnoreCase)
+                || diffHtml.Contains("<del", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public async Task<List<ContentHistoryAuditDto>> GetHistoryEntriesAsync(CmsContentHistoryFilter filter, int page, int perPage, CancellationToken ct = default)
+        {
+            return await BuildHistoryQuery(filter)
+                .OrderByDescending(x => x.History.ModifiedOn)
+                .ThenByDescending(x => x.History.ContentHistoryId)
+                .Skip((page - 1) * perPage)
+                .Take(perPage)
+                .Select(x => new ContentHistoryAuditDto
+                {
+                    ContentHistoryId = x.History.ContentHistoryId,
+                    ContentBlockId = x.History.ContentBlockId,
+                    Title = x.Block.Title,
+                    FriendlyName = x.Block.FriendlyName,
+                    Page = x.Block.Page,
+                    ModifiedOn = x.History.ModifiedOn,
+                    ModifiedBy = x.History.ModifiedBy,
+                    BlockDeleted = x.Block.DeletedOn != null
+                })
+                .ToListAsync(ct);
+        }
+
+        public async Task<int> GetHistoryEntryCountAsync(CmsContentHistoryFilter filter, CancellationToken ct = default)
+        {
+            return await BuildHistoryQuery(filter).CountAsync(ct);
+        }
+
+        // Join history to its block so the block's title/page are filterable and projectable
+        // (a join, not a correlated subquery). Each row is a superseded prior version.
+        private IQueryable<HistoryWithBlock> BuildHistoryQuery(CmsContentHistoryFilter filter)
+        {
+            var query =
+                from h in _context.ContentHistories.AsNoTracking()
+                join b in _context.ContentBlocks.AsNoTracking() on h.ContentBlockId equals b.ContentBlockId
+                select new HistoryWithBlock { History = h, Block = b };
+
+            if (filter.ContentBlockId != null)
+            {
+                query = query.Where(x => x.History.ContentBlockId == filter.ContentBlockId);
+            }
+            if (!string.IsNullOrEmpty(filter.ModifiedBy))
+            {
+                query = query.Where(x => x.History.ModifiedBy == filter.ModifiedBy);
+            }
+            if (filter.From != null)
+            {
+                query = query.Where(x => x.History.ModifiedOn >= filter.From);
+            }
+            if (filter.To != null)
+            {
+                // Treat the To date as inclusive through end of day.
+                var to = DateRangeHelper.ExclusiveUpperBound(filter.To.Value);
+                query = query.Where(x => x.History.ModifiedOn < to);
+            }
+            if (!string.IsNullOrEmpty(filter.Search))
+            {
+                query = query.Where(x => (x.Block.Title != null && x.Block.Title.Contains(filter.Search))
+                    || (x.Block.FriendlyName != null && x.Block.FriendlyName.Contains(filter.Search))
+                    || (x.Block.Page != null && x.Block.Page.Contains(filter.Search)));
+            }
+            return query;
+        }
+
         public async Task<List<string>> GetViperSectionPathsAsync(CancellationToken ct = default)
         {
             return await _context.ContentBlocks
@@ -456,6 +632,13 @@ namespace Viper.Areas.CMS.Services
         private string CurrentLoginId()
         {
             return _userHelper.GetCurrentUser()?.LoginId ?? "unknown";
+        }
+
+        // Wrapper so the history/block join can be filtered and ordered before projection.
+        private sealed class HistoryWithBlock
+        {
+            public ContentHistory History { get; set; } = null!;
+            public ContentBlock Block { get; set; } = null!;
         }
 
         private static List<string> CleanList(ICollection<string> values)

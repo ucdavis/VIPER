@@ -26,6 +26,8 @@ public sealed class CmsContentBlockServiceTests : IDisposable
             .UseInMemoryDatabase("VIPER_" + Guid.NewGuid()).Options);
         _sanitizer = Substitute.For<IHtmlSanitizerService>();
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => callInfo.ArgAt<string>(0));
+        // Pass-through so diff tests assert on the real htmldiff.net markers, not a sanitized copy.
+        _sanitizer.SanitizeDiff(Arg.Any<string>()).Returns(callInfo => callInfo.ArgAt<string>(0));
         _userHelper = Substitute.For<IUserHelper>();
 
         _service = new CmsContentBlockService(_context, _sanitizer, _userHelper);
@@ -320,6 +322,199 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         var oldest = await _service.GetHistoryVersionAsync(block.ContentBlockId, history[^1].ContentHistoryId,
             TestContext.Current.CancellationToken);
         Assert.Equal("<p>original</p>", oldest!.Content);
+    }
+
+    #endregion
+
+    #region Cross-block edit history
+
+    private async Task<ContentBlock> SeedBlockWithHistoryAsync(string title, string page, bool deleted,
+        params (string author, DateTime when)[] versions)
+    {
+        var block = await SeedBlockAsync(b =>
+        {
+            b.Title = title;
+            b.Page = page;
+            b.DeletedOn = deleted ? DateTime.Now : null;
+            foreach (var (author, when) in versions)
+            {
+                b.ContentHistories.Add(new ContentHistory
+                {
+                    ContentBlockContent = $"<p>{author}@{when:o}</p>",
+                    ModifiedOn = when,
+                    ModifiedBy = author
+                });
+            }
+        });
+        return block;
+    }
+
+    [Fact]
+    public async Task GetHistoryEntries_ReturnsAcrossBlocks_NewestFirst_WithBlockInfo()
+    {
+        var now = DateTime.Now;
+        await SeedBlockWithHistoryAsync("Alpha", "home", deleted: false,
+            ("editorX", now.AddDays(-3)), ("editorY", now.AddDays(-1)));
+        await SeedBlockWithHistoryAsync("Beta", "about", deleted: true,
+            ("editorX", now.AddDays(-2)));
+
+        var entries = await _service.GetHistoryEntriesAsync(new CmsContentHistoryFilter(), 1, 50,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, entries.Count);
+        // Newest first: editorY@-1 (Alpha), editorX@-2 (Beta), editorX@-3 (Alpha).
+        Assert.Equal("editorY", entries[0].ModifiedBy);
+        Assert.Equal("Alpha", entries[0].Title);
+        Assert.Equal("home", entries[0].Page);
+        Assert.False(entries[0].BlockDeleted);
+        Assert.Equal("Beta", entries[1].Title);
+        Assert.True(entries[1].BlockDeleted);
+    }
+
+    [Fact]
+    public async Task GetHistoryEntries_FiltersByEditorBlockSearchAndDate()
+    {
+        var now = DateTime.Now;
+        var alpha = await SeedBlockWithHistoryAsync("Alpha", "home", deleted: false,
+            ("editorX", now.AddDays(-3)), ("editorY", now.AddDays(-1)));
+        await SeedBlockWithHistoryAsync("Beta", "about", deleted: false,
+            ("editorX", now.AddDays(-2)));
+
+        var byEditor = await _service.GetHistoryEntriesAsync(new CmsContentHistoryFilter { ModifiedBy = "editorX" },
+            1, 50, TestContext.Current.CancellationToken);
+        Assert.Equal(2, byEditor.Count);
+        Assert.All(byEditor, e => Assert.Equal("editorX", e.ModifiedBy));
+
+        var byBlock = await _service.GetHistoryEntriesAsync(new CmsContentHistoryFilter { ContentBlockId = alpha.ContentBlockId },
+            1, 50, TestContext.Current.CancellationToken);
+        Assert.Equal(2, byBlock.Count);
+        Assert.All(byBlock, e => Assert.Equal(alpha.ContentBlockId, e.ContentBlockId));
+
+        var bySearch = await _service.GetHistoryEntriesAsync(new CmsContentHistoryFilter { Search = "Beta" },
+            1, 50, TestContext.Current.CancellationToken);
+        Assert.Single(bySearch);
+        Assert.Equal("Beta", bySearch[0].Title);
+
+        // To is inclusive through end of the given day; From excludes older rows.
+        var byDate = await _service.GetHistoryEntriesAsync(
+            new CmsContentHistoryFilter { From = now.AddDays(-2).Date, To = now.Date },
+            1, 50, TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(byDate, e => e.ModifiedOn < now.AddDays(-2).Date);
+    }
+
+    [Fact]
+    public async Task GetHistoryEntries_PaginatesAndCounts()
+    {
+        var now = DateTime.Now;
+        await SeedBlockWithHistoryAsync("Alpha", "home", deleted: false,
+            ("a", now.AddDays(-3)), ("b", now.AddDays(-2)), ("c", now.AddDays(-1)));
+
+        var filter = new CmsContentHistoryFilter();
+        var firstPage = await _service.GetHistoryEntriesAsync(filter, 1, 2, TestContext.Current.CancellationToken);
+        var secondPage = await _service.GetHistoryEntriesAsync(filter, 2, 2, TestContext.Current.CancellationToken);
+        var total = await _service.GetHistoryEntryCountAsync(filter, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, firstPage.Count);
+        Assert.Single(secondPage);
+        Assert.Equal(3, total);
+    }
+
+    #endregion
+
+    #region Version diff
+
+    [Fact]
+    public async Task GetHistoryVersionDiff_AgainstPreviousVersion_MarksChangesAndReSanitizes()
+    {
+        var block = await SeedBlockAsync();
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v3</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+
+        // History newest-first is [v2, original]; v2 has a predecessor (original) to diff against.
+        var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
+        var v2 = history[0];
+
+        var diff = await _service.GetHistoryVersionDiffAsync(block.ContentBlockId, v2.ContentHistoryId,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(diff);
+        Assert.True(diff!.HasComparison);
+        Assert.True(diff.HasChanges);
+        Assert.Equal("originalAuthor", diff.OldModifiedBy);
+        Assert.Contains("<ins", diff.Content);
+        Assert.Contains("<del", diff.Content);
+        Assert.Contains("v2", diff.Content);
+        // The merged diff is re-sanitized (not the raw library output) before it leaves the service.
+        _sanitizer.Received().SanitizeDiff(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task GetHistoryVersionDiff_OriginalVersion_HasNoComparison()
+    {
+        var block = await SeedBlockAsync();
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+
+        var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
+        var original = history[^1];
+
+        var diff = await _service.GetHistoryVersionDiffAsync(block.ContentBlockId, original.ContentHistoryId,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(diff);
+        Assert.False(diff!.HasComparison);
+        Assert.Equal("<p>original</p>", diff.Content);
+        Assert.DoesNotContain("<ins", diff.Content);
+    }
+
+    [Fact]
+    public async Task GetHistoryVersionDiff_UnknownVersion_ReturnsNull()
+    {
+        var block = await SeedBlockAsync();
+
+        var diff = await _service.GetHistoryVersionDiffAsync(block.ContentBlockId, 999999,
+            TestContext.Current.CancellationToken);
+
+        Assert.Null(diff);
+    }
+
+    [Fact]
+    public async Task DiffContentAgainstHistory_ComparesDraftToSelectedVersion()
+    {
+        var block = await SeedBlockAsync();
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+
+        var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
+        var original = history[^1];
+
+        var diff = await _service.DiffContentAgainstHistoryAsync(block.ContentBlockId, original.ContentHistoryId,
+            "<p>current draft</p>", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(diff);
+        Assert.True(diff!.HasComparison);
+        Assert.True(diff.HasChanges);
+        Assert.Equal("originalAuthor", diff.OldModifiedBy);
+        Assert.Contains("<ins", diff.Content);
+        Assert.Contains("current draft", diff.Content);
+    }
+
+    [Fact]
+    public async Task DiffContentAgainstHistory_IdenticalContent_ReportsNoChanges()
+    {
+        var block = await SeedBlockAsync();
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+
+        var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
+        var original = history[^1]; // holds "<p>original</p>"
+
+        // Current draft is byte-identical to the selected version: htmldiff emits no ins/del.
+        var diff = await _service.DiffContentAgainstHistoryAsync(block.ContentBlockId, original.ContentHistoryId,
+            "<p>original</p>", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(diff);
+        Assert.True(diff!.HasComparison);
+        Assert.False(diff.HasChanges);
+        Assert.DoesNotContain("<ins", diff.Content);
+        Assert.DoesNotContain("<del", diff.Content);
     }
 
     #endregion

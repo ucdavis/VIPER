@@ -30,30 +30,11 @@
                     @update:model-value="reload"
                 />
             </div>
-            <div class="col-12 col-sm-3 col-lg-2">
-                <q-input
-                    v-model="filters.from"
-                    dense
-                    outlined
-                    clearable
-                    label="From"
-                    type="date"
-                    stack-label
-                    @update:model-value="reload"
-                />
-            </div>
-            <div class="col-12 col-sm-3 col-lg-2">
-                <q-input
-                    v-model="filters.to"
-                    dense
-                    outlined
-                    clearable
-                    label="To"
-                    type="date"
-                    stack-label
-                    @update:model-value="reload"
-                />
-            </div>
+            <DateRangeFilter
+                v-model:from="filters.from"
+                v-model:to="filters.to"
+                @change="reload"
+            />
         </div>
 
         <div class="row q-mb-sm">
@@ -166,6 +147,7 @@ import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
 import ListCardField from "@/CMS/components/ListCardField.vue"
+import DateRangeFilter from "@/CMS/components/DateRangeFilter.vue"
 import type { CmsFileAudit } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/audit"

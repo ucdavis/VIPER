@@ -401,6 +401,11 @@ header .q-avatar {
     max-width: 95vw;
 }
 
+.dialog-card-lg {
+    width: 900px;
+    max-width: 95vw;
+}
+
 /* Skip to content link — visible on focus for keyboard users */
 .skip-to-content {
     position: absolute;

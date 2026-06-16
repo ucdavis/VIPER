@@ -51,6 +51,7 @@
                 <RecentActivity
                     :show-blocks="canManageBlocks"
                     :show-files="canManageFiles"
+                    :show-left-navs="canManageNav"
                 />
             </div>
         </div>
@@ -105,6 +106,11 @@ const sections: Section[] = [
                 permissions: ["SVMSecure.CMS.ManageContentBlocks"],
             },
             { label: "Add Content Block", to: { name: "CmsContentBlockEdit" } },
+            {
+                label: "Edit History",
+                to: { name: "CmsContentBlockHistory" },
+                permissions: ["SVMSecure.CMS.ManageContentBlocks"],
+            },
         ],
     },
     {
@@ -132,7 +138,8 @@ const visibleSections = computed(() =>
 )
 const canManageBlocks = computed(() => userStore.userInfo.permissions.includes("SVMSecure.CMS.ManageContentBlocks"))
 const canManageFiles = computed(() => userStore.userInfo.permissions.includes("SVMSecure.CMS.AllFiles"))
-const showRecentActivity = computed(() => canManageBlocks.value || canManageFiles.value)
+const canManageNav = computed(() => userStore.userInfo.permissions.includes("SVMSecure.CMS.ManageNavigation"))
+const showRecentActivity = computed(() => canManageBlocks.value || canManageFiles.value || canManageNav.value)
 </script>
 
 <style scoped>
