@@ -173,7 +173,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { QForm } from "quasar"
+import type { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { courseService } from "../services/course-service"
@@ -225,43 +225,46 @@ const countRules = computed(() => [
     (v: number | null) => v === null || v <= props.maxRatingCount || `Must be ${props.maxRatingCount} or less`,
 ])
 
-// Computed summary statistics derived from rating counts
-const totalRespondents = computed(() => {
-    const { count1, count2, count3, count4, count5 } = form.value
-    const c1 = count1 ?? 0
-    const c2 = count2 ?? 0
-    const c3 = count3 ?? 0
-    const c4 = count4 ?? 0
-    const c5 = count5 ?? 0
-    return c1 + c2 + c3 + c4 + c5
-})
+type RatingCounts = {
+    count1: number | null
+    count2: number | null
+    count3: number | null
+    count4: number | null
+    count5: number | null
+}
 
-const computedMean = computed(() => {
-    const n = totalRespondents.value
-    if (n === 0) return "—"
-    const { count1, count2, count3, count4, count5 } = form.value
-    const mean = (1 * (count1 ?? 0) + 2 * (count2 ?? 0) + 3 * (count3 ?? 0) + 4 * (count4 ?? 0) + 5 * (count5 ?? 0)) / n
-    return mean.toFixed(2)
-})
+// Weighted summary statistics for the five rating-count fields.
+function ratingStats(counts: RatingCounts) {
+    const c1 = counts.count1 ?? 0
+    const c2 = counts.count2 ?? 0
+    const c3 = counts.count3 ?? 0
+    const c4 = counts.count4 ?? 0
+    const c5 = counts.count5 ?? 0
+    const total = c1 + c2 + c3 + c4 + c5
+    if (total === 0) return { total, mean: 0, sd: 0 }
 
-const computedSd = computed(() => {
-    const n = totalRespondents.value
-    if (n === 0) return "—"
-    const { count1, count2, count3, count4, count5 } = form.value
-    const c1 = count1 ?? 0
-    const c2 = count2 ?? 0
-    const c3 = count3 ?? 0
-    const c4 = count4 ?? 0
-    const c5 = count5 ?? 0
-    const mean = (1 * c1 + 2 * c2 + 3 * c3 + 4 * c4 + 5 * c5) / n
+    const mean = (1 * c1 + 2 * c2 + 3 * c3 + 4 * c4 + 5 * c5) / total
     const variance =
         ((1 - mean) ** 2 * c1 +
             (2 - mean) ** 2 * c2 +
             (3 - mean) ** 2 * c3 +
             (4 - mean) ** 2 * c4 +
             (5 - mean) ** 2 * c5) /
-        n
-    return Math.sqrt(variance).toFixed(2)
+        total
+    return { total, mean, sd: Math.sqrt(variance) }
+}
+
+// Computed summary statistics derived from rating counts
+const totalRespondents = computed(() => ratingStats(form.value).total)
+
+const computedMean = computed(() => {
+    const { total, mean } = ratingStats(form.value)
+    return total === 0 ? "—" : mean.toFixed(2)
+})
+
+const computedSd = computed(() => {
+    const { total, sd } = ratingStats(form.value)
+    return total === 0 ? "—" : sd.toFixed(2)
 })
 
 async function handleClose() {
