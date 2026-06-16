@@ -6,7 +6,7 @@
         @update:model-value="emit('update:modelValue', $event)"
         @keydown.escape="handleClose"
     >
-        <q-card style="width: 480px; max-width: 95vw">
+        <q-card class="dialog-card-sm">
             <q-card-section class="row items-center q-pb-none">
                 <div
                     id="add-menu-title"

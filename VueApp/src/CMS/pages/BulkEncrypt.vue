@@ -70,6 +70,7 @@
             :loading="loading"
             v-model:pagination="pagination"
             :rows-per-page-options="[25, 50, 100, 250]"
+            :grid="$q.screen.lt.sm"
             dense
             flat
             bordered
@@ -77,6 +78,28 @@
         >
             <template #body-cell-modifiedOn="cellProps">
                 <ModifiedStamp :cell-props="cellProps" />
+            </template>
+
+            <template #item="itemProps">
+                <ListCard>
+                    <template #header>
+                        <div class="row items-center no-wrap q-gutter-x-sm">
+                            <q-checkbox
+                                v-model="itemProps.selected"
+                                :aria-label="`Select ${itemProps.row.friendlyName}`"
+                            />
+                            <span class="text-weight-medium">{{ itemProps.row.friendlyName }}</span>
+                        </div>
+                    </template>
+
+                    <ListCardField
+                        label="VIPER app"
+                        :value="itemProps.row.folder"
+                    />
+                    <ListCardField label="Modified">
+                        <ModifiedStamp :row="itemProps.row" />
+                    </ListCardField>
+                </ListCard>
             </template>
         </q-table>
 
@@ -119,6 +142,8 @@ import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
+import ListCard from "@/CMS/components/ListCard.vue"
+import ListCardField from "@/CMS/components/ListCardField.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import type { CmsFile } from "@/CMS/types/"
 

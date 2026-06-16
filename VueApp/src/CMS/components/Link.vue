@@ -1,15 +1,8 @@
 <template>
     <q-card
         :bordered="true"
-        :clickable="isSafe"
-        v-ripple="isSafe"
-        :class="['link-card', isSafe ? 'cursor-pointer q-hoverable' : '']"
-        @click="isSafe && openWebReports(props.link.url)"
+        class="link-card"
     >
-        <span
-            v-if="isSafe"
-            class="q-focus-helper"
-        ></span>
         <q-card-section class="q-py-sm">
             <div class="text-h3">
                 <a
@@ -53,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue"
+import { computed } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
 import { safeHref } from "@/CMS/utils/url"
 const props = defineProps<{
@@ -79,14 +72,6 @@ function getTagStyle(order: number) {
     const idx = order >= 1 ? (order - 1) % TAG_STYLES.length : 0
     return TAG_STYLES[idx]!
 }
-
-function openWebReports(url: string) {
-    const href = safeHref(url)
-    if (href === "#") return
-    window.open(href, "_blank", "noopener,noreferrer")?.focus()
-}
-
-watch(props, () => {}, { deep: true })
 </script>
 
 <style scoped>

@@ -30,6 +30,7 @@
                         label="Search"
                         stack-label
                         clearable
+                        debounce="300"
                         class="col-12 col-sm-6 col-md-3 col-lg-2"
                     >
                         <template #append>

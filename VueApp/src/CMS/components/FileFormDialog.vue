@@ -7,7 +7,7 @@
         @hide="resetForm"
         @keydown.escape="handleClose"
     >
-        <q-card style="width: 600px; max-width: 95vw">
+        <q-card class="dialog-card-md">
             <q-card-section class="row items-center q-pb-none">
                 <div
                     id="file-dialog-title"
@@ -158,7 +158,7 @@
                 persistent
                 aria-labelledby="conflict-dialog-title"
             >
-                <q-card style="width: 480px; max-width: 95vw">
+                <q-card class="dialog-card-sm">
                     <q-card-section class="row items-center q-pb-none">
                         <div
                             id="conflict-dialog-title"

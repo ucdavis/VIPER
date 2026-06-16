@@ -879,13 +879,13 @@ loadCollections()
 }
 
 #allLinks {
-    background: #fff;
+    background: var(--surface);
     border-radius: 6px;
     box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
 
 #allLinks .link-row {
-    border-bottom: 1px solid silver;
+    border-bottom: 1px solid var(--ucdavis-black-10);
     margin-bottom: 4px;
     padding: 8px 12px;
     align-items: flex-start;
@@ -894,7 +894,7 @@ loadCollections()
 
 #allLinks .link-row.header {
     font-weight: bold;
-    background: #f5f7fb;
+    background: var(--surface-tint);
     color: var(--q-primary);
     border-radius: 6px;
     text-align: left;
@@ -1045,10 +1045,10 @@ loadCollections()
 }
 
 .link-card {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--ucdavis-black-10);
     border-radius: 8px;
     margin-bottom: 12px;
-    background: #fafbff;
+    background: var(--surface-tint-raised);
     padding: 12px 12px 8px;
 }
 
@@ -1059,7 +1059,7 @@ loadCollections()
 @media (width <= 1023px) {
     #allLinks .link-row {
         border-radius: 6px;
-        border-color: #e6e8ef;
+        border-color: var(--ucdavis-black-10);
         padding: 12px 12px 8px;
     }
 

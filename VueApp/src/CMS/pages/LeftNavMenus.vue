@@ -49,6 +49,7 @@
             :loading="loading"
             :pagination="{ rowsPerPage: 50, sortBy: 'menuHeaderText' }"
             :rows-per-page-options="[25, 50, 100, 0]"
+            :grid="$q.screen.lt.sm"
             dense
             flat
             bordered
@@ -89,6 +90,65 @@
                     </q-btn>
                 </q-td>
             </template>
+
+            <template #item="{ row }">
+                <ListCard>
+                    <template #header>
+                        <router-link
+                            class="text-weight-medium"
+                            :to="{ name: 'CmsLeftNavEdit', params: { id: row.leftNavMenuId } }"
+                        >
+                            {{ row.menuHeaderText || "(untitled)" }}
+                        </router-link>
+                    </template>
+
+                    <ListCardField
+                        label="System"
+                        :value="row.system"
+                    />
+                    <ListCardField
+                        v-if="row.viperSectionPath"
+                        label="VIPER section"
+                        :value="row.viperSectionPath"
+                    />
+                    <ListCardField
+                        v-if="row.page"
+                        label="Page"
+                        :value="row.page"
+                    />
+                    <ListCardField
+                        v-if="row.friendlyName"
+                        label="Friendly name"
+                        :value="row.friendlyName"
+                    />
+                    <ListCardField
+                        label="Items"
+                        :value="row.items.length"
+                    />
+                    <ListCardField label="Modified">
+                        <ModifiedStamp :row="row" />
+                    </ListCardField>
+
+                    <template #actions>
+                        <EditButton
+                            entity-name="menu"
+                            :to="{ name: 'CmsLeftNavEdit', params: { id: row.leftNavMenuId } }"
+                        />
+                        <q-btn
+                            dense
+                            flat
+                            no-caps
+                            size="sm"
+                            color="negative"
+                            icon="delete"
+                            aria-label="Delete menu"
+                            @click="deleteMenu(row)"
+                        >
+                            <q-tooltip>Delete</q-tooltip>
+                        </q-btn>
+                    </template>
+                </ListCard>
+            </template>
         </q-table>
 
         <LeftNavMenuDialog
@@ -105,6 +165,8 @@ import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import EditButton from "@/CMS/components/EditButton.vue"
 import LeftNavMenuDialog from "@/CMS/components/LeftNavMenuDialog.vue"
+import ListCard from "@/CMS/components/ListCard.vue"
+import ListCardField from "@/CMS/components/ListCardField.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import type { CmsLeftNavMenu } from "@/CMS/types/"
 
