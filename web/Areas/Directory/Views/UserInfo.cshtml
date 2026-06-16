@@ -3,6 +3,9 @@
     ViewBag.Title = $"User Information - {Model.DisplayFullName}";
     Layout = "~/Views/Shared/_VIPERLayout.cshtml";
 }
+@section Styles {
+    <link rel="stylesheet" href="~/css/userinfo.css" asp-append-version="true" />
+}
 <article class="userinfo">
 
     @* Directory Information *@
@@ -176,66 +179,164 @@
                 {
                     <li><strong>Class Of:</strong> @Model.StudentClassOf</li>
                 }
+                @if (!string.IsNullOrEmpty(Model.StudentTermDescription))
+                {
+                    <li><strong>Term:</strong> @Model.StudentTermDescription</li>
+                }
+                @if (!string.IsNullOrEmpty(Model.StudentDegreeSought))
+                {
+                    <li><strong>Degree Sought:</strong> @Model.StudentDegreeSought</li>
+                }
+                @if (!string.IsNullOrEmpty(Model.StudentAdmitTerm))
+                {
+                    <li><strong>Admit Term:</strong> @Model.StudentAdmitTerm</li>
+                }
+                @if (!string.IsNullOrEmpty(Model.StudentAdmitClassYear))
+                {
+                    <li><strong>Admit Class Year:</strong> @Model.StudentAdmitClassYear</li>
+                }
+                <li><strong>Dual Degree?:</strong> @(Model.StudentIsDualDegree ? "Yes" : "No")</li>
+
+                @if (Model.CanViewStudentID)
+                {
+                    @if (!string.IsNullOrEmpty(Model.StudentAcademicStanding))
+                    {
+                        <li><strong>Academic Standing:</strong> @Model.StudentAcademicStanding</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentCumulativeGPA))
+                    {
+                        <li><strong>GPA:</strong> @Model.StudentCumulativeGPA</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentClassRank))
+                    {
+                        <li><strong>Class Rank:</strong> @Model.StudentClassRank</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentBirthDate))
+                    {
+                        <li><strong>Birth Date:</strong> @Model.StudentBirthDate</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentAge))
+                    {
+                        <li><strong>Age:</strong> @Model.StudentAge</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentGender))
+                    {
+                        <li><strong>Gender:</strong> @Model.StudentGender</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentNewEthnicity) || !string.IsNullOrEmpty(Model.StudentEthnicity))
+                    {
+                        <li><strong>Ethnicity:</strong> @(Model.StudentNewEthnicity ?? Model.StudentEthnicity)</li>
+                    }
+                    <li><strong>CA Resident?:</strong> @(Model.StudentIsCAResident ? "Yes" : "No")</li>
+                    <li><strong>US Citizen?:</strong> @(Model.StudentIsUSCitizen ? "Yes" : "No")</li>
+                    <li><strong>Employed?:</strong> @(Model.StudentIsEmployed ? "Yes" : "No")</li>
+                    @if (Model.StudentIsEmployed)
+                    {
+                        @if (!string.IsNullOrEmpty(Model.StudentEmployeeId))
+                        {
+                            <li><strong>Student Employee ID:</strong> @Model.StudentEmployeeId</li>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.StudentEmployer))
+                        {
+                            <li><strong>Student Employer:</strong> @Model.StudentEmployer</li>
+                        }
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentPermanentAddress))
+                    {
+                        <li><strong>Permanent Address:</strong> @Model.StudentPermanentAddress @(!string.IsNullOrEmpty(Model.StudentPermanentPhone) ? $"(Phone: {Model.StudentPermanentPhone})" : "")</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentMailingAddress))
+                    {
+                        <li><strong>Mailing Address:</strong> @Model.StudentMailingAddress @(!string.IsNullOrEmpty(Model.StudentMailingPhone) ? $"(Phone: {Model.StudentMailingPhone})" : "")</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.StudentBillingAddress))
+                    {
+                        <li><strong>Billing Address:</strong> @Model.StudentBillingAddress @(!string.IsNullOrEmpty(Model.StudentBillingPhone) ? $"(Phone: {Model.StudentBillingPhone})" : "")</li>
+                    }
+                }
             </ul>
         </div>
     }
     @* IAM Information *@
     @if (Model.CanViewIAM)
     {
+        string ShowPercent(string? p, string defaultValue = "")
+        {
+            if (string.IsNullOrEmpty(p) || !double.TryParse(p, out double d))
+            {
+                return defaultValue;
+            }
+            return $"{d * 100:0}%";
+        }
+
         <div class="iam">
-            <h2>IAM Information</h2>
+            <h2><a href="https://iam.ucdavis.edu" target="u">IAM Information</a></h2>
             <ul>
-                @if (!string.IsNullOrEmpty(Model.IamId))
+                @foreach (var iam in Model.IamPeople)
                 {
-                    <li><strong>IAM ID:</strong> @Model.IamId</li>
+                    @if (!string.IsNullOrEmpty(iam.IamId))
+                    {
+                        <li><strong>IAM ID:</strong> @iam.IamId</li>
+                    }
+                    @if (!string.IsNullOrEmpty(iam.PpsId))
+                    {
+                        <li><strong>PPS ID:</strong> @iam.PpsId</li>
+                    }
+                    @if (!string.IsNullOrEmpty(iam.OFullName))
+                    {
+                        <li><strong>Full Name:</strong> @iam.OFullName</li>
+                    }
+                    <li><strong>Employee?</strong> @(iam.IsEmployee ? "Yes" : "No")</li>
+                    <li><strong>HS Employee?</strong> @(iam.IsHSEmployee ? "Yes" : "No")</li>
+                    <li><strong>Faculty?</strong> @(iam.IsFaculty ? "Yes" : "No")</li>
+                    <li><strong>Student?</strong> @(iam.IsStudent ? "Yes" : "No")</li>
+                    <li><strong>Staff?</strong> @(iam.IsStaff ? "Yes" : "No")</li>
+                    <li><strong>External?</strong> @(iam.IsExternal ? "Yes" : "No")</li>
                 }
-                @if (!string.IsNullOrEmpty(Model.PPSId))
-                {
-                    <li><strong>PPS ID:</strong> @Model.PPSId</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.OFullName))
-                {
-                    <li><strong>Full Name:</strong> @Model.OFullName</li>
-                }
-                <li><strong>Employee?</strong> @(Model.IsEmployee ? "Yes" : "No")</li>
-                <li><strong>HS Employee?</strong> @(Model.IsHSEmployee ? "Yes" : "No")</li>
-                <li><strong>Faculty?</strong> @(Model.IsFaculty ? "Yes" : "No")</li>
-                <li><strong>Student?</strong> @(Model.IsStudent ? "Yes" : "No")</li>
-                <li><strong>Staff?</strong> @(Model.IsStaff ? "Yes" : "No")</li>
-                <li><strong>External?</strong> @(Model.IsExternal ? "Yes" : "No")</li>
             </ul>
             <ul>
-                @if (!string.IsNullOrEmpty(Model.AssociationsTitle))
+                @foreach (var associations in Model.IamAssociations)
                 {
-                    <li><strong>Title:</strong> @Model.AssociationsTitle @(!string.IsNullOrEmpty(Model.AssociationsTitleCode) ? $"({Model.AssociationsTitleCode})" : "")</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.AssociationsDepartment))
-                {
-                    <li><strong>Department:</strong> @Model.AssociationsDepartment @(!string.IsNullOrEmpty(Model.AssociationsDepartmentCode) ? $"({Model.AssociationsDepartmentCode})" : "")</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.AssociationsAdminDepartment))
-                {
-                    <li><strong>Admin Department:</strong> @Model.AssociationsAdminDepartment @(!string.IsNullOrEmpty(Model.AssociationsAdminDepartmentAbbrev) ? $"({Model.AssociationsAdminDepartmentAbbrev}" : "") @(!string.IsNullOrEmpty(Model.AssociationsAdminDepartmentCode) ? $" {Model.AssociationsAdminDepartmentCode})" : "")</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.AssociationsAppointmentDepartment))
-                {
-                    <li><strong>Appointment Department:</strong> @Model.AssociationsAppointmentDepartment @(!string.IsNullOrEmpty(Model.AssociationsAppointmentDepartmentAbbrev) ? $"({Model.AssociationsAppointmentDepartmentAbbrev}" : "") @(!string.IsNullOrEmpty(Model.AssociationsAppointmentDepartmentCode) ? $" {Model.AssociationsAppointmentDepartmentCode})" : "")</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.AssociationsPositionType))
-                {
-                    <li><strong>Position Type:</strong> @Model.AssociationsPositionType</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.AssociationsEmployeeClass))
-                {
-                    <li><strong>Employee Class:</strong> @Model.AssociationsEmployeeClass</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.AssociationsPercentFulltime))
-                {
-                    <li><strong>Percent Full-time:</strong> @Model.AssociationsPercentFulltime</li>
-                }
-                @if (Model.AssociationsStartDate.HasValue)
-                {
-                    <li><strong>Association:</strong> @Model.AssociationsStartDate.Value.ToString("M/d/yyyy") – @(Model.AssociationsEndDate?.ToString("M/d/yyyy") ?? "present")</li>
+                    @if (!string.IsNullOrEmpty(associations.TitleDisplayName))
+                    {
+                        <li><strong>Title:</strong> @associations.TitleDisplayName @(!string.IsNullOrEmpty(associations.TitleCode) ? $"({associations.TitleCode})" : "")</li>
+                    }
+                    @if (!string.IsNullOrEmpty(associations.DeptDisplayName))
+                    {
+                        <li><strong>Department:</strong> @associations.DeptDisplayName @(!string.IsNullOrEmpty(associations.DeptCode) ? $"({associations.DeptCode})" : "")</li>
+                    }
+                    @if (!string.IsNullOrEmpty(associations.AdminDeptDisplayName))
+                    {
+                        var parts = new List<string>();
+                        if (!string.IsNullOrEmpty(associations.AdminDeptAbbrev)) parts.Add(associations.AdminDeptAbbrev);
+                        if (!string.IsNullOrEmpty(associations.AdminDeptCode)) parts.Add(associations.AdminDeptCode);
+                        var extra = parts.Count > 0 ? $" ({string.Join(" ", parts)})" : "";
+                        <li><strong>Admin Department:</strong> @associations.AdminDeptDisplayName@extra</li>
+                    }
+                    @if (!string.IsNullOrEmpty(associations.ApptDeptDisplayName))
+                    {
+                        var parts = new List<string>();
+                        if (!string.IsNullOrEmpty(associations.ApptDeptAbbrev)) parts.Add(associations.ApptDeptAbbrev);
+                        if (!string.IsNullOrEmpty(associations.ApptDeptCode)) parts.Add(associations.ApptDeptCode);
+                        var extra = parts.Count > 0 ? $" ({string.Join(" ", parts)})" : "";
+                        <li><strong>Appointment Department:</strong> @associations.ApptDeptDisplayName@extra</li>
+                    }
+                    @if (!string.IsNullOrEmpty(associations.PositionType))
+                    {
+                        <li><strong>Position Type:</strong> @associations.PositionType</li>
+                    }
+                    @if (!string.IsNullOrEmpty(associations.EmplClassDesc))
+                    {
+                        <li><strong>Employee Class:</strong> @associations.EmplClassDesc</li>
+                    }
+                    @if (!string.IsNullOrEmpty(associations.PercentFullTime))
+                    {
+                        <li><strong>Percent Full-time:</strong> @ShowPercent(associations.PercentFullTime)</li>
+                    }
+                    @if (associations.AssocStartDate.HasValue)
+                    {
+                        <li><strong>Association:</strong> @associations.AssocStartDate.Value.ToString("M/d/yyyy") – @(associations.AssocEndDate?.ToString("M/d/yyyy") ?? "present")</li>
+                    }
                 }
             </ul>
         </div>
@@ -295,10 +396,32 @@
                             <summary>@permission.Category (@permission.Count)</summary>
                             @if (permission.Permissions.Any())
                             {
-                                <ul>
-                                    @foreach (var perm in permission.Permissions)
+                                var tree = BuildPermissionTree(permission.Permissions, permission.Category);
+                                void RenderNode(PermissionNode node, String parent)
+                                {
+                                    if (node.Children.Any())
                                     {
-                                        <li>@perm</li>
+                                        <li>
+                                            <details>
+                                                <summary>@($"{parent}{node.Name}")</summary>
+                                                <ul>
+                                                    @foreach (var child in node.Children)
+                                                    {
+                                                        RenderNode(child,$"{parent}{node.Name}.");
+                                                    }
+                                                </ul>
+                                            </details>
+                                        </li>
+                                    }
+                                    else
+                                    {
+                                        <li>@($"{parent}{@node.Name}")</li>
+                                    }
+                                }
+                                <ul>
+                                    @foreach (var rootNode in tree)
+                                    {
+                                        RenderNode(rootNode, $"{permission.Category}.");
                                     }
                                 </ul>
                             }
@@ -495,7 +618,6 @@
     {
         <div class="adGroup">
             <h2>Active Directory Group Membership</h2>
-            <p class="note">Information about ucsvm, ad.vmth, vetmed, and svm is not yet available.</p>
             @if (string.IsNullOrEmpty(Model.ADDisplayName))
             {
                 <p>No records.</p>
@@ -510,24 +632,30 @@
                     <li><strong>Distinguished Name:</strong> @Model.ADDistinguishedName</li>
                 </ul>
                 <h3>Member of:</h3>
-                <ul>
+                <ul class="tree">
                     @{
-                        var domains = new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" };
+                        var isProd = Viper.HttpHelper.Environment?.IsProduction() ?? false;
+                        var domains = isProd
+                            ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
+                            : new[] { "t3.ucdavis.edu" };
                     }
                     @foreach (var domain in domains)
                     {
                         var domainGroups = Model.ADMemberOf.Where(g => g.Contains(domain, StringComparison.OrdinalIgnoreCase)).ToList();
-                        <li>
-                            <details>
-                                <summary>@domain</summary>
-                                <ul>
-                                    @foreach (var group in domainGroups)
-                                    {
-                                        <li>@group</li>
-                                    }
-                                </ul>
-                            </details>
-                        </li>
+                        if (domainGroups.Any())
+                        {
+                            <li>
+                                <details>
+                                    <summary>@domain</summary>
+                                    <ul>
+                                        @foreach (var group in domainGroups)
+                                        {
+                                            <li>@group</li>
+                                        }
+                                    </ul>
+                                </details>
+                            </li>
+                        }
                     }
                 </ul>
             }
@@ -538,4 +666,61 @@
 
 @section Scripts {
     <script src="~/js/userinfo.js"></script>
+}
+
+@functions {
+    public class PermissionNode
+    {
+        public string Name { get; set; } = string.Empty;
+        public string FullPath { get; set; } = string.Empty;
+        public bool IsPermission { get; set; } = false;
+        public List<PermissionNode> Children { get; set; } = new List<PermissionNode>();
+    }
+
+    public List<PermissionNode> BuildPermissionTree(List<string> permissions, string category)
+    {
+        var roots = new List<PermissionNode>();
+        foreach (var perm in permissions)
+        {
+            var parts = perm.Split('.');
+            var partsToProcess = parts.Skip(1).ToList();
+            if (!partsToProcess.Any())
+            {
+                continue;
+            }
+
+            var currentList = roots;
+            for (int i = 0; i < partsToProcess.Count; i++)
+            {
+                var part = partsToProcess[i];
+                var node = currentList.FirstOrDefault(n => n.Name == part);
+                if (node == null)
+                {
+                    node = new PermissionNode
+                    {
+                        Name = part,
+                        FullPath = string.Join('.', parts.Take(i + 2))
+                    };
+                    currentList.Add(node);
+                }
+                if (i == partsToProcess.Count - 1)
+                {
+                    node.IsPermission = true;
+                }
+                currentList = node.Children;
+            }
+        }
+        SortPermissionNodes(roots);
+        return roots;
+    }
+
+    private void SortPermissionNodes(List<PermissionNode> nodes)
+    {
+        if (nodes == null) return;
+        nodes.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+        foreach (var node in nodes)
+        {
+            SortPermissionNodes(node.Children);
+        }
+    }
 }

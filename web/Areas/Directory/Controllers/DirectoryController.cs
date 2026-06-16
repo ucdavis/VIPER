@@ -34,7 +34,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/")]
         public async Task<ActionResult> Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml"));
+            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser()));
         }
 
         /// <summary>
