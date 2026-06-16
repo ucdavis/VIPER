@@ -54,6 +54,12 @@ const routes = [
         component: () => import("@/CMS/pages/ContentBlocks.vue"),
     },
     {
+        path: "/CMS/ManageContentBlocks/History",
+        name: "CmsContentBlockHistory",
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageContentBlocks"] },
+        component: () => import("@/CMS/pages/ContentBlockHistory.vue"),
+    },
+    {
         path: "/CMS/ManageContentBlocks/Edit/:id?",
         name: "CmsContentBlockEdit",
         // CreateContentBlock-only users may create via this route (no id);

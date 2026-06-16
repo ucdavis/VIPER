@@ -5,6 +5,7 @@ using Viper.Areas.CMS.Models.DTOs;
 using Viper.Areas.CMS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Models;
 using Viper.Models.VIPER;
 using Viper.Services;
 using Web.Authorization;
@@ -71,8 +72,10 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("fn/{friendlyName}")]
         public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
         {
+            // status: 1 = active only. A public display endpoint must never serve soft-deleted
+            // blocks (passing null would include DeletedOn != null rows).
             var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService)
-                .GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, null)?.ToList();
+                .GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, 1)?.ToList();
             if (blocks == null || blocks.Count == 0)
             {
                 return NotFound();
@@ -101,6 +104,67 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
             return version;
+        }
+
+        //GET: content/5/history/12/diff — rendered diff of this version against the previous version
+        [HttpGet("{contentBlockId:int}/history/{contentHistoryId:int}/diff")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
+        public async Task<ActionResult<ContentHistoryDiffDto>> GetHistoryVersionDiff(int contentBlockId, int contentHistoryId,
+            CancellationToken ct = default)
+        {
+            var diff = await _blockService.GetHistoryVersionDiffAsync(contentBlockId, contentHistoryId, ct);
+            if (diff == null)
+            {
+                return NotFound();
+            }
+            return diff;
+        }
+
+        //POST: content/5/history/12/diff — rendered diff of a posted draft against this version.
+        //POST (not GET) because the editor's current content rides in the body.
+        [HttpPost("{contentBlockId:int}/history/{contentHistoryId:int}/diff")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
+        public async Task<ActionResult<ContentHistoryDiffDto>> DiffAgainstHistoryVersion(int contentBlockId, int contentHistoryId,
+            DiffAgainstHistoryRequest request, CancellationToken ct = default)
+        {
+            var diff = await _blockService.DiffContentAgainstHistoryAsync(contentBlockId, contentHistoryId, request.Content, ct);
+            if (diff == null)
+            {
+                return NotFound();
+            }
+            return diff;
+        }
+
+        //GET: content/history — cross-block edit-history viewer (the literal segment does not
+        //collide with the int-constrained {contentBlockId}/history route).
+        [HttpGet("history")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
+        [ApiPagination(DefaultPerPage = 50, MaxPerPage = 500)]
+        public async Task<ActionResult<List<ContentHistoryAuditDto>>> GetHistoryEntries(
+            int? contentBlockId,
+            string? modifiedBy,
+            DateTime? from,
+            DateTime? to,
+            string? search,
+            ApiPagination? pagination,
+            CancellationToken ct = default)
+        {
+            var filter = new CmsContentHistoryFilter
+            {
+                ContentBlockId = contentBlockId,
+                ModifiedBy = modifiedBy,
+                From = from,
+                To = to,
+                Search = search
+            };
+            var page = pagination?.Page ?? 1;
+            var perPage = pagination?.PerPage ?? 50;
+            var entries = await _blockService.GetHistoryEntriesAsync(filter, page, perPage, ct);
+            if (pagination != null)
+            {
+                pagination.TotalRecords = await _blockService.GetHistoryEntryCountAsync(filter, ct);
+            }
+            return entries;
         }
 
         //POST: content
@@ -230,5 +294,10 @@ namespace Viper.Areas.CMS.Controllers
     {
         public string Content { get; set; } = string.Empty;
         public DateTime? LastModifiedOn { get; set; }
+    }
+
+    public class DiffAgainstHistoryRequest
+    {
+        public string Content { get; set; } = string.Empty;
     }
 }

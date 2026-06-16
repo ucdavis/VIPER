@@ -9,12 +9,19 @@ namespace Viper.Services
     public class HtmlSanitizerService : IHtmlSanitizerService
     {
         private readonly HtmlSanitizer _sanitizer;
+        private readonly HtmlSanitizer _diffSanitizer;
 
         public HtmlSanitizerService()
         {
-            _sanitizer = new HtmlSanitizer();
+            _sanitizer = BuildSanitizer(allowDiffMarkers: false);
+            _diffSanitizer = BuildSanitizer(allowDiffMarkers: true);
+        }
 
-            _sanitizer.AllowedTags.Clear();
+        private static HtmlSanitizer BuildSanitizer(bool allowDiffMarkers)
+        {
+            var sanitizer = new HtmlSanitizer();
+
+            sanitizer.AllowedTags.Clear();
             foreach (var tag in new[]
             {
                 "p", "br", "hr", "strong", "b", "em", "i", "u", "s", "strike",
@@ -26,10 +33,20 @@ namespace Viper.Services
                 "sub", "sup", "small", "abbr", "cite", "q"
             })
             {
-                _sanitizer.AllowedTags.Add(tag);
+                sanitizer.AllowedTags.Add(tag);
             }
 
-            _sanitizer.AllowedAttributes.Clear();
+            if (allowDiffMarkers)
+            {
+                // htmldiff.net wraps changes in <ins>/<del> (classes diffins/diffdel/diffmod).
+                // Allowing just these two tags lets a diff be re-sanitized to balance the library's
+                // markup and strip anything off-policy while keeping the change markers. The class
+                // attribute is already allowed below, so the diff* classes survive.
+                sanitizer.AllowedTags.Add("ins");
+                sanitizer.AllowedTags.Add("del");
+            }
+
+            sanitizer.AllowedAttributes.Clear();
             foreach (var attr in new[]
             {
                 "href", "src", "alt", "title", "class", "id", "name",
@@ -38,7 +55,7 @@ namespace Viper.Services
                 "style"
             })
             {
-                _sanitizer.AllowedAttributes.Add(attr);
+                sanitizer.AllowedAttributes.Add(attr);
             }
 
             // Curated CSS property allowlist. Mirrors legacy antisamy-cms.xml plus font-size, which
@@ -46,7 +63,7 @@ namespace Viper.Services
             // dangerous CSS value constructs are blocked by Ganss.Xss regardless of this list.
             // Shorthand properties (text-decoration, list-style) get expanded to longhands by
             // AngleSharp; both forms must be allowed or the entire declaration is dropped.
-            _sanitizer.AllowedCssProperties.Clear();
+            sanitizer.AllowedCssProperties.Clear();
             foreach (var prop in new[]
             {
                 "color", "font-family", "font-size", "font-style", "font-weight",
@@ -60,25 +77,25 @@ namespace Viper.Services
                 "list-style", "list-style-type", "list-style-position", "list-style-image"
             })
             {
-                _sanitizer.AllowedCssProperties.Add(prop);
+                sanitizer.AllowedCssProperties.Add(prop);
             }
 
-            _sanitizer.AllowedSchemes.Clear();
-            _sanitizer.AllowedSchemes.Add("http");
-            _sanitizer.AllowedSchemes.Add("https");
-            _sanitizer.AllowedSchemes.Add("mailto");
-            _sanitizer.AllowedSchemes.Add("tel");
+            sanitizer.AllowedSchemes.Clear();
+            sanitizer.AllowedSchemes.Add("http");
+            sanitizer.AllowedSchemes.Add("https");
+            sanitizer.AllowedSchemes.Add("mailto");
+            sanitizer.AllowedSchemes.Add("tel");
 
             // Block all CSS at-rules (@import, @font-face, etc.). At-rules are not valid inside
             // an inline style attribute, but clearing the set is defense in depth against parser
             // edge cases.
-            _sanitizer.AllowedAtRules.Clear();
+            sanitizer.AllowedAtRules.Clear();
 
             // Block data: URIs in any URL (image XSS vector) on top of the scheme allowlist.
             // Also lock <img src> to relative URLs only — matches the legacy antisamy-cms.xml
             // onsiteURL regex and prevents editor-authored content from embedding third-party
             // tracking beacons or any absolute-URL image (same-origin absolutes included).
-            _sanitizer.FilterUrl += (sender, args) =>
+            sanitizer.FilterUrl += (sender, args) =>
             {
                 if (args.OriginalUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -92,6 +109,8 @@ namespace Viper.Services
                     args.SanitizedUrl = null;
                 }
             };
+
+            return sanitizer;
         }
 
         private static bool IsOffSiteUrl(string url)
@@ -103,5 +122,7 @@ namespace Viper.Services
         }
 
         public string Sanitize(string html) => _sanitizer.Sanitize(html);
+
+        public string SanitizeDiff(string html) => _diffSanitizer.Sanitize(html);
     }
 }

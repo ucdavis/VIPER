@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Models;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.Models.VIPER;
 using File = Viper.Models.VIPER.File;
 
@@ -117,7 +118,7 @@ namespace Viper.Areas.CMS.Services
             if (filter.To != null)
             {
                 // Treat the To date as inclusive through end of day.
-                var to = filter.To.Value.Date == filter.To.Value ? filter.To.Value.AddDays(1) : filter.To.Value;
+                var to = DateRangeHelper.ExclusiveUpperBound(filter.To.Value);
                 query = query.Where(a => a.Timestamp < to);
             }
             if (!string.IsNullOrEmpty(filter.Search))

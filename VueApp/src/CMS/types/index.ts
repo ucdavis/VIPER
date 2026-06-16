@@ -64,6 +64,16 @@ type CmsContentHistoryItem = {
     modifiedBy: string | null
 }
 
+type CmsContentHistoryDiff = {
+    content: string
+    hasComparison: boolean
+    hasChanges: boolean
+    oldModifiedOn: string | null
+    oldModifiedBy: string | null
+    newModifiedOn: string | null
+    newModifiedBy: string | null
+}
+
 type CmsLeftNavMenu = {
     leftNavMenuId: number
     menuHeaderText: string | null
@@ -96,6 +106,17 @@ type CmsFileAudit = {
     iamId: string | null
     fileMetaData: string | null
     clientData: string | null
+}
+
+type CmsContentHistoryAudit = {
+    contentHistoryId: number
+    contentBlockId: number
+    title: string | null
+    friendlyName: string | null
+    page: string | null
+    modifiedOn: string | null
+    modifiedBy: string | null
+    blockDeleted: boolean
 }
 
 type LinkCollection = {
@@ -153,6 +174,8 @@ export type {
     CmsFilePerson,
     CmsPersonOption,
     CmsFileAudit,
+    CmsContentHistoryAudit,
+    CmsContentHistoryDiff,
     LinkCollection,
     LinkCollectionTagCategory,
     Link,

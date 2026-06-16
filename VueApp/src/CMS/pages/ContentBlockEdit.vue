@@ -69,10 +69,35 @@
                                 options-dense
                                 outlined
                                 clearable
-                                label="Load a previous version"
+                                label="Select a previous version"
                                 :options="history"
                                 :option-label="historyLabel"
-                                @update:model-value="loadHistoryVersion"
+                            />
+                        </div>
+                        <div class="col-auto">
+                            <q-btn
+                                dense
+                                flat
+                                no-caps
+                                size="sm"
+                                color="secondary"
+                                icon="compare_arrows"
+                                label="Diff vs current"
+                                :disable="!selectedHistory"
+                                @click="diffAgainstCurrent"
+                            />
+                        </div>
+                        <div class="col-auto">
+                            <q-btn
+                                dense
+                                flat
+                                no-caps
+                                size="sm"
+                                color="primary"
+                                icon="history"
+                                label="Load into editor"
+                                :disable="!selectedHistory"
+                                @click="loadHistoryVersion"
                             />
                         </div>
                         <div
@@ -84,7 +109,7 @@
                                 dense
                                 square
                             >
-                                Viewing an old version — Save to restore it
+                                Viewing an old version, save to restore it
                             </q-chip>
                         </div>
                     </div>
@@ -265,6 +290,15 @@
                 />
             </div>
         </q-form>
+
+        <ContentDiffDialog
+            v-model="diffViewer.open"
+            :loading="diffViewer.loading"
+            :title="diffViewer.title"
+            :subtitle="diffViewer.subtitle"
+            :diff-html="diffViewer.content"
+            :has-changes="diffViewer.hasChanges"
+        />
     </div>
 </template>
 
@@ -277,7 +311,14 @@ import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
-import type { CmsContentBlock, CmsContentBlockFile, CmsContentHistoryItem, CmsFile } from "@/CMS/types/"
+import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
+import type {
+    CmsContentBlock,
+    CmsContentBlockFile,
+    CmsContentHistoryDiff,
+    CmsContentHistoryItem,
+    CmsFile,
+} from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "CMS/content"
 const filesApiURL = inject("apiURL") + "cms/files/"
@@ -382,6 +423,43 @@ async function loadHistoryVersion() {
             message: "Loaded an older version into the editor. Save to make it the current version.",
         })
     }
+}
+
+const diffViewer = ref({
+    open: false,
+    loading: false,
+    title: "",
+    subtitle: "",
+    content: "",
+    hasChanges: true,
+})
+
+// Compare the editor's current content (the "new" side) against the selected historical version
+// (the "old" side). The current content is posted because it may include unsaved edits.
+async function diffAgainstCurrent() {
+    if (!selectedHistory.value) return
+    diffViewer.value = {
+        open: true,
+        loading: true,
+        title: "Current editor content vs previous version",
+        subtitle: "",
+        content: "",
+        hasChanges: true,
+    }
+    const res = await post(
+        apiURL + "/" + blockId.value + "/history/" + selectedHistory.value.contentHistoryId + "/diff",
+        { content: block.value.content },
+    )
+    if (res.success) {
+        const diff = res.result as CmsContentHistoryDiff
+        diffViewer.value.content = diff.content
+        diffViewer.value.hasChanges = diff.hasChanges
+        diffViewer.value.subtitle = `Changes from ${historyLabel(selectedHistory.value)} to your current editor content`
+    } else {
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to build the diff" })
+        diffViewer.value.open = false
+    }
+    diffViewer.value.loading = false
 }
 
 async function searchFiles(val: string, update: (fn: () => void) => void) {
