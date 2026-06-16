@@ -1,8 +1,8 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Viper.Areas.Curriculum.Services;
-using Viper.Areas.Students.Models;
 using Viper.Classes.SQLContext;
+using Viper.Areas.Students.Models;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Students.Services
@@ -21,6 +21,25 @@ namespace Viper.Areas.Students.Services
 
     public class StudentGroupService : IStudentGroupService
     {
+        /// <summary>
+        /// Common projection shape used by the AAUD student queries before they are
+        /// turned into StudentPhoto results. Keeps the same column set across the
+        /// class-level / group / course query variants so the photo-building loop is
+        /// shared.
+        /// </summary>
+        private sealed record StudentBaseRecord(
+            string? MailId,
+            string? FirstName,
+            string LastName,
+            string? MiddleName,
+            string? IamId,
+            string? BannerId,
+            string? ClassLevel,
+            string? EighthsGroup,
+            string? TwentiethsGroup,
+            string? TeamNumber,
+            string? V3SpecialtyGroup);
+
         private readonly AAUDContext _aaudContext;
         private readonly SISContext _sisContext;
         private readonly CoursesContext _coursesContext;
@@ -90,58 +109,24 @@ namespace Viper.Areas.Students.Services
                             join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
                             from sg in sgGroup.DefaultIfEmpty()
                             where s.StudentsClassLevel == classLevel && i.IdsTermCode == currentTerm
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
-                            select new
-                            {
-                                PersonId = p.PersonPKey,
-                                MailId = i.IdsMailid,
-                                FirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
-                                LastName = p.PersonLastName,
-                                MiddleName = p.PersonMiddleName,
-                                IamId = i.IdsIamId,
-                                BannerId = i.IdsClientid,
-                                ClassLevel = s.StudentsClassLevel,
-                                EighthsGroup = sg != null ? sg.StudentgrpGrp : null,
-                                TwentiethsGroup = sg != null ? sg.Studentgrp20 : null,
-                                TeamNumber = sg != null ? sg.StudentgrpTeamno : null,
-                                V3SpecialtyGroup = sg != null ? sg.StudentgrpV3grp : null
-                            };
+                                  && (string.IsNullOrEmpty(i.IdsIamId) || !EF.Parameter(rossIamIds).Contains(i.IdsIamId!))
+                            orderby p.PersonLastName, p.PersonDisplayFirstName ?? p.PersonFirstName
+                            select new StudentBaseRecord(
+                                i.IdsMailid,
+                                p.PersonDisplayFirstName ?? p.PersonFirstName,
+                                p.PersonLastName,
+                                p.PersonMiddleName,
+                                i.IdsIamId,
+                                i.IdsClientid,
+                                s.StudentsClassLevel,
+                                sg != null ? sg.StudentgrpGrp : null,
+                                sg != null ? sg.Studentgrp20 : null,
+                                sg != null ? sg.StudentgrpTeamno : null,
+                                sg != null ? sg.StudentgrpV3grp : null);
 
-                var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var students = await query.AsNoTracking().ToListAsync();
 
-                var mailIds = students.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
-                var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
-                var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
-
-                var photoStudents = new List<StudentPhoto>();
-                foreach (var student in students)
-                {
-                    var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
-
-                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
-
-                    // Combine Eighths and Twentieths groups in format "2B1 / 1AA"
-                    var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
-
-                    var photoStudent = new StudentPhoto
-                    {
-                        MailId = student.MailId,
-                        FirstName = student.FirstName,
-                        LastName = student.LastName,
-                        DisplayName = displayName,
-                        PhotoUrl = photoUrl,
-                        GroupAssignment = groupAssignment,
-                        EighthsGroup = student.EighthsGroup?.Trim(),
-                        TwentiethsGroup = student.TwentiethsGroup?.Trim(),
-                        TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
-                        V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
-                        HasPhoto = hasPhoto,
-                        IsRossStudent = false,
-                        ClassLevel = student.ClassLevel
-                    };
-
-                    photoStudents.Add(photoStudent);
-                }
+                var photoStudents = await BuildStudentPhotoListAsync(students);
 
                 // Add Ross students if requested
                 if (includeRossStudents)
@@ -162,13 +147,11 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Failed to load students for class level {LogSanitizer.SanitizeString(classLevel)}.", ex);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by class level {ClassLevel}", LogSanitizer.SanitizeString(classLevel));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Database error loading students for class level {LogSanitizer.SanitizeString(classLevel)}.", ex);
             }
         }
 
@@ -226,7 +209,8 @@ namespace Viper.Areas.Students.Services
 
                 // Get all AAUD records for Ross students (any term <= current term)
                 var allAaudRecords = await _aaudContext.Ids
-                    .Where(ids => ids.IdsIamId != null && rossIamIds.Contains(ids.IdsIamId))
+                    .AsNoTracking()
+                    .Where(ids => ids.IdsIamId != null && EF.Parameter(rossIamIds).Contains(ids.IdsIamId))
                     .Where(ids => ids.IdsTermCode.CompareTo(currentTermString) <= 0)
                     .ToListAsync();
 
@@ -242,7 +226,8 @@ namespace Viper.Areas.Students.Services
                 // Then fetch People records for the latest AAUD records and join in-memory
                 var latestPersonPKeys = latestAaudRecords.Where(r => r != null).Select(r => r!.IdsPKey).Distinct().ToList();
                 var peopleDict = (await _aaudContext.People
-                    .Where(person => latestPersonPKeys.Contains(person.PersonPKey))
+                    .AsNoTracking()
+                    .Where(person => EF.Parameter(latestPersonPKeys).Contains(person.PersonPKey))
                     .ToListAsync())
                     .ToDictionary(p => p.PersonPKey, p => p);
 
@@ -320,35 +305,14 @@ namespace Viper.Areas.Students.Services
 
                 // Get list of Ross student IamIds to ALWAYS exclude from regular query
                 // This prevents duplicates - Ross students would need to be added separately if we supported includeRoss for groups
-                List<string> rossIamIds = new List<string>();
-                try
-                {
-                    rossIamIds = await _sisContext.StudentDesignations
-                        .Where(sd => sd.DesignationType == "Ross")
-                        .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
-                                    (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
-                        .Select(sd => sd.IamId)
-                        .Where(id => !string.IsNullOrEmpty(id))
-                        .Distinct()
-                        .ToListAsync();
-                }
-                catch (InvalidOperationException ex)
-                {
-                    _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
-                    // Continue with empty rossIamIds list - no Ross students will be excluded
-                }
-                catch (SqlException ex)
-                {
-                    _logger.LogError(ex, "Database error querying SIS context for Ross students");
-                    // Continue with empty rossIamIds list - no Ross students will be excluded
-                }
+                var rossIamIds = await GetActiveRossIamIdsAsync(currentTermInt, "by-group");
 
                 var queryBase = from i in _aaudContext.Ids
                                 join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
                                 join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
                                 join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm
                                 where i.IdsTermCode == currentTerm
-                                      && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId))
+                                      && (string.IsNullOrEmpty(i.IdsIamId) || !EF.Parameter(rossIamIds).Contains(i.IdsIamId))
                                 select new { i, p, s, sg };
 
                 // Filter by class level first if provided
@@ -375,66 +339,33 @@ namespace Viper.Areas.Students.Services
                     queryBase = queryBase.Where(x => x.sg.StudentgrpV3grp == groupId);
                 }
 
-                var query = queryBase.Select(x => new
-                {
-                    PersonId = x.p.PersonPKey,
-                    MailId = x.i.IdsMailid,
-                    FirstName = x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
-                    LastName = x.p.PersonLastName,
-                    MiddleName = x.p.PersonMiddleName,
-                    IamId = x.i.IdsIamId,
-                    BannerId = x.i.IdsClientid,
-                    ClassLevel = x.s.StudentsClassLevel,
-                    EighthsGroup = x.sg.StudentgrpGrp,
-                    TwentiethsGroup = x.sg.Studentgrp20,
-                    TeamNumber = x.sg.StudentgrpTeamno,
-                    V3SpecialtyGroup = x.sg.StudentgrpV3grp
-                });
+                var query = queryBase
+                    .OrderBy(x => x.p.PersonLastName)
+                    .ThenBy(x => x.p.PersonDisplayFirstName ?? x.p.PersonFirstName)
+                    .Select(x => new StudentBaseRecord(
+                        x.i.IdsMailid,
+                        x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
+                        x.p.PersonLastName,
+                        x.p.PersonMiddleName,
+                        x.i.IdsIamId,
+                        x.i.IdsClientid,
+                        x.s.StudentsClassLevel,
+                        x.sg.StudentgrpGrp,
+                        x.sg.Studentgrp20,
+                        x.sg.StudentgrpTeamno,
+                        x.sg.StudentgrpV3grp));
 
-                var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var students = await query.AsNoTracking().ToListAsync();
 
-                var mailIds = students.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
-                var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
-                var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
-
-                var photoStudents = new List<StudentPhoto>();
-                foreach (var student in students)
-                {
-                    var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
-
-                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
-
-                    // Combine Eighths and Twentieths groups in format "2B1 / 1AA"
-                    var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
-
-                    photoStudents.Add(new StudentPhoto
-                    {
-                        MailId = student.MailId,
-                        FirstName = student.FirstName,
-                        LastName = student.LastName,
-                        DisplayName = displayName,
-                        PhotoUrl = photoUrl,
-                        GroupAssignment = groupAssignment,
-                        EighthsGroup = student.EighthsGroup?.Trim(),
-                        TwentiethsGroup = student.TwentiethsGroup?.Trim(),
-                        TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
-                        V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
-                        HasPhoto = hasPhoto,
-                        IsRossStudent = false
-                    });
-                }
-
-                return photoStudents;
+                return await BuildStudentPhotoListAsync(students);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Failed to load students for group {LogSanitizer.SanitizeString(groupType)}/{LogSanitizer.SanitizeString(groupId)}.", ex);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by group {GroupType}/{GroupId}", LogSanitizer.SanitizeString(groupType), LogSanitizer.SanitizeString(groupId));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Database error loading students for group {LogSanitizer.SanitizeString(groupType)}/{LogSanitizer.SanitizeString(groupId)}.", ex);
             }
         }
 
@@ -445,26 +376,7 @@ namespace Viper.Areas.Students.Services
                 var currentTermInt = int.Parse(termCode);
 
                 // Get list of Ross IAM IDs so we can always exclude them unless explicitly requested
-                List<string> rossIamIds = new();
-                try
-                {
-                    rossIamIds = await _sisContext.StudentDesignations
-                        .Where(sd => sd.DesignationType == "Ross")
-                        .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
-                                    (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
-                        .Select(sd => sd.IamId)
-                        .Where(id => !string.IsNullOrEmpty(id))
-                        .Distinct()
-                        .ToListAsync();
-                }
-                catch (InvalidOperationException ex)
-                {
-                    _logger.LogError(ex, "Invalid operation querying SIS context for Ross students");
-                }
-                catch (SqlException ex)
-                {
-                    _logger.LogError(ex, "Database error querying SIS context for Ross students");
-                }
+                var rossIamIds = await GetActiveRossIamIdsAsync(currentTermInt, "by-course");
 
                 // Query students enrolled in the course
                 // Two-step approach to avoid multi-context joins (following legacy implementation pattern)
@@ -486,94 +398,62 @@ namespace Viper.Areas.Students.Services
                 }
 
                 // Step 2: Query AAUD database with the enrolled PIDMs
-                var query = from i in _aaudContext.Ids
-                            join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
-                            join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
-                            join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
-                            from sg in sgGroup.DefaultIfEmpty()
-                            where enrolledPidms.Contains(i.IdsPidm)
-                                  && i.IdsTermCode == termCode
-                                  && (string.IsNullOrEmpty(i.IdsIamId) || !rossIamIds.Contains(i.IdsIamId!))
-                            select new
-                            {
-                                PersonId = p.PersonPKey,
-                                MailId = i.IdsMailid,
-                                FirstName = p.PersonDisplayFirstName ?? p.PersonFirstName,
-                                LastName = p.PersonLastName,
-                                MiddleName = p.PersonMiddleName,
-                                IamId = i.IdsIamId,
-                                BannerId = i.IdsClientid,
-                                ClassLevel = s.StudentsClassLevel,
-                                EighthsGroup = sg != null ? sg.StudentgrpGrp : null,
-                                TwentiethsGroup = sg != null ? sg.Studentgrp20 : null,
-                                TeamNumber = sg != null ? sg.StudentgrpTeamno : null,
-                                V3SpecialtyGroup = sg != null ? sg.StudentgrpV3grp : null
-                            };
+                var queryBase = from i in _aaudContext.Ids
+                                join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
+                                join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
+                                join sg in _aaudContext.Studentgrps on i.IdsPidm equals sg.StudentgrpPidm into sgGroup
+                                from sg in sgGroup.DefaultIfEmpty()
+                                where EF.Parameter(enrolledPidms).Contains(i.IdsPidm)
+                                      && i.IdsTermCode == termCode
+                                      && (string.IsNullOrEmpty(i.IdsIamId) || !EF.Parameter(rossIamIds).Contains(i.IdsIamId!))
+                                select new { i, p, s, sg };
 
                 // Apply group filtering if specified
                 if (!string.IsNullOrEmpty(groupType) && !string.IsNullOrEmpty(groupId))
                 {
-                    query = groupType.ToLower() switch
+                    queryBase = groupType.ToLower() switch
                     {
-                        "eighths" => query.Where(s => s.EighthsGroup == groupId),
-                        "twentieths" => query.Where(s => s.TwentiethsGroup == groupId),
-                        "teams" => query.Where(s => s.TeamNumber == groupId),
-                        "v3specialty" => query.Where(s => s.V3SpecialtyGroup == groupId),
-                        _ => query
+                        "eighths" => queryBase.Where(x => x.sg.StudentgrpGrp == groupId),
+                        "twentieths" => queryBase.Where(x => x.sg.Studentgrp20 == groupId),
+                        "teams" => queryBase.Where(x => x.sg.StudentgrpTeamno == groupId),
+                        "v3specialty" => queryBase.Where(x => x.sg.StudentgrpV3grp == groupId),
+                        _ => queryBase
                     };
                 }
 
-                var students = await query.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToListAsync();
+                var query = queryBase
+                    .OrderBy(x => x.p.PersonLastName)
+                    .ThenBy(x => x.p.PersonDisplayFirstName ?? x.p.PersonFirstName)
+                    .Select(x => new StudentBaseRecord(
+                        x.i.IdsMailid,
+                        x.p.PersonDisplayFirstName ?? x.p.PersonFirstName,
+                        x.p.PersonLastName,
+                        x.p.PersonMiddleName,
+                        x.i.IdsIamId,
+                        x.i.IdsClientid,
+                        x.s.StudentsClassLevel,
+                        x.sg != null ? x.sg.StudentgrpGrp : null,
+                        x.sg != null ? x.sg.Studentgrp20 : null,
+                        x.sg != null ? x.sg.StudentgrpTeamno : null,
+                        x.sg != null ? x.sg.StudentgrpV3grp : null));
 
-                var mailIds = students.Where(s => !string.IsNullOrWhiteSpace(s.MailId)).Select(s => s.MailId!).Distinct();
-                var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
-                var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+                var students = await query.AsNoTracking().ToListAsync();
 
-                var photoStudents = new List<StudentPhoto>();
-                foreach (var student in students)
-                {
-                    var displayName = FormatStudentDisplayName(student.LastName, student.FirstName, student.MiddleName);
-
-                    var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
-
-                    // Combine Eighths and Twentieths groups
-                    var groupAssignment = FormatGroupAssignment(student.EighthsGroup, student.TwentiethsGroup);
-
-                    var photoStudent = new StudentPhoto
-                    {
-                        MailId = student.MailId,
-                        FirstName = student.FirstName,
-                        LastName = student.LastName,
-                        DisplayName = displayName,
-                        PhotoUrl = photoUrl,
-                        GroupAssignment = groupAssignment,
-                        EighthsGroup = student.EighthsGroup?.Trim(),
-                        TwentiethsGroup = student.TwentiethsGroup?.Trim(),
-                        TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
-                        V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
-                        HasPhoto = hasPhoto,
-                        IsRossStudent = false,
-                        ClassLevel = student.ClassLevel
-                    };
-
-                    photoStudents.Add(photoStudent);
-                }
+                var photoStudents = await BuildStudentPhotoListAsync(students);
 
                 // Add Ross students if requested
                 if (includeRossStudents && rossIamIds.Any())
                 {
                     _logger.LogDebug("Including Ross students for course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
 
-                    // Get Ross students who are enrolled in this course
-                    var rossStudentsInCourse = await (from r in _coursesContext.Rosters
-                                                      join i in _aaudContext.Ids on r.RosterPidm equals i.IdsPidm
-                                                      where r.RosterTermCode == termCode
-                                                            && r.RosterCrn == crn
-                                                            && i.IdsIamId != null
-                                                            && rossIamIds.Contains(i.IdsIamId)
-                                                      select i.IdsIamId)
-                                                     .Distinct()
-                                                     .ToListAsync();
+                    var rossStudentsInCourse = await _aaudContext.Ids
+                        .AsNoTracking()
+                        .Where(i => i.IdsIamId != null
+                                    && EF.Parameter(enrolledPidms).Contains(i.IdsPidm)
+                                    && EF.Parameter(rossIamIds).Contains(i.IdsIamId))
+                        .Select(i => i.IdsIamId)
+                        .Distinct()
+                        .ToListAsync();
 
                     if (rossStudentsInCourse.Any())
                     {
@@ -582,7 +462,7 @@ namespace Viper.Areas.Students.Services
                         var rossStudentData = await (from i in _aaudContext.Ids
                                                      join p in _aaudContext.People on i.IdsPKey equals p.PersonPKey
                                                      join s in _aaudContext.Students on p.PersonPKey equals s.StudentsPKey
-                                                     where i.IdsIamId != null && rossStudentsInCourse.Contains(i.IdsIamId)
+                                                     where i.IdsIamId != null && EF.Parameter(rossStudentsInCourse).Contains(i.IdsIamId)
                                                      orderby i.IdsIamId, i.IdsTermCode descending
                                                      select new
                                                      {
@@ -638,13 +518,11 @@ namespace Viper.Areas.Students.Services
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "Invalid operation getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Failed to load students for course {LogSanitizer.SanitizeString(termCode)}/{LogSanitizer.SanitizeString(crn)}.", ex);
             }
             catch (SqlException ex)
             {
-                _logger.LogError(ex, "Database error getting students by course {TermCode}/{Crn}", LogSanitizer.SanitizeString(termCode), LogSanitizer.SanitizeString(crn));
-                return new List<StudentPhoto>();
+                throw new InvalidOperationException($"Database error loading students for course {LogSanitizer.SanitizeString(termCode)}/{LogSanitizer.SanitizeString(crn)}.", ex);
             }
         }
 
@@ -767,7 +645,7 @@ namespace Viper.Areas.Students.Services
             string? mailId, Dictionary<string, string> photoUrls, string defaultPhotoUrl)
         {
             var photoUrl = string.IsNullOrWhiteSpace(mailId) || !photoUrls.TryGetValue(mailId, out var url)
-                ? string.Empty
+                ? defaultPhotoUrl
                 : url;
             var hasPhoto = !string.Equals(photoUrl, defaultPhotoUrl, StringComparison.OrdinalIgnoreCase);
             return (photoUrl, hasPhoto);
@@ -825,18 +703,89 @@ namespace Viper.Areas.Students.Services
             {
                 return $"{eighthsGroup} / {twentiethsGroup}";
             }
-
-            if (!string.IsNullOrEmpty(eighthsGroup))
+            else if (!string.IsNullOrEmpty(eighthsGroup))
             {
                 return eighthsGroup;
             }
-
-            if (!string.IsNullOrEmpty(twentiethsGroup))
+            else if (!string.IsNullOrEmpty(twentiethsGroup))
             {
                 return twentiethsGroup;
             }
             return string.Empty;
         }
 
+        /// <summary>
+        /// Build StudentPhoto results from already-projected student records: batch-resolve
+        /// photo URLs once, then format display name and group assignment per row.
+        /// </summary>
+        private async Task<List<StudentPhoto>> BuildStudentPhotoListAsync(
+            IReadOnlyList<StudentBaseRecord> students,
+            bool isRoss = false)
+        {
+            var mailIds = students
+                .Where(s => !string.IsNullOrWhiteSpace(s.MailId))
+                .Select(s => s.MailId!)
+                .Distinct();
+            var photoUrls = await _photoService.GetStudentPhotoUrlsBatchAsync(mailIds);
+            var defaultPhotoUrl = _photoService.GetDefaultPhotoUrl();
+
+            var result = new List<StudentPhoto>(students.Count);
+            foreach (var student in students)
+            {
+                var displayName = FormatStudentDisplayName(student.LastName, student.FirstName ?? string.Empty, student.MiddleName);
+                var (photoUrl, hasPhoto) = ResolvePhotoUrl(student.MailId, photoUrls, defaultPhotoUrl);
+                var eighthsGroup = student.EighthsGroup?.Trim();
+                var twentiethsGroup = student.TwentiethsGroup?.Trim();
+                var groupAssignment = FormatGroupAssignment(eighthsGroup, twentiethsGroup);
+
+                result.Add(new StudentPhoto
+                {
+                    MailId = student.MailId ?? string.Empty,
+                    FirstName = student.FirstName ?? string.Empty,
+                    LastName = student.LastName,
+                    DisplayName = displayName,
+                    PhotoUrl = photoUrl,
+                    GroupAssignment = groupAssignment,
+                    EighthsGroup = eighthsGroup,
+                    TwentiethsGroup = twentiethsGroup,
+                    TeamNumber = student.ClassLevel == "V3" ? student.TeamNumber?.Trim() : null,
+                    V3SpecialtyGroup = student.ClassLevel == "V3" ? student.V3SpecialtyGroup?.Trim() : null,
+                    HasPhoto = hasPhoto,
+                    IsRossStudent = isRoss,
+                    ClassLevel = student.ClassLevel
+                });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Look up Ross-program IamIds active for the given term so non-Ross queries can
+        /// exclude them. Swallows the recoverable SIS-database errors and returns an
+        /// empty list so the caller's main query still runs.
+        /// </summary>
+        private async Task<List<string>> GetActiveRossIamIdsAsync(int currentTermInt, string contextLabel)
+        {
+            try
+            {
+                return await _sisContext.StudentDesignations.AsNoTracking()
+                    .Where(sd => sd.DesignationType == "Ross")
+                    .Where(sd => (sd.EndTerm == null || currentTermInt <= sd.EndTerm) &&
+                                (sd.StartTerm == null || sd.StartTerm <= currentTermInt))
+                    .Select(sd => sd.IamId)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Distinct()
+                    .ToListAsync();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Invalid operation querying SIS context for Ross students ({Context})", LogSanitizer.SanitizeString(contextLabel));
+                return new List<string>();
+            }
+            catch (SqlException ex)
+            {
+                _logger.LogError(ex, "Database error querying SIS context for Ross students ({Context})", LogSanitizer.SanitizeString(contextLabel));
+                return new List<string>();
+            }
+        }
     }
 }
