@@ -1,92 +1,52 @@
 <template>
-    <q-dialog
+    <EffortDialogShell
+        ref="shell"
         :model-value="modelValue"
-        persistent
-        aria-labelledby="percent-assignment-add-title"
-        @keydown.escape="handleClose"
+        title="Add Percentage Assignment"
+        title-id="percent-assignment-add-title"
+        submit-label="Add"
+        :is-saving="isSaving"
+        @close="handleClose"
+        @submit="createPercentage"
     >
-        <q-card style="width: 100%; max-width: 550px">
-            <q-card-section class="row items-center q-pb-none">
-                <div
-                    id="percent-assignment-add-title"
-                    class="text-h6"
-                >
-                    Add Percentage Assignment
-                </div>
-                <q-space />
+        <PercentAssignmentFormFields
+            v-model="form"
+            v-bind="fieldProps"
+        />
+
+        <!-- Warning Banner -->
+        <StatusBanner
+            v-if="warningMessage"
+            type="warning"
+        >
+            {{ warningMessage }}
+            <template #action>
                 <q-btn
-                    icon="close"
                     flat
-                    round
                     dense
-                    aria-label="Close dialog"
-                    @click="handleClose"
+                    label="Proceed Anyway"
+                    @click="saveWithWarning"
                 />
-            </q-card-section>
+            </template>
+        </StatusBanner>
 
-            <q-card-section class="q-py-sm">
-                <q-form
-                    ref="formRef"
-                    class="effort-form"
-                    greedy
-                >
-                    <PercentAssignmentFormFields
-                        v-model="form"
-                        :grouped-type-options="groupedTypeOptions"
-                        :modifier-options="modifierOptions"
-                        :unit-options="unitOptions"
-                        :month-options="monthOptions"
-                        :year-options="yearOptions"
-                        :end-month-rules="endMonthRules"
-                        :end-year-rules="endYearRules"
-                    />
-
-                    <!-- Warning Banner -->
-                    <StatusBanner
-                        v-if="warningMessage"
-                        type="warning"
-                    >
-                        {{ warningMessage }}
-                        <template #action>
-                            <q-btn
-                                flat
-                                dense
-                                label="Proceed Anyway"
-                                @click="saveWithWarning"
-                            />
-                        </template>
-                    </StatusBanner>
-
-                    <!-- Error Banner -->
-                    <StatusBanner
-                        v-if="errorMessage"
-                        type="error"
-                    >
-                        {{ errorMessage }}
-                    </StatusBanner>
-                </q-form>
-            </q-card-section>
-
-            <DialogSubmitActions
-                submit-label="Add"
-                :is-saving="isSaving"
-                @cancel="handleClose"
-                @submit="createPercentage"
-            />
-        </q-card>
-    </q-dialog>
+        <!-- Error Banner -->
+        <StatusBanner
+            v-if="errorMessage"
+            type="error"
+        >
+            {{ errorMessage }}
+        </StatusBanner>
+    </EffortDialogShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { QForm } from "quasar"
-import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
-import DialogSubmitActions from "./DialogSubmitActions.vue"
+import EffortDialogShell from "./EffortDialogShell.vue"
 import PercentAssignmentFormFields from "./PercentAssignmentFormFields.vue"
 import { percentageService } from "../services/percentage-service"
-import { usePercentageForm } from "../composables/use-percentage-form"
-import "../effort-forms.css"
+import { usePercentageDialog } from "../composables/use-percentage-dialog"
 import type { PercentageDto, PercentAssignTypeDto, UnitDto, CreatePercentageRequest } from "../types"
 
 const props = defineProps<{
@@ -101,27 +61,23 @@ const emit = defineEmits<{
     created: [percentage: PercentageDto]
 }>()
 
-// Use shared form composable
 const percentAssignTypesRef = computed(() => props.percentAssignTypes)
 const unitsRef = computed(() => props.units)
 
 const {
     form,
-    groupedTypeOptions,
-    unitOptions,
-    modifierOptions,
-    monthOptions,
-    yearOptions,
-    endMonthRules,
-    endYearRules,
+    fieldProps,
     formatToIsoDate,
     resetForm,
-} = usePercentageForm(percentAssignTypesRef, unitsRef)
+    setInitialState,
+    confirmClose,
+    isSaving,
+    errorMessage,
+    warningMessage,
+    pendingWarningConfirm,
+} = usePercentageDialog(percentAssignTypesRef, unitsRef)
 
-const formRef = ref<QForm | null>(null)
-
-// Unsaved changes tracking
-const { setInitialState, confirmClose } = useUnsavedChanges(form)
+const shell = ref<InstanceType<typeof EffortDialogShell> | null>(null)
 
 // Handle close (X button, Cancel button, or Escape key) with unsaved changes check
 async function handleClose() {
@@ -129,12 +85,6 @@ async function handleClose() {
         emit("update:modelValue", false)
     }
 }
-
-// Loading and error state
-const isSaving = ref(false)
-const errorMessage = ref("")
-const warningMessage = ref("")
-const pendingWarningConfirm = ref(false)
 
 // Reset form when dialog opens
 watch(
@@ -145,14 +95,14 @@ watch(
             errorMessage.value = ""
             warningMessage.value = ""
             pendingWarningConfirm.value = false
-            formRef.value?.resetValidation()
+            shell.value?.resetValidation()
             setInitialState()
         }
     },
 )
 
 async function createPercentage() {
-    const valid = await formRef.value?.validate(true)
+    const valid = await shell.value?.validate()
     if (!valid) return
 
     isSaving.value = true
