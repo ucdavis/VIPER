@@ -45,6 +45,13 @@
     /* UC Davis Secondary Palette (used as accents, never dominant) */
     --ucdavis-arboretum: #00c4b3;
     --ucdavis-cabernet: #481268;
+
+    /* Neutral surface tokens — blue-tinted near-whites with no equivalent in the
+       brand ramp (its lightest blue, --ucdavis-blue-10 #cdd6e0, is far too dark
+       for a panel fill). Borders use the existing --ucdavis-black-10 directly. */
+    --surface: #ffffff;
+    --surface-tint: #f5f7fb;
+    --surface-tint-raised: #fafbff;
 }
 
 /* Background utility classes — UC Davis palette */

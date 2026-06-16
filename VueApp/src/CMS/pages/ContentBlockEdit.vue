@@ -43,8 +43,14 @@
                         hide-bottom-space
                     />
 
-                    <div class="text-subtitle2 q-mb-xs">Content</div>
+                    <div
+                        id="content-editor-label"
+                        class="text-subtitle2 q-mb-xs"
+                    >
+                        Content
+                    </div>
                     <q-editor
+                        ref="contentEditorRef"
                         v-model="block.content"
                         min-height="20rem"
                         :toolbar="editorToolbar"
@@ -99,8 +105,10 @@
                                 options-dense
                                 outlined
                                 label="System"
+                                class="required-field"
                                 :options="['Viper', 'Public']"
                                 :rules="[(v: string | null) => !!v || 'System is required']"
+                                aria-required="true"
                                 hide-bottom-space
                                 @update:model-value="onSystemChange"
                             />
@@ -282,6 +290,7 @@ const blockId = computed(() => (route.params.id ? Number(route.params.id) : null
 const isNew = computed(() => blockId.value === null)
 
 const formRef = ref()
+const contentEditorRef = ref()
 const saving = ref(false)
 const formError = ref("")
 
@@ -500,6 +509,9 @@ async function restoreBlock() {
 }
 
 onMounted(() => {
+    // QEditor renders the focusable contenteditable as an inner element, so its accessible
+    // name has to be set there rather than on the wrapper the "Content" label sits beside.
+    contentEditorRef.value?.getContentEl()?.setAttribute("aria-labelledby", "content-editor-label")
     loadSectionPaths()
     loadBlock()
     // loadBlock sets the baseline for an existing block after it loads; a brand-new form's

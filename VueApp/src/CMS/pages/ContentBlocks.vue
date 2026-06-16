@@ -80,6 +80,7 @@
             :loading="loading"
             :pagination="{ rowsPerPage: 50, sortBy: 'title' }"
             :rows-per-page-options="[25, 50, 100, 0]"
+            :grid="$q.screen.lt.sm"
             dense
             flat
             bordered
@@ -133,6 +134,77 @@
                     />
                 </q-td>
             </template>
+
+            <template #item="{ row }">
+                <ListCard>
+                    <template #header>
+                        <div class="row items-center no-wrap q-gutter-x-xs">
+                            <router-link
+                                class="text-weight-medium"
+                                :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
+                            >
+                                {{ row.title || "(untitled)" }}
+                            </router-link>
+                            <StatusIcon
+                                v-if="row.allowPublicAccess"
+                                icon="public"
+                                color="positive"
+                                label="Public access"
+                            />
+                            <StatusIcon
+                                v-if="row.deletedOn"
+                                icon="delete_outline"
+                                color="negative"
+                                label="Deleted"
+                            />
+                        </div>
+                        <div
+                            v-if="row.friendlyName"
+                            class="text-caption text-grey-7"
+                        >
+                            {{ row.friendlyName }}
+                        </div>
+                    </template>
+
+                    <ListCardField
+                        label="System"
+                        :value="row.system"
+                    />
+                    <ListCardField
+                        v-if="row.viperSectionPath"
+                        label="VIPER section"
+                        :value="row.viperSectionPath"
+                    />
+                    <ListCardField
+                        v-if="row.page"
+                        label="Page"
+                        :value="row.page"
+                    />
+                    <ListCardField
+                        label="Order"
+                        :value="row.blockOrder"
+                    />
+                    <ListCardField label="Access">
+                        <PermissionChips :permissions="row.permissions" />
+                    </ListCardField>
+                    <ListCardField label="Modified">
+                        <ModifiedStamp :row="row" />
+                    </ListCardField>
+
+                    <template #actions>
+                        <EditButton
+                            entity-name="content block"
+                            :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
+                        />
+                        <DeleteRestoreButtons
+                            :deleted="!!row.deletedOn"
+                            entity-name="content block"
+                            @delete="deleteBlock(row)"
+                            @restore="restoreBlock(row)"
+                        />
+                    </template>
+                </ListCard>
+            </template>
         </q-table>
     </div>
 </template>
@@ -143,6 +215,8 @@ import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
+import ListCard from "@/CMS/components/ListCard.vue"
+import ListCardField from "@/CMS/components/ListCardField.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import PermissionChips from "@/CMS/components/PermissionChips.vue"
 import StatusIcon from "@/CMS/components/StatusIcon.vue"

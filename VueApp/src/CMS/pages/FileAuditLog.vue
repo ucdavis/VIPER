@@ -12,6 +12,7 @@
                     v-model="filters.action"
                     dense
                     options-dense
+                    outlined
                     clearable
                     label="Action"
                     :options="actionOptions"
@@ -22,6 +23,7 @@
                 <q-input
                     v-model="filters.loginId"
                     dense
+                    outlined
                     clearable
                     debounce="400"
                     label="Login ID"
@@ -32,6 +34,7 @@
                 <q-input
                     v-model="filters.from"
                     dense
+                    outlined
                     clearable
                     label="From"
                     type="date"
@@ -43,6 +46,7 @@
                 <q-input
                     v-model="filters.to"
                     dense
+                    outlined
                     clearable
                     label="To"
                     type="date"
@@ -50,10 +54,14 @@
                     @update:model-value="reload"
                 />
             </div>
+        </div>
+
+        <div class="row q-mb-sm">
             <div class="col-12 col-sm-4 col-lg-3">
                 <q-input
                     v-model="filters.search"
                     dense
+                    outlined
                     clearable
                     debounce="400"
                     label="Search path or detail"
@@ -88,6 +96,7 @@
             :loading="loading"
             v-model:pagination="pagination"
             :rows-per-page-options="[25, 50, 100, 250]"
+            :grid="$q.screen.lt.sm"
             dense
             flat
             bordered
@@ -113,6 +122,36 @@
                     </span>
                 </q-td>
             </template>
+
+            <template #item="{ row }">
+                <ListCard>
+                    <template #header>
+                        <div class="row items-center q-gutter-x-sm">
+                            <StatusBadge :color="getActionColor(row.action)">
+                                {{ row.action }}
+                            </StatusBadge>
+                            <span class="text-caption text-grey-7">
+                                {{ formatDateTime(row.timestamp, { dateStyle: "short", timeStyle: "short" }) }}
+                            </span>
+                        </div>
+                    </template>
+
+                    <ListCardField
+                        label="Modified By"
+                        :value="row.loginid"
+                    />
+                    <ListCardField
+                        v-if="row.filePath"
+                        label="File"
+                        :value="row.filePath"
+                    />
+                    <ListCardField
+                        v-if="row.detail"
+                        label="Detail"
+                        :value="row.detail"
+                    />
+                </ListCard>
+            </template>
         </q-table>
     </div>
 </template>
@@ -125,6 +164,8 @@ import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
+import ListCard from "@/CMS/components/ListCard.vue"
+import ListCardField from "@/CMS/components/ListCardField.vue"
 import type { CmsFileAudit } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/audit"

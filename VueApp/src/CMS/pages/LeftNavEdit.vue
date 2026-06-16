@@ -430,14 +430,14 @@ onMounted(() => {
 
 <style scoped>
 .nav-item {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--ucdavis-black-10);
     border-radius: 6px;
     margin-bottom: 8px;
     padding: 8px;
 }
 
 .nav-item.is-header {
-    background: #f5f7fb;
+    background: var(--surface-tint);
 }
 
 .handle {

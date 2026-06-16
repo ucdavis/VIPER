@@ -103,6 +103,7 @@
             :loading="loading"
             v-model:pagination="pagination"
             :rows-per-page-options="[25, 50, 100, 250]"
+            :grid="$q.screen.lt.sm"
             dense
             flat
             bordered
@@ -183,6 +184,81 @@
                     />
                 </q-td>
             </template>
+
+            <template #item="{ row }">
+                <ListCard>
+                    <template #header>
+                        <div class="row items-center no-wrap q-gutter-x-xs">
+                            <a
+                                :href="row.friendlyUrl"
+                                target="_blank"
+                                rel="noopener"
+                            >
+                                {{ row.friendlyName }}
+                                <span class="sr-only">(opens in new window)</span>
+                            </a>
+                            <StatusIcon
+                                v-if="row.encrypted"
+                                icon="lock"
+                                color="warning"
+                                label="Encrypted"
+                            />
+                            <StatusIcon
+                                v-if="row.allowPublicAccess"
+                                icon="public"
+                                color="positive"
+                                label="Public access"
+                            />
+                            <StatusIcon
+                                v-if="row.deletedOn"
+                                icon="delete_outline"
+                                color="negative"
+                                :label="`Deleted ${formatDate(row.deletedOn)}`"
+                            />
+                        </div>
+                    </template>
+
+                    <ListCardField
+                        label="VIPER app"
+                        :value="row.folder"
+                    />
+                    <ListCardField label="Access">
+                        <PermissionChips
+                            :permissions="row.permissions"
+                            :people-count="row.people.length"
+                        />
+                    </ListCardField>
+                    <ListCardField
+                        v-if="row.oldUrl"
+                        label="Old URL"
+                    >
+                        <a
+                            :href="oldUrlHref(row.oldUrl)"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            {{ row.oldUrl }}
+                            <span class="sr-only">(opens in new window)</span>
+                        </a>
+                    </ListCardField>
+                    <ListCardField label="Modified">
+                        <ModifiedStamp :row="row" />
+                    </ListCardField>
+
+                    <template #actions>
+                        <EditButton
+                            entity-name="file"
+                            @click="openEditDialog(row)"
+                        />
+                        <DeleteRestoreButtons
+                            :deleted="!!row.deletedOn"
+                            entity-name="file"
+                            @delete="deleteFile(row)"
+                            @restore="restoreFile(row)"
+                        />
+                    </template>
+                </ListCard>
+            </template>
         </q-table>
 
         <FileFormDialog
@@ -202,6 +278,8 @@ import { useFetch } from "@/composables/ViperFetch"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
+import ListCard from "@/CMS/components/ListCard.vue"
+import ListCardField from "@/CMS/components/ListCardField.vue"
 import ModifiedStamp from "@/CMS/components/ModifiedStamp.vue"
 import PermissionChips from "@/CMS/components/PermissionChips.vue"
 import StatusIcon from "@/CMS/components/StatusIcon.vue"

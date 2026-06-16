@@ -9,7 +9,7 @@
             label="Filters"
             header-class="bg-grey-2 lt-md"
             :header-style="$q.screen.gt.sm ? 'display: none' : ''"
-            class="q-mb-md"
+            class="q-mb-sm"
         >
             <q-card flat>
                 <q-card-section :class="$q.screen.gt.sm ? 'q-pa-none' : ''">
@@ -77,15 +77,6 @@
                                 @filter="filterInstructors"
                             />
                         </div>
-                        <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
-                            <q-input
-                                v-model="filter.searchText"
-                                label="Search Changes"
-                                dense
-                                outlined
-                                clearable
-                            />
-                        </div>
                         <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-6'">
                             <q-input
                                 v-model="filter.dateFrom"
@@ -133,20 +124,35 @@
                             />
                         </div>
                     </div>
-                    <div class="row q-mt-sm">
-                        <div class="col-12 text-right">
-                            <q-btn
-                                label="Clear Filters"
-                                color="secondary"
-                                dense
-                                flat
-                                @click="clearFilter"
-                            />
-                        </div>
-                    </div>
                 </q-card-section>
             </q-card>
         </q-expansion-item>
+
+        <!-- Search box and clear-filters on their own row above the table, matching the CMS audit trail -->
+        <div class="row items-center q-mb-sm">
+            <div class="col-12 col-sm-4 col-lg-3">
+                <q-input
+                    v-model="filter.searchText"
+                    label="Search changes"
+                    dense
+                    outlined
+                    clearable
+                    hide-bottom-space
+                >
+                    <template #prepend>
+                        <q-icon name="search" />
+                    </template>
+                </q-input>
+            </div>
+            <q-space />
+            <q-btn
+                label="Clear Filters"
+                color="secondary"
+                dense
+                flat
+                @click="clearFilter"
+            />
+        </div>
 
         <!-- Results Table - Desktop view (lg and up) -->
         <q-table

@@ -368,6 +368,39 @@ header .q-avatar {
     width: 31px !important;
 }
 
+/* QTable card (grid) mode field rows — used when dense list tables collapse to
+   stacked cards on small screens. Label column is fixed-width so values align. */
+.list-card-field {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.125rem 0;
+}
+
+.list-card-label {
+    flex: 0 0 7rem;
+    font-weight: 600;
+    color: var(--ucdavis-black-70);
+}
+
+.list-card-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Dialog card widths — replaces inline width styles on q-card inside q-dialog.
+   A fixed width with a 95vw cap keeps modals comfortable on desktop and off
+   the screen edges on small viewports. */
+.dialog-card-sm {
+    width: 480px;
+    max-width: 95vw;
+}
+
+.dialog-card-md {
+    width: 600px;
+    max-width: 95vw;
+}
+
 /* Skip to content link — visible on focus for keyboard users */
 .skip-to-content {
     position: absolute;
@@ -408,6 +441,16 @@ header .q-avatar {
 .q-td .q-btn {
     min-width: 24px;
     min-height: 24px;
+}
+
+/* On touch devices, give the CMS card-mode action buttons the 44px comfort
+   target (WCAG 2.5.5); pointer devices keep the dense default. Scoped to the
+   list cards so it doesn't reflow every dense table app-wide. */
+@media (pointer: coarse) {
+    .list-card .q-card__actions .q-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
 /* Quasar palette AA contrast overrides (!important required to override Quasar's !important).
