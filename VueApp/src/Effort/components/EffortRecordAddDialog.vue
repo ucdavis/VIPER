@@ -1,164 +1,134 @@
 <template>
-    <q-dialog
+    <EffortDialogShell
+        ref="shell"
         :model-value="modelValue"
-        persistent
-        aria-labelledby="effort-record-add-title"
-        @keydown.escape="handleClose"
+        title="Add Effort Record"
+        title-id="effort-record-add-title"
+        submit-label="Add Effort"
+        :max-width="500"
+        :is-saving="isSaving"
+        @close="handleClose"
+        @submit="createRecord"
     >
-        <q-card style="width: 100%; max-width: 500px">
-            <q-card-section class="row items-center q-pb-none">
-                <div
-                    id="effort-record-add-title"
-                    class="text-h6"
+        <!-- Verification Warning -->
+        <StatusBanner
+            v-if="props.isVerified"
+            type="warning"
+        >
+            This instructor's effort has been verified. Adding a new record will clear the verification status and
+            require re-verification.
+        </StatusBanner>
+
+        <!-- Course Selection -->
+        <q-select
+            v-model="selectedCourse"
+            :options="filteredCourseOptions"
+            label="Course *"
+            dense
+            options-dense
+            outlined
+            emit-value
+            map-options
+            use-input
+            input-debounce="0"
+            :loading="isLoadingCourses"
+            :rules="[requiredRule('Course')]"
+            lazy-rules="ondemand"
+            @filter="filterCourses"
+        >
+            <template #option="scope">
+                <q-item-label
+                    v-if="scope.opt.isHeader"
+                    header
+                    class="text-weight-bold text-primary q-py-xs"
                 >
-                    Add Effort Record
-                </div>
-                <q-space />
-                <q-btn
-                    icon="close"
-                    flat
-                    round
-                    dense
-                    aria-label="Close dialog"
-                    @click="handleClose"
-                />
-            </q-card-section>
-
-            <q-card-section>
-                <q-form
-                    ref="formRef"
-                    class="effort-form"
-                    greedy
+                    {{ scope.opt.label }}
+                </q-item-label>
+                <q-item
+                    v-else
+                    v-bind="scope.itemProps"
                 >
-                    <!-- Verification Warning -->
-                    <StatusBanner
-                        v-if="props.isVerified"
-                        type="warning"
-                    >
-                        This instructor's effort has been verified. Adding a new record will clear the verification
-                        status and require re-verification.
-                    </StatusBanner>
+                    <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    </q-item-section>
+                </q-item>
+            </template>
+        </q-select>
 
-                    <!-- Course Selection -->
-                    <q-select
-                        v-model="selectedCourse"
-                        :options="filteredCourseOptions"
-                        label="Course *"
-                        dense
-                        options-dense
-                        outlined
-                        emit-value
-                        map-options
-                        use-input
-                        input-debounce="0"
-                        :loading="isLoadingCourses"
-                        :rules="[requiredRule('Course')]"
-                        lazy-rules="ondemand"
-                        @filter="filterCourses"
-                    >
-                        <template #option="scope">
-                            <q-item-label
-                                v-if="scope.opt.isHeader"
-                                header
-                                class="text-weight-bold text-primary q-py-xs"
+        <!-- Effort Type Selection -->
+        <q-select
+            v-model="selectedEffortType"
+            :options="effortTypeOptionsWithHeaders"
+            label="Effort Type *"
+            dense
+            options-dense
+            outlined
+            option-value="id"
+            :option-label="formatEffortTypeLabel"
+            option-disable="disable"
+            emit-value
+            map-options
+            :loading="isLoadingOptions"
+            :disable="!selectedCourse"
+            :hint="!selectedCourse ? 'Select a course first' : undefined"
+            :rules="[requiredRule('Effort type')]"
+            lazy-rules="ondemand"
+        >
+            <template #option="scope">
+                <q-item-label
+                    v-if="scope.opt.isHeader"
+                    header
+                    class="text-weight-bold text-primary q-py-xs"
+                >
+                    {{ scope.opt.label }}
+                </q-item-label>
+                <q-item
+                    v-else
+                    v-bind="scope.itemProps"
+                    :class="{ 'text-grey-5': scope.opt.alreadyUsed }"
+                >
+                    <q-item-section>
+                        <q-item-label class="row items-center">
+                            <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
+                            <span
+                                v-if="scope.opt.alreadyUsed"
+                                class="text-grey-7 text-caption q-ml-sm"
                             >
-                                {{ scope.opt.label }}
-                            </q-item-label>
-                            <q-item
-                                v-else
-                                v-bind="scope.itemProps"
-                            >
-                                <q-item-section>
-                                    <q-item-label>{{ scope.opt.label }}</q-item-label>
-                                </q-item-section>
-                            </q-item>
-                        </template>
-                    </q-select>
+                                — Already used in this course
+                            </span>
+                        </q-item-label>
+                    </q-item-section>
+                </q-item>
+            </template>
+        </q-select>
 
-                    <!-- Effort Type Selection -->
-                    <q-select
-                        v-model="selectedEffortType"
-                        :options="effortTypeOptionsWithHeaders"
-                        label="Effort Type *"
-                        dense
-                        options-dense
-                        outlined
-                        option-value="id"
-                        :option-label="formatEffortTypeLabel"
-                        option-disable="disable"
-                        emit-value
-                        map-options
-                        :loading="isLoadingOptions"
-                        :disable="!selectedCourse"
-                        :hint="!selectedCourse ? 'Select a course first' : undefined"
-                        :rules="[requiredRule('Effort type')]"
-                        lazy-rules="ondemand"
-                    >
-                        <template #option="scope">
-                            <q-item-label
-                                v-if="scope.opt.isHeader"
-                                header
-                                class="text-weight-bold text-primary q-py-xs"
-                            >
-                                {{ scope.opt.label }}
-                            </q-item-label>
-                            <q-item
-                                v-else
-                                v-bind="scope.itemProps"
-                                :class="{ 'text-grey-5': scope.opt.alreadyUsed }"
-                            >
-                                <q-item-section>
-                                    <q-item-label class="row items-center">
-                                        <span>{{ scope.opt.description }} ({{ scope.opt.id }})</span>
-                                        <span
-                                            v-if="scope.opt.alreadyUsed"
-                                            class="text-grey-7 text-caption q-ml-sm"
-                                        >
-                                            — Already used in this course
-                                        </span>
-                                    </q-item-label>
-                                </q-item-section>
-                            </q-item>
-                        </template>
-                    </q-select>
-
-                    <EffortRecordSharedFields
-                        v-model:selected-role="selectedRole"
-                        v-model:effort-value="effortValue"
-                        v-model:notes="notes"
-                        :roles="roles"
-                        :is-loading-options="isLoadingOptions"
-                        :effort-label="effortLabel"
-                        :show-notes="selectedCourseObj?.isGenericRCourse ?? false"
-                        :notes-hint="notesHint"
-                        :warning-message="warningMessage"
-                        :error-message="errorMessage"
-                    />
-                </q-form>
-            </q-card-section>
-
-            <DialogSubmitActions
-                submit-label="Add Effort"
-                :is-saving="isSaving"
-                @cancel="handleClose"
-                @submit="createRecord"
-            />
-        </q-card>
-    </q-dialog>
+        <EffortRecordSharedFields
+            v-model:selected-role="selectedRole"
+            v-model:effort-value="effortValue"
+            v-model:notes="notes"
+            :roles="roles"
+            :is-loading-options="isLoadingOptions"
+            :effort-label="effortLabel"
+            :show-notes="selectedCourseObj?.isGenericRCourse ?? false"
+            :notes-hint="notesHint"
+            :warning-message="warningMessage"
+            :error-message="errorMessage"
+        />
+    </EffortDialogShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import type { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
-import DialogSubmitActions from "./DialogSubmitActions.vue"
+import EffortDialogShell from "./EffortDialogShell.vue"
 import EffortRecordSharedFields from "./EffortRecordSharedFields.vue"
 import { recordService } from "../services/record-service"
 import type { CourseOptionDto, EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
 import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
+import { filterGroupedOptions } from "../utils/grouped-options"
 import { requiredRule, notesMaxHint } from "../validation"
-import "../effort-forms.css"
+import { useEffortLabel } from "../composables/use-effort-label"
 
 const props = defineProps<{
     modelValue: boolean
@@ -174,7 +144,7 @@ const emit = defineEmits<{
     created: []
 }>()
 
-const formRef = ref<QForm | null>(null)
+const shell = ref<InstanceType<typeof EffortDialogShell> | null>(null)
 
 // Form state
 const selectedCourse = ref<number | null>(null)
@@ -269,23 +239,7 @@ const filteredCourseOptions = ref<CourseOption[]>([])
 // Filter function for course dropdown
 function filterCourses(val: string, update: (fn: () => void) => void) {
     update(() => {
-        if (!val) {
-            filteredCourseOptions.value = courseOptions.value
-        } else {
-            const needle = val.toLowerCase()
-            filteredCourseOptions.value = courseOptions.value
-                .filter((opt) => {
-                    // Always keep headers visible if they have matching items below them
-                    if (opt.isHeader) return true
-                    return opt.label.toLowerCase().includes(needle)
-                })
-                .filter((opt, index, arr) => {
-                    // Remove headers that have no items following them
-                    if (!opt.isHeader) return true
-                    const nextItem = arr[index + 1]
-                    return nextItem && !nextItem.isHeader
-                })
-        }
+        filteredCourseOptions.value = filterGroupedOptions(courseOptions.value, val)
     })
 }
 
@@ -371,15 +325,8 @@ function formatEffortTypeLabel(opt: EffortTypeOption): string {
     return `${opt.description} (${opt.id})`
 }
 
-// Computed: Effort label (Hours vs Weeks) with required asterisk
-const effortLabel = computed(() => {
-    if (!selectedEffortType.value) return "Hours *"
-    const effortType = effortTypes.value.find((et) => et.id === selectedEffortType.value)
-    if (effortType?.usesWeeks && props.termCode >= 201604) {
-        return "Weeks *"
-    }
-    return "Hours *"
-})
+// Effort value label (Hours/Weeks) with required asterisk
+const effortLabel = useEffortLabel(selectedEffortType, effortTypes, { termCode: () => props.termCode })
 
 // Reset form when dialog opens
 watch(
@@ -416,7 +363,7 @@ function resetForm() {
     errorMessage.value = ""
     warningMessage.value = ""
     syncFormData()
-    formRef.value?.resetValidation()
+    shell.value?.resetValidation()
 }
 
 // Sync individual refs to formData for unsaved changes tracking
@@ -475,7 +422,7 @@ async function loadOptions() {
 }
 
 async function createRecord() {
-    const valid = await formRef.value?.validate(true)
+    const valid = await shell.value?.validate()
     if (!valid) return
 
     isSaving.value = true
