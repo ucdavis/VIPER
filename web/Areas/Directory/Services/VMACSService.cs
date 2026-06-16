@@ -7,6 +7,9 @@ namespace Viper.Areas.Directory.Services
 {
     public class VMACSService
     {
+        // Fixed token required by the internal VMACS trust endpoint (not a rotating secret).
+        private const string VmacsAuthToken = "06232005";
+
         private static HttpClient sharedClient = new()
         {
             BaseAddress = new Uri("https://vmacs-vmth.vetmed.ucdavis.edu"),
@@ -21,7 +24,8 @@ namespace Viper.Areas.Directory.Services
         public static async Task<VMACSQuery?> Search(String? loginID)
         {
 
-            string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={loginID}&format=CHRIS4&AUTH=06232005".ToString();
+            string encodedLoginId = Uri.EscapeDataString(loginID ?? string.Empty);
+            string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={encodedLoginId}&format=CHRIS4&AUTH={VmacsAuthToken}";
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
             if (!response.IsSuccessStatusCode)
             {
