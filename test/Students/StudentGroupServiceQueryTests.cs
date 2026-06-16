@@ -202,7 +202,7 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
     {
         // A regular V3 student and a Ross student, both enrolled (RE) in the same course.
         SeedStudent("P1", "PIDM1", "Adams", "Bob", "V3");
-        SeedStudent("P9", "PIDM9", "Reardon", "Chelsea", "V3");
+        SeedStudent("P9", "PIDM9", "Blackwood", "Sally", "V3");
         // A Ross student not enrolled (withdrawn / WD) in the course.
         SeedStudent("P10", "PIDM10", "Smith", "John", "V3");
 
@@ -242,7 +242,7 @@ public sealed class StudentGroupServiceQueryTests : IDisposable
 
         Assert.Equal(2, result.Count);
         Assert.Contains(result, s => s.LastName == "Adams" && !s.IsRossStudent);
-        Assert.Contains(result, s => s.LastName == "Reardon" && s.IsRossStudent);
+        Assert.Contains(result, s => s.LastName == "Blackwood" && s.IsRossStudent);
         Assert.DoesNotContain(result, s => s.LastName == "Smith");
     }
 
