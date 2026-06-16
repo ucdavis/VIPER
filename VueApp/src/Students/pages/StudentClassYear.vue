@@ -72,8 +72,9 @@ async function getStudents() {
         //get problems
         u = apiUrl + "students/dvm/classYearReport?classYear=" + classYear.value.value
         const problems = await get(u)
+        const studentsByPersonId = new Map(allStudents.value.map((std) => [std.personId, std]))
         problems.result.forEach((p: any) => {
-            var s = allStudents.value.find((std) => std.personId === p.personId)
+            const s = studentsByPersonId.get(p.personId)
             if (s !== undefined) {
                 s.problems = p.problems
             }

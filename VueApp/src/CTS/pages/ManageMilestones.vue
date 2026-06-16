@@ -22,8 +22,9 @@ async function load() {
     ])
 
     //filter competencies to just those without a milestone already defined
+    const milestoneCompetencyIds = new Set(milestones.value.map((m) => m.competencyId))
     competencies.value = competencies.value.filter(
-        (c) => !milestones.value.some((m) => m.competencyId === c.competencyId),
+        (c) => c.competencyId === null || !milestoneCompetencyIds.has(c.competencyId),
     )
 
     loaded.value = true
