@@ -247,8 +247,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
                     LogSanitizer.SanitizeId(mothraId), rotationId, string.Join(",", weekIds));
 
-                // Check if this is a database constraint violation (typically a duplicate key error)
-                if (IsDbConstraintViolation(saveEx.Message) || IsDbConstraintViolation(saveEx.InnerException?.Message))
+                // Only a unique/duplicate-key violation means the instructor is already scheduled.
+                // Other DB errors (foreign-key, check constraints, etc.) fall through to the generic message.
+                if (IsDuplicateKeyViolation(saveEx))
                 {
                     throw new InvalidOperationException($"Instructor {mothraId} appears to already be scheduled for one or more of the specified weeks. Please refresh the page and try again.", saveEx);
                 }
@@ -258,14 +259,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
         }
 
-        // Detects DB constraint/duplicate-key violations from an exception message.
-        // Ordinal (culture-invariant) matching avoids locale casing hazards (e.g. Turkish 'I').
-        private static bool IsDbConstraintViolation(string? message) =>
-            message != null
-            && (message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("unique", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("constraint", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("violation of primary key", StringComparison.OrdinalIgnoreCase));
+        // SQL Server: 2627 = unique constraint violation, 2601 = duplicate key in a unique index.
+        // EF wraps the provider error in DbUpdateException, so unwrap to the underlying SqlException.
+        private static bool IsDuplicateKeyViolation(Exception ex)
+        {
+            var sqlEx = ex as SqlException ?? ex.InnerException as SqlException;
+            return sqlEx is not null
+                && sqlEx.Errors.Cast<SqlError>().Any(e => e.Number is 2627 or 2601);
+        }
 
         public async Task<(bool success, bool wasPrimaryEvaluator, string? instructorName)> RemoveInstructorScheduleAsync(
             int instructorScheduleId,
