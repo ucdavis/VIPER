@@ -29,6 +29,7 @@ public class InstructorService : IInstructorService
 
     private const string TitleCacheKey = "effort_title_lookup";
     private const string DeptSimpleNameCacheKey = "effort_dept_simple_name_lookup";
+    private const string ExcludedTitleCodesCacheKey = "effort_excluded_title_codes";
 
     /// <summary>
     /// Valid academic department codes.
@@ -1237,6 +1238,56 @@ public class InstructorService : IInstructorService
             _logger.LogWarning(ex, "Failed to load department lookup from dictionary database");
             return null;
         }
+    }
+
+    public async Task<HashSet<string>> GetExcludedTitleCodesAsync(CancellationToken ct = default)
+    {
+        if (_cache.TryGetValue<HashSet<string>>(ExcludedTitleCodesCacheKey, out var cached) && cached != null)
+        {
+            // Return a copy so callers cannot mutate the shared cached instance.
+            return new HashSet<string>(cached, StringComparer.OrdinalIgnoreCase);
+        }
+
+        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            // Emeritus and recall appointments are excluded from harvest. Match by title name
+            // in dictionary.dbo.dvtTitle (e.g., "PROF EMERITUS(WOS)", "RECALL FACULTY").
+            // ToLower() makes the match case-insensitive: it translates to SQL LOWER(...) LIKE
+            // and also evaluates correctly under the in-memory provider used in tests.
+            var codes = await _dictionaryContext.Titles
+                .AsNoTracking()
+                .Where(t => t.Code != null && t.Name != null &&
+                            (t.Name.ToLower().Contains("emerit") || t.Name.ToLower().Contains("recall")))
+                .Select(t => t.Code!.Trim())
+                .ToListAsync(ct);
+
+            foreach (var code in codes.Where(c => !string.IsNullOrEmpty(c)))
+            {
+                excluded.Add(code);
+            }
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromHours(24));
+
+            _cache.Set(ExcludedTitleCodesCacheKey, excluded, cacheOptions);
+
+            _logger.LogInformation("Loaded {Count} excluded (emeritus/recall) title codes from dictionary database", excluded.Count);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Fail open: if the lookup is unavailable, harvest proceeds without exclusions
+            // rather than failing outright.
+            _logger.LogWarning(ex, "Failed to load excluded title codes from dictionary database");
+        }
+        catch (DbException ex)
+        {
+            _logger.LogWarning(ex, "Failed to load excluded title codes from dictionary database");
+        }
+
+        // Return a copy so the cached instance is never exposed to callers.
+        return new HashSet<string>(excluded, StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<List<InstructorEffortRecordDto>> GetInstructorEffortRecordsAsync(

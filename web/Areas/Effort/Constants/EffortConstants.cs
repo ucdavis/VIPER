@@ -19,7 +19,11 @@ public static class EffortConstants
     /// </summary>
     public static readonly FrozenDictionary<string, string> DepartmentOverrides = new Dictionary<string, string>
     {
-        ["02493928"] = "VSR"
+        // Michael Mison — only has a VMTH job, but effort is recorded to VSR.
+        ["02493928"] = "VSR",
+        // Christine Johnson — no academic-department job in AAUD (home/effort dept 072016),
+        // so the dept cannot be auto-derived; effort is recorded to VME.
+        ["00129082"] = "VME"
     }.ToFrozenDictionary();
 
     /// <summary>

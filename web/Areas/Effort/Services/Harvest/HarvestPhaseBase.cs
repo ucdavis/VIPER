@@ -285,6 +285,36 @@ public abstract class HarvestPhaseBase : IHarvestPhase
 
     #endregion
 
+    #region Exclusion Helpers
+
+    /// <summary>
+    /// Record a single warning listing instructors excluded from harvest because their
+    /// effort title is an emeritus/recall appointment. Added to both the preview warnings
+    /// (shown before commit) and the execution warnings (shown in the result).
+    /// </summary>
+    protected static void AddEmeritusExclusionWarning(
+        HarvestContext ctx,
+        string phaseName,
+        IReadOnlyCollection<string> excludedNames)
+    {
+        if (excludedNames.Count == 0)
+        {
+            return;
+        }
+
+        var warning = new HarvestWarning
+        {
+            Phase = phaseName,
+            Message = $"{excludedNames.Count} emeritus/recall instructor(s) excluded from harvest",
+            Details = string.Join("; ", excludedNames)
+        };
+
+        ctx.Warnings.Add(warning);
+        ctx.Preview.Warnings.Add(warning);
+    }
+
+    #endregion
+
     #region Department Resolution
 
     /// <summary>

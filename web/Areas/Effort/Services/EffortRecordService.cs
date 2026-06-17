@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Exceptions;
 using Viper.Areas.Effort.Models.DTOs;
@@ -22,6 +23,7 @@ public class EffortRecordService : IEffortRecordService
     private readonly ICourseClassificationService _courseClassificationService;
     private readonly IRCourseService _rCourseService;
     private readonly IUserHelper _userHelper;
+    private readonly EffortSettings _settings;
     private readonly ILogger<EffortRecordService> _logger;
 
     public EffortRecordService(
@@ -32,6 +34,7 @@ public class EffortRecordService : IEffortRecordService
         ICourseClassificationService courseClassificationService,
         IRCourseService rCourseService,
         IUserHelper userHelper,
+        IOptions<EffortSettings> settings,
         ILogger<EffortRecordService> logger)
     {
         _context = context;
@@ -41,6 +44,7 @@ public class EffortRecordService : IEffortRecordService
         _courseClassificationService = courseClassificationService;
         _rCourseService = rCourseService;
         _userHelper = userHelper;
+        _settings = settings.Value;
         _logger = logger;
     }
 
@@ -687,6 +691,11 @@ public class EffortRecordService : IEffortRecordService
     /// </summary>
     private async Task TryCreateRCourseForInstructorAsync(int personId, int termCode, int modifiedBy, CancellationToken ct)
     {
+        if (!_settings.AutoCreateGenericRCourse)
+        {
+            return;
+        }
+
         // Count how many non-R-course effort records this instructor has in this term
         var nonRCourseCount = await _context.Records
             .AsNoTracking()
