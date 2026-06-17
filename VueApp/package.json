@@ -65,7 +65,7 @@
         "oxlint-tsgolint": "^0.23.0",
         "tree-kill": "^1.2.2",
         "typescript": "^6.0.3",
-        "vite": "^8.0.10",
+        "vite": "^8.0.16",
         "vite-plugin-vue-inspector": "^6.0.0",
         "vitest": "^4.1.7",
         "vue-tsc": "^3.2.7"
