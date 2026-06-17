@@ -117,6 +117,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             .ToDictionary(g => g.Key, g => g.First().JobGroupId, StringComparer.OrdinalIgnoreCase);
 
         context.DeptSimpleNameLookup ??= await context.InstructorService.GetDepartmentSimpleNameLookupAsync(ct);
+        var excludedTitleCodes = context.ExcludedTitleCodes ??= await context.InstructorService.GetExcludedTitleCodesAsync(ct);
 
         // Get VIPER person IDs for the instructors
         var mothraIds = crestInstructors.Select(i => i.MothraId).Distinct().ToList();
@@ -125,6 +126,8 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             .Where(p => mothraIds.Contains(p.MothraId))
             .Select(p => new { p.PersonId, p.MothraId })
             .ToDictionaryAsync(p => p.MothraId ?? "", p => p.PersonId, ct);
+
+        var excludedInstructors = new List<string>();
 
         foreach (var instructor in crestInstructors)
         {
@@ -137,6 +140,16 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             }
 
             var titleDesc = context.TitleLookup.TryGetValue(instructor.TitleCode, out var desc) ? desc : instructor.TitleCode;
+
+            // Exclude emeritus/recall appointments from harvest. Their effort records are
+            // skipped automatically because BuildCrestEffortRecordsAsync only emits records
+            // for instructors present in CrestInstructors.
+            if (excludedTitleCodes.Contains(instructor.TitleCode))
+            {
+                excludedInstructors.Add($"{instructor.LastName}, {instructor.FirstName} ({titleDesc})");
+                continue;
+            }
+
             // HomeDept is already fully resolved by BatchResolveDepartmentsAsync
             var dept = instructor.HomeDept;
 
@@ -153,6 +166,8 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                 Source = EffortConstants.SourceCrest
             });
         }
+
+        AddEmeritusExclusionWarning(context, PhaseName, excludedInstructors);
 
         // Step 5: Build effort records
         await BuildCrestEffortRecordsAsync(context, courseOfferings, blockCourseIds, ct);
@@ -405,6 +420,12 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
         // Build effort records
         var effortByPersonCourse = new Dictionary<string, (HarvestRecordPreview Record, int TotalMinutes)>();
 
+        // Index instructors by MothraId once; effort records are only created for persons
+        // present in CrestInstructors (valid AAUD data, title code, and VIPER person record).
+        var instructorByMothraId = context.Preview.CrestInstructors
+            .GroupBy(i => i.MothraId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
         var offeringAssignments = courseOfferings
             .Join(
                 offerPersons,
@@ -422,10 +443,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
                 continue;
             }
 
-            // Only create effort records for persons who are in CrestInstructors
-            // (those with valid AAUD data, title code, and VIPER person record)
-            var instructor = context.Preview.CrestInstructors.FirstOrDefault(i => i.MothraId == mothraId);
-            if (instructor == null) continue;
+            if (!instructorByMothraId.TryGetValue(mothraId, out var instructor)) continue;
 
             var personName = instructor.FullName;
 

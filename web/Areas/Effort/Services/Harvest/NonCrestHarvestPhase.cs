@@ -265,6 +265,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
 
         // Batch-resolve departments using full resolution chain (jobs → employee fields → fallback)
         var batchDepts = await context.InstructorService.BatchResolveDepartmentsAsync(nonCrestMothraIds, context.TermCode, ct);
+        var excludedTitleCodes = context.ExcludedTitleCodes ??= await context.InstructorService.GetExcludedTitleCodesAsync(ct);
 
         // CRN-keyed lookup for SubjCode/CrseNumb resolution from POA rows (POA has no unit info).
         // Variable-unit CRNs produce multiple allNonCrestCourses rows; take the first since
@@ -274,6 +275,10 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             .ToDictionary(g => g.Key, g => g.First());
 
         // Create instructor previews and effort records
+        var excludedMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var excludedInstructors = new List<string>();
+        var addedInstructorMothraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var poa in poaEntries)
         {
             var pidmStr = poa.PoaPidm;
@@ -298,8 +303,19 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
 
             var titleDesc = context.TitleLookup.TryGetValue(titleCode, out var desc) ? desc : titleCode;
 
+            // Exclude emeritus/recall appointments from harvest (skips both the instructor
+            // and the effort record built below).
+            if (excludedTitleCodes.Contains(titleCode))
+            {
+                if (excludedMothraIds.Add(mothraId))
+                {
+                    excludedInstructors.Add($"{fullName} ({titleDesc})");
+                }
+                continue;
+            }
+
             // Add instructor if not already added - skip if no valid VIPER person record
-            if (!context.Preview.NonCrestInstructors.Any(i => i.MothraId == mothraId))
+            if (!addedInstructorMothraIds.Contains(mothraId))
             {
                 if (!viperPersonLookup.TryGetValue(mothraId, out var personId))
                 {
@@ -309,6 +325,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                     continue;
                 }
 
+                addedInstructorMothraIds.Add(mothraId);
                 context.Preview.NonCrestInstructors.Add(new HarvestPersonPreview
                 {
                     MothraId = mothraId,
@@ -342,9 +359,56 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             });
         }
 
+        AddEmeritusExclusionWarning(context, PhaseName, excludedInstructors);
+
+        // Restore legacy IOR custodial-dept fallback (legacy Import.cfm Phase 2): when a
+        // non-CREST course's own Banner dept doesn't resolve to an academic department,
+        // inherit the custodial dept from its Director/IOR when that instructor's resolved
+        // department is academic. Without this, such courses harvest as "UNK".
+        ApplyDirectorCustodialDeptFallback(
+            context.Preview.NonCrestCourses, context.Preview.NonCrestEffort, batchDepts);
+
         // Sort instructors
         var sortedInstructors = context.Preview.NonCrestInstructors.OrderBy(i => i.FullName).ToList();
         context.Preview.NonCrestInstructors.Clear();
         context.Preview.NonCrestInstructors.AddRange(sortedInstructors);
+    }
+
+    /// <summary>
+    /// For non-CREST courses whose custodial dept is not one of the academic departments,
+    /// overwrite it with the Director/IOR's resolved department when that is academic.
+    /// Mirrors legacy Import.cfm Phase 2 ("look to the dept of the IOR"). Applies to all
+    /// unit variants of a CRN.
+    /// </summary>
+    internal static void ApplyDirectorCustodialDeptFallback(
+        List<HarvestCoursePreview> courses,
+        List<HarvestRecordPreview> effort,
+        Dictionary<string, string> batchDepts)
+    {
+        var academicDepts = EffortConstants.AcademicDepartments.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Map each CRN to its Director's department, keeping only academic departments.
+        var directorDeptByCrn = effort
+            .Where(e => e.RoleId == EffortConstants.DirectorRoleId && !string.IsNullOrWhiteSpace(e.Crn))
+            .Select(e => new { e.Crn, Dept = batchDepts.GetValueOrDefault(e.MothraId, "UNK") })
+            .Where(x => academicDepts.Contains(x.Dept))
+            .GroupBy(x => x.Crn, StringComparer.OrdinalIgnoreCase)
+            // OrderBy makes the choice deterministic when a CRN has multiple academic IOR depts.
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Dept).First().Dept, StringComparer.OrdinalIgnoreCase);
+
+        if (directorDeptByCrn.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var course in courses
+            .Where(c => c.Source == EffortConstants.SourceNonCrest && !academicDepts.Contains(c.CustDept)))
+        {
+            if (!string.IsNullOrWhiteSpace(course.Crn) &&
+                directorDeptByCrn.TryGetValue(course.Crn, out var iorDept))
+            {
+                course.CustDept = iorDept;
+            }
+        }
     }
 }

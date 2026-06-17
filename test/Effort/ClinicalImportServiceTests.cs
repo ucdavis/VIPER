@@ -73,6 +73,10 @@ public sealed class ClinicalImportServiceTests : IDisposable
             .BatchResolveDepartmentsAsync(Arg.Any<List<string>>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<List<string>>().ToDictionary(id => id, _ => "VME"));
 
+        _instructorServiceMock
+            .GetExcludedTitleCodesAsync(Arg.Any<CancellationToken>())
+            .Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
         _service = new ClinicalImportService(
             _context,
             _viperContext,

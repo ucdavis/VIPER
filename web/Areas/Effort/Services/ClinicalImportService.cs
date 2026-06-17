@@ -69,6 +69,11 @@ public class ClinicalImportService : IClinicalImportService
     /// </summary>
     private Dictionary<string, string?>? _jobGroupLookup;
 
+    /// <summary>
+    /// Lazily loaded set of emeritus/recall title codes to exclude from import.
+    /// </summary>
+    private HashSet<string>? _excludedTitleCodes;
+
     public ClinicalImportService(
         EffortDbContext context,
         VIPERContext viperContext,
@@ -117,10 +122,14 @@ public class ClinicalImportService : IClinicalImportService
             _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
         }
 
-        // Build lookup of MothraId → titleCode for those with valid title codes
+        HashSet<string> excludedTitleCodes = _excludedTitleCodes ??= await _instructorService.GetExcludedTitleCodesAsync(ct);
+
+        // Build lookup of MothraId → titleCode for those with valid, non-excluded title codes
+        // (emeritus/recall appointments are excluded from harvest).
         var titleCodeByMothraId = aaudImportInfo
             .Where(a => !string.IsNullOrEmpty(a.TitleCode?.Trim())
-                && _titleLookup.ContainsKey(a.TitleCode!.Trim()))
+                && _titleLookup.ContainsKey(a.TitleCode!.Trim())
+                && !excludedTitleCodes.Contains(a.TitleCode!.Trim()))
             .GroupBy(a => a.MothraId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().TitleCode!.Trim(), StringComparer.OrdinalIgnoreCase);
 
@@ -250,7 +259,7 @@ public class ClinicalImportService : IClinicalImportService
         var auditDetails = $"Clinical import ({mode}): {result.RecordsAdded} added, {result.RecordsUpdated} updated, {result.RecordsDeleted} deleted, {result.RecordsSkipped} skipped";
         if (result.SkippedInstructors.Count > 0)
         {
-            auditDetails += $". Skipped instructors (no AAUD record or invalid title): {string.Join(", ", result.SkippedInstructors)}";
+            auditDetails += $". Skipped instructors (no AAUD record, invalid title, or excluded appointment): {string.Join(", ", result.SkippedInstructors)}";
         }
         _auditService.AddImportAudit(termCode, EffortAuditActions.ImportClinical, auditDetails);
 
@@ -326,7 +335,7 @@ public class ClinicalImportService : IClinicalImportService
             var auditDetails = $"Clinical import ({mode}): {result.RecordsAdded} added, {result.RecordsUpdated} updated, {result.RecordsDeleted} deleted, {result.RecordsSkipped} skipped";
             if (result.SkippedInstructors.Count > 0)
             {
-                auditDetails += $". Skipped instructors (no AAUD record or invalid title): {string.Join(", ", result.SkippedInstructors)}";
+                auditDetails += $". Skipped instructors (no AAUD record, invalid title, or excluded appointment): {string.Join(", ", result.SkippedInstructors)}";
             }
             _auditService.AddImportAudit(termCode, EffortAuditActions.ImportClinical, auditDetails);
 
@@ -1092,10 +1101,12 @@ public class ClinicalImportService : IClinicalImportService
             _jobGroupLookup ??= titleCodes.ToDictionary(t => t.Code, t => t.JobGroupId, StringComparer.OrdinalIgnoreCase);
         }
 
-        if (string.IsNullOrEmpty(titleCode) || !_titleLookup.ContainsKey(titleCode))
+        var excludedTitleCodes = _excludedTitleCodes ??= await _instructorService.GetExcludedTitleCodesAsync(ct);
+
+        if (string.IsNullOrEmpty(titleCode) || !_titleLookup.ContainsKey(titleCode) || excludedTitleCodes.Contains(titleCode))
         {
             _logger.LogWarning(
-                "Skipping clinical instructor {MothraId}: no AAUD record or invalid title code '{TitleCode}'",
+                "Skipping clinical instructor {MothraId}: no AAUD record, invalid title, or excluded (emeritus/recall) title code '{TitleCode}'",
                 mothraId, titleCode);
             _processedMothraIds[mothraId] = false;
             return false;

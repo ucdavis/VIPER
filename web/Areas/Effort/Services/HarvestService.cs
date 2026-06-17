@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Services.Harvest;
@@ -25,6 +26,7 @@ public class HarvestService : IHarvestService
     private readonly IInstructorService _instructorService;
     private readonly IRCourseService _rCourseService;
     private readonly IClinicalImportService _clinicalImportService;
+    private readonly EffortSettings _settings;
     private readonly ILogger<HarvestService> _logger;
 
     public HarvestService(
@@ -40,6 +42,7 @@ public class HarvestService : IHarvestService
         IInstructorService instructorService,
         IRCourseService rCourseService,
         IClinicalImportService clinicalImportService,
+        IOptions<EffortSettings> settings,
         ILogger<HarvestService> logger)
     {
         _phases = phases;
@@ -54,6 +57,7 @@ public class HarvestService : IHarvestService
         _instructorService = instructorService;
         _rCourseService = rCourseService;
         _clinicalImportService = clinicalImportService;
+        _settings = settings.Value;
         _logger = logger;
     }
 
@@ -347,6 +351,14 @@ public class HarvestService : IHarvestService
     /// </summary>
     private async Task GenerateRCoursesForEligibleInstructorsAsync(int termCode, int modifiedBy, CancellationToken ct)
     {
+        if (!_settings.AutoCreateGenericRCourse)
+        {
+            _logger.LogInformation(
+                "Skipping generic R-course generation for term {TermCode} (AutoCreateGenericRCourse disabled)",
+                termCode);
+            return;
+        }
+
         // Find all instructors in the term who have at least one non-R-course effort record
         var eligibleInstructors = await _context.Records
             .AsNoTracking()

@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Viper.Areas.Effort;
+using Viper.Areas.Effort.Constants;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
@@ -33,6 +35,11 @@ public sealed class HarvestServiceTests : IDisposable
     private readonly IClinicalImportService _clinicalImportServiceMock;
     private readonly ILogger<HarvestService> _loggerMock;
     private readonly HarvestService _harvestService;
+
+    // R-course auto-creation enabled for the shared service so existing R-course tests
+    // exercise the generation path. Toggle-off behavior is covered by its own test.
+    private static readonly IOptions<EffortSettings> RCourseEnabledSettings =
+        Options.Create(new EffortSettings { AutoCreateGenericRCourse = true });
 
     private const int TestTermCode = 202410;
 
@@ -93,6 +100,8 @@ public sealed class HarvestServiceTests : IDisposable
             .GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<TitleCodeDto>());
         _instructorServiceMock
             .GetDepartmentSimpleNameLookupAsync(Arg.Any<CancellationToken>()).Returns(new Dictionary<string, string>());
+        _instructorServiceMock
+            .GetExcludedTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
         // Setup audit service mock for harvest operations
         _auditServiceMock
             .ClearAuditForTermAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
@@ -123,6 +132,7 @@ public sealed class HarvestServiceTests : IDisposable
             _instructorServiceMock,
             _rCourseServiceMock,
             _clinicalImportServiceMock,
+            RCourseEnabledSettings,
             _loggerMock);
     }
 
@@ -745,6 +755,7 @@ public sealed class HarvestServiceTests : IDisposable
             _instructorServiceMock,
             _rCourseServiceMock,
             _clinicalImportServiceMock,
+            RCourseEnabledSettings,
             _loggerMock);
 
         // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
@@ -760,6 +771,83 @@ public sealed class HarvestServiceTests : IDisposable
             123,
             RCourseCreationContext.Harvest,
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteHarvestAsync_DoesNotCallRCourseService_WhenAutoCreateDisabled()
+    {
+        // Arrange - same eligible-instructor setup as the enabled case
+        _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
+        _context.EffortTypes.Add(new EffortType
+        {
+            Id = "LEC",
+            Description = "Lecture",
+            AllowedOnRCourses = true,
+            IsActive = true
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var testPhase = new TestDataHarvestPhase(_context, TestTermCode);
+        var disabledSettings = Options.Create(new EffortSettings { AutoCreateGenericRCourse = false });
+
+        var harvestService = new HarvestService(
+            new List<IHarvestPhase> { testPhase },
+            _context,
+            _viperContext,
+            _coursesContext,
+            _crestContext,
+            _aaudContext,
+            _dictionaryContext,
+            _auditServiceMock,
+            _termServiceMock,
+            _instructorServiceMock,
+            _rCourseServiceMock,
+            _clinicalImportServiceMock,
+            disabledSettings,
+            _loggerMock);
+
+        // Act
+        var result = await harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, ct: TestContext.Current.CancellationToken);
+
+        // Assert - harvest succeeds but the generic R-course is not created
+        Assert.True(result.Success);
+        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<RCourseCreationContext>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void ApplyDirectorCustodialDeptFallback_InheritsDirectorDept_OnlyForNonAcademicCourses()
+    {
+        // Arrange — three non-CREST courses: UNK with academic director, already-academic,
+        // and UNK with a non-academic director.
+        var courses = new List<HarvestCoursePreview>
+        {
+            new() { Crn = "10001", CustDept = "UNK", Source = EffortConstants.SourceNonCrest },
+            new() { Crn = "10002", CustDept = "PMI", Source = EffortConstants.SourceNonCrest },
+            new() { Crn = "10003", CustDept = "UNK", Source = EffortConstants.SourceNonCrest },
+        };
+        var effort = new List<HarvestRecordPreview>
+        {
+            new() { Crn = "10001", MothraId = "AAA", RoleId = EffortConstants.DirectorRoleId },
+            new() { Crn = "10003", MothraId = "CCC", RoleId = EffortConstants.DirectorRoleId },
+        };
+        var batchDepts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["AAA"] = "VME",
+            ["CCC"] = "UNK",
+        };
+
+        // Act
+        NonCrestHarvestPhase.ApplyDirectorCustodialDeptFallback(courses, effort, batchDepts);
+
+        // Assert
+        Assert.Equal("VME", courses[0].CustDept); // inherited from academic IOR
+        Assert.Equal("PMI", courses[1].CustDept); // already academic — unchanged
+        Assert.Equal("UNK", courses[2].CustDept); // IOR dept not academic — unchanged
     }
 
     /// <summary>
@@ -780,6 +868,7 @@ public sealed class HarvestServiceTests : IDisposable
             _instructorServiceMock,
             _rCourseServiceMock,
             _clinicalImportServiceMock,
+            RCourseEnabledSettings,
             _loggerMock);
     }
 
