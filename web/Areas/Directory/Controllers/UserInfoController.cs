@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.AAUD;
@@ -24,19 +24,18 @@ namespace Viper.Areas.Directory.Controllers
         public IUserHelper UserHelper;
         private readonly RAPSContext _rapsContext;
 
-        public UserInfoController(RAPSContext rapsContext)
+        public UserInfoController(
+            RAPSContext rapsContext, 
+            AAUDContext aaudContext, 
+            CoursesContext coursesContext,
+            EquipmentLoanContext equipmentLoanContext,
+            PPSContext ppsContext,
+            IDCardsContext idCardsContext,
+            KeysContext keysContext)
         {
-            _aaud = new AAUDContext();
+            _aaud = aaudContext;
             _rapsContext = rapsContext;
             UserHelper = new UserHelper();
-            
-            // Manually instantiate UserInfoService following project pattern
-            var aaudContext = new AAUDContext();
-            var coursesContext = new CoursesContext();
-            var equipmentLoanContext = new EquipmentLoanContext();
-            var ppsContext = new PPSContext();
-            var idCardsContext = new IDCardsContext();
-            var keysContext = new KeysContext();
             
             // Get services from DI container
             var httpClientFactory = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IHttpClientFactory)) as IHttpClientFactory;
@@ -108,7 +107,6 @@ namespace Viper.Areas.Directory.Controllers
                 userInfo.CanViewInstinct = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
                 userInfo.CanViewADGroups = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
 
-                /*
                 userInfo.CanViewDirectoryDetail = true;
                 userInfo.CanViewStudentID = true;
                 userInfo.CanViewIAM = true;
@@ -120,7 +118,6 @@ namespace Viper.Areas.Directory.Controllers
                 userInfo.CanViewLoans = true;
                 userInfo.CanViewInstinct = true;
                 userInfo.CanViewADGroups = true;
-                */
 
                 return View("~/Areas/Directory/Views/UserInfo.cshtml", userInfo);
             }

@@ -1,4 +1,4 @@
-﻿@using Viper.Classes.SQLContext;
+@using Viper.Classes.SQLContext;
 @model Viper.Areas.Directory.Models.DirectoryUser;
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
@@ -24,8 +24,8 @@
     @if (Model.CanDisplayIDs)
     {
     <q-toggle v-model="ids"
-              color="primary"
-              label="Display IDs">
+        color="primary"
+        label="Display IDs">
     </q-toggle>
     }
     <q-spinner v-if="spinner" color="primary" size="2em" style="margin-left: 2em;"></q-spinner>
@@ -33,7 +33,7 @@
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
         <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
             <q-card-section class="grid row card_header" :class="[user.svm ? 'SVM' : '']">
-                <a v-if="user.svm && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
+                <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
                     <q-icon name="person" size="xs"></q-icon>
                     <q-tooltip>User Information</q-tooltip>
                 </a>
@@ -41,8 +41,6 @@
                     <q-icon name="email" size="xs"></q-icon>
                     <q-tooltip>Email {{user.mailId}}@@ucdavis.edu</q-tooltip>
                 </a>
-                @if (Model.CanEmulate)
-                {
                 <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
@@ -93,7 +91,7 @@
                     </q-img>
                 </q-card-section>
                 <q-card-section class="col">
-                    <div v-if="ids && user.userName" class="directory-username">{{user.userName}}</div>
+                    <div v-if="user.userName" class="directory-username">{{user.userName}}</div>
                     <h2 class="directory-name">{{user.name}}</h2>
                     <div v-if="user.title" class="directory-detail">{{user.title}}</div>
                     <div v-if="user.department" class="directory-detail">{{user.department}}</div>

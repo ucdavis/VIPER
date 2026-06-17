@@ -15,5 +15,6 @@ namespace Viper.Areas.Directory.Models
         public string? Status { get; set; }
         public string? Username { get; set; }
         public List<string> Roles { get; set; } = new List<string>();
+        public string? ErrorMessage { get; set; }
     }
 }

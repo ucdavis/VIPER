@@ -15,7 +15,14 @@ namespace Viper.Classes.Utilities
     {
         private const string apiBase = "https://iet-ws.ucdavis.edu/api/";
         private static readonly List<string> reservedParamKeys = new() { "key", "v" };
-        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+        private static readonly JsonSerializerOptions _jsonOptions = GetJsonOptions();
+
+        private static JsonSerializerOptions GetJsonOptions()
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            options.Converters.Add(new IamDateTimeConverter());
+            return options;
+        }
         private const string version = "1.0";
         private readonly IHttpClientFactory _factory;
         private readonly Logger _logger = LogManager.GetLogger("IAM");
@@ -438,10 +445,8 @@ namespace Viper.Classes.Utilities
         private sealed class IntermediateResponse<T> where T : IIamData
         {
             public string ResponseDetails { get; set; } = string.Empty;
-            public int ResponseStatus { get; }
-#pragma warning disable CS0649 // Assigned by JsonSerializer.Deserialize
-            public DataArray<T>? ResponseData;
-#pragma warning restore CS0649 // Field 'IamApi.IntermediateResponse<T>.ResponseData' is never assigned to, and will always have its default value null
+            public int ResponseStatus { get; set; }
+            public DataArray<T>? ResponseData { get; set; }
         }
 
         /// <summary>
@@ -451,6 +456,47 @@ namespace Viper.Classes.Utilities
         private sealed class DataArray<T> where T : IIamData
         {
             public IEnumerable<T> Results { get; set; } = new List<T>();
+        }
+    }
+
+    public class IamDateTimeConverter : System.Text.Json.Serialization.JsonConverter<DateTime?>
+    {
+        private readonly string[] _formats = new[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd" };
+
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var value = reader.GetString();
+            if (string.IsNullOrEmpty(value))
+            {
+                return null;
+            }
+
+            foreach (var format in _formats)
+            {
+                if (DateTime.TryParseExact(value, format, null, System.Globalization.DateTimeStyles.None, out var result))
+                {
+                    return result;
+                }
+            }
+
+            if (DateTime.TryParse(value, out var dt))
+            {
+                return dt;
+            }
+
+            return null;
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue)
+            {
+                writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd HH:mm:ss"));
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
         }
     }
 }

@@ -17,7 +17,6 @@ namespace Viper.Areas.Directory.Controllers
     public class DirectoryController : AreaController
     {
         public AAUDContext _aaud { get; private set; }
-        public DirectoryUser User;
         private readonly RAPSContext? _rapsContext;
         public IUserHelper UserHelper { get; private set; }
 
@@ -34,8 +33,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/[area]/")]
         public async Task<ActionResult> Index(string? useExample)
         {
-            User = new DirectoryUser();
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml",User));
+            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser()));
         }
 
         /// <summary>
