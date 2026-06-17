@@ -5,7 +5,6 @@
         title="Edit Effort Record"
         title-id="effort-record-edit-title"
         submit-label="Save"
-        :max-width="500"
         :is-saving="isSaving"
         @close="handleClose"
         @submit="updateRecord"

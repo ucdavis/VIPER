@@ -5,7 +5,6 @@
         title="Add Effort Record"
         title-id="effort-record-add-title"
         submit-label="Add Effort"
-        :max-width="500"
         :is-saving="isSaving"
         @close="handleClose"
         @submit="createRecord"

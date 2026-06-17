@@ -5,7 +5,7 @@
         :aria-labelledby="titleId"
         @keydown.escape="$emit('close')"
     >
-        <q-card :style="{ width: '100%', maxWidth: `${maxWidth}px` }">
+        <q-card class="dialog-card-sm">
             <q-card-section class="row items-center q-pb-none">
                 <div
                     :id="titleId"
@@ -48,19 +48,16 @@
 import { ref } from "vue"
 import type { QForm } from "quasar"
 import DialogSubmitActions from "./DialogSubmitActions.vue"
+import "../effort-dialogs.css"
 import "../effort-forms.css"
 
-withDefaults(
-    defineProps<{
-        modelValue: boolean
-        title: string
-        titleId: string
-        submitLabel: string
-        isSaving: boolean
-        maxWidth?: number
-    }>(),
-    { maxWidth: 550 },
-)
+defineProps<{
+    modelValue: boolean
+    title: string
+    titleId: string
+    submitLabel: string
+    isSaving: boolean
+}>()
 
 defineEmits<{
     close: []
