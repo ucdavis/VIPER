@@ -12,6 +12,9 @@
                 class="scale-seg"
                 :style="{ flex: seg.flex }"
             >
+                <!-- Description is sanitized server-side by MilestonesController via HtmlSanitizerService -->
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div v-if="levelDescription(seg.levelId)" :class="`scale-description scale-description--${seg.key}`" v-html="levelDescription(seg.levelId)" />
                 <div :class="`scale-head scale-head--${seg.key}`">{{ seg.label }}</div>
                 <div :class="`scale-opts scale-opts--${seg.key}`">
                     <label
@@ -37,11 +40,13 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
+import type { MilestoneLevel } from "@/CTS/types"
 
 const props = defineProps<{
     questionId: number | string
     questionText: string
     modelValue: number | null
+    levels: MilestoneLevel[]
 }>()
 
 const emit = defineEmits<{
@@ -53,12 +58,16 @@ const model = computed({
     set: (val) => emit("update:modelValue", val),
 })
 
+function levelDescription(levelId: number) {
+    return props.levels.find((l) => l.levelId === levelId)?.description ?? ""
+}
+
 const SEGMENTS = [
-    { key: "pre", label: "Pre-Nov.", flex: 1, values: [1] },
-    { key: "nov", label: "Novice", flex: 6, values: [2, 3, 4, 5, 6, 7] },
-    { key: "adv", label: "Advanced Beginner", flex: 6, values: [8, 9, 10, 11, 12, 13] },
-    { key: "comp", label: "Competent", flex: 6, values: [14, 15, 16, 17, 18, 19] },
-    { key: "prof", label: "Prof.", flex: 1, values: [20] },
+    { key: "pre", levelId: 25, label: "Pre-Nov.", flex: 1, values: [1] },
+    { key: "nov", levelId: 26, label: "Novice", flex: 6, values: [2, 3, 4, 5, 6, 7] },
+    { key: "adv", levelId: 27, label: "Advanced Beginner", flex: 6, values: [8, 9, 10, 11, 12, 13] },
+    { key: "comp", levelId: 28, label: "Competent", flex: 6, values: [14, 15, 16, 17, 18, 19] },
+    { key: "prof", levelId: 29, label: "Prof.", flex: 1, values: [20] },
 ]
 </script>
 
@@ -98,9 +107,18 @@ const SEGMENTS = [
     border-right: none;
 }
 
+.scale-description {
+    font-size: 0.7rem;
+    line-height: 1.3;
+    padding: 4px 6px;
+    text-align: center;
+    background: var(--ucdavis-blue-10);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
 .scale-head {
     text-align: center;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 700;
     padding: 3px 2px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.3);
@@ -135,7 +153,7 @@ const SEGMENTS = [
 }
 
 .scale-num {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 700;
     line-height: 1;
 }
