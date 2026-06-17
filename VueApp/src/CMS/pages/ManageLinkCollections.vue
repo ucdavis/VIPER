@@ -105,76 +105,36 @@
                         />
                     </div>
 
-                    <VueDraggable
+                    <SortableList
                         v-model="draftTags"
-                        :animation="200"
-                        handle=".handle"
-                        class="list-group"
-                        @end="onDragEnd"
+                        item-key="linkCollectionTagCategoryId"
+                        class="q-mt-sm"
+                        move-up-label="Move tag up"
+                        move-down-label="Move tag down"
+                        :announce="announceTag"
                     >
-                        <div
-                            v-for="(element, index) in draftTags"
-                            :key="element.linkCollectionTagCategoryId"
-                            :class="[
-                                'row items-center q-col-gutter-sm',
-                                { 'just-moved': justMovedTagId === element.linkCollectionTagCategoryId },
-                            ]"
-                        >
-                            <div class="col-auto">
-                                <q-icon
-                                    class="handle"
-                                    name="drag_handle"
-                                >
-                                    <q-tooltip>Drag to reorder</q-tooltip>
-                                </q-icon>
-                            </div>
-                            <div class="col">
-                                <q-input
-                                    dense
-                                    readonly
-                                    v-model="element.linkCollectionTagCategory"
-                                />
-                            </div>
-                            <div class="col-auto">
-                                <q-btn
-                                    dense
-                                    flat
-                                    no-caps
-                                    size="sm"
-                                    color="secondary"
-                                    icon="arrow_upward"
-                                    aria-label="Move tag up"
-                                    :disable="index === 0"
-                                    @click="moveTag(index, -1)"
-                                >
-                                    <q-tooltip>Move up</q-tooltip>
-                                </q-btn>
-                                <q-btn
-                                    dense
-                                    flat
-                                    no-caps
-                                    size="sm"
-                                    color="secondary"
-                                    icon="arrow_downward"
-                                    aria-label="Move tag down"
-                                    :disable="index === draftTags.length - 1"
-                                    @click="moveTag(index, 1)"
-                                >
-                                    <q-tooltip>Move down</q-tooltip>
-                                </q-btn>
-                                <q-btn
-                                    flat
-                                    label="Delete"
-                                    dense
-                                    no-caps
-                                    color="negative"
-                                    class="q-ml-lg q-pr-md"
-                                    icon="delete"
-                                    @click="deleteTag(element.linkCollectionTagCategoryId)"
-                                />
-                            </div>
-                        </div>
-                    </VueDraggable>
+                        <template #row="{ item }">
+                            <q-input
+                                dense
+                                readonly
+                                v-model="item.linkCollectionTagCategory"
+                            />
+                        </template>
+                        <template #actions="{ item }">
+                            <q-btn
+                                dense
+                                flat
+                                no-caps
+                                size="sm"
+                                color="negative"
+                                icon="delete"
+                                aria-label="Delete tag category"
+                                @click="deleteTag(item.linkCollectionTagCategoryId)"
+                            >
+                                <q-tooltip>Delete</q-tooltip>
+                            </q-btn>
+                        </template>
+                    </SortableList>
                 </q-card-section>
 
                 <q-card-actions
@@ -211,7 +171,7 @@
                 label="Add Link"
                 @click="showLinkDialog = true"
                 no-caps
-                class="q-mt-sm"
+                class="q-mt-sm q-pr-md"
             />
             <q-dialog
                 v-model="showLinkDialog"
@@ -341,119 +301,93 @@
                 id="allLinks"
                 class="q-mt-md"
             >
-                <div class="row link-row header items-center q-col-gutter-sm desktop-only link-grid">
-                    <div class="col-12 col-md-auto">Actions</div>
-                    <div class="col-12 col-md-3 col-lg-2">URL</div>
-                    <div class="col-12 col-md-3 col-lg-2">Title</div>
-                    <div class="col-12 col-md-6 col-lg-4">Description</div>
-                    <div class="col-12 col-lg-3">Tags</div>
-                </div>
-                <VueDraggable
+                <SortableList
                     v-model="links"
-                    :animation="200"
-                    handle=".handle"
-                    @end="linkOrder"
+                    item-key="linkId"
+                    class="links-list"
+                    move-up-label="Move link up"
+                    move-down-label="Move link down"
+                    :announce="announceLink"
+                    @reorder="linkOrder"
                 >
-                    <div
-                        v-for="(element, index) in links"
-                        :key="element.linkId"
-                        :class="[
-                            'row link-row items-start q-col-gutter-sm link-card link-grid',
-                            { 'just-moved': justMovedLinkId === element.linkId },
-                        ]"
-                    >
-                        <div class="col-12 col-md-auto link-actions q-gutter-xs">
-                            <div class="action-buttons">
-                                <q-icon
-                                    class="handle"
-                                    name="drag_handle"
-                                >
-                                    <q-tooltip>Drag to reorder</q-tooltip>
-                                </q-icon>
-                                <q-btn
-                                    dense
-                                    no-caps
-                                    size="sm"
-                                    color="secondary"
-                                    icon="edit"
-                                    aria-label="Edit link"
-                                    @click="clickLink(element)"
-                                >
-                                    <q-tooltip>Edit</q-tooltip>
-                                </q-btn>
-                                <q-btn
-                                    dense
-                                    flat
-                                    no-caps
-                                    size="sm"
-                                    color="secondary"
-                                    icon="arrow_upward"
-                                    aria-label="Move link up"
-                                    :disable="index === 0"
-                                    @click="moveLink(index, -1)"
-                                >
-                                    <q-tooltip>Move up</q-tooltip>
-                                </q-btn>
-                                <q-btn
-                                    dense
-                                    flat
-                                    no-caps
-                                    size="sm"
-                                    color="secondary"
-                                    icon="arrow_downward"
-                                    aria-label="Move link down"
-                                    :disable="index === links.length - 1"
-                                    @click="moveLink(index, 1)"
-                                >
-                                    <q-tooltip>Move down</q-tooltip>
-                                </q-btn>
+                    <template #header>
+                        <div class="link-grid">
+                            <div>URL</div>
+                            <div>Title</div>
+                            <div>Description</div>
+                            <div>Tags</div>
+                        </div>
+                    </template>
+
+                    <template #row="{ item }">
+                        <div class="link-grid">
+                            <div class="link-field url-field">
+                                <div class="field-label">URL</div>
+                                <div class="link-url">{{ item.url }}</div>
                             </div>
-                        </div>
-                        <div class="col-12 col-md-3 col-lg-2 link-field url-field">
-                            <div class="field-label">URL</div>
-                            <div class="link-url">{{ element.url }}</div>
-                        </div>
-                        <div class="col-12 col-md-3 col-lg-2 link-field title-field">
-                            <div class="field-label">Title</div>
-                            <div>{{ element.title }}</div>
-                        </div>
-                        <div class="col-12 col-md-6 col-lg-4 link-field desc-field">
-                            <div class="field-label">Description</div>
-                            <div>{{ element.description }}</div>
-                        </div>
-                        <div class="col-12 col-lg-3 tag-field">
-                            <template
-                                v-for="tag in collectionTags"
-                                :key="tag.linkCollectionTagCategoryId"
-                            >
-                                <div
-                                    v-if="element.tags !== undefined"
-                                    class="row tag-row q-col-gutter-xs"
+                            <div class="link-field title-field">
+                                <div class="field-label">Title</div>
+                                <div>{{ item.title }}</div>
+                            </div>
+                            <div class="link-field desc-field">
+                                <div class="field-label">Description</div>
+                                <div>{{ item.description }}</div>
+                            </div>
+                            <div class="link-field tag-field">
+                                <template
+                                    v-for="tag in collectionTags"
+                                    :key="tag.linkCollectionTagCategoryId"
                                 >
-                                    <div class="tag-row-inner">
-                                        <div class="field-label">{{ tag.linkCollectionTagCategory }}</div>
-                                        <div class="tag-chips">
-                                            <q-chip
-                                                dense
-                                                square
-                                                color="primary"
-                                                text-color="white"
-                                                v-for="t in getTagsForCategory(
-                                                    element,
-                                                    tag.linkCollectionTagCategoryId,
-                                                )"
-                                                :key="tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()"
-                                                class="q-mr-xs q-mb-xs"
-                                            >
-                                                {{ t }}
-                                            </q-chip>
+                                    <div
+                                        v-if="item.tags !== undefined"
+                                        class="tag-row"
+                                    >
+                                        <div class="tag-row-inner">
+                                            <div class="field-label">{{ tag.linkCollectionTagCategory }}</div>
+                                            <div class="tag-chips">
+                                                <q-chip
+                                                    dense
+                                                    square
+                                                    color="primary"
+                                                    text-color="white"
+                                                    v-for="t in getTagsForCategory(
+                                                        item,
+                                                        tag.linkCollectionTagCategoryId,
+                                                    )"
+                                                    :key="
+                                                        tag.linkCollectionTagCategoryId.toString() + ' ' + t.toString()
+                                                    "
+                                                    class="q-mr-xs q-mb-xs"
+                                                >
+                                                    {{ t }}
+                                                </q-chip>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
                         </div>
-                    </div>
-                </VueDraggable>
+                    </template>
+
+                    <template #actions="{ item }">
+                        <EditButton
+                            entity-name="link"
+                            @click="clickLink(item)"
+                        />
+                        <q-btn
+                            dense
+                            flat
+                            no-caps
+                            size="sm"
+                            color="negative"
+                            icon="delete"
+                            aria-label="Delete link"
+                            @click="deleteLinkRow(item)"
+                        >
+                            <q-tooltip>Delete</q-tooltip>
+                        </q-btn>
+                    </template>
+                </SortableList>
             </div>
         </template>
     </div>
@@ -463,10 +397,11 @@
 import { ref, inject, watch } from "vue"
 import { useQuasar } from "quasar"
 import type { Ref } from "vue"
-import { VueDraggable } from "vue-draggable-plus"
 import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from "@/CMS/types/"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import EditButton from "@/CMS/components/EditButton.vue"
+import SortableList from "@/components/SortableList.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { isSafeUrl } from "@/CMS/utils/url"
 
@@ -503,8 +438,13 @@ watch(showLinkDialog, (open) => {
     }
 })
 
-const justMovedLinkId: Ref<number | null> = ref(null)
-const justMovedTagId: Ref<number | null> = ref(null)
+function announceLink(item: LinkWithTags, newIndex: number, total: number) {
+    return `Moved ${item.title || "link"} to position ${newIndex + 1} of ${total}`
+}
+
+function announceTag(item: LinkCollectionTagCategory, newIndex: number, total: number) {
+    return `Moved tag ${item.linkCollectionTagCategory} to position ${newIndex + 1} of ${total}`
+}
 
 //collections
 async function loadCollections(preferredId?: number | null) {
@@ -769,6 +709,25 @@ async function deleteLink() {
     loadLinks()
 }
 
+// Row-level delete (the dialog keeps its own Delete for the link being edited).
+async function deleteLinkRow(li: LinkWithTags) {
+    const confirmed = await confirmAction(
+        "Delete Link",
+        `This will permanently remove "${li.title}". Continue?`,
+        "Delete Link",
+        "negative",
+    )
+    if (!confirmed) return
+    const { del } = useFetch()
+    const res = await del(apiURL + collectionId.value + "/links/" + li.linkId)
+    if (!res.success) {
+        $q.notify({ type: "negative", message: "Failed to delete link" })
+        return
+    }
+    $q.notify({ type: "positive", message: "Link deleted" })
+    loadLinks()
+}
+
 async function confirmAction(title: string, message: string, okLabel: string, okColor = "primary") {
     return await new Promise<boolean>((resolve) => {
         $q.dialog({
@@ -798,21 +757,10 @@ async function linkOrder() {
     if (!res.success) {
         $q.notify({ type: "negative", message: "Failed to save link order" })
         await loadLinks()
+        return
     }
-}
-
-function moveLink(index: number, direction: -1 | 1) {
-    const newIndex = index + direction
-    if (newIndex < 0 || newIndex >= links.value.length) return
-    const item = links.value[index]
-    if (item === undefined) return
-    links.value.splice(index, 1)
-    links.value.splice(newIndex, 0, item)
-    justMovedLinkId.value = item.linkId
-    setTimeout(() => {
-        if (justMovedLinkId.value === item.linkId) justMovedLinkId.value = null
-    }, 600)
-    void linkOrder()
+    // Reorder persists immediately; confirm it. `group` collapses rapid nudges into one toast.
+    $q.notify({ type: "positive", message: "Order saved", group: "link-order", timeout: 1500 })
 }
 
 //tags
@@ -846,23 +794,6 @@ function deleteTag(tagId: number) {
     draftTags.value.splice(idx, 1)
 }
 
-function onDragEnd() {
-    // No-op: draft reorders commit on Save.
-}
-
-function moveTag(index: number, direction: -1 | 1) {
-    const newIndex = index + direction
-    if (newIndex < 0 || newIndex >= draftTags.value.length) return
-    const item = draftTags.value[index]
-    if (item === undefined) return
-    draftTags.value.splice(index, 1)
-    draftTags.value.splice(newIndex, 0, item)
-    justMovedTagId.value = item.linkCollectionTagCategoryId
-    setTimeout(() => {
-        if (justMovedTagId.value === item.linkCollectionTagCategoryId) justMovedTagId.value = null
-    }, 600)
-}
-
 watch(collectionId, () => {
     loadLinks()
     loadTags()
@@ -880,39 +811,15 @@ loadCollections()
 
 #allLinks {
     background: var(--surface);
+    border: 1px solid var(--ucdavis-black-10);
     border-radius: 6px;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
-}
-
-#allLinks .link-row {
-    border-bottom: 1px solid var(--ucdavis-black-10);
-    margin-bottom: 4px;
     padding: 8px 12px;
-    align-items: flex-start;
-    border-radius: 6px;
 }
 
-#allLinks .link-row.header {
-    font-weight: bold;
-    background: var(--surface-tint);
-    color: var(--q-primary);
-    border-radius: 6px;
-    text-align: left;
-}
-
-#allLinks .link-row.header > div {
-    text-align: left;
-}
-
-#allLinks .link-url {
+.link-url {
     white-space: normal;
     word-break: break-word;
     overflow-wrap: anywhere;
-}
-
-.tag-label {
-    color: var(--q-primary);
-    white-space: nowrap;
 }
 
 .tag-row-inner {
@@ -932,37 +839,40 @@ loadCollections()
     max-width: 100%;
 }
 
-.mobile-only {
-    display: block;
-    color: var(--q-primary);
+.field-label {
     font-weight: 600;
-    width: 100%;
+    color: var(--q-primary);
+    margin-bottom: 0;
 }
 
-.link-actions {
-    display: flex;
-    align-items: center;
+.link-field {
+    word-break: break-word;
+    min-width: 0;
 }
 
-.action-buttons {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
+.tag-row {
+    margin-bottom: 4px;
 }
 
-.handle {
-    cursor: grab;
+/* The column header only reads as one once the fields line up in a grid (desktop). */
+.links-list :deep(.sortable-row--header) {
+    display: none;
+    font-weight: bold;
+    color: var(--q-primary);
 }
 
-.handle:active {
-    cursor: grabbing;
+/* Card-per-row on small and medium screens. */
+.links-list :deep(.sortable-row) {
+    border: 1px solid var(--ucdavis-black-10);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--surface-tint-raised);
 }
 
-@media screen and (prefers-reduced-motion: reduce) {
-    .reorder-move {
-        transition: none;
-    }
+/* Four actions here (up/down/edit/delete) at touch size; widen the gutter so the
+   header columns still line up with the rows. */
+.links-list :deep(.sortable-row__controls) {
+    min-width: 10rem;
 }
 
 .required-field :deep(.q-field__label)::after {
@@ -1005,153 +915,49 @@ loadCollections()
     font-weight: 500;
 }
 
-@keyframes just-moved-flash {
-    0% {
-        background-color: var(--q-secondary);
-    }
-
-    100% {
-        background-color: transparent;
-    }
-}
-
-@media screen and (prefers-reduced-motion: reduce) {
-    .just-moved {
-        animation: none;
-    }
-}
-
-.just-moved {
-    animation: just-moved-flash 0.6s ease-out;
-}
-
-.desktop-only {
-    display: none;
-}
-
-.desktop-only-inline {
-    display: none;
-}
-
-.field-label {
-    font-weight: 600;
-    color: var(--q-primary);
-    margin-bottom: 0;
-}
-
-.link-field {
-    word-break: break-word;
-    min-width: 0;
-}
-
-.link-card {
-    border: 1px solid var(--ucdavis-black-10);
-    border-radius: 8px;
-    margin-bottom: 12px;
-    background: var(--surface-tint-raised);
-    padding: 12px 12px 8px;
-}
-
-.desktop-only .tag-chips {
-    justify-content: flex-start;
-}
-
-@media (width <= 1023px) {
-    #allLinks .link-row {
-        border-radius: 6px;
-        border-color: var(--ucdavis-black-10);
-        padding: 12px 12px 8px;
-    }
-
-    .link-actions {
-        margin-bottom: 6px;
-    }
-
-    .tag-row {
-        margin-bottom: 4px;
-    }
-}
-
 @media (width >= 1024px) {
-    .desktop-only {
+    /* Tabular layout: four aligned columns, labels in the header row instead of per field. */
+    .link-grid {
+        display: grid;
+        grid-template-columns: 2.5fr 1.2fr 2.5fr 1.5fr;
+        column-gap: 12px;
+        align-items: start;
+    }
+
+    .links-list :deep(.sortable-row--header) {
         display: flex;
     }
 
-    .desktop-only-inline {
-        display: inline;
+    .links-list :deep(.sortable-list__items) {
+        gap: 0;
     }
 
-    .mobile-only {
-        display: none;
-    }
-
-    .link-row.link-grid {
-        display: grid;
-        grid-template-columns: 70px 2.5fr 1.2fr 2.5fr 1.5fr;
-        column-gap: 12px;
-        align-items: stretch;
-    }
-
-    .link-row.link-grid > div {
-        justify-self: stretch;
-        width: 100%;
-        min-width: 0;
-    }
-
-    .link-row.header {
-        align-items: center;
-    }
-
-    .link-card {
+    .links-list :deep(.sortable-row) {
         border: none;
-        background: transparent;
-        margin-bottom: 0;
+        border-bottom: 1px solid var(--ucdavis-black-10);
+        border-radius: 0;
         padding: 8px 0;
+        background: transparent;
     }
 
-    .url-field .link-url {
-        max-width: 100%;
-        white-space: normal;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-    }
-
-    .title-field {
-        min-width: 140px;
-    }
-
-    .desc-field {
-        min-width: 200px;
-    }
-
-    .url-field {
-        min-width: 360px;
-    }
-
-    .tag-field {
-        overflow-wrap: anywhere;
-        max-width: 100%;
-        min-width: 0;
-        word-break: break-word;
-    }
-
-    .field-label {
-        display: none;
+    /* The visual column header is aria-hidden, so keep the URL/Title/Description labels
+       in the a11y tree (visually hidden) instead of display:none, so screen readers
+       still announce which value is which. Tag-category labels stay visible. */
+    .link-field:not(.tag-field) .field-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
     }
 
     .tag-field .field-label {
         display: block;
     }
 
-    .link-actions {
-        flex-direction: row;
-        gap: 6px;
-        margin-bottom: 0;
-    }
-
     .tag-row {
         margin-bottom: 6px;
-        align-items: flex-start;
     }
 }
 </style>

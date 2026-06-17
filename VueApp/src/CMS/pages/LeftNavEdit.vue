@@ -31,22 +31,34 @@
                                 {{ menuFormError }}
                             </StatusBanner>
 
-                            <q-btn
-                                type="submit"
-                                color="primary"
-                                :label="isNew ? 'Create Menu' : 'Save Menu Settings'"
-                                dense
-                                no-caps
-                                :loading="savingMenu"
-                            >
-                                <template #loading>
-                                    <q-spinner
-                                        size="1em"
-                                        class="q-mr-sm"
+                            <div class="row items-center q-gutter-sm">
+                                <q-btn
+                                    type="submit"
+                                    color="primary"
+                                    :label="isNew ? 'Create Menu' : 'Save Menu Settings'"
+                                    dense
+                                    no-caps
+                                    :loading="savingMenu"
+                                >
+                                    <template #loading>
+                                        <q-spinner
+                                            size="1em"
+                                            class="q-mr-sm"
+                                        />
+                                        {{ isNew ? "Create Menu" : "Save Menu Settings" }}
+                                    </template>
+                                </q-btn>
+                                <span
+                                    v-if="!isNew && menuDirty"
+                                    class="unsaved-hint text-warning"
+                                >
+                                    <q-icon
+                                        name="edit"
+                                        size="1rem"
                                     />
-                                    {{ isNew ? "Create Menu" : "Save Menu Settings" }}
-                                </template>
-                            </q-btn>
+                                    Unsaved changes
+                                </span>
+                            </div>
                         </q-form>
                     </q-card-section>
                 </q-card>
@@ -65,116 +77,88 @@
                             <h2 class="text-h6 q-my-none">Menu Items</h2>
                             <q-space />
                             <q-btn
-                                flat
                                 dense
                                 no-caps
                                 color="positive"
                                 icon="add"
                                 label="Add Header"
+                                class="q-pr-md"
                                 @click="addItem(true)"
                             />
                             <q-btn
-                                flat
                                 dense
                                 no-caps
                                 color="positive"
                                 icon="add"
                                 label="Add Link"
-                                class="q-ml-sm"
+                                class="q-ml-sm q-pr-md"
                                 @click="addItem(false)"
                             />
                         </div>
 
-                        <VueDraggable
+                        <SortableList
                             v-model="items"
-                            :animation="200"
-                            handle=".handle"
+                            item-key="key"
+                            class="menu-items"
+                            move-up-label="Move item up"
+                            move-down-label="Move item down"
+                            :row-class="itemRowClass"
+                            :announce="announceItem"
+                            @reorder="onItemsReorder"
                         >
-                            <div
-                                v-for="(item, index) in items"
-                                :key="item.key"
-                                :class="['nav-item row items-start q-col-gutter-sm', { 'is-header': item.isHeader }]"
-                            >
-                                <div class="col-auto flex items-center">
-                                    <q-icon
-                                        class="handle q-mt-sm"
-                                        name="drag_handle"
-                                    >
-                                        <q-tooltip>Drag to reorder</q-tooltip>
-                                    </q-icon>
-                                </div>
-                                <div class="col-3">
-                                    <q-input
-                                        v-model="item.menuItemText"
-                                        dense
-                                        outlined
-                                        :label="item.isHeader ? 'Header text' : 'Link text'"
-                                    />
-                                </div>
-                                <div class="col">
-                                    <q-input
-                                        v-if="!item.isHeader"
-                                        v-model="item.url"
-                                        dense
-                                        outlined
-                                        label="URL"
-                                    />
-                                    <div
-                                        v-else
-                                        class="text-grey-7 q-mt-sm text-caption"
-                                    >
-                                        Section header
+                            <template #row="{ item }">
+                                <div class="menu-item-fields">
+                                    <div class="menu-item-fields__text">
+                                        <q-input
+                                            v-model="item.menuItemText"
+                                            dense
+                                            outlined
+                                            :label="item.isHeader ? 'Header text' : 'Link text'"
+                                        />
+                                    </div>
+                                    <div class="menu-item-fields__url">
+                                        <q-input
+                                            v-if="!item.isHeader"
+                                            v-model="item.url"
+                                            dense
+                                            outlined
+                                            label="URL"
+                                        />
+                                        <div
+                                            v-else
+                                            class="text-grey-7 q-mt-sm text-caption"
+                                        >
+                                            Section header
+                                        </div>
+                                    </div>
+                                    <div class="menu-item-fields__perms">
+                                        <PermissionSelector
+                                            v-model="item.permissions"
+                                            label="Visible to"
+                                        />
                                     </div>
                                 </div>
-                                <div class="col-3">
-                                    <PermissionSelector
-                                        v-model="item.permissions"
-                                        label="Visible to"
-                                    />
-                                </div>
-                                <div class="col-auto">
-                                    <q-btn
-                                        dense
-                                        flat
-                                        no-caps
-                                        size="sm"
-                                        color="secondary"
-                                        icon="arrow_upward"
-                                        aria-label="Move item up"
-                                        :disable="index === 0"
-                                        @click="moveItem(index, -1)"
-                                    />
-                                    <q-btn
-                                        dense
-                                        flat
-                                        no-caps
-                                        size="sm"
-                                        color="secondary"
-                                        icon="arrow_downward"
-                                        aria-label="Move item down"
-                                        :disable="index === items.length - 1"
-                                        @click="moveItem(index, 1)"
-                                    />
-                                    <q-btn
-                                        dense
-                                        flat
-                                        no-caps
-                                        size="sm"
-                                        color="negative"
-                                        icon="delete"
-                                        aria-label="Remove item"
-                                        @click="removeItem(index)"
-                                    />
-                                </div>
-                            </div>
-                        </VueDraggable>
+                            </template>
 
-                        <div
-                            v-if="!items.length"
-                            class="text-grey-7 q-my-md"
-                        >
-                            No items yet — add a header or link above.
-                        </div>
+                            <template #actions="{ index }">
+                                <q-btn
+                                    dense
+                                    flat
+                                    no-caps
+                                    size="sm"
+                                    color="negative"
+                                    icon="delete"
+                                    aria-label="Remove item"
+                                    @click="removeItem(index)"
+                                >
+                                    <q-tooltip>Remove item</q-tooltip>
+                                </q-btn>
+                            </template>
+
+                            <template #empty>
+                                <div class="text-grey-7 q-my-md">No items yet — add a header or link above.</div>
+                            </template>
+                        </SortableList>
 
                         <StatusBanner
                             v-if="itemsError"
@@ -184,7 +168,7 @@
                             {{ itemsError }}
                         </StatusBanner>
 
-                        <div class="q-mt-md">
+                        <div class="q-mt-md row items-center">
                             <q-btn
                                 color="primary"
                                 label="Save Items"
@@ -203,12 +187,23 @@
                             </q-btn>
                             <q-btn
                                 flat
-                                label="Revert"
+                                label="Discard Item Changes"
                                 dense
                                 no-caps
                                 class="q-ml-sm"
+                                :disable="!itemsDirty"
                                 @click="revertItems"
                             />
+                            <span
+                                v-if="itemsDirty"
+                                class="unsaved-hint text-warning q-ml-md"
+                            >
+                                <q-icon
+                                    name="edit"
+                                    size="1rem"
+                                />
+                                Unsaved changes
+                            </span>
                         </div>
                     </q-card-section>
                 </q-card>
@@ -221,10 +216,10 @@
 import { computed, inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
-import { VueDraggable } from "vue-draggable-plus"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
+import SortableList from "@/components/SortableList.vue"
 import LeftNavMenuSettingsFields from "@/CMS/components/LeftNavMenuSettingsFields.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
@@ -266,12 +261,47 @@ const items = ref<EditableItem[]>([])
 let savedMenu: CmsLeftNavMenu | null = null
 let nextKey = -1
 
-// Dirty tracking spans both the menu settings and the items list, so unsaved edits in
-// either half prompt before navigating away (matching the Effort forms' guard).
-const formSnapshot = computed(() => ({ menu: menu.value, items: items.value }))
-const { setInitialState, resetDirtyState, confirmClose } = useUnsavedChanges(formSnapshot)
+// The settings form and the items list save independently, so track them separately:
+// saving one must not clear the other's unsaved flag, and each section shows its own
+// unsaved indicator.
+const {
+    isDirty: menuDirty,
+    setInitialState: setMenuBaseline,
+    resetDirtyState: resetMenuDirty,
+} = useUnsavedChanges(menu)
+const {
+    isDirty: itemsDirty,
+    setInitialState: setItemsBaseline,
+    resetDirtyState: resetItemsDirty,
+} = useUnsavedChanges(items)
+const hasUnsavedChanges = computed(() => menuDirty.value || itemsDirty.value)
 
-onBeforeRouteLeave(async () => await confirmClose())
+function captureBaselines() {
+    setMenuBaseline()
+    setItemsBaseline()
+}
+
+onBeforeRouteLeave(async () => {
+    if (!hasUnsavedChanges.value) {
+        return true
+    }
+    return await confirmLeave()
+})
+
+function confirmLeave(): Promise<boolean> {
+    return new Promise((resolve) => {
+        $q.dialog({
+            title: "Unsaved Changes",
+            message: "This menu has unsaved changes. Leave without saving?",
+            cancel: { label: "Keep Editing", flat: true },
+            ok: { label: "Leave", color: "negative", unelevated: true },
+            persistent: true,
+        })
+            .onOk(() => resolve(true))
+            .onCancel(() => resolve(false))
+            .onDismiss(() => resolve(false))
+    })
+}
 
 function toEditableItems(source: CmsLeftNavMenu): EditableItem[] {
     return source.items.map((i) => ({
@@ -301,7 +331,7 @@ async function loadMenu() {
         friendlyName: res.result.friendlyName,
     }
     items.value = toEditableItems(res.result)
-    setInitialState()
+    captureBaselines()
 }
 
 // The q-form focuses the first invalid field on a failed submit; this surfaces a matching
@@ -331,7 +361,7 @@ async function saveMenu() {
         return
     }
     $q.notify({ type: "positive", message: isNew.value ? "Menu created — now add items" : "Menu settings saved" })
-    resetDirtyState()
+    resetMenuDirty()
     if (isNew.value) {
         // the menuId watch loads the created menu once the route changes
         void router.push({ name: "CmsLeftNavEdit", params: { id: res.result.leftNavMenuId } })
@@ -353,11 +383,20 @@ function removeItem(index: number) {
     items.value.splice(index, 1)
 }
 
-function moveItem(index: number, direction: -1 | 1) {
-    const newIndex = index + direction
-    if (newIndex < 0 || newIndex >= items.value.length) return
-    const [item] = items.value.splice(index, 1)
-    items.value.splice(newIndex, 0, item!)
+function itemRowClass(item: EditableItem) {
+    return { "menu-item--header": item.isHeader }
+}
+
+function announceItem(item: EditableItem, newIndex: number, total: number) {
+    const kind = item.isHeader ? "header" : "link"
+    const name = item.menuItemText?.trim() || "item"
+    return `Moved ${kind} ${name} to position ${newIndex + 1} of ${total}`
+}
+
+// Reorder is staged here (commits on Save Items), so the toast stays neutral; `group`
+// collapses rapid nudges into one. The "Unsaved changes" indicator signals it needs saving.
+function onItemsReorder() {
+    $q.notify({ type: "info", message: "Order updated", group: "leftnav-order", timeout: 1500 })
 }
 
 async function saveItems() {
@@ -386,14 +425,14 @@ async function saveItems() {
     $q.notify({ type: "positive", message: "Items saved" })
     savedMenu = res.result
     items.value = toEditableItems(res.result)
-    resetDirtyState()
+    resetItemsDirty()
 }
 
 function revertItems() {
     if (savedMenu) {
         items.value = toEditableItems(savedMenu)
         itemsError.value = ""
-        $q.notify({ type: "info", message: "Items reverted to last saved state" })
+        $q.notify({ type: "info", message: "Item changes discarded" })
     }
 }
 
@@ -413,7 +452,7 @@ watch(menuId, (id) => {
         savedMenu = null
         menuFormError.value = ""
         itemsError.value = ""
-        setInitialState()
+        captureBaselines()
     } else {
         void loadMenu()
     }
@@ -423,28 +462,88 @@ onMounted(() => {
     loadMenu()
     // loadMenu sets the baseline for an existing menu; a brand-new form's baseline is empty.
     if (isNew.value) {
-        setInitialState()
+        captureBaselines()
     }
 })
 </script>
 
 <style scoped>
-.nav-item {
-    border: 1px solid var(--ucdavis-black-10);
-    border-radius: 6px;
-    margin-bottom: 8px;
-    padding: 8px;
+.unsaved-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8125rem;
+    font-weight: 500;
 }
 
-.nav-item.is-header {
+/* The row's available width (not the viewport) decides whether the three fields fit:
+   in the two-column layout the Menu Items column can be narrow even on a wide screen.
+   Query the row body so the fields stack until there's genuinely room for a row. */
+.menu-items :deep(.sortable-row__body) {
+    container-type: inline-size;
+}
+
+.menu-item-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+@container (min-width: 30rem) {
+    .menu-item-fields {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .menu-item-fields__text {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .menu-item-fields__url {
+        flex: 1.3 1 0;
+        min-width: 0;
+    }
+
+    .menu-item-fields__perms {
+        flex: 1.2 1 0;
+        min-width: 0;
+    }
+}
+
+/* Match the Link Collections rows exactly: tinted cards on small/medium screens,
+   borderless grouped rows in the panel on desktop. Header rows keep a distinct tint. */
+.menu-items :deep(.sortable-row) {
+    border: 1px solid var(--ucdavis-black-10);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--surface-tint-raised);
+}
+
+.menu-items :deep(.sortable-row.menu-item--header) {
     background: var(--surface-tint);
 }
 
-.handle {
-    cursor: grab;
-}
+@media (width >= 1024px) {
+    .menu-items :deep(.sortable-list__items) {
+        gap: 0;
+    }
 
-.handle:active {
-    cursor: grabbing;
+    .menu-items :deep(.sortable-row) {
+        border: none;
+        border-bottom: 1px solid var(--ucdavis-black-10);
+        border-radius: 0;
+        padding: 12px 8px;
+        background: transparent;
+    }
+
+    .menu-items :deep(.sortable-row:last-child) {
+        border-bottom: none;
+    }
+
+    .menu-items :deep(.sortable-row.menu-item--header) {
+        background: var(--surface-tint);
+    }
 }
 </style>
