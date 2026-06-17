@@ -1,0 +1,227 @@
+<template>
+    <q-card
+        flat
+        bordered
+        class="q-mb-sm overflow-hidden"
+    >
+        <div class="question-text q-px-sm q-py-xs text-weight-medium">{{ questionText }}</div>
+        <div class="scale-row">
+            <div
+                v-for="seg in SEGMENTS"
+                :key="seg.key"
+                class="scale-seg"
+                :style="{ flex: seg.flex }"
+            >
+                <div :class="`scale-head scale-head--${seg.key}`">{{ seg.label }}</div>
+                <div :class="`scale-opts scale-opts--${seg.key}`">
+                    <label
+                        v-for="val in seg.values"
+                        :key="val"
+                        class="scale-opt"
+                        :for="`q_${questionId}_${val}`"
+                    >
+                        <span class="scale-num">{{ val }}</span>
+                        <input
+                            :id="`q_${questionId}_${val}`"
+                            type="radio"
+                            :name="`q_${questionId}`"
+                            :value="val"
+                            v-model="model"
+                        />
+                    </label>
+                </div>
+            </div>
+        </div>
+    </q-card>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue"
+
+const props = defineProps<{
+    questionId: number | string
+    questionText: string
+    modelValue: number | null
+}>()
+
+const emit = defineEmits<{
+    "update:modelValue": [value: number | null]
+}>()
+
+const model = computed({
+    get: () => props.modelValue,
+    set: (val) => emit("update:modelValue", val),
+})
+
+const SEGMENTS = [
+    { key: "pre", label: "Pre-Nov.", flex: 1, values: [1] },
+    { key: "nov", label: "Novice", flex: 6, values: [2, 3, 4, 5, 6, 7] },
+    { key: "adv", label: "Advanced Beginner", flex: 6, values: [8, 9, 10, 11, 12, 13] },
+    { key: "comp", label: "Competent", flex: 6, values: [14, 15, 16, 17, 18, 19] },
+    { key: "prof", label: "Prof.", flex: 1, values: [20] },
+]
+</script>
+
+<style scoped>
+.question-text {
+    background: #deeaf3; /*var(--ucdavis-blue-10);*/
+    border-bottom: 1px solid var(--ucdavis-blue-20);
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #1a3a52; /* var(--ucdavis-blue-100); */
+}
+
+/*
+ .q-text {
+    padding: 9px 14px;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.45;
+    background: #deeaf3;
+    border-bottom: 1px solid #9bbfd4;
+    color: #1a3a52;
+  }
+*/
+
+.scale-row {
+    display: flex;
+    width: 100%;
+}
+
+.scale-seg {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.35);
+    min-width: 0;
+}
+.scale-seg:last-child {
+    border-right: none;
+}
+
+.scale-head {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.scale-opts {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    padding: 4px 2px;
+}
+
+.scale-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 3px;
+    flex: 1;
+    min-width: 24px;
+}
+.scale-opt:hover {
+    background: rgba(0, 0, 0, 0.09);
+}
+
+.scale-num {
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+    width: 13px;
+    height: 13px;
+}
+
+/* Segment header colors — UC Davis blue palette 
+.scale-head--pre {
+    background: var(--ucdavis-blue-10);
+    color: var(--ucdavis-blue-100);
+}
+.scale-head--nov {
+    background: var(--ucdavis-blue-30);
+    color: var(--ucdavis-blue-100);
+}
+.scale-head--adv {
+    background: var(--ucdavis-blue-60);
+    color: #fff;
+}
+.scale-head--comp {
+    background: var(--ucdavis-blue-80);
+    color: #fff;
+}
+.scale-head--prof {
+    background: var(--ucdavis-blue-100);
+    color: #fff;
+}
+*/
+
+.scale-head--pre {
+    background: #afd3e8;
+}
+.scale-head--nov {
+    background: #6baed6;
+    color: #1a3a52;
+}
+.scale-head--adv {
+    background: #2077b0;
+    color: #fff;
+}
+.scale-head--comp {
+    background: #1a5f8a;
+    color: #fff;
+}
+.scale-head--prof {
+    background: #0d3557;
+    color: #fff;
+}
+
+/* Segment body background — tinted from each blue 
+.scale-opts--pre {
+    background: color-mix(in srgb, var(--ucdavis-blue-10) 40%, white);
+}
+.scale-opts--nov {
+    background: color-mix(in srgb, var(--ucdavis-blue-20) 60%, white);
+}
+.scale-opts--adv {
+    background: color-mix(in srgb, var(--ucdavis-blue-30) 60%, white);
+}
+.scale-opts--comp {
+    background: color-mix(in srgb, var(--ucdavis-blue-50) 40%, white);
+}
+.scale-opts--prof {
+    background: color-mix(in srgb, var(--ucdavis-blue-70) 40%, white);
+}*/
+
+.scale-opts--pre {
+    background: #eef6fb;
+}
+.scale-opts--nov {
+    background: #d4eaf7;
+}
+.scale-opts--adv {
+    background: #b3d5eb;
+}
+.scale-opts--comp {
+    background: #7fb3d3;
+}
+.scale-opts--prof {
+    background: #357898;
+    color: #fff;
+}
+</style>
+
