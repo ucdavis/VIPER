@@ -51,7 +51,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students" };
+string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Eval", "Students" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";

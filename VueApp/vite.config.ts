@@ -138,6 +138,10 @@ export default defineConfig(({ mode }) => {
                     target,
                     secure: false,
                 },
+                "^/Eval": {
+                    target,
+                    secure: false,
+                },
                 "^/api": {
                     target,
                     secure: false,
@@ -168,6 +172,7 @@ export default defineConfig(({ mode }) => {
                     cahfs: resolve(import.meta.dirname, "src/CAHFS/index.html"),
                     clinicalscheduler: resolve(import.meta.dirname, "src/ClinicalScheduler/index.html"),
                     effort: resolve(import.meta.dirname, "src/Effort/index.html"),
+                    eval: resolve(import.meta.dirname, "src/Eval/index.html"),
                 },
                 output: {
                     manualChunks(id) {
