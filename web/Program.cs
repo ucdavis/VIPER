@@ -30,6 +30,7 @@ using Viper;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
+using Viper.Areas.Eval.Data;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -219,6 +220,7 @@ try
     // Effort tables are in the VIPER database's [effort] schema.
     RegisterDbContext<EffortDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
+    RegisterDbContext<EvalDbContext>("Eval");
 
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
