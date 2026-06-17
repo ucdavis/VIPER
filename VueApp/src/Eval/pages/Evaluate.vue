@@ -70,6 +70,7 @@
                 :question-id="q.id"
                 :question-text="q.text"
                 :levels="q.levels"
+                :iscs="q.iscs"
                 v-model="answers[q.id]"
             />
 
@@ -161,18 +162,32 @@ const PHOTO_BASE_URL = "https://viper.vetmed.ucdavis.edu/public/utilities/getbas
 
 // TODO: replace with real API lookup by studentId
 const students = [
-    { id: "1", name: "Alice Nguyen", mailId: "alinguyen" },
-    { id: "2", name: "Ben Okafor", mailId: "beokafor" },
-    { id: "3", name: "Carmen Silva", mailId: "casilva" },
+    { id: "1", name: "Alice Nguyen", mailId: "bsedwards" },
+    { id: "2", name: "Ben Okafor", mailId: "cmbrandt" },
+    { id: "3", name: "Carmen Silva", mailId: "tasoeth" },
 ]
 
+type Question = {
+    id: number
+    milestoneId: number
+    text: string
+    levels: MilestoneLevel[]
+    iscs?: { name: string }[]
+}
+
 // TODO: milestoneId values are placeholders until questions are mapped to real CTS milestone bundles
-const QUESTIONS = ref([
+const QUESTIONS = ref<Question[]>([
     {
         id: 17071,
         milestoneId: 1012,
         text: "1.1 Gathers and assimilates relevant information about animals",
         levels: [] as MilestoneLevel[],
+        iscs: [
+            { name: "1.1.2 Performs physical examination" },
+            { name: "1.1.5 Perform appropriate patient handling" },
+            { name: "1.1.6 Perform specialty examination" },
+            { name: "1.1.6.5 oral/dental" },
+        ],
     },
     {
         id: 17076,

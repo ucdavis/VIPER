@@ -4,7 +4,20 @@
         bordered
         class="q-mb-sm overflow-hidden"
     >
-        <div class="question-text q-px-sm q-py-xs text-weight-medium">{{ questionText }}</div>
+        <div class="question-text q-px-sm q-py-xs">
+            <div class="text-weight-medium">{{ questionText }}</div>
+            <ul
+                v-if="iscs && iscs.length"
+                class="isc-list"
+            >
+                <li
+                    v-for="isc in iscs"
+                    :key="isc.name"
+                >
+                    {{ isc.name }}
+                </li>
+            </ul>
+        </div>
         <div class="scale-row">
             <div
                 v-for="seg in SEGMENTS"
@@ -12,10 +25,25 @@
                 class="scale-seg"
                 :style="{ flex: seg.flex }"
             >
-                <!-- Description is sanitized server-side by MilestonesController via HtmlSanitizerService -->
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div v-if="levelDescription(seg.levelId)" :class="`scale-description scale-description--${seg.key}`" v-html="levelDescription(seg.levelId)" />
-                <div :class="`scale-head scale-head--${seg.key}`">{{ seg.label }}</div>
+                <div :class="`scale-head scale-head--${seg.key}`">
+                    <span>{{ seg.label }}</span>
+                    <q-icon
+                        v-if="levelDescription(seg.levelId)"
+                        name="info"
+                        class="scale-info-icon"
+                    >
+                        <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            max-width="320px"
+                            class="scale-tooltip"
+                        >
+                            <!-- Description is sanitized server-side by MilestonesController via HtmlSanitizerService -->
+                            <!-- eslint-disable-next-line vue/no-v-html -->
+                            <div v-html="levelDescription(seg.levelId)" />
+                        </q-tooltip>
+                    </q-icon>
+                </div>
                 <div :class="`scale-opts scale-opts--${seg.key}`">
                     <label
                         v-for="val in seg.values"
@@ -47,6 +75,7 @@ const props = defineProps<{
     questionText: string
     modelValue: number | null
     levels: MilestoneLevel[]
+    iscs?: { name: string }[]
 }>()
 
 const emit = defineEmits<{
@@ -59,7 +88,7 @@ const model = computed({
 })
 
 function levelDescription(levelId: number) {
-    return props.levels.find((l) => l.levelId === levelId)?.description ?? ""
+    return props.levels.find((l) => l.levelId === levelId)?.description?.trim() || null
 }
 
 const SEGMENTS = [
@@ -73,11 +102,18 @@ const SEGMENTS = [
 
 <style scoped>
 .question-text {
-    background: #deeaf3; /*var(--ucdavis-blue-10);*/
+    background: #deeaf3; /* var(--ucdavis-blue-10); */
     border-bottom: 1px solid var(--ucdavis-blue-20);
     font-size: 0.85rem;
     line-height: 1.45;
     color: #1a3a52; /* var(--ucdavis-blue-100); */
+}
+
+.isc-list {
+    margin: 4px 0 0;
+    padding-left: 1.25rem;
+    font-size: 0.8rem;
+    font-weight: 400;
 }
 
 /*
@@ -100,32 +136,37 @@ const SEGMENTS = [
 .scale-seg {
     display: flex;
     flex-direction: column;
-    border-right: 1px solid rgba(255, 255, 255, 0.35);
+    border-right: 1px solid rgb(255 255 255 / 35%);
     min-width: 0;
 }
+
 .scale-seg:last-child {
     border-right: none;
 }
 
-.scale-description {
-    font-size: 0.7rem;
-    line-height: 1.3;
-    padding: 4px 6px;
-    text-align: center;
-    background: var(--ucdavis-blue-10);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-}
-
 .scale-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     text-align: center;
     font-size: 0.8rem;
     font-weight: 700;
     padding: 3px 2px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom: 1px solid rgb(255 255 255 / 30%);
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
     line-height: 1.2;
+}
+
+.scale-head span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.scale-info-icon {
+    cursor: help;
+    flex-shrink: 0;
 }
 
 .scale-opts {
@@ -148,8 +189,9 @@ const SEGMENTS = [
     flex: 1;
     min-width: 24px;
 }
-.scale-opt:hover {
-    background: rgba(0, 0, 0, 0.09);
+
+.scale-opt:hover, .scale-opt:focus {
+    background: rgb(0 0 0 / 9%);
 }
 
 .scale-num {
@@ -191,18 +233,22 @@ input[type="radio"] {
 .scale-head--pre {
     background: #afd3e8;
 }
+
 .scale-head--nov {
     background: #6baed6;
     color: #1a3a52;
 }
+
 .scale-head--adv {
     background: #2077b0;
     color: #fff;
 }
+
 .scale-head--comp {
     background: #1a5f8a;
     color: #fff;
 }
+
 .scale-head--prof {
     background: #0d3557;
     color: #fff;
@@ -223,23 +269,38 @@ input[type="radio"] {
 }
 .scale-opts--prof {
     background: color-mix(in srgb, var(--ucdavis-blue-70) 40%, white);
-}*/
+} */
 
 .scale-opts--pre {
     background: #eef6fb;
 }
+
 .scale-opts--nov {
     background: #d4eaf7;
 }
+
 .scale-opts--adv {
     background: #b3d5eb;
 }
+
 .scale-opts--comp {
     background: #7fb3d3;
 }
+
 .scale-opts--prof {
     background: #357898;
     color: #fff;
+}
+</style>
+
+<!-- QTooltip content is rendered through a portal outside this component's DOM subtree,
+     so scoped styles can't reliably target it; this block must stay global. -->
+<style>
+.scale-tooltip {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    background: #f5fafd;
+    color: #000;
 }
 </style>
 
