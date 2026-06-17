@@ -216,10 +216,12 @@ internal static class ViteProxyHelpers
         var requestMessage = new HttpRequestMessage(new HttpMethod(context.Request.Method), targetUrl);
 
         // Only copy request body for methods that typically support it
-        var method = context.Request.Method.ToUpperInvariant();
-        if (method != "GET" && method != "HEAD"
-            && ((context.Request.ContentLength.HasValue && context.Request.ContentLength > 0) ||
-                (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead)))
+        var requestMethod = context.Request.Method;
+        bool methodSupportsBody = !string.Equals(requestMethod, "GET", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(requestMethod, "HEAD", StringComparison.OrdinalIgnoreCase);
+        bool hasReadableBody = (context.Request.ContentLength.HasValue && context.Request.ContentLength > 0)
+            || (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead);
+        if (methodSupportsBody && hasReadableBody)
         {
             requestMessage.Content = new StreamContent(context.Request.Body);
 

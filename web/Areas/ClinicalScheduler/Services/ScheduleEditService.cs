@@ -248,11 +248,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     LogSanitizer.SanitizeId(mothraId), rotationId, string.Join(",", weekIds));
 
                 // Check if this is a database constraint violation (typically a duplicate key error)
-                var errorMessage = saveEx.Message?.ToLower();
-                var innerMessage = saveEx.InnerException?.Message?.ToLower();
-
-                if ((errorMessage != null && (errorMessage.Contains("duplicate") || errorMessage.Contains("unique") || errorMessage.Contains("constraint") || errorMessage.Contains("violation of primary key"))) ||
-                    (innerMessage != null && (innerMessage.Contains("duplicate") || innerMessage.Contains("unique") || innerMessage.Contains("constraint") || innerMessage.Contains("violation of primary key"))))
+                if (IsDbConstraintViolation(saveEx.Message) || IsDbConstraintViolation(saveEx.InnerException?.Message))
                 {
                     throw new InvalidOperationException($"Instructor {mothraId} appears to already be scheduled for one or more of the specified weeks. Please refresh the page and try again.", saveEx);
                 }
@@ -261,6 +257,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 throw new InvalidOperationException($"Database operation failed while adding instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", saveEx);
             }
         }
+
+        // Detects DB constraint/duplicate-key violations from an exception message.
+        // Ordinal (culture-invariant) matching avoids locale casing hazards (e.g. Turkish 'I').
+        private static bool IsDbConstraintViolation(string? message) =>
+            message != null
+            && (message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("unique", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("constraint", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("violation of primary key", StringComparison.OrdinalIgnoreCase));
 
         public async Task<(bool success, bool wasPrimaryEvaluator, string? instructorName)> RemoveInstructorScheduleAsync(
             int instructorScheduleId,
