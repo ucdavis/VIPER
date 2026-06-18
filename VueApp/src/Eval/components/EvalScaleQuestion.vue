@@ -30,7 +30,10 @@
                 </li>
             </ul>
         </div>
-        <div class="scale-row">
+        <div
+            class="scale-row q--avoid-card-border"
+            :class="{ 'question-text--answered': isAnswered }"
+        >
             <div
                 v-for="seg in SEGMENTS"
                 :key="seg.key"
@@ -42,6 +45,7 @@
                     <q-icon
                         v-if="levelDescription(seg.levelId)"
                         name="info"
+                        size="18px"
                         class="scale-info-icon"
                     >
                         <q-tooltip
@@ -144,7 +148,8 @@ const SEGMENTS = [
     color: #1a3a52; /* var(--ucdavis-blue-100); */
 }
 
-.question-text--answered {
+.question-text--answered,
+.scale-row.question-text--answered {
     border-left-color: #4caf50;
 }
 
@@ -170,6 +175,8 @@ const SEGMENTS = [
 .scale-row {
     display: flex;
     width: 100%;
+    border-left: 3px solid transparent;
+    background: #deeaf3; /* var(--ucdavis-blue-10); */
 }
 
 .scale-seg {
@@ -192,6 +199,7 @@ const SEGMENTS = [
     font-size: 0.8rem;
     font-weight: 700;
     padding: 3px 2px;
+    min-height: 26px;
     border-bottom: 1px solid rgb(255 255 255 / 30%);
     white-space: nowrap;
     overflow: hidden;
