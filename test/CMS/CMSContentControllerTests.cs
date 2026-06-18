@@ -364,13 +364,13 @@ public sealed class CMSContentControllerTests : IDisposable
     #region Restore / Delete
 
     [Fact]
-    public async Task RestoreContentBlock_ReturnsOk_WhenRestored()
+    public async Task RestoreContentBlock_ReturnsNoContent_WhenRestored()
     {
         _blockService.RestoreAsync(5, Arg.Any<CancellationToken>()).Returns(true);
 
         var result = await _controller.RestoreContentBlock(5, TestContext.Current.CancellationToken);
 
-        Assert.IsType<OkResult>(result);
+        Assert.IsType<NoContentResult>(result);
     }
 
     [Fact]

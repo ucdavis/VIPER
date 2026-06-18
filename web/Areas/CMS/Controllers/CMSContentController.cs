@@ -254,7 +254,7 @@ namespace Viper.Areas.CMS.Controllers
         [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         public async Task<IActionResult> RestoreContentBlock(int contentBlockId, CancellationToken ct = default)
         {
-            return await _blockService.RestoreAsync(contentBlockId, ct) ? Ok() : NotFound();
+            return await _blockService.RestoreAsync(contentBlockId, ct) ? NoContent() : NotFound();
         }
 
         //DELETE: content/5?permanent=true|false

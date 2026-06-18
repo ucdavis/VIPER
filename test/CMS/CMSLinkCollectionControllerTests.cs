@@ -139,6 +139,40 @@ public sealed class CMSLinkCollectionControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteLinkCollection_RemovesLinksTagsAndCategories()
+    {
+        // A collection with a tag category, a link, and a link tag must delete cleanly.
+        // The DB FKs are not ON DELETE CASCADE, so the controller clears dependents first.
+        var collection = await SeedCollectionAsync();
+        var category = await SeedTagCategoryAsync(collection.LinkCollectionId, "Topic", 1);
+        var link = new Link
+        {
+            LinkCollectionId = collection.LinkCollectionId,
+            Url = "https://example.com",
+            Title = "Example",
+            SortOrder = 1
+        };
+        _context.Links.Add(link);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _context.LinkTags.Add(new LinkTag
+        {
+            LinkId = link.LinkId,
+            LinkCollectionTagCategoryId = category.LinkCollectionTagCategoryId,
+            SortOrder = 1,
+            Value = "alpha"
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _controller.DeleteLinkCollection(collection.LinkCollectionId);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Empty(await _context.LinkCollections.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.Links.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.LinkCollectionTagCategories.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.LinkTags.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task DeleteLinkCollection_ReturnsNotFound_WhenMissing()
     {
         var result = await _controller.DeleteLinkCollection(999);
@@ -185,10 +219,16 @@ public sealed class CMSLinkCollectionControllerTests : IDisposable
 
         var result = await _controller.CreateLinkCollectionTagCategory(collection.LinkCollectionId, dto);
 
-        Assert.IsType<CreatedAtActionResult>(result.Result);
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var saved = await _context.LinkCollectionTagCategories.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Topic", saved.LinkCollectionTagCategoryName);
         Assert.Equal(collection.LinkCollectionId, saved.LinkCollectionId);
+
+        // The response must carry the generated id so the client can reorder the
+        // new category (otherwise the follow-up tag-order PUT fails validation).
+        var returned = Assert.IsType<LinkCollectionTagCategoryDto>(created.Value);
+        Assert.Equal(saved.LinkCollectionTagCategoryId, returned.LinkCollectionTagCategoryId);
+        Assert.NotEqual(0, returned.LinkCollectionTagCategoryId);
     }
 
     [Fact]
@@ -204,6 +244,24 @@ public sealed class CMSLinkCollectionControllerTests : IDisposable
         var result = await _controller.CreateLinkCollectionTagCategory(999, dto);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task CreateLinkCollectionTagCategory_RejectsRouteBodyMismatch()
+    {
+        var collection = await SeedCollectionAsync();
+        var dto = new CreateLinkCollectionTagCategoryDto
+        {
+            // Body claims a different collection than the route.
+            LinkCollectionId = collection.LinkCollectionId + 1,
+            LinkCollectionTagCategory = "Topic",
+            SortOrder = 1
+        };
+
+        var result = await _controller.CreateLinkCollectionTagCategory(collection.LinkCollectionId, dto);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Empty(await _context.LinkCollectionTagCategories.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -253,6 +311,25 @@ public sealed class CMSLinkCollectionControllerTests : IDisposable
         var updates = new List<UpdateLinkCollectionTagCategoryOrderDto>
         {
             new() { LinkCollectionTagCategoryId = 1, SortOrder = 1 }
+        };
+
+        var result = await _controller.UpdateLinkCollectionTagCategoryOrder(collection.LinkCollectionId, updates);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task UpdateLinkCollectionTagCategoryOrder_RejectsUnknownCategoryId()
+    {
+        // Count matches, but one submitted id does not belong to the collection.
+        // The lookup must not throw (500); it returns a controlled BadRequest.
+        var collection = await SeedCollectionAsync();
+        var first = await SeedTagCategoryAsync(collection.LinkCollectionId, "First", 1);
+        await SeedTagCategoryAsync(collection.LinkCollectionId, "Second", 2);
+        var updates = new List<UpdateLinkCollectionTagCategoryOrderDto>
+        {
+            new() { LinkCollectionTagCategoryId = first.LinkCollectionTagCategoryId, SortOrder = 1 },
+            new() { LinkCollectionTagCategoryId = 999999, SortOrder = 2 }
         };
 
         var result = await _controller.UpdateLinkCollectionTagCategoryOrder(collection.LinkCollectionId, updates);

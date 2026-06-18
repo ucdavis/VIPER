@@ -1,5 +1,5 @@
 import ContentBlocks from "@/CMS/pages/ContentBlocks.vue"
-import { mountCms, flushPromises } from "./test-utils"
+import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-utils"
 
 /**
  * Representative page filter-state test: filter inputs must drive the right query params on the
@@ -57,18 +57,21 @@ function lastListUrl(): string {
     return listCalls.at(-1) ?? ""
 }
 
-async function mountPage() {
-    const wrapper = mountCms(ContentBlocks)
+async function mountPage(query: Record<string, string> = {}) {
+    const router = createTestRouter()
+    await router.push({ path: "/CMS/ManageContentBlocks", query })
+    await router.isReady()
+    const wrapper = mountCms(ContentBlocks, {}, router)
     await flushPromises()
     await flushPromises()
-    return wrapper
+    return { wrapper, router }
 }
 
 describe("ContentBlocks.vue - filter-driven query params", () => {
     beforeEach(() => routeGet())
 
     it("requests with the default active status on mount and binds returned rows", async () => {
-        const wrapper = await mountPage()
+        const { wrapper } = await mountPage()
         expect(lastListUrl()).toContain("status=active")
         // Returned row binds to the table.
         expect(wrapper.findComponent({ name: "QTable" }).props("rows")).toHaveLength(1)
@@ -76,7 +79,7 @@ describe("ContentBlocks.vue - filter-driven query params", () => {
     })
 
     it("includes the search term in the query when the search field changes", async () => {
-        const wrapper = await mountPage()
+        const { wrapper } = await mountPage()
         const searchInput = wrapper.findAllComponents({ name: "QInput" })[0]!
         searchInput.vm.$emit("update:modelValue", "welcome")
         await flushPromises()
@@ -84,7 +87,7 @@ describe("ContentBlocks.vue - filter-driven query params", () => {
     })
 
     it("adds isPublic=true only when the Public-only toggle is on", async () => {
-        const wrapper = await mountPage()
+        const { wrapper } = await mountPage()
         expect(lastListUrl()).not.toContain("isPublic")
         const toggle = wrapper.findComponent({ name: "QToggle" })
         toggle.vm.$emit("update:modelValue", true)
@@ -93,7 +96,7 @@ describe("ContentBlocks.vue - filter-driven query params", () => {
     })
 
     it("sends the chosen status when the status select changes", async () => {
-        const wrapper = await mountPage()
+        const { wrapper } = await mountPage()
         const statusSelect = wrapper.findAllComponents({ name: "QSelect" })[0]!
         statusSelect.vm.$emit("update:modelValue", "deleted")
         await flushPromises()
@@ -109,7 +112,33 @@ describe("ContentBlocks.vue - filter-driven query params", () => {
             }
             return Promise.resolve({ success: false, result: null })
         })
-        const wrapper = await mountPage()
+        const { wrapper } = await mountPage()
         expect(wrapper.findComponent({ name: "QTable" }).props("rows")).toEqual([])
+    })
+})
+
+describe("ContentBlocks.vue - URL filter sync", () => {
+    beforeEach(() => routeGet())
+
+    it("initializes filters from the URL query (deep-link) and reflects them in the request", async () => {
+        await mountPage({ status: "deleted", system: "CTS", section: "courses", search: "welcome", public: "1" })
+        const url = lastListUrl()
+        expect(url).toContain("status=deleted")
+        expect(url).toContain("system=CTS")
+        expect(url).toContain("viperSectionPath=courses")
+        expect(url).toContain("search=welcome")
+        expect(url).toContain("isPublic=true")
+    })
+
+    it("writes only the active filters to the URL when a filter changes (defaults omitted)", async () => {
+        const { wrapper, router } = await mountPage()
+        const searchInput = wrapper.findAllComponents({ name: "QInput" })[0]!
+        searchInput.vm.$emit("update:modelValue", "welcome")
+        await flushRouter()
+        // The changed filter reaches the URL; the default active status and the off
+        // public toggle are omitted rather than serialized as defaults.
+        expect(router.currentRoute.value.query.search).toBe("welcome")
+        expect(router.currentRoute.value.query.status).toBeUndefined()
+        expect(router.currentRoute.value.query.public).toBeUndefined()
     })
 })
