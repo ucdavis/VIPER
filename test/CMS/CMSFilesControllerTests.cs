@@ -288,14 +288,14 @@ public sealed class CMSFilesControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task RestoreFile_ReturnsOk_WhenRestored()
+    public async Task RestoreFile_ReturnsNoContent_WhenRestored()
     {
         var guid = Guid.NewGuid();
         _fileService.RestoreFileAsync(guid, Arg.Any<CancellationToken>()).Returns(true);
 
         var result = await _controller.RestoreFile(guid, TestContext.Current.CancellationToken);
 
-        Assert.IsType<OkResult>(result);
+        Assert.IsType<NoContentResult>(result);
     }
 
     #endregion

@@ -219,7 +219,7 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost("{fileGuid:guid}/restore")]
         public async Task<IActionResult> RestoreFile(Guid fileGuid, CancellationToken ct = default)
         {
-            return await _fileService.RestoreFileAsync(fileGuid, ct) ? Ok() : NotFound();
+            return await _fileService.RestoreFileAsync(fileGuid, ct) ? NoContent() : NotFound();
         }
 
         // POST /api/cms/files/import — move files from the legacy VIPER webroot into the store

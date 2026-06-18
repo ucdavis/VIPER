@@ -23,7 +23,7 @@
                     map-options
                     label="Status"
                     :options="statusOptions"
-                    @update:model-value="loadBlocks"
+                    @update:model-value="reload"
                 />
             </div>
             <div class="col-12 col-sm-3 col-lg-2">
@@ -35,7 +35,7 @@
                     map-options
                     label="System"
                     :options="systemOptions"
-                    @update:model-value="loadBlocks"
+                    @update:model-value="reload"
                 />
             </div>
             <div class="col-12 col-sm-3 col-lg-2">
@@ -46,7 +46,7 @@
                     clearable
                     label="VIPER section"
                     :options="sectionPaths"
-                    @update:model-value="loadBlocks"
+                    @update:model-value="reload"
                 />
             </div>
             <div class="col-12 col-sm-3 col-lg-3">
@@ -56,7 +56,7 @@
                     clearable
                     debounce="400"
                     label="Search title, name, page, or content"
-                    @update:model-value="loadBlocks"
+                    @update:model-value="reload"
                 >
                     <template #prepend>
                         <q-icon name="search" />
@@ -68,7 +68,7 @@
                     v-model="filters.publicOnly"
                     dense
                     label="Public only"
-                    @update:model-value="loadBlocks"
+                    @update:model-value="reload"
                 />
             </div>
         </div>
@@ -210,7 +210,8 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue"
+import { inject, onMounted, ref, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
@@ -223,6 +224,8 @@ import StatusIcon from "@/CMS/components/StatusIcon.vue"
 import type { CmsContentBlock } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "CMS/content"
+const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 const { get, del, post, createUrlSearchParams } = useFetch()
 
@@ -230,13 +233,29 @@ const blocks = ref<CmsContentBlock[]>([])
 const sectionPaths = ref<string[]>([])
 const loading = ref(false)
 
+// Filters initialize from the URL so views can be shared/deep-linked, matching
+// the Files list and audit trail.
 const filters = ref({
-    status: "active",
-    system: null as string | null,
-    viperSectionPath: null as string | null,
-    search: "",
-    publicOnly: false,
+    status: typeof route.query.status === "string" ? route.query.status : "active",
+    system: typeof route.query.system === "string" ? route.query.system : null,
+    viperSectionPath: typeof route.query.section === "string" ? route.query.section : null,
+    search: typeof route.query.search === "string" ? route.query.search : "",
+    publicOnly: route.query.public === "1",
 })
+
+// Reflect the active filters back into the URL (defaults are omitted).
+function syncFiltersToUrl() {
+    void router.replace({
+        query: {
+            ...route.query,
+            status: filters.value.status !== "active" ? filters.value.status : undefined,
+            system: filters.value.system || undefined,
+            section: filters.value.viperSectionPath || undefined,
+            search: filters.value.search || undefined,
+            public: filters.value.publicOnly ? "1" : undefined,
+        },
+    })
+}
 
 const statusOptions = [
     { label: "Active", value: "active" },
@@ -273,6 +292,13 @@ async function loadBlocks() {
     const res = await get(apiURL + "?" + params)
     blocks.value = res.success ? res.result : []
     loading.value = false
+}
+
+// Filter changes both reload the list and update the URL; the route watcher
+// guards against re-fetching on our own URL write.
+function reload() {
+    syncFiltersToUrl()
+    loadBlocks()
 }
 
 async function loadSectionPaths() {
@@ -312,6 +338,34 @@ async function restoreBlock(block: CmsContentBlock) {
     $q.notify({ type: "positive", message: "Content block restored" })
     loadBlocks()
 }
+
+// Re-sync filters when in-app navigation reuses this view with a different query
+// (e.g. a hub deep-link or re-clicked nav link). The equality guard skips our own
+// syncFiltersToUrl write, which would otherwise trigger a redundant fetch.
+watch(
+    () => route.query,
+    (query) => {
+        const next = {
+            status: typeof query.status === "string" ? query.status : "active",
+            system: typeof query.system === "string" ? query.system : null,
+            viperSectionPath: typeof query.section === "string" ? query.section : null,
+            search: typeof query.search === "string" ? query.search : "",
+            publicOnly: query.public === "1",
+        }
+        const f = filters.value
+        if (
+            next.status === f.status &&
+            next.system === f.system &&
+            next.viperSectionPath === f.viperSectionPath &&
+            next.search === f.search &&
+            next.publicOnly === f.publicOnly
+        ) {
+            return
+        }
+        filters.value = next
+        loadBlocks()
+    },
+)
 
 onMounted(() => {
     loadSectionPaths()
