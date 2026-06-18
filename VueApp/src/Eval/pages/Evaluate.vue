@@ -25,27 +25,29 @@
                 bordered
                 class="q-mb-md"
             >
-                <q-item role="presentation">
-                    <q-item-section
-                        avatar
-                        class="q-pr-md"
-                    >
-                        <q-avatar
-                            size="90px"
-                            square
-                            class="fit"
+                <q-card-section class="q-pa-sm">
+                    <q-item role="presentation">
+                        <q-item-section
+                            avatar
+                            class="q-pr-md"
                         >
-                            <q-img
-                                :src="`${PHOTO_BASE_URL}${student.mailId}&altphoto=1`"
-                                :alt="`${student.name}'s photo`"
-                            />
-                        </q-avatar>
-                    </q-item-section>
-                    <q-item-section>
-                        <q-item-label class="text-h6">{{ student.name }}</q-item-label>
-                        <q-item-label caption>Clinical Rotation Evaluation</q-item-label>
-                    </q-item-section>
-                </q-item>
+                            <q-avatar
+                                size="90px"
+                                square
+                                class="fit"
+                            >
+                                <q-img
+                                    :src="`${PHOTO_BASE_URL}${student.mailId}&altphoto=1`"
+                                    :alt="`${student.name}'s photo`"
+                                />
+                            </q-avatar>
+                        </q-item-section>
+                        <q-item-section>
+                            <q-item-label class="text-h6">{{ student.name }}</q-item-label>
+                            <q-item-label caption>Clinical Rotation Evaluation</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                </q-card-section>
             </q-card>
 
             <q-banner
@@ -62,6 +64,29 @@
                 For each of the following competencies, please assess the student's current progression by providing the
                 target milestone they have achieved. If you feel you have not observed a competency, mark NA.
             </q-banner>
+
+            <!-- Progress indicator -->
+            <div class="progress-sticky q-mb-md">
+                <div class="row items-center justify-between q-px-xs">
+                    <span class="text-caption text-grey-7">Competency ratings</span>
+                    <span class="text-caption text-grey-7 row items-center">
+                        <q-icon
+                            v-if="allAnswered"
+                            name="check_circle"
+                            color="positive"
+                            size="14px"
+                            class="q-mr-xs"
+                        />
+                        {{ answeredCount }} / {{ QUESTIONS.length }}
+                    </span>
+                </div>
+                <q-linear-progress
+                    :value="QUESTIONS.length ? answeredCount / QUESTIONS.length : 0"
+                    :color="allAnswered ? 'green-9' : 'positive'"
+                    track-color="grey-5"
+                    size="4px"
+                />
+            </div>
 
             <!-- Scale questions -->
             <EvalScaleQuestion
@@ -303,6 +328,9 @@ const success = ref(false)
 
 const student = computed(() => students.find((s) => s.id === studentId) ?? null)
 
+const answeredCount = computed(() => QUESTIONS.value.filter((q) => answers.value[q.id] !== undefined).length)
+const allAnswered = computed(() => QUESTIONS.value.length > 0 && answeredCount.value === QUESTIONS.value.length)
+
 function submit() {
     success.value = true
     answers.value = {}
@@ -318,5 +346,28 @@ h2 {
     font-size: 1.4rem;
     font-weight: 400;
 }
-</style>
 
+.progress-sticky {
+    position: sticky;
+    top: 100px; /* Desktop: blue header + yellow navigation + padding */
+    z-index: 5;
+    background: #eceff1;
+    border-radius: 6px;
+    padding: 4px 8px 8px 8px;
+    border: 1px solid silver;
+}
+
+/* Quasar breakpoint: gt-sm (yellow header visible when > 1023px) */
+@media (width <= 1023px) and (width >= 600px) {
+    .progress-sticky {
+        top: 90px; /* Tablet: blue header + padding when yellow header collapses */
+    }
+}
+
+/* Quasar xs breakpoint: mobile screens */
+@media (width <= 599px) {
+    .progress-sticky {
+        top: 65px; /* Mobile: reduced spacing for smaller screens */
+    }
+}
+</style>

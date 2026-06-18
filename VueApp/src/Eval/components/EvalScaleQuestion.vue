@@ -4,8 +4,20 @@
         bordered
         class="q-mb-sm overflow-hidden"
     >
-        <div class="question-text q-px-sm q-py-xs">
-            <div class="text-weight-medium">{{ questionText }}</div>
+        <div
+            class="question-text q-px-sm q-py-xs q--avoid-card-border"
+            :class="{ 'question-text--answered': isAnswered }"
+        >
+            <div class="row no-wrap items-start">
+                <div class="text-weight-medium col">{{ questionText }}</div>
+                <q-icon
+                    v-if="isAnswered"
+                    name="check_circle"
+                    color="positive"
+                    size="16px"
+                    class="q-ml-sm"
+                />
+            </div>
             <ul
                 v-if="iscs && iscs.length"
                 class="isc-list"
@@ -18,7 +30,10 @@
                 </li>
             </ul>
         </div>
-        <div class="scale-row">
+        <div
+            class="scale-row q--avoid-card-border"
+            :class="{ 'question-text--answered': isAnswered }"
+        >
             <div
                 v-for="seg in SEGMENTS"
                 :key="seg.key"
@@ -30,6 +45,7 @@
                     <q-icon
                         v-if="levelDescription(seg.levelId)"
                         name="info"
+                        size="18px"
                         class="scale-info-icon"
                     >
                         <q-tooltip
@@ -62,6 +78,26 @@
                     </label>
                 </div>
             </div>
+            <!-- N/A option -->
+            <div class="scale-seg scale-seg--na">
+                <div class="scale-head scale-head--na">
+                    <span>N/A</span>
+                </div>
+                <div class="scale-opts scale-opts--na">
+                    <label
+                        class="scale-opt na-opt"
+                        :for="`q_${questionId}_na`"
+                    >
+                        <input
+                            :id="`q_${questionId}_na`"
+                            type="radio"
+                            :name="`q_${questionId}`"
+                            :value="null"
+                            v-model="model"
+                        />
+                    </label>
+                </div>
+            </div>
         </div>
     </q-card>
 </template>
@@ -73,7 +109,7 @@ import type { MilestoneLevel } from "@/CTS/types"
 const props = defineProps<{
     questionId: number | string
     questionText: string
-    modelValue: number | null
+    modelValue: number | null | undefined
     levels: MilestoneLevel[]
     iscs?: { name: string }[]
 }>()
@@ -84,8 +120,10 @@ const emit = defineEmits<{
 
 const model = computed({
     get: () => props.modelValue,
-    set: (val) => emit("update:modelValue", val),
+    set: (val: number | null) => emit("update:modelValue", val),
 })
+
+const isAnswered = computed(() => props.modelValue !== undefined)
 
 function levelDescription(levelId: number) {
     return props.levels.find((l) => l.levelId === levelId)?.description?.trim() || null
@@ -104,9 +142,15 @@ const SEGMENTS = [
 .question-text {
     background: #deeaf3; /* var(--ucdavis-blue-10); */
     border-bottom: 1px solid var(--ucdavis-blue-20);
+    border-left: 3px solid transparent;
     font-size: 0.85rem;
     line-height: 1.45;
     color: #1a3a52; /* var(--ucdavis-blue-100); */
+}
+
+.question-text--answered,
+.scale-row.question-text--answered {
+    border-left-color: #4caf50;
 }
 
 .isc-list {
@@ -131,6 +175,8 @@ const SEGMENTS = [
 .scale-row {
     display: flex;
     width: 100%;
+    border-left: 3px solid transparent;
+    background: #deeaf3; /* var(--ucdavis-blue-10); */
 }
 
 .scale-seg {
@@ -153,6 +199,7 @@ const SEGMENTS = [
     font-size: 0.8rem;
     font-weight: 700;
     padding: 3px 2px;
+    min-height: 26px;
     border-bottom: 1px solid rgb(255 255 255 / 30%);
     white-space: nowrap;
     overflow: hidden;
@@ -190,8 +237,15 @@ const SEGMENTS = [
     min-width: 24px;
 }
 
-.scale-opt:hover, .scale-opt:focus {
+.scale-opt:hover,
+.scale-opt:focus {
     background: rgb(0 0 0 / 9%);
+}
+
+.scale-opt:has(input:checked) {
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+    border-radius: 3px;
 }
 
 .scale-num {
@@ -291,6 +345,29 @@ input[type="radio"] {
     background: #357898;
     color: #fff;
 }
+
+.scale-seg--na {
+    cursor: pointer;
+    min-width: 40px;
+    flex: 1;
+}
+
+.scale-head--na {
+    background: #78909c;
+    color: #fff;
+}
+
+.scale-opts--na {
+    background: #eceff1;
+}
+
+.na-opt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
 </style>
 
 <!-- QTooltip content is rendered through a portal outside this component's DOM subtree,
@@ -303,4 +380,3 @@ input[type="radio"] {
     color: #000;
 }
 </style>
-
