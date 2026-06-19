@@ -218,7 +218,7 @@ VIPER is built on Quasar; the prescription is **always use Quasar components**, 
 
 ### Dialogs
 
-- **Every `q-dialog`** needs (1) an accessible name via `aria-labelledby` → the title `id` (or `aria-label` if there's no visible title), and (2) a visible close affordance. Persistent SPA dialogs use `@click="handleClose"` instead of `v-close-popup`. Error banners go in a separate `q-card-section` below the header. **Footer actions are Submit + Delete only — no Cancel** (the X dismisses). Canonical header pattern:
+- **Every `q-dialog`** needs (1) an accessible name via `aria-labelledby` → the title `id` (or `aria-label` if there's no visible title), and (2) a visible close affordance. Persistent SPA dialogs use `@click="handleClose"` instead of `v-close-popup`. Error banners go in a separate `q-card-section` below the header. **Footer actions:** confirmation and simple action dialogs use Submit + Delete only, with no Cancel (the X and Escape dismiss). **Data-entry form dialogs may add a footer Cancel** beside the primary action: once a user has been filling in fields, an explicit Cancel reads more clearly than relying on the X to discard. When present, Cancel, the X, and Escape all route through the same `handleClose` (carrying the unsaved-changes guard on persistent dialogs). Canonical header pattern:
 
   ```html
   <q-dialog aria-labelledby="my-dialog-title" ...>
