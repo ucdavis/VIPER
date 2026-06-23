@@ -680,15 +680,14 @@
     public List<PermissionNode> BuildPermissionTree(List<string> permissions, string category)
     {
         var roots = new List<PermissionNode>();
-        foreach (var perm in permissions)
-        {
-            var parts = perm.Split('.');
-            var partsToProcess = parts.Skip(1).ToList();
-            if (!partsToProcess.Any())
-            {
-                continue;
-            }
+        var permissionParts = permissions
+            .Select(perm => perm.Split('.'))
+            .Where(parts => parts.Length > 1)
+            .ToList();
 
+        foreach (var parts in permissionParts)
+        {
+            var partsToProcess = parts.Skip(1).ToList();
             var currentList = roots;
             for (int i = 0; i < partsToProcess.Count; i++)
             {

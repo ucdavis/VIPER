@@ -101,7 +101,7 @@ namespace Viper.test.Services
                 if (result == null)
                 {
                     _output.WriteLine("[DEBUG] GetUserInfoAsync returned null!");
-                    Assert.Fail("GetUserInfoAsync returned null");
+                    throw new Xunit.Sdk.XunitException("GetUserInfoAsync returned null");
                 }
 
                 _output.WriteLine($"[DEBUG] IamId: '{result.IamId}'");
