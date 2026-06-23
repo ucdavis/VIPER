@@ -89,6 +89,33 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
             .Where(c => !existingCrnUnits.Contains((c.Crn, (decimal)c.Units)))
             .ToList();
 
+        // Map each CRN to its IOR-resolved custodial department code from the vw_xtnd_baseinfo view.
+        // The view derives that code from the course POA (instructor of record) when the baseinfo
+        // dept is not an SVM academic department. The legacy harvest relied on it; without it,
+        // non-SVM-subject courses such as IMM 294 resolve to "UNK".
+        // Only the scheduled CRNs are ever looked up, so filter the registrar-wide view to them
+        // instead of loading every row for the term. BaseinfoCrn is CHAR(5): compare the column bare
+        // (keeping the predicate SARGable) and pass trimmed CRNs, relying on SQL Server's
+        // trailing-space-insensitive IN to match the padded column.
+        var scheduleCrns = allScheduleCourses.Select(c => c.Crn.Trim()).Distinct().ToList();
+        var custodialByCrn = (await context.CoursesContext.VwXtndBaseinfos
+                .AsNoTracking()
+                .Where(v => v.BaseinfoTermCode == termCodeStr
+                            && v.CustodialDeptCode != null
+                            && EF.Parameter(scheduleCrns).Contains(v.BaseinfoCrn))
+                .Select(v => new { v.BaseinfoCrn, v.CustodialDeptCode })
+                .ToListAsync(ct))
+            .GroupBy(v => v.BaseinfoCrn.Trim())
+            // OrderBy makes the pick deterministic when a CRN has multiple instructors (POAs)
+            // whose resolved custodial_dept_code differs; an unordered First() would be arbitrary.
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.CustodialDeptCode).First().CustodialDeptCode, StringComparer.OrdinalIgnoreCase);
+
+        // Layer the IOR-resolved custodial code from the view on top of subject/dept resolution.
+        // Shared by the not-in-CREST and in-CREST preview loops below.
+        string ResolveCustDept(string subjCode, string deptCode, string crn) =>
+            CustodialDepartmentResolver.ResolveWithCustodialCode(
+                subjCode, deptCode, custodialByCrn.GetValueOrDefault(crn.Trim()));
+
         foreach (var course in allNonCrestCourses)
         {
             context.Preview.NonCrestCourses.Add(new HarvestCoursePreview
@@ -99,7 +126,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 SeqNumb = course.SeqNumb,
                 Enrollment = course.Enrollment,
                 Units = (decimal)course.Units,
-                CustDept = CustodialDepartmentResolver.Resolve(course.SubjCode, course.DeptCode),
+                CustDept = ResolveCustDept(course.SubjCode, course.DeptCode, course.Crn),
                 Source = EffortConstants.SourceNonCrest
             });
         }
@@ -119,7 +146,7 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
                 SeqNumb = course.SeqNumb,
                 Enrollment = course.Enrollment,
                 Units = (decimal)course.Units,
-                CustDept = CustodialDepartmentResolver.Resolve(course.SubjCode, course.DeptCode),
+                CustDept = ResolveCustDept(course.SubjCode, course.DeptCode, course.Crn),
                 Source = EffortConstants.SourceInCrest
             });
         }

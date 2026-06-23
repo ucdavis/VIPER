@@ -6,6 +6,7 @@ using Viper.Areas.Effort.Models.DTOs;
 using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Effort.Services;
@@ -16,6 +17,7 @@ namespace Viper.Areas.Effort.Services;
 public class CourseService : ICourseService
 {
     private readonly EffortDbContext _context;
+    private readonly CoursesContext _coursesContext;
     private readonly IEffortAuditService _auditService;
     private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<CourseService> _logger;
@@ -24,11 +26,13 @@ public class CourseService : ICourseService
 
     public CourseService(
         EffortDbContext context,
+        CoursesContext coursesContext,
         IEffortAuditService auditService,
         ICourseClassificationService classificationService,
         ILogger<CourseService> logger)
     {
         _context = context;
+        _coursesContext = coursesContext;
         _auditService = auditService;
         _classificationService = classificationService;
         _logger = logger;
@@ -205,9 +209,25 @@ public class CourseService : ICourseService
             ? request.Units.Value
             : bannerCourse.UnitLow;
 
-        // Determine custodial department - check subject code first, then fall back to dept code mapping
-        // For SVM courses, the subject code (e.g., "DVM", "VME", "PHR") often matches the custodial department
-        var custDept = CustodialDepartmentResolver.Resolve(bannerCourse.SubjCode, bannerCourse.DeptCode);
+        // Determine custodial department. Mirror the harvest / legacy getCustDept: use the
+        // IOR-resolved custodial_dept_code from vw_xtnd_baseinfo so non-SVM-subject courses
+        // (e.g. IMM 294, whose baseinfo dept is not an SVM department) get the instructor-of-record's
+        // department instead of "UNK".
+        var termCodeStr = request.TermCode.ToString();
+        var crn = bannerCourse.Crn;
+        // Compare BaseinfoCrn (a CHAR(5) fixed-length column) without wrapping it in Trim() so the
+        // query can seek the underlying baseinfo index; SQL Server ignores trailing spaces in string
+        // comparisons, so the padded column still matches the trimmed CRN. OrderBy makes the pick
+        // deterministic: a CRN with multiple instructors (POAs) yields multiple rows whose
+        // custodial_dept_code can differ, and an unordered FirstOrDefault would return an arbitrary one.
+        var custodialDeptCode = await _coursesContext.VwXtndBaseinfos
+            .AsNoTracking()
+            .Where(v => v.BaseinfoTermCode == termCodeStr && v.BaseinfoCrn == crn.Trim() && v.CustodialDeptCode != null)
+            .OrderBy(v => v.CustodialDeptCode)
+            .Select(v => v.CustodialDeptCode)
+            .FirstOrDefaultAsync(ct);
+
+        var custDept = CustodialDepartmentResolver.ResolveWithCustodialCode(bannerCourse.SubjCode, bannerCourse.DeptCode, custodialDeptCode);
 
         // Create the course
         var course = new EffortCourse
@@ -222,25 +242,7 @@ public class CourseService : ICourseService
             CustDept = custDept
         };
 
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-
-        _context.Courses.Add(course);
-        await _context.SaveChangesAsync(ct);
-
-        _auditService.AddCourseChangeAudit(course.Id, course.TermCode, EffortAuditActions.CreateCourse,
-            null,
-            new
-            {
-                course.Crn,
-                course.SubjCode,
-                course.CrseNumb,
-                course.SeqNumb,
-                course.Enrollment,
-                course.Units,
-                course.CustDept
-            });
-        await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+        await PersistNewCourseAsync(course, ct);
 
         _logger.LogInformation("Imported course {SubjCode} {CrseNumb}-{SeqNumb} (CRN: {Crn}) for term {TermCode}",
             LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), LogSanitizer.SanitizeId(course.SeqNumb), LogSanitizer.SanitizeId(course.Crn), course.TermCode);
@@ -262,6 +264,20 @@ public class CourseService : ICourseService
             CustDept = request.CustDept.Trim().ToUpperInvariant()
         };
 
+        await PersistNewCourseAsync(course, ct);
+
+        _logger.LogInformation("Created manual course {SubjCode} {CrseNumb}-{SeqNumb} (CRN: {Crn}) for term {TermCode}",
+            LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), LogSanitizer.SanitizeId(course.SeqNumb), LogSanitizer.SanitizeId(course.Crn), course.TermCode);
+
+        return ToDto(course);
+    }
+
+    /// <summary>
+    /// Persist a new course inside a transaction and write its create-course audit entry.
+    /// Shared by Banner import and manual creation.
+    /// </summary>
+    private async Task PersistNewCourseAsync(EffortCourse course, CancellationToken ct)
+    {
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         _context.Courses.Add(course);
@@ -281,11 +297,6 @@ public class CourseService : ICourseService
             });
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-
-        _logger.LogInformation("Created manual course {SubjCode} {CrseNumb}-{SeqNumb} (CRN: {Crn}) for term {TermCode}",
-            LogSanitizer.SanitizeId(course.SubjCode), LogSanitizer.SanitizeId(course.CrseNumb), LogSanitizer.SanitizeId(course.SeqNumb), LogSanitizer.SanitizeId(course.Crn), course.TermCode);
-
-        return ToDto(course);
     }
 
     public async Task<CourseDto?> UpdateCourseAsync(int courseId, UpdateCourseRequest request, CancellationToken ct = default)

@@ -106,4 +106,56 @@ public sealed class CustodialDepartmentResolverTests
     }
 
     #endregion
+
+    #region Custodial (IOR-resolved) dept code resolution
+
+    [Fact]
+    public void ResolveWithCustodialCode_MapsIorCustodialCode_WhenSubjectAndBaseinfoDeptUnknown()
+    {
+        // IMM 294 shape: subject "IMM" is not an SVM dept and the baseinfo dept is not one of the
+        // six academic depts, but vw_xtnd_baseinfo resolved custodial_dept_code 072067 (PHR) via the IOR.
+        var result = CustodialDepartmentResolver.ResolveWithCustodialCode("IMM", "ANS", "072067");
+        Assert.Equal("PHR", result);
+    }
+
+    [Fact]
+    public void ResolveWithCustodialCode_PadsShortCustodialCode_WithLeadingZeros()
+    {
+        var result = CustodialDepartmentResolver.ResolveWithCustodialCode("IMM", "ANS", "72067");
+        Assert.Equal("PHR", result);
+    }
+
+    [Fact]
+    public void ResolveWithCustodialCode_PrefersBaseinfoDept_WhenAlreadyValidSvmDept()
+    {
+        // Legacy tier 1: a baseinfo dept that is already an SVM dept wins over the custodial code.
+        var result = CustodialDepartmentResolver.ResolveWithCustodialCode("IMM", "APC", "072067");
+        Assert.Equal("APC", result);
+    }
+
+    [Fact]
+    public void ResolveWithCustodialCode_PrefersSubjectCode_WhenValidSvmDept()
+    {
+        var result = CustodialDepartmentResolver.ResolveWithCustodialCode("VME", "ANS", "072067");
+        Assert.Equal("VME", result);
+    }
+
+    [Fact]
+    public void ResolveWithCustodialCode_FallsBackToBaseinfoNumeric_WhenNoCustodialCode()
+    {
+        var result = CustodialDepartmentResolver.ResolveWithCustodialCode("IMM", "072030", null);
+        Assert.Equal("VME", result);
+    }
+
+    [Theory]
+    [InlineData("IMM", "ANS", null)]
+    [InlineData("IMM", "ANS", "999999")]
+    [InlineData(null, null, null)]
+    public void ResolveWithCustodialCode_ReturnsUNK_WhenNoMatch(string? subj, string? dept, string? custodial)
+    {
+        var result = CustodialDepartmentResolver.ResolveWithCustodialCode(subj, dept, custodial);
+        Assert.Equal("UNK", result);
+    }
+
+    #endregion
 }
