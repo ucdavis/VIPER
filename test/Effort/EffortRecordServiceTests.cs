@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.Effort;
@@ -71,6 +72,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             courseClassificationService,
             _rCourseServiceMock,
             _userHelperMock,
+            Options.Create(new EffortSettings { AutoCreateGenericRCourse = true }),
             _loggerMock);
 
         SeedTestData();
@@ -1487,6 +1489,55 @@ public sealed class EffortRecordServiceTests : IDisposable
             TestTermCode,
             TestUserId,
             RCourseCreationContext.OnDemand,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateEffortRecordAsync_DoesNotCallRCourseService_WhenAutoCreateDisabled()
+    {
+        // Arrange - first non-R-course record, but generic R-course auto-create disabled
+        var serviceWithRCourseDisabled = new EffortRecordService(
+            _context,
+            _rapsContext,
+            _auditServiceMock,
+            _instructorServiceMock,
+            new CourseClassificationService(),
+            _rCourseServiceMock,
+            _userHelperMock,
+            Options.Create(new EffortSettings { AutoCreateGenericRCourse = false }),
+            _loggerMock);
+
+        var newPersonId = 202;
+        _context.Persons.Add(new EffortPerson
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            FirstName = "Disabled",
+            LastName = "Instructor",
+            EffortDept = "VME"
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new CreateEffortRecordRequest
+        {
+            PersonId = newPersonId,
+            TermCode = TestTermCode,
+            CourseId = TestCourseId, // VET 410 - not an R-course
+            EffortTypeId = "LEC",
+            RoleId = 1,
+            EffortValue = 40
+        };
+
+        // Act
+        var (result, _) = await serviceWithRCourseDisabled.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert - record created, but no generic R-course auto-created
+        Assert.NotNull(result);
+        await _rCourseServiceMock.DidNotReceive().CreateRCourseEffortRecordAsync(
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<RCourseCreationContext>(),
             Arg.Any<CancellationToken>());
     }
 

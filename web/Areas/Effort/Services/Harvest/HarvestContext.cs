@@ -55,6 +55,11 @@ public sealed class HarvestContext
     public Dictionary<string, string>? DeptSimpleNameLookup { get; set; }
 
     /// <summary>
+    /// Effort title codes to exclude from harvest (emeritus/recall appointments).
+    /// </summary>
+    public HashSet<string>? ExcludedTitleCodes { get; set; }
+
+    /// <summary>
     /// Warnings accumulated during harvest.
     /// </summary>
     public List<HarvestWarning> Warnings { get; } = [];

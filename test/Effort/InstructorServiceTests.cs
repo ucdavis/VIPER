@@ -1114,6 +1114,75 @@ public sealed class InstructorServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task BatchResolveDepartmentsAsync_ReturnsVme_ForChristineJohnson_WithNoAcademicJob()
+    {
+        // Christine Johnson (00129082) has no academic-department job in AAUD and a
+        // non-academic home/effort dept (072016), so the dept cannot be auto-derived.
+        // The override pins her to VME.
+        const string mothraId = "00129082";
+        _aaudContext.Ids.Add(new Id
+        {
+            IdsPKey = "CJOHNSON01",
+            IdsTermCode = "202410",
+            IdsMothraid = mothraId,
+            IdsClientid = mothraId
+        });
+        _aaudContext.Employees.Add(new Employee
+        {
+            EmpPKey = "CJOHNSON01",
+            EmpTermCode = "202410",
+            EmpClientid = mothraId,
+            EmpHomeDept = "072016",
+            EmpAltDeptCode = "",
+            EmpEffortHomeDept = "072016",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync([mothraId], 202410, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("VME", result[mothraId]);
+    }
+
+    [Fact]
+    public async Task BatchResolveDepartmentsAsync_ReturnsVsr_ForMichaelMison_WithNonAcademicJob()
+    {
+        // Michael Mison (02493928) only has a VMTH job (non-academic); the override
+        // records his effort to VSR regardless of his AAUD job/employee depts.
+        const string mothraId = "02493928";
+        _aaudContext.Ids.Add(new Id
+        {
+            IdsPKey = "MISON00001",
+            IdsTermCode = "202410",
+            IdsMothraid = mothraId,
+            IdsClientid = mothraId
+        });
+        _aaudContext.Employees.Add(new Employee
+        {
+            EmpPKey = "MISON00001",
+            EmpTermCode = "202410",
+            EmpClientid = mothraId,
+            EmpHomeDept = "072000",
+            EmpAltDeptCode = "",
+            EmpEffortHomeDept = "072000",
+            EmpSchoolDivision = "VM",
+            EmpCbuc = "99",
+            EmpStatus = "A"
+        });
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _instructorService.BatchResolveDepartmentsAsync([mothraId], 202410, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("VSR", result[mothraId]);
+    }
+
+    [Fact]
     public async Task BatchResolveDepartmentsAsync_ReturnsAcademicDeptFromJobs_WhenAvailable()
     {
         // Arrange

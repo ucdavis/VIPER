@@ -168,6 +168,14 @@ public interface IInstructorService
     Task<Dictionary<string, string>?> GetDepartmentSimpleNameLookupAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// Get a cached set of effort title codes (dvtTitle_Code values) whose title name denotes
+    /// an emeritus or recall appointment, to be excluded from harvest. Empty set if unavailable.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Set of title codes whose names match "EMERITUS" or "RECALL" (e.g. the codes for "PROF EMERITUS" or "RECALL FACULTY").</returns>
+    Task<HashSet<string>> GetExcludedTitleCodesAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Resolve departments for multiple instructors in a single batch.
     /// Uses the full resolution chain (override → jobs → employee fields → fallback).
     /// </summary>

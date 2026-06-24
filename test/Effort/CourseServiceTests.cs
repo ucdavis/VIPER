@@ -7,6 +7,7 @@ using Viper.Areas.Effort.Models.DTOs.Requests;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
+using Viper.Classes.SQLContext;
 
 namespace Viper.test.Effort;
 
@@ -18,6 +19,7 @@ namespace Viper.test.Effort;
 public sealed class CourseServiceTests : IDisposable
 {
     private readonly EffortDbContext _context;
+    private readonly CoursesContext _coursesContext;
     private readonly IEffortAuditService _auditServiceMock;
     private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<CourseService> _loggerMock;
@@ -31,6 +33,12 @@ public sealed class CourseServiceTests : IDisposable
             .Options;
 
         _context = new EffortDbContext(effortOptions);
+
+        var coursesOptions = new DbContextOptionsBuilder<CoursesContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        _coursesContext = new CoursesContext(coursesOptions);
+
         _auditServiceMock = Substitute.For<IEffortAuditService>();
         _classificationService = new CourseClassificationService();
         _loggerMock = Substitute.For<ILogger<CourseService>>();
@@ -39,12 +47,13 @@ public sealed class CourseServiceTests : IDisposable
         _auditServiceMock
             .AddCourseChangeAudit(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<object?>(), Arg.Any<object?>());
 
-        _courseService = new CourseService(_context, _auditServiceMock, _classificationService, _loggerMock);
+        _courseService = new CourseService(_context, _coursesContext, _auditServiceMock, _classificationService, _loggerMock);
     }
 
     public void Dispose()
     {
         _context.Dispose();
+        _coursesContext.Dispose();
     }
 
     #region GetCoursesAsync Tests
