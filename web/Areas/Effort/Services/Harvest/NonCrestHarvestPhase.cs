@@ -93,9 +93,16 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         // The view derives that code from the course POA (instructor of record) when the baseinfo
         // dept is not an SVM academic department. The legacy harvest relied on it; without it,
         // non-SVM-subject courses such as IMM 294 resolve to "UNK".
+        // Only the scheduled CRNs are ever looked up, so filter the registrar-wide view to them
+        // instead of loading every row for the term. BaseinfoCrn is CHAR(5): compare the column bare
+        // (keeping the predicate SARGable) and pass trimmed CRNs, relying on SQL Server's
+        // trailing-space-insensitive IN to match the padded column.
+        var scheduleCrns = allScheduleCourses.Select(c => c.Crn.Trim()).Distinct().ToList();
         var custodialByCrn = (await context.CoursesContext.VwXtndBaseinfos
                 .AsNoTracking()
-                .Where(v => v.BaseinfoTermCode == termCodeStr && v.CustodialDeptCode != null)
+                .Where(v => v.BaseinfoTermCode == termCodeStr
+                            && v.CustodialDeptCode != null
+                            && EF.Parameter(scheduleCrns).Contains(v.BaseinfoCrn))
                 .Select(v => new { v.BaseinfoCrn, v.CustodialDeptCode })
                 .ToListAsync(ct))
             .GroupBy(v => v.BaseinfoCrn.Trim())
