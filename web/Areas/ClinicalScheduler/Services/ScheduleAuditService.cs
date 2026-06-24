@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Constants;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.ClinicalScheduler;
@@ -139,6 +140,141 @@ namespace Viper.Areas.ClinicalScheduler.Services
             {
                 _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
                 throw new InvalidOperationException($"Failed to retrieve audit history for rotation {rotationId}, week {weekId}. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditLogEntryDto>> GetAuditLogAsync(
+            int gradYear,
+            int? rotationId,
+            string? person,
+            string? modifiedBy,
+            string? area,
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Scope to the grad year via vWeek (a week belongs to a grad year there),
+                // and left-join names so a missing person/rotation lookup never drops a row.
+                var query =
+                    from a in _context.ScheduleAudits.AsNoTracking()
+                    join vw in _context.VWeeks on a.WeekId equals (int?)vw.WeekId
+                    where vw.GradYear == gradYear
+                    join rot in _context.Rotations on a.RotationId equals (int?)rot.RotId into rotJoin
+                    from rot in rotJoin.DefaultIfEmpty()
+                    join ap in _context.Persons on a.MothraId equals ap.IdsMothraId into affectedJoin
+                    from ap in affectedJoin.DefaultIfEmpty()
+                    join mp in _context.Persons on a.ModifiedBy equals mp.IdsMothraId into modifierJoin
+                    from mp in modifierJoin.DefaultIfEmpty()
+                    select new { Audit = a, Week = vw, Rotation = rot, Affected = ap, Modifier = mp };
+
+                if (rotationId.HasValue)
+                {
+                    query = query.Where(x => x.Audit.RotationId == rotationId.Value);
+                }
+                if (!string.IsNullOrWhiteSpace(area))
+                {
+                    query = query.Where(x => x.Audit.Area == area);
+                }
+                if (!string.IsNullOrWhiteSpace(modifiedBy))
+                {
+                    query = query.Where(x => x.Audit.ModifiedBy == modifiedBy);
+                }
+                if (fromDate.HasValue)
+                {
+                    query = query.Where(x => x.Audit.TimeStamp >= fromDate.Value);
+                }
+                if (toDate.HasValue)
+                {
+                    query = query.Where(x => x.Audit.TimeStamp <= toDate.Value);
+                }
+                if (!string.IsNullOrWhiteSpace(person))
+                {
+                    query = query.Where(x => x.Audit.MothraId == person);
+                }
+
+                return await query
+                    .OrderByDescending(x => x.Audit.TimeStamp)
+                    .Take(2500)
+                    .Select(x => new AuditLogEntryDto
+                    {
+                        ScheduleAuditId = x.Audit.ScheduleAuditId,
+                        Area = x.Audit.Area,
+                        MothraId = x.Audit.MothraId,
+                        PersonName = x.Affected != null ? x.Affected.PersonDisplayFullName : (x.Audit.MothraId ?? string.Empty),
+                        Action = x.Audit.Action,
+                        RotationId = x.Audit.RotationId,
+                        RotationName = x.Rotation != null ? x.Rotation.Name : string.Empty,
+                        WeekId = x.Audit.WeekId,
+                        WeekNum = x.Week.WeekNum,
+                        WeekStart = x.Week.DateStart,
+                        ModifiedBy = x.Audit.ModifiedBy,
+                        ModifiedByName = x.Modifier != null ? x.Modifier.PersonDisplayFullName : x.Audit.ModifiedBy,
+                        TimeStamp = x.Audit.TimeStamp,
+                    })
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit log for grad year {GradYear}", gradYear);
+                throw new InvalidOperationException("Failed to retrieve the audit log. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditModifierDto>> GetAuditModifiersAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Left join so a modifier whose MothraId no longer resolves in Persons still
+                // appears in the filter, matching the raw-ID fallback in GetAuditLogAsync.
+                return await (
+                    from a in _context.ScheduleAudits.AsNoTracking()
+                    where a.ModifiedBy != ""
+                    join p in _context.Persons on a.ModifiedBy equals p.IdsMothraId into modifierJoin
+                    from p in modifierJoin.DefaultIfEmpty()
+                    select new AuditModifierDto
+                    {
+                        MothraId = a.ModifiedBy,
+                        DisplayName = p != null ? p.PersonDisplayFullName : a.ModifiedBy,
+                    })
+                    .Distinct()
+                    .OrderBy(m => m.DisplayName)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit log modifiers");
+                throw new InvalidOperationException("Failed to retrieve the list of audit modifiers. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditModifierDto>> GetAuditPersonsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Left join so an affected person whose MothraId no longer resolves in Persons
+                // still appears in the filter, matching the raw-ID fallback in GetAuditLogAsync.
+                return await (
+                    from a in _context.ScheduleAudits.AsNoTracking()
+                    where a.MothraId != null
+                    join p in _context.Persons on a.MothraId equals p.IdsMothraId into affectedJoin
+                    from p in affectedJoin.DefaultIfEmpty()
+                    select new AuditModifierDto
+                    {
+                        MothraId = a.MothraId!,
+                        DisplayName = p != null ? p.PersonDisplayFullName : a.MothraId!,
+                    })
+                    .Distinct()
+                    .OrderBy(m => m.DisplayName)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit log persons");
+                throw new InvalidOperationException("Failed to retrieve the list of audited persons. Please try again or contact support if the problem persists.", ex);
             }
         }
 
