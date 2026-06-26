@@ -17,6 +17,8 @@ namespace Viper.Areas.ClinicalScheduler.Models.DTOs.Responses
         public int? WeekId { get; set; }
         public int WeekNum { get; set; }
         public DateTime? WeekStart { get; set; }
+        public int TermCode { get; set; }
+        public string Term { get; set; } = string.Empty;
         public string ModifiedBy { get; set; } = string.Empty;
         public string ModifiedByName { get; set; } = string.Empty;
         public DateTime TimeStamp { get; set; }

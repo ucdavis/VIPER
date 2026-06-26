@@ -47,6 +47,7 @@ describe("auditLogPage - Access Control", () => {
         vi.mocked(AuditLogService.getAuditLog).mockResolvedValue({ result: [], success: true, errors: [] })
         vi.mocked(AuditLogService.getModifiers).mockResolvedValue({ result: [], success: true, errors: [] })
         vi.mocked(AuditLogService.getPersons).mockResolvedValue({ result: [], success: true, errors: [] })
+        vi.mocked(AuditLogService.getTerms).mockResolvedValue({ result: [], success: true, errors: [] })
         vi.mocked(RotationService.getRotations).mockResolvedValue({ result: [], success: true, errors: [] })
         vi.mocked(PageDataService.getPageData).mockResolvedValue({ currentGradYear: 2026, availableGradYears: [2026] })
     })

@@ -13,6 +13,7 @@ interface AuditLogEntry {
     weekId: number | null
     weekNum: number
     weekStart: string | null
+    term: string
     modifiedBy: string
     modifiedByName: string
     timeStamp: string
@@ -25,4 +26,10 @@ interface AuditModifier {
     displayName: string
 }
 
-export type { AuditLogEntry, AuditModifier }
+// A selectable term option for the audit trail "Term" filter, scoped to a grad year.
+interface AuditTerm {
+    termCode: number
+    term: string
+}
+
+export type { AuditLogEntry, AuditModifier, AuditTerm }
