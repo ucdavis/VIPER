@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Web;
@@ -471,7 +472,7 @@ namespace Viper.Classes.Utilities
                 return null;
             }
 
-            foreach (var format in _formats)
+            foreach (var format in _formats.Where(f => DateTime.TryParseExact(value, f, null, System.Globalization.DateTimeStyles.None, out _)))
             {
                 if (DateTime.TryParseExact(value, format, null, System.Globalization.DateTimeStyles.None, out var result))
                 {

@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Classes.SQLContext;
@@ -397,14 +398,10 @@ namespace Viper.Areas.Directory.Services
 
                 if (nameList.Any())
                 {
-                    var names = new List<string>();
-                    foreach (var name in nameList)
-                    {
-                        if (!string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
-                        {
-                            names.Add($"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})");
-                        }
-                    }
+                    var names = nameList
+                        .Where(name => !string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
+                        .Select(name => $"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})")
+                        .ToList();
                     return string.Join(", ", names);
                 }
                 
@@ -1103,15 +1100,11 @@ namespace Viper.Areas.Directory.Services
                     .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role)
                     .ToList();
 
-                foreach (var rm in filtered)
+                result.SystemRoles.AddRange(filtered.Select(rm => new SystemRole
                 {
-                    string displayName = rm.Role.DisplayName ?? rm.Role.Role;
-                    result.SystemRoles.Add(new SystemRole
-                    {
-                        System = system,
-                        DisplayName = FormatPermissionName(displayName)
-                    });
-                }
+                    System = system,
+                    DisplayName = FormatPermissionName(rm.Role.DisplayName ?? rm.Role.Role)
+                }));
             }
 
             var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
@@ -1322,22 +1315,17 @@ namespace Viper.Areas.Directory.Services
                     .ThenByDescending(p => p.Effdt)
                     .ToListAsync();
 
-                foreach (var history in historyData)
+                result.UCPathHistory.AddRange(historyData.Select(history => new UCPathResult
                 {
-                    var ucpathResult = new UCPathResult
-                    {
-                        JobCode = history.Jobcode,
-                        JobCodeDescription = history.JobcodeDesc,
-                        DepartmentId = history.Deptid,
-                        DepartmentDescription = history.DeptDesc,
-                        ActionDescription = history.ActionDescr,
-                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
-                        ReportsTo = GetReportsToName(history),
-                        ReportsToPosition = GetReportsToPosition(history)
-                    };
-
-                    result.UCPathHistory.Add(ucpathResult);
-                }
+                    JobCode = history.Jobcode,
+                    JobCodeDescription = history.JobcodeDesc,
+                    DepartmentId = history.Deptid,
+                    DepartmentDescription = history.DeptDesc,
+                    ActionDescription = history.ActionDescr,
+                    PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                    ReportsTo = GetReportsToName(history),
+                    ReportsToPosition = GetReportsToPosition(history)
+                }));
             }
             catch (Exception ex)
             {
@@ -1640,14 +1628,9 @@ namespace Viper.Areas.Directory.Services
                     var domains = isProd
                         ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
                         : new[] { "t3.ucdavis.edu" };
-                    foreach (var groupDn in allGroups)
-                    {
-                        var formattedGroup = AdFormat(groupDn, domains);
-                        if (!string.IsNullOrEmpty(formattedGroup))
-                        {
-                            result.ADMemberOf.Add(formattedGroup);
-                        }
-                    }
+                    result.ADMemberOf.AddRange(allGroups
+                        .Select(groupDn => AdFormat(groupDn, domains))
+                        .Where(formattedGroup => !string.IsNullOrEmpty(formattedGroup)));
 
                     // Sort the groups
                     result.ADMemberOf = result.ADMemberOf.OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
@@ -1718,15 +1701,12 @@ namespace Viper.Areas.Directory.Services
                 var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var name in temp)
                 {
-                    foreach (var middlePart in middleParts)
+                    foreach (var middlePart in middleParts.Where(middlePart => middlePart.Length > 0))
                     {
-                        if (middlePart.Length > 0)
+                        var variation = $"{name} {middlePart[0]}";
+                        if (!nameVariations.Contains(variation))
                         {
-                            var variation = $"{name} {middlePart[0]}";
-                            if (!nameVariations.Contains(variation))
-                            {
-                                nameVariations.Add(variation);
-                            }
+                            nameVariations.Add(variation);
                         }
                     }
                 }
@@ -1761,7 +1741,7 @@ namespace Viper.Areas.Directory.Services
             var queryUrl = $"{apiUrl}?query={Uri.EscapeDataString(query)}";
             httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
                 
-            var response = await httpClient.GetAsync(queryUrl);
+            using var response = await httpClient.GetAsync(queryUrl);
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
@@ -1769,27 +1749,24 @@ namespace Viper.Areas.Directory.Services
                     
                 if (graphqlResponse?.Data?.SearchUsers != null)
                 {
-                    bool foundMatch = false;
                     // Find matching user by first name
-                    foreach (var user in graphqlResponse.Data.SearchUsers)
+                    var matchedUser = graphqlResponse.Data.SearchUsers.FirstOrDefault(user =>
+                        nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)));
+
+                    if (matchedUser != null)
                     {
-                        if (nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            result.Valid = true;
-                            result.Id = user.Id;
-                            result.Initials = user.Initials;
-                            result.InstinctId = user.InstinctId;
-                            result.IsActive = user.IsActive;
-                            result.IsProtected = user.IsProtected;
-                            result.PasswordExpiresAt = user.PasswordExpiresAt;
-                            result.Status = user.Status;
-                            result.Username = user.Username;
-                            result.Roles = user.Roles?.Select(r => r.Label).ToList() ?? new List<string>();
-                            foundMatch = true;
-                            break;
-                        }
+                        result.Valid = true;
+                        result.Id = matchedUser.Id;
+                        result.Initials = matchedUser.Initials;
+                        result.InstinctId = matchedUser.InstinctId;
+                        result.IsActive = matchedUser.IsActive;
+                        result.IsProtected = matchedUser.IsProtected;
+                        result.PasswordExpiresAt = matchedUser.PasswordExpiresAt;
+                        result.Status = matchedUser.Status;
+                        result.Username = matchedUser.Username;
+                        result.Roles = matchedUser.Roles?.Select(r => r.Label).ToList() ?? new List<string>();
                     }
-                    if (!foundMatch)
+                    else
                     {
                         result.ErrorMessage = $"User found in API but no name match. Variations tried: {string.Join(", ", nameVariations)}. API users: {string.Join(", ", graphqlResponse.Data.SearchUsers.Select(u => $"{u.NameFirst} {u.NameLast}"))}";
                     }
@@ -1855,9 +1832,9 @@ namespace Viper.Areas.Directory.Services
                     new("scope", "api_access")
                 };
 
-                var formContent = new FormUrlEncodedContent(formParams);
+                using var formContent = new FormUrlEncodedContent(formParams);
                 Console.WriteLine("[INSTINCT AUTH] Sending token POST request...");
-                var response = await httpClient.PostAsync(tokenUrl, formContent);
+                using var response = await httpClient.PostAsync(tokenUrl, formContent);
                 Console.WriteLine($"[INSTINCT AUTH] Response Status Code: {response.StatusCode}");
                 
                 if (response.IsSuccessStatusCode)

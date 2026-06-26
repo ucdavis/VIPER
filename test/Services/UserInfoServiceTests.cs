@@ -2,21 +2,27 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.DirectoryServices.Protocols;
+using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
-using Viper.Areas.RAPS.Services;
-using Viper.Areas.RAPS.Models.Uinform;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using Viper.Models.AAUD;
+using Viper.Models.Courses;
+using Viper.Models.EquipmentLoan;
+using Viper.Models.IDCards;
+using Viper.Models.Keys;
+using Viper.Models.PPS;
+using Viper.Models.RAPS;
 using Xunit;
-using Amazon;
-using Amazon.Extensions.NETCore.Setup;
 
 namespace Viper.test.Services
 {
@@ -27,136 +33,187 @@ namespace Viper.test.Services
         public UserInfoServiceTests(ITestOutputHelper output)
         {
             _output = output;
-            Console.SetOut(new ConsoleRedirector(output));
+        }
+
+        private DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
+        {
+            return new DbContextOptionsBuilder<TContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
         }
 
         [Fact]
-        public async Task TestGetUserInfo()
+        public async Task TestGetUserInfo_WithSyntheticData()
         {
-            IConfigurationRoot config;
-            try
-            {
-                // Setup configuration using environment, appsettings, and SSM Parameter Store
-                var configuration = new ConfigurationBuilder()
-                    .SetBasePath(AppContext.BaseDirectory)
-                    .AddJsonFile("appsettings.json", optional: true)
-                    .AddJsonFile("appsettings.Development.json", optional: true)
-                    .AddEnvironmentVariables()
-                    .Build();
+            _output.WriteLine("[DEBUG] Starting TestGetUserInfo with fully synthetic data...");
 
-                var awsOptions = new AWSOptions
+            // 1. Arrange Config & Cache
+            var configData = new Dictionary<string, string?>
+            {
+                { "Instinct:ApiUrl", "https://synthetic.instinctvet.com/" },
+                { "Credentials:InstinctApi", "synthetic-password" }
+            };
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(configData)
+                .Build();
+
+            var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+            // 2. Mock HttpClientFactory
+            var mockHandler = new MockHttpMessageHandler(request =>
+            {
+                var uri = request.RequestUri?.ToString() ?? "";
+                if (uri.Contains("auth/token"))
                 {
-                    Region = RegionEndpoint.USWest1
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"access_token\": \"synthetic-token\", \"expires_in\": 86400}", Encoding.UTF8, "application/json")
+                    };
+                }
+                if (uri.Contains("query="))
+                {
+                    var searchJson = @"
+                    {
+                        ""data"": {
+                            ""searchUsers"": [
+                                {
+                                    ""id"": ""inst-synthetic-id"",
+                                    ""instinctId"": ""inst-synthetic-id"",
+                                    ""status"": ""Active"",
+                                    ""isActive"": true,
+                                    ""username"": ""jsmith"",
+                                    ""nameFirst"": ""John"",
+                                    ""nameLast"": ""Smith"",
+                                    ""roles"": [
+                                        { ""label"": ""Staff"" }
+                                    ]
+                                }
+                            ]
+                        }
+                    }";
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(searchJson, Encoding.UTF8, "application/json")
+                    };
+                }
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+
+            var httpClientFactory = Substitute.For<IHttpClientFactory>();
+            httpClientFactory.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient(mockHandler));
+
+            // 3. Setup DbContexts and Seed Synthetic Data
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            var coursesOptions = CreateInMemoryOptions<CoursesContext>();
+
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                var syntheticUser = new AaudUser
+                {
+                    IamId = "99999999",
+                    MothraId = "88888888",
+                    MailId = "jsmith",
+                    LoginId = "jsmith",
+                    FirstName = "John",
+                    LastName = "Smith",
+                    DisplayFirstName = "John",
+                    DisplayLastName = "Smith",
+                    DisplayFullName = "John Smith",
+                    Current = 1,
+                    EmployeeId = "emp-999",
+                    EmployeePKey = "pkey-999",
+                    ClientId = "1"
                 };
-                var configBuilder = new ConfigurationBuilder()
-                    .AddConfiguration(configuration)
-                    .AddSystemsManager("/Development", awsOptions)
-                    .AddSystemsManager("/Shared", awsOptions);
-                config = configBuilder.Build();
-            }
-            catch (Exception ex) when (ex.ToString().Contains("Amazon") || ex.ToString().Contains("EC2") || ex.ToString().Contains("Metadata") || ex.ToString().Contains("credential"))
-            {
-                _output.WriteLine($"[SKIPPED] AWS SSM Parameter Store is not available: {ex.Message}");
-                return; // Gracefully pass/skip the test in CI/CD pipeline
+                aaudSetup.AaudUsers.Add(syntheticUser);
+
+                aaudSetup.Employees.Add(new Employee
+                {
+                    EmpPKey = "pkey-999",
+                    EmpTermCode = "202610",
+                    EmpPrimaryTitle = "Synthetic Analyst",
+                    EmpSchoolDivision = "Synthetic Division",
+                    EmpStatus = "A",
+                    EmpHomeDept = "Synthetic Dept",
+                    EmpClientid = "1",
+                    EmpAltDeptCode = "",
+                    EmpCbuc = ""
+                });
+
+                await aaudSetup.SaveChangesAsync();
             }
 
+            using (var coursesSetup = new CoursesContext(coursesOptions))
+            {
+                coursesSetup.Terminfos.Add(new Terminfo
+                {
+                    TermCode = "202610",
+                    TermCurrentTermMulti = true,
+                    TermAcademicYear = "",
+                    TermDesc = "",
+                    TermCollCode = "01",
+                    TermStartDate = DateTime.Today,
+                    TermEndDate = DateTime.Today,
+                    TermCurrentTerm = true,
+                    TermTermType = ""
+                });
+                await coursesSetup.SaveChangesAsync();
+            }
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(coursesOptions);
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var userInfoService = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, config, httpClientFactory, memoryCache);
+
+            // 4. Act
+            // Temporary HttpHelper configuration inside the test context
+            var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            HttpHelper.Configure(memoryCache, config, mockEnv, null, null, null);
+
+            UserInfoResult? result;
             try
             {
-                var services = new ServiceCollection();
-                services.AddSingleton<IConfiguration>(config);
-                services.AddMemoryCache();
-                services.AddHttpClient();
-
-                // Register database contexts using connection strings from SSM config
-                void RegisterContext<TContext>(string key) where TContext : DbContext
-                {
-                    var connStr = config.GetConnectionString(key);
-                    if (string.IsNullOrEmpty(connStr))
-                    {
-                        throw new Exception($"ConnectionString for '{key}' is empty or missing!");
-                    }
-                    services.AddDbContext<TContext>(options => options.UseSqlServer(connStr));
-                }
-
-                RegisterContext<AAUDContext>("AAUD");
-                RegisterContext<RAPSContext>("RAPS");
-                RegisterContext<CoursesContext>("Courses");
-                services.AddDbContext<EquipmentLoanContext>(options => options.UseSqlServer(config.GetConnectionString("VIPER")));
-                services.AddDbContext<PPSContext>(options => options.UseSqlServer(config.GetConnectionString("VIPER")));
-                services.AddDbContext<IDCardsContext>(options => options.UseSqlServer(config.GetConnectionString("VIPER")));
-                services.AddDbContext<KeysContext>(options => options.UseSqlServer(config.GetConnectionString("VIPER")));
-
-                services.AddScoped<UserInfoService>();
-
-                var serviceProvider = services.BuildServiceProvider();
-                HttpHelper.Configure(serviceProvider.GetRequiredService<IMemoryCache>(), config, null!, null!, null!, null!);
-
-                // Test logic will call GetUserInfoAsync and populate AD/Instinct details
-
-                var userInfoService = serviceProvider.GetRequiredService<UserInfoService>();
-
-                // Query Mothra ID 00065542 (Brandon Edwards - 'be5')
-                var result = await userInfoService.GetUserInfoAsync(null, "00065542");
-
-                if (result == null)
-                {
-                    _output.WriteLine("[DEBUG] GetUserInfoAsync returned null!");
-                    Assert.Fail("GetUserInfoAsync returned null");
-                }
-
-                _output.WriteLine($"[DEBUG] IamId: '{result.IamId}'");
-                _output.WriteLine($"[DEBUG] DisplayName: '{result.DisplayFullName}'");
-                _output.WriteLine($"[DEBUG] InstinctId: '{result.InstinctId}'");
-                _output.WriteLine($"[DEBUG] InstinctUsername: '{result.InstinctUsername}'");
-                _output.WriteLine($"[DEBUG] InstinctStatus: '{result.InstinctStatus}'");
-                _output.WriteLine($"[DEBUG] InstinctIsActive: {result.InstinctIsActive}");
-                
-                _output.WriteLine($"[DEBUG] ADDisplayName: '{result.ADDisplayName}'");
-                _output.WriteLine($"[DEBUG] ADMail: '{result.ADMail}'");
-                _output.WriteLine($"[DEBUG] ADSamAccountName: '{result.ADSamAccountName}'");
-                _output.WriteLine($"[DEBUG] ADUserPrincipalName: '{result.ADUserPrincipalName}'");
-                _output.WriteLine($"[DEBUG] ADDistinguishedName: '{result.ADDistinguishedName}'");
-                _output.WriteLine($"[DEBUG] ADMemberOf count: {result.ADMemberOf?.Count ?? 0}");
-                if (result.ADMemberOf != null)
-                {
-                    foreach (var group in result.ADMemberOf)
-                    {
-                        _output.WriteLine($"  Group: '{group}'");
-                    }
-                }
-                
-                if (result.InstinctRoles != null)
-                {
-                    _output.WriteLine($"[DEBUG] InstinctRoles: {string.Join(", ", result.InstinctRoles)}");
-                }
-
-                if (result.InstinctInfo != null && !string.IsNullOrEmpty(result.InstinctInfo.ErrorMessage))
-                {
-                    _output.WriteLine($"[DEBUG] Instinct API Error: {result.InstinctInfo.ErrorMessage}");
-                }
-
-                Assert.NotNull(result.InstinctId);
-                Assert.Equal("be5", result.InstinctUsername);
+                result = await userInfoService.GetUserInfoAsync("99999999", "88888888");
             }
-            catch (Exception ex) when (ex.ToString().Contains("SqlException") || ex.ToString().Contains("network-related") || ex.ToString().Contains("login failed") || ex.ToString().Contains("LdapException") || ex.ToString().Contains("Active Directory"))
+            finally
             {
-                _output.WriteLine($"[SKIPPED] Database or network resources not accessible in this environment: {ex.Message}");
-                return; // Gracefully pass/skip the test in CI/CD pipeline
+                HttpHelper.Configure(null, null, null, null, null, null);
             }
-            catch (Exception ex)
-            {
-                _output.WriteLine($"[DEBUG] Test execution failed with exception: {ex}");
-                throw;
-            }
+
+            // 5. Assert
+            Assert.NotNull(result);
+            _output.WriteLine($"[DEBUG] Result IamId: {result.IamId}");
+            _output.WriteLine($"[DEBUG] Result DisplayName: {result.DisplayFullName}");
+            _output.WriteLine($"[DEBUG] Result InstinctId: {result.InstinctId}");
+            _output.WriteLine($"[DEBUG] Result InstinctInfo.ErrorMessage: {result.InstinctInfo?.ErrorMessage}");
+            _output.WriteLine($"[DEBUG] Result InstinctInfo.Valid: {result.InstinctInfo?.Valid}");
+
+            Assert.Equal("99999999", result.IamId);
+            Assert.Equal("88888888", result.MothraId);
+            Assert.Equal("John Smith", result.DisplayFullName);
+            Assert.True(result.IsEmployee);
+            Assert.Equal("Synthetic Analyst", result.EmployeePrimaryTitle);
+            Assert.Equal("inst-synthetic-id", result.InstinctId);
+            Assert.Equal("jsmith", result.InstinctUsername);
         }
 
-        private class ConsoleRedirector : TextWriter
+        private class MockHttpMessageHandler : HttpMessageHandler
         {
-            private readonly ITestOutputHelper _output;
-            public ConsoleRedirector(ITestOutputHelper output) => _output = output;
-            public override System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
-            public override void WriteLine(string? value) => _output.WriteLine(value ?? "");
-            public override void Write(string? value) => _output.WriteLine(value ?? "");
+            private readonly Func<HttpRequestMessage, HttpResponseMessage> _handler;
+
+            public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+            {
+                _handler = handler;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(_handler(request));
+            }
         }
     }
 }
