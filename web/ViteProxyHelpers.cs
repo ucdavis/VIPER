@@ -350,10 +350,15 @@ internal static class ViteProxyHelpers
                 var physicalPath = Path.Join(context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath,
                     staticPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
-                // Prevent directory traversal: ensure the resolved physical path is within WebRootPath
+                // Prevent directory traversal: resolved path must sit inside WebRootPath. The trailing separator
+                // makes StartsWith respect the boundary so a sibling like "wwwroot-secret" can't match "wwwroot".
                 var webRoot = context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
                 var resolvedPhysical = Path.GetFullPath(physicalPath);
                 var resolvedWebRoot = Path.GetFullPath(webRoot);
+                if (!Path.EndsInDirectorySeparator(resolvedWebRoot))
+                {
+                    resolvedWebRoot += Path.DirectorySeparatorChar;
+                }
 
                 if (!resolvedPhysical.StartsWith(resolvedWebRoot, StringComparison.OrdinalIgnoreCase))
                 {

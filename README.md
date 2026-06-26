@@ -1,5 +1,8 @@
-# VIPER
+# VIPER2
 
+[![Tests](https://github.com/ucdavis/VIPER/actions/workflows/tests.yml/badge.svg)](https://github.com/ucdavis/VIPER/actions/workflows/tests.yml)
+[![Code Quality](https://github.com/ucdavis/VIPER/actions/workflows/code-quality.yml/badge.svg)](https://github.com/ucdavis/VIPER/actions/workflows/code-quality.yml)
+[![CodeQL](https://github.com/ucdavis/VIPER/actions/workflows/codeql.yml/badge.svg)](https://github.com/ucdavis/VIPER/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/github/ucdavis/VIPER/graph/badge.svg?token=4Q8KQ3HHUF)](https://codecov.io/github/ucdavis/VIPER)
 
 Clinical, curriculum, and student management application for UC Davis School of Veterinary Medicine.
@@ -8,7 +11,7 @@ Clinical, curriculum, and student management application for UC Davis School of 
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 - [Volta](https://volta.sh/) - Node.js version manager
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/)
+- [Visual Studio 2026](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/)
 
 ### Node.js Setup with Volta (Recommended)
 
@@ -142,6 +145,29 @@ VIPER2 features a sophisticated development setup with hot reload for both front
   - `vite-watch.js` - Debounced build script for development
 - `test/` - Unit tests
 
+## AI Agent Tooling (Claude Code)
+
+This repo includes guidance files for AI coding assistants. Read these before
+pointing an agent at the codebase:
+
+- `CLAUDE.md` - Primary project instructions: environment rules, architecture,
+  database/EF Core conventions, C# and Vue standards, security, and the
+  git/branch workflow. This is the source of truth.
+- `AGENTS.md` - Entry point for non-Claude agents; defers to `CLAUDE.md`.
+- `DESIGN.md` - The VIPER2 design system (UC Davis brand tokens, typography,
+  components, accessibility rules). Read before building or changing UI.
+- `PRODUCT.md` - Product context: who uses VIPER2 and the design principles.
+
+Per-developer Claude config lives under `.claude/` and is gitignored, so install
+the shared plugins yourself via the Claude Code `/plugin` command. The team uses:
+
+- **csharp-lsp** - C# language server, official marketplace (`anthropics/claude-plugins-official`)
+- **vue** - Vue 3 skill (`github.com/harlan-zw/vue-ecosystem-skills`)
+- **impeccable** - design and UI skill (`github.com/pbakaus/impeccable`)
+
+UI and API testing is driven through the Playwright MCP server (`@playwright/mcp`).
+It is not committed to the repo, so add it to your own Claude Code MCP config.
+
 ## IDE Setup
 
 ### Oxfmt Formatting (Automatic code formatting)
@@ -166,9 +192,9 @@ The project includes VS Code launch configurations for debugging both frontend a
 5. Set breakpoints in your TypeScript/Vue files and debug in VS Code
 
 **Backend Debugging (.NET):**
-1. Use "`Attach to .NET Core`" configuration to attach to a running VIPER process
+1. Use "`Attach to .NET Core`" configuration to attach to a running VIPER2 process
 2. Use "`.NET Tests (Debug)`" to debug unit tests
-3. The debugger will automatically find and attach to the running VIPER backend
+3. The debugger will automatically find and attach to the running VIPER2 backend
 4. **Note**: "Attach to .NET Core" may fail on the first attempt due to timing - simply try again and it will work
 
 ## Common Commands
@@ -246,10 +272,47 @@ npm install
 ```
 
 The hook will:
-- Check C# code style with `dotnet format` on staged .cs files
-- Run ESLint and TypeScript checks on staged Vue/TypeScript files (uses Node.js script for Windows compatibility)
-- Only run on files you've actually changed
-- Block commits if issues are found (bypass with `git commit --no-verify` if needed)
+- Build the .NET projects first (required for tests and linting)
+- Then run three checks in parallel, showing output only on failure:
+  - **Lint** on your staged files: ESLint/TypeScript on Vue/TS files and `dotnet format` style on `.cs` files
+  - **Test**: the full backend and frontend suites (`npm run test`)
+  - **Build verify**: `npm run verify:build`
+- Block the commit if any check fails (bypass with `git commit --no-verify` if needed)
+
+Merge commits skip linting but still build, test, and verify. A rebase in
+progress skips the pre-commit checks entirely.
+
+### Pre-push Hook (Jenkins Build Trigger)
+
+A Husky pre-push hook can trigger a Jenkins build automatically. It is installed
+alongside the pre-commit hook when you run `npm install`, and it only fires when
+you push to the `Development` branch. Pushes to any other branch are unaffected.
+
+The hook is opt-in. If no Jenkins credentials are configured it prints a warning
+and exits cleanly, so it never blocks a push.
+
+**Setup:**
+
+1. Copy the environment template if you have not already:
+   ```sh
+   # Windows PowerShell
+   Copy-Item .env.local.example .env.local
+
+   # Git Bash on Windows
+   cp .env.local.example .env.local
+   ```
+2. In `.env.local`, uncomment and fill the Jenkins block. Get your API token
+   from Jenkins under User menu > Configure > API Token:
+   ```env
+   JENKINS_USER=your-username
+   JENKINS_API_TOKEN=your-api-token
+   JENKINS_JOB_TOKEN=your-job-token
+   JENKINS_URL=https://your-jenkins-server/job/YourJob/buildWithParameters
+   ```
+
+When you next push to `Development`, the hook waits about 10 seconds so the push
+lands first, then triggers the parameterized Jenkins job in the background.
+Credentials stay in `.env.local`, which is not tracked by git.
 
 ## Email Testing with Mailpit
 
