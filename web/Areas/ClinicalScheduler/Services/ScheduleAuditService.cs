@@ -2,6 +2,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Constants;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.ClinicalScheduler;
@@ -146,6 +147,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         public async Task<List<AuditLogEntryDto>> GetAuditLogAsync(
             int gradYear,
             int? rotationId,
+            int? termCode,
             string? person,
             string? modifiedBy,
             string? area,
@@ -173,6 +175,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 {
                     query = query.Where(x => x.Audit.RotationId == rotationId.Value);
                 }
+                if (termCode.HasValue)
+                {
+                    query = query.Where(x => x.Week.TermCode == termCode.Value);
+                }
                 if (!string.IsNullOrWhiteSpace(area))
                 {
                     query = query.Where(x => x.Audit.Area == area);
@@ -194,7 +200,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     query = query.Where(x => x.Audit.MothraId == person);
                 }
 
-                return await query
+                var entries = await query
                     .OrderByDescending(x => x.Audit.TimeStamp)
                     .Take(2500)
                     .Select(x => new AuditLogEntryDto
@@ -209,16 +215,54 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         WeekId = x.Audit.WeekId,
                         WeekNum = x.Week.WeekNum,
                         WeekStart = x.Week.DateStart,
+                        TermCode = x.Week.TermCode,
                         ModifiedBy = x.Audit.ModifiedBy,
                         ModifiedByName = x.Modifier != null ? x.Modifier.PersonDisplayFullName : x.Audit.ModifiedBy,
                         TimeStamp = x.Audit.TimeStamp,
                     })
                     .ToListAsync(cancellationToken);
+
+                // GetTermCodeDescription is C#, not SQL-translatable, so map the term after materializing.
+                foreach (var entry in entries)
+                {
+                    entry.Term = TermCodeService.GetTermCodeDescription(entry.TermCode);
+                }
+
+                return entries;
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit log for grad year {GradYear}", gradYear);
                 throw new InvalidOperationException("Failed to retrieve the audit log. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditTermDto>> GetAuditTermsAsync(
+            int gradYear,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Distinct terms the grad year's weeks fall into; codes sort chronologically.
+                var termCodes = await _context.VWeeks.AsNoTracking()
+                    .Where(w => w.GradYear == gradYear)
+                    .Select(w => w.TermCode)
+                    .Distinct()
+                    .OrderBy(t => t)
+                    .ToListAsync(cancellationToken);
+
+                return termCodes
+                    .Select(termCode => new AuditTermDto
+                    {
+                        TermCode = termCode,
+                        Term = TermCodeService.GetTermCodeDescription(termCode),
+                    })
+                    .ToList();
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit terms for grad year {GradYear}", gradYear);
+                throw new InvalidOperationException("Failed to retrieve the terms for this grad year. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -276,6 +320,82 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(ex, "Error retrieving audit log persons");
                 throw new InvalidOperationException("Failed to retrieve the list of audited persons. Please try again or contact support if the problem persists.", ex);
             }
+        }
+
+        public async Task<List<AuditLogEntryDto>> GetRotationWeekAuditAsync(
+            int rotationId,
+            int weekId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var audits = _context.ScheduleAudits.AsNoTracking()
+                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId);
+                return await BuildEnrichedAuditQuery(audits)
+                    .OrderByDescending(x => x.TimeStamp)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
+                throw new InvalidOperationException("Failed to retrieve the audit history for this week. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditLogEntryDto>> GetClinicianWeekAuditAsync(
+            string mothraId,
+            int weekId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var audits = _context.ScheduleAudits.AsNoTracking()
+                    .Where(a => a.MothraId == mothraId && a.WeekId == weekId);
+                return await BuildEnrichedAuditQuery(audits)
+                    .OrderByDescending(x => x.TimeStamp)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit history for clinician {MothraId}, week {WeekId}", LogSanitizer.SanitizeString(mothraId), weekId);
+                throw new InvalidOperationException("Failed to retrieve the audit history for this week. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Build the display-ready (name / rotation / week-enriched) projection for a
+        /// pre-filtered set of audit rows. Left-joins every lookup so a missing match never
+        /// drops a row; shared by the per-rotation-week and per-clinician-week history queries.
+        /// </summary>
+        private IQueryable<AuditLogEntryDto> BuildEnrichedAuditQuery(IQueryable<ScheduleAudit> audits)
+        {
+            // Base Weeks (unique per WeekId), not vWeek (one row per WeekId x grad year),
+            // which would duplicate every audit row for a week that spans two grad years.
+            return
+                from a in audits
+                join w in _context.Weeks on a.WeekId equals (int?)w.WeekId into weekJoin
+                from w in weekJoin.DefaultIfEmpty()
+                join rot in _context.Rotations on a.RotationId equals (int?)rot.RotId into rotJoin
+                from rot in rotJoin.DefaultIfEmpty()
+                join ap in _context.Persons on a.MothraId equals ap.IdsMothraId into affectedJoin
+                from ap in affectedJoin.DefaultIfEmpty()
+                join mp in _context.Persons on a.ModifiedBy equals mp.IdsMothraId into modifierJoin
+                from mp in modifierJoin.DefaultIfEmpty()
+                select new AuditLogEntryDto
+                {
+                    ScheduleAuditId = a.ScheduleAuditId,
+                    Area = a.Area,
+                    MothraId = a.MothraId,
+                    PersonName = ap != null ? ap.PersonDisplayFullName : (a.MothraId ?? string.Empty),
+                    Action = a.Action,
+                    RotationId = a.RotationId,
+                    RotationName = rot != null ? rot.Name : string.Empty,
+                    WeekId = a.WeekId,
+                    WeekStart = w != null ? (DateTime?)w.DateStart : null,
+                    ModifiedBy = a.ModifiedBy,
+                    ModifiedByName = mp != null ? mp.PersonDisplayFullName : a.ModifiedBy,
+                    TimeStamp = a.TimeStamp,
+                };
         }
 
         /// <summary>

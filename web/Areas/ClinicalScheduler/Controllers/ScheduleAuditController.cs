@@ -33,6 +33,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// </summary>
         /// <param name="year">Grad year; defaults to the current grad year when omitted</param>
         /// <param name="rotationId">Optional rotation filter</param>
+        /// <param name="termCode">Optional term (semester) filter, scoped to the grad year</param>
         /// <param name="person">Optional substring match on the affected person's display name</param>
         /// <param name="modifiedBy">Optional MothraID of the user who made the change</param>
         /// <param name="area">Optional area filter (Students / Clinicians)</param>
@@ -44,6 +45,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         public async Task<IActionResult> GetAuditLog(
             [FromQuery] int? year = null,
             [FromQuery] int? rotationId = null,
+            [FromQuery] int? termCode = null,
             [FromQuery] string? person = null,
             [FromQuery] string? modifiedBy = null,
             [FromQuery] string? area = null,
@@ -55,13 +57,37 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 var gradYear = await GetTargetYearAsync(year);
                 var log = await _auditService.GetAuditLogAsync(
-                    gradYear, rotationId, person, modifiedBy, area, from, to, cancellationToken);
+                    gradYear, rotationId, termCode, person, modifiedBy, area, from, to, cancellationToken);
                 return Ok(log);
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit log for year {Year}", LogSanitizer.SanitizeYear(year));
                 return StatusCode(500, "An error occurred while retrieving the audit log");
+            }
+        }
+
+        /// <summary>
+        /// Get the terms (semesters) within a grad year, for the audit trail "Term" filter.
+        /// </summary>
+        /// <param name="year">Grad year; defaults to the current grad year when omitted</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        [HttpGet("terms")]
+        [ProducesResponseType(typeof(List<AuditTermDto>), 200)]
+        public async Task<IActionResult> GetTerms(
+            [FromQuery] int? year = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var gradYear = await GetTargetYearAsync(year);
+                var terms = await _auditService.GetAuditTermsAsync(gradYear, cancellationToken);
+                return Ok(terms);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit terms for year {Year}", LogSanitizer.SanitizeYear(year));
+                return StatusCode(500, "An error occurred while retrieving the terms");
             }
         }
 
@@ -102,6 +128,68 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             {
                 _logger.LogError(ex, "Error retrieving audit log persons");
                 return StatusCode(500, "An error occurred while retrieving the audited persons");
+            }
+        }
+
+        /// <summary>
+        /// Get the change history for a single rotation + week (inline per-week history popover,
+        /// Schedule-by-Rotation grid).
+        /// </summary>
+        /// <param name="rotationId">Rotation the week belongs to</param>
+        /// <param name="weekId">Week to scope the history to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        [HttpGet("rotation-week")]
+        [ProducesResponseType(typeof(List<AuditLogEntryDto>), 200)]
+        public async Task<IActionResult> GetRotationWeekHistory(
+            [FromQuery] int rotationId,
+            [FromQuery] int weekId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (rotationId <= 0)
+                {
+                    return BadRequest("A valid rotation is required.");
+                }
+
+                var history = await _auditService.GetRotationWeekAuditAsync(rotationId, weekId, cancellationToken);
+                return Ok(history);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
+                return StatusCode(500, "An error occurred while retrieving the week's audit history");
+            }
+        }
+
+        /// <summary>
+        /// Get the change history for a single clinician + week across all rotations (inline
+        /// per-week history popover, Schedule-by-Clinician grid).
+        /// </summary>
+        /// <param name="mothraId">MothraID of the affected clinician</param>
+        /// <param name="weekId">Week to scope the history to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        [HttpGet("clinician-week")]
+        [ProducesResponseType(typeof(List<AuditLogEntryDto>), 200)]
+        public async Task<IActionResult> GetClinicianWeekHistory(
+            [FromQuery] string mothraId,
+            [FromQuery] int weekId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(mothraId))
+                {
+                    return BadRequest("A clinician (mothraId) is required.");
+                }
+
+                var history = await _auditService.GetClinicianWeekAuditAsync(mothraId, weekId, cancellationToken);
+                return Ok(history);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit history for clinician {MothraId}, week {WeekId}", LogSanitizer.SanitizeString(mothraId), weekId);
+                return StatusCode(500, "An error occurred while retrieving the week's audit history");
             }
         }
     }

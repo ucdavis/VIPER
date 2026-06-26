@@ -100,6 +100,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// </summary>
         /// <param name="gradYear">Grad year to scope results to (via the week's grad year)</param>
         /// <param name="rotationId">Optional rotation filter</param>
+        /// <param name="termCode">Optional term (semester) filter, scoped to the grad year</param>
         /// <param name="person">Optional MothraID of the affected student/clinician</param>
         /// <param name="modifiedBy">Optional MothraID of the user who made the change</param>
         /// <param name="area">Optional area filter (Students / Clinicians)</param>
@@ -110,11 +111,23 @@ namespace Viper.Areas.ClinicalScheduler.Services
         Task<List<AuditLogEntryDto>> GetAuditLogAsync(
             int gradYear,
             int? rotationId,
+            int? termCode,
             string? person,
             string? modifiedBy,
             string? area,
             DateTime? fromDate,
             DateTime? toDate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the distinct terms (semesters) that fall within a grad year, for the audit
+        /// trail "Term" filter.
+        /// </summary>
+        /// <param name="gradYear">Grad year to scope the terms to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Distinct terms ordered chronologically</returns>
+        Task<List<AuditTermDto>> GetAuditTermsAsync(
+            int gradYear,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -133,6 +146,33 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Distinct affected persons ordered by display name</returns>
         Task<List<AuditModifierDto>> GetAuditPersonsAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the display-ready change history for a single rotation + week, newest first.
+        /// Powers the inline per-week history popover in the Schedule-by-Rotation grid.
+        /// </summary>
+        /// <param name="rotationId">Rotation the week belongs to</param>
+        /// <param name="weekId">Week to scope the history to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Enriched audit entries for the rotation/week, newest first</returns>
+        Task<List<AuditLogEntryDto>> GetRotationWeekAuditAsync(
+            int rotationId,
+            int weekId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the display-ready change history for a single clinician + week, newest first
+        /// (across all rotations that week). Powers the inline per-week history popover in
+        /// the Schedule-by-Clinician grid.
+        /// </summary>
+        /// <param name="mothraId">MothraID of the affected clinician</param>
+        /// <param name="weekId">Week to scope the history to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Enriched audit entries for the clinician/week, newest first</returns>
+        Task<List<AuditLogEntryDto>> GetClinicianWeekAuditAsync(
+            string mothraId,
+            int weekId,
             CancellationToken cancellationToken = default);
 
     }
