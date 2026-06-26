@@ -1,0 +1,68 @@
+name: Development Merge Check
+
+# Advisory, NON-BLOCKING check for the team workflow that branches should merge
+# into Development before main. When a PR into main is opened whose branch is not
+# yet in Development, this surfaces a warning annotation. It never fails the check,
+# so it does not block merging — it is purely informational.
+#
+# "Merged to Development" is detected by looking for a MERGED pull request whose
+# base is Development and whose head is this branch. This repo squash-merges, so
+# commit ancestry against Development would give false negatives after a squash.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: dev-merge-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  development-merge-check:
+    name: Development merge check (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warn if not merged to Development first
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const DEV_BRANCH = 'Development';
+
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const headRef = pr.head.ref;
+            // Fork-safe: fall back to the base repo owner if the head repo is gone.
+            const headOwner = pr.head.repo ? pr.head.repo.owner.login : owner;
+
+            // Has this branch already been merged into Development?
+            // Robust to squash merges: find a merged PR with base=Development, head=this branch.
+            const devPulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'closed',
+              base: DEV_BRANCH,
+              head: `${headOwner}:${headRef}`,
+              per_page: 100,
+            });
+            const mergedToDev = devPulls.find((p) => p.merged_at);
+
+            if (mergedToDev) {
+              core.info(
+                `Code reached ${DEV_BRANCH} via #${mergedToDev.number} ` +
+                  `(merged ${mergedToDev.merged_at}).`
+              );
+              return;
+            }
+
+            // Not in Development yet: warn, but do not fail (advisory only).
+            core.warning(
+              `Branch "${headRef}" has not been merged into ${DEV_BRANCH} yet. Team workflow ` +
+                `routes branches through ${DEV_BRANCH} before main. This is advisory and does ` +
+                `not block merging.`,
+              { title: 'Not yet merged to Development' }
+            );
