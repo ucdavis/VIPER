@@ -3,6 +3,14 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Agent testing artifacts (Playwright MCP snapshots/logs/screenshots, Impeccable working folders)
+.playwright-mcp/
+.impeccable/
+
+# Agent AI development scratch docs (plans, smoke-test guides); not committed
+PLAN-*.md
+SMOKETEST-*.md
+
 # User-specific files
 *.rsuser
 *.suo
@@ -504,3 +512,6 @@ web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data_LEGACY.txt
 VueApp/.fallow/
 jscpd-report/
 inspect-report/
+
+# Agent folders
+.claude
