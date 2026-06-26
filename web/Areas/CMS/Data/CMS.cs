@@ -383,10 +383,31 @@ namespace Viper.Areas.CMS.Data
 
             if (_rapsContext! != null && currentUser != null)
             {
-                if (file.AllowPublicAccess ||
-                    (file.FileToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure")) ||
-                    (file.FileToPermissions.Count > 0 && file.FileToPermissions.Any(fp => UserHelper.GetAllPermissions(_rapsContext, currentUser).Any(p => string.Compare(fp.Permission, p.Permission, true) == 0))) ||
-                    (file.FileToPeople.Count > 0 && file.FileToPeople.Any(fp => fp.IamId == currentUser.IamId)))
+                // Each access path returns early so later (more expensive) checks are
+                // skipped once access is granted, preserving the original short-circuit.
+                if (file.AllowPublicAccess)
+                {
+                    return true;
+                }
+                // No explicit permissions: any authenticated SVMSecure user may access.
+                if (file.FileToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure"))
+                {
+                    return true;
+                }
+                // Explicit permissions: the user must hold a matching one. Resolve the user's
+                // permissions once into a set rather than re-querying for each file permission.
+                if (file.FileToPermissions.Count > 0)
+                {
+                    var userPermissions = UserHelper.GetAllPermissions(_rapsContext, currentUser)
+                        .Select(p => p.Permission)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    if (file.FileToPermissions.Any(fp => userPermissions.Contains(fp.Permission)))
+                    {
+                        return true;
+                    }
+                }
+                // Explicit people: the user must be listed.
+                if (file.FileToPeople.Count > 0 && file.FileToPeople.Any(fp => fp.IamId == currentUser.IamId))
                 {
                     return true;
                 }

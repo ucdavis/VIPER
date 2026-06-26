@@ -216,10 +216,12 @@ internal static class ViteProxyHelpers
         var requestMessage = new HttpRequestMessage(new HttpMethod(context.Request.Method), targetUrl);
 
         // Only copy request body for methods that typically support it
-        var method = context.Request.Method.ToUpperInvariant();
-        if (method != "GET" && method != "HEAD"
-            && ((context.Request.ContentLength.HasValue && context.Request.ContentLength > 0) ||
-                (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead)))
+        var requestMethod = context.Request.Method;
+        bool methodSupportsBody = !string.Equals(requestMethod, "GET", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(requestMethod, "HEAD", StringComparison.OrdinalIgnoreCase);
+        bool hasReadableBody = (context.Request.ContentLength.HasValue && context.Request.ContentLength > 0)
+            || (!context.Request.ContentLength.HasValue && context.Request.Body.CanRead);
+        if (methodSupportsBody && hasReadableBody)
         {
             requestMessage.Content = new StreamContent(context.Request.Body);
 
@@ -348,10 +350,15 @@ internal static class ViteProxyHelpers
                 var physicalPath = Path.Join(context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath,
                     staticPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
-                // Prevent directory traversal: ensure the resolved physical path is within WebRootPath
+                // Prevent directory traversal: resolved path must sit inside WebRootPath. The trailing separator
+                // makes StartsWith respect the boundary so a sibling like "wwwroot-secret" can't match "wwwroot".
                 var webRoot = context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
                 var resolvedPhysical = Path.GetFullPath(physicalPath);
                 var resolvedWebRoot = Path.GetFullPath(webRoot);
+                if (!Path.EndsInDirectorySeparator(resolvedWebRoot))
+                {
+                    resolvedWebRoot += Path.DirectorySeparatorChar;
+                }
 
                 if (!resolvedPhysical.StartsWith(resolvedWebRoot, StringComparison.OrdinalIgnoreCase))
                 {
