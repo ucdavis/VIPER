@@ -161,9 +161,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // and left-join names so a missing person/rotation lookup never drops a row.
                 var query =
                     from a in _context.ScheduleAudits.AsNoTracking()
-                    join vw in _context.VWeeks on a.WeekId equals (int?)vw.WeekId
+                    join vw in _context.VWeeks on a.WeekId equals vw.WeekId
                     where vw.GradYear == gradYear
-                    join rot in _context.Rotations on a.RotationId equals (int?)rot.RotId into rotJoin
+                    join rot in _context.Rotations on a.RotationId equals rot.RotId into rotJoin
                     from rot in rotJoin.DefaultIfEmpty()
                     join ap in _context.Persons on a.MothraId equals ap.IdsMothraId into affectedJoin
                     from ap in affectedJoin.DefaultIfEmpty()
@@ -171,13 +171,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     from mp in modifierJoin.DefaultIfEmpty()
                     select new { Audit = a, Week = vw, Rotation = rot, Affected = ap, Modifier = mp };
 
-                if (rotationId.HasValue)
+                if (rotationId is { } selectedRotationId)
                 {
-                    query = query.Where(x => x.Audit.RotationId == rotationId.Value);
+                    query = query.Where(x => x.Audit.RotationId == selectedRotationId);
                 }
-                if (termCode.HasValue)
+                if (termCode is { } selectedTermCode)
                 {
-                    query = query.Where(x => x.Week.TermCode == termCode.Value);
+                    query = query.Where(x => x.Week.TermCode == selectedTermCode);
                 }
                 if (!string.IsNullOrWhiteSpace(area))
                 {
@@ -187,13 +187,17 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 {
                     query = query.Where(x => x.Audit.ModifiedBy == modifiedBy);
                 }
-                if (fromDate.HasValue)
+                if (fromDate is { } fromTimestamp)
                 {
-                    query = query.Where(x => x.Audit.TimeStamp >= fromDate.Value);
+                    query = query.Where(x => x.Audit.TimeStamp >= fromTimestamp);
                 }
-                if (toDate.HasValue)
+                if (toDate is { } toTimestamp)
                 {
-                    query = query.Where(x => x.Audit.TimeStamp <= toDate.Value);
+                    // The date picker binds to midnight at the start of the day, so advance the
+                    // bound a day to include changes made anytime on the selected end date
+                    // (matches the Effort audit upper-bound handling).
+                    var endOfDay = toTimestamp.AddDays(1);
+                    query = query.Where(x => x.Audit.TimeStamp < endOfDay);
                 }
                 if (!string.IsNullOrWhiteSpace(person))
                 {
@@ -371,9 +375,9 @@ namespace Viper.Areas.ClinicalScheduler.Services
             // week-scoped query has no single unambiguous week number.
             return
                 from a in audits
-                join w in _context.Weeks on a.WeekId equals (int?)w.WeekId into weekJoin
+                join w in _context.Weeks on a.WeekId equals w.WeekId into weekJoin
                 from w in weekJoin.DefaultIfEmpty()
-                join rot in _context.Rotations on a.RotationId equals (int?)rot.RotId into rotJoin
+                join rot in _context.Rotations on a.RotationId equals rot.RotId into rotJoin
                 from rot in rotJoin.DefaultIfEmpty()
                 join ap in _context.Persons on a.MothraId equals ap.IdsMothraId into affectedJoin
                 from ap in affectedJoin.DefaultIfEmpty()
@@ -389,7 +393,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     RotationId = a.RotationId,
                     RotationName = rot != null ? rot.Name : string.Empty,
                     WeekId = a.WeekId,
-                    WeekStart = w != null ? (DateTime?)w.DateStart : null,
+                    WeekStart = w != null ? w.DateStart : null,
                     TermCode = w != null ? w.TermCode : 0,
                     ModifiedBy = a.ModifiedBy,
                     ModifiedByName = mp != null ? mp.PersonDisplayFullName : a.ModifiedBy,
