@@ -334,15 +334,19 @@ public sealed class CmsFileImportServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Preview_TwoLinesSameFinalName_NonBlockingMessageOnSecond()
+    public async Task Preview_TwoLinesSameBasename_SecondPreviewsImportRenamedName()
     {
         CreateWebrootFile(@"cats\docs\manual.pdf");
         // A second file in a different sub-path that produces the same final name after rename.
         Directory.CreateDirectory(Path.Join(_webroot, "cats", "other"));
         CreateWebrootFile(@"cats\other\manual.pdf");
 
-        // Stub storage to always return the same available name so both resolve to "manual.pdf".
+        // Disk/DB alone leaves the name free, so both lines resolve to "manual.pdf" on their own.
         _storage.GetAvailableFileName("cats", "manual.pdf").Returns("manual.pdf");
+        // But once the first line reserves "manual.pdf", the import would rename the second; the
+        // preview must reserve names across the batch and show that same renamed name up front.
+        _storage.GetAvailableFileName("cats", "manual.pdf",
+            Arg.Is<IReadOnlySet<string>?>(s => s != null && s.Contains("manual.pdf"))).Returns("manual_0.pdf");
 
         var request = new CmsFileImportRequest
         {
@@ -357,11 +361,16 @@ public sealed class CmsFileImportServiceTests : IDisposable
         var results = await _service.PreviewImportAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, results.Count);
-        // First entry: CanImport true, no message.
+        // First entry: keeps the name, no message.
         Assert.True(results[0].CanImport);
+        Assert.Equal("manual.pdf", results[0].FileName);
         Assert.Null(results[0].Message);
-        // Second entry: CanImport true (non-blocking), but has a message about renaming.
+        // Second entry: previews the exact renamed name the import will assign (not the colliding
+        // name), with a non-blocking message explaining the rename.
         Assert.True(results[1].CanImport);
+        Assert.Equal("manual_0.pdf", results[1].FileName);
+        Assert.Equal("manual.pdf", results[1].RenamedFrom);
+        Assert.Equal("cats-manual_0.pdf", results[1].FriendlyName);
         Assert.NotNull(results[1].Message);
         Assert.Contains("renamed", results[1].Message, StringComparison.OrdinalIgnoreCase);
     }

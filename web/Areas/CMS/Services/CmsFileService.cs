@@ -220,6 +220,9 @@ namespace Viper.Areas.CMS.Services
 
             string tempPath = await _storage.SaveToTempAsync(file, ct);
             string finalPath;
+            // Overwriting an orphaned on-disk file (no DB row) destroys its bytes; snapshot them first
+            // so a later failure can roll the original back instead of leaving nothing in its place.
+            string? overwriteBackup = null;
             try
             {
                 if (dbKey != null)
@@ -233,6 +236,10 @@ namespace Viper.Areas.CMS.Services
                     {
                         throw new InvalidOperationException(
                             $"{uploadName} belongs to an existing file record; replace its content by editing that file.");
+                    }
+                    if (_storage.ManagedFileExists(targetPath))
+                    {
+                        overwriteBackup = _storage.BackupManagedFile(targetPath);
                     }
                     _storage.ReplaceInPlace(tempPath, targetPath);
                     finalPath = targetPath;
@@ -253,7 +260,9 @@ namespace Viper.Areas.CMS.Services
             string friendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, Path.GetFileName(finalPath));
             if (await _context.Files.AnyAsync(f => f.FriendlyName == friendlyName, ct))
             {
-                _storage.DeleteManagedFile(finalPath);
+                // The new bytes are already on disk; reconcile the store (restore an overwritten
+                // original, or delete a fresh copy) before failing so nothing is left behind.
+                ReconcileStoreAfterFailedCreate(finalPath, overwriteBackup);
                 throw new InvalidOperationException($"A file with the name {friendlyName} already exists.");
             }
 
@@ -284,17 +293,30 @@ namespace Viper.Areas.CMS.Services
             _context.Files.Add(entity);
             _audit.Audit(entity, CmsFileAuditActions.AddFile, BuildCreateDetail(entity));
             _audit.Audit(entity, CmsFileAuditActions.UploadFile, "NewFile");
+            bool saved = false;
             try
             {
                 await _context.SaveChangesAsync(ct);
+                saved = true;
             }
             catch (Exception)
             {
-                // The upload is already in the managed store; any failed save would orphan it on
-                // disk, so drop the pending changes and remove the stored copy before rethrowing.
+                // A failed save never persisted the record. Drop the pending changes, then reconcile
+                // the managed store: restore an overwritten file's original bytes, or remove the
+                // freshly stored copy, so nothing is left orphaned or destroyed.
                 _context.ChangeTracker.Clear();
-                _storage.DeleteManagedFile(finalPath);
+                ReconcileStoreAfterFailedCreate(finalPath, overwriteBackup);
                 throw;
+            }
+            finally
+            {
+                // Only clean up on a committed save (the backup is then obsolete). On a failed save the
+                // reconcile above owns the backup: a successful restore already consumed it via Move, and
+                // a FAILED restore must keep it as the last copy of the original bytes.
+                if (saved && overwriteBackup != null && System.IO.File.Exists(overwriteBackup))
+                {
+                    System.IO.File.Delete(overwriteBackup);
+                }
             }
 
             var names = await GetNamesByIamIdAsync(entity.FileToPeople.Select(p => p.IamId), ct);
@@ -309,9 +331,12 @@ namespace Viper.Areas.CMS.Services
                 return null;
             }
 
-            var changes = new List<string>();
-            bool encrypt = request.Encrypt ?? false;
-            bool allowPublicAccess = request.AllowPublicAccess ?? false;
+            // Validate a replacement upload before anything touches the file on disk, so a bad type
+            // can't leave the file half-transformed or strand a backup copy.
+            if (file != null)
+            {
+                ValidateReplacementUpload(entity, file);
+            }
 
             // The crypto toggle and any replacement upload below transform the file on disk before
             // the metadata save. Capture the pre-change state so a failed save can reconcile the
@@ -319,8 +344,59 @@ namespace Viper.Areas.CMS.Services
             bool originalEncrypted = entity.Encrypted;
             string? originalKey = entity.Key;
 
-            // Encryption toggle happens before any file replacement so the replacement upload
-            // is written with the file's final encryption state.
+            // A replacement overwrites the bytes on disk before the save commits. Snapshot the
+            // original file first (it carries the original encryption state too) so a failed save
+            // can roll it back; restoring it supersedes the crypto-only reconcile below.
+            string? originalFileBackup = file != null && _storage.ManagedFileExists(entity.FilePath)
+                ? _storage.BackupManagedFile(entity.FilePath)
+                : null;
+
+            var changes = new List<string>();
+            ApplyEncryptionToggle(entity, request.Encrypt ?? false, changes);
+            ApplyScalarFieldChanges(entity, request, changes);
+
+            ApplyPermissionDeltas(entity, CleanList(request.Permissions), changes);
+            ApplyPersonDeltas(entity, CleanList(request.IamIds), changes);
+
+            if (file != null)
+            {
+                await WriteReplacementUploadAsync(entity, file, changes, ct);
+            }
+
+            entity.ModifiedOn = DateTime.Now;
+            entity.ModifiedBy = CurrentLoginId();
+
+            _audit.Audit(entity, CmsFileAuditActions.EditFile, string.Join("; ", changes));
+            await SaveUpdateAndReconcileAsync(entity, originalFileBackup, originalEncrypted, originalKey);
+
+            var names = await GetNamesByIamIdAsync(entity.FileToPeople.Select(p => p.IamId), ct);
+            return CmsFileMapper.ToCmsFileDto(entity, names);
+        }
+
+        /// <summary>
+        /// A replacement upload keeps the record's name and path, so its bytes must be an allowed
+        /// type and match the original extension; otherwise the stored file would hold mismatched
+        /// content and serve a corrupt download. Runs before anything touches disk.
+        /// </summary>
+        private static void ValidateReplacementUpload(File entity, IFormFile file)
+        {
+            if (!CmsFileTypes.IsAllowedFileName(file.FileName))
+            {
+                throw new ArgumentException("File type is not allowed.");
+            }
+            string replacementExt = Path.GetExtension(entity.FilePath);
+            if (!string.Equals(replacementExt, Path.GetExtension(file.FileName), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"The replacement file must be the same type as the original ({replacementExt}).");
+            }
+        }
+
+        /// <summary>
+        /// Applies the encryption toggle in place before any replacement upload, so the replacement
+        /// is written with the file's final encryption state. Records the change for the audit trail.
+        /// </summary>
+        private void ApplyEncryptionToggle(File entity, bool encrypt, List<string> changes)
+        {
             if (encrypt && !entity.Encrypted)
             {
                 string dbKey = _encryption.GenerateKeyForDb();
@@ -342,13 +418,21 @@ namespace Viper.Areas.CMS.Services
                 entity.Encrypted = false;
                 changes.Add("Decrypted file");
             }
+        }
 
+        /// <summary>
+        /// Applies the description, public-access, and Old URL edits, recording each that actually
+        /// changes for the audit trail.
+        /// </summary>
+        private static void ApplyScalarFieldChanges(File entity, CmsFileUpdateRequest request, List<string> changes)
+        {
             string newDescription = request.Description ?? string.Empty;
             if (entity.Description != newDescription)
             {
                 entity.Description = newDescription;
                 changes.Add("Description updated");
             }
+            bool allowPublicAccess = request.AllowPublicAccess ?? false;
             if (entity.AllowPublicAccess != allowPublicAccess)
             {
                 entity.AllowPublicAccess = allowPublicAccess;
@@ -360,72 +444,86 @@ namespace Viper.Areas.CMS.Services
                 entity.OldUrl = newOldUrl;
                 changes.Add("Old URL updated");
             }
+        }
 
-            ApplyPermissionDeltas(entity, CleanList(request.Permissions), changes);
-            ApplyPersonDeltas(entity, CleanList(request.IamIds), changes);
-
-            if (file != null)
+        /// <summary>
+        /// Writes a replacement upload over the record's file: encrypts the temp copy to the file's
+        /// current state if needed, swaps it in, audits the replacement, and revives a soft-deleted
+        /// record (the overwrite-conflict flow). The temp copy is always cleaned up.
+        /// </summary>
+        private async Task WriteReplacementUploadAsync(File entity, IFormFile file, List<string> changes, CancellationToken ct)
+        {
+            string tempPath = await _storage.SaveToTempAsync(file, ct);
+            try
             {
-                if (!CmsFileTypes.IsAllowedFileName(file.FileName))
+                if (entity.Encrypted && !string.IsNullOrEmpty(entity.Key))
                 {
-                    throw new ArgumentException("File type is not allowed.");
+                    _encryption.EncryptFileInPlace(tempPath, entity.Key);
                 }
-                // The replacement keeps the existing record's name and path, so its bytes must
-                // stay the same type; a mismatched extension would leave the stored .pdf holding
-                // .png bytes and serve a corrupt download.
-                string currentExt = Path.GetExtension(entity.FilePath);
-                if (!string.Equals(currentExt, Path.GetExtension(file.FileName), StringComparison.OrdinalIgnoreCase))
+                _storage.ReplaceInPlace(tempPath, entity.FilePath);
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempPath))
                 {
-                    throw new ArgumentException($"The replacement file must be the same type as the original ({currentExt}).");
-                }
-                string tempPath = await _storage.SaveToTempAsync(file, ct);
-                try
-                {
-                    if (entity.Encrypted && !string.IsNullOrEmpty(entity.Key))
-                    {
-                        _encryption.EncryptFileInPlace(tempPath, entity.Key);
-                    }
-                    _storage.ReplaceInPlace(tempPath, entity.FilePath);
-                }
-                finally
-                {
-                    if (System.IO.File.Exists(tempPath))
-                    {
-                        System.IO.File.Delete(tempPath);
-                    }
-                }
-                _audit.Audit(entity, CmsFileAuditActions.UploadFile, "ReplacingFile");
-
-                // Uploading new content into a soft-deleted record (the overwrite-conflict
-                // flow) makes it live again; metadata-only edits leave deletion state alone.
-                if (entity.DeletedOn != null)
-                {
-                    entity.DeletedOn = null;
-                    changes.Add("Restored file");
+                    System.IO.File.Delete(tempPath);
                 }
             }
+            _audit.Audit(entity, CmsFileAuditActions.UploadFile, "ReplacingFile");
 
-            entity.ModifiedOn = DateTime.Now;
-            entity.ModifiedBy = CurrentLoginId();
+            // Uploading new content into a soft-deleted record (the overwrite-conflict flow) makes
+            // it live again; metadata-only edits leave deletion state alone.
+            if (entity.DeletedOn != null)
+            {
+                entity.DeletedOn = null;
+                changes.Add("Restored file");
+            }
+        }
 
-            _audit.Audit(entity, CmsFileAuditActions.EditFile, string.Join("; ", changes));
+        /// <summary>
+        /// Persists the metadata edit, reconciling the on-disk file when the save fails: restore the
+        /// pre-replacement backup (which also restores the original encryption state) or, with no
+        /// replacement, revert just the crypto transform. The backup is deleted once the save commits;
+        /// if a restore fails it is left in place as the last copy of the original bytes.
+        /// </summary>
+        private async Task SaveUpdateAndReconcileAsync(File entity, string? originalFileBackup,
+            bool originalEncrypted, string? originalKey)
+        {
+            bool saved = false;
             try
             {
                 // The file on disk may already be in its new encryption state; cancelling the save
                 // would strand it without a matching key, so it runs to completion even if aborted.
                 await _context.SaveChangesAsync(CancellationToken.None);
+                saved = true;
             }
             catch (Exception)
             {
                 // Any failure type means the new state was not persisted; drop the pending changes
-                // and reconcile the on-disk file back to its original encryption state before rethrowing.
+                // and reconcile the on-disk file back to its original state before rethrowing.
                 _context.ChangeTracker.Clear();
-                RevertCryptoOnSaveFailure(entity, originalEncrypted, originalKey);
+                if (originalFileBackup != null)
+                {
+                    // A replacement overwrote the file; restoring the original bytes also restores
+                    // the original encryption state, so the crypto-only reconcile is skipped.
+                    RestoreOriginalFileOnSaveFailure(entity, originalFileBackup);
+                }
+                else
+                {
+                    RevertCryptoOnSaveFailure(entity, originalEncrypted, originalKey);
+                }
                 throw;
             }
-
-            var names = await GetNamesByIamIdAsync(entity.FileToPeople.Select(p => p.IamId), ct);
-            return CmsFileMapper.ToCmsFileDto(entity, names);
+            finally
+            {
+                // Only clean up on a committed save (the backup is then obsolete). On a failed save the
+                // reconcile above owns the backup: a successful restore already consumed it via Move, and
+                // a FAILED restore must keep it as the last copy of the original bytes.
+                if (saved && originalFileBackup != null && System.IO.File.Exists(originalFileBackup))
+                {
+                    System.IO.File.Delete(originalFileBackup);
+                }
+            }
         }
 
         /// <summary>
@@ -457,6 +555,53 @@ namespace Viper.Areas.CMS.Services
             {
                 _logger.LogCritical(ex, "CMS file {FileGuid} could not be reverted after a failed save; "
                     + "its on-disk encryption no longer matches the database.", entity.FileGuid);
+            }
+        }
+
+        /// <summary>
+        /// A failed save after a replacement upload leaves the new bytes on disk while the database
+        /// rolled back to the original record. Move the pre-replacement backup back into place so a
+        /// download serves the original content (and its original encryption state). A failure to
+        /// restore is logged as critical (with the preserved backup path) rather than swallowed; the
+        /// caller leaves the backup in place so it remains the last copy of the original bytes.
+        /// </summary>
+        private void RestoreOriginalFileOnSaveFailure(File entity, string backupPath)
+        {
+            try
+            {
+                _storage.ReplaceInPlace(backupPath, entity.FilePath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                _logger.LogCritical(ex, "CMS file {FileGuid} could not be restored after a failed save; "
+                    + "the on-disk content may not match the database. The original bytes are preserved "
+                    + "at {BackupPath} for manual recovery.", entity.FileGuid, backupPath);
+            }
+        }
+
+        /// <summary>
+        /// A create that has already written its bytes but then fails (friendly-name clash or save
+        /// error) must not leave the store changed. When the write overwrote an orphaned file, move
+        /// its pre-overwrite backup back so the original content survives; otherwise just delete the
+        /// freshly stored copy. A failed restore is logged as critical (with the preserved backup
+        /// path) rather than swallowed; the caller leaves the backup in place for recovery.
+        /// </summary>
+        private void ReconcileStoreAfterFailedCreate(string finalPath, string? overwriteBackup)
+        {
+            if (overwriteBackup == null)
+            {
+                _storage.DeleteManagedFile(finalPath);
+                return;
+            }
+            try
+            {
+                _storage.ReplaceInPlace(overwriteBackup, finalPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                _logger.LogCritical(ex, "CMS overwrite at {FilePath} could not be restored after a failed "
+                    + "create; the original bytes are preserved at {BackupPath} for manual recovery.",
+                    Viper.Classes.Utilities.LogSanitizer.SanitizeString(finalPath), overwriteBackup);
             }
         }
 
