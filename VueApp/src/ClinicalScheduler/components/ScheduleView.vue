@@ -73,6 +73,7 @@
             v-if="showLegend && schedulesBySemester && schedulesBySemester.length > 0"
             :show-warning="showWarningInLegend"
             :show-bulk-guide="enableWeekSelection"
+            :show-history="canViewHistory"
             :item-type="viewMode === 'rotation' ? 'clinician' : 'rotation'"
         />
     </div>
