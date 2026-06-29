@@ -87,7 +87,7 @@
                     <router-link :to="{ name: 'CmsContentBlockEdit', params: { id: cellProps.row.contentBlockId } }">
                         {{ blockLabel(cellProps.row) }}
                     </router-link>
-                    <q-badge
+                    <StatusBadge
                         v-if="cellProps.row.blockDeleted"
                         color="negative"
                         class="q-ml-sm"
@@ -129,7 +129,7 @@
                             >
                                 {{ blockLabel(row) }}
                             </router-link>
-                            <q-badge
+                            <StatusBadge
                                 v-if="row.blockDeleted"
                                 color="negative"
                                 label="deleted"
@@ -192,6 +192,7 @@ import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import DateRangeFilter from "@/CMS/components/DateRangeFilter.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
 import ListCard from "@/CMS/components/ListCard.vue"

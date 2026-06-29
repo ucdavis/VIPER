@@ -107,7 +107,11 @@
                             @reorder="onItemsReorder"
                         >
                             <template #row="{ item }">
-                                <div class="menu-item-fields">
+                                <div
+                                    class="menu-item-fields"
+                                    role="group"
+                                    :aria-label="`${item.isHeader ? 'Section header' : 'Menu link'}: ${item.menuItemText || '(untitled)'}`"
+                                >
                                     <div class="menu-item-fields__text">
                                         <q-input
                                             v-model="item.menuItemText"
@@ -471,7 +475,7 @@ onMounted(() => {
 .unsaved-hint {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 0.25rem;
     font-size: 0.8125rem;
     font-weight: 500;
 }
@@ -486,14 +490,14 @@ onMounted(() => {
 .menu-item-fields {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.5rem;
 }
 
 @container (min-width: 30rem) {
     .menu-item-fields {
         flex-direction: row;
         align-items: flex-start;
-        gap: 12px;
+        gap: 0.75rem;
     }
 
     .menu-item-fields__text {
@@ -516,8 +520,8 @@ onMounted(() => {
    borderless grouped rows in the panel on desktop. Header rows keep a distinct tint. */
 .menu-items :deep(.sortable-row) {
     border: 1px solid var(--ucdavis-black-10);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
     background: var(--surface-tint-raised);
 }
 
@@ -534,7 +538,7 @@ onMounted(() => {
         border: none;
         border-bottom: 1px solid var(--ucdavis-black-10);
         border-radius: 0;
-        padding: 12px 8px;
+        padding: 0.75rem 0.5rem;
         background: transparent;
     }
 

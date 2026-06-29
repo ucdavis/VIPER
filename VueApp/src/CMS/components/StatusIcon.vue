@@ -2,6 +2,7 @@
     <q-icon
         :name="icon"
         :color="color"
+        aria-hidden="true"
     >
         <q-tooltip>{{ label }}</q-tooltip>
     </q-icon>

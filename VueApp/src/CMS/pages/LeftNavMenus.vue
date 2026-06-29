@@ -149,6 +149,12 @@
                     </template>
                 </ListCard>
             </template>
+
+            <template #no-data>
+                <div class="full-width text-center text-grey-7 q-py-md">
+                    No left-nav menus yet. Use the "Add Left-Nav Menu" button to create one.
+                </div>
+            </template>
         </q-table>
 
         <LeftNavMenuDialog
@@ -162,6 +168,7 @@
 import { inject, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
+import { inflect } from "inflection"
 import { useFetch } from "@/composables/ViperFetch"
 import EditButton from "@/CMS/components/EditButton.vue"
 import LeftNavMenuDialog from "@/CMS/components/LeftNavMenuDialog.vue"
@@ -209,7 +216,12 @@ async function loadMenus() {
         search: filters.value.search || null,
     })
     const res = await get(apiURL + "?" + params)
-    menus.value = res.success ? res.result : []
+    if (res.success) {
+        menus.value = res.result
+    } else {
+        menus.value = []
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load menus" })
+    }
     loading.value = false
 }
 
@@ -217,7 +229,7 @@ async function deleteMenu(menu: CmsLeftNavMenu) {
     const confirmed = await new Promise<boolean>((resolve) => {
         $q.dialog({
             title: "Delete Menu",
-            message: `Permanently delete "${menu.menuHeaderText}" and its ${menu.items.length} items? This cannot be undone.`,
+            message: `Permanently delete "${menu.menuHeaderText || "(untitled)"}" and its ${menu.items.length} ${inflect("item", menu.items.length)}? This cannot be undone.`,
             cancel: { label: "Cancel", flat: true },
             persistent: true,
             ok: { label: "Delete Menu", color: "negative", unelevated: true },

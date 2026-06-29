@@ -31,14 +31,13 @@
                     v-for="tag in props.link.linkTags"
                     :key="tag.linkTagId"
                 >
-                    <q-badge
+                    <StatusBadge
                         v-if="tag.linkCollectionTagCategoryId == lct.linkCollectionTagCategoryId"
-                        :color="getTagStyle(lct.sortOrder).color"
-                        :text-color="getTagStyle(lct.sortOrder).textColor"
-                        class="link-tag q-px-sm"
+                        :color="getTagColor(lct.sortOrder)"
+                        class="q-px-sm q-mr-xs"
                     >
                         {{ tag.value }}
-                    </q-badge>
+                    </StatusBadge>
                 </template>
             </template>
         </q-card-section>
@@ -49,6 +48,7 @@
 import { computed } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
 import { safeHref } from "@/CMS/utils/url"
+import StatusBadge from "@/components/StatusBadge.vue"
 const props = defineProps<{
     link: Link
     linkCollection: LinkCollection
@@ -57,35 +57,25 @@ const props = defineProps<{
 const hrefForLink = computed(() => safeHref(props.link.url))
 const isSafe = computed(() => hrefForLink.value !== "#")
 
-// Each tag category's sortOrder (1-based) indexes this palette. Gold and Tahoe
-// are light enough to require dark text for WCAG AA contrast (≥4.5:1).
-const TAG_STYLES: ReadonlyArray<{ color: string; textColor: string }> = [
-    { color: "warning", textColor: "dark" },
-    { color: "secondary", textColor: "white" },
-    { color: "negative", textColor: "white" },
-    { color: "positive", textColor: "white" },
-    { color: "info", textColor: "dark" },
-    { color: "primary", textColor: "white" },
-]
+// Each tag category's sortOrder (1-based) indexes this palette of Quasar brand
+// roles. StatusBadge derives the WCAG-AA text color for each (dark on the light
+// warning/info tints, white on the rest).
+const TAG_COLORS = ["warning", "secondary", "negative", "positive", "info", "primary"] as const
 
-function getTagStyle(order: number) {
-    const idx = order >= 1 ? (order - 1) % TAG_STYLES.length : 0
-    return TAG_STYLES[idx]!
+function getTagColor(order: number) {
+    const idx = order >= 1 ? (order - 1) % TAG_COLORS.length : 0
+    return TAG_COLORS[idx]
 }
 </script>
 
 <style scoped>
 .link-card {
-    max-width: 350px;
+    max-width: 21.875rem;
     width: 100%;
 }
 
 .link-card a {
     text-decoration: none;
     color: inherit;
-}
-
-.link-tag {
-    margin-right: 2px;
 }
 </style>

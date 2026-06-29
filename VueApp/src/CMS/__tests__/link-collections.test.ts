@@ -176,26 +176,21 @@ describe("LinkCollections.vue - tag category filter", () => {
 describe("LinkCollections.vue - group by tag category", () => {
     beforeEach(() => primeFetch())
 
-    it("getInGroup returns only links whose group tag matches the group value", async () => {
+    it("buckets links by their value in the group-by tag category", async () => {
         const wrapper = await mountLoaded({ linkCollectionName: "Resources", groupByTagCategory: "Subject" })
-        const vm = wrapper.vm as unknown as {
-            getInGroup: (links: Link[], group: string) => Link[]
-            filteredLinks: Link[]
-        }
-        const anatomy = vm.getInGroup(vm.filteredLinks, "Anatomy").map((l) => l.title)
+        const vm = wrapper.vm as unknown as { groupedLinks: Map<string, Link[]> }
+        const anatomy = (vm.groupedLinks.get("Anatomy") ?? []).map((l) => l.title)
         expect(anatomy.toSorted()).toEqual(["Anatomy Atlas", "Anatomy Guide"])
-        const pharm = vm.getInGroup(vm.filteredLinks, "Pharmacology").map((l) => l.title)
+        const pharm = (vm.groupedLinks.get("Pharmacology") ?? []).map((l) => l.title)
         expect(pharm).toEqual(["Pharmacology Notes"])
     })
 
-    it("getInGroup returns all links unchanged when no group category is set", async () => {
+    it("renders all links and builds no buckets when no group category is set", async () => {
         primeFetch()
         const wrapper = await mountLoaded({ linkCollectionName: "Resources" })
-        const vm = wrapper.vm as unknown as {
-            getInGroup: (links: Link[], group: string) => Link[]
-            filteredLinks: Link[]
-        }
-        expect(vm.getInGroup(vm.filteredLinks, "anything")).toHaveLength(3)
+        expect(linkCardTitles(wrapper)).toHaveLength(3)
+        const vm = wrapper.vm as unknown as { groupedLinks: Map<string, Link[]> }
+        expect(vm.groupedLinks.size).toBe(0)
     })
 
     it("computes the sorted set of group header values", async () => {

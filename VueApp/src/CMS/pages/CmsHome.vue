@@ -155,7 +155,7 @@ const showRecentActivity = computed(() => canManageBlocks.value || canManageFile
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
     grid-auto-rows: 1fr;
-    gap: 16px;
+    gap: 1rem;
 }
 
 .cms-home-cards .q-card {

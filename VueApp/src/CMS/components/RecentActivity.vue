@@ -34,7 +34,6 @@
                 :key="item.key"
                 clickable
                 :to="item.to"
-                role="link"
                 class="q-px-none"
             >
                 <q-item-section side>
