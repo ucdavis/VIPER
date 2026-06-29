@@ -33,9 +33,21 @@ public sealed class SafeUrlAttribute : ValidationAttribute
         // rooted paths like "/CMS/files" (parsed as file:// on Unix)
         if (!url.Split('/', '?', '#')[0].Contains(':'))
         {
-            return AllowRelative
-                ? ValidationResult.Success
-                : new ValidationResult("URL must be a full address starting with http, https, mailto, or tel.");
+            if (!AllowRelative)
+            {
+                return new ValidationResult("URL must be a full address starting with http, https, mailto, or tel.");
+            }
+
+            // Reject protocol-relative ("network-path") references like "//evil.example/x":
+            // a browser navigates those off-site even though they carry no scheme. Backslashes
+            // are normalized to forward slashes when parsing URLs, so "/\", "\\", and "\/" are
+            // equivalent bypasses and must be rejected too.
+            if (url.Length >= 2 && (url[0] == '/' || url[0] == '\\') && (url[1] == '/' || url[1] == '\\'))
+            {
+                return new ValidationResult("URL must not start with // (that would point to another site).");
+            }
+
+            return ValidationResult.Success;
         }
 
         return Uri.TryCreate(url, UriKind.Absolute, out var uri)

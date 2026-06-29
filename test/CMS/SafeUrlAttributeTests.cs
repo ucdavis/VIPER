@@ -62,6 +62,20 @@ public sealed class SafeUrlAttributeTests
         Assert.NotEqual(ValidationResult.Success, Validate("foo:bar/baz", allowRelative: true));
     }
 
+    [Theory]
+    [InlineData("//evil.example/path")]
+    [InlineData("//evil.example")]
+    [InlineData("/\\evil.example/path")]
+    [InlineData("\\\\evil.example\\path")]
+    [InlineData("\\/evil.example")]
+    public void BothModes_RejectProtocolRelativeUrls(string url)
+    {
+        // A scheme-less "//host" (or its backslash variants) navigates off-site, so it must be
+        // rejected even in relative mode, where bare relative paths are otherwise allowed.
+        Assert.NotEqual(ValidationResult.Success, Validate(url, allowRelative: true));
+        Assert.NotEqual(ValidationResult.Success, Validate(url, allowRelative: false));
+    }
+
     [Fact]
     public void RelativeMode_AllowsColonAfterFirstSegment()
     {
