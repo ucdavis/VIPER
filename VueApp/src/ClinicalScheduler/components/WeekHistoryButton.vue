@@ -7,10 +7,10 @@
         icon="history"
         color="grey-7"
         class="week-history-btn"
-        :aria-label="`View change history for week ${weekNumber}`"
+        :aria-label="`View audit trail for week ${weekNumber}`"
         @click.stop="onTriggerClick"
     >
-        <q-tooltip :delay="500">Change history</q-tooltip>
+        <q-tooltip :delay="500">Audit Trail</q-tooltip>
 
         <!-- Desktop: anchored popover -->
         <q-menu
@@ -61,8 +61,8 @@
 import { computed, ref, useId } from "vue"
 import { useQuasar } from "quasar"
 import { AuditLogService } from "../services/audit-log-service"
+import { useAuditEntries } from "../composables/use-audit-entries"
 import WeekHistoryContent from "./WeekHistoryContent.vue"
-import type { AuditLogEntry } from "../types/audit-types"
 
 const props = defineProps<{
     /** "rotation" reads rotation+week history; "clinician" reads clinician+week history */
@@ -82,9 +82,7 @@ const useDialog = computed(() => $q.screen.lt.md)
 const titleId = `week-history-title-${useId()}`
 
 const dialogOpen = ref(false)
-const entries = ref<AuditLogEntry[]>([])
-const isLoading = ref(false)
-const error = ref<string | null>(null)
+const { entries, isLoading, error, load } = useAuditEntries()
 
 // The desktop popover opens itself via @show; only the dialog needs an explicit open.
 function onTriggerClick() {
@@ -95,29 +93,18 @@ function onTriggerClick() {
 
 // Lazy-load each time the surface opens so it always reflects the latest grid edits.
 async function loadHistory() {
-    isLoading.value = true
-    error.value = null
-    try {
-        const response =
-            props.viewMode === "rotation"
-                ? await AuditLogService.getRotationWeekHistory(Number(props.contextId), props.weekId)
-                : await AuditLogService.getClinicianWeekHistory(String(props.contextId), props.weekId)
-        if (response.success) {
-            entries.value = response.result
-        } else {
-            error.value = response.errors?.join(", ") || "Failed to load the change history"
-        }
-    } catch (err) {
-        error.value = err instanceof Error ? err.message : "An error occurred while loading the change history"
-    } finally {
-        isLoading.value = false
-    }
+    await load(() =>
+        props.viewMode === "rotation"
+            ? AuditLogService.getRotationWeekHistory(Number(props.contextId), props.weekId)
+            : AuditLogService.getClinicianWeekHistory(String(props.contextId), props.weekId),
+    )
 }
 </script>
 
 <style scoped>
 .week-history-btn {
     flex-shrink: 0;
+
     /* >=24px hit area (WCAG 2.5.8) so a near-miss tap doesn't fall through to the cell */
     min-width: 1.75rem;
     min-height: 1.75rem;

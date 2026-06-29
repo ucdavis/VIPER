@@ -109,7 +109,7 @@
                             class="legend-icon"
                             aria-hidden="true"
                         />
-                        <span class="legend-text">View change history</span>
+                        <span class="legend-text">View audit trail</span>
                     </div>
                 </div>
             </q-card-section>
