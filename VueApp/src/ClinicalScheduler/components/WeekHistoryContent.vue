@@ -10,7 +10,7 @@
                     :id="titleId"
                     class="week-history__title"
                 >
-                    Change history
+                    Audit Trail
                 </div>
                 <div class="week-history__subtitle">
                     {{ contextLabel }} &middot; Week {{ weekNumber }} ({{ formatDate(weekDateStart) }})
@@ -25,7 +25,7 @@
                 icon="close"
                 color="grey-7"
                 class="week-history__close"
-                aria-label="Close change history"
+                aria-label="Close audit trail"
             >
                 <q-tooltip :delay="500">Close</q-tooltip>
             </q-btn>
@@ -92,7 +92,7 @@
                 color="grey-7"
                 size="sm"
             />
-            <span class="week-history__state-text text-grey-7">No changes recorded for this week.</span>
+            <span class="week-history__state-text text-grey-7">No audit entries for this week.</span>
         </div>
 
         <!-- Entries -->

@@ -337,7 +337,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
-                throw new InvalidOperationException("Failed to retrieve the audit history for this week. Please try again or contact support if the problem persists.", ex);
+                throw new InvalidOperationException("Failed to retrieve the audit trail for this week. Please try again or contact support if the problem persists.", ex);
             }
         }
 
@@ -358,7 +358,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for clinician {MothraId}, week {WeekId}", LogSanitizer.SanitizeString(mothraId), weekId);
-                throw new InvalidOperationException("Failed to retrieve the audit history for this week. Please try again or contact support if the problem persists.", ex);
+                throw new InvalidOperationException("Failed to retrieve the audit trail for this week. Please try again or contact support if the problem persists.", ex);
             }
         }
 

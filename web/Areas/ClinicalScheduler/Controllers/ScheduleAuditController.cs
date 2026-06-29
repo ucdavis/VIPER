@@ -132,7 +132,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         }
 
         /// <summary>
-        /// Get the change history for a single rotation + week (inline per-week history popover,
+        /// Get the audit trail for a single rotation + week (inline per-week audit popover,
         /// Schedule-by-Rotation grid).
         /// </summary>
         /// <param name="rotationId">Rotation the week belongs to</param>
@@ -158,13 +158,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
-                return StatusCode(500, "An error occurred while retrieving the week's audit history");
+                return StatusCode(500, "An error occurred while retrieving the week's audit trail");
             }
         }
 
         /// <summary>
-        /// Get the change history for a single clinician + week across all rotations (inline
-        /// per-week history popover, Schedule-by-Clinician grid).
+        /// Get the audit trail for a single clinician + week across all rotations (inline
+        /// per-week audit popover, Schedule-by-Clinician grid).
         /// </summary>
         /// <param name="mothraId">MothraID of the affected clinician</param>
         /// <param name="weekId">Week to scope the history to</param>
@@ -189,7 +189,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error retrieving audit history for clinician {MothraId}, week {WeekId}", LogSanitizer.SanitizeString(mothraId), weekId);
-                return StatusCode(500, "An error occurred while retrieving the week's audit history");
+                return StatusCode(500, "An error occurred while retrieving the week's audit trail");
             }
         }
     }

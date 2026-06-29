@@ -149,8 +149,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Get the display-ready change history for a single rotation + week, newest first.
-        /// Powers the inline per-week history popover in the Schedule-by-Rotation grid.
+        /// Get the display-ready audit trail for a single rotation + week, newest first.
+        /// Powers the inline per-week audit popover in the Schedule-by-Rotation grid.
         /// </summary>
         /// <param name="rotationId">Rotation the week belongs to</param>
         /// <param name="weekId">Week to scope the history to</param>
@@ -162,8 +162,8 @@ namespace Viper.Areas.ClinicalScheduler.Services
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Get the display-ready change history for a single clinician + week, newest first
-        /// (across all rotations that week). Powers the inline per-week history popover in
+        /// Get the display-ready audit trail for a single clinician + week, newest first
+        /// (across all rotations that week). Powers the inline per-week audit popover in
         /// the Schedule-by-Clinician grid.
         /// </summary>
         /// <param name="mothraId">MothraID of the affected clinician</param>

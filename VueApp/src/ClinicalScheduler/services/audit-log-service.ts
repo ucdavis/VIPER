@@ -94,7 +94,7 @@ class AuditLogService {
     }
 
     /**
-     * Get the change history for a single rotation + week (Schedule-by-Rotation inline history).
+     * Get the audit trail for a single rotation + week (Schedule-by-Rotation inline popover).
      */
     static async getRotationWeekHistory(rotationId: number, weekId: number): Promise<ApiResult<AuditLogEntry[]>> {
         try {
@@ -111,7 +111,7 @@ class AuditLogService {
     }
 
     /**
-     * Get the change history for a single clinician + week (Schedule-by-Clinician inline history).
+     * Get the audit trail for a single clinician + week (Schedule-by-Clinician inline popover).
      */
     static async getClinicianWeekHistory(mothraId: string, weekId: number): Promise<ApiResult<AuditLogEntry[]>> {
         try {
