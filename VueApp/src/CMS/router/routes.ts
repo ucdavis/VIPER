@@ -2,6 +2,17 @@ import ViperLayout from "@/layouts/ViperLayout.vue"
 import type { RouteLocationNormalized } from "vue-router"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
+// Granular CMS permissions that grant the Home hub. The hub adapts to whichever of these the user
+// holds, and CmsNavMenu links it for any of them, so the Home route guard and the area-root
+// canonicalization (router/index.ts) gate on this one shared set rather than two lists that drift.
+const cmsHomePermissions = [
+    "SVMSecure.CMS",
+    "SVMSecure.CMS.ManageContentBlocks",
+    "SVMSecure.CMS.CreateContentBlock",
+    "SVMSecure.CMS.AllFiles",
+    "SVMSecure.CMS.ManageNavigation",
+]
+
 const routes = [
     {
         path: "/CMS/",
@@ -11,7 +22,10 @@ const routes = [
     },
     {
         path: "/CMS/Home",
-        meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS"] },
+        meta: {
+            layout: ViperLayout,
+            permissions: cmsHomePermissions,
+        },
         component: () => import("@/CMS/pages/CmsHome.vue"),
         name: "CmsHome",
     },
@@ -92,4 +106,4 @@ const routes = [
     },
 ]
 
-export { routes }
+export { routes, cmsHomePermissions }
