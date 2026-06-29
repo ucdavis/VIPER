@@ -109,13 +109,22 @@ namespace Viper.Areas.CMS.Services
                     continue;
                 }
 
-                string finalName = _storage.GetAvailableFileName(request.Folder, source.FileName);
+                // GetAvailableFileName only sees disk + DB, so two source files sharing a basename
+                // would both preview the same name. Reserving each planned name (as the sequential
+                // import writes would) makes a later line resolve to the same unique name the import
+                // actually assigns it, instead of advertising one it will lose.
+                string availableOnStore = _storage.GetAvailableFileName(request.Folder, source.FileName);
+                bool sharesNameWithEarlierLine = plannedNames.Contains(availableOnStore);
+                string finalName = sharesNameWithEarlierLine
+                    ? _storage.GetAvailableFileName(request.Folder, source.FileName, plannedNames)
+                    : availableOnStore;
                 string friendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, finalName);
                 if (await _context.Files.AnyAsync(f => f.FriendlyName == friendlyName, ct))
                 {
                     result.Message = $"A file with the name {friendlyName} already exists.";
                     continue;
                 }
+                plannedNames.Add(finalName);
 
                 result.CanImport = true;
                 result.FileName = finalName;
@@ -125,9 +134,9 @@ namespace Viper.Areas.CMS.Services
                 }
                 result.FriendlyName = friendlyName;
                 result.OldUrl = "/" + source.Relative.Replace('\\', '/');
-                if (!plannedNames.Add(finalName))
+                if (sharesNameWithEarlierLine)
                 {
-                    result.Message = "Another line uses the same file name; this one will be renamed during import.";
+                    result.Message = "Shares a name with an earlier line in this import; renamed to keep both.";
                 }
             }
             return results;

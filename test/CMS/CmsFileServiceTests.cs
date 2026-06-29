@@ -67,6 +67,18 @@ public sealed class CmsFileServiceTests : IDisposable
         return new FormFile(stream, 0, stream.Length, "file", fileName);
     }
 
+    /// <summary>
+    /// Writes a real temp file to stand in for a backup the service returns from BackupManagedFile.
+    /// A real path lets the cleanup branch (System.IO.File.Exists/Delete) actually execute rather
+    /// than short-circuiting on a fake path that never exists. Callers delete it in a finally.
+    /// </summary>
+    private static string MakeRealBackupFile()
+    {
+        string path = Path.Join(Path.GetTempPath(), "Viper-CMS-Test-" + Guid.NewGuid().ToString("N"));
+        System.IO.File.WriteAllBytes(path, new byte[] { 9, 9, 9 });
+        return path;
+    }
+
     private async Task<File> SeedFileAsync(Action<File>? customize = null)
     {
         var file = new File
@@ -284,6 +296,66 @@ public sealed class CmsFileServiceTests : IDisposable
         _storage.DidNotReceive().ReplaceInPlace(Arg.Any<string>(), Arg.Any<string>());
     }
 
+    [Fact]
+    public async Task CreateFile_OverwriteOrphan_SaveFails_RestoresOriginalFile()
+    {
+        const string targetPath = @"C:\FakeRoot\cats\orphan.pdf";
+        const string backupPath = @"C:\FakeTemp\backup-orphan";
+        _storage.FileNameInUse("cats", "orphan.pdf").Returns(true);
+        _storage.BuildManagedPath("cats", "orphan.pdf").Returns(targetPath);
+        _storage.ManagedFileExists(targetPath).Returns(true);
+        _storage.BackupManagedFile(targetPath).Returns(backupPath);
+
+        var (service, _, _) = await BuildServiceOverFailingSaveAsync();
+        var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.CreateFileAsync(request, MakeFormFile("orphan.pdf"), TestContext.Current.CancellationToken));
+
+        // The orphaned original (no DB row) was overwritten on disk; the failed save must move the
+        // pre-overwrite backup back into place rather than deleting it, so the file isn't lost.
+        _storage.Received(1).BackupManagedFile(targetPath);
+        _storage.Received(1).ReplaceInPlace(backupPath, targetPath);
+        _storage.DidNotReceive().DeleteManagedFile(targetPath);
+    }
+
+    [Fact]
+    public async Task CreateFile_OverwriteOrphan_SaveFails_RestoreFails_PreservesBackup()
+    {
+        const string targetPath = @"C:\FakeRoot\cats\orphan.pdf";
+        _storage.FileNameInUse("cats", "orphan.pdf").Returns(true);
+        _storage.BuildManagedPath("cats", "orphan.pdf").Returns(targetPath);
+        _storage.ManagedFileExists(targetPath).Returns(true);
+
+        // A real temp file stands in for the backup so the cleanup branch (File.Exists/Delete)
+        // actually runs instead of short-circuiting on a non-existent fake path.
+        string backupPath = MakeRealBackupFile();
+        try
+        {
+            _storage.BackupManagedFile(targetPath).Returns(backupPath);
+            // The restore attempt itself fails (e.g., the target is locked); the backup is then the
+            // only surviving copy of the original bytes and must not be deleted.
+            _storage.When(s => s.ReplaceInPlace(backupPath, targetPath))
+                .Do(_ => throw new IOException("restore failed"));
+
+            var (service, _, _) = await BuildServiceOverFailingSaveAsync();
+            var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => service.CreateFileAsync(request, MakeFormFile("orphan.pdf"), TestContext.Current.CancellationToken));
+
+            _storage.Received(1).ReplaceInPlace(backupPath, targetPath);
+            Assert.True(System.IO.File.Exists(backupPath));
+        }
+        finally
+        {
+            if (System.IO.File.Exists(backupPath))
+            {
+                System.IO.File.Delete(backupPath);
+            }
+        }
+    }
+
     #endregion
 
     #region Update
@@ -451,6 +523,81 @@ public sealed class CmsFileServiceTests : IDisposable
         // The file was decrypted on disk but the save failed, so it must be re-encrypted with the
         // original key to stay consistent with the rolled-back (still-encrypted) database row.
         _encryption.Received(1).EncryptFileInPlace(filePath, "old-key");
+    }
+
+    [Fact]
+    public async Task UpdateFile_ReplacementUpload_SaveFails_RestoresOriginalFile()
+    {
+        var (service, fileGuid, filePath) = await BuildServiceOverFailingSaveAsync();
+        _storage.ManagedFileExists(filePath).Returns(true);
+        const string backupPath = @"C:\FakeTemp\backup-original";
+        _storage.BackupManagedFile(filePath).Returns(backupPath);
+        var request = new CmsFileUpdateRequest { Description = "seeded" };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UpdateFileAsync(fileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken));
+
+        // ReplaceInPlace swapped in the new upload, but the save failed, so the pre-replacement
+        // backup must be moved back over the managed path to restore the original bytes.
+        _storage.Received(1).BackupManagedFile(filePath);
+        _storage.Received(1).ReplaceInPlace(backupPath, filePath);
+    }
+
+    [Fact]
+    public async Task UpdateFile_ReplacementUpload_SaveFails_RestoreFails_PreservesBackup()
+    {
+        var (service, fileGuid, filePath) = await BuildServiceOverFailingSaveAsync();
+        _storage.ManagedFileExists(filePath).Returns(true);
+
+        string backupPath = MakeRealBackupFile();
+        try
+        {
+            _storage.BackupManagedFile(filePath).Returns(backupPath);
+            // The restore attempt fails, so the backup holds the only copy of the pre-update bytes
+            // (the database rolled back to that older record) and must be preserved, not deleted.
+            _storage.When(s => s.ReplaceInPlace(backupPath, filePath))
+                .Do(_ => throw new IOException("restore failed"));
+            var request = new CmsFileUpdateRequest { Description = "seeded" };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => service.UpdateFileAsync(fileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken));
+
+            _storage.Received(1).ReplaceInPlace(backupPath, filePath);
+            Assert.True(System.IO.File.Exists(backupPath));
+        }
+        finally
+        {
+            if (System.IO.File.Exists(backupPath))
+            {
+                System.IO.File.Delete(backupPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UpdateFile_ReplacementUpload_SaveSucceeds_DeletesBackup()
+    {
+        var file = await SeedFileAsync();
+        _storage.ManagedFileExists(file.FilePath).Returns(true);
+
+        string backupPath = MakeRealBackupFile();
+        try
+        {
+            _storage.BackupManagedFile(file.FilePath).Returns(backupPath);
+            var request = new CmsFileUpdateRequest { Description = "seeded" };
+
+            await _service.UpdateFileAsync(file.FileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken);
+
+            // A committed save makes the pre-replacement backup obsolete; it must be cleaned up.
+            Assert.False(System.IO.File.Exists(backupPath));
+        }
+        finally
+        {
+            if (System.IO.File.Exists(backupPath))
+            {
+                System.IO.File.Delete(backupPath);
+            }
+        }
     }
 
     #endregion

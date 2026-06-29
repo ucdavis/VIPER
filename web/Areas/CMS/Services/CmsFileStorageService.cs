@@ -30,9 +30,11 @@ namespace Viper.Areas.CMS.Services
 
         /// <summary>
         /// The name MoveIntoPlace would store folder\fileName under: the name itself when free,
-        /// otherwise the first free name_0..name_999 candidate.
+        /// otherwise the first free name_0..name_999 candidate. <paramref name="reservedNames"/>
+        /// (optional) are treated as already taken, so callers planning several writes in one
+        /// batch get the same unique names the sequential moves would actually assign.
         /// </summary>
-        string GetAvailableFileName(string folder, string fileName);
+        string GetAvailableFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null);
 
         /// <summary>Resolved managed path for folder\fileName (validated to stay under the root).</summary>
         string BuildManagedPath(string folder, string fileName);
@@ -49,6 +51,13 @@ namespace Viper.Areas.CMS.Services
 
         /// <summary>Overwrite the managed file at <paramref name="existingFilePath"/> with a temp file.</summary>
         void ReplaceInPlace(string tempPath, string existingFilePath);
+
+        /// <summary>
+        /// Copy a managed file to a temp backup outside the storage root and return its path. Pair
+        /// with ReplaceInPlace(backupPath, originalPath) to roll the original bytes back into place
+        /// after a failed save.
+        /// </summary>
+        string BackupManagedFile(string filePath);
 
         /// <summary>Delete a file, verifying it lives under the storage root first.</summary>
         void DeleteManagedFile(string filePath);
@@ -134,10 +143,12 @@ namespace Viper.Areas.CMS.Services
             return _context.Files.Any(f => f.FilePath == targetPath);
         }
 
-        public string GetAvailableFileName(string folder, string fileName)
+        public string GetAvailableFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null)
         {
             string finalName = Path.GetFileName(fileName);
-            return FileNameInUse(folder, finalName) ? GetUniqueFileName(folder, finalName) : finalName;
+            bool taken = FileNameInUse(folder, finalName)
+                || (reservedNames != null && reservedNames.Contains(finalName));
+            return taken ? GetUniqueFileName(folder, finalName, reservedNames) : finalName;
         }
 
         public string BuildManagedPath(string folder, string fileName)
@@ -189,6 +200,16 @@ namespace Viper.Areas.CMS.Services
             System.IO.File.Move(tempPath, existingFilePath, overwrite: true);
         }
 
+        public string BackupManagedFile(string filePath)
+        {
+            AssertUnderRoot(filePath);
+            string tempFolder = Path.Join(Path.GetTempPath(), "Viper-CMS-Uploads");
+            System.IO.Directory.CreateDirectory(tempFolder);
+            string backupPath = Path.Join(tempFolder, Guid.NewGuid().ToString("N"));
+            System.IO.File.Copy(filePath, backupPath, overwrite: true);
+            return backupPath;
+        }
+
         public void DeleteManagedFile(string filePath)
         {
             AssertUnderRoot(filePath);
@@ -203,7 +224,7 @@ namespace Viper.Areas.CMS.Services
             return IsUnderRoot(filePath) && System.IO.File.Exists(filePath);
         }
 
-        private string GetUniqueFileName(string folder, string fileName)
+        private string GetUniqueFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null)
         {
             string baseName = Path.GetFileNameWithoutExtension(fileName);
             string extension = Path.GetExtension(fileName);
@@ -211,7 +232,8 @@ namespace Viper.Areas.CMS.Services
             for (int i = 0; i < 1000; i++)
             {
                 string candidate = $"{baseName}_{i}{extension}";
-                if (!FileNameInUse(folder, candidate))
+                if (!FileNameInUse(folder, candidate)
+                    && (reservedNames == null || !reservedNames.Contains(candidate)))
                 {
                     return candidate;
                 }
