@@ -97,6 +97,20 @@
                         />
                         <span class="legend-text">Needs primary evaluator</span>
                     </div>
+
+                    <div
+                        v-if="showHistory"
+                        class="legend-item"
+                    >
+                        <q-icon
+                            name="history"
+                            size="xs"
+                            color="grey-7"
+                            class="legend-icon"
+                            aria-hidden="true"
+                        />
+                        <span class="legend-text">View change history</span>
+                    </div>
                 </div>
             </q-card-section>
         </q-card>
@@ -110,12 +124,14 @@ import { useQuasar } from "quasar"
 interface Props {
     showWarning?: boolean
     showBulkGuide?: boolean
+    showHistory?: boolean
     itemType?: "rotation" | "clinician"
 }
 
 withDefaults(defineProps<Props>(), {
     showWarning: false,
     showBulkGuide: false,
+    showHistory: false,
     itemType: "rotation",
 })
 
