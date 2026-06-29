@@ -17,8 +17,7 @@
             v-model="filtersExpandedComputed"
             icon="filter_list"
             label="Filters"
-            header-class="bg-grey-2 lt-md"
-            :header-style="$q.screen.gt.xs ? 'display: none' : ''"
+            header-class="bg-grey-2 lt-sm"
             class="q-mb-md"
         >
             <q-form>
@@ -81,27 +80,25 @@
             </div>
         </template>
         <template v-else-if="linkCollection != null">
-            <div
-                class="q-pa-md row q-gutter-md"
+            <template
                 v-for="groupBy in groupByValues"
                 :key="groupBy"
             >
                 <div
-                    class="col-12"
-                    v-if="getInGroup(filteredLinks, groupBy).length > 0"
+                    v-if="(groupedLinks.get(groupBy)?.length ?? 0) > 0"
+                    class="q-pa-md row q-gutter-md"
                 >
-                    <h3 class="q-mt-lg q-mb-sm">{{ groupBy }}</h3>
-                </div>
-                <template
-                    v-for="li in getInGroup(filteredLinks, groupBy)"
-                    :key="li.linkId"
-                >
+                    <div class="col-12">
+                        <h3 class="q-mt-lg q-mb-sm">{{ groupBy }}</h3>
+                    </div>
                     <LinkComponent
+                        v-for="li in groupedLinks.get(groupBy)"
+                        :key="li.linkId"
                         :link="li"
                         :link-collection="linkCollection"
-                    ></LinkComponent>
-                </template>
-            </div>
+                    />
+                </div>
+            </template>
         </template>
     </template>
 </template>
@@ -149,7 +146,7 @@ async function getLinkCollection() {
     const { get } = useFetch()
     const baseUrl = import.meta.env.VITE_API_URL + "cms/linkcollections/"
     const r = await get(baseUrl + "?linkCollectionName=" + encodeURIComponent(props.linkCollectionName))
-    linkCollection.value = r.result[0] as LinkCollection
+    linkCollection.value = r.success && Array.isArray(r.result) ? ((r.result[0] as LinkCollection) ?? null) : null
     if (linkCollection.value) {
         await loadLinks(linkCollection.value.linkCollectionId)
         await loadFilters()
@@ -171,7 +168,7 @@ async function loadLinks(collectionId: number) {
 
 function loadFilters() {
     if (linkCollection.value !== null) {
-        for (var tagCat of linkCollection.value.linkCollectionTagCategories) {
+        for (const tagCat of linkCollection.value.linkCollectionTagCategories) {
             tagFilters.value.push({
                 linkCollectionTagCategoryId: tagCat.linkCollectionTagCategoryId,
                 linkCollectionTagCategory: tagCat.linkCollectionTagCategory,
@@ -179,19 +176,21 @@ function loadFilters() {
                 selected: null,
             })
         }
-        for (var l of links.value) {
-            for (var lt of l.linkTags) {
-                var t = tagFilters.value.find((t) => t.linkCollectionTagCategoryId === lt.linkCollectionTagCategoryId)
-                if (t) {
-                    t.options.push(lt.value)
+        for (const l of links.value) {
+            for (const lt of l.linkTags) {
+                const filter = tagFilters.value.find(
+                    (f) => f.linkCollectionTagCategoryId === lt.linkCollectionTagCategoryId,
+                )
+                if (filter) {
+                    filter.options.push(lt.value)
                 }
             }
         }
-        for (var tf of tagFilters.value) {
+        for (const tf of tagFilters.value) {
             tf.options = tf.options.sort()
         }
 
-        for (var tagOptions of tagFilters.value) {
+        for (const tagOptions of tagFilters.value) {
             tagOptions.options = [...new Set(tagOptions.options)]
             if (
                 props.groupByTagCategory !== null &&
@@ -204,21 +203,32 @@ function loadFilters() {
     }
 }
 
-function getInGroup(linksIn: Link[], groupByValue: string) {
-    if (props.groupByTagCategory === null || props.groupByTagCategory.length === 0 || groupById.value === null) {
-        return linksIn
+// Bucket the filtered links by their value in the group-by category once per render,
+// so the template does an O(1) Map.get per group instead of re-filtering every link
+// (twice) for every group.
+const groupedLinks = computed(() => {
+    const buckets = new Map<string, Link[]>()
+    if (groupById.value === null) {
+        return buckets
     }
-    return linksIn.filter((l) => {
-        const findTag = l.linkTags.find((lt) => {
-            return lt.linkCollectionTagCategoryId === groupById.value && lt.value === groupByValue
-        })
-        return findTag !== undefined
-    })
-}
+    for (const value of groupByValues.value) {
+        buckets.set(value, [])
+    }
+    for (const link of filteredLinks.value) {
+        const seen = new Set<string>()
+        for (const tag of link.linkTags) {
+            if (tag.linkCollectionTagCategoryId === groupById.value && !seen.has(tag.value)) {
+                seen.add(tag.value)
+                buckets.get(tag.value)?.push(link)
+            }
+        }
+    }
+    return buckets
+})
 
 function applyFilters() {
     filteredLinks.value = links.value
-    for (var tf of tagFilters.value) {
+    for (const tf of tagFilters.value) {
         if (tf.selected !== null && tf.selected !== "") {
             filteredLinks.value = filteredLinks.value.filter((fl: Link) => {
                 const findTag = fl.linkTags.find((lt: LinkTag) => {
@@ -253,19 +263,3 @@ watch(search, () => {
 
 getLinkCollection()
 </script>
-
-<style scoped>
-.link-card {
-    max-width: 350px;
-    width: 100%;
-}
-
-.link-card a {
-    text-decoration: none;
-    color: inherit;
-}
-
-.link-tag {
-    margin-right: 2px;
-}
-</style>

@@ -304,7 +304,7 @@ onMounted(reload)
 
 <style scoped>
 .file-path {
-    max-width: 320px;
+    max-width: 20rem;
     display: inline-block;
     vertical-align: middle;
 }

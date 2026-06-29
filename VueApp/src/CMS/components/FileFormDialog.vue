@@ -149,7 +149,15 @@
                         dense
                         no-caps
                         :loading="saving"
-                    />
+                    >
+                        <template #loading>
+                            <q-spinner
+                                size="1em"
+                                class="q-mr-sm"
+                            />
+                            {{ isEdit ? "Save Changes" : "Upload" }}
+                        </template>
+                    </q-btn>
                 </q-card-actions>
             </q-form>
 
@@ -204,7 +212,15 @@
                             :label="conflictChoice === 'rename' ? 'Upload with new name' : 'Overwrite'"
                             :loading="saving"
                             @click="resolveConflict"
-                        />
+                        >
+                            <template #loading>
+                                <q-spinner
+                                    size="1em"
+                                    class="q-mr-sm"
+                                />
+                                {{ conflictChoice === "rename" ? "Upload with new name" : "Overwrite" }}
+                            </template>
+                        </q-btn>
                     </q-card-actions>
                 </q-card>
             </q-dialog>

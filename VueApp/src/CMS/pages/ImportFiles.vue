@@ -146,7 +146,15 @@
                     :disable="importableCount === 0"
                     :loading="importing"
                     @click="runImport"
-                />
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
+                        />
+                        Importing...
+                    </template>
+                </q-btn>
             </div>
         </template>
 
@@ -240,7 +248,7 @@ const importableCount = computed(() => preview.value?.filter((p) => p.canImport)
 
 function previewStatus(row: ImportPreview) {
     if (!row.canImport) return { icon: "error", color: "negative", label: "Will be skipped" }
-    if (row.message) return { icon: "warning", color: "warning", label: "Ready" }
+    if (row.message) return { icon: "warning", color: "warning", label: "Ready (with note)" }
     return { icon: "check_circle", color: "positive", label: "Ready" }
 }
 

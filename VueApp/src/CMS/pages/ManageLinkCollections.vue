@@ -91,6 +91,7 @@
                         <q-input
                             dense
                             v-model="addTag"
+                            label="New tag category"
                             class="col-auto"
                         />
                         <q-btn
@@ -605,7 +606,7 @@ async function loadLinks() {
 
 function getTagRecord(r: Link) {
     let tags: Record<number, string> = {}
-    for (var lt of r.linkTags || []) {
+    for (const lt of r.linkTags || []) {
         if (tags[lt.linkCollectionTagCategoryId] === undefined) {
             tags[lt.linkCollectionTagCategoryId] = lt.value
         } else {
@@ -806,14 +807,15 @@ loadCollections()
 
 <style scoped>
 .dialog-card {
-    min-width: 350px;
+    min-width: 21.875rem;
+    max-width: 95vw;
 }
 
 #allLinks {
     background: var(--surface);
     border: 1px solid var(--ucdavis-black-10);
-    border-radius: 6px;
-    padding: 8px 12px;
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.75rem;
 }
 
 .link-url {
@@ -829,13 +831,13 @@ loadCollections()
     gap: 0;
     width: 100%;
     text-align: left;
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
 }
 
 .tag-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 0.25rem;
     max-width: 100%;
 }
 
@@ -851,7 +853,7 @@ loadCollections()
 }
 
 .tag-row {
-    margin-bottom: 4px;
+    margin-bottom: 0.25rem;
 }
 
 /* The column header only reads as one once the fields line up in a grid (desktop). */
@@ -864,8 +866,8 @@ loadCollections()
 /* Card-per-row on small and medium screens. */
 .links-list :deep(.sortable-row) {
     border: 1px solid var(--ucdavis-black-10);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
     background: var(--surface-tint-raised);
 }
 
@@ -906,7 +908,7 @@ loadCollections()
 
 .tags-fieldset {
     border: 1px solid var(--q-primary);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     padding: 0.75rem 1rem 0.25rem;
 }
 
@@ -920,7 +922,7 @@ loadCollections()
     .link-grid {
         display: grid;
         grid-template-columns: 2.5fr 1.2fr 2.5fr 1.5fr;
-        column-gap: 12px;
+        column-gap: 0.75rem;
         align-items: start;
     }
 
@@ -936,7 +938,7 @@ loadCollections()
         border: none;
         border-bottom: 1px solid var(--ucdavis-black-10);
         border-radius: 0;
-        padding: 8px 0;
+        padding: 0.5rem 0;
         background: transparent;
     }
 
@@ -957,7 +959,7 @@ loadCollections()
     }
 
     .tag-row {
-        margin-bottom: 6px;
+        margin-bottom: 0.375rem;
     }
 }
 </style>

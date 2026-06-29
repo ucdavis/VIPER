@@ -105,9 +105,9 @@
                             class="col-auto"
                         >
                             <q-chip
-                                color="orange-2"
                                 dense
                                 square
+                                class="bg-warning text-dark"
                             >
                                 Viewing an old version, save to restore it
                             </q-chip>
@@ -204,6 +204,7 @@
                     </q-card>
 
                     <q-card
+                        v-if="canAccessFiles || block.files.length > 0"
                         flat
                         bordered
                     >
@@ -236,6 +237,7 @@
                                 </q-btn>
                             </div>
                             <q-select
+                                v-if="canAccessFiles"
                                 v-model="fileToAttach"
                                 dense
                                 options-dense
@@ -308,6 +310,7 @@ import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
@@ -326,6 +329,12 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const { get, post, put, createUrlSearchParams } = useFetch()
+
+// This route also admits CreateContentBlock-only users, but the section-path list and the file
+// catalog APIs require ManageContentBlocks / AllFiles. Gate those calls so a create-only user
+// doesn't fire requests that can only 403 (the section field still accepts a typed-in path).
+const canManageContent = checkHasOnePermission(["SVMSecure.CMS.ManageContentBlocks"])
+const canAccessFiles = checkHasOnePermission(["SVMSecure.CMS.AllFiles"])
 
 const blockId = computed(() => (route.params.id ? Number(route.params.id) : null))
 const isNew = computed(() => blockId.value === null)
@@ -590,7 +599,7 @@ onMounted(() => {
     // QEditor renders the focusable contenteditable as an inner element, so its accessible
     // name has to be set there rather than on the wrapper the "Content" label sits beside.
     contentEditorRef.value?.getContentEl()?.setAttribute("aria-labelledby", "content-editor-label")
-    loadSectionPaths()
+    if (canManageContent) loadSectionPaths()
     loadBlock()
     // loadBlock sets the baseline for an existing block after it loads; a brand-new form's
     // baseline is just the empty block, so capture it synchronously here.
