@@ -28,6 +28,15 @@
                     title="Primary evaluator required for this week"
                 />
                 <span>Week {{ week.weekNumber }} ({{ formatDate(week.dateStart) }})</span>
+                <WeekHistoryButton
+                    v-if="canViewHistory && historyViewMode && historyContextId != null && historyContextId !== ''"
+                    :view-mode="historyViewMode"
+                    :context-id="historyContextId"
+                    :week-id="week.weekId"
+                    :week-number="week.weekNumber"
+                    :week-date-start="week.dateStart"
+                    :context-label="historyContextLabel"
+                />
             </div>
 
             <!-- Assignments -->
@@ -162,6 +171,7 @@ import { useTimeoutFn } from "@vueuse/core"
 import { inflect } from "inflection"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import { ANIMATIONS } from "../constants/app-constants"
+import WeekHistoryButton from "./WeekHistoryButton.vue"
 
 const { formatDate } = useDateFunctions()
 
@@ -201,6 +211,11 @@ interface Props {
     isLoading?: boolean
     selectable?: boolean
     selected?: boolean
+    // Inline per-week history (manager-only)
+    canViewHistory?: boolean
+    historyViewMode?: "rotation" | "clinician"
+    historyContextId?: number | string | null
+    historyContextLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -213,6 +228,10 @@ const props = withDefaults(defineProps<Props>(), {
     isLoading: false,
     selectable: false,
     selected: false,
+    canViewHistory: false,
+    historyViewMode: undefined,
+    historyContextId: null,
+    historyContextLabel: "",
 })
 
 const emit = defineEmits<{
@@ -269,7 +288,17 @@ const {
 } = useTimeoutFn(() => emit("click", props.week), 500, { immediate: false })
 
 // Methods
+
+// Touch taps don't bubble through a child control's @click.stop, so ignore any
+// tap/click that starts on an in-cell control (it must not also schedule the week).
+function originatesOnControl(event?: Event): boolean {
+    const target = event?.target as HTMLElement | null
+    return !!target?.closest("button, [role='button'], a, input, select, textarea")
+}
+
 function handleClick(event?: MouseEvent) {
+    if (originatesOnControl(event)) return
+
     // Don't handle click during selection mode if just selecting
     if (props.selectable && !props.canEdit) {
         if (event?.shiftKey) {
@@ -296,7 +325,8 @@ function handleClick(event?: MouseEvent) {
 }
 
 // Touch event handlers for mobile long-press
-function handleTouchStart() {
+function handleTouchStart(event: TouchEvent) {
+    if (originatesOnControl(event)) return
     if (props.selectable && !props.isPastYear) {
         startLongPress()
     }
@@ -358,6 +388,14 @@ const cardClasses = computed(() => {
 .week-schedule-card {
     max-width: 280px;
     min-width: 200px;
+}
+
+/* Mobile single column: fill the width instead of capping at 280px */
+@media (max-width: 599.98px) {
+    .week-schedule-card {
+        max-width: none;
+        min-width: 0;
+    }
 }
 
 .week-schedule-card .q-card {

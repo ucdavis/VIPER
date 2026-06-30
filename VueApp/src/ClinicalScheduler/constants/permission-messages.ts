@@ -8,6 +8,7 @@ const ACCESS_DENIED_MESSAGES = {
     ROTATION_VIEW: "You do not have permission to access the Schedule by Rotation view.",
     CLINICIAN_VIEW: "You do not have permission to access the Schedule by Clinician view.",
     UNAUTHORIZED_ROTATION: "You do not have permission to view this rotation.",
+    AUDIT_LOG: "You do not have permission to view the Clinical Scheduler audit trail.",
 } as const
 
 // Subtitle messages for access denied components
@@ -18,6 +19,7 @@ const ACCESS_DENIED_SUBTITLES = {
     CLINICIAN_VIEW:
         "This feature is not available with rotation-specific permissions. Contact your administrator if you need full access to scheduling features.",
     UNAUTHORIZED_ROTATION: "You can only access rotations that you have been granted permission to edit.",
+    AUDIT_LOG: "The audit trail is available to schedule managers. Contact your administrator if you need access.",
 } as const
 
 // Error messages for schedule operations
