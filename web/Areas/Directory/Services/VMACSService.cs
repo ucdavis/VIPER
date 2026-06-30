@@ -7,8 +7,8 @@ namespace Viper.Areas.Directory.Services
 {
     public class VMACSService
     {
-        // Fixed token required by the internal VMACS trust endpoint (not a rotating secret).
-        private const string VmacsAuthToken = "06232005";
+        private static string VmacsAuthToken =>
+            HttpHelper.GetSetting<string>("Credentials", "VmacsAuthToken") ?? string.Empty;
 
         private static HttpClient sharedClient = new()
         {
