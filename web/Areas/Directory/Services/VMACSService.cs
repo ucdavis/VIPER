@@ -10,7 +10,7 @@ namespace Viper.Areas.Directory.Services
         private static string VmacsAuthToken =>
             HttpHelper.GetSetting<string>("Credentials", "VmacsAuthToken") ?? string.Empty;
 
-        private static HttpClient sharedClient = new()
+        private static readonly HttpClient sharedClient = new()
         {
             BaseAddress = new Uri("https://vmacs-vmth.vetmed.ucdavis.edu"),
         };
@@ -23,9 +23,7 @@ namespace Viper.Areas.Directory.Services
         /// <returns></returns>
         public static async Task<VMACSQuery?> Search(String? loginID)
         {
-
-            string encodedLoginId = Uri.EscapeDataString(loginID ?? string.Empty);
-            string request = $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={encodedLoginId}&format=CHRIS4&AUTH={VmacsAuthToken}";
+            string request = BuildSearchPath(loginID, VmacsAuthToken);
             using HttpResponseMessage response = await sharedClient.GetAsync(request);
             if (!response.IsSuccessStatusCode)
             {
@@ -53,6 +51,12 @@ namespace Viper.Areas.Directory.Services
                 }
             }
             return null;
+        }
+
+        internal static string BuildSearchPath(string? loginID, string authToken)
+        {
+            string encodedLoginId = Uri.EscapeDataString(loginID ?? string.Empty);
+            return $"/trust/query.xml?dbfile=3&index=CampusLoginId&find={encodedLoginId}&format=CHRIS4&AUTH={authToken}";
         }
     }
 }
