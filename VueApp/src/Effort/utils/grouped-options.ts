@@ -6,6 +6,11 @@ type GroupedOption = { label: string; isHeader?: boolean }
  * them. An empty search returns every option (headers included).
  */
 function filterGroupedOptions<T extends GroupedOption>(options: T[], search: string): T[] {
+    // An empty or whitespace-only search returns every option (headers included);
+    // the header pass below would otherwise drop headers for sections with no items.
+    if (!search.trim()) {
+        return [...options]
+    }
     const needle = search.toLowerCase()
     return options
         .filter((opt) => opt.isHeader || opt.label.toLowerCase().includes(needle))
