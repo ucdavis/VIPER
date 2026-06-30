@@ -31,4 +31,4 @@ function showBulkDeleteConfirmation($q: QVueGlobals, message: string): Promise<b
     return showConfirmationDialog($q, "Bulk Delete Confirmation", message)
 }
 
-export { showConfirmationDialog, showBulkDeleteConfirmation }
+export { showBulkDeleteConfirmation }

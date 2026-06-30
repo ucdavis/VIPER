@@ -124,17 +124,6 @@ class InstructorScheduleService {
     }
 
     /**
-     * Update primary evaluator status (alias for setPrimaryEvaluator for compatibility)
-     */
-    static updatePrimaryEvaluator(
-        scheduleId: number,
-        isPrimary: boolean,
-        requiresPrimaryEvaluator?: boolean,
-    ): Promise<TypedApiResult<{ isPrimaryEvaluator: boolean; previousPrimaryName?: string | undefined }>> {
-        return this.setPrimaryEvaluator(scheduleId, isPrimary, requiresPrimaryEvaluator)
-    }
-
-    /**
      * Check for scheduling conflicts before adding an instructor
      */
     static async checkConflicts(options: {
@@ -161,47 +150,6 @@ class InstructorScheduleService {
                 result: [],
                 success: false,
                 errors: [error instanceof Error ? error.message : "Failed to check schedule conflicts"],
-            }
-        }
-    }
-
-    /**
-     * Get the audit history for a specific schedule entry
-     */
-    static async getAuditHistory(scheduleId: number): Promise<ApiResult<AuditEntry[]>> {
-        try {
-            const url = `${this.BASE_URL}/${scheduleId}/audit`
-            const { get } = useFetch()
-            const response = await get(url)
-            return response as ApiResult<AuditEntry[]>
-        } catch (error) {
-            return {
-                result: [],
-                success: false,
-                errors: [error instanceof Error ? error.message : "Failed to fetch audit history"],
-            }
-        }
-    }
-
-    /**
-     * Get audit history for a rotation/week combination
-     */
-    static async getRotationWeekAudit(rotationId: number, weekId: number): Promise<ApiResult<AuditEntry[]>> {
-        try {
-            const params = new URLSearchParams({
-                rotationId: rotationId.toString(),
-                weekId: weekId.toString(),
-            })
-
-            const url = `${this.BASE_URL}/audit?${params.toString()}`
-            const { get } = useFetch()
-            const response = await get(url)
-            return response as ApiResult<AuditEntry[]>
-        } catch (error) {
-            return {
-                result: [],
-                success: false,
-                errors: [error instanceof Error ? error.message : "Failed to fetch audit history"],
             }
         }
     }
@@ -248,16 +196,6 @@ interface RemoveInstructorResult {
     success: boolean
     wasPrimaryEvaluator: boolean
     instructorName: string | null
-}
-
-interface AuditEntry {
-    auditId: number
-    action: string
-    details: string
-    modifiedBy: string
-    modifiedDate: string
-    mothraId?: string
-    instructorName?: string
 }
 
 // ApiResult moved to shared types/api.ts

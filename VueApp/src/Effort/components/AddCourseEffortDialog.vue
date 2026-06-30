@@ -157,7 +157,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { QForm } from "quasar"
+import type { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
@@ -165,7 +165,9 @@ import type { CourseInstructorOptionDto, EffortTypeOptionDto, RoleOptionDto } fr
 import StatusBanner from "@/components/StatusBanner.vue"
 import DialogSubmitActions from "./DialogSubmitActions.vue"
 import { filterEffortTypesByCourse } from "../utils/effort-type-filters"
+import { filterGroupedOptions } from "../utils/grouped-options"
 import { effortValueRules, requiredRule, notesMaxHint } from "../validation"
+import { useEffortLabel } from "../composables/use-effort-label"
 import "../effort-dialogs.css"
 import "../effort-forms.css"
 
@@ -275,24 +277,10 @@ const filteredInstructorOptions = ref<InstructorOption[]>([])
 
 function filterInstructors(val: string, update: (fn: () => void) => void) {
     update(() => {
-        if (!val) {
-            // Show only course instructors by default
-            filteredInstructorOptions.value = existingInstructorOptions.value
-        } else {
-            // Search across all instructors
-            const needle = val.toLowerCase()
-            filteredInstructorOptions.value = instructorOptions.value
-                .filter((opt) => {
-                    if (opt.isHeader) return true
-                    return opt.label.toLowerCase().includes(needle)
-                })
-                .filter((opt, index, arr) => {
-                    // Remove headers that have no items following them
-                    if (!opt.isHeader) return true
-                    const nextItem = arr[index + 1]
-                    return nextItem && !nextItem.isHeader
-                })
-        }
+        // No search term shows only course instructors; a search spans all instructors.
+        filteredInstructorOptions.value = val
+            ? filterGroupedOptions(instructorOptions.value, val)
+            : existingInstructorOptions.value
     })
 }
 
@@ -305,15 +293,8 @@ const filteredEffortTypes = computed(() =>
     }),
 )
 
-// Computed: Effort label (Hours vs Weeks) with required asterisk
-const effortLabel = computed(() => {
-    if (!selectedEffortType.value) return "Hours *"
-    const effortType = effortTypes.value.find((et) => et.id === selectedEffortType.value)
-    if (effortType?.usesWeeks && props.termCode >= 201604) {
-        return "Weeks *"
-    }
-    return "Hours *"
-})
+// Effort value label (Hours/Weeks) with required asterisk
+const effortLabel = useEffortLabel(selectedEffortType, effortTypes, { termCode: () => props.termCode })
 
 // Reset form when dialog opens
 watch(

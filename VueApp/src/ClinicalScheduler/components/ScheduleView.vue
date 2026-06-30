@@ -82,7 +82,7 @@ import ScheduleLegend from "./ScheduleLegend.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import type { WeekItem, ScheduleAssignment, ScheduleSemester, ViewMode } from "./schedule-view-types"
 
-export type { WeekItem, ScheduleAssignment, ScheduleSemester, ViewMode }
+export type { ScheduleAssignment, ScheduleSemester }
 
 // Helper callable type to avoid parameter-name linting within Props
 interface WeekFn<T> {

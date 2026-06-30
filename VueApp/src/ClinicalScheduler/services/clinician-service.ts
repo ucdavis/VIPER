@@ -97,65 +97,6 @@ class ClinicianService {
             }
         }
     }
-
-    /**
-     * Get rotations for a specific clinician
-     */
-    static async getClinicianRotations(mothraId: string): Promise<ApiResult<ClinicianRotationSummary>> {
-        try {
-            const url = `${this.BASE_URL}/${encodeURIComponent(mothraId)}/rotations`
-            return await get(url)
-        } catch (error) {
-            return {
-                result: {
-                    mothraId: mothraId,
-                    rotations: [],
-                },
-                success: false,
-                errors: [error instanceof Error ? error.message : "Unknown error occurred"],
-            }
-        }
-    }
-
-    /**
-     * Search clinicians by name
-     */
-    static async searchClinicians(
-        query: string,
-        options?: { includeAllAffiliates?: boolean; viewContext?: ViewContext },
-    ): Promise<ApiResult<Clinician[]>> {
-        try {
-            const cliniciansResult = await this.getClinicians(options)
-            if (!cliniciansResult.success) {
-                return cliniciansResult
-            }
-
-            const searchTerm = query.toLowerCase().trim()
-            if (!searchTerm) {
-                return cliniciansResult
-            }
-
-            const filtered = cliniciansResult.result.filter(
-                (clinician: Clinician) =>
-                    clinician.fullName.toLowerCase().includes(searchTerm) ||
-                    clinician.firstName.toLowerCase().includes(searchTerm) ||
-                    clinician.lastName.toLowerCase().includes(searchTerm) ||
-                    clinician.mothraId.toLowerCase().includes(searchTerm),
-            )
-
-            return {
-                result: filtered,
-                success: true,
-                errors: [],
-            }
-        } catch (error) {
-            return {
-                result: [],
-                success: false,
-                errors: [error instanceof Error ? error.message : "Unknown error occurred"],
-            }
-        }
-    }
 }
 
 interface Clinician {
@@ -164,25 +105,6 @@ interface Clinician {
     lastName: string
     fullName: string
     role?: string | undefined
-}
-
-interface ClinicianRotationItem {
-    instructorScheduleId: number
-    rotId: number
-    rotationName: string
-    rotationAbbreviation: string
-    serviceName: string
-    serviceShortName: string
-    evaluator: boolean
-    dateStart: string
-    dateEnd: string
-    week: {
-        weekId: number
-        dateStart: string
-        dateEnd: string
-        termCode: number
-        weekNumber: number
-    }
 }
 
 interface ScheduleRotation {
@@ -221,19 +143,6 @@ interface ClinicianScheduleData {
           }
         | undefined
     schedulesBySemester: ScheduleBySemester[]
-}
-
-interface ClinicianRotationSummary {
-    mothraId: string
-    rotations: {
-        rotId: number
-        name: string
-        abbreviation: string
-        serviceName: string
-        serviceShortName: string
-        assignmentCount: number
-        isPrimaryEvaluator: boolean
-    }[]
 }
 
 export { ClinicianService, type Clinician, type ClinicianScheduleData }

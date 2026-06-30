@@ -39,11 +39,28 @@ jobs:
         # CI reports inflated unresolved-imports / unused-types numbers.
         run: npm ci --prefix VueApp
 
+      - name: Baseline complexity on main
+        # `fallow audit`'s complexity gate re-attributes pre-existing findings as
+        # "new" when files are substantially refactored — moves/rewrites defeat
+        # its base-snapshot matching, so untouched hotspots get re-flagged.
+        # Baseline complexity against main's tree (same worktree approach as the
+        # jscpd-regression jobs below) so only genuinely-new complexity fails.
+        # Duplication is already gated by jscpd-regression; fallow's own
+        # duplication verdict is warn-only, so it isn't baselined here.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          BASE_TREE="$(mktemp -d)"
+          git worktree add --detach "$BASE_TREE" "origin/$BASE_REF"
+          npx fallow health --root "$BASE_TREE/VueApp" --save-baseline "$RUNNER_TEMP/fallow-health-baseline.json" --quiet || true
+          git worktree remove --force "$BASE_TREE"
+
       - name: Audit fallow on changed files
-        # `fallow audit` is purpose-built for PR-diff regression gating: it
-        # scopes to files changed since --base and returns a pass/warn/fail
-        # verdict (exit 0 if no regression).
-        run: npx fallow audit --root VueApp --base origin/${{ github.base_ref }}
+        # `fallow audit` scopes to files changed since --base and returns a
+        # pass/warn/fail verdict. --health-baseline excludes complexity that
+        # already existed on main, so a refactor that moves code doesn't fail on
+        # pre-existing hotspots.
+        run: npx fallow audit --root VueApp --base origin/${{ github.base_ref }} --health-baseline "$RUNNER_TEMP/fallow-health-baseline.json"
 
   jscpd-regression-csharp:
     name: JSCPD regression (C#)

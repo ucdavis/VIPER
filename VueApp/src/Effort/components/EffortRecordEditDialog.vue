@@ -1,107 +1,75 @@
 <template>
-    <q-dialog
+    <EffortDialogShell
+        ref="shell"
         :model-value="modelValue"
-        persistent
-        aria-labelledby="effort-record-edit-title"
-        @keydown.escape="handleClose"
+        title="Edit Effort Record"
+        title-id="effort-record-edit-title"
+        submit-label="Save"
+        :is-saving="isSaving"
+        @close="handleClose"
+        @submit="updateRecord"
     >
-        <q-card style="width: 100%; max-width: 500px">
-            <q-card-section class="row items-center q-pb-none">
-                <div
-                    id="effort-record-edit-title"
-                    class="text-h6"
-                >
-                    Edit Effort Record
-                </div>
-                <q-space />
-                <q-btn
-                    icon="close"
-                    flat
-                    round
-                    dense
-                    aria-label="Close dialog"
-                    @click="handleClose"
-                />
-            </q-card-section>
+        <!-- Verification Warning -->
+        <StatusBanner
+            v-if="props.isVerified"
+            type="warning"
+        >
+            This instructor's effort has been verified. Editing this record will clear the verification status and
+            require re-verification.
+        </StatusBanner>
 
-            <q-card-section>
-                <q-form
-                    ref="formRef"
-                    class="effort-form"
-                    greedy
-                >
-                    <!-- Verification Warning -->
-                    <StatusBanner
-                        v-if="props.isVerified"
-                        type="warning"
-                    >
-                        This instructor's effort has been verified. Editing this record will clear the verification
-                        status and require re-verification.
-                    </StatusBanner>
+        <!-- Course (read-only) -->
+        <q-input
+            :model-value="courseLabel"
+            label="Course"
+            dense
+            outlined
+            readonly
+            bottom-slots
+        />
 
-                    <!-- Course (read-only) -->
-                    <q-input
-                        :model-value="courseLabel"
-                        label="Course"
-                        dense
-                        outlined
-                        readonly
-                        bottom-slots
-                    />
+        <!-- Effort Type Selection -->
+        <q-select
+            v-model="selectedEffortType"
+            :options="filteredEffortTypes"
+            label="Effort Type"
+            dense
+            options-dense
+            outlined
+            option-value="id"
+            :option-label="(opt: EffortTypeOptionDto) => `${opt.description} (${opt.id})`"
+            emit-value
+            map-options
+            :loading="isLoadingOptions"
+            :rules="[requiredRule('Effort type')]"
+            lazy-rules="ondemand"
+        />
 
-                    <!-- Effort Type Selection -->
-                    <q-select
-                        v-model="selectedEffortType"
-                        :options="filteredEffortTypes"
-                        label="Effort Type"
-                        dense
-                        options-dense
-                        outlined
-                        option-value="id"
-                        :option-label="(opt: EffortTypeOptionDto) => `${opt.description} (${opt.id})`"
-                        emit-value
-                        map-options
-                        :loading="isLoadingOptions"
-                        :rules="[requiredRule('Effort type')]"
-                        lazy-rules="ondemand"
-                    />
-
-                    <EffortRecordSharedFields
-                        v-model:selected-role="selectedRole"
-                        v-model:effort-value="effortValue"
-                        v-model:notes="notes"
-                        :roles="roles"
-                        :is-loading-options="isLoadingOptions"
-                        :effort-label="effortLabel"
-                        :show-notes="props.record?.course.isGenericRCourse ?? false"
-                        :notes-hint="notesHint"
-                        :warning-message="warningMessage"
-                        :error-message="errorMessage"
-                    />
-                </q-form>
-            </q-card-section>
-
-            <DialogSubmitActions
-                submit-label="Save"
-                :is-saving="isSaving"
-                @cancel="handleClose"
-                @submit="updateRecord"
-            />
-        </q-card>
-    </q-dialog>
+        <EffortRecordSharedFields
+            v-model:selected-role="selectedRole"
+            v-model:effort-value="effortValue"
+            v-model:notes="notes"
+            :roles="roles"
+            :is-loading-options="isLoadingOptions"
+            :effort-label="effortLabel"
+            :show-notes="props.record?.course.isGenericRCourse ?? false"
+            :notes-hint="notesHint"
+            :warning-message="warningMessage"
+            :error-message="errorMessage"
+        />
+    </EffortDialogShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { QForm } from "quasar"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import StatusBanner from "@/components/StatusBanner.vue"
-import DialogSubmitActions from "./DialogSubmitActions.vue"
+import EffortDialogShell from "./EffortDialogShell.vue"
 import EffortRecordSharedFields from "./EffortRecordSharedFields.vue"
 import { recordService } from "../services/record-service"
 import type { EffortTypeOptionDto, RoleOptionDto, InstructorEffortRecordDto } from "../types"
 import { requiredRule, notesMaxHint } from "../validation"
-import "../effort-forms.css"
+import { useEffortLabel } from "../composables/use-effort-label"
 
 const props = defineProps<{
     modelValue: boolean
@@ -115,7 +83,7 @@ const emit = defineEmits<{
     updated: []
 }>()
 
-const formRef = ref<QForm | null>(null)
+const shell = ref<InstanceType<typeof EffortDialogShell> | null>(null)
 
 // Form state
 const selectedEffortType = ref<string | null>(null)
@@ -194,15 +162,8 @@ const filteredEffortTypes = computed(() => {
     })
 })
 
-// Computed: Effort label (Hours vs Weeks)
-const effortLabel = computed(() => {
-    if (!selectedEffortType.value) return "Hours"
-    const effortType = effortTypes.value.find((et) => et.id === selectedEffortType.value)
-    if (effortType?.usesWeeks && props.termCode >= 201604) {
-        return "Weeks"
-    }
-    return "Hours"
-})
+// Effort value label (no required asterisk on the edit dialog)
+const effortLabel = useEffortLabel(selectedEffortType, effortTypes, { termCode: () => props.termCode, required: false })
 
 // Reset form when dialog opens with record data
 watch(
@@ -248,7 +209,7 @@ async function loadOptions() {
 
 async function updateRecord() {
     if (!props.record) return
-    const valid = await formRef.value?.validate(true)
+    const valid = await shell.value?.validate()
     if (!valid) return
 
     isSaving.value = true
