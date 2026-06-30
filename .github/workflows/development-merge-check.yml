@@ -85,38 +85,43 @@ jobs:
                 : null;
             }
 
-            // Create or update the advisory check run on a PR head SHA.
-            async function upsert(headSha, conclusion, title, summary) {
-              const existing = await github.rest.checks.listForRef({
-                owner, repo, ref: headSha, check_name: CHECK_NAME, per_page: 1,
-              });
-              const payload = {
-                owner, repo, status: 'completed', conclusion,
-                output: { title, summary },
-              };
-              if (existing.data.check_runs.length > 0) {
-                await github.rest.checks.update({
-                  ...payload, check_run_id: existing.data.check_runs[0].id,
+            // Always create a fresh check run; never update. GitHub blocks updating
+            // a check run's conclusion across workflow runs ("can only be updated
+            // internally by GitHub Actions"). The checks API returns the latest run
+            // per name, so a new run supersedes the previous one in the PR's status.
+            async function report(headSha, conclusion, title, summary) {
+              // Skip if the latest run already has this conclusion, to avoid churn.
+              try {
+                const existing = await github.rest.checks.listForRef({
+                  owner, repo, ref: headSha, check_name: CHECK_NAME,
+                  filter: 'latest', per_page: 1,
                 });
-              } else {
-                await github.rest.checks.create({
-                  ...payload, name: CHECK_NAME, head_sha: headSha,
-                });
+                if (existing.data.check_runs[0]?.conclusion === conclusion) return;
+              } catch (e) {
+                core.info(`listForRef ${headSha} failed: ${e.message}`);
               }
+              await github.rest.checks.create({
+                owner, repo, name: CHECK_NAME, head_sha: headSha,
+                status: 'completed', conclusion, output: { title, summary },
+              });
             }
 
             for (const pr of prs) {
-              const detail = await mergedDetail(pr);
-              const merged = Boolean(detail);
-              const conclusion = merged ? 'success' : 'neutral';
-              const title = merged
-                ? 'Merged into Development'
-                : 'Not yet merged into Development';
-              const summary = merged
-                ? detail
-                : `Branch "${pr.head.ref}" has not been merged into ${DEV_BRANCH} yet. ` +
-                  `Team workflow routes branches through ${DEV_BRANCH} before main. ` +
-                  `This is advisory and does not block merging.`;
-              await upsert(pr.head.sha, conclusion, title, summary);
-              core.info(`PR #${pr.number}: ${title}`);
+              try {
+                const detail = await mergedDetail(pr);
+                const merged = Boolean(detail);
+                const conclusion = merged ? 'success' : 'neutral';
+                const title = merged
+                  ? 'Merged into Development'
+                  : 'Not yet merged into Development';
+                const summary = merged
+                  ? detail
+                  : `Branch "${pr.head.ref}" has not been merged into ${DEV_BRANCH} yet. ` +
+                    `Team workflow routes branches through ${DEV_BRANCH} before main. ` +
+                    `This is advisory and does not block merging.`;
+                await report(pr.head.sha, conclusion, title, summary);
+                core.info(`PR #${pr.number}: ${title}`);
+              } catch (e) {
+                core.warning(`PR #${pr.number}: failed to report status: ${e.message}`);
+              }
             }
