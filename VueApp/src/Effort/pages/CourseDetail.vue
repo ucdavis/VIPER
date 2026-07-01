@@ -364,7 +364,7 @@
 import { ref, computed, inject, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
-import type { QTableColumn } from "quasar"
+import { courseRelationshipColumns, confirmRemoveCourseLink } from "../utils/course-relationships"
 import { courseService } from "../services/course-service"
 import { recordService } from "../services/record-service"
 import { termService } from "../services/term-service"
@@ -527,46 +527,7 @@ watch(showEvalTab, (canShow) => {
     }
 })
 
-const childColumns = computed<QTableColumn[]>(() => [
-    {
-        name: "course",
-        label: "Course",
-        field: (row: CourseRelationshipDto) =>
-            row.childCourse ? `${row.childCourse.courseCode}-${row.childCourse.seqNumb}` : "",
-        align: "left",
-        sortable: true,
-    },
-    {
-        name: "crn",
-        label: "CRN",
-        field: (row: CourseRelationshipDto) => row.childCourse?.crn ?? "",
-        align: "left",
-    },
-    {
-        name: "enrollment",
-        label: "Enrollment",
-        field: (row: CourseRelationshipDto) => row.childCourse?.enrollment ?? 0,
-        align: "left",
-    },
-    {
-        name: "units",
-        label: "Units",
-        field: (row: CourseRelationshipDto) => row.childCourse?.units ?? 0,
-        align: "left",
-    },
-    {
-        name: "relationshipType",
-        label: "Type",
-        field: "relationshipType",
-        align: "center",
-    },
-    {
-        name: "actions",
-        label: "Actions",
-        field: "actions",
-        align: "center",
-    },
-])
+const childColumns = courseRelationshipColumns()
 
 // Methods
 let loadToken = 0
@@ -622,15 +583,7 @@ async function loadRelationships() {
 }
 
 function confirmDeleteRelationship(relationship: CourseRelationshipDto) {
-    const childCourse = relationship.childCourse
-    const courseName = childCourse ? `${childCourse.courseCode}-${childCourse.seqNumb}` : "this course"
-
-    $q.dialog({
-        title: "Remove Link",
-        message: `Are you sure you want to remove the link to ${courseName}?`,
-        cancel: true,
-        persistent: true,
-    }).onOk(() => deleteRelationship(relationship))
+    confirmRemoveCourseLink($q, relationship, () => deleteRelationship(relationship))
 }
 
 async function deleteRelationship(relationship: CourseRelationshipDto) {

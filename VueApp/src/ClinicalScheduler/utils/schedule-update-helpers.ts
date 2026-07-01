@@ -154,9 +154,7 @@ export type { ScheduleAssignmentData, AddScheduleParams, TogglePrimaryParams, Sc
 
 export {
     isRotationSchedule,
-    getRotationDetails,
     updateClinicianScheduleWithRotation,
     removeRotationFromClinicianSchedule,
-    clearOtherPrimaries,
     updatePrimaryInClinicianSchedule,
 }
