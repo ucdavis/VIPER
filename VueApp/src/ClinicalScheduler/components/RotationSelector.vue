@@ -81,6 +81,7 @@ interface Props {
     onlyWithScheduledWeeks?: boolean
     excludeRotationNames?: string[] // For filtering out already assigned rotations
     hideBottomSpace?: boolean
+    clinicianMothraId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -90,6 +91,7 @@ const props = withDefaults(defineProps<Props>(), {
     onlyWithScheduledWeeks: false,
     excludeRotationNames: () => [],
     hideBottomSpace: false,
+    clinicianMothraId: null,
 })
 
 // Emits
@@ -133,11 +135,13 @@ async function loadRotations() {
             // Use the new API that only returns rotations with scheduled weeks
             result = await RotationService.getRotationsWithScheduledWeeks({
                 year: props.year || undefined,
+                clinicianMothraId: props.clinicianMothraId || undefined,
             })
         } else {
             // Use the original API that returns all rotations
             result = await RotationService.getRotations({
                 serviceId: props.serviceFilter || undefined,
+                clinicianMothraId: props.clinicianMothraId || undefined,
             })
         }
 

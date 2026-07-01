@@ -121,6 +121,7 @@
                             :exclude-rotation-names="assignedRotationNames"
                             :only-with-scheduled-weeks="true"
                             :year="currentYear"
+                            :clinician-mothra-id="selectedClinician?.mothraId"
                             hide-bottom-space
                             @rotation-selected="onAddRotationSelected"
                             style="min-width: 280px"

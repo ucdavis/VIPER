@@ -24,13 +24,19 @@ class RotationService {
     /**
      * Get all rotations with optional filtering
      */
-    static async getRotations(options?: { serviceId?: number }): Promise<ApiResult<RotationWithService[]>> {
+    static async getRotations(options?: {
+        serviceId?: number
+        clinicianMothraId?: string
+    }): Promise<ApiResult<RotationWithService[]>> {
         try {
-            const { serviceId } = options || {}
+            const { serviceId, clinicianMothraId } = options || {}
 
             const params: Record<string, string | number | boolean> = {}
             if (typeof serviceId === "number") {
                 params.serviceId = serviceId
+            }
+            if (clinicianMothraId) {
+                params.clinicianMothraId = clinicianMothraId
             }
 
             const url = this.buildUrl(this.BASE_URL, params)
@@ -50,13 +56,17 @@ class RotationService {
      */
     static async getRotationsWithScheduledWeeks(options?: {
         year?: number
+        clinicianMothraId?: string
     }): Promise<ApiResult<RotationWithService[]>> {
         try {
-            const { year } = options || {}
+            const { year, clinicianMothraId } = options || {}
 
             const params: Record<string, string | number | boolean> = {}
             if (typeof year === "number") {
                 params.year = year
+            }
+            if (clinicianMothraId) {
+                params.clinicianMothraId = clinicianMothraId
             }
 
             const url = this.buildUrl(`${this.BASE_URL}/with-scheduled-weeks`, params)
