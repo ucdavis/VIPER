@@ -408,6 +408,176 @@ namespace Viper.test.ClinicalScheduler
             Assert.False(result);
         }
 
+        [Fact]
+        public async Task CanAccessRotationViewAsync_WithManagePermission_ReturnsTrue()
+        {
+            // Arrange
+            SetupUserWithManagePermission();
+
+            // Act
+            var result = await _permissionService.CanAccessRotationViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanAccessRotationViewAsync_WithAdminPermission_ReturnsTrue()
+        {
+            // Arrange
+            SetupUserWithAdminPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanAccessRotationViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanAccessRotationViewAsync_WithEditClnSchedulesPermission_ReturnsTrue()
+        {
+            // Arrange
+            SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanAccessRotationViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanAccessRotationViewAsync_WithServiceSpecificPermission_ReturnsTrue()
+        {
+            // Arrange - user can edit at least one service (Cardiology)
+            SetupUserWithServiceSpecificPermission(TestUserMothraId, CardiologyEditPermission);
+
+            // Act
+            var result = await _permissionService.CanAccessRotationViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanAccessRotationViewAsync_WithOnlyEditOwnSchedulePermission_ReturnsFalse()
+        {
+            // Arrange - own-schedule user with no full access and no editable services
+            // (mirrors a user who has EditOwnSchedule + view permissions but cannot schedule rotations)
+            SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanAccessRotationViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CanAccessRotationViewAsync_WithNullUser_ReturnsFalse()
+        {
+            // Arrange
+            SetupNullUser();
+
+            // Act
+            var result = await _permissionService.CanAccessRotationViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CanAccessClinicianViewAsync_WithManagePermission_ReturnsTrue()
+        {
+            // Arrange
+            SetupUserWithManagePermission();
+
+            // Act
+            var result = await _permissionService.CanAccessClinicianViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanAccessClinicianViewAsync_WithEditOwnSchedulePermission_ReturnsTrue()
+        {
+            // Arrange
+            SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.CanAccessClinicianViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CanAccessClinicianViewAsync_WithOnlyServiceSpecificPermission_ReturnsFalse()
+        {
+            // Arrange - rotation-specific user (no full access, no EditOwnSchedule) cannot access clinician view
+            SetupUserWithServiceSpecificPermission(TestUserMothraId, CardiologyEditPermission);
+
+            // Act
+            var result = await _permissionService.CanAccessClinicianViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CanAccessClinicianViewAsync_WithNullUser_ReturnsFalse()
+        {
+            // Arrange
+            SetupNullUser();
+
+            // Act
+            var result = await _permissionService.CanAccessClinicianViewAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task GetClinicianViewLabelAsync_WithEditOwnScheduleOnly_ReturnsEditMySchedule()
+        {
+            // Arrange - own-schedule user with no full access (the Guzman case)
+            SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.GetClinicianViewLabelAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.Equal("Edit My Schedule", result);
+        }
+
+        [Fact]
+        public async Task GetClinicianViewLabelAsync_WithManagePermission_ReturnsScheduleByClinician()
+        {
+            // Arrange - full access user
+            SetupUserWithManagePermission();
+
+            // Act
+            var result = await _permissionService.GetClinicianViewLabelAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.Equal("Schedule by Clinician", result);
+        }
+
+        [Fact]
+        public async Task GetClinicianViewLabelAsync_WithEditClnSchedulesPermission_ReturnsScheduleByClinician()
+        {
+            // Arrange - full access via EditClnSchedules
+            SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
+
+            // Act
+            var result = await _permissionService.GetClinicianViewLabelAsync(TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.Equal("Schedule by Clinician", result);
+        }
+
         // Helper methods for permission setups
 
         private void SetupUserWithAdminPermission(string mothraId)

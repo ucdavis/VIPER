@@ -13,6 +13,7 @@ namespace Viper.Controllers
     {
         private readonly RAPSContext _context;
         private readonly VIPERContext _viperContext;
+        private readonly ISchedulePermissionService _schedulePermissionService;
 
         private readonly List<string[]> links = new()
         {
@@ -38,10 +39,11 @@ namespace Viper.Controllers
             new[] { "https://ucdsvm.knowledgeowl.com/help", "", "", "Help" }
         };
 
-        public LayoutController(RAPSContext context, VIPERContext viperContext)
+        public LayoutController(RAPSContext context, VIPERContext viperContext, ISchedulePermissionService schedulePermissionService)
         {
             _context = context;
             _viperContext = viperContext;
+            _schedulePermissionService = schedulePermissionService;
         }
 
         [HttpGet("topnav")]
@@ -77,7 +79,7 @@ namespace Viper.Controllers
         }
 
         [HttpGet("leftnav")]
-        public ActionResult<NavMenu> GetLeftNav(bool area = true, string nav = "viper-home")
+        public async Task<ActionResult<NavMenu>> GetLeftNav(bool area = true, string nav = "viper-home")
         {
             NavMenu? menu = null;
             if (area)
@@ -89,7 +91,7 @@ namespace Viper.Controllers
                         break;
                     case "viper-clinical-scheduler":
                     case "clinicalscheduler":
-                        menu = new ClinicalSchedulerNavMenu(_context).Nav();
+                        menu = await new ClinicalSchedulerNavMenu(_context, _schedulePermissionService).Nav(HttpContext.RequestAborted);
                         break;
                     case "cms":
                         menu = new CmsNavMenu(_context).Nav();

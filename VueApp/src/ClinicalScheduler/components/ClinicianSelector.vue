@@ -9,9 +9,13 @@
                 dense
                 filled
                 class="own-schedule-field"
+                for="clinician-selector-own-display"
             >
                 <template #control>
-                    <div class="self-center full-width no-outline q-pa-xs">
+                    <div
+                        id="clinician-selector-own-display"
+                        class="self-center full-width no-outline q-pa-xs"
+                    >
                         <div class="text-body1">
                             {{ props.modelValue?.fullName || "Loading..." }}
                         </div>
@@ -32,15 +36,15 @@
             :loading="loading"
             :error="!!error"
             :error-message="error || undefined"
-            placeholder="Search for a clinician..."
+            :placeholder="isSingleClinicianReadOnly ? '' : 'Search for a clinician...'"
             emit-value
             map-options
-            :use-input="!props.includeAllAffiliates"
-            :fill-input="!props.includeAllAffiliates"
-            :hide-selected="!props.includeAllAffiliates"
+            :use-input="!props.includeAllAffiliates && !isSingleClinicianReadOnly"
+            :fill-input="!props.includeAllAffiliates && !isSingleClinicianReadOnly"
+            :hide-selected="!props.includeAllAffiliates && !isSingleClinicianReadOnly"
             option-label="fullName"
             option-value="mothraId"
-            clearable
+            :clearable="!isSingleClinicianReadOnly"
             dense
             options-dense
             :input-debounce="100"
@@ -48,9 +52,11 @@
             @popup-show="onPopupShow"
             @update:model-value="onClinicianChange"
             :virtual-scroll-slice-size="50"
+            :readonly="isSingleClinicianReadOnly"
+            :hide-dropdown-icon="isSingleClinicianReadOnly"
         >
             <template #prepend>
-                <q-icon name="search" />
+                <q-icon :name="isSingleClinicianReadOnly ? 'person' : 'search'" />
             </template>
 
             <template #no-option>
@@ -96,7 +102,7 @@
 
         <!-- Include All Affiliates Toggle -->
         <div
-            v-if="showAffiliatesToggle && !props.isOwnScheduleOnly"
+            v-if="showAffiliatesToggle && !isSingleClinicianReadOnly"
             class="affiliates-toggle-under-field"
         >
             <q-checkbox
@@ -177,6 +183,13 @@ const selectedClinician = computed({
     },
 })
 
+const isSingleClinicianReadOnly = computed(() => {
+    return (
+        props.isOwnScheduleOnly ||
+        (permissionsStore.hasOnlyOwnSchedulePermission && (loading.value || clinicians.value.length === 1))
+    )
+})
+
 // Methods
 const fetchClinicians = async () => {
     loading.value = true
@@ -237,6 +250,15 @@ const fetchClinicians = async () => {
 
             clinicians.value = validClinicians
             filteredClinicians.value = validClinicians
+
+            // If there is only 1 clinician in the list, auto-select it and emit the change
+            if (validClinicians.length === 1) {
+                const singleClinician = validClinicians[0]
+                if (!props.modelValue || props.modelValue.mothraId !== singleClinician.mothraId) {
+                    emit("update:modelValue", singleClinician)
+                    emit("change", singleClinician)
+                }
+            }
 
             // Emit event to notify parent that clinicians are loaded
             emit("clinicians-loaded", result.result)

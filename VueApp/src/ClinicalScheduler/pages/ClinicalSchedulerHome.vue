@@ -105,7 +105,7 @@
                                         class="opacity-70"
                                     />
                                 </div>
-                                <p class="text-grey-8 q-mb-sm">Schedule rotations for a specific clinician</p>
+                                <p class="text-grey-8 q-mb-sm">{{ clinicianViewDescription }}</p>
                                 <q-banner
                                     v-if="permissionsStore.hasOnlyOwnSchedulePermission"
                                     dense
@@ -158,6 +158,14 @@ const canAccessClinicianView = computed(() => {
     // Available to full access users and own schedule users, but NOT rotation-specific only users
     return permissionsStore.canAccessClinicianView
 })
+
+// Card description for the clinician view. Own-schedule users (who can only edit their
+// own schedule) get clearer copy than the generic "for a clinician" wording.
+const clinicianViewDescription = computed(() =>
+    permissionsStore.hasOnlyOwnSchedulePermission
+        ? "Schedule your own rotations"
+        : "Schedule rotations for a clinician",
+)
 
 // Methods
 const navigateToRotationView = () => {
