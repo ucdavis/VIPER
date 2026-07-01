@@ -58,7 +58,7 @@ jobs:
                   owner, repo, basehead: `${DEV_BRANCH}...${headSha}`,
                 });
                 if (cmp.data.status === 'behind' || cmp.data.status === 'identical') {
-                  return `Head ${headSha.slice(0, 7)} is in ${DEV_BRANCH} (status: ${cmp.data.status}).`;
+                  return `Branch "${headRef}" is on ${DEV_BRANCH}: its commits (through ${headSha.slice(0, 7)}) are already in ${DEV_BRANCH}.`;
                 }
               } catch (e) {
                 core.info(`compare ${DEV_BRANCH}...${headSha} failed: ${e.message}`);
@@ -70,7 +70,7 @@ jobs:
               });
               const mergedPr = devPulls.find((p) => p.merged_at);
               return mergedPr
-                ? `Merged into ${DEV_BRANCH} via #${mergedPr.number} (${mergedPr.merged_at}).`
+                ? `Branch "${headRef}" is on ${DEV_BRANCH} (merged via PR #${mergedPr.number}).`
                 : null;
             }
 
@@ -83,7 +83,7 @@ jobs:
                 core.info(detail);
               } else {
                 core.setFailed(
-                  `Branch "${pr.head.ref}" is not in ${DEV_BRANCH} yet. Team workflow ` +
+                  `Branch "${pr.head.ref}" is not on ${DEV_BRANCH} yet. Team workflow ` +
                   `routes branches through ${DEV_BRANCH} before main. Advisory only; ` +
                   `it does not block merging.`,
                 );
