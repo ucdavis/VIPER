@@ -1,79 +1,68 @@
 name: Development Merge Check
 
-# Advisory, NON-BLOCKING check for the team workflow that branches should merge
-# into Development before main. It reports a check run that is green once the
-# branch has reached Development and neutral (gray) while it has not. It never
-# fails, so it does not block merging - it is purely informational.
+# Advisory, NON-BLOCKING check for the team convention that branches merge into
+# Development before main.
 #
-# The team merges into Development with a direct `git merge` + push
-# (npm run merge), NOT through a PR, so "reached Development" is detected by:
-#   1. Ancestry - a direct merge makes the PR head an ancestor of Development
-#      (compare status "behind" or "identical").
-#   2. Fallback - a merged PR with base=Development, which covers squash merges
-#      whose rewritten SHAs would defeat the ancestry check.
+# It is a single check on the PR - this job's own pass/fail:
+#   green  when the PR head commit is already in Development
+#   red    when it is not (a reminder, not a hard failure; it does not block a
+#          merge unless someone marks it a required check)
+#
+# "In Development" is detected by ancestry, because the team merges into
+# Development with a direct `git merge` + push (`npm run merge`), not a PR, so the
+# PR head becomes an ancestor of Development. A merged-PR lookup is kept as a
+# squash-merge fallback.
+#
+# Triggers:
+#   pull_request      - evaluate this PR's head on every commit (this is the verdict).
+#   push: Development - a branch can land in Development without a new PR commit,
+#                       so re-run each still-red PR's check to flip it green.
+#   workflow_dispatch - manual refresh.
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, edited, ready_for_review]
+    types: [opened, reopened, synchronize, ready_for_review]
     branches: [main]
-  # Re-evaluate every open PR into main when Development advances, so the icon
-  # flips to green as soon as a branch lands in Development.
   push:
     branches: [Development]
+  workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: read
-  checks: write
+  actions: write
 
 concurrency:
   group: dev-merge-check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  report:
-    name: Report Development merge status
+  development-merge-check:
+    name: Development merge check (advisory)
     runs-on: ubuntu-latest
     steps:
-      - name: Report Development merge status
+      - name: Check Development merge status
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const DEV_BRANCH = 'Development';
-            const CHECK_NAME = 'Development merge check (advisory)';
+            const WORKFLOW = 'development-merge-check.yml';
             const { owner, repo } = context.repo;
 
-            // Which PRs to evaluate:
-            //  - pull_request event: just the triggering PR.
-            //  - push to Development: every open PR targeting main.
-            let prs;
-            if (context.payload.pull_request) {
-              prs = [context.payload.pull_request];
-            } else {
-              prs = await github.paginate(github.rest.pulls.list, {
-                owner, repo, state: 'open', base: 'main', per_page: 100,
-              });
-            }
-
-            // Detail string if the branch has reached Development, else null.
-            async function mergedDetail(pr) {
-              const headRef = pr.head.ref;
-              const headSha = pr.head.sha;
-              const headOwner = pr.head.repo ? pr.head.repo.owner.login : owner;
-
-              // Direct merge: npm run merge makes a real merge commit, so the PR
-              // head is contained in Development ("behind" or "identical").
+            // Detail string if the head is in Development, else null.
+            async function mergedDetail(headRef, headSha, headOwner) {
+              // Direct merge: npm run merge makes a real merge commit, so the head
+              // is contained in Development ("behind" or "identical").
               try {
                 const cmp = await github.rest.repos.compareCommitsWithBasehead({
                   owner, repo, basehead: `${DEV_BRANCH}...${headSha}`,
                 });
                 if (cmp.data.status === 'behind' || cmp.data.status === 'identical') {
-                  return `Head ${headSha.slice(0, 7)} is contained in ${DEV_BRANCH} (status: ${cmp.data.status}).`;
+                  return `Head ${headSha.slice(0, 7)} is in ${DEV_BRANCH} (status: ${cmp.data.status}).`;
                 }
               } catch (e) {
                 core.info(`compare ${DEV_BRANCH}...${headSha} failed: ${e.message}`);
               }
-
               // Fallback: a PR/squash merge into Development.
               const devPulls = await github.paginate(github.rest.pulls.list, {
                 owner, repo, state: 'closed', base: DEV_BRANCH,
@@ -85,43 +74,46 @@ jobs:
                 : null;
             }
 
-            // Always create a fresh check run; never update. GitHub blocks updating
-            // a check run's conclusion across workflow runs ("can only be updated
-            // internally by GitHub Actions"). The checks API returns the latest run
-            // per name, so a new run supersedes the previous one in the PR's status.
-            async function report(headSha, conclusion, title, summary) {
-              // Skip if the latest run already has this conclusion, to avoid churn.
-              try {
-                const existing = await github.rest.checks.listForRef({
-                  owner, repo, ref: headSha, check_name: CHECK_NAME,
-                  filter: 'latest', per_page: 1,
-                });
-                if (existing.data.check_runs[0]?.conclusion === conclusion) return;
-              } catch (e) {
-                core.info(`listForRef ${headSha} failed: ${e.message}`);
+            // pull_request: this job's pass/fail IS the advisory check for the PR.
+            if (context.eventName === 'pull_request') {
+              const pr = context.payload.pull_request;
+              const headOwner = pr.head.repo ? pr.head.repo.owner.login : owner;
+              const detail = await mergedDetail(pr.head.ref, pr.head.sha, headOwner);
+              if (detail) {
+                core.info(detail);
+              } else {
+                core.setFailed(
+                  `Branch "${pr.head.ref}" is not in ${DEV_BRANCH} yet. Team workflow ` +
+                  `routes branches through ${DEV_BRANCH} before main. Advisory only; ` +
+                  `it does not block merging.`,
+                );
               }
-              await github.rest.checks.create({
-                owner, repo, name: CHECK_NAME, head_sha: headSha,
-                status: 'completed', conclusion, output: { title, summary },
-              });
+              return;
             }
 
+            // push to Development / manual dispatch: a branch may have just landed
+            // in Development without a new PR commit. Re-run each still-red PR's
+            // check so its verdict refreshes against the updated Development.
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', base: 'main', per_page: 100,
+            });
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner, repo, workflow_id: WORKFLOW, event: 'pull_request', per_page: 100,
+            });
+            const latestBySha = new Map();
+            for (const r of runs) {
+              if (!latestBySha.has(r.head_sha)) latestBySha.set(r.head_sha, r);
+            }
             for (const pr of prs) {
-              try {
-                const detail = await mergedDetail(pr);
-                const merged = Boolean(detail);
-                const conclusion = merged ? 'success' : 'neutral';
-                const title = merged
-                  ? 'Merged into Development'
-                  : 'Not yet merged into Development';
-                const summary = merged
-                  ? detail
-                  : `Branch "${pr.head.ref}" has not been merged into ${DEV_BRANCH} yet. ` +
-                    `Team workflow routes branches through ${DEV_BRANCH} before main. ` +
-                    `This is advisory and does not block merging.`;
-                await report(pr.head.sha, conclusion, title, summary);
-                core.info(`PR #${pr.number}: ${title}`);
-              } catch (e) {
-                core.warning(`PR #${pr.number}: failed to report status: ${e.message}`);
+              const run = latestBySha.get(pr.head.sha);
+              if (run?.conclusion === 'failure') {
+                try {
+                  await github.rest.actions.reRunWorkflowFailedJobs({
+                    owner, repo, run_id: run.id,
+                  });
+                  core.info(`PR #${pr.number}: re-running advisory check (was red).`);
+                } catch (e) {
+                  core.warning(`PR #${pr.number}: re-run failed: ${e.message}`);
+                }
               }
             }
