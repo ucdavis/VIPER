@@ -63,6 +63,14 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         /// <summary>
+        /// Check if the user has permission to edit their own schedule
+        /// </summary>
+        private bool HasEditOwnSchedulePermission(AaudUser user)
+        {
+            return _userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.EditOwnSchedule);
+        }
+
+        /// <summary>
         /// Check if the current user has edit permissions for a specific service
         /// Enhanced with permission hierarchy (Admin > Manage > EditClnSchedules > Service-specific)
         /// </summary>
@@ -157,6 +165,61 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(ex, "Error getting editable services for user {MothraId}", LogSanitizer.SanitizeId(user?.MothraId));
                 return new List<Service>();
             }
+        }
+
+        /// <summary>
+        /// Determine if the current user can access the Schedule by Rotation view.
+        /// Mirrors the client-side canAccessRotationView getter: full access, or edit
+        /// permission for at least one service.
+        /// </summary>
+        public async Task<bool> CanAccessRotationViewAsync(CancellationToken cancellationToken = default)
+        {
+            var user = GetValidatedCurrentUser("checking rotation view access");
+            if (user == null) return false;
+
+            // Full access users can always access the rotation view
+            if (HasFullAccessPermission(user)) return true;
+
+            // Otherwise the user needs edit permission for at least one service
+            var editableServices = await GetUserEditableServicesAsync(cancellationToken);
+            return editableServices.Count > 0;
+        }
+
+        /// <summary>
+        /// Determine if the current user can access the Schedule by Clinician view.
+        /// Mirrors the client-side canAccessClinicianView getter: full access, or
+        /// permission to edit their own schedule.
+        /// </summary>
+        /// <remarks>
+        /// Returns via Task.FromResult since this only performs in-memory permission checks.
+        /// </remarks>
+        public Task<bool> CanAccessClinicianViewAsync(CancellationToken cancellationToken = default)
+        {
+            var user = GetValidatedCurrentUser("checking clinician view access");
+            if (user == null) return Task.FromResult(false);
+
+            var canAccess = HasFullAccessPermission(user) || HasEditOwnSchedulePermission(user);
+            return Task.FromResult(canAccess);
+        }
+
+        /// <summary>
+        /// Get the label for the clinician scheduling view link.
+        /// Mirrors the client-side clinicianViewLabel getter: "Edit My Schedule" for users who can
+        /// only edit their own schedule (EditOwnSchedule without full access), otherwise
+        /// "Schedule by Clinician".
+        /// </summary>
+        /// <remarks>
+        /// Returns via Task.FromResult since this only performs in-memory permission checks.
+        /// </remarks>
+        public Task<string> GetClinicianViewLabelAsync(CancellationToken cancellationToken = default)
+        {
+            var user = GetValidatedCurrentUser("getting clinician view label");
+            var label = user != null
+                        && !HasFullAccessPermission(user)
+                        && HasEditOwnSchedulePermission(user)
+                ? "Edit My Schedule"
+                : "Schedule by Clinician";
+            return Task.FromResult(label);
         }
 
         /// <summary>
@@ -266,6 +329,16 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     LogSanitizer.SanitizeId(user?.MothraId), instructorScheduleId);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Check if the current user has the EditOwnSchedule permission in general
+        /// </summary>
+        public Task<bool> HasEditOwnSchedulePermissionAsync(CancellationToken cancellationToken = default)
+        {
+            var user = GetValidatedCurrentUser("checking EditOwnSchedule permission");
+            if (user == null) return Task.FromResult(false);
+            return Task.FromResult(HasEditOwnSchedulePermission(user));
         }
 
         /// <summary>

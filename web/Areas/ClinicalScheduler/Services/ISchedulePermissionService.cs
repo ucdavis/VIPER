@@ -31,6 +31,33 @@ namespace Viper.Areas.ClinicalScheduler.Services
         Task<List<Service>> GetUserEditableServicesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Determine if the current user can access the Schedule by Rotation view.
+        /// Mirrors the client-side canAccessRotationView getter: full access (Admin/Manage/EditClnSchedules),
+        /// or edit permission for at least one service.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>True if the current user can access the rotation scheduling view</returns>
+        Task<bool> CanAccessRotationViewAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Determine if the current user can access the Schedule by Clinician view.
+        /// Mirrors the client-side canAccessClinicianView getter: full access (Admin/Manage/EditClnSchedules),
+        /// or permission to edit their own schedule.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>True if the current user can access the clinician scheduling view</returns>
+        Task<bool> CanAccessClinicianViewAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the label for the clinician scheduling view link. Mirrors the client-side
+        /// clinicianViewLabel getter: "Edit My Schedule" for users who can only edit their own
+        /// schedule (EditOwnSchedule without full access), otherwise "Schedule by Clinician".
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The display label for the clinician scheduling view</returns>
+        Task<string> GetClinicianViewLabelAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get current user's effective permissions for all services
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -52,6 +79,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>True if current user can edit their own schedule for this entry</returns>
         Task<bool> CanEditOwnScheduleAsync(int instructorScheduleId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Check if the current user has the EditOwnSchedule permission in general
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>True if current user has EditOwnSchedule permission</returns>
+        Task<bool> HasEditOwnSchedulePermissionAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check access to student schedules with the given parameters
