@@ -555,7 +555,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// <summary>
         /// Builds recent clinicians list with full names
         /// </summary>
-        private List<object> BuildRecentCliniciansList(IEnumerable<string> mothraIds, Dictionary<string, Person> personData)
+        internal static List<object> BuildRecentCliniciansList(IEnumerable<string> mothraIds, Dictionary<string, Person> personData)
         {
             return mothraIds
                 .Distinct()

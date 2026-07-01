@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using MockQueryable.NSubstitute;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Controllers;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
@@ -334,25 +333,6 @@ namespace Viper.test.ClinicalScheduler
 
         #region BuildWeekScheduleItem Tests (lines 522-528)
 
-        // Empty InstructorSchedules avoids the Week navigation property NPE that occurs in
-        // GetRecentCliniciansAsync when MockQueryable doesn't load navigation properties.
-        private void SetupForScheduleResponse()
-        {
-			var instSched = new List<InstructorSchedule>().BuildMockDbSet();
-			var rwp = new List<RotationWeeklyPref>().BuildMockDbSet();
-
-            MockContext.InstructorSchedules.Returns(instSched);
-            MockContext.RotationWeeklyPrefs.Returns(rwp);
-
-            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-            _mockWeekService.GetWeeksAsync(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-                .Returns(
-                [
-                    new() { WeekId = 1, WeekNum = 1, DateStart = baseDate, DateEnd = baseDate.AddDays(6), TermCode = TestTermCode },
-                    new() { WeekId = 2, WeekNum = 2, DateStart = baseDate.AddDays(7), DateEnd = baseDate.AddDays(13), TermCode = TestTermCode }
-                ]);
-        }
-
         private static RotationDto CardiologyRotationWithMinConsecutiveWeeks(int? minConsecutiveWeeks) => new()
         {
             RotId = CardiologyRotationId,
@@ -407,6 +387,51 @@ namespace Viper.test.ClinicalScheduler
             var rotationProp = okResult.Value!.GetType().GetProperty("Rotation")?.GetValue(okResult.Value);
             var serviceProp = rotationProp?.GetType().GetProperty("Service")?.GetValue(rotationProp);
             Assert.Null(serviceProp);
+        }
+
+        #endregion
+
+        #region BuildRecentCliniciansList Tests
+
+        [Fact]
+        public void BuildRecentCliniciansList_MapsKnownPersonName_AndFallsBackForUnknown()
+        {
+            // personData contains the first clinician but not the second, so each branch
+            // of the lookup is exercised: a hit resolves to the display name, a miss falls
+            // back to the "Clinician {mothraId}" label.
+            var personData = new Dictionary<string, Person>
+            {
+                ["known1"] = new Person { IdsMothraId = "known1", PersonDisplayFullName = "Known, Clinician" }
+            };
+
+            var result = RotationsController.BuildRecentCliniciansList(["known1", "missing1"], personData);
+
+            var byMothraId = result
+                .Select(ReadClinician)
+                .ToDictionary(c => c.MothraId, c => c.FullName);
+
+            Assert.Equal(2, byMothraId.Count);
+            Assert.Equal("Known, Clinician", byMothraId["known1"]);     // found in personData
+            Assert.Equal("Clinician missing1", byMothraId["missing1"]); // missing from personData
+        }
+
+        [Fact]
+        public void BuildRecentCliniciansList_DeduplicatesMothraIds()
+        {
+            var result = RotationsController.BuildRecentCliniciansList(
+                ["missing1", "missing1"],
+                new Dictionary<string, Person>());
+
+            Assert.Single(result);
+        }
+
+        // Recent-clinician entries are anonymous objects on the response; read them by reflection.
+        private static (string MothraId, string FullName) ReadClinician(object item)
+        {
+            var type = item.GetType();
+            var mothraId = (string)type.GetProperty("mothraId")!.GetValue(item)!;
+            var fullName = (string)type.GetProperty("fullName")!.GetValue(item)!;
+            return (mothraId, fullName);
         }
 
         #endregion
