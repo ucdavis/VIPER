@@ -4,17 +4,17 @@ import { setupTest, createWrapper, mockErrorResponse, mockSuccessResponse } from
 // Mock services
 vi.mock("../services/clinician-service", () => ({
     ClinicianService: {
-        getClinicians: vi.fn(),
+        getClinicians: vi.fn<(...args: unknown[]) => unknown>(),
     },
 }))
 
 vi.mock("../services/permission-service", () => ({
     PermissionService: {
-        getUserPermissions: vi.fn(),
-        getPermissionSummary: vi.fn(),
-        canEditService: vi.fn(),
-        canEditRotation: vi.fn(),
-        canEditOwnSchedule: vi.fn(),
+        getUserPermissions: vi.fn<(...args: unknown[]) => unknown>(),
+        getPermissionSummary: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditService: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditRotation: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditOwnSchedule: vi.fn<(...args: unknown[]) => unknown>(),
     },
     permissionService: {},
 }))
@@ -31,6 +31,42 @@ describe("ClinicianSelector - Basic Functionality", () => {
 
             expect(wrapper.find(".q-select").exists()).toBeTruthy()
             expect(wrapper.find(".own-schedule-display").exists()).toBeFalsy()
+        })
+
+        it("renders read-only display and auto-selects if there is only 1 clinician", async () => {
+            const singleClinician = {
+                mothraId: "12345",
+                fullName: "Smith, John",
+                firstName: "John",
+                lastName: "Smith",
+            }
+            mockSuccessResponse([singleClinician])
+
+            const wrapper = createWrapper({
+                isOwnScheduleOnly: false,
+                showAffiliatesToggle: true,
+                modelValue: null,
+            })
+
+            // Fetch to trigger the list loading
+            await (wrapper.vm as any).fetchClinicians()
+            await wrapper.vm.$nextTick()
+
+            // It should auto-select the clinician
+            const emittedUpdate = wrapper.emitted("update:modelValue")?.[0]?.[0] as any
+            expect(emittedUpdate).toStrictEqual(singleClinician)
+
+            const emittedChange = wrapper.emitted("change")?.[0]?.[0] as any
+            expect(emittedChange).toStrictEqual(singleClinician)
+
+            // It should render select without readonly class/attribute instead of own-schedule-display
+            expect(wrapper.find(".own-schedule-display").exists()).toBeFalsy()
+            const select = wrapper.find(".q-select")
+            expect(select.exists()).toBeTruthy()
+            expect(select.classes()).not.toContain("q-field--readonly")
+
+            // The affiliates toggle should remain visible for admins
+            expect(wrapper.find(".affiliates-toggle-under-field").exists()).toBeTruthy()
         })
     })
 
@@ -54,16 +90,14 @@ describe("ClinicianSelector - Basic Functionality", () => {
         ])("fetches clinicians $name", async ({ props, expected }) => {
             const wrapper = createWrapper(props)
 
-            // For tests with year, wait for auto-fetch
-            if (props.year) {
-                await vi.waitFor(() => {
-                    expect(ClinicianService.getClinicians).toHaveBeenCalledWith(expected)
-                })
-            } else {
-                // Manual trigger for tests without year
+            // Tests without a year do not auto-fetch, so trigger the load manually.
+            if (!props.year) {
                 await (wrapper.vm as any).fetchClinicians()
-                expect(ClinicianService.getClinicians).toHaveBeenCalledWith(expected)
             }
+
+            await vi.waitFor(() => {
+                expect(ClinicianService.getClinicians).toHaveBeenCalledWith(expected)
+            })
         })
 
         it("loads and displays clinicians", async () => {
