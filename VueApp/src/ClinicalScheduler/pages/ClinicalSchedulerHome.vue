@@ -107,7 +107,7 @@
                                 </div>
                                 <p class="text-grey-8 q-mb-sm">{{ clinicianViewDescription }}</p>
                                 <q-banner
-                                    v-if="permissionsStore.hasOnlyOwnSchedulePermission"
+                                    v-if="isPersonalClinicianView"
                                     dense
                                     inline-actions
                                     class="text-primary bg-primary-1 rounded-borders"
@@ -159,12 +159,19 @@ const canAccessClinicianView = computed(() => {
     return permissionsStore.canAccessClinicianView
 })
 
-// Card description for the clinician view. Own-schedule users (who can only edit their
-// own schedule) get clearer copy than the generic "for a clinician" wording.
+// True when the clinician view is the personal "Edit My Schedule" variant. This covers both
+// pure own-schedule users (hasOnlyOwnSchedulePermission) and hybrid users who also manage a
+// service but still only edit their own schedule here (hasClinicianViewReadOnly). Together these
+// equal "EditOwnSchedule without full access", the same condition behind clinicianViewLabel, so
+// the card's heading, description, and "your schedule only" banner stay consistent.
+const isPersonalClinicianView = computed(
+    () => permissionsStore.hasOnlyOwnSchedulePermission || permissionsStore.hasClinicianViewReadOnly,
+)
+
+// Card description for the clinician view. The personal edit-my-schedule variant gets clearer
+// copy than the generic "for a clinician" wording.
 const clinicianViewDescription = computed(() =>
-    permissionsStore.hasOnlyOwnSchedulePermission
-        ? "Schedule your own rotations"
-        : "Schedule rotations for a clinician",
+    isPersonalClinicianView.value ? "Schedule your own rotations" : "Schedule rotations for a clinician",
 )
 
 // Methods

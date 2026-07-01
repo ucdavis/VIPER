@@ -46,6 +46,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get all rotations with optional filtering
         /// </summary>
         /// <param name="serviceId">Optional service ID to filter by</param>
+        /// <param name="clinicianMothraId">When it matches the current user's mothra ID, own-schedule users see all rotations (self-scheduling)</param>
         /// <returns>List of rotations</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
@@ -248,6 +249,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get rotations that have scheduled weeks for a specific year
         /// </summary>
         /// <param name="year">Year to filter by (optional, defaults to current year)</param>
+        /// <param name="clinicianMothraId">When it matches the current user's mothra ID, own-schedule users see all rotations (self-scheduling)</param>
         /// <returns>List of rotations with scheduled weeks</returns>
         [HttpGet("with-scheduled-weeks")]
         [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
