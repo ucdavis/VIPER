@@ -186,10 +186,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue"
+import { inject, onMounted } from "vue"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { useContentDiffViewer } from "@/CMS/composables/use-content-diff-viewer"
 import { useUrlFilteredTable } from "@/CMS/composables/use-url-filtered-table"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
@@ -234,46 +235,17 @@ const {
     pagination: { sortBy: "modifiedOn", descending: true },
 })
 
-const viewer = ref({
-    open: false,
-    loading: false,
-    title: "",
-    subtitle: "",
-    content: "",
-    hasComparison: true,
-    hasChanges: true,
-})
-
-function diffStamp(on: string | null, by: string | null): string {
-    return (
-        (on ? formatDateTime(on, { dateStyle: "short", timeStyle: "short" }) : "unknown date") + (by ? ` by ${by}` : "")
-    )
-}
+const { viewer, openViewer, applyDiff, failViewer, savedDiffSubtitle } = useContentDiffViewer()
 
 async function viewDiff(row: CmsContentHistoryAudit) {
-    viewer.value = {
-        open: true,
-        loading: true,
-        title: blockLabel(row),
-        subtitle: "",
-        content: "",
-        hasComparison: true,
-        hasChanges: true,
-    }
+    openViewer(blockLabel(row))
     const res = await get(apiBase + "CMS/content/" + row.contentBlockId + "/history/" + row.contentHistoryId + "/diff")
     if (res.success) {
         const diff = res.result as CmsContentHistoryDiff
-        viewer.value.content = diff.content
-        viewer.value.hasComparison = diff.hasComparison
-        viewer.value.hasChanges = diff.hasChanges
-        viewer.value.subtitle = diff.hasComparison
-            ? `Changes from ${diffStamp(diff.oldModifiedOn, diff.oldModifiedBy)} to ${diffStamp(diff.newModifiedOn, diff.newModifiedBy)}`
-            : `Original version, ${diffStamp(diff.newModifiedOn, diff.newModifiedBy)}`
+        applyDiff(diff, savedDiffSubtitle(diff))
     } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load this version" })
-        viewer.value.open = false
+        failViewer(res.errors?.[0] ?? "Failed to load this version")
     }
-    viewer.value.loading = false
 }
 
 onMounted(reload)

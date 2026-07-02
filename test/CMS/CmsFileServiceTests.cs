@@ -822,6 +822,31 @@ public sealed class CmsFileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetFiles_SortsByDeletedOn_OldestFirstForPurgeViews()
+    {
+        await SeedFileAsync(f =>
+        {
+            f.FriendlyName = "cats-newer.pdf";
+            f.FilePath = @"C:\FakeRoot\cats\newer.pdf";
+            f.DeletedOn = DateTime.Now.AddDays(-1);
+        });
+        await SeedFileAsync(f =>
+        {
+            f.FriendlyName = "cats-older.pdf";
+            f.FilePath = @"C:\FakeRoot\cats\older.pdf";
+            f.DeletedOn = DateTime.Now.AddDays(-20);
+        });
+
+        var (ascending, _) = await _service.GetFilesAsync(null, "deleted", null, null, null, 1, 50,
+            "deletedOn", false, ct: TestContext.Current.CancellationToken);
+        var (descending, _) = await _service.GetFilesAsync(null, "deleted", null, null, null, 1, 50,
+            "deletedOn", true, ct: TestContext.Current.CancellationToken);
+
+        Assert.Equal(new[] { "cats-older.pdf", "cats-newer.pdf" }, ascending.Select(f => f.FriendlyName));
+        Assert.Equal(new[] { "cats-newer.pdf", "cats-older.pdf" }, descending.Select(f => f.FriendlyName));
+    }
+
+    [Fact]
     public async Task GetFiles_Deleted_ScopedToOwner_ReturnsOnlyFilesTheyDeleted()
     {
         var mine = await SeedFileAsync(f =>

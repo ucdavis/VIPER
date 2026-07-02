@@ -1,5 +1,5 @@
 import RecentActivity from "@/CMS/components/RecentActivity.vue"
-import { mountCms, flushPromises } from "./test-utils"
+import { createTestRouter, mountCms, flushPromises, flushRouter } from "./test-utils"
 
 /**
  * RecentActivity merges up to three sources (content blocks, files, left-nav menus), each
@@ -9,9 +9,11 @@ import { mountCms, flushPromises } from "./test-utils"
  */
 
 const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),
+        post: (...args: unknown[]) => mockPost(...args),
         createUrlSearchParams: (obj: Record<string, string | number | null | undefined>) => {
             const params = new URLSearchParams()
             for (const [k, v] of Object.entries(obj)) {
@@ -35,12 +37,35 @@ function leftNav(id: number, modifiedOn: string, menuHeaderText = `Menu ${id}`) 
 }
 
 // Routes requests to the right canned response based on the URL the component builds.
-function routeGet(handlers: { blocks?: unknown; files?: unknown; leftNavs?: unknown }) {
+// The trash source defaults to an empty success so pre-existing tests keep their exact
+// call semantics; tests exercising deletions or all-source failure pass it explicitly.
+// The latest-change diff is a POST (current content vs newest history row) and answers
+// from historyDiff.
+function routeGet(handlers: {
+    blocks?: unknown
+    blockDetail?: unknown
+    files?: unknown
+    deletedFiles?: unknown
+    historyList?: unknown
+    historyDiff?: unknown
+    leftNavs?: unknown
+}) {
+    mockPost.mockReset()
+    mockPost.mockResolvedValue(handlers.historyDiff)
     mockGet.mockReset()
     mockGet.mockImplementation((...args: unknown[]) => {
         const url = args[0] as string
+        if (url.includes("CMS/content/history")) {
+            return Promise.resolve(handlers.historyList)
+        }
+        if (/CMS\/content\/\d+$/u.test(url)) {
+            return Promise.resolve(handlers.blockDetail)
+        }
         if (url.includes("CMS/content")) {
             return Promise.resolve(handlers.blocks)
+        }
+        if (url.includes("cms/files") && url.includes("status=deleted")) {
+            return Promise.resolve(handlers.deletedFiles ?? { success: true, result: [] })
         }
         if (url.includes("cms/files")) {
             return Promise.resolve(handlers.files)
@@ -87,7 +112,8 @@ describe("recentActivity.vue - source gating", () => {
             leftNavs: { success: true, result: [leftNav(1, "2024-01-01T00:00:00")] },
         })
         await mountActivity({ showBlocks: true, showFiles: true, showLeftNavs: true })
-        expect(mockGet).toHaveBeenCalledTimes(3)
+        // ShowFiles drives two fetches: active files and recently deleted (trash) files.
+        expect(mockGet).toHaveBeenCalledTimes(4)
     })
 })
 
@@ -145,8 +171,127 @@ describe("recentActivity.vue - partial failure semantics", () => {
         routeGet({
             blocks: { success: false, result: [] },
             files: { success: false, result: [] },
+            deletedFiles: { success: false, result: [] },
         })
         const wrapper = await mountActivity({ showBlocks: true, showFiles: true })
         expect(wrapper.text()).toContain("Couldn't load recent activity.")
+    })
+})
+
+describe("recentActivity.vue - deleted files and item actions", () => {
+    it("shows recently deleted files with a deleted verb and a trash deep-link", async () => {
+        routeGet({
+            files: { success: true, result: [] },
+            deletedFiles: {
+                success: true,
+                result: [{ ...file("g9", "2024-05-01T00:00:00", "Gone file"), deletedOn: "2024-05-02T00:00:00" }],
+            },
+        })
+        const wrapper = await mountActivity({ showFiles: true })
+
+        expect(wrapper.text()).toContain("Gone file")
+        expect(wrapper.text()).toContain("deleted")
+        const item = wrapper.findAllComponents({ name: "QItem" }).find((i) => i.text().includes("Gone file"))!
+        expect(item.props("to")).toStrictEqual({
+            name: "CmsFiles",
+            query: { status: "deleted", search: "Gone file" },
+        })
+        const deletedFetch = mockGet.mock.calls.map((c) => c[0] as string).find((u) => u.includes("status=deleted"))!
+        expect(deletedFetch).toContain("sortBy=deletedOn")
+        expect(deletedFetch).toContain("descending=true")
+    })
+
+    it("links block items to their edit history and files to their audit trail", async () => {
+        routeGet({
+            blocks: { success: true, result: [block(7, "2024-01-02T00:00:00")] },
+            files: { success: true, result: [file("g1", "2024-01-01T00:00:00")] },
+        })
+        const wrapper = await mountActivity({ showBlocks: true, showFiles: true })
+
+        const buttons = wrapper.findAllComponents({ name: "QBtn" })
+        const history = buttons.find((b) => b.props("icon") === "history")!
+        expect(history.props("to")).toStrictEqual({
+            name: "CmsContentBlockHistory",
+            query: { contentBlockId: "7" },
+        })
+        const audit = buttons.find((b) => b.props("icon") === "fact_check")!
+        expect(audit.props("to")).toStrictEqual({ name: "CmsFileAudit", query: { fileGuid: "g1" } })
+    })
+
+    // Guards the click handling: a preventDefault on to-actions would make QBtn cancel its own
+    // router navigation, and a missing .stop would let the row's edit link hijack the click.
+    it("navigates to the block's edit history when its history action is clicked", async () => {
+        routeGet({ blocks: { success: true, result: [block(7, "2024-01-02T00:00:00")] } })
+        const router = createTestRouter()
+        const wrapper = mountCms(RecentActivity, { props: { showBlocks: true } }, router)
+        await flushPromises()
+        await flushPromises()
+
+        await wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.props("icon") === "history")!
+            .trigger("click")
+        await flushRouter()
+
+        expect(router.currentRoute.value.name).toBe("CmsContentBlockHistory")
+        expect(router.currentRoute.value.query).toStrictEqual({ contentBlockId: "7" })
+    })
+
+    it("opens the latest-change diff inline from a block item", async () => {
+        routeGet({
+            blocks: { success: true, result: [block(7, "2024-01-02T00:00:00", "Diffable block")] },
+            blockDetail: {
+                success: true,
+                result: { ...block(7, "2024-01-02T00:00:00", "Diffable block"), content: "<p>now</p>" },
+            },
+            historyList: { success: true, result: [{ contentHistoryId: 42, contentBlockId: 7 }] },
+            historyDiff: {
+                success: true,
+                result: {
+                    content: "<p>diff <ins>added</ins></p>",
+                    hasComparison: true,
+                    hasChanges: true,
+                    oldModifiedOn: "2024-01-01T00:00:00",
+                    oldModifiedBy: "before",
+                    newModifiedOn: null,
+                    newModifiedBy: null,
+                },
+            },
+        })
+        const wrapper = await mountActivity({ showBlocks: true })
+
+        await wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.props("icon") === "difference")!
+            .trigger("click")
+        await flushPromises()
+
+        const dialog = wrapper.findComponent({ name: "ContentDiffDialog" })
+        expect(dialog.props("modelValue")).toBeTruthy()
+        expect(dialog.props("diffHtml")).toContain("added")
+        // The latest change is live content vs the newest history row, so it must go through
+        // the POST diff (history rows only hold superseded versions) with the current content.
+        expect(mockPost).toHaveBeenCalledOnce()
+        const [diffUrl, diffBody] = mockPost.mock.calls[0] as [string, unknown]
+        expect(diffUrl).toContain("CMS/content/7/history/42/diff")
+        expect(diffBody).toStrictEqual({ content: "<p>now</p>" })
+    })
+
+    it("closes the diff viewer and notifies when the block has no history", async () => {
+        routeGet({
+            blocks: { success: true, result: [block(7, "2024-01-02T00:00:00")] },
+            blockDetail: { success: true, result: { ...block(7, "2024-01-02T00:00:00"), content: "<p>now</p>" } },
+            historyList: { success: true, result: [] },
+        })
+        const wrapper = await mountActivity({ showBlocks: true })
+
+        await wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.props("icon") === "difference")!
+            .trigger("click")
+        await flushPromises()
+
+        expect(wrapper.findComponent({ name: "ContentDiffDialog" }).props("modelValue")).toBeFalsy()
+        expect(mockPost).not.toHaveBeenCalled()
     })
 })

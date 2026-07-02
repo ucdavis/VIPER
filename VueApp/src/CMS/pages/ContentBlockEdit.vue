@@ -346,6 +346,7 @@ import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import { useContentDiffViewer } from "@/CMS/composables/use-content-diff-viewer"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
@@ -481,41 +482,25 @@ async function loadHistoryVersion() {
     }
 }
 
-const diffViewer = ref({
-    open: false,
-    loading: false,
-    title: "",
-    subtitle: "",
-    content: "",
-    hasChanges: true,
-})
+const { viewer: diffViewer, openViewer: openDiffViewer, applyDiff, failViewer } = useContentDiffViewer()
 
 // Compare the editor's current content (the "new" side) against the selected historical version
 // (the "old" side). The current content is posted because it may include unsaved edits.
 async function diffAgainstCurrent() {
     if (!selectedHistory.value) return
-    diffViewer.value = {
-        open: true,
-        loading: true,
-        title: "Current editor content vs previous version",
-        subtitle: "",
-        content: "",
-        hasChanges: true,
-    }
+    openDiffViewer("Current editor content vs previous version")
     const res = await post(
         apiURL + "/" + blockId.value + "/history/" + selectedHistory.value.contentHistoryId + "/diff",
         { content: block.value.content },
     )
     if (res.success) {
-        const diff = res.result as CmsContentHistoryDiff
-        diffViewer.value.content = diff.content
-        diffViewer.value.hasChanges = diff.hasChanges
-        diffViewer.value.subtitle = `Changes from ${historyLabel(selectedHistory.value)} to your current editor content`
+        applyDiff(
+            res.result as CmsContentHistoryDiff,
+            `Changes from ${historyLabel(selectedHistory.value)} to your current editor content`,
+        )
     } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to build the diff" })
-        diffViewer.value.open = false
+        failViewer(res.errors?.[0] ?? "Failed to build the diff")
     }
-    diffViewer.value.loading = false
 }
 
 async function searchFiles(val: string, update: (fn: () => void) => void) {
