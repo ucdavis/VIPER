@@ -87,6 +87,10 @@ public sealed class CmsFileServiceTests : IDisposable
         return path;
     }
 
+    // Shared seed timestamp so update requests can present a matching LastModifiedOn
+    // (UpdateFileAsync rejects stale or missing values with 409/400 semantics).
+    private readonly DateTime _seededModifiedOn = DateTime.Now.AddDays(-1);
+
     private async Task<File> SeedFileAsync(Action<File>? customize = null)
     {
         var file = new File
@@ -97,7 +101,7 @@ public sealed class CmsFileServiceTests : IDisposable
             FriendlyName = "cats-seeded.pdf",
             Description = "seeded",
             ModifiedBy = "test",
-            ModifiedOn = DateTime.Now.AddDays(-1)
+            ModifiedOn = _seededModifiedOn
         };
         customize?.Invoke(file);
         _context.Files.Add(file);
@@ -123,7 +127,7 @@ public sealed class CmsFileServiceTests : IDisposable
             FriendlyName = "cats-plain.pdf",
             Description = "seeded",
             ModifiedBy = "test",
-            ModifiedOn = DateTime.Now.AddDays(-1)
+            ModifiedOn = _seededModifiedOn
         };
         customize?.Invoke(file);
         await using (var seedContext = new VIPERContext(new DbContextOptionsBuilder<VIPERContext>()
@@ -149,6 +153,33 @@ public sealed class CmsFileServiceTests : IDisposable
             InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("simulated save failure");
+        }
+    }
+
+    /// <summary>
+    /// Throws only when the save being intercepted deletes the given file, so a purge run's other
+    /// per-file saves succeed normally. Lets PurgeDeletedFilesAsync's per-file isolation be tested
+    /// without a database that can produce a real transient failure.
+    /// </summary>
+    private sealed class SelectiveThrowingSaveInterceptor : SaveChangesInterceptor
+    {
+        private readonly Guid _failingFileGuid;
+
+        public SelectiveThrowingSaveInterceptor(Guid failingFileGuid)
+        {
+            _failingFileGuid = failingFileGuid;
+        }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            bool targetsFailingFile = eventData.Context?.ChangeTracker.Entries<File>()
+                .Any(e => e.State == EntityState.Deleted && e.Entity.FileGuid == _failingFileGuid) ?? false;
+            if (targetsFailingFile)
+            {
+                throw new InvalidOperationException("simulated transient save failure");
+            }
+            return ValueTask.FromResult(result);
         }
     }
 
@@ -379,6 +410,7 @@ public sealed class CmsFileServiceTests : IDisposable
         var request = new CmsFileUpdateRequest
         {
             Description = "seeded",
+            LastModifiedOn = _seededModifiedOn,
             Permissions = new List<string> { "SVMSecure.Keep", "SVMSecure.New" }
         };
 
@@ -398,6 +430,7 @@ public sealed class CmsFileServiceTests : IDisposable
         var request = new CmsFileUpdateRequest
         {
             Description = "seeded",
+            LastModifiedOn = _seededModifiedOn,
             IamIds = new List<string> { "100NEW" }
         };
 
@@ -413,7 +446,7 @@ public sealed class CmsFileServiceTests : IDisposable
     {
         var file = await SeedFileAsync();
         _storage.ManagedFileExists(file.FilePath).Returns(true);
-        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = true };
+        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = true, LastModifiedOn = _seededModifiedOn };
 
         var dto = await _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken);
 
@@ -430,7 +463,7 @@ public sealed class CmsFileServiceTests : IDisposable
             f.Key = "old-key";
         });
         _storage.ManagedFileExists(file.FilePath).Returns(true);
-        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = false };
+        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = false, LastModifiedOn = _seededModifiedOn };
 
         var dto = await _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken);
 
@@ -444,7 +477,7 @@ public sealed class CmsFileServiceTests : IDisposable
     public async Task UpdateFile_WithReplacementUpload_ReplacesInPlaceAndAudits()
     {
         var file = await SeedFileAsync();
-        var request = new CmsFileUpdateRequest { Description = "seeded" };
+        var request = new CmsFileUpdateRequest { Description = "seeded", LastModifiedOn = _seededModifiedOn };
 
         await _service.UpdateFileAsync(file.FileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken);
 
@@ -458,7 +491,7 @@ public sealed class CmsFileServiceTests : IDisposable
         // The record keeps its name/path on replacement, so a .png swapped for the seeded
         // .pdf would leave the stored .pdf holding .png bytes; the upload must be rejected.
         var file = await SeedFileAsync();
-        var request = new CmsFileUpdateRequest { Description = "seeded" };
+        var request = new CmsFileUpdateRequest { Description = "seeded", LastModifiedOn = _seededModifiedOn };
 
         await Assert.ThrowsAsync<ArgumentException>(
             () => _service.UpdateFileAsync(file.FileGuid, request, MakeFormFile("newversion.png"), TestContext.Current.CancellationToken));
@@ -469,7 +502,7 @@ public sealed class CmsFileServiceTests : IDisposable
     public async Task UpdateFile_WithReplacementUpload_RestoresSoftDeletedFile()
     {
         var file = await SeedFileAsync(f => f.DeletedOn = DateTime.Now);
-        var request = new CmsFileUpdateRequest { Description = "seeded" };
+        var request = new CmsFileUpdateRequest { Description = "seeded", LastModifiedOn = _seededModifiedOn };
 
         await _service.UpdateFileAsync(file.FileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken);
 
@@ -483,7 +516,7 @@ public sealed class CmsFileServiceTests : IDisposable
     public async Task UpdateFile_MetadataOnly_DoesNotRestoreSoftDeletedFile()
     {
         var file = await SeedFileAsync(f => f.DeletedOn = DateTime.Now);
-        var request = new CmsFileUpdateRequest { Description = "updated" };
+        var request = new CmsFileUpdateRequest { Description = "updated", LastModifiedOn = _seededModifiedOn };
 
         await _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken);
 
@@ -500,11 +533,55 @@ public sealed class CmsFileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateFile_StaleLastModifiedOn_ThrowsConcurrency_BeforeAnyChange()
+    {
+        var file = await SeedFileAsync();
+        var request = new CmsFileUpdateRequest
+        {
+            Description = "changed",
+            LastModifiedOn = _seededModifiedOn.AddMinutes(-5)
+        };
+
+        var ex = await Assert.ThrowsAsync<CmsConcurrencyException>(
+            () => _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken));
+
+        // Names who saved and when, and nothing was mutated or audited.
+        Assert.Contains("modified by test", ex.Message);
+        var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("seeded", saved.Description);
+        _audit.DidNotReceive().Audit(Arg.Any<File>(), CmsFileAuditActions.EditFile, Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task UpdateFile_MissingLastModifiedOn_ThrowsArgumentException()
+    {
+        var file = await SeedFileAsync();
+        var request = new CmsFileUpdateRequest { Description = "changed" };
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CheckName_ExistingRecord_ReturnsItsModifiedOn()
+    {
+        // The overwrite flow echoes this back as LastModifiedOn, so it must be the record's value.
+        var file = await SeedFileAsync();
+        _storage.IsValidFolder("cats").Returns(true);
+        _storage.BuildManagedPath("cats", "seeded.pdf").Returns(file.FilePath);
+
+        var check = await _service.CheckNameAsync("cats", "seeded.pdf", TestContext.Current.CancellationToken);
+
+        Assert.Equal(file.FileGuid, check.ExistingFileGuid);
+        Assert.Equal(_seededModifiedOn, check.ExistingModifiedOn);
+    }
+
+    [Fact]
     public async Task UpdateFile_EncryptToggleOn_SaveFails_DecryptsFileBack()
     {
         var (service, fileGuid, filePath) = await BuildServiceOverFailingSaveAsync();
         _storage.ManagedFileExists(filePath).Returns(true);
-        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = true };
+        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = true, LastModifiedOn = _seededModifiedOn };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UpdateFileAsync(fileGuid, request, null, TestContext.Current.CancellationToken));
@@ -523,7 +600,7 @@ public sealed class CmsFileServiceTests : IDisposable
             f.Key = "old-key";
         });
         _storage.ManagedFileExists(filePath).Returns(true);
-        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = false };
+        var request = new CmsFileUpdateRequest { Description = "seeded", Encrypt = false, LastModifiedOn = _seededModifiedOn };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UpdateFileAsync(fileGuid, request, null, TestContext.Current.CancellationToken));
@@ -540,7 +617,7 @@ public sealed class CmsFileServiceTests : IDisposable
         _storage.ManagedFileExists(filePath).Returns(true);
         const string backupPath = @"C:\FakeTemp\backup-original";
         _storage.BackupManagedFile(filePath).Returns(backupPath);
-        var request = new CmsFileUpdateRequest { Description = "seeded" };
+        var request = new CmsFileUpdateRequest { Description = "seeded", LastModifiedOn = _seededModifiedOn };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UpdateFileAsync(fileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken));
@@ -565,7 +642,7 @@ public sealed class CmsFileServiceTests : IDisposable
             // (the database rolled back to that older record) and must be preserved, not deleted.
             _storage.When(s => s.ReplaceInPlace(backupPath, filePath))
                 .Do(_ => throw new IOException("restore failed"));
-            var request = new CmsFileUpdateRequest { Description = "seeded" };
+            var request = new CmsFileUpdateRequest { Description = "seeded", LastModifiedOn = _seededModifiedOn };
 
             await Assert.ThrowsAsync<InvalidOperationException>(
                 () => service.UpdateFileAsync(fileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken));
@@ -592,7 +669,7 @@ public sealed class CmsFileServiceTests : IDisposable
         try
         {
             _storage.BackupManagedFile(file.FilePath).Returns(backupPath);
-            var request = new CmsFileUpdateRequest { Description = "seeded" };
+            var request = new CmsFileUpdateRequest { Description = "seeded", LastModifiedOn = _seededModifiedOn };
 
             await _service.UpdateFileAsync(file.FileGuid, request, MakeFormFile("newversion.pdf"), TestContext.Current.CancellationToken);
 
@@ -683,6 +760,57 @@ public sealed class CmsFileServiceTests : IDisposable
         Assert.DoesNotContain(stale.FileGuid, remaining);
         Assert.Contains(recent.FileGuid, remaining);
         Assert.Contains(active.FileGuid, remaining);
+    }
+
+    [Fact]
+    public async Task PurgeDeletedFiles_IsolatesPerFileFailure_AndContinuesPurgingOthers()
+    {
+        // A transient save error (e.g. SqlException) on one file must not abort the whole
+        // nightly purge run; the loop should isolate it and keep purging the rest.
+        var storeName = "VIPER_" + Guid.NewGuid();
+        var failing = new File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = @"C:\FakeRoot\cats\bad.pdf",
+            Folder = "cats",
+            FriendlyName = "cats-bad.pdf",
+            Description = "seeded",
+            ModifiedBy = "test",
+            ModifiedOn = DateTime.Now,
+            DeletedOn = DateTime.Now.AddDays(-40)
+        };
+        var good = new File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = @"C:\FakeRoot\cats\good.pdf",
+            Folder = "cats",
+            FriendlyName = "cats-good.pdf",
+            Description = "seeded",
+            ModifiedBy = "test",
+            ModifiedOn = DateTime.Now,
+            DeletedOn = DateTime.Now.AddDays(-40)
+        };
+        await using (var seedContext = new VIPERContext(new DbContextOptionsBuilder<VIPERContext>()
+            .UseInMemoryDatabase(storeName).Options))
+        {
+            seedContext.Files.AddRange(failing, good);
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var partiallyFailingContext = new VIPERContext(new DbContextOptionsBuilder<VIPERContext>()
+            .UseInMemoryDatabase(storeName)
+            .AddInterceptors(new SelectiveThrowingSaveInterceptor(failing.FileGuid))
+            .Options);
+        var service = new CmsFileService(partiallyFailingContext, _aaudContext, _storage, _encryption, _audit,
+            _userHelper, Substitute.For<ILogger<CmsFileService>>());
+
+        var purged = await service.PurgeDeletedFilesAsync(30, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, purged);
+        var remaining = await partiallyFailingContext.Files.Select(f => f.FileGuid)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Contains(failing.FileGuid, remaining);
+        Assert.DoesNotContain(good.FileGuid, remaining);
     }
 
     [Fact]

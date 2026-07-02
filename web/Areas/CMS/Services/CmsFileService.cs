@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
@@ -218,7 +219,8 @@ namespace Viper.Areas.CMS.Services
                 SuggestedName = inUse ? _storage.GetAvailableFileName(folder, name) : name,
                 ExistingFileGuid = existing?.FileGuid,
                 ExistingFriendlyName = existing?.FriendlyName,
-                ExistingDeleted = existing?.DeletedOn != null
+                ExistingDeleted = existing?.DeletedOn != null,
+                ExistingModifiedOn = existing?.ModifiedOn
             };
         }
 
@@ -319,10 +321,10 @@ namespace Viper.Areas.CMS.Services
                 await _context.SaveChangesAsync(ct);
                 saved = true;
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException or OperationCanceledException)
             {
-                // A failed save never persisted the record. Drop the pending changes, then reconcile
-                // the managed store: restore an overwritten file's original bytes, or remove the
+                // A failed or cancelled save never persisted the record. Drop the pending changes, then
+                // reconcile the managed store: restore an overwritten file's original bytes, or remove the
                 // freshly stored copy, so nothing is left orphaned or destroyed.
                 _context.ChangeTracker.Clear();
                 ReconcileStoreAfterFailedCreate(finalPath, overwriteBackup);
@@ -350,6 +352,10 @@ namespace Viper.Areas.CMS.Services
             {
                 return null;
             }
+
+            // Stale-edit guard first, before anything touches the file on disk (mirrors
+            // CmsContentBlockService: missing value -> 400, stale value -> 409).
+            AssertNotStale(entity, request.LastModifiedOn);
 
             // Validate a replacement upload before anything touches the file on disk, so a bad type
             // can't leave the file half-transformed or strand a backup copy.
@@ -391,6 +397,21 @@ namespace Viper.Areas.CMS.Services
 
             var names = await GetNamesByIamIdAsync(entity.FileToPeople.Select(p => p.IamId), ct);
             return CmsFileMapper.ToCmsFileDto(entity, names);
+        }
+
+        private static void AssertNotStale(File entity, DateTime? lastModifiedOn)
+        {
+            if (lastModifiedOn == null)
+            {
+                throw new ArgumentException("LastModifiedOn is required so concurrent edits can be detected.");
+            }
+            // Compare to the second: serialized timestamps lose sub-second precision round-tripping
+            // through the client.
+            if (Math.Abs((entity.ModifiedOn - lastModifiedOn.Value).TotalSeconds) >= 1)
+            {
+                throw new CmsConcurrencyException(
+                    $"This file was modified by {entity.ModifiedBy} on {entity.ModifiedOn:g}. Reload to get the latest version.");
+            }
         }
 
         /// <summary>
@@ -517,10 +538,10 @@ namespace Viper.Areas.CMS.Services
                 await _context.SaveChangesAsync(CancellationToken.None);
                 saved = true;
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                // Any failure type means the new state was not persisted; drop the pending changes
-                // and reconcile the on-disk file back to its original state before rethrowing.
+                // A database save failure means the new state was not persisted; drop the pending
+                // changes and reconcile the on-disk file back to its original state before rethrowing.
                 _context.ChangeTracker.Clear();
                 if (originalFileBackup != null)
                 {
@@ -710,7 +731,7 @@ namespace Viper.Areas.CMS.Services
                         purged++;
                     }
                 }
-                catch (Exception ex) when (ex is DbUpdateException or IOException or InvalidOperationException)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or IOException or InvalidOperationException)
                 {
                     // Isolate per-file failures so one bad file doesn't abort the whole purge run.
                     _context.ChangeTracker.Clear();

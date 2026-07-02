@@ -49,5 +49,12 @@ namespace Viper.Areas.CMS.Models.DTOs
         public string? ExistingFriendlyName { get; set; }
 
         public bool ExistingDeleted { get; set; }
+
+        /// <summary>
+        /// ModifiedOn of the conflicting record, echoed back as LastModifiedOn when the user
+        /// chooses to overwrite it, so the overwrite hits the same 409 stale-edit guard as a
+        /// metadata edit if the record changed after this check.
+        /// </summary>
+        public DateTime? ExistingModifiedOn { get; set; }
     }
 }

@@ -192,6 +192,12 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest(ex.Message);
             }
+            // Before InvalidOperationException: CmsConcurrencyException derives from it, and a
+            // stale edit must surface as 409 (someone saved first), not a generic 400.
+            catch (CmsConcurrencyException ex)
+            {
+                return Conflict(ex.Message);
+            }
             catch (InvalidOperationException ex)
             {
                 LogFileConflict(nameof(UpdateFile), null, file?.FileName, ex);

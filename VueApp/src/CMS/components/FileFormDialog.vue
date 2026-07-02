@@ -280,6 +280,7 @@ type NameCheck = {
     existingFileGuid: string | null
     existingFriendlyName: string | null
     existingDeleted: boolean
+    existingModifiedOn: string | null
 }
 
 const emptyForm = (): FileForm => ({
@@ -295,7 +296,15 @@ const emptyForm = (): FileForm => ({
 
 const form = ref<FileForm>(emptyForm())
 
-const { setInitialState, confirmClose } = useUnsavedChanges(form)
+// useUnsavedChanges compares JSON.stringify snapshots, but a File's properties are prototype
+// getters, so it serializes to "{}" and choosing one leaves the form looking clean. Swap it for
+// a name+size identity so a selection is visible to the dirty check.
+const dirtySnapshot = computed(() => ({
+    ...form.value,
+    upload: form.value.upload ? `${form.value.upload.name}:${form.value.upload.size}` : null,
+}))
+
+const { setInitialState, confirmClose } = useUnsavedChanges(dirtySnapshot)
 
 const conflict = ref<NameCheck | null>(null)
 const showConflict = ref(false)
@@ -317,24 +326,34 @@ const conflictDetail = computed(() => {
     return ` (${conflict.value.existingFriendlyName}${conflict.value.existingDeleted ? ", deleted" : ""})`
 })
 
+// The record being edited. Starts as the parent's row but diverges when an edit-conflict
+// "Reload" pulls the latest version: its modifiedOn is what the save presents as
+// lastModifiedOn for the 409 stale-edit guard.
+const latestFile = ref<CmsFile | null>(null)
+
+function populateForm(file: CmsFile | null) {
+    if (file) {
+        form.value = {
+            upload: null,
+            folder: file.folder,
+            description: file.description ?? "",
+            oldUrl: file.oldUrl ?? "",
+            allowPublicAccess: file.allowPublicAccess,
+            encrypt: file.encrypted,
+            permissions: [...file.permissions],
+            people: file.people.map((p) => ({ ...p })),
+        }
+    } else {
+        form.value = emptyForm()
+    }
+}
+
 watch(
     () => [props.modelValue, props.file] as const,
     ([open]) => {
         if (!open) return
-        if (props.file) {
-            form.value = {
-                upload: null,
-                folder: props.file.folder,
-                description: props.file.description ?? "",
-                oldUrl: props.file.oldUrl ?? "",
-                allowPublicAccess: props.file.allowPublicAccess,
-                encrypt: props.file.encrypted,
-                permissions: [...props.file.permissions],
-                people: props.file.people.map((p) => ({ ...p })),
-            }
-        } else {
-            form.value = emptyForm()
-        }
+        latestFile.value = props.file
+        populateForm(props.file)
         formError.value = ""
         setInitialState()
     },
@@ -391,6 +410,13 @@ function buildFormData(opts: SubmitOptions = {}): FormData {
         if (opts.overwrite) {
             data.append("overwrite", "true")
         }
+    }
+    // Updates must present the ModifiedOn they loaded; a stale value gets a 409 so a
+    // concurrent edit (or a record that changed after the overwrite prompt) isn't clobbered.
+    if (isEdit.value && latestFile.value) {
+        data.append("lastModifiedOn", latestFile.value.modifiedOn)
+    } else if (opts.overwriteGuid && conflict.value?.existingModifiedOn) {
+        data.append("lastModifiedOn", conflict.value.existingModifiedOn)
     }
     data.append("description", form.value.description)
     data.append("oldUrl", form.value.oldUrl)
@@ -450,6 +476,55 @@ function sendSave(opts: SubmitOptions) {
     return postForm(apiURL, buildFormData(opts))
 }
 
+// A 409 means the record changed since we loaded it. For an edit, offer to reload the latest
+// version into the form (mirrors ContentBlockEdit's conflict dialog). For an overwrite-by-upload,
+// refresh the name-check data so the retry presents the record's current ModifiedOn.
+async function handleSaveConflict(res: { errors: string[] | null }) {
+    if (showConflict.value) {
+        await refreshOverwriteConflict()
+        $q.notify({
+            type: "negative",
+            message:
+                (res.errors?.[0] ?? "The existing file was changed by someone else.") +
+                " Overwrite again to replace the latest version.",
+        })
+        return
+    }
+    $q.dialog({
+        title: "Edit Conflict",
+        message:
+            (res.errors?.[0] ?? "This file was changed by someone else.") +
+            " Reload the latest version? Your unsaved changes will be lost.",
+        cancel: { label: "Keep editing", flat: true },
+        persistent: true,
+        ok: { label: "Reload", color: "primary", unelevated: true },
+    }).onOk(() => void reloadLatest())
+}
+
+async function reloadLatest() {
+    if (!props.file) return
+    const res = await get(apiURL + props.file.fileGuid)
+    if (!res.success || !res.result) {
+        $q.notify({ type: "negative", message: "Failed to reload the file" })
+        return
+    }
+    latestFile.value = res.result
+    populateForm(res.result)
+    formError.value = ""
+    setInitialState()
+}
+
+// Re-run the pre-upload name check so conflict.existingModifiedOn (and the named record)
+// reflect the current state; without this a retry would 409 forever on the old timestamp.
+async function refreshOverwriteConflict() {
+    if (!form.value.upload || !form.value.folder) return
+    const params = createUrlSearchParams({ folder: form.value.folder, fileName: form.value.upload.name })
+    const check = await get(apiURL + "check-name?" + params)
+    if (check.success && check.result.inUse) {
+        conflict.value = check.result
+    }
+}
+
 // During conflict resolution the user is in the conflict sub-dialog, so a toast is the only place
 // they'd see the error; otherwise surface it on the main form banner.
 function reportSaveError(res: { errors: string[] | null }) {
@@ -472,6 +547,10 @@ async function submitSave(opts: SubmitOptions = {}): Promise<boolean> {
     const res = await sendSave(opts)
     saving.value = false
 
+    if (res.status === 409) {
+        await handleSaveConflict(res)
+        return false
+    }
     if (!res.success) {
         reportSaveError(res)
         return false

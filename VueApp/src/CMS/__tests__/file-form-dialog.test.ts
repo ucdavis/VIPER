@@ -79,7 +79,7 @@ async function submitDialogForm(wrapper: ReturnType<typeof mountDialog>): Promis
     await wrapper.findComponent({ name: "QForm" }).find("form").trigger("submit")
 }
 
-describe("FileFormDialog.vue - add vs edit mode", () => {
+describe("fileFormDialog.vue - add vs edit mode", () => {
     beforeEach(() => {
         mockGet.mockReset()
         mockPostForm.mockReset()
@@ -129,7 +129,7 @@ describe("FileFormDialog.vue - add vs edit mode", () => {
     })
 })
 
-describe("FileFormDialog.vue - required-field enforcement (add mode)", () => {
+describe("fileFormDialog.vue - required-field enforcement (add mode)", () => {
     beforeEach(() => {
         mockGet.mockReset()
         mockPostForm.mockReset()
@@ -151,7 +151,7 @@ describe("FileFormDialog.vue - required-field enforcement (add mode)", () => {
     })
 })
 
-describe("FileFormDialog.vue - save payload", () => {
+describe("fileFormDialog.vue - save payload", () => {
     beforeEach(() => {
         mockGet.mockReset()
         mockPostForm.mockReset()
@@ -180,8 +180,45 @@ describe("FileFormDialog.vue - save payload", () => {
         expect((body as FormData).has("folder")).toBeFalsy()
         expect((body as FormData).get("allowPublicAccess")).toBe("false")
         expect((body as FormData).get("encrypt")).toBe("false")
+        // Stale-edit guard: the save presents the ModifiedOn the dialog loaded.
+        expect((body as FormData).get("lastModifiedOn")).toBe("2024-01-01T00:00:00")
         expect(wrapper.emitted("saved")).toBeTruthy()
-        expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([false])
+        expect(wrapper.emitted("update:modelValue")?.at(-1)).toStrictEqual([false])
+    })
+
+    it("edit-mode 409 opens the Edit Conflict dialog; Reload pulls the latest version", async () => {
+        const file = existingFile()
+        mockPutForm.mockResolvedValueOnce({
+            success: false,
+            errors: ["This file was modified by admin on 7/2/2026 1:00 PM. Reload to get the latest version."],
+            status: 409,
+        })
+        const latest = existingFile({ description: "Their newer desc", modifiedOn: "2024-02-02T00:00:00" })
+        mockGet.mockResolvedValue({ success: true, result: latest })
+        const wrapper = mountDialog({ modelValue: false, folders: ["Apps"], file })
+        await wrapper.setProps({ modelValue: true })
+        await flushPromises()
+
+        await submitDialogForm(wrapper)
+        await flushPromises()
+
+        // Conflict dialog names who saved and offers Reload / Keep editing; nothing was saved.
+        expect(bodyText()).toContain("Edit Conflict")
+        expect(bodyText()).toContain("modified by admin")
+        expect(bodyText()).toContain("Keep editing")
+        expect(wrapper.emitted("saved")).toBeFalsy()
+
+        // Reload fetches the record and a resubmit presents the reloaded ModifiedOn.
+        const reload = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Reload"))!
+        reload.click()
+        await flushPromises()
+        expect(mockGet).toHaveBeenCalledWith(expect.stringContaining("cms/files/guid-123"))
+
+        mockPutForm.mockResolvedValueOnce({ success: true, result: latest })
+        await submitDialogForm(wrapper)
+        await flushPromises()
+        const [, body] = mockPutForm.mock.calls[1]!
+        expect((body as FormData).get("lastModifiedOn")).toBe("2024-02-02T00:00:00")
     })
 
     it("edit-mode save surfaces the server error on the form banner and does not emit saved", async () => {
@@ -194,5 +231,51 @@ describe("FileFormDialog.vue - save payload", () => {
 
         expect(bodyText()).toContain("Name already taken")
         expect(wrapper.emitted("saved")).toBeFalsy()
+    })
+})
+
+describe("fileFormDialog.vue - unsaved changes guard", () => {
+    beforeEach(() => {
+        mockGet.mockReset()
+        mockPostForm.mockReset()
+        mockPutForm.mockReset()
+        document.body.innerHTML = ""
+    })
+
+    function closeDialog() {
+        const closeBtn = document.body.querySelector<HTMLButtonElement>('button[aria-label="Close dialog"]')
+        expect(closeBtn, "expected the file dialog close (X) button").toBeTruthy()
+        closeBtn!.click()
+    }
+
+    it("prompts before discarding a selected file, since a File serializes to '{}' and would otherwise look clean", async () => {
+        // The form is populated (and the dirty baseline captured) by the open watcher
+        // (modelValue false -> true), so open via a prop toggle rather than mounting
+        // already-open, which would never call setInitialState.
+        const wrapper = mountDialog({ modelValue: false, folders: ["Apps"], file: null })
+        await wrapper.setProps({ modelValue: true })
+        await flushPromises()
+
+        const selected = new File(["contents"], "photo.jpg", { type: "image/jpeg" })
+        await wrapper.findComponent({ name: "QFile" }).setValue(selected)
+        await flushPromises()
+
+        closeDialog()
+        await flushPromises()
+
+        expect(bodyText()).toContain("Unsaved Changes")
+        expect(wrapper.emitted("update:modelValue")).toBeFalsy()
+    })
+
+    it("closes immediately (no guard prompt) when no file has been selected", async () => {
+        const wrapper = mountDialog({ modelValue: false, folders: ["Apps"], file: null })
+        await wrapper.setProps({ modelValue: true })
+        await flushPromises()
+
+        closeDialog()
+        await flushPromises()
+
+        expect(bodyText()).not.toContain("Unsaved Changes")
+        expect(wrapper.emitted("update:modelValue")?.at(-1)).toStrictEqual([false])
     })
 })

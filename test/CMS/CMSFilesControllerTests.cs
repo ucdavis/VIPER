@@ -247,6 +247,21 @@ public sealed class CMSFilesControllerTests : IDisposable
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
+    [Fact]
+    public async Task UpdateFile_ReturnsConflict_OnStaleEdit()
+    {
+        // CmsConcurrencyException derives from InvalidOperationException; it must map to 409,
+        // not fall into the generic InvalidOperationException -> 400 handler.
+        var guid = Guid.NewGuid();
+        var request = new CmsFileUpdateRequest { Description = "x", LastModifiedOn = DateTime.Now.AddMinutes(-5) };
+        _fileService.UpdateFileAsync(guid, request, Arg.Any<IFormFile?>(), Arg.Any<CancellationToken>())
+            .Throws(new CmsConcurrencyException("This file was modified by someone on 7/2/2026."));
+
+        var result = await _controller.UpdateFile(guid, request, null, TestContext.Current.CancellationToken);
+
+        Assert.IsType<ConflictObjectResult>(result.Result);
+    }
+
     #endregion
 
     #region Delete / Restore

@@ -40,6 +40,12 @@ namespace Viper.Areas.CMS.Models.DTOs
     /// </summary>
     public class CmsFileUpdateRequest
     {
+        /// <summary>
+        /// ModifiedOn value the client loaded; updates with a stale value get 409 Conflict
+        /// and a missing value gets 400 (mirrors CMSBlockAddEdit.LastModifiedOn).
+        /// </summary>
+        public DateTime? LastModifiedOn { get; set; }
+
         [MaxLength(1000)]
         public string? Description { get; set; }
 
