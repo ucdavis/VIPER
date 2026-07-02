@@ -268,11 +268,14 @@ describe("Files.vue - row presentation", () => {
 describe("Files.vue - URL and query watcher", () => {
     beforeEach(() => routeGet())
 
-    it("opens the upload dialog when mounted with the ?upload=1 deep-link", async () => {
-        const { wrapper } = await mountPageWithRouter({ upload: "1" })
+    it("opens the upload dialog when mounted with the ?upload=1 deep-link and strips the flag", async () => {
+        const { wrapper, router } = await mountPageWithRouter({ upload: "1" })
         await flushRouter()
 
         expect(wrapper.findComponent({ name: "FileFormDialog" }).props("modelValue")).toBeTruthy()
+        // The on-mount filter sync races the upload-watcher's strip; the flag must not
+        // survive either write, so re-clicking the nav link can re-open the dialog later.
+        expect(router.currentRoute.value.query.upload).toBeUndefined()
     })
 
     it("re-opens the upload dialog when navigation adds ?upload=1, consuming the flag", async () => {

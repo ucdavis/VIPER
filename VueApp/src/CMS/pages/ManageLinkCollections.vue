@@ -50,8 +50,9 @@
         <!-- Create/Edit Dialog -->
         <q-dialog
             v-model="showCollectionDialog"
+            persistent
             aria-labelledby="collection-dialog-title"
-            @hide="cancelCollectionDialog"
+            @keydown.escape="handleCollectionClose"
         >
             <q-card class="dialog-card">
                 <q-card-section class="row items-center q-pb-none">
@@ -68,7 +69,7 @@
                         round
                         dense
                         aria-label="Close dialog"
-                        v-close-popup
+                        @click="handleCollectionClose"
                     />
                 </q-card-section>
 
@@ -395,7 +396,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject, watch } from "vue"
+import { ref, inject, computed, watch } from "vue"
 import { useQuasar } from "quasar"
 import type { Ref } from "vue"
 import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from "@/CMS/types/"
@@ -423,6 +424,19 @@ const addTag: Ref<string> = ref("")
 const draftTags: Ref<LinkCollectionTagCategory[]> = ref([])
 const deletedTagIds: Ref<number[]> = ref([])
 let nextTempTagId = -1
+
+// Guard the collection dialog's editable state (the name plus the staged tag adds,
+// deletes, and reorders) so the X/Escape can't silently discard unsaved tag edits —
+// mirrors the link dialog's unsaved-changes guard on the same page.
+// Iterate the arrays here (map/spread) so the snapshot deep-tracks in-place mutations
+// (SortableList reorder, createTag push, deleteTag splice), not just the ref identity.
+const collectionDialogState = computed(() => ({
+    name: collectionData.value.linkCollection ?? "",
+    draftTags: draftTags.value.map((t) => ({ id: t.linkCollectionTagCategoryId, label: t.linkCollectionTagCategory })),
+    deletedTagIds: [...deletedTagIds.value],
+}))
+const { setInitialState: setCollectionBaseline, confirmClose: confirmCollectionClose } =
+    useUnsavedChanges(collectionDialogState)
 
 const links: Ref<LinkWithTags[]> = ref([])
 const link: Ref<LinkWithTags> = ref({ linkId: 0, url: "", title: "", description: "", tags: {}, sortOrder: 0 })
@@ -588,8 +602,16 @@ watch(showCollectionDialog, (open) => {
         draftTags.value = collectionId.value === null ? [] : collectionTags.value.map((t) => ({ ...t }))
         deletedTagIds.value = []
         addTag.value = ""
+        // Capture the clean baseline after the staged state is reset, for the guard.
+        setCollectionBaseline()
     }
 })
+
+// X/Escape close: confirm before discarding staged name/tag edits, then clean up.
+async function handleCollectionClose() {
+    if (!(await confirmCollectionClose())) return
+    cancelCollectionDialog()
+}
 
 //links
 async function loadLinks() {

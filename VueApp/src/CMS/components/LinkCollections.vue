@@ -250,13 +250,13 @@ function applyFilters() {
     }
 }
 
-watch(
-    tagFilters,
-    () => {
-        applyFilters()
-    },
-    { deep: true },
-)
+// Re-filter only when a selection or the search term changes. Watching the
+// mapped selected values (not the whole tagFilters tree) avoids re-running
+// applyFilters for every option pushed onto a filter during loadFilters.
+const selectedTagValues = computed(() => tagFilters.value.map((tf) => tf.selected))
+watch(selectedTagValues, () => {
+    applyFilters()
+})
 watch(search, () => {
     applyFilters()
 })

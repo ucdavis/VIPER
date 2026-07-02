@@ -124,7 +124,7 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 .cms-diff :deep(ins.diffins),
 .cms-diff :deep(ins.diffmod),
 .cms-diff-legend ins {
-    background-color: #d7efdb;
+    background-color: var(--diff-add);
     color: var(--q-dark);
     text-decoration: underline;
 }
@@ -132,7 +132,7 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 .cms-diff :deep(del.diffdel),
 .cms-diff :deep(del.diffmod),
 .cms-diff-legend del {
-    background-color: #f6d9dc;
+    background-color: var(--diff-remove);
     color: var(--q-dark);
     text-decoration: line-through;
 }

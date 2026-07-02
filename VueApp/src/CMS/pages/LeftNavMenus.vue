@@ -19,6 +19,7 @@
                     v-model="filters.system"
                     dense
                     options-dense
+                    outlined
                     emit-value
                     map-options
                     label="System"
@@ -31,6 +32,7 @@
                     v-model="filters.search"
                     dense
                     clearable
+                    outlined
                     debounce="400"
                     label="Search header, name, or page"
                     @update:model-value="loadMenus"
@@ -42,13 +44,16 @@
             </div>
         </div>
 
+        <!-- Left-nav menus are a small, bounded set (one row per menu), so the list stays
+             client-side; the "All" (0) rows-per-page option is dropped since even the full
+             list is a short page. -->
         <q-table
             :rows="menus"
             :columns="columns"
             row-key="leftNavMenuId"
             :loading="loading"
             :pagination="{ rowsPerPage: 50, sortBy: 'menuHeaderText' }"
-            :rows-per-page-options="[25, 50, 100, 0]"
+            :rows-per-page-options="[25, 50, 100]"
             :grid="$q.screen.lt.sm"
             dense
             flat

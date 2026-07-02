@@ -17,6 +17,7 @@
                     v-model="filters.folder"
                     dense
                     options-dense
+                    outlined
                     emit-value
                     map-options
                     label="VIPER app"
@@ -29,6 +30,7 @@
                     v-model="filters.search"
                     dense
                     clearable
+                    outlined
                     debounce="400"
                     label="Search"
                     @update:model-value="reload"
