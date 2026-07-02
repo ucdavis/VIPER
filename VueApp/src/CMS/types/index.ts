@@ -75,6 +75,28 @@ type CmsContentHistoryDiff = {
     newModifiedBy: string | null
 }
 
+// One row in the hub's recent-activity rail, normalized across sources (blocks, files,
+// trashed files, left-nav menus); actions are the per-row shortcuts (history, audit, diff).
+type RailAction = {
+    icon: string
+    label: string
+    to?: { name: string; query?: Record<string, string> }
+    run?: () => void
+}
+
+type ActivityItem = {
+    key: string
+    icon: string
+    typeLabel: string
+    // Rendered before the time-ago stamp (e.g. "deleted 2 days ago"); empty means plain recency.
+    verb?: string
+    label: string
+    to: { name: string; params?: Record<string, string | number>; query?: Record<string, string> }
+    modifiedOn: string
+    modifiedBy: string
+    actions?: RailAction[]
+}
+
 type CmsLeftNavMenu = {
     leftNavMenuId: number
     menuHeaderText: string | null
@@ -177,6 +199,8 @@ export type {
     CmsFileAudit,
     CmsContentHistoryAudit,
     CmsContentHistoryDiff,
+    RailAction,
+    ActivityItem,
     LinkCollection,
     LinkCollectionTagCategory,
     Link,
