@@ -29,6 +29,7 @@ namespace Viper.test.CMS;
 public sealed class CMSContentControllerTests : IDisposable
 {
     private readonly ICmsContentBlockService _blockService;
+    private readonly ICmsFileStorageService _storage;
     private readonly IUserHelper _userHelper;
     private readonly VIPERContext _context;
     private readonly RAPSContext _rapsContext;
@@ -38,6 +39,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public CMSContentControllerTests()
     {
         _blockService = Substitute.For<ICmsContentBlockService>();
+        _storage = Substitute.For<ICmsFileStorageService>();
         _userHelper = Substitute.For<IUserHelper>();
         _sanitizer = Substitute.For<IHtmlSanitizerService>();
         _context = new VIPERContext(new DbContextOptionsBuilder<VIPERContext>()
@@ -45,7 +47,7 @@ public sealed class CMSContentControllerTests : IDisposable
         _rapsContext = new RAPSContext(new DbContextOptionsBuilder<RAPSContext>()
             .UseInMemoryDatabase("RAPS_" + Guid.NewGuid()).Options);
 
-        _controller = new CMSContentController(_context, _rapsContext, _sanitizer, _blockService, _userHelper);
+        _controller = new CMSContentController(_context, _rapsContext, _sanitizer, _blockService, _storage, _userHelper);
         SetupControllerContext();
     }
 
@@ -111,6 +113,18 @@ public sealed class CMSContentControllerTests : IDisposable
         Assert.Same(blocks, result.Value);
         await _blockService.Received(1).GetContentBlocksAsync("deleted", "Viper", "cats", "search", true,
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void GetFolders_ReturnsTopLevelUploadFolders()
+    {
+        var folders = new List<string> { "accreditation", "students" };
+        _storage.GetTopLevelFolders().Returns(folders);
+
+        var result = _controller.GetFolders();
+
+        Assert.Same(folders, result.Value);
+        _storage.Received(1).GetTopLevelFolders();
     }
 
     [Fact]

@@ -16,6 +16,7 @@ type CmsFile = {
     modifiedOn: string
     modifiedBy: string
     deletedOn: string | null
+    purgeOn: string | null
     permissions: string[]
     people: CmsFilePerson[]
     url: string

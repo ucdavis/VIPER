@@ -59,7 +59,7 @@ namespace Viper.Areas.CMS.Controllers
             var page = pagination?.Page ?? 1;
             var perPage = pagination?.PerPage ?? 50;
             var (files, total) = await _fileService.GetFilesAsync(folder, status, search, encrypted, isPublic,
-                page, perPage, sortBy, descending, ct);
+                page, perPage, sortBy, descending, OwnerRestriction(), ct);
             if (pagination != null)
             {
                 pagination.TotalRecords = total;
@@ -83,7 +83,7 @@ namespace Viper.Areas.CMS.Controllers
         public async Task<ActionResult<List<CmsFolderCountDto>>> GetFolderCounts(
             bool? encrypted, bool? isPublic, string status = "active", CancellationToken ct = default)
         {
-            return await _fileService.GetFolderCountsAsync(status, encrypted, isPublic, ct);
+            return await _fileService.GetFolderCountsAsync(status, encrypted, isPublic, OwnerRestriction(), ct);
         }
 
         // GET /api/cms/files/audit
@@ -206,7 +206,7 @@ namespace Viper.Areas.CMS.Controllers
             if (permanent)
             {
                 // Hard delete is restricted to admins; soft delete is available to all file managers.
-                if (!_userHelper.HasPermission(_rapsContext, _userHelper.GetCurrentUser(), CmsPermissions.Admin))
+                if (!IsCmsAdmin())
                 {
                     return ForbidApi();
                 }
@@ -219,7 +219,35 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost("{fileGuid:guid}/restore")]
         public async Task<IActionResult> RestoreFile(Guid fileGuid, CancellationToken ct = default)
         {
+            if (!IsCmsAdmin())
+            {
+                // Non-admins may only restore files they trashed themselves.
+                var file = await _fileService.GetFileAsync(fileGuid, ct);
+                var login = _userHelper.GetCurrentUser()?.LoginId;
+                if (file?.DeletedOn == null || login == null
+                    || !string.Equals(file.ModifiedBy, login, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ForbidApi();
+                }
+            }
             return await _fileService.RestoreFileAsync(fileGuid, ct) ? NoContent() : NotFound();
+        }
+
+        private bool IsCmsAdmin() =>
+            _userHelper.HasPermission(_rapsContext, _userHelper.GetCurrentUser(), CmsPermissions.Admin);
+
+        // Scopes trash queries: admins see the whole trash (null); everyone else only the files they
+        // deleted (matched by ModifiedBy), so nothing leaks across users but people can recover their own.
+        // A missing user context fails closed (empty string matches no ModifiedBy) rather than falling
+        // through to the admin-level unrestricted view.
+        private string? OwnerRestriction()
+        {
+            var user = _userHelper.GetCurrentUser();
+            if (user == null)
+            {
+                return string.Empty;
+            }
+            return IsCmsAdmin() ? null : user.LoginId;
         }
 
         // POST /api/cms/files/import — move files from the legacy VIPER webroot into the store

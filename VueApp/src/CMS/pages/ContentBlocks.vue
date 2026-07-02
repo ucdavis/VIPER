@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
+        <div class="row items-center q-mb-md list-page-header">
             <h1 class="q-my-none">Manage Content Blocks</h1>
             <q-space />
             <q-btn
@@ -23,18 +23,6 @@
                     map-options
                     label="Status"
                     :options="statusOptions"
-                    @update:model-value="reload"
-                />
-            </div>
-            <div class="col-12 col-sm-3 col-lg-2">
-                <q-select
-                    v-model="filters.system"
-                    dense
-                    options-dense
-                    emit-value
-                    map-options
-                    label="System"
-                    :options="systemOptions"
                     @update:model-value="reload"
                 />
             </div>
@@ -80,7 +68,7 @@
             :loading="loading"
             :pagination="{ rowsPerPage: 50, sortBy: 'title' }"
             :rows-per-page-options="[25, 50, 100, 0]"
-            :grid="$q.screen.lt.sm"
+            :grid="$q.screen.lt.md"
             dense
             flat
             bordered
@@ -112,7 +100,10 @@
 
             <template #body-cell-permissions="cellProps">
                 <q-td :props="cellProps">
-                    <PermissionChips :permissions="cellProps.row.permissions" />
+                    <PermissionChips
+                        :permissions="cellProps.row.permissions"
+                        stacked
+                    />
                 </q-td>
             </template>
 
@@ -167,10 +158,6 @@
                     </template>
 
                     <ListCardField
-                        label="System"
-                        :value="row.system"
-                    />
-                    <ListCardField
                         v-if="row.viperSectionPath"
                         label="VIPER section"
                         :value="row.viperSectionPath"
@@ -179,10 +166,6 @@
                         v-if="row.page"
                         label="Page"
                         :value="row.page"
-                    />
-                    <ListCardField
-                        label="Order"
-                        :value="row.blockOrder"
                     />
                     <ListCardField label="Access">
                         <PermissionChips :permissions="row.permissions" />
@@ -237,7 +220,6 @@ const loading = ref(false)
 // the Files list and audit trail.
 const filters = ref({
     status: typeof route.query.status === "string" ? route.query.status : "active",
-    system: typeof route.query.system === "string" ? route.query.system : null,
     viperSectionPath: typeof route.query.section === "string" ? route.query.section : null,
     search: typeof route.query.search === "string" ? route.query.search : "",
     publicOnly: route.query.public === "1",
@@ -249,7 +231,6 @@ function syncFiltersToUrl() {
         query: {
             ...route.query,
             status: filters.value.status !== "active" ? filters.value.status : undefined,
-            system: filters.value.system || undefined,
             section: filters.value.viperSectionPath || undefined,
             search: filters.value.search || undefined,
             public: filters.value.publicOnly ? "1" : undefined,
@@ -263,18 +244,10 @@ const statusOptions = [
     { label: "All", value: "all" },
 ]
 
-const systemOptions = [
-    { label: "All", value: null },
-    { label: "Viper", value: "Viper" },
-    { label: "Public", value: "Public" },
-]
-
 const columns: QTableProps["columns"] = [
     { name: "title", label: "Title", field: "title", align: "left", sortable: true },
-    { name: "system", label: "System", field: "system", align: "left", sortable: true },
     { name: "viperSectionPath", label: "VIPER section", field: "viperSectionPath", align: "left", sortable: true },
     { name: "page", label: "Page", field: "page", align: "left", sortable: true },
-    { name: "blockOrder", label: "Order", field: "blockOrder", align: "center", sortable: true },
     { name: "permissions", label: "Access", field: "permissions", align: "left" },
     { name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true },
     { name: "actions", label: "Actions", field: "contentBlockId", align: "center" },
@@ -284,7 +257,6 @@ async function loadBlocks() {
     loading.value = true
     const params = createUrlSearchParams({
         status: filters.value.status,
-        system: filters.value.system,
         viperSectionPath: filters.value.viperSectionPath,
         search: filters.value.search || null,
         isPublic: filters.value.publicOnly ? "true" : null,
@@ -347,7 +319,6 @@ watch(
     (query) => {
         const next = {
             status: typeof query.status === "string" ? query.status : "active",
-            system: typeof query.system === "string" ? query.system : null,
             viperSectionPath: typeof query.section === "string" ? query.section : null,
             search: typeof query.search === "string" ? query.search : "",
             publicOnly: query.public === "1",
@@ -355,7 +326,6 @@ watch(
         const f = filters.value
         if (
             next.status === f.status &&
-            next.system === f.system &&
             next.viperSectionPath === f.viperSectionPath &&
             next.search === f.search &&
             next.publicOnly === f.publicOnly

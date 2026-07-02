@@ -121,10 +121,9 @@ describe("ContentBlocks.vue - URL filter sync", () => {
     beforeEach(() => routeGet())
 
     it("initializes filters from the URL query (deep-link) and reflects them in the request", async () => {
-        await mountPage({ status: "deleted", system: "CTS", section: "courses", search: "welcome", public: "1" })
+        await mountPage({ status: "deleted", section: "courses", search: "welcome", public: "1" })
         const url = lastListUrl()
         expect(url).toContain("status=deleted")
-        expect(url).toContain("system=CTS")
         expect(url).toContain("viperSectionPath=courses")
         expect(url).toContain("search=welcome")
         expect(url).toContain("isPublic=true")

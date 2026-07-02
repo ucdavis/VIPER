@@ -77,9 +77,13 @@ public sealed class CMSFilesControllerTests : IDisposable
     [Fact]
     public async Task GetFiles_PassesFiltersAndPaginationThrough_AndSetsTotal()
     {
+        // An admin sees the whole trash, so the owner restriction passed to the service is null.
+        var user = new AaudUser { AaudUserId = 1, LoginId = "admin" };
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(true);
         var files = new List<CmsFileDto> { File() };
         _fileService.GetFilesAsync("cats", "deleted", "budget", true, false, 2, 25, "modifiedOn", true,
-            Arg.Any<CancellationToken>()).Returns((files, 42));
+            null, Arg.Any<CancellationToken>()).Returns((files, 42));
         var pagination = new ApiPagination { Page = 2, PerPage = 25 };
 
         var result = await _controller.GetFiles("cats", "budget", true, false, pagination, "deleted", "modifiedOn", true, TestContext.Current.CancellationToken);
@@ -87,19 +91,21 @@ public sealed class CMSFilesControllerTests : IDisposable
         Assert.Same(files, result.Value);
         Assert.Equal(42, pagination.TotalRecords);
         await _fileService.Received(1).GetFilesAsync("cats", "deleted", "budget", true, false, 2, 25, "modifiedOn", true,
-            Arg.Any<CancellationToken>());
+            null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task GetFiles_DefaultsPageAndPerPage_WhenNoPagination()
     {
+        var user = new AaudUser { AaudUserId = 1, LoginId = "user" };
+        _userHelper.GetCurrentUser().Returns(user);
         _fileService.GetFilesAsync(null, "active", null, null, null, 1, 50, "friendlyName", false,
-            Arg.Any<CancellationToken>()).Returns((new List<CmsFileDto>(), 0));
+            "user", Arg.Any<CancellationToken>()).Returns((new List<CmsFileDto>(), 0));
 
         await _controller.GetFiles(null, null, null, null, null, ct: TestContext.Current.CancellationToken);
 
         await _fileService.Received(1).GetFilesAsync(null, "active", null, null, null, 1, 50, "friendlyName", false,
-            Arg.Any<CancellationToken>());
+            "user", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -291,11 +297,79 @@ public sealed class CMSFilesControllerTests : IDisposable
     public async Task RestoreFile_ReturnsNoContent_WhenRestored()
     {
         var guid = Guid.NewGuid();
+        var user = new AaudUser { AaudUserId = 1, LoginId = "admin" };
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(true);
         _fileService.RestoreFileAsync(guid, Arg.Any<CancellationToken>()).Returns(true);
 
         var result = await _controller.RestoreFile(guid, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task RestoreFile_AllowsNonAdmin_WhoDeletedTheFile()
+    {
+        var guid = Guid.NewGuid();
+        var user = new AaudUser { AaudUserId = 1, LoginId = "user" };
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(false);
+        _fileService.GetFileAsync(guid, Arg.Any<CancellationToken>())
+            .Returns(new CmsFileDto { FileGuid = guid, DeletedOn = DateTime.Now, ModifiedBy = "user" });
+        _fileService.RestoreFileAsync(guid, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await _controller.RestoreFile(guid, TestContext.Current.CancellationToken);
+
+        Assert.IsType<NoContentResult>(result);
+        await _fileService.Received(1).RestoreFileAsync(guid, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RestoreFile_Forbids_WhenNonAdminDidNotDeleteIt()
+    {
+        var guid = Guid.NewGuid();
+        var user = new AaudUser { AaudUserId = 1, LoginId = "user" };
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(false);
+        _fileService.GetFileAsync(guid, Arg.Any<CancellationToken>())
+            .Returns(new CmsFileDto { FileGuid = guid, DeletedOn = DateTime.Now, ModifiedBy = "someone-else" });
+
+        var result = await _controller.RestoreFile(guid, TestContext.Current.CancellationToken);
+
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
+        await _fileService.DidNotReceive().RestoreFileAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetFiles_ScopesDeletedToOwner_ForNonAdmin()
+    {
+        var user = new AaudUser { AaudUserId = 1, LoginId = "user" };
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(false);
+        _fileService.GetFilesAsync(null, "deleted", null, null, null, 1, 50, "friendlyName", false,
+            "user", Arg.Any<CancellationToken>()).Returns((new List<CmsFileDto>(), 0));
+
+        await _controller.GetFiles(null, null, null, null, null, "deleted", ct: TestContext.Current.CancellationToken);
+
+        // A non-admin's trash is scoped to the files they deleted (their login).
+        await _fileService.Received(1).GetFilesAsync(null, "deleted", null, null, null, 1, 50, "friendlyName", false,
+            "user", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetFiles_FailsClosed_WhenUserContextMissing()
+    {
+        _userHelper.GetCurrentUser().ReturnsNull();
+        _fileService.GetFilesAsync(null, "deleted", null, null, null, 1, 50, "friendlyName", false,
+            string.Empty, Arg.Any<CancellationToken>()).Returns((new List<CmsFileDto>(), 0));
+
+        await _controller.GetFiles(null, null, null, null, null, "deleted", ct: TestContext.Current.CancellationToken);
+
+        // A missing user context must scope the trash to nothing, not fall through to the
+        // admin-level unrestricted (null) view.
+        await _fileService.Received(1).GetFilesAsync(null, "deleted", null, null, null, 1, 50, "friendlyName", false,
+            string.Empty, Arg.Any<CancellationToken>());
     }
 
     #endregion

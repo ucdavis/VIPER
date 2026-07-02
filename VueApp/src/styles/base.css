@@ -294,14 +294,28 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
-/* Breadcrumb-style parent links inside page headings */
+/* Breadcrumb-style parent links inside page headings. Underlined by default so
+   they read as links: the heading text is black and bold, and the Aggie-Blue
+   link color alone is too close to it to signal a link (WCAG 1.4.1) - and on
+   touch there's no hover to reveal one. */
 .q-page-container h1 a {
-    text-decoration: none;
+    text-decoration: underline;
 }
 
-.q-page-container h1 a:hover,
-.q-page-container h1 a:focus {
-    text-decoration: underline;
+/* List-page header: a page title beside its primary action(s). Inline (title
+   left, action right) on tablet and up; on phones the action drops below the
+   title, both left-aligned - a deliberate stack rather than an incidental wrap.
+   The .q-page-container prefix outweighs Quasar's .row so the direction flips. */
+@media (max-width: 599.98px) {
+    .q-page-container .list-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .q-page-container .list-page-header > .q-space {
+        display: none;
+    }
 }
 
 .q-dialog h2,

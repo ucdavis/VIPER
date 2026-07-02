@@ -646,6 +646,55 @@ public sealed class CmsFileServiceTests : IDisposable
         _audit.Received(1).Audit(Arg.Any<File>(), CmsFileAuditActions.DeleteFile, "File Deleted");
     }
 
+    [Fact]
+    public async Task PermanentDelete_StillSucceeds_WhenDiskDeleteFails()
+    {
+        var file = await SeedFileAsync();
+        _storage.ManagedFileExists(file.FilePath).Returns(true);
+        _storage.When(s => s.DeleteManagedFile(file.FilePath)).Do(_ => throw new IOException("file is locked"));
+
+        var result = await _service.PermanentlyDeleteFileAsync(file.FileGuid, TestContext.Current.CancellationToken);
+
+        // The record is gone by the time the disk delete runs, so a storage failure is logged
+        // (orphaned bytes) rather than surfaced as a failure of the whole delete.
+        Assert.True(result);
+        Assert.Empty(await _context.Files.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task PurgeDeletedFiles_RemovesOnlyFilesPastRetention()
+    {
+        var stale = await SeedFileAsync(f => f.DeletedOn = DateTime.Now.AddDays(-40));
+        var recent = await SeedFileAsync(f => f.DeletedOn = DateTime.Now.AddDays(-5));
+        var active = await SeedFileAsync();
+
+        var purged = await _service.PurgeDeletedFilesAsync(30, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, purged);
+        var remaining = await _context.Files.Select(f => f.FileGuid).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(stale.FileGuid, remaining);
+        Assert.Contains(recent.FileGuid, remaining);
+        Assert.Contains(active.FileGuid, remaining);
+    }
+
+    [Fact]
+    public async Task PurgeDeletedFiles_DetachesFromContentBlocks()
+    {
+        var file = await SeedFileAsync(f => f.DeletedOn = DateTime.Now.AddDays(-40));
+        _context.ContentBlockToFiles.Add(new Viper.Models.VIPER.ContentBlockToFile
+        {
+            ContentBlockId = 1,
+            FileGuid = file.FileGuid
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var purged = await _service.PurgeDeletedFilesAsync(30, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, purged);
+        Assert.Empty(await _context.Files.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.ContentBlockToFiles.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
     #endregion
 
     #region CheckName
@@ -752,9 +801,9 @@ public sealed class CmsFileServiceTests : IDisposable
             f.DeletedOn = DateTime.Now;
         });
 
-        var (active, activeTotal) = await _service.GetFilesAsync(null, "active", null, null, null, 1, 50, null, false, TestContext.Current.CancellationToken);
-        var (deleted, deletedTotal) = await _service.GetFilesAsync(null, "deleted", null, null, null, 1, 50, null, false, TestContext.Current.CancellationToken);
-        var (all, allTotal) = await _service.GetFilesAsync(null, "all", null, null, null, 1, 50, null, false, TestContext.Current.CancellationToken);
+        var (active, activeTotal) = await _service.GetFilesAsync(null, "active", null, null, null, 1, 50, null, false, ct: TestContext.Current.CancellationToken);
+        var (deleted, deletedTotal) = await _service.GetFilesAsync(null, "deleted", null, null, null, 1, 50, null, false, ct: TestContext.Current.CancellationToken);
+        var (all, allTotal) = await _service.GetFilesAsync(null, "all", null, null, null, 1, 50, null, false, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, activeTotal);
         Assert.Single(active);
@@ -762,6 +811,29 @@ public sealed class CmsFileServiceTests : IDisposable
         Assert.Single(deleted);
         Assert.Equal(2, allTotal);
         Assert.Equal(2, all.Count);
+    }
+
+    [Fact]
+    public async Task GetFiles_Deleted_ScopedToOwner_ReturnsOnlyFilesTheyDeleted()
+    {
+        var mine = await SeedFileAsync(f =>
+        {
+            f.FriendlyName = "cats-mine.pdf";
+            f.DeletedOn = DateTime.Now;
+            f.ModifiedBy = "me";
+        });
+        await SeedFileAsync(f =>
+        {
+            f.FriendlyName = "cats-theirs.pdf";
+            f.DeletedOn = DateTime.Now;
+            f.ModifiedBy = "them";
+        });
+
+        var (files, total) = await _service.GetFilesAsync(null, "deleted", null, null, null, 1, 50, null, false,
+            "me", TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, total);
+        Assert.Equal(mine.FileGuid, Assert.Single(files).FileGuid);
     }
 
     [Fact]
@@ -781,7 +853,7 @@ public sealed class CmsFileServiceTests : IDisposable
             f.FilePath = @"C:\FakeRoot\students\doc.pdf";
         });
 
-        var (files, total) = await _service.GetFilesAsync("cats", "active", null, null, null, 1, 50, null, false, TestContext.Current.CancellationToken);
+        var (files, total) = await _service.GetFilesAsync("cats", "active", null, null, null, 1, 50, null, false, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, total);
         Assert.All(files, f => Assert.StartsWith("cats", f.Folder));
@@ -798,7 +870,7 @@ public sealed class CmsFileServiceTests : IDisposable
             f.Description = "unrelated";
         });
 
-        var (files, total) = await _service.GetFilesAsync(null, "active", "budget", null, null, 1, 50, null, false, TestContext.Current.CancellationToken);
+        var (files, total) = await _service.GetFilesAsync(null, "active", "budget", null, null, 1, 50, null, false, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, total);
         Assert.Equal("cats-seeded.pdf", files[0].FriendlyName);
@@ -817,7 +889,7 @@ public sealed class CmsFileServiceTests : IDisposable
             });
         }
 
-        var (page2, total) = await _service.GetFilesAsync(null, "active", null, null, null, 2, 2, "friendlyName", false, TestContext.Current.CancellationToken);
+        var (page2, total) = await _service.GetFilesAsync(null, "active", null, null, null, 2, 2, "friendlyName", false, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(5, total);
         Assert.Equal(2, page2.Count);
@@ -849,9 +921,9 @@ public sealed class CmsFileServiceTests : IDisposable
             f.DeletedOn = DateTime.Now;
         });
 
-        var active = await _service.GetFolderCountsAsync("active", null, null, TestContext.Current.CancellationToken);
-        var unencrypted = await _service.GetFolderCountsAsync("active", false, null, TestContext.Current.CancellationToken);
-        var publicOnly = await _service.GetFolderCountsAsync("active", null, true, TestContext.Current.CancellationToken);
+        var active = await _service.GetFolderCountsAsync("active", null, null, ct: TestContext.Current.CancellationToken);
+        var unencrypted = await _service.GetFolderCountsAsync("active", false, null, ct: TestContext.Current.CancellationToken);
+        var publicOnly = await _service.GetFolderCountsAsync("active", null, true, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, active.Count);
         Assert.Equal(2, active.Single(c => c.Folder == "cats").Count);
@@ -875,7 +947,7 @@ public sealed class CmsFileServiceTests : IDisposable
             f.FilePath = @"C:\FakeRoot\accreditation\two.pdf";
         });
 
-        var counts = await _service.GetFolderCountsAsync("active", null, null, TestContext.Current.CancellationToken);
+        var counts = await _service.GetFolderCountsAsync("active", null, null, ct: TestContext.Current.CancellationToken);
 
         var entry = Assert.Single(counts);
         Assert.Equal(2, entry.Count);

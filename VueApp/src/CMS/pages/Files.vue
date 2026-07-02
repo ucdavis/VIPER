@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
+        <div class="row items-center q-mb-md list-page-header">
             <h1 class="q-my-none">Manage Files</h1>
             <q-space />
             <q-btn-dropdown
@@ -136,7 +136,7 @@
                             v-if="cellProps.row.deletedOn"
                             icon="delete_outline"
                             color="negative"
-                            :label="`Deleted ${formatDate(cellProps.row.deletedOn)}`"
+                            :label="deletedLabel(cellProps.row)"
                         />
                     </div>
                 </q-td>
@@ -213,7 +213,7 @@
                                 v-if="row.deletedOn"
                                 icon="delete_outline"
                                 color="negative"
-                                :label="`Deleted ${formatDate(row.deletedOn)}`"
+                                :label="deletedLabel(row)"
                             />
                         </div>
                     </template>
@@ -303,7 +303,8 @@ const showDialog = ref(false)
 const editingFile = ref<CmsFile | null>(null)
 
 // Filters initialize from the URL so views can be shared/deep-linked
-// (the hub's recent-activity rail uses ?search=<file name>).
+// (the hub's recent-activity rail uses ?search=<file name>). The deleted/all views are open to all
+// file managers; the API scopes them to files the user deleted (admins see the whole trash).
 const filters = ref({
     folder: typeof route.query.folder === "string" ? route.query.folder : ALL_FOLDERS,
     status: typeof route.query.status === "string" ? route.query.status : "active",
@@ -489,6 +490,12 @@ async function confirmAction(title: string, message: string, okLabel: string, ok
 function formatDate(value: string | null): string {
     if (!value) return ""
     return new Date(value).toLocaleDateString("en-US", { year: "2-digit", month: "2-digit", day: "2-digit" })
+}
+
+// In the trash, show when the file will be auto-purged so it's clear it isn't kept forever.
+function deletedLabel(row: CmsFile): string {
+    const base = `Deleted ${formatDate(row.deletedOn)}`
+    return row.purgeOn ? `${base} · purges ${formatDate(row.purgeOn)}` : base
 }
 
 // When in-app navigation reuses this view with a different query (e.g. re-clicking the
