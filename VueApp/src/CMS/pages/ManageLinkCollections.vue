@@ -904,30 +904,6 @@ loadCollections()
     color: var(--q-negative);
 }
 
-.link-form :deep(.q-field--error .q-field__bottom) {
-    padding-top: 0.25rem;
-}
-
-.link-form :deep(.q-field--error .q-field__messages) {
-    display: inline-flex;
-    align-items: center;
-    background: var(--q-negative);
-    color: white;
-    flex: none;
-    width: fit-content;
-    padding: 0.125rem 0.5rem 0.125rem 0.25rem;
-    border-radius: 1rem;
-    font-size: 0.75rem;
-    gap: 0.125rem;
-}
-
-.link-form :deep(.q-field--error .q-field__messages)::before {
-    content: "error";
-    font-family: "Material Icons";
-    font-size: 1rem;
-    line-height: 1;
-}
-
 .tags-fieldset {
     border: 1px solid var(--q-primary);
     border-radius: 0.25rem;

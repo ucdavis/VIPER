@@ -59,7 +59,7 @@ async function mountActivity(props: Record<string, boolean>) {
     return wrapper
 }
 
-describe("RecentActivity.vue - source gating", () => {
+describe("recentActivity.vue - source gating", () => {
     it("loads no sources and shows the empty message when all flags are off", async () => {
         routeGet({})
         const wrapper = await mountActivity({})
@@ -71,7 +71,13 @@ describe("RecentActivity.vue - source gating", () => {
         routeGet({ blocks: { success: true, result: [block(1, "2024-01-01T00:00:00")] } })
         await mountActivity({ showBlocks: true })
         expect(mockGet).toHaveBeenCalledOnce()
-        expect(mockGet.mock.calls[0]![0]).toContain("CMS/content")
+        const url = mockGet.mock.calls[0]![0] as string
+        expect(url).toContain("CMS/content")
+        // Recency must be resolved server-side: a client-side sort of the default page can
+        // only ever see the first alphabetical page of blocks.
+        expect(url).toContain("sortBy=modifiedOn")
+        expect(url).toContain("descending=true")
+        expect(url).toContain("perPage=5")
     })
 
     it("loads all three sources when every flag is set", async () => {
@@ -85,7 +91,7 @@ describe("RecentActivity.vue - source gating", () => {
     })
 })
 
-describe("RecentActivity.vue - merge, sort, cap", () => {
+describe("recentActivity.vue - merge, sort, cap", () => {
     it("merges sources and sorts by modifiedOn descending", async () => {
         routeGet({
             blocks: { success: true, result: [block(1, "2024-01-01T00:00:00", "Old block")] },
@@ -124,7 +130,7 @@ describe("RecentActivity.vue - merge, sort, cap", () => {
     })
 })
 
-describe("RecentActivity.vue - partial failure semantics", () => {
+describe("recentActivity.vue - partial failure semantics", () => {
     it("does NOT mark failed when one source rejects but another succeeds", async () => {
         routeGet({
             blocks: { success: false, result: [] }, // LoadBlocks throws on !success

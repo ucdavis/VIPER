@@ -1,6 +1,8 @@
 <template>
     <section aria-label="Recent activity">
-        <h2 class="text-h6 text-primary q-my-none">Recent activity</h2>
+        <!-- Bare h2: the compressed-heading rule renders it 1.2rem bold, matching the hub's
+             primary card title (text-h6 would drop it to 1rem regular, weaker than the rows). -->
+        <h2 class="text-primary q-my-none">Recent activity</h2>
 
         <template v-if="loading">
             <q-skeleton
@@ -100,20 +102,26 @@ function formatFullDate(value: string): string {
 }
 
 async function loadBlocks(): Promise<ActivityItem[]> {
-    const res = await get(apiURL + "CMS/content?" + createUrlSearchParams({ status: "active" }))
+    // Sort/limit server-side like loadFiles: sorting a default page client-side would only
+    // ever surface the recent-most of the first alphabetical page of blocks.
+    const params = createUrlSearchParams({
+        status: "active",
+        page: 1,
+        perPage: PER_SOURCE,
+        sortBy: "modifiedOn",
+        descending: "true",
+    })
+    const res = await get(apiURL + "CMS/content?" + params)
     if (!res.success) throw new Error("blocks")
-    return [...((res.result ?? []) as CmsContentBlock[])]
-        .sort((a, b) => new Date(b.modifiedOn).getTime() - new Date(a.modifiedOn).getTime())
-        .slice(0, PER_SOURCE)
-        .map((b) => ({
-            key: "block-" + b.contentBlockId,
-            icon: "article",
-            typeLabel: "Content block",
-            label: b.title || b.friendlyName || "(untitled)",
-            to: { name: "CmsContentBlockEdit", params: { id: b.contentBlockId } },
-            modifiedOn: b.modifiedOn,
-            modifiedBy: b.modifiedBy,
-        }))
+    return ((res.result ?? []) as CmsContentBlock[]).map((b) => ({
+        key: "block-" + b.contentBlockId,
+        icon: "article",
+        typeLabel: "Content block",
+        label: b.title || b.friendlyName || "(untitled)",
+        to: { name: "CmsContentBlockEdit", params: { id: b.contentBlockId } },
+        modifiedOn: b.modifiedOn,
+        modifiedBy: b.modifiedBy,
+    }))
 }
 
 async function loadFiles(): Promise<ActivityItem[]> {
