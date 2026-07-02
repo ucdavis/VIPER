@@ -122,7 +122,6 @@
                             v-model="selectedNewRotationId"
                             :exclude-rotation-names="assignedRotationNames"
                             :only-with-scheduled-weeks="false"
-                            :year="currentYear"
                             :clinician-mothra-id="selectedClinician?.mothraId"
                             hide-bottom-space
                             @rotation-selected="onAddRotationSelected"

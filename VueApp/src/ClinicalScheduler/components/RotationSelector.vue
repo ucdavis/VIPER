@@ -112,6 +112,11 @@ const isLoading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref("")
 
+// Guards against out-of-order responses: onMounted plus four prop watches can all
+// trigger loadRotations concurrently, and a slower earlier request could otherwise
+// overwrite a faster later one.
+let latestRequestId = 0
+
 // Computed
 const selectedRotation = computed({
     get: () => {
@@ -125,6 +130,7 @@ const selectedRotation = computed({
 
 // Methods
 async function loadRotations() {
+    const requestId = ++latestRequestId
     isLoading.value = true
     error.value = null
 
@@ -144,6 +150,9 @@ async function loadRotations() {
                 clinicianMothraId: props.clinicianMothraId || undefined,
             })
         }
+
+        // A newer request has since started; this response is stale, so drop it.
+        if (requestId !== latestRequestId) return
 
         if (result.success) {
             // Filter out excluded rotation names and system-excluded rotations
@@ -169,9 +178,12 @@ async function loadRotations() {
             error.value = result.errors.join(", ") || "Failed to load rotations"
         }
     } catch {
+        if (requestId !== latestRequestId) return
         error.value = "An unexpected error occurred while loading rotations"
     } finally {
-        isLoading.value = false
+        if (requestId === latestRequestId) {
+            isLoading.value = false
+        }
     }
 }
 

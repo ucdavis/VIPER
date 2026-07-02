@@ -33,7 +33,7 @@ describe("ClinicianSelector - Basic Functionality", () => {
             expect(wrapper.find(".own-schedule-display").exists()).toBeFalsy()
         })
 
-        it("renders read-only display and auto-selects if there is only 1 clinician", async () => {
+        it("does not auto-select the sole clinician for non-own-schedule users", async () => {
             const singleClinician = {
                 mothraId: "12345",
                 fullName: "Smith, John",
@@ -52,14 +52,12 @@ describe("ClinicianSelector - Basic Functionality", () => {
             await (wrapper.vm as any).fetchClinicians()
             await wrapper.vm.$nextTick()
 
-            // It should auto-select the clinician
-            const emittedUpdate = wrapper.emitted("update:modelValue")?.[0]?.[0] as any
-            expect(emittedUpdate).toStrictEqual(singleClinician)
+            // A non-own-schedule user (e.g. the RotationScheduler add-clinician picker)
+            // must not have the clinician staged without an explicit action.
+            expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+            expect(wrapper.emitted("change")).toBeUndefined()
 
-            const emittedChange = wrapper.emitted("change")?.[0]?.[0] as any
-            expect(emittedChange).toStrictEqual(singleClinician)
-
-            // It should render select without readonly class/attribute instead of own-schedule-display
+            // The select stays interactive (not locked to read-only)
             expect(wrapper.find(".own-schedule-display").exists()).toBeFalsy()
             const select = wrapper.find(".q-select")
             expect(select.exists()).toBeTruthy()
