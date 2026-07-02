@@ -3,6 +3,7 @@ using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Models.DTOs;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using File = Viper.Models.VIPER.File;
 
 namespace Viper.Areas.CMS.Services
@@ -617,7 +618,7 @@ namespace Viper.Areas.CMS.Services
             {
                 _logger.LogCritical(ex, "CMS overwrite at {FilePath} could not be restored after a failed "
                     + "create; the original bytes are preserved at {BackupPath} for manual recovery.",
-                    Viper.Classes.Utilities.LogSanitizer.SanitizeString(finalPath), overwriteBackup);
+                    LogSanitizer.SanitizeString(finalPath), overwriteBackup);
             }
         }
 
@@ -683,7 +684,7 @@ namespace Viper.Areas.CMS.Services
             {
                 _logger.LogError(ex, "CMS file record {FileGuid} was deleted but its bytes at {FilePath} "
                     + "could not be removed from disk.",
-                    fileGuid, Viper.Classes.Utilities.LogSanitizer.SanitizeString(entity.FilePath));
+                    fileGuid, LogSanitizer.SanitizeString(entity.FilePath));
             }
             return true;
         }

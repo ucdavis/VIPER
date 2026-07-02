@@ -61,12 +61,12 @@ namespace Viper.Areas.CMS.Services
         /// </summary>
         private static void ReplaceFileContents(string filePath, Func<byte[], byte[]> transform)
         {
-            byte[] contents = System.IO.File.ReadAllBytes(filePath);
+            byte[] contents = File.ReadAllBytes(filePath);
             string tempPath = filePath + ".tmp";
             try
             {
-                System.IO.File.WriteAllBytes(tempPath, transform(contents));
-                System.IO.File.Move(tempPath, filePath, overwrite: true);
+                File.WriteAllBytes(tempPath, transform(contents));
+                File.Move(tempPath, filePath, overwrite: true);
             }
             catch (IOException)
             {
@@ -84,7 +84,7 @@ namespace Viper.Areas.CMS.Services
         {
             try
             {
-                System.IO.File.Delete(tempPath);
+                File.Delete(tempPath);
             }
             catch (IOException)
             {

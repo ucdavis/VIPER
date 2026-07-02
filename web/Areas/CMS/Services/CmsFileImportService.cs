@@ -150,12 +150,17 @@ namespace Viper.Areas.CMS.Services
         /// </summary>
         private SourceResolution ResolveSource(string rawPath)
         {
-            string relative = rawPath.TrimStart('/', '\\').Replace('/', '\\');
+            // Import lines are legacy Windows webroot paths; treat both separator styles as separators
+            // and rejoin with the host separator so parsing and traversal detection are identical on
+            // every OS. Path APIs only honor the host separator, so on Linux a "..\" segment would
+            // otherwise be read as part of a filename and slip past the outside-webroot check.
+            var segments = rawPath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            string relative = string.Join('/', segments);
             string sourcePath;
             string fileName;
             try
             {
-                sourcePath = Path.GetFullPath(Path.Join(_legacyWebroot, relative));
+                sourcePath = Path.GetFullPath(Path.Join(_legacyWebroot, Path.Join(segments)));
                 fileName = Path.GetFileName(sourcePath);
             }
             catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
@@ -344,10 +349,9 @@ namespace Viper.Areas.CMS.Services
                 return result;
             }
 
-            string? dbKey = null;
             try
             {
-                dbKey = _encryption.GenerateKeyForDb();
+                string dbKey = _encryption.GenerateKeyForDb();
                 _encryption.EncryptFileInPlace(file.FilePath, dbKey);
                 file.Key = dbKey;
                 file.Encrypted = true;
@@ -361,10 +365,11 @@ namespace Viper.Areas.CMS.Services
                     await _context.SaveChangesAsync(CancellationToken.None);
                     result.Success = true;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
                 {
-                    // Any save failure, whatever the exception type, means the key was not
-                    // persisted; the file must be decrypted back or it is unrecoverable.
+                    // A save failure (DB, SQL, or invalid entity state) means the key was never
+                    // persisted; the file must be decrypted back or it is unrecoverable. Anything
+                    // else is truly unexpected and is left to propagate.
                     RollBackUnsavedEncryption(file, dbKey, ex, result);
                 }
             }
