@@ -186,6 +186,8 @@
 </template>
 
 <script setup lang="ts">
+// Template-size synthetic complexity only (large wizard/table markup); script logic is small.
+// fallow-ignore-file complexity
 import { computed, inject, onMounted, ref } from "vue"
 import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"

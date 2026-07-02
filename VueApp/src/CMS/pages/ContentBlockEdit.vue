@@ -339,6 +339,8 @@
 </template>
 
 <script setup lang="ts">
+// Template-size synthetic complexity only; saveBlock is split into small helpers below.
+// fallow-ignore-file complexity
 import { computed, inject, onMounted, ref } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
@@ -592,28 +594,18 @@ async function rollbackFiles(createdGuids: string[]) {
     block.value.files = block.value.files.filter((f) => !removed.has(f.fileGuid))
 }
 
-async function saveBlock() {
-    formError.value = ""
+// Commit any staged inline uploads first (this is when they're actually created on the server),
+// then attach them so they're included in fileGuids. Returns the freshly-created GUIDs so a failed
+// block save can roll them back; throws if an upload fails so the caller aborts the save.
+async function commitStagedUploads(): Promise<string[]> {
+    if (!inlineUploadRef.value) return []
+    const { attached, createdGuids } = await inlineUploadRef.value.commit()
+    attached.forEach(attachUploadedFile)
+    return createdGuids
+}
 
-    saving.value = true
-
-    // Commit any staged inline uploads first (this is when they're actually created on the server),
-    // then attach them so they're included in fileGuids below. Abort the save if an upload fails.
-    // Track freshly-created files so we can roll them back if the block save itself then fails.
-    let rollbackGuids: string[] = []
-    if (inlineUploadRef.value) {
-        try {
-            const { attached, createdGuids } = await inlineUploadRef.value.commit()
-            attached.forEach(attachUploadedFile)
-            rollbackGuids = createdGuids
-        } catch (e) {
-            saving.value = false
-            formError.value = e instanceof Error ? e.message : "Failed to upload one or more files."
-            return
-        }
-    }
-
-    const payload = {
+function buildSavePayload() {
+    return {
         contentBlockId: block.value.contentBlockId,
         content: block.value.content,
         title: block.value.title,
@@ -628,51 +620,68 @@ async function saveBlock() {
         fileGuids: block.value.files.map((f) => f.fileGuid),
         lastModifiedOn: isNew.value ? null : block.value.modifiedOn,
     }
+}
 
+// A 409 means someone else saved first; roll back our new files and offer to reload their version.
+async function handleSaveConflict(res: { errors: string[] | null }, rollbackGuids: string[]) {
+    await rollbackFiles(rollbackGuids)
+    $q.dialog({
+        title: "Edit Conflict",
+        message:
+            (res.errors?.[0] ?? "This content block was changed by someone else.") +
+            " Reload the latest version? Your unsaved changes will be lost.",
+        cancel: { label: "Keep editing", flat: true },
+        persistent: true,
+        ok: { label: "Reload", color: "primary", unelevated: true },
+    }).onOk(() => {
+        void loadBlock()
+        viewingVersion.value = false
+        selectedHistory.value = null
+    })
+}
+
+async function applySaveSuccess(res: { result: CmsContentBlock }) {
+    $q.notify({ type: "positive", message: isNew.value ? "Content block created" : "Content block saved" })
+    viewingVersion.value = false
+    selectedHistory.value = null
+    autoEnabledPublicAccess.value = false
+    if (isNew.value) {
+        void router.push({ name: "CmsContentBlockEdit", params: { id: res.result.contentBlockId } })
+    }
+    block.value = res.result
+    resetDirtyState()
+    await loadHistory()
+}
+
+async function saveBlock() {
+    formError.value = ""
+    saving.value = true
+
+    let rollbackGuids: string[]
+    try {
+        rollbackGuids = await commitStagedUploads()
+    } catch (e) {
+        saving.value = false
+        formError.value = e instanceof Error ? e.message : "Failed to upload one or more files."
+        return
+    }
+
+    const payload = buildSavePayload()
     const res = isNew.value
         ? await post(apiURL, payload)
         : await put(apiURL + "/" + block.value.contentBlockId, payload)
     saving.value = false
 
     if (res.status === 409) {
-        await rollbackFiles(rollbackGuids)
-        $q.dialog({
-            title: "Edit Conflict",
-            message:
-                (res.errors?.[0] ?? "This content block was changed by someone else.") +
-                " Reload the latest version? Your unsaved changes will be lost.",
-            cancel: { label: "Keep editing", flat: true },
-            persistent: true,
-            ok: { label: "Reload", color: "primary", unelevated: true },
-        }).onOk(() => {
-            void loadBlock()
-            viewingVersion.value = false
-            selectedHistory.value = null
-        })
+        await handleSaveConflict(res, rollbackGuids)
         return
     }
-
     if (!res.success) {
         await rollbackFiles(rollbackGuids)
         formError.value = res.errors?.[0] ?? "Failed to save content block"
         return
     }
-
-    $q.notify({ type: "positive", message: isNew.value ? "Content block created" : "Content block saved" })
-    viewingVersion.value = false
-    selectedHistory.value = null
-    autoEnabledPublicAccess.value = false
-
-    if (isNew.value) {
-        void router.push({ name: "CmsContentBlockEdit", params: { id: res.result.contentBlockId } })
-        block.value = res.result
-        resetDirtyState()
-        await loadHistory()
-    } else {
-        block.value = res.result
-        resetDirtyState()
-        await loadHistory()
-    }
+    await applySaveSuccess(res)
 }
 
 async function restoreBlock() {

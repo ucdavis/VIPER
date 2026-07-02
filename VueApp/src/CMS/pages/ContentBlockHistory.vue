@@ -186,11 +186,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref, watch } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import { inject, onMounted, ref } from "vue"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { useUrlFilteredTable } from "@/CMS/composables/use-url-filtered-table"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
 import DateRangeFilter from "@/CMS/components/DateRangeFilter.vue"
@@ -200,45 +200,9 @@ import ListCardField from "@/CMS/components/ListCardField.vue"
 import type { CmsContentHistoryAudit, CmsContentHistoryDiff } from "@/CMS/types/"
 
 const apiBase = inject("apiURL")
-const listUrl = apiBase + "CMS/content/history"
 const $q = useQuasar()
-const route = useRoute()
-const router = useRouter()
-const { get, createUrlSearchParams } = useFetch()
+const { get } = useFetch()
 const { formatDateTime } = useDateFunctions()
-
-const entries = ref<CmsContentHistoryAudit[]>([])
-const loading = ref(false)
-const contentBlockId = ref<string | null>((route.query.contentBlockId as string) || null)
-
-// Filters initialize from the URL so filtered views can be shared/deep-linked.
-const filters = ref({
-    modifiedBy: typeof route.query.modifiedBy === "string" ? route.query.modifiedBy : "",
-    from: typeof route.query.from === "string" ? route.query.from : "",
-    to: typeof route.query.to === "string" ? route.query.to : "",
-    search: typeof route.query.search === "string" ? route.query.search : "",
-})
-
-// Reflect the active filters back into the URL (empty values are omitted).
-function syncFiltersToUrl() {
-    void router.replace({
-        query: {
-            contentBlockId: contentBlockId.value || undefined,
-            modifiedBy: filters.value.modifiedBy || undefined,
-            from: filters.value.from || undefined,
-            to: filters.value.to || undefined,
-            search: filters.value.search || undefined,
-        },
-    })
-}
-
-const pagination = ref({
-    sortBy: "modifiedOn",
-    descending: true,
-    page: 1,
-    rowsPerPage: 50,
-    rowsNumber: 0,
-})
 
 const columns: QTableProps["columns"] = [
     { name: "modifiedOn", label: "Date", field: "modifiedOn", align: "left" },
@@ -251,47 +215,24 @@ function blockLabel(row: CmsContentHistoryAudit): string {
     return row.title || row.friendlyName || "(untitled)"
 }
 
-type TableRequestPagination = {
-    sortBy: string
-    descending: boolean
-    page: number
-    rowsPerPage: number
-    rowsNumber?: number
-}
-
-async function onRequest(requestProps: { pagination: TableRequestPagination }) {
-    const { page, rowsPerPage } = requestProps.pagination
-    loading.value = true
-    const params = createUrlSearchParams({
-        contentBlockId: contentBlockId.value,
-        modifiedBy: filters.value.modifiedBy || null,
-        from: filters.value.from || null,
-        to: filters.value.to || null,
-        search: filters.value.search || null,
-        page,
-        perPage: rowsPerPage,
-    })
-    const res = await get(listUrl + "?" + params)
-    if (res.success) {
-        entries.value = res.result
-        pagination.value.rowsNumber = res.pagination?.totalRecords ?? res.result.length
-        pagination.value.page = page
-        pagination.value.rowsPerPage = rowsPerPage
-    } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load edit history" })
-    }
-    loading.value = false
-}
-
-function reload() {
-    syncFiltersToUrl()
-    void onRequest({ pagination: { ...pagination.value, page: 1 } })
-}
-
-function clearBlockFilter() {
-    contentBlockId.value = null
-    reload()
-}
+// Filters + the per-block deep-link (?contentBlockId) sync to the URL and drive the server-paged
+// fetch; see useUrlFilteredTable.
+const {
+    rows: entries,
+    loading,
+    pagination,
+    onRequest,
+    filters,
+    primary: contentBlockId,
+    reload,
+    clearPrimaryFilter: clearBlockFilter,
+} = useUrlFilteredTable<CmsContentHistoryAudit, { modifiedBy: string; from: string; to: string; search: string }>({
+    url: apiBase + "CMS/content/history",
+    errorMessage: "Failed to load edit history",
+    primaryKey: "contentBlockId",
+    defaultFilters: () => ({ modifiedBy: "", from: "", to: "", search: "" }),
+    pagination: { sortBy: "modifiedOn", descending: true },
+})
 
 const viewer = ref({
     open: false,
@@ -334,35 +275,6 @@ async function viewDiff(row: CmsContentHistoryAudit) {
     }
     viewer.value.loading = false
 }
-
-// Re-sync filters from the URL when in-app navigation reuses this view with a different
-// query (e.g. a per-block ?contentBlockId deep-link). The equality guard skips our own
-// syncFiltersToUrl write so it doesn't double-fetch.
-watch(
-    () => route.query,
-    (query) => {
-        const nextBlock = typeof query.contentBlockId === "string" ? query.contentBlockId : null
-        const next = {
-            modifiedBy: typeof query.modifiedBy === "string" ? query.modifiedBy : "",
-            from: typeof query.from === "string" ? query.from : "",
-            to: typeof query.to === "string" ? query.to : "",
-            search: typeof query.search === "string" ? query.search : "",
-        }
-        const f = filters.value
-        if (
-            nextBlock === contentBlockId.value &&
-            next.modifiedBy === f.modifiedBy &&
-            next.from === f.from &&
-            next.to === f.to &&
-            next.search === f.search
-        ) {
-            return
-        }
-        contentBlockId.value = nextBlock
-        filters.value = next
-        void onRequest({ pagination: { ...pagination.value, page: 1 } })
-    },
-)
 
 onMounted(reload)
 </script>
