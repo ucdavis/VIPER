@@ -104,7 +104,9 @@
                 "max-lines": "off",
                 "max-params": "off",
                 "promise/avoid-new": "off",
-                "promise/prefer-await-to-callbacks": "off"
+                "promise/prefer-await-to-callbacks": "off",
+                "no-implicit-globals": "off", // CommonJS module-scope functions are not implicit globals
+                "node/no-sync": "off" // Synchronous fs/child_process is intentional in one-shot build scripts
             }
         },
         {

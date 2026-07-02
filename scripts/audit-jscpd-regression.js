@@ -11,6 +11,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
+const { resolveJscpdEntry } = require("./lib/jscpd-entry")
 
 const PROJECT_ROOT = path.join(__dirname, "..")
 
@@ -21,8 +22,8 @@ const MAX_BUFFER_BYTES = 268_435_456
 const toForwardSlashes = (p) => p.replaceAll("\\", "/")
 
 function runJscpd(scanDir, extraArgs) {
-    const jsEntry = path.join(PROJECT_ROOT, "node_modules", "jscpd", "bin", "jscpd")
-    if (!fs.existsSync(jsEntry)) {
+    const jsEntry = resolveJscpdEntry()
+    if (!jsEntry) {
         console.error("❌ jscpd not found. Run 'npm install' at the repo root.")
         process.exit(1)
     }
@@ -62,7 +63,7 @@ function runJscpd(scanDir, extraArgs) {
         try {
             fs.rmSync(outDir, { recursive: true, force: true })
         } catch {
-            /* best-effort — never mask the real error */
+            /* Best-effort cleanup; never mask the real error */
         }
     }
 

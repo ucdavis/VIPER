@@ -4,9 +4,9 @@
 // Reports to ./jscpd-report/ (html + json). For CI regression detection see
 // .github/workflows/code-quality.yml.
 
-const fs = require("node:fs")
 const path = require("node:path")
 const { spawnSync } = require("node:child_process")
+const { resolveJscpdEntry } = require("./lib/jscpd-entry")
 
 const PROJECT_ROOT = path.join(__dirname, "..")
 const OUT_DIR = path.join(PROJECT_ROOT, "jscpd-report")
@@ -15,8 +15,8 @@ const OUT_DIR = path.join(PROJECT_ROOT, "jscpd-report")
 const toForwardSlashes = (p) => p.replaceAll("\\", "/")
 
 function runJscpd(label, scanDir, minLines, extraArgs) {
-    const jsEntry = path.join(PROJECT_ROOT, "node_modules", "jscpd", "bin", "jscpd")
-    if (!fs.existsSync(jsEntry)) {
+    const jsEntry = resolveJscpdEntry()
+    if (!jsEntry) {
         console.error("❌ jscpd not found. Run 'npm install' at the repo root.")
         process.exit(1)
     }

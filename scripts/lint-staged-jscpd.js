@@ -16,6 +16,7 @@ const path = require("node:path")
 const { spawnSync } = require("node:child_process")
 const { parseArguments, shouldBlockOnWarnings } = require("./lib/lint-staged-common")
 const { createLogger } = require("./lib/script-utils")
+const { resolveJscpdEntry } = require("./lib/jscpd-entry")
 
 const { rawFiles } = parseArguments()
 const logger = createLogger("JSCPD")
@@ -75,8 +76,8 @@ if (tsFiles.size === 0 && csFiles.size === 0) {
 function runJscpd(scanDir, jsonOutPath, minLines, formatFlags) {
     // Invoke the JS entry point via node rather than the .cmd shim so we avoid
     // Windows argument-escaping bugs when paths contain backslashes.
-    const jsEntry = path.join(PROJECT_ROOT, "node_modules", "jscpd", "bin", "jscpd")
-    if (!fs.existsSync(jsEntry)) {
+    const jsEntry = resolveJscpdEntry()
+    if (!jsEntry) {
         logger.error("jscpd not found in node_modules. Run 'npm install' at the repo root.")
         return null
     }
@@ -122,21 +123,27 @@ function runJscpd(scanDir, jsonOutPath, minLines, formatFlags) {
     }
 }
 
-function filterCloneGroupsByFiles(duplicates, baseDir, scopedSet) {
+// Clone names from jscpd v5 are relative to the scan dir, with a ":<subformat>"
+// suffix on Vue SFC sub-blocks (e.g. "CTS/components/Foo.vue:html"). Normalize
+// to the scan-dir-relative, forward-slash form the scoped set uses.
+function normalizeCloneName(name) {
+    return (name || "").replace(/:[^:/\\]+$/u, "").replaceAll("\\", "/")
+}
+
+function filterCloneGroupsByFiles(duplicates, scopedSet) {
     const groups = []
     for (const dup of duplicates || []) {
-        const a = (dup.firstFile && dup.firstFile.name) || ""
-        const b = (dup.secondFile && dup.secondFile.name) || ""
-        // JSCPD returns names relative to cwd. Rebase to the scan dir.
-        const aRel = path.relative(baseDir, path.resolve(PROJECT_ROOT, a)).replaceAll("\\", "/")
-        const bRel = path.relative(baseDir, path.resolve(PROJECT_ROOT, b)).replaceAll("\\", "/")
-        if (scopedSet.has(aRel) || scopedSet.has(bRel)) {
-            groups.push({
-                a: `${aRel}:${dup.firstFile.start}-${dup.firstFile.end}`,
-                b: `${bRel}:${dup.secondFile.start}-${dup.secondFile.end}`,
-                lines: dup.lines,
-                format: dup.format,
-            })
+        if (dup.firstFile && dup.secondFile) {
+            const aRel = normalizeCloneName(dup.firstFile.name)
+            const bRel = normalizeCloneName(dup.secondFile.name)
+            if (scopedSet.has(aRel) || scopedSet.has(bRel)) {
+                groups.push({
+                    a: `${aRel}:${dup.firstFile.start}-${dup.firstFile.end}`,
+                    b: `${bRel}:${dup.secondFile.start}-${dup.secondFile.end}`,
+                    lines: dup.lines,
+                    format: dup.format,
+                })
+            }
         }
     }
     return groups
@@ -176,7 +183,7 @@ function scanWith(label, scanDir, scopedSet, minLines, formatFlags, groupLabel) 
             jscpdFailed = true
             return []
         }
-        return filterCloneGroupsByFiles(report.duplicates, scanDir, scopedSet)
+        return filterCloneGroupsByFiles(report.duplicates, scopedSet)
     })
     printCloneGroups(groupLabel, groups)
     totalFindings += groups.length
@@ -198,8 +205,8 @@ if (csFiles.size > 0) {
 }
 
 if (jscpdFailed) {
-    // runJscpd already logged the underlying reason. Fail closed so a crashed
-    // jscpd never silently passes the gate.
+    // The runJscpd helper already logged the underlying reason. Fail closed so
+    // a crashed jscpd never silently passes the gate.
     logger.error("JSCPD did not complete cleanly; treating as failure.")
     process.exit(1)
 }
