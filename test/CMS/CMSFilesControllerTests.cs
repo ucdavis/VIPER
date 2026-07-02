@@ -47,7 +47,14 @@ public sealed class CMSFilesControllerTests : IDisposable
         SetupControllerContext();
     }
 
-    public void Dispose() => _rapsContext.Dispose();
+    // Streams backing form files must outlive the controller call; disposed with the test instance.
+    private readonly List<MemoryStream> _formFileStreams = new();
+
+    public void Dispose()
+    {
+        _rapsContext.Dispose();
+        _formFileStreams.ForEach(s => s.Dispose());
+    }
 
     private void SetupControllerContext()
     {
@@ -66,9 +73,10 @@ public sealed class CMSFilesControllerTests : IDisposable
         Folder = "cats"
     };
 
-    private static IFormFile MakeFormFile(string fileName = "report.pdf", long length = 3)
+    private IFormFile MakeFormFile(string fileName = "report.pdf", long length = 3)
     {
         var stream = new MemoryStream(new byte[length]);
+        _formFileStreams.Add(stream);
         return new FormFile(stream, 0, length, "file", fileName);
     }
 
@@ -125,7 +133,7 @@ public sealed class CMSFilesControllerTests : IDisposable
     public async Task GetAudit_PassesFilterAndPaginationThrough_AndSetsTotal()
     {
         _auditService.GetAuditEntriesAsync(Arg.Any<CmsFileAuditFilter>(), 3, 10, Arg.Any<CancellationToken>())
-            .Returns(new List<Viper.Models.VIPER.FileAudit>());
+            .Returns(new List<Models.VIPER.FileAudit>());
         _auditService.GetAuditEntryCountAsync(Arg.Any<CmsFileAuditFilter>(), Arg.Any<CancellationToken>()).Returns(5);
         var fileGuid = Guid.NewGuid();
         var pagination = new ApiPagination { Page = 3, PerPage = 10 };

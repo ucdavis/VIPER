@@ -123,7 +123,7 @@ namespace Viper.Areas.CMS.Services
             }
             if (!string.IsNullOrEmpty(filter.Search))
             {
-                query = query.Where(a => (a.FilePath != null && a.FilePath.Contains(filter.Search))
+                query = query.Where(a => a.FilePath.Contains(filter.Search)
                     || (a.Detail != null && a.Detail.Contains(filter.Search)));
             }
             return query;
