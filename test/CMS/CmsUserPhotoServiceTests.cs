@@ -10,8 +10,9 @@ using Viper.Models.AAUD;
 namespace Viper.test.CMS;
 
 /// <summary>
-/// Tests for CmsUserPhotoService: AAUD id resolution, alternate ProfilePhotos lookup with
-/// traversal protection, and delegation to the Students photo pipeline.
+/// Tests for CmsUserPhotoService: AAUD id resolution (MailId, LoginId, IamId, MothraId),
+/// alternate ProfilePhotos lookup with traversal protection, delegation to the Students photo
+/// pipeline, and the Last-Modified timestamp used for conditional-caching (FIX 4).
 /// </summary>
 public sealed class CmsUserPhotoServiceTests : IDisposable
 {
@@ -51,7 +52,8 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
         }
     }
 
-    private void SeedUser(string loginId = "jdoe", string mailId = "jdoe", string iamId = "1000999")
+    private void SeedUser(string loginId = "jdoe", string mailId = "jdoe", string iamId = "1000999",
+        string mothraId = "m1")
     {
         _aaudContext.AaudUsers.Add(new AaudUser
         {
@@ -66,7 +68,7 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
             DisplayLastName = "Doe",
             DisplayFirstName = "Jane",
             DisplayFullName = "Doe, Jane",
-            MothraId = "m1",
+            MothraId = mothraId,
             SpridenId = null,
             Pidm = null,
             EmployeeId = null,
@@ -80,10 +82,10 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     [Fact]
     public async Task GetUserPhoto_ByMailId_DelegatesToStudentPipeline()
     {
-        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, preferAltPhoto: false,
+        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: false,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(IdCardPhotoBytes, photo);
+        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
         await _photoService.Received(1).GetStudentPhotoAsync("jdoe");
     }
 
@@ -92,19 +94,40 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     {
         SeedUser(loginId: "jdoe", mailId: "janedoe");
 
-        await _service.GetUserPhotoAsync(null, "jdoe", null, preferAltPhoto: false,
+        await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: false,
             TestContext.Current.CancellationToken);
 
         await _photoService.Received(1).GetStudentPhotoAsync("janedoe");
     }
 
     [Fact]
-    public async Task GetUserPhoto_UnknownLoginId_FallsBackToDefaultPipeline()
+    public async Task GetUserPhoto_ByMothraId_ResolvesMailIdThroughAaud()
     {
-        var photo = await _service.GetUserPhotoAsync(null, "nosuchuser", null, preferAltPhoto: false,
+        SeedUser(mothraId: "m-9001", mailId: "janedoe");
+
+        await _service.GetUserPhotoAsync(null, null, null, "m-9001", preferAltPhoto: false,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(IdCardPhotoBytes, photo);
+        await _photoService.Received(1).GetStudentPhotoAsync("janedoe");
+    }
+
+    [Fact]
+    public async Task GetUserPhoto_UnknownMothraId_FallsBackToDefaultPipeline()
+    {
+        var photo = await _service.GetUserPhotoAsync(null, null, null, "no-such-mothra", preferAltPhoto: false,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
+        await _photoService.Received(1).GetStudentPhotoAsync(string.Empty);
+    }
+
+    [Fact]
+    public async Task GetUserPhoto_UnknownLoginId_FallsBackToDefaultPipeline()
+    {
+        var photo = await _service.GetUserPhotoAsync(null, "nosuchuser", null, null, preferAltPhoto: false,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
         await _photoService.Received(1).GetStudentPhotoAsync(string.Empty);
     }
 
@@ -115,10 +138,10 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
         await File.WriteAllBytesAsync(Path.Join(_profilePhotoRoot, "1000999.jpg"), AltPhotoBytes,
             TestContext.Current.CancellationToken);
 
-        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, preferAltPhoto: true,
+        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: true,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(AltPhotoBytes, photo);
+        Assert.Equal(AltPhotoBytes, photo.Bytes);
         await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
     }
 
@@ -129,10 +152,10 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
         await File.WriteAllBytesAsync(Path.Join(_profilePhotoRoot, "1000999.jpg"), AltPhotoBytes,
             TestContext.Current.CancellationToken);
 
-        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, preferAltPhoto: true,
+        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: true,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(AltPhotoBytes, photo);
+        Assert.Equal(AltPhotoBytes, photo.Bytes);
         await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
     }
 
@@ -141,10 +164,10 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     {
         SeedUser(mailId: "janedoe", iamId: "1000999");
 
-        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, preferAltPhoto: true,
+        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: true,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(IdCardPhotoBytes, photo);
+        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
         await _photoService.Received(1).GetStudentPhotoAsync("janedoe");
     }
 
@@ -154,9 +177,38 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     [InlineData("a/b")]
     public async Task GetUserPhoto_TraversalShapedIamId_IgnoresAltPhoto(string iamId)
     {
-        var photo = await _service.GetUserPhotoAsync(null, null, iamId, preferAltPhoto: true,
+        var photo = await _service.GetUserPhotoAsync(null, null, iamId, null, preferAltPhoto: true,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(IdCardPhotoBytes, photo);
+        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
+    }
+
+    [Fact]
+    public async Task GetUserPhoto_AltPhoto_LastModifiedReflectsFileWriteTime_TruncatedToWholeSeconds()
+    {
+        SeedUser(iamId: "1000999");
+        var photoPath = Path.Join(_profilePhotoRoot, "1000999.jpg");
+        await File.WriteAllBytesAsync(photoPath, AltPhotoBytes, TestContext.Current.CancellationToken);
+        var fileWriteTime = File.GetLastWriteTimeUtc(photoPath);
+
+        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: true,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, photo.LastModified.Millisecond);
+        Assert.True(Math.Abs((photo.LastModified.UtcDateTime - fileWriteTime).TotalSeconds) < 1.5);
+    }
+
+    [Fact]
+    public async Task GetUserPhoto_IdCardPhoto_LastModifiedIsStableAcrossCalls()
+    {
+        // The delegated Students pipeline exposes no per-file timestamp, so id-card/nopic
+        // responses use a stable per-process proxy; repeated calls must agree.
+        var first = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: false,
+            TestContext.Current.CancellationToken);
+        var second = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: false,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(first.LastModified, second.LastModified);
+        Assert.Equal(0, first.LastModified.Millisecond);
     }
 }

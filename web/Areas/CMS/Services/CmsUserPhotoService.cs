@@ -9,12 +9,21 @@ namespace Viper.Areas.CMS.Services
     public interface ICmsUserPhotoService
     {
         /// <summary>
-        /// Get a user photo by any supported id. Resolution order matches legacy userPhoto.cfc:
-        /// alternate profile photo (by IamId, only when requested via preferAltPhoto),
-        /// then id-card photo (by MailId), then the default "no picture" image.
+        /// Get a user photo by any supported id (MailId, LoginId, IamId, or MothraId). Resolution
+        /// order matches legacy userPhoto.cfc: alternate profile photo (by IamId, only when
+        /// requested via preferAltPhoto), then id-card photo (by MailId), then the default
+        /// "no picture" image. The result carries a Last-Modified value for conditional caching.
         /// </summary>
-        Task<byte[]> GetUserPhotoAsync(string? mailId, string? loginId, string? iamId, bool preferAltPhoto, CancellationToken ct = default);
+        Task<CmsUserPhotoResult> GetUserPhotoAsync(string? mailId, string? loginId, string? iamId, string? mothraId,
+            bool preferAltPhoto, CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// A served photo's bytes plus the timestamp to publish as Last-Modified/use for
+    /// If-Modified-Since comparisons. Always truncated to whole seconds, since HTTP dates
+    /// have second precision.
+    /// </summary>
+    public sealed record CmsUserPhotoResult(byte[] Bytes, DateTimeOffset LastModified);
 
     /// <summary>
     /// User photos for the CMS area (legacy userPhoto.cfc). Id-card photo lookup, caching, and
@@ -28,6 +37,12 @@ namespace Viper.Areas.CMS.Services
         private readonly IPhotoService _photoService;
         private readonly ILogger<CmsUserPhotoService> _logger;
         private readonly string _profilePhotoPath;
+
+        // The delegated Students photo pipeline (id-card photo and its nopic fallback) doesn't
+        // expose a per-file timestamp, so those two outcomes share this stable per-process
+        // proxy for Last-Modified: it only changes on deploy/restart, which is exactly when a
+        // browser-cached copy should be treated as stale.
+        private static readonly DateTimeOffset DelegatedPhotoLastModified = TruncateToSeconds(DateTimeOffset.UtcNow);
 
         [GeneratedRegex("^[a-zA-Z0-9.-]+$")]
         private static partial Regex SafeIdRegex();
@@ -43,11 +58,11 @@ namespace Viper.Areas.CMS.Services
                 ?? Path.Join(Data.CMS.GetRootFileFolder(), "ProfilePhotos");
         }
 
-        public async Task<byte[]> GetUserPhotoAsync(string? mailId, string? loginId, string? iamId,
-            bool preferAltPhoto, CancellationToken ct = default)
+        public async Task<CmsUserPhotoResult> GetUserPhotoAsync(string? mailId, string? loginId, string? iamId,
+            string? mothraId, bool preferAltPhoto, CancellationToken ct = default)
         {
             // Resolve whichever id was provided to the person's mailId (+ iamId when needed).
-            (mailId, iamId) = await ResolveIdsAsync(mailId, loginId, iamId, needIamId: preferAltPhoto, ct);
+            (mailId, iamId) = await ResolveIdsAsync(mailId, loginId, iamId, mothraId, needIamId: preferAltPhoto, ct);
 
             if (preferAltPhoto && iamId != null)
             {
@@ -58,11 +73,12 @@ namespace Viper.Areas.CMS.Services
                 }
             }
 
-            return await _photoService.GetStudentPhotoAsync(mailId ?? string.Empty);
+            var bytes = await _photoService.GetStudentPhotoAsync(mailId ?? string.Empty);
+            return new CmsUserPhotoResult(bytes, DelegatedPhotoLastModified);
         }
 
         private async Task<(string? MailId, string? IamId)> ResolveIdsAsync(string? mailId, string? loginId,
-            string? iamId, bool needIamId, CancellationToken ct)
+            string? iamId, string? mothraId, bool needIamId, CancellationToken ct)
         {
             // Skip the lookup when every id the caller needs is already known. A mailId alone
             // serves the id-card photo with no DB query (the legacy hot path for <img> tags).
@@ -84,6 +100,10 @@ namespace Viper.Areas.CMS.Services
             {
                 query = query.Where(u => u.IamId == iamId);
             }
+            else if (!string.IsNullOrEmpty(mothraId))
+            {
+                query = query.Where(u => u.MothraId == mothraId);
+            }
             else
             {
                 return (null, null);
@@ -95,7 +115,7 @@ namespace Viper.Areas.CMS.Services
             return user == null ? (mailId, iamId) : (user.MailId ?? mailId, user.IamId ?? iamId);
         }
 
-        private async Task<byte[]?> ReadAltPhotoAsync(string iamId, CancellationToken ct)
+        private async Task<CmsUserPhotoResult?> ReadAltPhotoAsync(string iamId, CancellationToken ct)
         {
             if (!SafeIdRegex().IsMatch(iamId))
             {
@@ -112,7 +132,9 @@ namespace Viper.Areas.CMS.Services
 
             try
             {
-                return await File.ReadAllBytesAsync(photoPath, ct);
+                var bytes = await File.ReadAllBytesAsync(photoPath, ct);
+                var lastModified = TruncateToSeconds(new DateTimeOffset(File.GetLastWriteTimeUtc(photoPath), TimeSpan.Zero));
+                return new CmsUserPhotoResult(bytes, lastModified);
             }
             catch (IOException ex)
             {
@@ -124,6 +146,13 @@ namespace Viper.Areas.CMS.Services
                 _logger.LogError(ex, "Access denied reading alt photo for {IamId}", LogSanitizer.SanitizeId(iamId));
                 return null;
             }
+        }
+
+        // HTTP dates (and If-Modified-Since comparisons) only have second precision; truncating
+        // here keeps a stable value fed back on the next request's comparison.
+        private static DateTimeOffset TruncateToSeconds(DateTimeOffset value)
+        {
+            return value.AddTicks(-(value.UtcTicks % TimeSpan.TicksPerSecond));
         }
     }
 }
