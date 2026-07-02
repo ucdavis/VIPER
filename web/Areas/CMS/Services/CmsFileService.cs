@@ -116,6 +116,9 @@ namespace Viper.Areas.CMS.Services
                 ("modifiedon", true) => query.OrderByDescending(f => f.ModifiedOn),
                 ("oldurl", false) => query.OrderBy(f => f.OldUrl),
                 ("oldurl", true) => query.OrderByDescending(f => f.OldUrl),
+                // Trash views: ascending = closest to the purge cutoff first.
+                ("deletedon", false) => query.OrderBy(f => f.DeletedOn).ThenBy(f => f.FriendlyName),
+                ("deletedon", true) => query.OrderByDescending(f => f.DeletedOn).ThenBy(f => f.FriendlyName),
                 (_, true) => query.OrderByDescending(f => f.FriendlyName),
                 _ => query.OrderBy(f => f.FriendlyName)
             };
