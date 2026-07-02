@@ -1,7 +1,7 @@
 using System.Collections;
 using System.ComponentModel.DataAnnotations;
 
-namespace Areas.CMS.Validation;
+namespace Viper.Areas.CMS.Validation;
 
 /// <summary>
 /// Validates that every string element in a collection is at most <see cref="Length"/> characters.

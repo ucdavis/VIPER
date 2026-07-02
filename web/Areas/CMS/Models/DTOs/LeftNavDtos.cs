@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using Areas.CMS.Validation;
+using Viper.Areas.CMS.Validation;
 
 namespace Viper.Areas.CMS.Models.DTOs
 {

@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Areas.CMS.Validation;
+using Viper.Areas.CMS.Validation;
 
 namespace Viper.test.CMS;
 
