@@ -5,7 +5,8 @@
         "**/dist/**",
         "**/coverage/**",
         "**/bin/**",
-        "**/obj/**"
+        "**/obj/**",
+        "**/Effort/Scripts/**"
     ],
     "ignorePattern": [
         "^\\s*import\\s+.*from\\s+['\"][^'\"]+['\"]\\s*;?\\s*$"
