@@ -6,7 +6,6 @@ using Viper.Areas.CMS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models;
-using Viper.Models.VIPER;
 using Viper.Services;
 using Web.Authorization;
 
@@ -84,7 +83,7 @@ namespace Viper.Areas.CMS.Controllers
         //GET: content/fn/{friendlyName} — public display endpoint; permission filtering happens
         //inside GetContentBlocksAllowed (public flag, block permissions, or CMS admin).
         [HttpGet("fn/{friendlyName}")]
-        public ActionResult<ContentBlock?> GetContentBlockByFn(string friendlyName)
+        public ActionResult<ContentBlockDto> GetContentBlockByFn(string friendlyName)
         {
             // status: 1 = active only. A public display endpoint must never serve soft-deleted
             // blocks (passing null would include DeletedOn != null rows).
@@ -95,7 +94,11 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
 
-            return blocks[0];
+            // Project to a DTO so this anonymous endpoint never serializes the raw entity graph:
+            // returning the entity would leak each attached file's encryption Key and server
+            // FilePath, the full (unsanitized) ContentHistory, and the block's permission rows.
+            // Content is already render-sanitized by GetContentBlocksAllowed.
+            return CmsContentBlockMapper.ToDto(blocks[0]);
         }
 
         //GET: content/5/history
@@ -279,7 +282,8 @@ namespace Viper.Areas.CMS.Controllers
         {
             if (permanent)
             {
-                // Permanent delete removes history and cannot be undone; admin only.
+                // Permanent delete removes history and cannot be undone; admin only, matching the
+                // legacy "dev only" (SVMSecure.CATS.Admin) gate on permanent content-block delete.
                 if (!_userHelper.HasPermission(_rapsContext, _userHelper.GetCurrentUser(), CmsPermissions.Admin))
                 {
                     return ForbidApi();
