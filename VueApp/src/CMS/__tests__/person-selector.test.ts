@@ -84,6 +84,37 @@ describe("PersonSelector.vue", () => {
         expect(currentOptions(wrapper)).toEqual([])
     })
 
+    it("ignores a stale response that resolves after a newer search (out-of-order guard)", async () => {
+        const wrapper = mountSelector()
+        let resolveFirst!: (v: unknown) => void
+        let resolveSecond!: (v: unknown) => void
+        mockGet
+            .mockImplementationOnce(
+                () =>
+                    new Promise((r) => {
+                        resolveFirst = r
+                    }),
+            )
+            .mockImplementationOnce(
+                () =>
+                    new Promise((r) => {
+                        resolveSecond = r
+                    }),
+            )
+
+        const select = wrapper.findComponent({ name: "QSelect" })
+        select.vm.$emit("filter", "jane", runUpdate)
+        select.vm.$emit("filter", "janet", runUpdate)
+
+        // The newer search answers first; the older one lands afterwards and must be dropped.
+        resolveSecond({ success: true, result: [PEOPLE[1]] })
+        await flushPromises()
+        resolveFirst({ success: true, result: [PEOPLE[0]] })
+        await flushPromises()
+
+        expect(currentOptions(wrapper)).toEqual([PEOPLE[1]])
+    })
+
     it("emits the selected people array on update and coerces null to []", async () => {
         const wrapper = mountSelector()
         const select = wrapper.findComponent({ name: "QSelect" })

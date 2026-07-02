@@ -108,6 +108,40 @@ describe("SortableList - move buttons", () => {
     })
 })
 
+describe("SortableList - drag commit", () => {
+    it("announces and emits reorder when a drag ends (the array is already reordered by SortableJS)", async () => {
+        const { wrapper } = mountList(threeItems())
+
+        wrapper.findComponent({ name: "VueDraggable" }).vm.$emit("end", { oldIndex: 0, newIndex: 2 })
+        await nextTick()
+        await nextTick()
+
+        // CommitDrag doesn't move anything itself; it reports the item now sitting at newIndex.
+        const events = wrapper.emitted("reorder")
+        expect(events).toHaveLength(1)
+        expect(events![0]).toEqual([{ id: 3, label: "Charlie" }, 2, 0])
+        expect(wrapper.find('[role="status"]').text()).toBe("Moved to position 3 of 3")
+    })
+
+    it("ignores a drag end without indices (cancelled drag)", async () => {
+        const { wrapper } = mountList(threeItems())
+
+        wrapper.findComponent({ name: "VueDraggable" }).vm.$emit("end", {})
+        await nextTick()
+
+        expect(wrapper.emitted("reorder")).toBeFalsy()
+    })
+
+    it("ignores a drag that ends where it started", async () => {
+        const { wrapper } = mountList(threeItems())
+
+        wrapper.findComponent({ name: "VueDraggable" }).vm.$emit("end", { oldIndex: 1, newIndex: 1 })
+        await nextTick()
+
+        expect(wrapper.emitted("reorder")).toBeFalsy()
+    })
+})
+
 describe("SortableList - accessibility", () => {
     it("announces the move in a polite live region", async () => {
         const { wrapper } = mountList(threeItems())
