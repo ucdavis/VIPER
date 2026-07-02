@@ -28,7 +28,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             IGradYearService gradYearService, IWeekService weekService, IRotationService rotationService,
             ISchedulePermissionService permissionService, IEvaluationPolicyService evaluationPolicyService,
             ILogger<RotationsController> logger,
-            IUserHelper? userHelper = null)
+            IUserHelper userHelper)
             : base(gradYearService, logger)
         {
             _context = context;
@@ -36,7 +36,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             _rotationService = rotationService;
             _permissionService = permissionService;
             _evaluationPolicyService = evaluationPolicyService;
-            _userHelper = userHelper ?? new UserHelper();
+            _userHelper = userHelper;
         }
 
 

@@ -135,7 +135,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 _rotationService,
                 mockPermissionService,
                 _evaluationPolicyService,
-                mockLogger
+                mockLogger,
+                Substitute.For<IUserHelper>()
             );
 
             controller.ControllerContext = new ControllerContext
@@ -180,7 +181,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 _rotationService,
                 mockPermissionService,
                 _evaluationPolicyService,
-                mockLogger
+                mockLogger,
+                Substitute.For<IUserHelper>()
             );
 
             controller.ControllerContext = new ControllerContext
@@ -221,7 +223,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 mockRotationService,
                 mockPermissionService,
                 mockEvaluationPolicyService,
-                mockLogger
+                mockLogger,
+                Substitute.For<IUserHelper>()
             );
 
             SetupControllerContext(controller);

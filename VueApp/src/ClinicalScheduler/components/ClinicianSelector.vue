@@ -9,13 +9,9 @@
                 dense
                 filled
                 class="own-schedule-field"
-                for="clinician-selector-own-display"
             >
                 <template #control>
-                    <div
-                        id="clinician-selector-own-display"
-                        class="self-center full-width no-outline q-pa-xs"
-                    >
+                    <div class="self-center full-width no-outline q-pa-xs">
                         <div class="text-body1">
                             {{ props.modelValue?.fullName || "Loading..." }}
                         </div>
@@ -190,6 +186,13 @@ const isSingleClinicianReadOnly = computed(() => {
     )
 })
 
+// Auto-select is only appropriate for own-schedule contexts (a user scheduling
+// themselves). Admins/service schedulers must never have a clinician staged
+// without an explicit action (e.g. RotationScheduleView's add-clinician picker).
+const isOwnScheduleContext = computed(() => {
+    return props.isOwnScheduleOnly || permissionsStore.hasOnlyOwnSchedulePermission
+})
+
 // Methods
 const fetchClinicians = async () => {
     loading.value = true
@@ -226,11 +229,6 @@ const fetchClinicians = async () => {
                 if (userClinician) {
                     // User found in clinicians list
                     validClinicians = [userClinician]
-
-                    // Auto-select the current user immediately if not already selected
-                    if (!props.modelValue) {
-                        emit("update:modelValue", userClinician)
-                    }
                 } else {
                     // User not found - create a synthetic clinician entry
                     const syntheticClinician = {
@@ -240,19 +238,16 @@ const fetchClinicians = async () => {
                         lastName: currentUserDisplayName?.split(" ").slice(1).join(" ") || "",
                     }
                     validClinicians = [syntheticClinician]
-
-                    // Auto-select the synthetic user immediately
-                    if (!props.modelValue) {
-                        emit("update:modelValue", syntheticClinician)
-                    }
                 }
+                // Emitting is handled by the single-clinician auto-select block below,
+                // so a single fetch emits update:modelValue/change at most once.
             }
 
             clinicians.value = validClinicians
             filteredClinicians.value = validClinicians
 
-            // If there is only 1 clinician in the list, auto-select it and emit the change
-            if (validClinicians.length === 1) {
+            // Auto-select the sole clinician (own-schedule contexts only, see isOwnScheduleContext)
+            if (isOwnScheduleContext.value && validClinicians.length === 1) {
                 const singleClinician = validClinicians[0]
                 if (!props.modelValue || props.modelValue.mothraId !== singleClinician.mothraId) {
                     emit("update:modelValue", singleClinician)
