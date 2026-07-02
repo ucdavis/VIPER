@@ -41,7 +41,8 @@ namespace Viper.test.ClinicalScheduler
                 _mockRotationService,
                 _mockPermissionService,
                 _mockEvaluationPolicyService,
-                _mockLogger);
+                _mockLogger,
+                MockUserHelper);
             var serviceProvider = new ServiceCollection().BuildServiceProvider();
             TestDataBuilder.SetupControllerContext(_controller, serviceProvider);
         }
@@ -245,6 +246,73 @@ namespace Viper.test.ClinicalScheduler
 
             var rotations = ExtractRotationsFromResult(result);
             Assert.Empty(rotations); // Should return empty list when no permissions
+        }
+
+        [Fact]
+        public async Task GetRotations_ForClinician_ReturnsAllRotations()
+        {
+            // Setup: User has EditOwnSchedule permission
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetRotations(clinicianMothraId: TestUserMothraId);
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Equal(2, rotations.Count()); // Clinician should see all rotations when self-scheduling
+        }
+
+        [Fact]
+        public async Task GetRotations_ForClinicianWithoutMothraId_ReturnsFilteredRotations()
+        {
+            // Setup: User has EditOwnSchedule permission, but calling without specifying clinicianMothraId
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetRotations();
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations); // Should filter and return empty (since clinician has no service permissions)
+        }
+
+        [Fact]
+        public async Task GetRotations_ForOtherClinician_ReturnsFilteredRotations()
+        {
+            // Security: the self-scheduling bypass must only apply when the caller is looking at their
+            // OWN schedule. A user with EditOwnSchedule must not be able to see all rotations by passing
+            // someone else's clinicianMothraId.
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetRotations(clinicianMothraId: "someoneElse");
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations); // Should filter (bypass must not apply for another clinician's ID)
+        }
+
+        [Fact]
+        public async Task GetRotations_WithoutEditOwnSchedulePermission_ReturnsFilteredRotations()
+        {
+            // Security: passing your own mothraId must not bypass filtering unless the caller actually
+            // holds EditOwnSchedule. Without that permission, the request must still be filtered normally.
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(false);
+            SetupUserWithPermissions(TestUserMothraId, Array.Empty<string>());
+            RecreateController();
+
+            var result = await _controller.GetRotations(clinicianMothraId: TestUserMothraId);
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations); // Should filter (no EditOwnSchedule means no bypass, even for own ID)
         }
 
         #region GetRotationSchedule Security Tests
@@ -479,6 +547,78 @@ namespace Viper.test.ClinicalScheduler
 
             // Assert: Should return all rotations with scheduled weeks
             Assert.IsType<OkObjectResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task GetRotationsWithScheduledWeeks_ForClinician_ReturnsAllRotations()
+        {
+            // Setup: own-schedule user self-scheduling (passes their own mothra ID). They have no
+            // service edit permissions, so without the self-scheduling bypass this list would be empty
+            // (the empty-rotation-dropdown regression). This is the endpoint the "Add New Rotation"
+            // selector actually calls (only-with-scheduled-weeks), so it must be covered directly.
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear, clinicianMothraId: TestUserMothraId);
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Equal(2, rotations.Count()); // Self-scheduling clinician sees all rotations with scheduled weeks
+        }
+
+        [Fact]
+        public async Task GetRotationsWithScheduledWeeks_ForClinicianWithoutMothraId_ReturnsFilteredRotations()
+        {
+            // Setup: own-schedule user but no clinicianMothraId supplied, so normal service-permission
+            // filtering applies. With no editable services the result is empty - EditOwnSchedule alone
+            // does not bypass filtering unless the caller is self-scheduling.
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear);
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations);
+        }
+
+        [Fact]
+        public async Task GetRotationsWithScheduledWeeks_ForOtherClinician_ReturnsFilteredRotations()
+        {
+            // Security: same bypass-scoping check as GetRotations, but for the endpoint the "Add New
+            // Rotation" selector actually calls. A clinicianMothraId that isn't the caller's own must not
+            // grant the unfiltered self-scheduling view.
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(true);
+            SetupUserWithPermissions(TestUserMothraId, new[] { ClinicalSchedulePermissions.EditOwnSchedule });
+            RecreateController();
+
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear, clinicianMothraId: "someoneElse");
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations); // Should filter (bypass must not apply for another clinician's ID)
+        }
+
+        [Fact]
+        public async Task GetRotationsWithScheduledWeeks_WithoutEditOwnSchedulePermission_ReturnsFilteredRotations()
+        {
+            // Security: without EditOwnSchedule, passing your own mothraId must not unlock the
+            // self-scheduling bypass; normal service-permission filtering must still apply.
+            SetupMockPermissions();
+            _mockPermissionService.HasEditOwnSchedulePermissionAsync(Arg.Any<CancellationToken>())
+                .Returns(false);
+            SetupUserWithPermissions(TestUserMothraId, Array.Empty<string>());
+            RecreateController();
+
+            var result = await _controller.GetRotationsWithScheduledWeeks(TestYear, clinicianMothraId: TestUserMothraId);
+
+            var rotations = ExtractRotationsFromResult(result);
+            Assert.Empty(rotations); // Should filter (no EditOwnSchedule means no bypass, even for own ID)
         }
 
         #endregion

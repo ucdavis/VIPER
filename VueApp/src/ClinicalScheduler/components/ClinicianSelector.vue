@@ -32,15 +32,15 @@
             :loading="loading"
             :error="!!error"
             :error-message="error || undefined"
-            placeholder="Search for a clinician..."
+            :placeholder="isSingleClinicianReadOnly ? '' : 'Search for a clinician...'"
             emit-value
             map-options
-            :use-input="!props.includeAllAffiliates"
-            :fill-input="!props.includeAllAffiliates"
-            :hide-selected="!props.includeAllAffiliates"
+            :use-input="!props.includeAllAffiliates && !isSingleClinicianReadOnly"
+            :fill-input="!props.includeAllAffiliates && !isSingleClinicianReadOnly"
+            :hide-selected="!props.includeAllAffiliates && !isSingleClinicianReadOnly"
             option-label="fullName"
             option-value="mothraId"
-            clearable
+            :clearable="!isSingleClinicianReadOnly"
             dense
             options-dense
             :input-debounce="100"
@@ -48,9 +48,11 @@
             @popup-show="onPopupShow"
             @update:model-value="onClinicianChange"
             :virtual-scroll-slice-size="50"
+            :readonly="isSingleClinicianReadOnly"
+            :hide-dropdown-icon="isSingleClinicianReadOnly"
         >
             <template #prepend>
-                <q-icon name="search" />
+                <q-icon :name="isSingleClinicianReadOnly ? 'person' : 'search'" />
             </template>
 
             <template #no-option>
@@ -96,7 +98,7 @@
 
         <!-- Include All Affiliates Toggle -->
         <div
-            v-if="showAffiliatesToggle && !props.isOwnScheduleOnly"
+            v-if="showAffiliatesToggle && !isSingleClinicianReadOnly"
             class="affiliates-toggle-under-field"
         >
             <q-checkbox
@@ -177,6 +179,20 @@ const selectedClinician = computed({
     },
 })
 
+const isSingleClinicianReadOnly = computed(() => {
+    return (
+        props.isOwnScheduleOnly ||
+        (permissionsStore.hasOnlyOwnSchedulePermission && (loading.value || clinicians.value.length === 1))
+    )
+})
+
+// Auto-select is only appropriate for own-schedule contexts (a user scheduling
+// themselves). Admins/service schedulers must never have a clinician staged
+// without an explicit action (e.g. RotationScheduleView's add-clinician picker).
+const isOwnScheduleContext = computed(() => {
+    return props.isOwnScheduleOnly || permissionsStore.hasOnlyOwnSchedulePermission
+})
+
 // Methods
 const fetchClinicians = async () => {
     loading.value = true
@@ -213,11 +229,6 @@ const fetchClinicians = async () => {
                 if (userClinician) {
                     // User found in clinicians list
                     validClinicians = [userClinician]
-
-                    // Auto-select the current user immediately if not already selected
-                    if (!props.modelValue) {
-                        emit("update:modelValue", userClinician)
-                    }
                 } else {
                     // User not found - create a synthetic clinician entry
                     const syntheticClinician = {
@@ -227,16 +238,22 @@ const fetchClinicians = async () => {
                         lastName: currentUserDisplayName?.split(" ").slice(1).join(" ") || "",
                     }
                     validClinicians = [syntheticClinician]
-
-                    // Auto-select the synthetic user immediately
-                    if (!props.modelValue) {
-                        emit("update:modelValue", syntheticClinician)
-                    }
                 }
+                // Emitting is handled by the single-clinician auto-select block below,
+                // so a single fetch emits update:modelValue/change at most once.
             }
 
             clinicians.value = validClinicians
             filteredClinicians.value = validClinicians
+
+            // Auto-select the sole clinician (own-schedule contexts only, see isOwnScheduleContext)
+            if (isOwnScheduleContext.value && validClinicians.length === 1) {
+                const singleClinician = validClinicians[0]
+                if (!props.modelValue || props.modelValue.mothraId !== singleClinician.mothraId) {
+                    emit("update:modelValue", singleClinician)
+                    emit("change", singleClinician)
+                }
+            }
 
             // Emit event to notify parent that clinicians are loaded
             emit("clinicians-loaded", result.result)

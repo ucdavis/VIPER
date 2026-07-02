@@ -1,19 +1,20 @@
-import { setupTest, createWrapper } from "./clinician-selector-helpers"
+import { setupTest, createWrapper, mockSuccessResponse } from "./clinician-selector-helpers"
+import { usePermissionsStore } from "../stores/permissions"
 
 // Mock services
 vi.mock("../services/clinician-service", () => ({
     ClinicianService: {
-        getClinicians: vi.fn(),
+        getClinicians: vi.fn<(...args: unknown[]) => unknown>(),
     },
 }))
 
 vi.mock("../services/permission-service", () => ({
     PermissionService: {
-        getUserPermissions: vi.fn(),
-        getPermissionSummary: vi.fn(),
-        canEditService: vi.fn(),
-        canEditRotation: vi.fn(),
-        canEditOwnSchedule: vi.fn(),
+        getUserPermissions: vi.fn<(...args: unknown[]) => unknown>(),
+        getPermissionSummary: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditService: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditRotation: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditOwnSchedule: vi.fn<(...args: unknown[]) => unknown>(),
     },
     permissionService: {},
 }))
@@ -62,6 +63,87 @@ describe("ClinicianSelector - Permission Scenarios", () => {
 
             await wrapper.vm.$nextTick()
             expect(wrapper.find(".affiliates-toggle-under-field").exists()).toBeFalsy()
+        })
+
+        it("locks selector to read-only and auto-selects once when user has only own schedule permission and 1 clinician is returned", async () => {
+            const singleClinician = {
+                mothraId: "12345",
+                fullName: "Smith, John",
+                firstName: "John",
+                lastName: "Smith",
+            }
+            mockSuccessResponse([singleClinician])
+
+            const store = usePermissionsStore()
+            vi.spyOn(store, "hasOnlyOwnSchedulePermission", "get").mockReturnValue(true)
+
+            const wrapper = createWrapper({
+                isOwnScheduleOnly: false,
+                showAffiliatesToggle: true,
+                modelValue: null,
+            })
+
+            await (wrapper.vm as any).fetchClinicians()
+            await wrapper.vm.$nextTick()
+
+            // The select should be read-only
+            const select = wrapper.find(".q-select")
+            expect(select.exists()).toBeTruthy()
+            expect(select.classes()).toContain("q-field--readonly")
+
+            // The affiliates toggle should be hidden
+            expect(wrapper.find(".affiliates-toggle-under-field").exists()).toBeFalsy()
+
+            // The sole clinician is auto-selected exactly once (no duplicate emits)
+            expect(wrapper.emitted("update:modelValue")).toHaveLength(1)
+            expect(wrapper.emitted("update:modelValue")?.[0]?.[0]).toStrictEqual(singleClinician)
+            expect(wrapper.emitted("change")).toHaveLength(1)
+            expect(wrapper.emitted("change")?.[0]?.[0]).toStrictEqual(singleClinician)
+        })
+
+        it("auto-selects the current user exactly once when isOwnScheduleOnly and user is in the list", async () => {
+            const ownUser = {
+                mothraId: "12345",
+                fullName: "Smith, John",
+                firstName: "John",
+                lastName: "Smith",
+            }
+            const otherClinician = {
+                mothraId: "67890",
+                fullName: "Doe, Jane",
+                firstName: "Jane",
+                lastName: "Doe",
+            }
+            mockSuccessResponse([ownUser, otherClinician])
+
+            const store = usePermissionsStore()
+            vi.spyOn(store, "userPermissions", "get").mockReturnValue({
+                user: { mothraId: "12345", displayName: "John Smith" },
+                permissions: {
+                    hasAdminPermission: false,
+                    hasManagePermission: false,
+                    hasEditClnSchedulesPermission: false,
+                    hasEditOwnSchedulePermission: true,
+                    servicePermissions: {},
+                    editableServiceCount: 0,
+                },
+                editableServices: [],
+            } as any)
+
+            const wrapper = createWrapper({
+                isOwnScheduleOnly: true,
+                modelValue: null,
+            })
+
+            await (wrapper.vm as any).fetchClinicians()
+            await wrapper.vm.$nextTick()
+
+            // Own-schedule block narrows the list to the current user, then the
+            // single-clinician auto-select emits exactly once (no duplicate update:modelValue).
+            expect(wrapper.emitted("update:modelValue")).toHaveLength(1)
+            expect(wrapper.emitted("update:modelValue")?.[0]?.[0]).toStrictEqual(ownUser)
+            expect(wrapper.emitted("change")).toHaveLength(1)
+            expect(wrapper.emitted("change")?.[0]?.[0]).toStrictEqual(ownUser)
         })
     })
 

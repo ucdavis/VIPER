@@ -6,18 +6,20 @@ namespace Viper.Areas.ClinicalScheduler.Services
     public class ClinicalSchedulerNavMenu
     {
         private readonly RAPSContext _rapsContext;
+        private readonly ISchedulePermissionService _permissionService;
 
-        public ClinicalSchedulerNavMenu(RAPSContext context)
+        public ClinicalSchedulerNavMenu(RAPSContext context, ISchedulePermissionService permissionService)
         {
             _rapsContext = context;
+            _permissionService = permissionService;
         }
 
-        public NavMenu Nav()
+        public async Task<NavMenu> Nav(CancellationToken cancellationToken = default)
         {
             var oldViperUrl = HttpHelper.GetOldViperRootURL();
             var userHelper = new UserHelper();
             var user = userHelper.GetCurrentUser();
-            var hasAccess = userHelper.HasPermission(_rapsContext, user, "SVMSecure.ClnSched");
+            var hasAccess = userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Base);
 
             var nav = new List<NavMenuItem>
             {
@@ -27,8 +29,21 @@ namespace Viper.Areas.ClinicalScheduler.Services
             if (hasAccess)
             {
                 nav.Add(new NavMenuItem { MenuItemText = "Clinical Scheduler 2.0", MenuItemURL = "~/ClinicalScheduler/" });
-                nav.Add(new NavMenuItem { MenuItemText = "Schedule by Rotation", MenuItemURL = "~/ClinicalScheduler/rotation", IndentLevel = 1 });
-                nav.Add(new NavMenuItem { MenuItemText = "Schedule by Clinician", MenuItemURL = "~/ClinicalScheduler/clinician", IndentLevel = 1 });
+
+                // Only show the sub-views the user can actually open. These checks mirror the
+                // client-side canAccessRotationView / canAccessClinicianView getters so the nav
+                // does not advertise a view that the Vue app will reject with "Access Denied".
+                if (await _permissionService.CanAccessRotationViewAsync(cancellationToken))
+                {
+                    nav.Add(new NavMenuItem { MenuItemText = "Schedule by Rotation", MenuItemURL = "~/ClinicalScheduler/rotation", IndentLevel = 1 });
+                }
+
+                if (await _permissionService.CanAccessClinicianViewAsync(cancellationToken))
+                {
+                    var clinicianLabel = await _permissionService.GetClinicianViewLabelAsync(cancellationToken);
+                    nav.Add(new NavMenuItem { MenuItemText = clinicianLabel, MenuItemURL = "~/ClinicalScheduler/clinician", IndentLevel = 1 });
+                }
+
                 nav.Add(new NavMenuItem { MenuItemText = "Clinical Scheduler 1.0", MenuItemURL = $"{oldViperUrl}/clinicalScheduler/" });
             }
 

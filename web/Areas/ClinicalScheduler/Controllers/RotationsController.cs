@@ -22,11 +22,13 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         private readonly IRotationService _rotationService;
         private readonly ISchedulePermissionService _permissionService;
         private readonly IEvaluationPolicyService _evaluationPolicyService;
+        private readonly IUserHelper _userHelper;
 
         public RotationsController(ClinicalSchedulerContext context,
             IGradYearService gradYearService, IWeekService weekService, IRotationService rotationService,
             ISchedulePermissionService permissionService, IEvaluationPolicyService evaluationPolicyService,
-            ILogger<RotationsController> logger)
+            ILogger<RotationsController> logger,
+            IUserHelper userHelper)
             : base(gradYearService, logger)
         {
             _context = context;
@@ -34,6 +36,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             _rotationService = rotationService;
             _permissionService = permissionService;
             _evaluationPolicyService = evaluationPolicyService;
+            _userHelper = userHelper;
         }
 
 
@@ -43,11 +46,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get all rotations with optional filtering
         /// </summary>
         /// <param name="serviceId">Optional service ID to filter by</param>
+        /// <param name="clinicianMothraId">When it matches the current user's mothra ID, own-schedule users see all rotations (self-scheduling)</param>
         /// <returns>List of rotations</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotations(int? serviceId = null)
+        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotations(int? serviceId = null, [FromQuery] string? clinicianMothraId = null)
         {
             if (!ModelState.IsValid)
             {
@@ -63,9 +67,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     ? await _rotationService.GetRotationsByServiceAsync(serviceId.Value, HttpContext.RequestAborted)
                     : await _rotationService.GetRotationsAsync(HttpContext.RequestAborted);
 
-                // Filter rotations based on user permissions
-                var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
-                var filteredRotations = rotations.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
+                // Filter rotations based on user permissions (self-scheduling own-schedule users see all)
+                var filteredRotations = await FilterRotationsByPermissionAsync(rotations, clinicianMothraId, HttpContext.RequestAborted);
 
                 _logger.LogDebug("Retrieved {Count} rotations, filtered to {FilteredCount} based on permissions",
                     rotations.Count, filteredRotations.Count);
@@ -246,11 +249,12 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
         /// Get rotations that have scheduled weeks for a specific year
         /// </summary>
         /// <param name="year">Year to filter by (optional, defaults to current year)</param>
+        /// <param name="clinicianMothraId">When it matches the current user's mothra ID, own-schedule users see all rotations (self-scheduling)</param>
         /// <returns>List of rotations with scheduled weeks</returns>
         [HttpGet("with-scheduled-weeks")]
         [ProducesResponseType(typeof(IEnumerable<RotationDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotationsWithScheduledWeeks([FromQuery] int? year = null)
+        public async Task<ActionResult<IEnumerable<RotationDto>>> GetRotationsWithScheduledWeeks([FromQuery] int? year = null, [FromQuery] string? clinicianMothraId = null)
         {
             if (!ModelState.IsValid)
             {
@@ -292,9 +296,8 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     })
                     .ToListAsync();
 
-                // Filter results based on user permissions
-                var allowedServiceIds = await GetAllowedServiceIdsAsync(HttpContext.RequestAborted);
-                var filteredRotations = rotationsWithSchedules.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
+                // Filter results based on user permissions (self-scheduling own-schedule users see all)
+                var filteredRotations = await FilterRotationsByPermissionAsync(rotationsWithSchedules, clinicianMothraId, HttpContext.RequestAborted);
 
                 _logger.LogInformation("Retrieved {Count} rotations with scheduled weeks for year {Year} (filtered to {FilteredCount})", rotationsWithSchedules.Count, LogSanitizer.SanitizeYear(targetYear), filteredRotations.Count);
                 return Ok(filteredRotations);
@@ -354,6 +357,31 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 ServiceCount = summary.Count,
                 Services = summary
             });
+        }
+
+        /// <summary>
+        /// Filter a rotation list by the current user's permissions. A self-scheduling own-schedule
+        /// user (identified by passing their own mothra ID) sees the full list so they can add any
+        /// rotation to their own schedule; everyone else is filtered to the services they can edit.
+        /// Shared by GetRotations and GetRotationsWithScheduledWeeks so both paths stay consistent and
+        /// the own-schedule rotation dropdown never silently empties on one endpoint but not the other.
+        /// </summary>
+        private async Task<List<RotationDto>> FilterRotationsByPermissionAsync(
+            List<RotationDto> rotations, string? clinicianMothraId, CancellationToken cancellationToken)
+        {
+            if (!string.IsNullOrEmpty(clinicianMothraId))
+            {
+                var currentUser = _userHelper.GetCurrentUser();
+                if (currentUser != null &&
+                    currentUser.MothraId.Equals(clinicianMothraId, StringComparison.OrdinalIgnoreCase) &&
+                    await _permissionService.HasEditOwnSchedulePermissionAsync(cancellationToken))
+                {
+                    return rotations;
+                }
+            }
+
+            var allowedServiceIds = await GetAllowedServiceIdsAsync(cancellationToken);
+            return rotations.Where(r => allowedServiceIds.Contains(r.ServiceId)).ToList();
         }
 
         /// <summary>

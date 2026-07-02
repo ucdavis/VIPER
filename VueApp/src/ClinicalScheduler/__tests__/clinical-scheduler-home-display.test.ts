@@ -52,7 +52,22 @@ describe("ClinicalSchedulerHome - Display Content", () => {
             })
 
             expect(wrapper.text()).toContain("Schedule clinicians for a specific rotation")
-            expect(wrapper.text()).toContain("Schedule rotations for a specific clinician")
+            expect(wrapper.text()).toContain("Schedule rotations for a clinician")
+        })
+
+        it("shows own-schedule description for own-schedule users", () => {
+            mockPermissionsStore.hasAnyEditPermission = true
+            mockPermissionsStore.hasOnlyOwnSchedulePermission = true
+            mockPermissionsStore.canAccessClinicianView = true
+            mockPermissionsStore.canAccessRotationView = false
+            mockPermissionsStore.clinicianViewLabel = "Edit My Schedule"
+
+            const wrapper = createTestWrapper({
+                component: ClinicalSchedulerHome,
+                router,
+            })
+
+            expect(wrapper.text()).toContain("Schedule your own rotations")
         })
     })
 })

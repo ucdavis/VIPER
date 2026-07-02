@@ -81,6 +81,7 @@ interface Props {
     onlyWithScheduledWeeks?: boolean
     excludeRotationNames?: string[] // For filtering out already assigned rotations
     hideBottomSpace?: boolean
+    clinicianMothraId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -90,6 +91,7 @@ const props = withDefaults(defineProps<Props>(), {
     onlyWithScheduledWeeks: false,
     excludeRotationNames: () => [],
     hideBottomSpace: false,
+    clinicianMothraId: null,
 })
 
 // Emits
@@ -110,6 +112,11 @@ const isLoading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref("")
 
+// Guards against out-of-order responses: onMounted plus four prop watches can all
+// trigger loadRotations concurrently, and a slower earlier request could otherwise
+// overwrite a faster later one.
+let latestRequestId = 0
+
 // Computed
 const selectedRotation = computed({
     get: () => {
@@ -123,6 +130,7 @@ const selectedRotation = computed({
 
 // Methods
 async function loadRotations() {
+    const requestId = ++latestRequestId
     isLoading.value = true
     error.value = null
 
@@ -133,13 +141,18 @@ async function loadRotations() {
             // Use the new API that only returns rotations with scheduled weeks
             result = await RotationService.getRotationsWithScheduledWeeks({
                 year: props.year || undefined,
+                clinicianMothraId: props.clinicianMothraId || undefined,
             })
         } else {
             // Use the original API that returns all rotations
             result = await RotationService.getRotations({
                 serviceId: props.serviceFilter || undefined,
+                clinicianMothraId: props.clinicianMothraId || undefined,
             })
         }
+
+        // A newer request has since started; this response is stale, so drop it.
+        if (requestId !== latestRequestId) return
 
         if (result.success) {
             // Filter out excluded rotation names and system-excluded rotations
@@ -165,9 +178,12 @@ async function loadRotations() {
             error.value = result.errors.join(", ") || "Failed to load rotations"
         }
     } catch {
+        if (requestId !== latestRequestId) return
         error.value = "An unexpected error occurred while loading rotations"
     } finally {
-        isLoading.value = false
+        if (requestId === latestRequestId) {
+            isLoading.value = false
+        }
     }
 }
 
@@ -221,6 +237,14 @@ watch(
 
 watch(
     () => props.onlyWithScheduledWeeks,
+    () => {
+        void loadRotations()
+    },
+)
+
+// Refetch when the target clinician changes so the self-scheduling rotation list stays in sync
+watch(
+    () => props.clinicianMothraId,
     () => {
         void loadRotations()
     },
