@@ -80,6 +80,8 @@ namespace Viper.Areas.CMS.Services
 
         public async Task<LeftNavMenuDto> CreateMenuAsync(LeftNavMenuAddEdit request, CancellationToken ct = default)
         {
+            await AssertFriendlyNameUniqueAsync(request.FriendlyName, null, ct);
+
             var menu = new LeftNavMenu();
             ApplyMenuFields(menu, request);
             menu.ModifiedOn = DateTime.Now;
@@ -97,6 +99,8 @@ namespace Viper.Areas.CMS.Services
             {
                 return null;
             }
+
+            await AssertFriendlyNameUniqueAsync(request.FriendlyName, leftNavMenuId, ct);
 
             ApplyMenuFields(menu, request);
             menu.ModifiedOn = DateTime.Now;
@@ -126,10 +130,27 @@ namespace Viper.Areas.CMS.Services
 
         public async Task<LeftNavMenuDto?> SaveItemsAsync(int leftNavMenuId, List<LeftNavItemEdit> items, CancellationToken ct = default)
         {
+            // Reject duplicate ids up front so every caller gets the guard (was in the controller).
+            if (items.Where(i => i.LeftNavItemId > 0).GroupBy(i => i.LeftNavItemId).Any(g => g.Count() > 1))
+            {
+                throw new ArgumentException("Duplicate item ids are not allowed.");
+            }
+
             var menu = await LoadMenuAsync(leftNavMenuId, tracking: true, ct);
             if (menu == null)
             {
                 return null;
+            }
+
+            var existingById = menu.LeftNavItems.ToDictionary(i => i.LeftNavItemId);
+
+            // A supplied id that isn't in this menu means the client's copy is stale (the item was
+            // deleted, or belongs to another menu). Reject rather than silently resurrecting it as a
+            // new row.
+            if (items.Any(i => i.LeftNavItemId > 0 && !existingById.ContainsKey(i.LeftNavItemId)))
+            {
+                throw new InvalidOperationException(
+                    "One or more items no longer exist in this menu. Reload and try again.");
             }
 
             var requestedIds = items.Where(i => i.LeftNavItemId > 0).Select(i => i.LeftNavItemId).ToHashSet();
@@ -142,7 +163,6 @@ namespace Viper.Areas.CMS.Services
                 menu.LeftNavItems.Remove(item);
             }
 
-            var existingById = menu.LeftNavItems.ToDictionary(i => i.LeftNavItemId);
             int order = 1;
             foreach (var requested in items)
             {
@@ -178,6 +198,26 @@ namespace Viper.Areas.CMS.Services
 
             await _context.SaveChangesAsync(ct);
             return await GetMenuAsync(leftNavMenuId, ct);
+        }
+
+        // FriendlyName resolves menus in LayoutController via FirstOrDefault, so duplicates make
+        // resolution nondeterministic. Reject them case-insensitively at write time. SQL Server's
+        // default collation is case-insensitive; ToLower keeps the check correct on other providers.
+        private async Task AssertFriendlyNameUniqueAsync(string? friendlyName, int? exceptMenuId, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(friendlyName))
+            {
+                return;
+            }
+
+            var normalized = friendlyName.ToLower();
+            bool taken = await _context.LeftNavMenus
+                .AnyAsync(m => m.FriendlyName != null && m.FriendlyName.ToLower() == normalized
+                    && (exceptMenuId == null || m.LeftNavMenuId != exceptMenuId), ct);
+            if (taken)
+            {
+                throw new ArgumentException("Friendly name must be unique.");
+            }
         }
 
         private async Task<LeftNavMenu?> LoadMenuAsync(int leftNavMenuId, bool tracking, CancellationToken ct)

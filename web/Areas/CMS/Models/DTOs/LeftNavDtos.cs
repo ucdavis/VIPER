@@ -27,23 +27,25 @@ namespace Viper.Areas.CMS.Models.DTOs
         public List<string> Permissions { get; set; } = new();
     }
 
+    // MaxLength values mirror the LeftNavMenu column sizes in VIPERContext so an over-long value
+    // is rejected as a 400 rather than surfacing as a 500 when SQL Server truncates/rejects it.
     public class LeftNavMenuAddEdit
     {
         [Required]
-        [MaxLength(500)]
+        [MaxLength(100)]
         public string MenuHeaderText { get; set; } = string.Empty;
 
         [Required]
         [MaxLength(50)]
         public string System { get; set; } = "Viper";
 
-        [MaxLength(250)]
+        [MaxLength(100)]
         public string? ViperSectionPath { get; set; }
 
-        [MaxLength(250)]
+        [MaxLength(200)]
         public string? Page { get; set; }
 
-        [MaxLength(250)]
+        [MaxLength(100)]
         public string? FriendlyName { get; set; }
     }
 
@@ -59,16 +61,18 @@ namespace Viper.Areas.CMS.Models.DTOs
         public int LeftNavItemId { get; set; }
 
         [Required]
-        [MaxLength(500)]
+        [MaxLength(250)]
         public string MenuItemText { get; set; } = string.Empty;
 
         [JsonRequired]
         public bool IsHeader { get; set; }
 
-        [MaxLength(1000)]
+        [MaxLength(250)]
         [SafeUrl(AllowRelative = true)]
         public string? Url { get; set; }
 
+        // Each permission is stored in the varchar(500) LeftNavItemToPermission.permission column.
+        [MaxLengthEach(500)]
         public List<string> Permissions { get; set; } = new();
     }
 }

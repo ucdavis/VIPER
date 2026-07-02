@@ -119,6 +119,38 @@ public sealed class CmsLeftNavServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateMenu_DuplicateFriendlyName_ThrowsCaseInsensitive()
+    {
+        await SeedMenuAsync(m => m.FriendlyName = "cats-home");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateMenuAsync(new LeftNavMenuAddEdit
+        {
+            MenuHeaderText = "Dup",
+            System = "Viper",
+            FriendlyName = "CATS-HOME"
+        }, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateMenu_DuplicateFriendlyName_Rejected_ButKeepingOwnIsAllowed()
+    {
+        var alpha = await SeedMenuAsync(m => m.FriendlyName = "alpha");
+        var beta = await SeedMenuAsync(m => m.FriendlyName = "beta");
+
+        // Renaming beta onto alpha's friendly name (any case) is rejected.
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateMenuAsync(beta.LeftNavMenuId,
+            new LeftNavMenuAddEdit { MenuHeaderText = "B", System = "Viper", FriendlyName = "ALPHA" },
+            TestContext.Current.CancellationToken));
+
+        // Keeping its own friendly name (self-match excluded) is allowed.
+        var updated = await _service.UpdateMenuAsync(alpha.LeftNavMenuId,
+            new LeftNavMenuAddEdit { MenuHeaderText = "A renamed", System = "Viper", FriendlyName = "ALPHA" },
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(updated);
+    }
+
+    [Fact]
     public async Task DeleteMenu_CascadesToItemsAndPermissions()
     {
         var menu = await SeedMenuAsync(m => m.LeftNavItems.Add(MakeItem("Link", 1, url: "/x", permissions: "SVMSecure.CATS")));
@@ -177,5 +209,35 @@ public sealed class CmsLeftNavServiceTests : IDisposable
         var dto = await _service.SaveItemsAsync(9999, new List<LeftNavItemEdit>(), TestContext.Current.CancellationToken);
 
         Assert.Null(dto);
+    }
+
+    [Fact]
+    public async Task SaveItems_UnknownItemId_Throws_AndDoesNotResurrect()
+    {
+        var menu = await SeedMenuAsync(m => m.LeftNavItems.Add(MakeItem("Keep Me", 1, url: "/keep")));
+
+        // A stale client posts an id that no longer exists in the menu.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SaveItemsAsync(menu.LeftNavMenuId,
+            new List<LeftNavItemEdit>
+            {
+                new() { LeftNavItemId = 987654, MenuItemText = "Deleted Elsewhere" }
+            }, TestContext.Current.CancellationToken));
+
+        // Nothing was created; the menu still holds only its original item.
+        Assert.Equal(1, await _context.LeftNavItems.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SaveItems_DuplicateItemIds_ThrowsArgumentException()
+    {
+        var menu = await SeedMenuAsync(m => m.LeftNavItems.Add(MakeItem("Keep Me", 1, url: "/keep")));
+        var keepId = menu.LeftNavItems.First().LeftNavItemId;
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveItemsAsync(menu.LeftNavMenuId,
+            new List<LeftNavItemEdit>
+            {
+                new() { LeftNavItemId = keepId, MenuItemText = "A" },
+                new() { LeftNavItemId = keepId, MenuItemText = "B" }
+            }, TestContext.Current.CancellationToken));
     }
 }
