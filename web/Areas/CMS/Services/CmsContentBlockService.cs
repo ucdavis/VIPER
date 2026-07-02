@@ -20,8 +20,9 @@ namespace Viper.Areas.CMS.Services
 
     public interface ICmsContentBlockService
     {
-        Task<List<ContentBlockDto>> GetContentBlocksAsync(string status, string? system, string? viperSectionPath,
-            string? search, bool? isPublic = null, CancellationToken ct = default);
+        Task<(List<ContentBlockDto> Blocks, int Total)> GetContentBlocksAsync(string status, string? system,
+            string? viperSectionPath, string? search, bool? isPublic, int page, int perPage, string? sortBy,
+            bool descending, CancellationToken ct = default);
 
         Task<ContentBlockDto?> GetContentBlockAsync(int contentBlockId, CancellationToken ct = default);
 
@@ -84,8 +85,9 @@ namespace Viper.Areas.CMS.Services
             _userHelper = userHelper;
         }
 
-        public async Task<List<ContentBlockDto>> GetContentBlocksAsync(string status, string? system,
-            string? viperSectionPath, string? search, bool? isPublic = null, CancellationToken ct = default)
+        public async Task<(List<ContentBlockDto> Blocks, int Total)> GetContentBlocksAsync(string status, string? system,
+            string? viperSectionPath, string? search, bool? isPublic, int page, int perPage, string? sortBy,
+            bool descending, CancellationToken ct = default)
         {
             var query = _context.ContentBlocks
                 .AsNoTracking()
@@ -122,10 +124,25 @@ namespace Viper.Areas.CMS.Services
                     || b.Content.Contains(search));
             }
 
+            int total = await query.CountAsync(ct);
+
+            query = (sortBy?.ToLowerInvariant(), descending) switch
+            {
+                ("vipersectionpath", false) => query.OrderBy(b => b.ViperSectionPath).ThenBy(b => b.Title),
+                ("vipersectionpath", true) => query.OrderByDescending(b => b.ViperSectionPath).ThenBy(b => b.Title),
+                ("page", false) => query.OrderBy(b => b.Page).ThenBy(b => b.Title),
+                ("page", true) => query.OrderByDescending(b => b.Page).ThenBy(b => b.Title),
+                ("modifiedon", false) => query.OrderBy(b => b.ModifiedOn),
+                ("modifiedon", true) => query.OrderByDescending(b => b.ModifiedOn),
+                (_, true) => query.OrderByDescending(b => b.Title),
+                _ => query.OrderBy(b => b.Title)
+            };
+
             // List view: project without Content (it can be large) — the editor loads the full
             // block. Two stages because GetFriendlyURL reads HttpContext and can't translate to SQL.
             var blocks = await query
-                .OrderBy(b => b.Title)
+                .Skip((page - 1) * perPage)
+                .Take(perPage)
                 .Select(b => new
                 {
                     b.ContentBlockId,
@@ -156,7 +173,7 @@ namespace Viper.Areas.CMS.Services
                 })
                 .ToListAsync(ct);
 
-            return blocks.Select(b => new ContentBlockDto
+            var dtos = blocks.Select(b => new ContentBlockDto
             {
                 ContentBlockId = b.ContentBlockId,
                 Title = b.Title,
@@ -178,6 +195,8 @@ namespace Viper.Areas.CMS.Services
                     Url = Data.CMS.GetFriendlyURL(f.FriendlyName, f.AllowPublicAccess)
                 }).ToList()
             }).ToList();
+
+            return (dtos, total);
         }
 
         public async Task<ContentBlockDto?> GetContentBlockAsync(int contentBlockId, CancellationToken ct = default)

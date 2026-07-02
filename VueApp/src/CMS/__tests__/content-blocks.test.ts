@@ -2,9 +2,10 @@ import ContentBlocks from "@/CMS/pages/ContentBlocks.vue"
 import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-utils"
 
 /**
- * Representative page filter-state test: filter inputs must drive the right query params on the
- * list request, and returned rows must bind to the table. Mock ViperFetch; section-paths and
- * block list both go through get().
+ * ContentBlocks is a server-paged list (like Files): filter inputs must drive the right query
+ * params on the paged list request, page/sort ride through onRequest, and rowsNumber binds from
+ * the response pagination envelope. Mock ViperFetch; section-paths and the paged list both go
+ * through get(), routed by URL.
  */
 
 const mockGet = vi.fn<(...args: unknown[]) => unknown>()
@@ -42,8 +43,10 @@ const BLOCK_ROW = {
     modifiedBy: "u",
 }
 
-// The list endpoint is the one without "/section-paths"; route by URL.
-function routeGet(blockRows: unknown[] = [BLOCK_ROW]) {
+// The list endpoint is the one without "/section-paths"; route by URL. Returns a paged
+// envelope carrying totalRecords when a total is given (else falls back to row count).
+function routeGet(opts: { rows?: unknown[]; total?: number } = {}) {
+    const rows = opts.rows ?? [BLOCK_ROW]
     mockGet.mockReset()
     mockDel.mockReset()
     mockPost.mockReset()
@@ -52,7 +55,11 @@ function routeGet(blockRows: unknown[] = [BLOCK_ROW]) {
         if (url.includes("/section-paths")) {
             return Promise.resolve({ success: true, result: ["/a", "/b"] })
         }
-        return Promise.resolve({ success: true, result: blockRows })
+        return Promise.resolve({
+            success: true,
+            result: rows,
+            pagination: opts.total === undefined ? undefined : { totalRecords: opts.total },
+        })
     })
 }
 
@@ -72,14 +79,27 @@ async function mountPage(query: Record<string, string> = {}) {
 }
 
 describe("ContentBlocks.vue - filter-driven query params", () => {
-    beforeEach(() => routeGet())
+    beforeEach(() => routeGet({ total: 42 }))
 
-    it("requests with the default active status on mount and binds returned rows", async () => {
+    it("requests page 1 with default sort and active status on mount, binding rows and rowsNumber", async () => {
         const { wrapper } = await mountPage()
-        expect(lastListUrl()).toContain("status=active")
-        // Returned row binds to the table.
+        const url = lastListUrl()
+        expect(url).toContain("status=active")
+        expect(url).toContain("page=1")
+        expect(url).toContain("perPage=50")
+        expect(url).toContain("sortBy=title")
+        // Returned row binds to the table, and rowsNumber comes from the pagination envelope.
         expect(wrapper.findComponent({ name: "QTable" }).props("rows")).toHaveLength(1)
         expect(wrapper.text()).toContain("Welcome")
+        const pag = wrapper.findComponent({ name: "QTable" }).props("pagination") as { rowsNumber: number }
+        expect(pag.rowsNumber).toBe(42)
+    })
+
+    it("falls back to result length for rowsNumber when no pagination envelope is returned", async () => {
+        routeGet({ rows: [BLOCK_ROW, { ...BLOCK_ROW, contentBlockId: 2 }] })
+        const { wrapper } = await mountPage()
+        const pag = wrapper.findComponent({ name: "QTable" }).props("pagination") as { rowsNumber: number }
+        expect(pag.rowsNumber).toBe(2)
     })
 
     it("includes the search term in the query when the search field changes", async () => {
@@ -159,6 +179,23 @@ describe("ContentBlocks.vue - URL filter sync", () => {
     })
 })
 
+describe("ContentBlocks.vue - onRequest pagination passthrough", () => {
+    beforeEach(() => routeGet({ total: 200 }))
+
+    it("uses the sort/descending/page from a table request", async () => {
+        const { wrapper } = await mountPage()
+        await wrapper.findComponent({ name: "QTable" }).vm.$emit("request", {
+            pagination: { page: 3, rowsPerPage: 25, sortBy: "modifiedOn", descending: true },
+        })
+        await flushPromises()
+        const url = lastListUrl()
+        expect(url).toContain("page=3")
+        expect(url).toContain("perPage=25")
+        expect(url).toContain("sortBy=modifiedOn")
+        expect(url).toContain("descending=true")
+    })
+})
+
 // Quasar plugin dialogs ($q.dialog) and notifications teleport to document.body. Click the LAST
 // match: a dismissed dialog's portal can linger mid-transition, so the newest dialog is the live
 // one. The body is never wiped between tests (Quasar caches its notification container there),
@@ -220,7 +257,7 @@ describe("ContentBlocks.vue - delete and restore actions", () => {
     })
 
     it("restores a deleted block and reloads the list", async () => {
-        routeGet([{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }])
+        routeGet({ rows: [{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }] })
         mockPost.mockResolvedValue({ success: true, result: null })
         const { wrapper } = await mountPage()
         const before = listCallCount()
@@ -235,7 +272,7 @@ describe("ContentBlocks.vue - delete and restore actions", () => {
     })
 
     it("notifies when the restore fails", async () => {
-        routeGet([{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }])
+        routeGet({ rows: [{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }] })
         mockPost.mockResolvedValue({ success: false, errors: ["nope"] })
         const { wrapper } = await mountPage()
 

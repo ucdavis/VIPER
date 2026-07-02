@@ -37,15 +37,27 @@ namespace Viper.Areas.CMS.Controllers
         //GET: content
         [HttpGet]
         [Permission(Allow = CmsPermissions.ManageContentBlocks)]
+        [ApiPagination(DefaultPerPage = 50, MaxPerPage = 500)]
         public async Task<ActionResult<List<ContentBlockDto>>> GetContentBlocks(
+            ApiPagination? pagination,
             string status = "active",
             string? system = null,
             string? viperSectionPath = null,
             string? search = null,
             bool? isPublic = null,
+            string? sortBy = "title",
+            bool descending = false,
             CancellationToken ct = default)
         {
-            return await _blockService.GetContentBlocksAsync(status, system, viperSectionPath, search, isPublic, ct);
+            var page = pagination?.Page ?? 1;
+            var perPage = pagination?.PerPage ?? 50;
+            var (blocks, total) = await _blockService.GetContentBlocksAsync(status, system, viperSectionPath, search,
+                isPublic, page, perPage, sortBy, descending, ct);
+            if (pagination != null)
+            {
+                pagination.TotalRecords = total;
+            }
+            return blocks;
         }
 
         //GET: content/section-paths

@@ -104,14 +104,15 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetContentBlocks_PassesFiltersThrough()
     {
         var blocks = new List<ContentBlockDto> { Block() };
-        _blockService.GetContentBlocksAsync("deleted", "Viper", "cats", "search", true, Arg.Any<CancellationToken>())
-            .Returns(blocks);
+        _blockService.GetContentBlocksAsync("deleted", "Viper", "cats", "search", true, 1, 50, "title", false,
+            Arg.Any<CancellationToken>()).Returns((blocks, 1));
 
-        var result = await _controller.GetContentBlocks("deleted", "Viper", "cats", "search", true, TestContext.Current.CancellationToken);
+        var result = await _controller.GetContentBlocks(null, "deleted", "Viper", "cats", "search", true,
+            ct: TestContext.Current.CancellationToken);
 
         Assert.Same(blocks, result.Value);
-        await _blockService.Received(1).GetContentBlocksAsync("deleted", "Viper", "cats", "search", true,
-            Arg.Any<CancellationToken>());
+        await _blockService.Received(1).GetContentBlocksAsync("deleted", "Viper", "cats", "search", true, 1, 50,
+            "title", false, Arg.Any<CancellationToken>());
     }
 
     [Fact]

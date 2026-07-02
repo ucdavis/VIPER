@@ -19,6 +19,7 @@
                     v-model="filters.status"
                     dense
                     options-dense
+                    outlined
                     emit-value
                     map-options
                     label="Status"
@@ -31,6 +32,7 @@
                     v-model="filters.viperSectionPath"
                     dense
                     options-dense
+                    outlined
                     clearable
                     label="VIPER section"
                     :options="sectionPaths"
@@ -42,6 +44,7 @@
                     v-model="filters.search"
                     dense
                     clearable
+                    outlined
                     debounce="400"
                     label="Search title, name, page, or content"
                     @update:model-value="reload"
@@ -61,17 +64,20 @@
             </div>
         </div>
 
+        <!-- Server-paged like Files: rows come back one page at a time, so no "All" (0) option.
+             Card mode at lt.sm matches Files (both have six columns), not the old lt.md. -->
         <q-table
             :rows="blocks"
             :columns="columns"
             row-key="contentBlockId"
             :loading="loading"
-            :pagination="{ rowsPerPage: 50, sortBy: 'title' }"
-            :rows-per-page-options="[25, 50, 100, 0]"
-            :grid="$q.screen.lt.md"
+            v-model:pagination="pagination"
+            :rows-per-page-options="[25, 50, 100, 250]"
+            :grid="$q.screen.lt.sm"
             dense
             flat
             bordered
+            @request="onRequest"
         >
             <template #body-cell-title="cellProps">
                 <q-td :props="cellProps">
@@ -199,6 +205,7 @@ import { inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useServerTable } from "@/CMS/composables/use-server-table"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
@@ -212,11 +219,9 @@ const apiURL = inject("apiURL") + "CMS/content"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
-const { get, del, post, createUrlSearchParams } = useFetch()
+const { get, del, post } = useFetch()
 
-const blocks = ref<CmsContentBlock[]>([])
 const sectionPaths = ref<string[]>([])
-const loading = ref(false)
 
 // Filters initialize from the URL so views can be shared/deep-linked, matching
 // the Files list and audit trail.
@@ -255,24 +260,35 @@ const columns: QTableProps["columns"] = [
     { name: "actions", label: "Actions", field: "contentBlockId", align: "center" },
 ]
 
-async function loadBlocks() {
-    loading.value = true
-    const params = createUrlSearchParams({
+// Server-paged list, mirroring Files: useServerTable owns rows/loading/pagination and
+// issues the GET on @request; buildParams maps the current filters + page/sort each request.
+const {
+    rows: blocks,
+    loading,
+    pagination,
+    onRequest,
+    reloadFirstPage,
+} = useServerTable<CmsContentBlock>({
+    url: apiURL,
+    errorMessage: "Failed to load content blocks",
+    pagination: { sortBy: "title", descending: false },
+    buildParams: (p) => ({
         status: filters.value.status,
         viperSectionPath: filters.value.viperSectionPath,
         search: filters.value.search || null,
         isPublic: filters.value.publicOnly ? "true" : null,
-    })
-    const res = await get(apiURL + "?" + params)
-    blocks.value = res.success ? res.result : []
-    loading.value = false
-}
+        page: p.page,
+        perPage: p.rowsPerPage,
+        sortBy: p.sortBy ?? "title",
+        descending: p.descending ? "true" : "false",
+    }),
+})
 
-// Filter changes both reload the list and update the URL; the route watcher
+// Filter changes both reload the list (from page 1) and update the URL; the route watcher
 // guards against re-fetching on our own URL write.
 function reload() {
     syncFiltersToUrl()
-    loadBlocks()
+    void reloadFirstPage()
 }
 
 async function loadSectionPaths() {
@@ -300,7 +316,7 @@ async function deleteBlock(block: CmsContentBlock) {
         return
     }
     $q.notify({ type: "positive", message: "Content block marked as deleted" })
-    loadBlocks()
+    reload()
 }
 
 async function restoreBlock(block: CmsContentBlock) {
@@ -310,7 +326,7 @@ async function restoreBlock(block: CmsContentBlock) {
         return
     }
     $q.notify({ type: "positive", message: "Content block restored" })
-    loadBlocks()
+    reload()
 }
 
 // Re-sync filters when in-app navigation reuses this view with a different query
@@ -335,12 +351,12 @@ watch(
             return
         }
         filters.value = next
-        loadBlocks()
+        void reloadFirstPage()
     },
 )
 
 onMounted(() => {
     loadSectionPaths()
-    loadBlocks()
+    reload()
 })
 </script>
