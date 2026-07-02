@@ -162,7 +162,7 @@ async function loadLinks(collectionId: number) {
     }
 
     const r = await get(baseUrl)
-    links.value = r.result as Link[]
+    links.value = r.success && Array.isArray(r.result) ? (r.result as Link[]) : []
     filteredLinks.value = links.value
 }
 

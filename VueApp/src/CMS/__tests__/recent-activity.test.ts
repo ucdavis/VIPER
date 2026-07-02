@@ -191,8 +191,10 @@ describe("recentActivity.vue - deleted files and item actions", () => {
 
         expect(wrapper.text()).toContain("Gone file")
         expect(wrapper.text()).toContain("deleted")
+        // The row's single anchor is the stretched title link (controls must not nest in an anchor).
         const item = wrapper.findAllComponents({ name: "QItem" }).find((i) => i.text().includes("Gone file"))!
-        expect(item.props("to")).toStrictEqual({
+        const titleLink = item.findComponent({ name: "RouterLink" })
+        expect(titleLink.props("to")).toStrictEqual({
             name: "CmsFiles",
             query: { status: "deleted", search: "Gone file" },
         })

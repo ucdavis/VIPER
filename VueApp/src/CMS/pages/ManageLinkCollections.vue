@@ -618,7 +618,8 @@ async function loadLinks() {
     const { get } = useFetch()
     if (collectionId.value) {
         const res = await get(apiURL + collectionId.value + "/links")
-        links.value = res.result.map((r: any) => {
+        const result = res.success && Array.isArray(res.result) ? res.result : []
+        links.value = result.map((r: any) => {
             return { ...r, tags: getTagRecord(r) }
         })
     } else {
@@ -791,7 +792,7 @@ async function loadTags() {
     const { get } = useFetch()
     if (collectionId.value) {
         const res = await get(apiURL + collectionId.value + "/tags")
-        collectionTags.value = res.result
+        collectionTags.value = res.success && Array.isArray(res.result) ? res.result : []
     } else {
         collectionTags.value = []
     }

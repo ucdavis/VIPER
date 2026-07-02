@@ -8,9 +8,11 @@ import { nextTick } from "vue"
  */
 export function useRouteFocus(router: Router) {
     router.afterEach((to, from) => {
-        // In-page anchor navigation (skip links): the browser already moved
-        // focus to the fragment target; don't steal it back to <main>.
-        if (to.path === from.path && to.hash) {
+        // Same-path navigations never move focus. In-page anchors (skip links): the
+        // browser already focused the fragment target. Query-only updates (URL-synced
+        // filters, debounced searches): the user is mid-interaction in a control, and
+        // yanking focus to <main> would eat their keystrokes.
+        if (to.path === from.path) {
             return
         }
         nextTick(() => {

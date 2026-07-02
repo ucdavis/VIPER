@@ -327,6 +327,7 @@
             </div>
         </q-form>
 
+        <!-- Always diffs the editor's current content against an existing history entry, so a comparison always exists -->
         <ContentDiffDialog
             v-model="diffViewer.open"
             :loading="diffViewer.loading"
@@ -334,6 +335,7 @@
             :subtitle="diffViewer.subtitle"
             :diff-html="diffViewer.content"
             :has-changes="diffViewer.hasChanges"
+            :has-comparison="true"
         />
     </div>
 </template>

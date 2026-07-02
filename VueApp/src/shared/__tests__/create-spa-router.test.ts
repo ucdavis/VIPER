@@ -15,7 +15,7 @@ describe("createSpaRouter scroll behavior", () => {
     const scrollBehavior = router.options.scrollBehavior!
 
     it("scrolls to top when navigating to a different page", () => {
-        expect(scrollBehavior(route("/b"), route("/a"), null)).toEqual({ left: 0, top: 0 })
+        expect(scrollBehavior(route("/b"), route("/a"), null)).toStrictEqual({ left: 0, top: 0 })
     })
 
     it("keeps scroll position for query-only changes on the same page", () => {
@@ -23,11 +23,11 @@ describe("createSpaRouter scroll behavior", () => {
     })
 
     it("scrolls to the fragment target when navigating to a hash on another page", () => {
-        expect(scrollBehavior(route("/b", "#section"), route("/a"), null)).toEqual({ el: "#section" })
+        expect(scrollBehavior(route("/b", "#section"), route("/a"), null)).toStrictEqual({ el: "#section" })
     })
 
     it("scrolls to the fragment target when the hash changes on the same page", () => {
-        expect(scrollBehavior(route("/a", "#section"), route("/a"), null)).toEqual({ el: "#section" })
+        expect(scrollBehavior(route("/a", "#section"), route("/a"), null)).toStrictEqual({ el: "#section" })
     })
 
     it("keeps scroll position for query-only changes when the hash is unchanged", () => {
@@ -74,6 +74,21 @@ describe("route-change focus management", () => {
         const skipTarget = document.querySelector<HTMLElement>("#leftNavMenu")!
         skipTarget.focus()
         await router.push({ path: "/other", hash: "#leftNavMenu" })
+        await nextTick()
+
+        expect(document.activeElement?.id).toBe("leftNavMenu")
+    })
+
+    it("does not steal focus on query-only navigation (URL-synced filters)", async () => {
+        // Filter changes replace the route with new query params while the user is
+        // typing/selecting in a control; focus must stay in that control.
+        const router = buildRouter()
+        await router.push("/other")
+        await router.isReady()
+
+        const filterControl = document.querySelector<HTMLElement>("#leftNavMenu")!
+        filterControl.focus()
+        await router.replace({ path: "/other", query: { search: "abc" } })
         await nextTick()
 
         expect(document.activeElement?.id).toBe("leftNavMenu")

@@ -52,11 +52,21 @@ export function useServerTable<TRow>(options: ServerTableOptions) {
         ...options.pagination,
     })
 
+    // Monotonic sequence guarding against out-of-order responses: rapid filter changes
+    // fire overlapping GETs, and a slow earlier response must not clobber the rows of
+    // the request issued after it (same pattern as PersonSelector's searchSeq).
+    let requestSeq = 0
+
     async function onRequest(request: TableRequest) {
         const { page, rowsPerPage, sortBy, descending } = request.pagination
+        requestSeq += 1
+        const seq = requestSeq
         loading.value = true
         const params = createUrlSearchParams(options.buildParams(request.pagination))
         const res = await get(`${options.url}?${params}`)
+        if (seq !== requestSeq) {
+            return
+        }
         if (res.success) {
             rows.value = res.result
             pagination.value.rowsNumber = res.pagination?.totalRecords ?? res.result.length

@@ -26,5 +26,7 @@ namespace Viper.Areas.CMS.Models
         [MapperIgnoreTarget(nameof(ContentBlockDto.Permissions))]
         [MapperIgnoreTarget(nameof(ContentBlockDto.Files))]
         private static partial ContentBlockDto ToDtoBase(ContentBlock block);
+
+        public static partial PublicContentBlockDto ToPublicDto(ContentBlock block);
     }
 }

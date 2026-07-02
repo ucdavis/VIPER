@@ -95,7 +95,7 @@ namespace Viper.Areas.CMS.Controllers
         //GET: content/fn/{friendlyName} — public display endpoint; permission filtering happens
         //inside GetContentBlocksAllowed (public flag, block permissions, or CMS admin).
         [HttpGet("fn/{friendlyName}")]
-        public ActionResult<ContentBlockDto> GetContentBlockByFn(string friendlyName)
+        public ActionResult<PublicContentBlockDto> GetContentBlockByFn(string friendlyName)
         {
             // status: 1 = active only. A public display endpoint must never serve soft-deleted
             // blocks (passing null would include DeletedOn != null rows).
@@ -106,11 +106,12 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
 
-            // Project to a DTO so this anonymous endpoint never serializes the raw entity graph:
-            // returning the entity would leak each attached file's encryption Key and server
-            // FilePath, the full (unsanitized) ContentHistory, and the block's permission rows.
-            // Content is already render-sanitized by GetContentBlocksAllowed.
-            return CmsContentBlockMapper.ToDto(blocks[0]);
+            // Project to the public DTO so this anonymous endpoint never serializes the raw entity
+            // graph (attached-file encryption Keys, server FilePaths, unsanitized ContentHistory,
+            // permission rows) nor management metadata (editor login ids, permission names,
+            // System/section placement). Content is already render-sanitized by
+            // GetContentBlocksAllowed; display consumers read only content + title.
+            return CmsContentBlockMapper.ToPublicDto(blocks[0]);
         }
 
         //GET: content/5/history

@@ -205,6 +205,12 @@ public sealed class CMSContentControllerTests : IDisposable
         Assert.DoesNotContain("contentHistories", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("SUPER_SECRET_AES_KEY", json);
         Assert.DoesNotContain(@"S:\Files", json);
+        // No management metadata: the anonymous endpoint must not disclose editor login ids,
+        // permission names, or placement fields (PublicContentBlockDto, not ContentBlockDto).
+        Assert.DoesNotContain("modifiedBy", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("permissions", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\"system\"", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("viperSectionPath", json, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion

@@ -19,6 +19,19 @@ namespace Viper.Areas.CMS.Models.DTOs
         public List<ContentBlockFileDto> Files { get; set; } = new();
     }
 
+    /// <summary>
+    /// Shape served by the anonymous display endpoint (content/fn/{friendlyName}). Carries only
+    /// what public rendering needs; the full ContentBlockDto would disclose editor login ids,
+    /// permission names, and placement metadata to unauthenticated callers.
+    /// </summary>
+    public class PublicContentBlockDto
+    {
+        public int ContentBlockId { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public string? Title { get; set; }
+        public string? FriendlyName { get; set; }
+    }
+
     public class ContentBlockFileDto
     {
         public Guid FileGuid { get; set; }

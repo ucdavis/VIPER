@@ -3,7 +3,7 @@ import { useServerTable } from "@/CMS/composables/use-server-table"
 import { mountCms, flushPromises } from "./test-utils"
 
 /**
- * useServerTable is the server-paged QTable core shared by the CMS list pages: onRequest issues
+ * UseServerTable is the server-paged QTable core shared by the CMS list pages: onRequest issues
  * the GET built from buildParams, binds rows and rowsNumber (falling back to the row count when
  * the API returns no pagination envelope), copies the request pagination into state, and notifies
  * on failure. Direct spec so regressions surface here rather than in every list page.
@@ -68,7 +68,7 @@ describe("useServerTable", () => {
         await table.onRequest(request(2, { sortBy: "modifiedOn", descending: true }))
 
         expect(mockGet.mock.calls[0]![0]).toBe("/api/things?page=2&perPage=25&sortBy=modifiedOn&descending=true")
-        expect(table.rows.value).toEqual([{ id: 1 }])
+        expect(table.rows.value).toStrictEqual([{ id: 1 }])
         expect(table.pagination.value).toMatchObject({
             rowsNumber: 91,
             page: 2,
@@ -98,7 +98,7 @@ describe("useServerTable", () => {
 
         // The notification teleports to document.body.
         expect(document.body.textContent).toContain("backend exploded")
-        expect(table.rows.value).toEqual([{ id: 1 }])
+        expect(table.rows.value).toStrictEqual([{ id: 1 }])
         expect(table.loading.value).toBeFalsy()
     })
 
@@ -110,6 +110,27 @@ describe("useServerTable", () => {
         await flushPromises()
 
         expect(document.body.textContent).toContain("Failed to load things")
+    })
+
+    it("drops a stale response that resolves after a newer request", async () => {
+        // First request resolves LAST (slow); second request resolves first. The slow
+        // first response must not clobber the rows/pagination of the newer request.
+        let resolveFirst!: (value: unknown) => void
+        mockGet.mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+        mockGet.mockResolvedValueOnce({ success: true, result: [{ id: 2 }], pagination: { totalRecords: 1 } })
+        const table = mountTable()
+
+        const first = table.onRequest(request(1))
+        const second = table.onRequest(request(2))
+        await second
+
+        resolveFirst({ success: true, result: [{ id: 99 }], pagination: { totalRecords: 999 } })
+        await first
+        await flushPromises()
+
+        expect(table.rows.value).toStrictEqual([{ id: 2 }])
+        expect(table.pagination.value.rowsNumber).toBe(1)
+        expect(table.pagination.value.page).toBe(2)
     })
 
     it("reloadFirstPage re-requests page 1 while keeping the current sort and page size", async () => {
