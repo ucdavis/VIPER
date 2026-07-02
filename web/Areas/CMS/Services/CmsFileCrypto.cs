@@ -34,7 +34,7 @@ namespace Viper.Areas.CMS.Services
         /// </summary>
         public static string ReadMasterKey(string keyFilePath)
         {
-            string? masterKey = System.IO.File.ReadLines(keyFilePath).Skip(1).FirstOrDefault();
+            string? masterKey = File.ReadLines(keyFilePath).Skip(1).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(masterKey))
             {
                 throw new InvalidOperationException("CMS master key file is missing the key line.");

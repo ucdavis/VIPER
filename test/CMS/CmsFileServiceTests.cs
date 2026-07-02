@@ -6,6 +6,7 @@ using NSubstitute;
 using Viper.Areas.CMS.Models.DTOs;
 using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.VIPER;
 using File = Viper.Models.VIPER.File;
 
 namespace Viper.test.CMS;
@@ -25,6 +26,7 @@ public sealed class CmsFileServiceTests : IDisposable
     private readonly IUserHelper _userHelper;
     private readonly CmsFileService _service;
     private readonly List<VIPERContext> _extraContexts = new();
+    private readonly List<MemoryStream> _formFileStreams = new();
 
     public CmsFileServiceTests()
     {
@@ -37,7 +39,7 @@ public sealed class CmsFileServiceTests : IDisposable
         _storage.RootFolder.Returns(@"C:\FakeRoot");
         _storage.IsValidFolder(Arg.Any<string>()).Returns(true);
         _storage.SaveToTempAsync(Arg.Any<IFormFile>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo => Task.FromResult(@"C:\FakeTemp\" + Guid.NewGuid().ToString("N")));
+            .Returns(_ => Task.FromResult(@"C:\FakeTemp\" + Guid.NewGuid().ToString("N")));
         _storage.MoveIntoPlace(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
             .Returns(callInfo => Path.Join(@"C:\FakeRoot", callInfo.ArgAt<string>(1), Path.GetFileName(callInfo.ArgAt<string>(2))));
 
@@ -59,11 +61,17 @@ public sealed class CmsFileServiceTests : IDisposable
         {
             ctx.Dispose();
         }
+        foreach (var stream in _formFileStreams)
+        {
+            stream.Dispose();
+        }
     }
 
-    private static IFormFile MakeFormFile(string fileName = "report.pdf")
+    private IFormFile MakeFormFile(string fileName = "report.pdf")
     {
+        // Tracked so the backing stream is disposed in Dispose rather than left to the GC.
         var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+        _formFileStreams.Add(stream);
         return new FormFile(stream, 0, stream.Length, "file", fileName);
     }
 
@@ -209,9 +217,9 @@ public sealed class CmsFileServiceTests : IDisposable
         var request = new CmsFileCreateRequest { Folder = "cats" };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateFileAsync(request, MakeFormFile("report.pdf"), TestContext.Current.CancellationToken));
+            () => _service.CreateFileAsync(request, MakeFormFile(), TestContext.Current.CancellationToken));
 
-        _storage.Received(1).DeleteManagedFile(@"C:\FakeRoot\cats\report.pdf");
+        _storage.Received(1).DeleteManagedFile(Path.Join(@"C:\FakeRoot", "cats", "report.pdf"));
     }
 
     [Fact]
@@ -255,7 +263,7 @@ public sealed class CmsFileServiceTests : IDisposable
 
         var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
 
-        await _service.CreateFileAsync(request, MakeFormFile("report.pdf"), TestContext.Current.CancellationToken);
+        await _service.CreateFileAsync(request, MakeFormFile(), TestContext.Current.CancellationToken);
 
         _storage.Received(1).ReplaceInPlace(Arg.Any<string>(), targetPath);
         _storage.DidNotReceive().MoveIntoPlace(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
@@ -280,7 +288,7 @@ public sealed class CmsFileServiceTests : IDisposable
         var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateFileAsync(request, MakeFormFile("report.pdf"), TestContext.Current.CancellationToken));
+            () => _service.CreateFileAsync(request, MakeFormFile(), TestContext.Current.CancellationToken));
 
         _storage.DidNotReceive().ReplaceInPlace(Arg.Any<string>(), Arg.Any<string>());
     }
@@ -290,7 +298,7 @@ public sealed class CmsFileServiceTests : IDisposable
     {
         var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
 
-        await _service.CreateFileAsync(request, MakeFormFile("report.pdf"), TestContext.Current.CancellationToken);
+        await _service.CreateFileAsync(request, MakeFormFile(), TestContext.Current.CancellationToken);
 
         _storage.Received(1).MoveIntoPlace(Arg.Any<string>(), "cats", "report.pdf", Arg.Any<bool>());
         _storage.DidNotReceive().ReplaceInPlace(Arg.Any<string>(), Arg.Any<string>());
@@ -365,8 +373,8 @@ public sealed class CmsFileServiceTests : IDisposable
     {
         var file = await SeedFileAsync(f =>
         {
-            f.FileToPermissions.Add(new Viper.Models.VIPER.FileToPermission { FileGuid = f.FileGuid, Permission = "SVMSecure.Old" });
-            f.FileToPermissions.Add(new Viper.Models.VIPER.FileToPermission { FileGuid = f.FileGuid, Permission = "SVMSecure.Keep" });
+            f.FileToPermissions.Add(new FileToPermission { FileGuid = f.FileGuid, Permission = "SVMSecure.Old" });
+            f.FileToPermissions.Add(new FileToPermission { FileGuid = f.FileGuid, Permission = "SVMSecure.Keep" });
         });
         var request = new CmsFileUpdateRequest
         {
@@ -377,7 +385,7 @@ public sealed class CmsFileServiceTests : IDisposable
         var dto = await _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken);
 
         Assert.NotNull(dto);
-        Assert.Equal(new List<string> { "SVMSecure.Keep", "SVMSecure.New" }, dto!.Permissions);
+        Assert.Equal(new List<string> { "SVMSecure.Keep", "SVMSecure.New" }, dto.Permissions);
         _audit.Received(1).Audit(Arg.Any<File>(), CmsFileAuditActions.EditFile,
             Arg.Is<string>(d => d.Contains("Permission removed: SVMSecure.Old") && d.Contains("Permission added: SVMSecure.New")));
     }
@@ -386,7 +394,7 @@ public sealed class CmsFileServiceTests : IDisposable
     public async Task UpdateFile_AppliesPersonDeltas()
     {
         var file = await SeedFileAsync(f =>
-            f.FileToPeople.Add(new Viper.Models.VIPER.FileToPerson { FileGuid = f.FileGuid, IamId = "100OLD" }));
+            f.FileToPeople.Add(new FileToPerson { FileGuid = f.FileGuid, IamId = "100OLD" }));
         var request = new CmsFileUpdateRequest
         {
             Description = "seeded",
@@ -396,7 +404,7 @@ public sealed class CmsFileServiceTests : IDisposable
         var dto = await _service.UpdateFileAsync(file.FileGuid, request, null, TestContext.Current.CancellationToken);
 
         Assert.NotNull(dto);
-        Assert.Single(dto!.People);
+        Assert.Single(dto.People);
         Assert.Equal("100NEW", dto.People[0].IamId);
     }
 
@@ -634,7 +642,7 @@ public sealed class CmsFileServiceTests : IDisposable
     public async Task PermanentDelete_RemovesRowAndDiskFile()
     {
         var file = await SeedFileAsync(f =>
-            f.FileToPermissions.Add(new Viper.Models.VIPER.FileToPermission { FileGuid = f.FileGuid, Permission = "SVMSecure" }));
+            f.FileToPermissions.Add(new FileToPermission { FileGuid = f.FileGuid, Permission = "SVMSecure" }));
         _storage.ManagedFileExists(file.FilePath).Returns(true);
 
         var result = await _service.PermanentlyDeleteFileAsync(file.FileGuid, TestContext.Current.CancellationToken);
@@ -681,7 +689,7 @@ public sealed class CmsFileServiceTests : IDisposable
     public async Task PurgeDeletedFiles_DetachesFromContentBlocks()
     {
         var file = await SeedFileAsync(f => f.DeletedOn = DateTime.Now.AddDays(-40));
-        _context.ContentBlockToFiles.Add(new Viper.Models.VIPER.ContentBlockToFile
+        _context.ContentBlockToFiles.Add(new ContentBlockToFile
         {
             ContentBlockId = 1,
             FileGuid = file.FileGuid

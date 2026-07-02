@@ -88,8 +88,10 @@ namespace Viper.Areas.CMS.Services
             {
                 return new List<string>();
             }
-            return System.IO.Directory.GetDirectories(RootFolder)
-                .Select(d => Path.GetFileName(d) ?? string.Empty)
+            // DirectoryInfo.Name gives the (non-null) leaf folder name directly, avoiding the
+            // Path.GetFileName nullable return that would otherwise need coalescing.
+            return new DirectoryInfo(RootFolder).GetDirectories()
+                .Select(d => d.Name)
                 .Where(d => !string.IsNullOrEmpty(d))
                 .OrderBy(d => d)
                 .ToList();
@@ -116,7 +118,7 @@ namespace Viper.Areas.CMS.Services
 
             var segments = folder.Split(['\\', '/'], StringSplitOptions.None);
             if (segments.Any(s => string.IsNullOrWhiteSpace(s) || s == "." || s == ".."
-                    || s.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+                    || HasInvalidNameChar(s)))
             {
                 return false;
             }
@@ -134,7 +136,7 @@ namespace Viper.Areas.CMS.Services
         public bool FileNameInUse(string folder, string fileName)
         {
             string targetPath = BuildTargetPath(folder, fileName);
-            if (System.IO.File.Exists(targetPath))
+            if (File.Exists(targetPath))
             {
                 return true;
             }
@@ -145,7 +147,7 @@ namespace Viper.Areas.CMS.Services
 
         public string GetAvailableFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null)
         {
-            string finalName = Path.GetFileName(fileName);
+            string finalName = GetLeafName(fileName);
             bool taken = FileNameInUse(folder, finalName)
                 || (reservedNames != null && reservedNames.Contains(finalName));
             return taken ? GetUniqueFileName(folder, finalName, reservedNames) : finalName;
@@ -173,7 +175,7 @@ namespace Viper.Areas.CMS.Services
                 throw new ArgumentException($"Invalid folder", nameof(folder));
             }
 
-            string finalName = Path.GetFileName(fileName);
+            string finalName = GetLeafName(fileName);
             if (string.IsNullOrWhiteSpace(finalName) || !CmsFileTypes.IsAllowedFileName(finalName))
             {
                 throw new ArgumentException("Invalid file name", nameof(fileName));
@@ -190,14 +192,14 @@ namespace Viper.Areas.CMS.Services
 
             string targetPath = BuildTargetPath(folder, finalName);
             System.IO.Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            System.IO.File.Move(tempPath, targetPath);
+            File.Move(tempPath, targetPath);
             return targetPath;
         }
 
         public void ReplaceInPlace(string tempPath, string existingFilePath)
         {
             AssertUnderRoot(existingFilePath);
-            System.IO.File.Move(tempPath, existingFilePath, overwrite: true);
+            File.Move(tempPath, existingFilePath, overwrite: true);
         }
 
         public string BackupManagedFile(string filePath)
@@ -206,22 +208,22 @@ namespace Viper.Areas.CMS.Services
             string tempFolder = Path.Join(Path.GetTempPath(), "Viper-CMS-Uploads");
             System.IO.Directory.CreateDirectory(tempFolder);
             string backupPath = Path.Join(tempFolder, Guid.NewGuid().ToString("N"));
-            System.IO.File.Copy(filePath, backupPath, overwrite: true);
+            File.Copy(filePath, backupPath, overwrite: true);
             return backupPath;
         }
 
         public void DeleteManagedFile(string filePath)
         {
             AssertUnderRoot(filePath);
-            if (System.IO.File.Exists(filePath))
+            if (File.Exists(filePath))
             {
-                System.IO.File.Delete(filePath);
+                File.Delete(filePath);
             }
         }
 
         public bool ManagedFileExists(string filePath)
         {
-            return IsUnderRoot(filePath) && System.IO.File.Exists(filePath);
+            return IsUnderRoot(filePath) && File.Exists(filePath);
         }
 
         private string GetUniqueFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null)
@@ -243,7 +245,11 @@ namespace Viper.Areas.CMS.Services
 
         private string BuildTargetPath(string folder, string fileName)
         {
-            string path = Path.GetFullPath(Path.Join(RootFolder, folder, Path.GetFileName(fileName)));
+            // Split the folder on both separator styles and rejoin with the host separator so a
+            // user-supplied "sub\dir" resolves to real nested folders on Linux too (Path.Join would
+            // otherwise treat "sub\dir" as one literal directory name there).
+            string[] folderSegments = folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            string path = Path.GetFullPath(Path.Join(RootFolder, Path.Join(folderSegments), GetLeafName(fileName)));
             AssertUnderRoot(path);
             return path;
         }
@@ -261,6 +267,27 @@ namespace Viper.Areas.CMS.Services
             string fullPath = Path.GetFullPath(filePath);
             string root = Path.GetFullPath(RootFolder + Path.DirectorySeparatorChar);
             return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Final path segment of a name, treating both '\' and '/' as separators so path components
+        /// are stripped identically on every OS (Path.GetFileName only honors the host separator, so
+        /// on Linux it would keep a "sub\file" prefix from a legacy Windows-style name).
+        /// </summary>
+        private static string GetLeafName(string name)
+        {
+            int lastSeparator = name.LastIndexOfAny(['\\', '/']);
+            return lastSeparator >= 0 ? name[(lastSeparator + 1)..] : name;
+        }
+
+        // Reject on an explicit, OS-independent set rather than Path.GetInvalidFileNameChars, which
+        // on Linux returns only { '\0', '/' } and would let '<', '>', ':' etc. through. Stricter than
+        // the host filesystem on purpose (defense in depth).
+        private static readonly char[] InvalidNameChars = ['<', '>', ':', '"', '|', '?', '*'];
+
+        private static bool HasInvalidNameChar(string segment)
+        {
+            return segment.Any(c => c < ' ' || Array.IndexOf(InvalidNameChars, c) >= 0);
         }
     }
 }
