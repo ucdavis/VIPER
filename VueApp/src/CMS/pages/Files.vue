@@ -45,6 +45,7 @@
                     v-model="filters.folder"
                     dense
                     options-dense
+                    outlined
                     emit-value
                     map-options
                     label="VIPER app"
@@ -57,6 +58,7 @@
                     v-model="filters.status"
                     dense
                     options-dense
+                    outlined
                     emit-value
                     map-options
                     label="Status"
@@ -69,6 +71,7 @@
                     v-model="filters.search"
                     dense
                     clearable
+                    outlined
                     debounce="400"
                     label="Search name, description, or URL"
                     @update:model-value="reload"
@@ -315,6 +318,9 @@ const filters = ref({
 })
 
 // Reflect the active filters back into the URL (defaults are omitted).
+// `upload` is a one-shot action flag, never a persisted filter: strip it here so a
+// filter-sync write that races the upload-watcher's own strip (both fire on mount)
+// can't re-add the stale flag via the ...route.query spread.
 function syncFiltersToUrl() {
     void router.replace({
         query: {
@@ -324,6 +330,7 @@ function syncFiltersToUrl() {
             search: filters.value.search || undefined,
             encrypted: filters.value.encryptedOnly ? "1" : undefined,
             public: filters.value.publicOnly ? "1" : undefined,
+            upload: undefined,
         },
     })
 }

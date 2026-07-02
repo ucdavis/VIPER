@@ -282,11 +282,11 @@ defineExpose({ commit })
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 16px;
+    gap: 0.25rem;
+    padding: 1rem;
     text-align: center;
     border: 2px dashed var(--q-primary);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     background-color: transparent;
     font: inherit;
     color: var(--ucdavis-black-60);
@@ -308,7 +308,7 @@ defineExpose({ commit })
     outline: none;
     box-shadow:
         0 0 0 0.1rem white,
-        0 0 0 0.25rem #258cfb;
+        0 0 0 0.25rem var(--focus-ring-color);
 }
 
 .inline-upload:disabled {

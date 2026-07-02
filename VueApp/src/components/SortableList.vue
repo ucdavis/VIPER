@@ -242,7 +242,7 @@ function onMoveDown(index: number) {
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
-    border-radius: 6px;
+    border-radius: 0.25rem;
 }
 
 .sortable-row--header {
@@ -256,7 +256,7 @@ function onMoveDown(index: number) {
     align-items: center;
     justify-content: center;
     padding-top: 0.375rem;
-    color: var(--ucdavis-black-60, #666);
+    color: var(--ucdavis-black-60);
     cursor: grab;
 }
 
@@ -300,7 +300,7 @@ function onMoveDown(index: number) {
 
 .sortable-row--ghost {
     opacity: 0.5;
-    background: var(--surface-tint, #f5f7fb);
+    background: var(--surface-tint);
 }
 
 /* "Just moved" cue: a brand-blue tint and ring that fade out. It is a colour/shadow
@@ -308,7 +308,7 @@ function onMoveDown(index: number) {
    skipped — keeping a clear signal that something changed. */
 @keyframes sortable-row-flash {
     0% {
-        background-color: var(--ucdavis-blue-10, #cdd6e0);
+        background-color: var(--ucdavis-blue-10);
         box-shadow: inset 0 0 0 0.125rem var(--q-primary);
     }
 

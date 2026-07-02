@@ -57,10 +57,13 @@ const props = defineProps<{
 const hrefForLink = computed(() => safeHref(props.link.url))
 const isSafe = computed(() => hrefForLink.value !== "#")
 
-// Each tag category's sortOrder (1-based) indexes this palette of Quasar brand
-// roles. StatusBadge derives the WCAG-AA text color for each (dark on the light
-// warning/info tints, white on the rest).
-const TAG_COLORS = ["warning", "secondary", "negative", "positive", "info", "primary"] as const
+// Each tag category's sortOrder (1-based) indexes this categorical palette. It is
+// built from non-semantic brand roles only (Aggie Blue, the secondary-palette
+// arboretum/cabernet accents, Blue 70, and Ink) so status colors — positive,
+// negative, warning, info — keep their meaning and never read as a tag category.
+// StatusBadge derives the WCAG-AA text color for each (dark on arboretum, white
+// on the rest).
+const TAG_COLORS = ["primary", "arboretum", "cabernet", "secondary", "dark"] as const
 
 function getTagColor(order: number) {
     const idx = order >= 1 ? (order - 1) % TAG_COLORS.length : 0

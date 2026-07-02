@@ -65,8 +65,9 @@ describe("Link.vue - URL safety", () => {
 })
 
 describe("Link.vue - tag badge color cycling", () => {
-    // The palette has 6 entries; the component maps sortOrder n -> index (n-1) % 6.
-    // sortOrder 1 -> warning/dark, 2 -> secondary/white, 7 -> wraps back to warning/dark.
+    // The categorical palette has 5 non-semantic entries; the component maps
+    // sortOrder n -> index (n-1) % 5. sortOrder 1 -> primary/white,
+    // 2 -> arboretum/dark, 6 -> wraps back to primary/white.
     function mountWithTag(categorySortOrder: number) {
         const categoryId = 1
         const collection: LinkCollection = {
@@ -88,30 +89,30 @@ describe("Link.vue - tag badge color cycling", () => {
         return mountCms(LinkComponent, { props: { link, linkCollection: collection } })
     }
 
-    it("uses the first palette entry (warning) for sortOrder 1", () => {
+    it("uses the first palette entry (primary) for sortOrder 1", () => {
         const wrapper = mountWithTag(1)
         const badge = wrapper.findComponent({ name: "QBadge" })
         expect(badge.exists()).toBeTruthy()
-        expect(badge.props("color")).toBe("warning")
-        expect(badge.props("textColor")).toBe("dark")
+        expect(badge.props("color")).toBe("primary")
+        expect(badge.props("textColor")).toBe("white")
         expect(badge.text()).toContain("TagValue")
     })
 
-    it("uses the second palette entry (secondary) for sortOrder 2", () => {
+    it("uses the second palette entry (arboretum) for sortOrder 2, paired with dark text", () => {
         const badge = mountWithTag(2).findComponent({ name: "QBadge" })
-        expect(badge.props("color")).toBe("secondary")
-        expect(badge.props("textColor")).toBe("white")
+        expect(badge.props("color")).toBe("arboretum")
+        expect(badge.props("textColor")).toBe("dark")
     })
 
-    it("wraps modulo the palette length so sortOrder 7 matches sortOrder 1", () => {
-        const badge = mountWithTag(7).findComponent({ name: "QBadge" })
-        expect(badge.props("color")).toBe("warning")
-        expect(badge.props("textColor")).toBe("dark")
+    it("wraps modulo the palette length so sortOrder 6 matches sortOrder 1", () => {
+        const badge = mountWithTag(6).findComponent({ name: "QBadge" })
+        expect(badge.props("color")).toBe("primary")
+        expect(badge.props("textColor")).toBe("white")
     })
 
     it("falls back to the first entry for a non-positive sortOrder", () => {
         const badge = mountWithTag(0).findComponent({ name: "QBadge" })
-        expect(badge.props("color")).toBe("warning")
+        expect(badge.props("color")).toBe("primary")
     })
 
     it("only renders badges for tags whose category matches the collection category", () => {

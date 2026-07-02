@@ -1,4 +1,5 @@
 import LinkCollections from "@/CMS/components/LinkCollections.vue"
+import ManageLinkCollections from "@/CMS/pages/ManageLinkCollections.vue"
 import type { Link, LinkCollection } from "@/CMS/types"
 import { mountCms, flushPromises } from "./test-utils"
 
@@ -7,12 +8,20 @@ import { mountCms, flushPromises } from "./test-utils"
  * its links, derives tag-category filters, then filters (search across title/description/tags,
  * case-insensitive; plus per-category tag select) and optionally groups links by a category.
  * These tests mock ViperFetch to seed deterministic data and assert the filter/group output.
+ * The ManageLinkCollections admin page (same domain) is also exercised here for its
+ * unsaved-changes guard on the Edit Collection dialog.
  */
 
 const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPut = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
+const mockDel = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),
+        put: (...args: unknown[]) => mockPut(...args),
+        post: (...args: unknown[]) => mockPost(...args),
+        del: (...args: unknown[]) => mockDel(...args),
         createUrlSearchParams: (obj: Record<string, string | number | null | undefined>) => {
             const params = new URLSearchParams()
             for (const [k, v] of Object.entries(obj)) {
@@ -197,5 +206,88 @@ describe("LinkCollections.vue - group by tag category", () => {
         const wrapper = await mountLoaded({ linkCollectionName: "Resources", groupByTagCategory: "Subject" })
         const vm = wrapper.vm as unknown as { groupByValues: string[] }
         expect(vm.groupByValues).toEqual(["Anatomy", "Pharmacology"])
+    })
+})
+
+// Quasar plugin dialogs teleport to document.body; click the LAST matching button since a
+// dismissed dialog's portal can briefly linger mid-transition.
+function clickBodyButton(label: string) {
+    const btn = [...document.body.querySelectorAll("button")].filter((b) => b.textContent?.includes(label)).at(-1)
+    expect(btn, `expected a "${label}" button`).toBeTruthy()
+    btn!.click()
+}
+
+const MANAGE_COLLECTION = { linkCollectionId: 7, linkCollection: "Resources" }
+const MANAGE_TAGS = [{ linkCollectionTagCategoryId: 1, linkCollectionTagCategory: "Type", sortOrder: 1 }]
+
+// The manage page fans out to the collection list, then the selected collection's links + tags.
+function primeManageFetch() {
+    mockGet.mockReset()
+    mockPut.mockReset()
+    mockPost.mockReset()
+    mockDel.mockReset()
+    mockGet.mockImplementation((...args: unknown[]) => {
+        const url = args[0] as string
+        if (url.includes("/links")) return Promise.resolve({ success: true, result: [] })
+        if (url.includes("/tags")) return Promise.resolve({ success: true, result: MANAGE_TAGS })
+        return Promise.resolve({ success: true, result: [MANAGE_COLLECTION] })
+    })
+}
+
+type ManageVm = {
+    showCollectionDialog: boolean
+    draftTags: { linkCollectionTagCategoryId: number; linkCollectionTagCategory: string; sortOrder: number }[]
+}
+
+describe("ManageLinkCollections.vue - Edit Collection dialog unsaved-changes guard", () => {
+    beforeEach(() => primeManageFetch())
+
+    async function mountManage() {
+        const wrapper = mountCms(ManageLinkCollections)
+        await flushPromises()
+        await flushPromises()
+        return wrapper
+    }
+
+    function closeCollectionDialog() {
+        const closeBtn = document.body.querySelector<HTMLButtonElement>('button[aria-label="Close dialog"]')
+        expect(closeBtn, "expected the collection dialog close (X) button").toBeTruthy()
+        closeBtn!.click()
+    }
+
+    it("prompts before discarding staged tag edits, then discards on confirm", async () => {
+        const wrapper = await mountManage()
+        const vm = wrapper.vm as unknown as ManageVm
+
+        vm.showCollectionDialog = true
+        await flushPromises()
+        // Stage a new tag category so the dialog is dirty.
+        vm.draftTags.push({ linkCollectionTagCategoryId: -1, linkCollectionTagCategory: "New", sortOrder: 2 })
+        await flushPromises()
+
+        closeCollectionDialog()
+        await flushPromises()
+        // The guard intercepts the close instead of silently discarding the staged edits.
+        expect(document.body.textContent).toContain("Unsaved Changes")
+        expect(vm.showCollectionDialog).toBe(true)
+
+        clickBodyButton("Discard Changes")
+        await flushPromises()
+        await flushPromises()
+        expect(vm.showCollectionDialog).toBe(false)
+    })
+
+    it("closes without prompting when nothing was edited", async () => {
+        const wrapper = await mountManage()
+        const vm = wrapper.vm as unknown as ManageVm
+
+        vm.showCollectionDialog = true
+        await flushPromises()
+
+        closeCollectionDialog()
+        await flushPromises()
+        await flushPromises()
+        // Clean dialog: confirmClose resolves immediately, so the dialog just closes.
+        expect(vm.showCollectionDialog).toBe(false)
     })
 })

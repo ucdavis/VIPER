@@ -502,11 +502,19 @@ header .q-avatar {
    block (CMS/components/ContentBlock.vue) and the history diff view
    (CMS/components/ContentDiffDialog.vue) so both render block headings the same.
    Declared globally because scoped styles don't reach v-html children. */
-.content-block h1,
-.content-block h2,
-.content-block h3 {
+.content-block h1 {
     font-size: 2rem;
-    line-height: 2rem;
+    line-height: 1.2;
+}
+
+.content-block h2 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+}
+
+.content-block h3 {
+    font-size: 1.25rem;
+    line-height: 1.3;
 }
 
 /* Screen reader only — visually hidden but accessible to assistive technology */
