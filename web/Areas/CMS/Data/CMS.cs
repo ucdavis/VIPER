@@ -472,6 +472,9 @@ namespace Viper.Areas.CMS.Data
                 }
 
                 byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
+                // The zip itself is inert, but keep the whole /CMS/Files surface consistent:
+                // no MIME sniffing on any download response.
+                CmsFileResponse.SetNoSniff(controller.Response);
                 return controller.File(bytes, MimeTypes["zip"], safeDownloadName);
             }
             finally
@@ -553,11 +556,15 @@ namespace Viper.Areas.CMS.Data
                 contentType = "application/octet-stream";
             }
 
+            // Stop the browser from MIME-sniffing a benign type into an active one.
+            CmsFileResponse.SetNoSniff(controller.Response);
+
             // Build Content-Disposition from the stored record's name, not the user-supplied
             // friendlyName param, and let the framework encode it so a hostile fn cannot shape
-            // the header. Mirrors the DownloadZip download-name hardening.
+            // the header. Mirrors the DownloadZip download-name hardening. Inline-unsafe types
+            // (html/svg) are forced to download so an uploaded page cannot run in the app origin.
             var downloadName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
-            var contentDisposition = new ContentDispositionHeaderValue("inline");
+            var contentDisposition = new ContentDispositionHeaderValue(CmsFileResponse.DispositionType(file.FilePath));
             contentDisposition.SetHttpFileName(downloadName);
             controller.Response.Headers.ContentDisposition = contentDisposition.ToString();
 

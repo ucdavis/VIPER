@@ -36,9 +36,26 @@ namespace Viper.Areas.CMS.Constants
             ["exe"] = "application/vnd.microsoft.portable-executable"
         };
 
+        /// <summary>
+        /// Extensions the browser would render as active markup (script execution / inline SVG)
+        /// rather than download. Legacy .html files must stay downloadable, so instead of removing
+        /// them from the allow-list we serve these as an attachment, never inline, to close the
+        /// stored-XSS path from an uploaded .html/.svg running in the app origin.
+        /// </summary>
+        public static readonly IReadOnlySet<string> InlineUnsafeExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "html", "htm", "xhtml", "svg"
+        };
+
         public static bool IsAllowedFileName(string fileName)
         {
             return MimeTypes.ContainsKey(GetExtension(fileName));
+        }
+
+        /// <summary>True when a file must be served as a download rather than rendered inline.</summary>
+        public static bool ShouldForceAttachment(string fileName)
+        {
+            return InlineUnsafeExtensions.Contains(GetExtension(fileName));
         }
 
         public static string GetMimeType(string fileName)
