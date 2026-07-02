@@ -41,7 +41,7 @@
         "@quasar/app-vite": "^2.6.2",
         "@quasar/vite-plugin": "^1.12.0",
         "@tsconfig/node24": "^24.0.4",
-        "@types/node": "^25.9.3",
+        "@types/node": "^24.12.4",
         "@typescript-eslint/eslint-plugin": "^8.62.0",
         "@typescript-eslint/parser": "^8.56.0",
         "@vitejs/plugin-vue": "^6.0.6",
