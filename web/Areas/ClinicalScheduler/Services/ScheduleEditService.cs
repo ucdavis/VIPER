@@ -260,12 +260,19 @@ namespace Viper.Areas.ClinicalScheduler.Services
         }
 
         // SQL Server: 2627 = unique constraint violation, 2601 = duplicate key in a unique index.
-        // EF wraps the provider error in DbUpdateException, so unwrap to the underlying SqlException.
-        private static bool IsDuplicateKeyViolation(Exception ex)
+        // EF wraps the provider error in DbUpdateException, so walk the inner-exception chain to find
+        // the underlying SqlException (robust even if it is wrapped more than once).
+        private static bool IsDuplicateKeyViolation(Exception? ex)
         {
-            var sqlEx = ex as SqlException ?? ex.InnerException as SqlException;
-            return sqlEx is not null
-                && sqlEx.Errors.Cast<SqlError>().Any(e => e.Number is 2627 or 2601);
+            for (; ex is not null; ex = ex.InnerException)
+            {
+                if (ex is SqlException sqlEx
+                    && sqlEx.Errors.Cast<SqlError>().Any(e => e.Number is 2627 or 2601))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public async Task<(bool success, bool wasPrimaryEvaluator, string? instructorName)> RemoveInstructorScheduleAsync(
