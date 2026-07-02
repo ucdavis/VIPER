@@ -230,6 +230,14 @@ watch(
     },
 )
 
+// Refetch when the target clinician changes so the self-scheduling rotation list stays in sync
+watch(
+    () => props.clinicianMothraId,
+    () => {
+        void loadRotations()
+    },
+)
+
 // Watch for model value changes to clear search
 watch(
     () => props.modelValue,

@@ -116,10 +116,12 @@
                     @schedule-selected="handleScheduleSelected"
                 >
                     <template #selector>
+                        <!-- Show all active rotations (mimics the legacy scheduler, which listed every
+                             active rotation) rather than only rotations already scheduled for the year. -->
                         <RotationSelector
                             v-model="selectedNewRotationId"
                             :exclude-rotation-names="assignedRotationNames"
-                            :only-with-scheduled-weeks="true"
+                            :only-with-scheduled-weeks="false"
                             :year="currentYear"
                             :clinician-mothra-id="selectedClinician?.mothraId"
                             hide-bottom-space
