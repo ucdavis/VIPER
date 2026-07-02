@@ -137,10 +137,13 @@
 </template>
 
 <script setup lang="ts">
+// Template-size synthetic complexity only; the page's data logic lives in useServerTable.
+// fallow-ignore-file complexity
 import { inject, onMounted, ref } from "vue"
 import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useServerTable } from "@/CMS/composables/use-server-table"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
 import ListCardField from "@/CMS/components/ListCardField.vue"
@@ -156,30 +159,20 @@ type BulkEncryptResult = {
 
 const apiURL = inject("apiURL") + "cms/files/"
 const $q = useQuasar()
-const { get, post, createUrlSearchParams } = useFetch()
+const { get, post } = useFetch()
 
 type FolderOption = { label: string; value: string }
 
 const ALL_FOLDERS = "All"
 
-const files = ref<CmsFile[]>([])
 const folderOptions = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLDERS }])
 const selected = ref<CmsFile[]>([])
 const results = ref<BulkEncryptResult[]>([])
-const loading = ref(false)
 const encrypting = ref(false)
 
 const filters = ref({
     folder: ALL_FOLDERS,
     search: "",
-})
-
-const pagination = ref({
-    sortBy: "friendlyName",
-    descending: false,
-    page: 1,
-    rowsPerPage: 50,
-    rowsNumber: 0,
 })
 
 const columns: QTableProps["columns"] = [
@@ -188,44 +181,31 @@ const columns: QTableProps["columns"] = [
     { name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true },
 ]
 
-type TableRequestPagination = {
-    sortBy: string
-    descending: boolean
-    page: number
-    rowsPerPage: number
-    rowsNumber?: number
-}
-
-async function onRequest(requestProps: { pagination: TableRequestPagination }) {
-    const { page, rowsPerPage, sortBy, descending } = requestProps.pagination
-    loading.value = true
-    const params = createUrlSearchParams({
+const {
+    rows: files,
+    loading,
+    pagination,
+    onRequest,
+    reloadFirstPage,
+} = useServerTable<CmsFile>({
+    url: apiURL,
+    errorMessage: "Failed to load files",
+    pagination: { sortBy: "friendlyName", descending: false },
+    buildParams: (p) => ({
         folder: filters.value.folder !== ALL_FOLDERS ? filters.value.folder : null,
         status: "active",
         encrypted: "false",
         search: filters.value.search || null,
-        page,
-        perPage: rowsPerPage,
-        sortBy: sortBy ?? "friendlyName",
-        descending: descending.toString(),
-    })
-    const res = await get(apiURL + "?" + params)
-    if (res.success) {
-        files.value = res.result
-        pagination.value.rowsNumber = res.pagination?.totalRecords ?? res.result.length
-        pagination.value.page = page
-        pagination.value.rowsPerPage = rowsPerPage
-        pagination.value.sortBy = sortBy
-        pagination.value.descending = descending
-    } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load files" })
-    }
-    loading.value = false
-}
+        page: p.page,
+        perPage: p.rowsPerPage,
+        sortBy: p.sortBy ?? "friendlyName",
+        descending: p.descending.toString(),
+    }),
+})
 
 function reload() {
     selected.value = []
-    void onRequest({ pagination: { ...pagination.value, page: 1 } })
+    void reloadFirstPage()
 }
 
 async function loadFolders() {

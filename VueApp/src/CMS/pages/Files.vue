@@ -271,10 +271,13 @@
 </template>
 
 <script setup lang="ts">
+// Template-size synthetic complexity only; the page's data logic lives in useServerTable.
+// fallow-ignore-file complexity
 import { inject, nextTick, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useServerTable } from "@/CMS/composables/use-server-table"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
@@ -293,12 +296,10 @@ const { get, del, post, createUrlSearchParams } = useFetch()
 
 const ALL_FOLDERS = "All"
 
-const files = ref<CmsFile[]>([])
 const folders = ref<string[]>([])
 type FolderOption = { label: string; value: string }
 
 const filterFolders = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLDERS }])
-const loading = ref(false)
 const showDialog = ref(false)
 const editingFile = ref<CmsFile | null>(null)
 
@@ -347,14 +348,6 @@ const fileTools = [
     { label: "Bulk Encrypt", icon: "lock", to: { name: "CmsBulkEncrypt" } },
 ]
 
-const pagination = ref({
-    sortBy: "friendlyName",
-    descending: false,
-    page: 1,
-    rowsPerPage: 50,
-    rowsNumber: 0,
-})
-
 const columns: QTableProps["columns"] = [
     { name: "friendlyName", label: "File", field: "friendlyName", align: "left", sortable: true },
     { name: "folder", label: "VIPER app", field: "folder", align: "left", sortable: true },
@@ -363,6 +356,29 @@ const columns: QTableProps["columns"] = [
     { name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true },
     { name: "actions", label: "Actions", field: "fileGuid", align: "center" },
 ]
+
+const {
+    rows: files,
+    loading,
+    pagination,
+    onRequest,
+    reloadFirstPage,
+} = useServerTable<CmsFile>({
+    url: apiURL,
+    errorMessage: "Failed to load files",
+    pagination: { sortBy: "friendlyName", descending: false },
+    buildParams: (p) => ({
+        folder: filters.value.folder !== ALL_FOLDERS ? filters.value.folder : null,
+        status: filters.value.status,
+        search: filters.value.search || null,
+        encrypted: filters.value.encryptedOnly ? "true" : null,
+        isPublic: filters.value.publicOnly ? "true" : null,
+        page: p.page,
+        perPage: p.rowsPerPage,
+        sortBy: p.sortBy ?? "friendlyName",
+        descending: p.descending ? "true" : "false",
+    }),
+})
 
 async function loadFolders() {
     // Upload destinations are the disk allow-list; the filter dropdown is built
@@ -393,46 +409,10 @@ async function loadFolderOptions() {
     ]
 }
 
-type TableRequestPagination = {
-    sortBy: string
-    descending: boolean
-    page: number
-    rowsPerPage: number
-    rowsNumber?: number
-}
-
-async function onRequest(requestProps: { pagination: TableRequestPagination }) {
-    const { page, rowsPerPage, sortBy, descending } = requestProps.pagination
-    loading.value = true
-    const params = createUrlSearchParams({
-        folder: filters.value.folder !== ALL_FOLDERS ? filters.value.folder : null,
-        status: filters.value.status,
-        search: filters.value.search || null,
-        encrypted: filters.value.encryptedOnly ? "true" : null,
-        isPublic: filters.value.publicOnly ? "true" : null,
-        page,
-        perPage: rowsPerPage,
-        sortBy: sortBy ?? "friendlyName",
-        descending: descending ? "true" : "false",
-    })
-    const res = await get(apiURL + "?" + params)
-    if (res.success) {
-        files.value = res.result
-        pagination.value.rowsNumber = res.pagination?.totalRecords ?? res.result.length
-        pagination.value.page = page
-        pagination.value.rowsPerPage = rowsPerPage
-        pagination.value.sortBy = sortBy
-        pagination.value.descending = descending
-    } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load files" })
-    }
-    loading.value = false
-}
-
 function reload() {
     syncFiltersToUrl()
     void loadFolderOptions()
-    void onRequest({ pagination: { ...pagination.value, page: 1 } })
+    void reloadFirstPage()
 }
 
 function openUploadDialog() {
@@ -524,7 +504,7 @@ watch(
         }
         filters.value = next
         void loadFolderOptions()
-        void onRequest({ pagination: { ...pagination.value, page: 1 } })
+        void reloadFirstPage()
     },
 )
 

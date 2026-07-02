@@ -138,11 +138,10 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref, watch } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import { inject, onMounted } from "vue"
 import { useQuasar, type QTableProps } from "quasar"
-import { useFetch } from "@/composables/ViperFetch"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { useUrlFilteredTable } from "@/CMS/composables/use-url-filtered-table"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
@@ -152,37 +151,7 @@ import type { CmsFileAudit } from "@/CMS/types/"
 
 const apiURL = inject("apiURL") + "cms/files/audit"
 const $q = useQuasar()
-const route = useRoute()
-const router = useRouter()
-const { get, createUrlSearchParams } = useFetch()
 const { formatDateTime } = useDateFunctions()
-
-const entries = ref<CmsFileAudit[]>([])
-const loading = ref(false)
-const fileGuid = ref<string | null>((route.query.fileGuid as string) || null)
-
-// Filters initialize from the URL so filtered views can be shared/deep-linked.
-const filters = ref({
-    action: typeof route.query.action === "string" ? route.query.action : null,
-    loginId: typeof route.query.loginId === "string" ? route.query.loginId : "",
-    from: typeof route.query.from === "string" ? route.query.from : "",
-    to: typeof route.query.to === "string" ? route.query.to : "",
-    search: typeof route.query.search === "string" ? route.query.search : "",
-})
-
-// Reflect the active filters back into the URL (empty values are omitted).
-function syncFiltersToUrl() {
-    void router.replace({
-        query: {
-            fileGuid: fileGuid.value || undefined,
-            action: filters.value.action || undefined,
-            loginId: filters.value.loginId || undefined,
-            from: filters.value.from || undefined,
-            to: filters.value.to || undefined,
-            search: filters.value.search || undefined,
-        },
-    })
-}
 
 const actionOptions = [
     "AccessFile",
@@ -194,14 +163,6 @@ const actionOptions = [
     "CancelDelete",
     "ImportFile",
 ]
-
-const pagination = ref({
-    sortBy: "timestamp",
-    descending: true,
-    page: 1,
-    rowsPerPage: 50,
-    rowsNumber: 0,
-})
 
 // Column order mirrors the Effort audit trail: date, who, what was affected,
 // then the action badge and its detail.
@@ -225,79 +186,27 @@ function getActionColor(action: string): string {
     return "grey-8"
 }
 
-type TableRequestPagination = {
-    sortBy: string
-    descending: boolean
-    page: number
-    rowsPerPage: number
-    rowsNumber?: number
-}
-
-async function onRequest(requestProps: { pagination: TableRequestPagination }) {
-    const { page, rowsPerPage } = requestProps.pagination
-    loading.value = true
-    const params = createUrlSearchParams({
-        fileGuid: fileGuid.value,
-        action: filters.value.action,
-        loginId: filters.value.loginId || null,
-        from: filters.value.from || null,
-        to: filters.value.to || null,
-        search: filters.value.search || null,
-        page,
-        perPage: rowsPerPage,
-    })
-    const res = await get(apiURL + "?" + params)
-    if (res.success) {
-        entries.value = res.result
-        pagination.value.rowsNumber = res.pagination?.totalRecords ?? res.result.length
-        pagination.value.page = page
-        pagination.value.rowsPerPage = rowsPerPage
-    } else {
-        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load audit trail" })
-    }
-    loading.value = false
-}
-
-function reload() {
-    syncFiltersToUrl()
-    void onRequest({ pagination: { ...pagination.value, page: 1 } })
-}
-
-function clearFileFilter() {
-    fileGuid.value = null
-    reload()
-}
-
-// Re-sync filters from the URL when in-app navigation reuses this view with a different
-// query (e.g. re-clicking the left-nav link, or a per-file ?fileGuid deep-link). The
-// equality guard skips our own syncFiltersToUrl write so it doesn't double-fetch.
-watch(
-    () => route.query,
-    (query) => {
-        const nextGuid = typeof query.fileGuid === "string" ? query.fileGuid : null
-        const next = {
-            action: typeof query.action === "string" ? query.action : null,
-            loginId: typeof query.loginId === "string" ? query.loginId : "",
-            from: typeof query.from === "string" ? query.from : "",
-            to: typeof query.to === "string" ? query.to : "",
-            search: typeof query.search === "string" ? query.search : "",
-        }
-        const f = filters.value
-        if (
-            nextGuid === fileGuid.value &&
-            next.action === f.action &&
-            next.loginId === f.loginId &&
-            next.from === f.from &&
-            next.to === f.to &&
-            next.search === f.search
-        ) {
-            return
-        }
-        fileGuid.value = nextGuid
-        filters.value = next
-        void onRequest({ pagination: { ...pagination.value, page: 1 } })
-    },
-)
+// Filters + the per-file deep-link (?fileGuid) sync to the URL and drive the server-paged fetch;
+// see useUrlFilteredTable. The action filter defaults to null (unset) to match the clearable select.
+const {
+    rows: entries,
+    loading,
+    pagination,
+    onRequest,
+    filters,
+    primary: fileGuid,
+    reload,
+    clearPrimaryFilter: clearFileFilter,
+} = useUrlFilteredTable<
+    CmsFileAudit,
+    { action: string | null; loginId: string; from: string; to: string; search: string }
+>({
+    url: apiURL,
+    errorMessage: "Failed to load audit trail",
+    primaryKey: "fileGuid",
+    defaultFilters: () => ({ action: null, loginId: "", from: "", to: "", search: "" }),
+    pagination: { sortBy: "timestamp", descending: true },
+})
 
 onMounted(reload)
 </script>
