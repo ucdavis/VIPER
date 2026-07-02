@@ -20,15 +20,18 @@ namespace Viper.Areas.CMS.Controllers
         private readonly RAPSContext _rapsContext;
         private readonly IHtmlSanitizerService _sanitizerService;
         private readonly ICmsContentBlockService _blockService;
+        private readonly ICmsFileStorageService _storage;
         private readonly IUserHelper _userHelper;
 
         public CMSContentController(VIPERContext context, RAPSContext rapsContext,
-            IHtmlSanitizerService sanitizerService, ICmsContentBlockService blockService, IUserHelper userHelper)
+            IHtmlSanitizerService sanitizerService, ICmsContentBlockService blockService,
+            ICmsFileStorageService storage, IUserHelper userHelper)
         {
             _context = context;
             _rapsContext = rapsContext;
             _sanitizerService = sanitizerService;
             _blockService = blockService;
+            _storage = storage;
             _userHelper = userHelper;
         }
 
@@ -52,6 +55,17 @@ namespace Viper.Areas.CMS.Controllers
         public async Task<ActionResult<List<string>>> GetViperSectionPaths(CancellationToken ct = default)
         {
             return await _blockService.GetViperSectionPathsAsync(ct);
+        }
+
+        // GET: content/folders
+        // The section path IS a file folder (legacy parity): a block's files live in this folder.
+        // Exposed to content-block editors so the section path can be chosen from the real upload
+        // folders without requiring AllFiles (the /api/cms/files/folders endpoint is AllFiles-gated).
+        [HttpGet("folders")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks + "," + CmsPermissions.CreateContentBlock)]
+        public ActionResult<List<string>> GetFolders()
+        {
+            return _storage.GetTopLevelFolders();
         }
 
         //GET: content/5

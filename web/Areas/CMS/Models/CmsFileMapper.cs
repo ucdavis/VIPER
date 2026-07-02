@@ -1,4 +1,5 @@
 using Riok.Mapperly.Abstractions;
+using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models.DTOs;
 using File = Viper.Models.VIPER.File;
 
@@ -26,6 +27,8 @@ namespace Viper.Areas.CMS.Models
                 .ToList();
             dto.Url = Data.CMS.GetURL(file.FileGuid.ToString(), file.AllowPublicAccess);
             dto.FriendlyUrl = Data.CMS.GetFriendlyURL(file.FriendlyName, file.AllowPublicAccess);
+            // When a file is in the trash, surface the date the purge job will permanently delete it.
+            dto.PurgeOn = file.DeletedOn?.AddDays(CmsTrash.RetentionDays);
             return dto;
         }
 
@@ -34,6 +37,7 @@ namespace Viper.Areas.CMS.Models
         [MapperIgnoreTarget(nameof(CmsFileDto.People))]
         [MapperIgnoreTarget(nameof(CmsFileDto.Url))]
         [MapperIgnoreTarget(nameof(CmsFileDto.FriendlyUrl))]
+        [MapperIgnoreTarget(nameof(CmsFileDto.PurgeOn))]
         private static partial CmsFileDto ToCmsFileDtoBase(File file);
     }
 }

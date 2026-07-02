@@ -37,6 +37,7 @@ const FILE_ROW = {
     modifiedOn: "2024-01-01T00:00:00",
     modifiedBy: "u",
     deletedOn: null,
+    purgeOn: null,
     permissions: [],
     people: [],
     url: "/files/g1",

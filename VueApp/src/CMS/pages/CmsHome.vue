@@ -91,6 +91,9 @@ const sections: Section[] = [
         permissions: ["SVMSecure.CMS.AllFiles"],
         actions: [
             { label: "Manage Files", to: { name: "CmsFiles" } },
+            // File managers see their own deleted files here; admins see the whole trash (scoped by
+            // the API). Inherits the section's AllFiles gate.
+            { label: "Trash", to: { name: "CmsFiles", query: { status: "deleted" } } },
             { label: "Audit Trail", to: { name: "CmsFileAudit" } },
         ],
     },
@@ -149,13 +152,20 @@ const showRecentActivity = computed(() => canManageBlocks.value || canManageFile
     max-width: 80rem;
 }
 
-/* CSS grid with equal rows so all four cards render as same-size tiles
-   regardless of description length; collapses to one column when narrow. */
+/* Fixed two-column grid so cards always tile evenly (4 -> 2x2) instead of
+   reflowing to 3x1 at wider widths; equal rows keep tiles the same size
+   regardless of description length. Collapses to one column when narrow. */
 .cms-home-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     gap: 1rem;
+}
+
+@media (max-width: 599.98px) {
+    .cms-home-cards {
+        grid-template-columns: 1fr;
+    }
 }
 
 .cms-home-cards .q-card {

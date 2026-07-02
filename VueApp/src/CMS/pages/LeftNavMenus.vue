@@ -1,6 +1,6 @@
 <template>
     <div class="q-pa-md">
-        <div class="row items-center q-mb-md">
+        <div class="row items-center q-mb-md list-page-header">
             <h1 class="q-my-none">Manage Left-Nav Menus</h1>
             <q-space />
             <q-btn

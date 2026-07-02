@@ -31,7 +31,7 @@
             @validation-error="onValidationError"
         >
             <div class="row q-col-gutter-lg">
-                <div class="col-12 col-lg-8">
+                <div class="col-12">
                     <q-input
                         v-model="block.title"
                         dense
@@ -52,6 +52,8 @@
                     <q-editor
                         ref="contentEditorRef"
                         v-model="block.content"
+                        dense
+                        class="content-editor"
                         min-height="20rem"
                         :toolbar="editorToolbar"
                         :definitions="{}"
@@ -115,7 +117,7 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-lg-4">
+                <div class="col-12">
                     <q-card
                         flat
                         bordered
@@ -139,18 +141,40 @@
                             />
 
                             <q-select
+                                v-if="isNew"
                                 v-model="block.viperSectionPath"
                                 dense
                                 options-dense
                                 outlined
-                                clearable
-                                use-input
-                                new-value-mode="add-unique"
-                                input-debounce="0"
                                 label="VIPER section path"
-                                hint="Pick an existing section or type a new one"
-                                :options="sectionPaths"
+                                class="required-field"
+                                :options="folders"
+                                :rules="[(v: string | null) => !!v || 'A VIPER section path is required']"
+                                aria-required="true"
+                                hint="The VIPER app folder this block's files are stored in; it can't be changed later."
                             />
+                            <q-input
+                                v-else
+                                :model-value="block.viperSectionPath"
+                                dense
+                                outlined
+                                readonly
+                                label="VIPER section path"
+                            >
+                                <template #append>
+                                    <q-icon
+                                        name="help"
+                                        size="xs"
+                                        tabindex="0"
+                                        role="img"
+                                        aria-label="The section path can't be edited after the block is created"
+                                    >
+                                        <q-tooltip>
+                                            The section path can't be edited after the block is created.
+                                        </q-tooltip>
+                                    </q-icon>
+                                </template>
+                            </q-input>
 
                             <q-input
                                 v-model="block.page"
@@ -225,6 +249,7 @@
                                     <span class="sr-only">(opens in new window)</span>
                                 </a>
                                 <q-btn
+                                    v-if="canAccessFiles"
                                     dense
                                     flat
                                     size="sm"
@@ -251,6 +276,15 @@
                                 :loading="searchingFiles"
                                 @filter="searchFiles"
                                 @update:model-value="attachFile"
+                            />
+                            <InlineFileUpload
+                                v-if="canAccessFiles"
+                                ref="inlineUploadRef"
+                                class="q-mt-sm"
+                                :folder="block.viperSectionPath"
+                                :permissions="block.permissions"
+                                :allow-public-access="block.allowPublicAccess"
+                                @staged-count="stagedCount = $event"
                             />
                         </q-card-section>
                     </q-card>
@@ -313,6 +347,7 @@ import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
+import InlineFileUpload from "@/CMS/components/InlineFileUpload.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
 import type {
@@ -328,12 +363,11 @@ const filesApiURL = inject("apiURL") + "cms/files/"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
-const { get, post, put, createUrlSearchParams } = useFetch()
+const { get, post, put, del, createUrlSearchParams } = useFetch()
 
-// This route also admits CreateContentBlock-only users, but the section-path list and the file
-// catalog APIs require ManageContentBlocks / AllFiles. Gate those calls so a create-only user
-// doesn't fire requests that can only 403 (the section field still accepts a typed-in path).
-const canManageContent = checkHasOnePermission(["SVMSecure.CMS.ManageContentBlocks"])
+// This route also admits CreateContentBlock-only users. The folder list (for the section path)
+// is served by a content-scoped endpoint they can reach; the file catalog (attach/upload) still
+// requires AllFiles, so gate only those.
 const canAccessFiles = checkHasOnePermission(["SVMSecure.CMS.AllFiles"])
 
 const blockId = computed(() => (route.params.id ? Number(route.params.id) : null))
@@ -352,7 +386,7 @@ const emptyBlock = (): CmsContentBlock => ({
     application: null,
     page: null,
     viperSectionPath: null,
-    blockOrder: 1,
+    blockOrder: 0,
     friendlyName: null,
     allowPublicAccess: false,
     modifiedOn: "",
@@ -364,12 +398,20 @@ const emptyBlock = (): CmsContentBlock => ({
 
 const block = ref<CmsContentBlock>(emptyBlock())
 
-const { setInitialState, resetDirtyState, confirmClose } = useUnsavedChanges(block)
+// Files chosen in the inline uploader are staged client-side and only uploaded on Save. Fold their
+// count into the dirty state so staging alone trips the unsaved-changes guard.
+const inlineUploadRef = ref<{
+    commit: () => Promise<{ attached: CmsFile[]; createdGuids: string[] }>
+} | null>(null)
+const stagedCount = ref(0)
+const dirtyState = computed(() => ({ block: block.value, staged: stagedCount.value }))
+
+const { setInitialState, resetDirtyState, confirmClose } = useUnsavedChanges(dirtyState)
 
 // Prompt before leaving with unsaved edits, matching the Effort forms' guard.
 onBeforeRouteLeave(async () => await confirmClose())
 
-const sectionPaths = ref<string[]>([])
+const folders = ref<string[]>([])
 const history = ref<CmsContentHistoryItem[]>([])
 const selectedHistory = ref<CmsContentHistoryItem | null>(null)
 const viewingVersion = ref(false)
@@ -408,9 +450,12 @@ async function loadHistory() {
     history.value = res.success ? res.result : []
 }
 
-async function loadSectionPaths() {
-    const res = await get(apiURL + "/section-paths")
-    sectionPaths.value = res.success ? res.result : []
+// The section path IS a file folder (legacy parity): a block can only point at a real upload
+// folder, so its files always land somewhere valid. Sourced from a content-scoped endpoint so
+// create-only users (who lack AllFiles) can still populate it.
+async function loadFolders() {
+    const res = await get(apiURL + "/folders")
+    folders.value = res.success ? res.result : []
 }
 
 function historyLabel(h: CmsContentHistoryItem): string {
@@ -498,6 +543,17 @@ function attachFile() {
     fileToAttach.value = null
 }
 
+// Add a file that was just committed (uploaded/overwritten/reused) by the inline uploader to the
+// block's attachment list, de-duping by GUID.
+function attachUploadedFile(file: CmsFile) {
+    if (block.value.files.some((f) => f.fileGuid === file.fileGuid)) return
+    block.value.files.push({
+        fileGuid: file.fileGuid,
+        friendlyName: file.friendlyName,
+        url: file.friendlyUrl,
+    })
+}
+
 function detachFile(file: CmsContentBlockFile) {
     block.value.files = block.value.files.filter((f) => f.fileGuid !== file.fileGuid)
 }
@@ -523,10 +579,40 @@ function onValidationError() {
         : "Please complete the required fields before saving your changes."
 }
 
+// Roll back files freshly created during a Save that then failed, so a failed save leaves nothing
+// attached. The files go to the trash (soft-delete); the trash-purge job clears them later, and
+// they're recoverable meanwhile. Overwritten or reused existing files are never in this list - see
+// InlineFileUpload.commit.
+async function rollbackFiles(createdGuids: string[]) {
+    if (createdGuids.length === 0) return
+    for (const guid of createdGuids) {
+        await del(filesApiURL + guid)
+    }
+    const removed = new Set(createdGuids)
+    block.value.files = block.value.files.filter((f) => !removed.has(f.fileGuid))
+}
+
 async function saveBlock() {
     formError.value = ""
 
     saving.value = true
+
+    // Commit any staged inline uploads first (this is when they're actually created on the server),
+    // then attach them so they're included in fileGuids below. Abort the save if an upload fails.
+    // Track freshly-created files so we can roll them back if the block save itself then fails.
+    let rollbackGuids: string[] = []
+    if (inlineUploadRef.value) {
+        try {
+            const { attached, createdGuids } = await inlineUploadRef.value.commit()
+            attached.forEach(attachUploadedFile)
+            rollbackGuids = createdGuids
+        } catch (e) {
+            saving.value = false
+            formError.value = e instanceof Error ? e.message : "Failed to upload one or more files."
+            return
+        }
+    }
+
     const payload = {
         contentBlockId: block.value.contentBlockId,
         content: block.value.content,
@@ -549,6 +635,7 @@ async function saveBlock() {
     saving.value = false
 
     if (res.status === 409) {
+        await rollbackFiles(rollbackGuids)
         $q.dialog({
             title: "Edit Conflict",
             message:
@@ -566,6 +653,7 @@ async function saveBlock() {
     }
 
     if (!res.success) {
+        await rollbackFiles(rollbackGuids)
         formError.value = res.errors?.[0] ?? "Failed to save content block"
         return
     }
@@ -599,7 +687,8 @@ onMounted(() => {
     // QEditor renders the focusable contenteditable as an inner element, so its accessible
     // name has to be set there rather than on the wrapper the "Content" label sits beside.
     contentEditorRef.value?.getContentEl()?.setAttribute("aria-labelledby", "content-editor-label")
-    if (canManageContent) loadSectionPaths()
+    // Only the create form offers the (editable) section-path select; on edit it's read-only.
+    if (isNew.value) loadFolders()
     loadBlock()
     // loadBlock sets the baseline for an existing block after it loads; a brand-new form's
     // baseline is just the empty block, so capture it synchronously here.
@@ -613,5 +702,25 @@ onMounted(() => {
 .required-field :deep(.q-field__label)::after {
     content: " *";
     color: var(--q-negative);
+}
+
+/* Let the editor toolbar wrap onto multiple rows on narrow screens instead of
+   scrolling horizontally; `dense` keeps each button group intact so groups wrap
+   as whole units rather than splitting mid-group. */
+.content-editor :deep(.q-editor__toolbar) {
+    flex-wrap: wrap;
+}
+
+/* On phones, trim the inter-button and inter-group gaps so the toolbar packs
+   into two rows instead of three. Only the gaps shrink - the buttons keep their
+   size, so touch targets are unchanged. */
+@media (width <= 599.98px) {
+    .content-editor :deep(.q-editor__toolbar-group) {
+        margin: 0 2px;
+    }
+
+    .content-editor :deep(.q-editor__toolbar .q-btn) {
+        margin: 2px;
+    }
 }
 </style>

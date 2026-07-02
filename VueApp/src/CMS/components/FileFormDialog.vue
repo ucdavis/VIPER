@@ -236,6 +236,7 @@ import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import PersonSelector from "@/CMS/components/PersonSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
+import { CMS_ACCEPTED_EXTENSIONS } from "@/CMS/file-types"
 import type { CmsFile, CmsFilePerson } from "@/CMS/types/"
 
 const props = defineProps<{
@@ -253,8 +254,7 @@ const apiURL = inject("apiURL") + "cms/files/"
 const $q = useQuasar()
 const { get, postForm, putForm, createUrlSearchParams } = useFetch()
 
-const acceptedExtensions =
-    ".pdf,.docx,.doc,.xls,.xlsx,.csv,.ppt,.pptx,.pptm,.txt,.html,.gif,.png,.jpg,.jpeg,.tiff,.mp3,.wav,.mp4,.webm,.oft,.eps,.zip,.7z,.dmg,.exe"
+const acceptedExtensions = CMS_ACCEPTED_EXTENSIONS
 
 const isEdit = computed(() => props.file !== null)
 const formRef = ref()

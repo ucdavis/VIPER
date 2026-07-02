@@ -13,6 +13,10 @@ namespace Viper.Areas.CMS.Models.DTOs
         public DateTime ModifiedOn { get; set; }
         public string ModifiedBy { get; set; } = string.Empty;
         public DateTime? DeletedOn { get; set; }
+
+        /// <summary>When a trashed file will be permanently purged (DeletedOn + retention); null if not deleted.</summary>
+        public DateTime? PurgeOn { get; set; }
+
         public List<string> Permissions { get; set; } = new();
         public List<CmsFilePersonDto> People { get; set; } = new();
         public string Url { get; set; } = string.Empty;

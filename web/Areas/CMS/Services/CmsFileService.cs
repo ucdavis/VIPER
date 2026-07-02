@@ -10,9 +10,11 @@ namespace Viper.Areas.CMS.Services
     public interface ICmsFileService
     {
         Task<(List<CmsFileDto> Files, int Total)> GetFilesAsync(string? folder, string status, string? search,
-            bool? encrypted, bool? isPublic, int page, int perPage, string? sortBy, bool descending, CancellationToken ct = default);
+            bool? encrypted, bool? isPublic, int page, int perPage, string? sortBy, bool descending,
+            string? restrictDeletedToOwner = null, CancellationToken ct = default);
 
-        Task<List<CmsFolderCountDto>> GetFolderCountsAsync(string status, bool? encrypted, bool? isPublic, CancellationToken ct = default);
+        Task<List<CmsFolderCountDto>> GetFolderCountsAsync(string status, bool? encrypted, bool? isPublic,
+            string? restrictDeletedToOwner = null, CancellationToken ct = default);
 
         Task<CmsFileNameCheckDto> CheckNameAsync(string folder, string fileName, CancellationToken ct = default);
 
@@ -27,6 +29,12 @@ namespace Viper.Areas.CMS.Services
         Task<bool> RestoreFileAsync(Guid fileGuid, CancellationToken ct = default);
 
         Task<bool> PermanentlyDeleteFileAsync(Guid fileGuid, CancellationToken ct = default);
+
+        /// <summary>
+        /// Permanently deletes trashed files whose DeletedOn is older than <paramref name="retentionDays"/>.
+        /// Used by the trash-purge scheduled job. Returns the number of files purged.
+        /// </summary>
+        Task<int> PurgeDeletedFilesAsync(int retentionDays, CancellationToken ct = default);
     }
 
     /// <summary>
@@ -59,7 +67,8 @@ namespace Viper.Areas.CMS.Services
         }
 
         public async Task<(List<CmsFileDto> Files, int Total)> GetFilesAsync(string? folder, string status, string? search,
-            bool? encrypted, bool? isPublic, int page, int perPage, string? sortBy, bool descending, CancellationToken ct = default)
+            bool? encrypted, bool? isPublic, int page, int perPage, string? sortBy, bool descending,
+            string? restrictDeletedToOwner = null, CancellationToken ct = default)
         {
             var query = _context.Files
                 .AsNoTracking()
@@ -76,7 +85,7 @@ namespace Viper.Areas.CMS.Services
                 query = query.Where(f => f.Folder == folder || (f.Folder != null && f.Folder.StartsWith(folderPrefix)));
             }
 
-            query = ApplyStatusFilter(query, status);
+            query = ApplyStatusFilter(query, status, restrictDeletedToOwner);
 
             if (encrypted != null)
             {
@@ -120,14 +129,14 @@ namespace Viper.Areas.CMS.Services
         }
 
         public async Task<List<CmsFolderCountDto>> GetFolderCountsAsync(string status, bool? encrypted, bool? isPublic,
-            CancellationToken ct = default)
+            string? restrictDeletedToOwner = null, CancellationToken ct = default)
         {
             var query = _context.Files
                 .AsNoTracking()
                 .TagWith("CmsFileService.GetFolderCounts")
                 .AsQueryable();
 
-            query = ApplyStatusFilter(query, status);
+            query = ApplyStatusFilter(query, status, restrictDeletedToOwner);
 
             if (encrypted != null)
             {
@@ -154,13 +163,20 @@ namespace Viper.Areas.CMS.Services
                 .ToList();
         }
 
-        private static IQueryable<File> ApplyStatusFilter(IQueryable<File> query, string? status)
+        // restrictDeletedToOwner scopes deleted files to the login that deleted them (ModifiedBy),
+        // so non-admins only see files they trashed. Admins pass null and see the whole trash.
+        private static IQueryable<File> ApplyStatusFilter(IQueryable<File> query, string? status,
+            string? restrictDeletedToOwner = null)
         {
             return status?.ToLowerInvariant() switch
             {
                 "active" => query.Where(f => f.DeletedOn == null),
-                "deleted" => query.Where(f => f.DeletedOn != null),
-                _ => query
+                "deleted" => restrictDeletedToOwner == null
+                    ? query.Where(f => f.DeletedOn != null)
+                    : query.Where(f => f.DeletedOn != null && f.ModifiedBy == restrictDeletedToOwner),
+                _ => restrictDeletedToOwner == null
+                    ? query
+                    : query.Where(f => f.DeletedOn == null || f.ModifiedBy == restrictDeletedToOwner)
             };
         }
 
@@ -644,16 +660,60 @@ namespace Viper.Areas.CMS.Services
             }
 
             _audit.Audit(entity, CmsFileAuditActions.DeleteFile, "File Deleted");
+            // Remove every dependent row before the File delete: content-block attachments use
+            // ClientSetNull (no DB cascade), so a still-attached file would otherwise trip the FK.
+            // Purging a still-attached file detaches it from those blocks.
+            var blockLinks = await _context.ContentBlockToFiles.Where(l => l.FileGuid == fileGuid).ToListAsync(ct);
+            _context.RemoveRange(blockLinks);
             _context.RemoveRange(entity.FileToPermissions);
             _context.RemoveRange(entity.FileToPeople);
             _context.Remove(entity);
             await _context.SaveChangesAsync(ct);
 
-            if (_storage.ManagedFileExists(entity.FilePath))
+            // The DB row is already gone at this point, so a failed disk delete only strands bytes;
+            // log it for manual cleanup rather than failing an operation that did delete the record.
+            try
             {
-                _storage.DeleteManagedFile(entity.FilePath);
+                if (_storage.ManagedFileExists(entity.FilePath))
+                {
+                    _storage.DeleteManagedFile(entity.FilePath);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(ex, "CMS file record {FileGuid} was deleted but its bytes at {FilePath} "
+                    + "could not be removed from disk.",
+                    fileGuid, Viper.Classes.Utilities.LogSanitizer.SanitizeString(entity.FilePath));
             }
             return true;
+        }
+
+        public async Task<int> PurgeDeletedFilesAsync(int retentionDays, CancellationToken ct = default)
+        {
+            var cutoff = DateTime.Now.AddDays(-retentionDays);
+            var guids = await _context.Files
+                .Where(f => f.DeletedOn != null && f.DeletedOn < cutoff)
+                .Select(f => f.FileGuid)
+                .ToListAsync(ct);
+
+            int purged = 0;
+            foreach (var guid in guids)
+            {
+                try
+                {
+                    if (await PermanentlyDeleteFileAsync(guid, ct))
+                    {
+                        purged++;
+                    }
+                }
+                catch (Exception ex) when (ex is DbUpdateException or IOException or InvalidOperationException)
+                {
+                    // Isolate per-file failures so one bad file doesn't abort the whole purge run.
+                    _context.ChangeTracker.Clear();
+                    _logger.LogError(ex, "CMS trash purge failed to delete file {FileGuid}", guid);
+                }
+            }
+            return purged;
         }
 
         private async Task<File?> LoadFileAsync(Guid fileGuid, bool tracking, CancellationToken ct)

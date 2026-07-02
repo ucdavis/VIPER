@@ -49,6 +49,7 @@ function existingFile(overrides: Partial<CmsFile> = {}): CmsFile {
         modifiedOn: "2024-01-01T00:00:00",
         modifiedBy: "u",
         deletedOn: null,
+        purgeOn: null,
         permissions: ["SVMSecure.CMS"],
         people: [{ iamId: "iam1", name: "Person One" }],
         url: "/files/guid-123",
