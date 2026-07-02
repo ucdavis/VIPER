@@ -31,4 +31,14 @@ public class DateRangeHelperTests
 
         Assert.Equal(to, result);
     }
+
+    [Fact]
+    public void ExclusiveUpperBound_MaxValueDate_ClampsToMaxValueWithoutOverflow()
+    {
+        // A user-suppliable "To" at the DateTime ceiling has no next midnight to advance to, so
+        // advancing by a day would overflow. The helper clamps to MaxValue instead.
+        var result = DateRangeHelper.ExclusiveUpperBound(DateTime.MaxValue.Date);
+
+        Assert.Equal(DateTime.MaxValue, result);
+    }
 }
