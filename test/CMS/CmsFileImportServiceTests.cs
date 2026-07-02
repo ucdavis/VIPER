@@ -66,7 +66,11 @@ public sealed class CmsFileImportServiceTests : IDisposable
 
     private string CreateWebrootFile(string relativePath, string contents = "legacy file")
     {
-        var path = Path.Join(_webroot, relativePath);
+        // Split on both separator styles: on Linux a raw @"cats\docs\x.pdf" would otherwise
+        // become one literal file name in the webroot root instead of a nested path.
+        var segments = relativePath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var path = Path.Join(_webroot, Path.Join(segments));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, contents);
         return path;
     }
