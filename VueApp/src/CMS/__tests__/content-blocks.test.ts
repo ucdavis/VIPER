@@ -8,11 +8,13 @@ import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-u
  */
 
 const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockDel = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),
-        del: vi.fn<(...args: unknown[]) => unknown>(),
-        post: vi.fn<(...args: unknown[]) => unknown>(),
+        del: (...args: unknown[]) => mockDel(...args),
+        post: (...args: unknown[]) => mockPost(...args),
         createUrlSearchParams: (obj: Record<string, string | number | null | undefined>) => {
             const params = new URLSearchParams()
             for (const [k, v] of Object.entries(obj)) {
@@ -43,6 +45,8 @@ const BLOCK_ROW = {
 // The list endpoint is the one without "/section-paths"; route by URL.
 function routeGet(blockRows: unknown[] = [BLOCK_ROW]) {
     mockGet.mockReset()
+    mockDel.mockReset()
+    mockPost.mockReset()
     mockGet.mockImplementation((...args: unknown[]) => {
         const url = args[0] as string
         if (url.includes("/section-paths")) {
@@ -139,5 +143,106 @@ describe("ContentBlocks.vue - URL filter sync", () => {
         expect(router.currentRoute.value.query.search).toBe("welcome")
         expect(router.currentRoute.value.query.status).toBeUndefined()
         expect(router.currentRoute.value.query.public).toBeUndefined()
+    })
+
+    it("re-syncs filters and refetches when in-app navigation changes the query", async () => {
+        const { router } = await mountPage()
+        const before = mockGet.mock.calls.length
+
+        await router.push({ path: "/CMS/ManageContentBlocks", query: { status: "deleted", search: "old" } })
+        await flushRouter()
+
+        expect(mockGet.mock.calls.length).toBeGreaterThan(before)
+        const url = lastListUrl()
+        expect(url).toContain("status=deleted")
+        expect(url).toContain("search=old")
+    })
+})
+
+// Quasar plugin dialogs ($q.dialog) and notifications teleport to document.body. Click the LAST
+// match: a dismissed dialog's portal can linger mid-transition, so the newest dialog is the live
+// one. The body is never wiped between tests (Quasar caches its notification container there),
+// so toast assertions use per-test-unique messages.
+function clickBodyButton(label: string) {
+    const btn = [...document.body.querySelectorAll("button")].filter((b) => b.textContent?.includes(label)).at(-1)
+    expect(btn, `expected a "${label}" button in the dialog`).toBeTruthy()
+    btn!.click()
+}
+
+function listCallCount(): number {
+    return mockGet.mock.calls.map((c) => c[0] as string).filter((u) => !u.includes("/section-paths")).length
+}
+
+describe("ContentBlocks.vue - delete and restore actions", () => {
+    beforeEach(() => routeGet())
+
+    it("soft-deletes the block and reloads the list once the confirm dialog is accepted", async () => {
+        mockDel.mockResolvedValue({ success: true, result: null })
+        const { wrapper } = await mountPage()
+        const before = listCallCount()
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("delete")
+        await flushPromises()
+        expect(document.body.textContent).toContain('Mark "Welcome" as deleted?')
+
+        clickBodyButton("Delete")
+        await flushPromises()
+        await flushPromises()
+
+        expect(mockDel).toHaveBeenCalledOnce()
+        expect(mockDel.mock.calls[0]![0]).toContain("CMS/content/1")
+        expect(document.body.textContent).toContain("Content block marked as deleted")
+        expect(listCallCount()).toBeGreaterThan(before)
+    })
+
+    it("does not delete when the confirm dialog is cancelled", async () => {
+        const { wrapper } = await mountPage()
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("delete")
+        await flushPromises()
+        clickBodyButton("Cancel")
+        await flushPromises()
+
+        expect(mockDel).not.toHaveBeenCalled()
+    })
+
+    it("notifies when the delete fails", async () => {
+        mockDel.mockResolvedValue({ success: false, errors: ["nope"] })
+        const { wrapper } = await mountPage()
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("delete")
+        await flushPromises()
+        clickBodyButton("Delete")
+        await flushPromises()
+        await flushPromises()
+
+        expect(document.body.textContent).toContain("Failed to delete content block")
+    })
+
+    it("restores a deleted block and reloads the list", async () => {
+        routeGet([{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }])
+        mockPost.mockResolvedValue({ success: true, result: null })
+        const { wrapper } = await mountPage()
+        const before = listCallCount()
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("restore")
+        await flushPromises()
+        await flushPromises()
+
+        expect(mockPost.mock.calls[0]![0]).toContain("CMS/content/1/restore")
+        expect(document.body.textContent).toContain("Content block restored")
+        expect(listCallCount()).toBeGreaterThan(before)
+    })
+
+    it("notifies when the restore fails", async () => {
+        routeGet([{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }])
+        mockPost.mockResolvedValue({ success: false, errors: ["nope"] })
+        const { wrapper } = await mountPage()
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("restore")
+        await flushPromises()
+        await flushPromises()
+
+        expect(document.body.textContent).toContain("Failed to restore content block")
     })
 })
