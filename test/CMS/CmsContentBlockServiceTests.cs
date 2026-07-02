@@ -17,7 +17,6 @@ public sealed class CmsContentBlockServiceTests : IDisposable
 {
     private readonly VIPERContext _context;
     private readonly IHtmlSanitizerService _sanitizer;
-    private readonly IUserHelper _userHelper;
     private readonly CmsContentBlockService _service;
 
     public CmsContentBlockServiceTests()
@@ -28,9 +27,8 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => callInfo.ArgAt<string>(0));
         // Pass-through so diff tests assert on the real htmldiff.net markers, not a sanitized copy.
         _sanitizer.SanitizeDiff(Arg.Any<string>()).Returns(callInfo => callInfo.ArgAt<string>(0));
-        _userHelper = Substitute.For<IUserHelper>();
 
-        _service = new CmsContentBlockService(_context, _sanitizer, _userHelper);
+        _service = new CmsContentBlockService(_context, _sanitizer, Substitute.For<IUserHelper>());
     }
 
     public void Dispose()
@@ -113,7 +111,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         var dto = await _service.GetContentBlockAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
 
         Assert.NotNull(dto);
-        Assert.Equal("<p>original</p>", dto!.Content);
+        Assert.Equal("<p>original</p>", dto.Content);
         Assert.Equal(new List<string> { "SVMSecure.CATS" }, dto.Permissions);
     }
 
@@ -230,7 +228,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     [Fact]
     public async Task Update_AppliesPermissionAndFileDeltas()
     {
-        var file = new Viper.Models.VIPER.File
+        var file = new Models.VIPER.File
         {
             FileGuid = Guid.NewGuid(),
             FilePath = @"C:\FakeRoot\cats\attach.pdf",
@@ -438,7 +436,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.NotNull(diff);
-        Assert.True(diff!.HasComparison);
+        Assert.True(diff.HasComparison);
         Assert.True(diff.HasChanges);
         Assert.Equal("originalAuthor", diff.OldModifiedBy);
         Assert.Contains("<ins", diff.Content);
@@ -461,7 +459,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.NotNull(diff);
-        Assert.False(diff!.HasComparison);
+        Assert.False(diff.HasComparison);
         Assert.Equal("<p>original</p>", diff.Content);
         Assert.DoesNotContain("<ins", diff.Content);
     }
@@ -490,7 +488,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
             "<p>current draft</p>", TestContext.Current.CancellationToken);
 
         Assert.NotNull(diff);
-        Assert.True(diff!.HasComparison);
+        Assert.True(diff.HasComparison);
         Assert.True(diff.HasChanges);
         Assert.Equal("originalAuthor", diff.OldModifiedBy);
         Assert.Contains("<ins", diff.Content);
@@ -511,7 +509,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
             "<p>original</p>", TestContext.Current.CancellationToken);
 
         Assert.NotNull(diff);
-        Assert.True(diff!.HasComparison);
+        Assert.True(diff.HasComparison);
         Assert.False(diff.HasChanges);
         Assert.DoesNotContain("<ins", diff.Content);
         Assert.DoesNotContain("<del", diff.Content);

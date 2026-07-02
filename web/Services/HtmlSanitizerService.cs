@@ -95,7 +95,7 @@ namespace Viper.Services
             // Also lock <img src> to relative URLs only — matches the legacy antisamy-cms.xml
             // onsiteURL regex and prevents editor-authored content from embedding third-party
             // tracking beacons or any absolute-URL image (same-origin absolutes included).
-            sanitizer.FilterUrl += (sender, args) =>
+            sanitizer.FilterUrl += (_, args) =>
             {
                 if (args.OriginalUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                 {

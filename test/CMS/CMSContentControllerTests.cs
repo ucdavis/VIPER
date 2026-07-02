@@ -33,7 +33,6 @@ public sealed class CMSContentControllerTests : IDisposable
     private readonly IUserHelper _userHelper;
     private readonly VIPERContext _context;
     private readonly RAPSContext _rapsContext;
-    private readonly IHtmlSanitizerService _sanitizer;
     private readonly CMSContentController _controller;
 
     public CMSContentControllerTests()
@@ -41,13 +40,13 @@ public sealed class CMSContentControllerTests : IDisposable
         _blockService = Substitute.For<ICmsContentBlockService>();
         _storage = Substitute.For<ICmsFileStorageService>();
         _userHelper = Substitute.For<IUserHelper>();
-        _sanitizer = Substitute.For<IHtmlSanitizerService>();
+        var sanitizer = Substitute.For<IHtmlSanitizerService>();
         _context = new VIPERContext(new DbContextOptionsBuilder<VIPERContext>()
             .UseInMemoryDatabase("VIPER_" + Guid.NewGuid()).Options);
         _rapsContext = new RAPSContext(new DbContextOptionsBuilder<RAPSContext>()
             .UseInMemoryDatabase("RAPS_" + Guid.NewGuid()).Options);
 
-        _controller = new CMSContentController(_context, _rapsContext, _sanitizer, _blockService, _storage, _userHelper);
+        _controller = new CMSContentController(_context, _rapsContext, sanitizer, _blockService, _storage, _userHelper);
         SetupControllerContext();
     }
 

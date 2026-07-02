@@ -84,7 +84,7 @@ public sealed class CMSLinkCollectionControllerTests : IDisposable
     [Fact]
     public async Task PostLinkCollection_RejectsDuplicateName()
     {
-        await SeedCollectionAsync("Resources");
+        await SeedCollectionAsync();
 
         var result = await _controller.PostLinkCollection(new CreateLinkCollectionDto { LinkCollection = "Resources" });
 

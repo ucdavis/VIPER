@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.CMS.Constants;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -21,7 +22,6 @@ public sealed class CMSContentPermissionTests : IDisposable
 {
     private readonly VIPERContext _context;
     private readonly RAPSContext _rapsContext;
-    private readonly IHtmlSanitizerService _sanitizer;
     private readonly IUserHelper _userHelper;
     private readonly DataCms _cms;
 
@@ -31,11 +31,11 @@ public sealed class CMSContentPermissionTests : IDisposable
             .UseInMemoryDatabase("VIPER_" + Guid.NewGuid()).Options);
         _rapsContext = new RAPSContext(new DbContextOptionsBuilder<RAPSContext>()
             .UseInMemoryDatabase("RAPS_" + Guid.NewGuid()).Options);
-        _sanitizer = Substitute.For<IHtmlSanitizerService>();
-        _sanitizer.Sanitize(Arg.Any<string>()).Returns(c => c.ArgAt<string>(0));
+        var sanitizer = Substitute.For<IHtmlSanitizerService>();
+        sanitizer.Sanitize(Arg.Any<string>()).Returns(c => c.ArgAt<string>(0));
         _userHelper = Substitute.For<IUserHelper>();
 
-        _cms = new DataCms(_context, _rapsContext, _sanitizer) { UserHelper = _userHelper };
+        _cms = new DataCms(_context, _rapsContext, sanitizer) { UserHelper = _userHelper };
     }
 
     public void Dispose()
@@ -77,13 +77,13 @@ public sealed class CMSContentPermissionTests : IDisposable
     public async Task PublicBlock_ReturnedToAnonymousUser()
     {
         var block = await SeedBlockAsync(allowPublic: true);
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Single(result!);
-        Assert.Equal(block.ContentBlockId, result![0].ContentBlockId);
+        Assert.Single(result);
+        Assert.Equal(block.ContentBlockId, result[0].ContentBlockId);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class CMSContentPermissionTests : IDisposable
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Empty(result!);
+        Assert.Empty(result);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class CMSContentPermissionTests : IDisposable
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Single(result!);
+        Assert.Single(result);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class CMSContentPermissionTests : IDisposable
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Single(result!);
+        Assert.Single(result);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class CMSContentPermissionTests : IDisposable
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Single(result!);
+        Assert.Single(result);
     }
 
     [Fact]
@@ -161,18 +161,18 @@ public sealed class CMSContentPermissionTests : IDisposable
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Single(result!);
+        Assert.Single(result);
     }
 
     [Fact]
     public async Task RestrictedBlock_WithheldFromAnonymousUser()
     {
         var block = await SeedBlockAsync(allowPublic: false, "SVMSecure.CATS");
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var result = _cms.GetContentBlocksAllowed(null, block.FriendlyName, null, null, null, null, null, 1)?.ToList();
 
         Assert.NotNull(result);
-        Assert.Empty(result!);
+        Assert.Empty(result);
     }
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using Areas.CMS.Validation;
 
 namespace Viper.Areas.CMS.Models.DTOs
@@ -52,12 +53,16 @@ namespace Viper.Areas.CMS.Models.DTOs
     /// </summary>
     public class LeftNavItemEdit
     {
+        // JsonRequired (not defaulting on omission): an under-posted id would silently turn an
+        // update into a new item, and an omitted isHeader would silently clear a header.
+        [JsonRequired]
         public int LeftNavItemId { get; set; }
 
         [Required]
         [MaxLength(500)]
         public string MenuItemText { get; set; } = string.Empty;
 
+        [JsonRequired]
         public bool IsHeader { get; set; }
 
         [MaxLength(1000)]

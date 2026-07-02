@@ -114,9 +114,11 @@ namespace Viper.Areas.CMS.Services
             }
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(b => (b.Title != null && b.Title.Contains(search))
-                    || (b.FriendlyName != null && b.FriendlyName.Contains(search))
-                    || (b.Page != null && b.Page.Contains(search))
+                // Coalescing null columns to "" (never a match: search is non-empty here) keeps
+                // this a flat OR chain the SQL and in-memory providers both translate.
+                query = query.Where(b => (b.Title ?? "").Contains(search)
+                    || (b.FriendlyName ?? "").Contains(search)
+                    || (b.Page ?? "").Contains(search)
                     || b.Content.Contains(search));
             }
 
@@ -143,7 +145,6 @@ namespace Viper.Areas.CMS.Services
                         .OrderBy(p => p)
                         .ToList(),
                     Files = b.ContentBlockToFiles
-                        .Where(f => f.File != null)
                         .Select(f => new
                         {
                             f.FileGuid,
@@ -423,8 +424,8 @@ namespace Viper.Areas.CMS.Services
         // <ins>/<del> change markers on top of our normal allowlist.
         private string BuildDiffHtml(string oldContent, string newContent)
         {
-            var oldSafe = _sanitizer.Sanitize(oldContent ?? string.Empty);
-            var newSafe = _sanitizer.Sanitize(newContent ?? string.Empty);
+            var oldSafe = _sanitizer.Sanitize(oldContent);
+            var newSafe = _sanitizer.Sanitize(newContent);
             var diff = HtmlDiffer.Execute(oldSafe, newSafe);
             return _sanitizer.SanitizeDiff(diff);
         }
@@ -492,9 +493,9 @@ namespace Viper.Areas.CMS.Services
             }
             if (!string.IsNullOrEmpty(filter.Search))
             {
-                query = query.Where(x => (x.Block.Title != null && x.Block.Title.Contains(filter.Search))
-                    || (x.Block.FriendlyName != null && x.Block.FriendlyName.Contains(filter.Search))
-                    || (x.Block.Page != null && x.Block.Page.Contains(filter.Search)));
+                query = query.Where(x => (x.Block.Title ?? "").Contains(filter.Search)
+                    || (x.Block.FriendlyName ?? "").Contains(filter.Search)
+                    || (x.Block.Page ?? "").Contains(filter.Search));
             }
             return query;
         }

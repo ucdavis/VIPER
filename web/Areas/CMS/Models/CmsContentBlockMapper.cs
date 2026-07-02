@@ -12,7 +12,6 @@ namespace Viper.Areas.CMS.Models
             var dto = ToDtoBase(block);
             dto.Permissions = block.ContentBlockToPermissions.Select(p => p.Permission).OrderBy(p => p).ToList();
             dto.Files = block.ContentBlockToFiles
-                .Where(f => f.File != null)
                 .Select(f => new ContentBlockFileDto
                 {
                     FileGuid = f.FileGuid,

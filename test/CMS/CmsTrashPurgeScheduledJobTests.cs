@@ -36,7 +36,7 @@ public sealed class CmsTrashPurgeScheduledJobTests
 
         await job.RunAsync(Context(), CancellationToken.None);
 
-        await fileService.DidNotReceiveWithAnyArgs().PurgeDeletedFilesAsync(default, default);
+        await fileService.DidNotReceiveWithAnyArgs().PurgeDeletedFilesAsync(default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class CmsTrashPurgeScheduledJobTests
 
         await job.RunAsync(Context(), CancellationToken.None);
 
-        await fileService.DidNotReceiveWithAnyArgs().PurgeDeletedFilesAsync(default, default);
+        await fileService.DidNotReceiveWithAnyArgs().PurgeDeletedFilesAsync(default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
