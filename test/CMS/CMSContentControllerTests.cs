@@ -147,6 +147,65 @@ public sealed class CMSContentControllerTests : IDisposable
         Assert.IsType<NotFoundResult>(result.Result);
     }
 
+    [Fact]
+    public async Task GetContentBlockByFn_ReturnsNotFound_WhenMissing()
+    {
+        var result = _controller.GetContentBlockByFn("does-not-exist");
+
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetContentBlockByFn_ProjectsToDto_AndDoesNotLeakEntityInternals()
+    {
+        // Regression: this endpoint is anonymous. It must project to a DTO and never serialize the
+        // raw ContentBlock graph, which would leak each attached file's AES Key and server FilePath,
+        // the full content history, and the block's permission rows.
+        var file = new Models.VIPER.File
+        {
+            FileGuid = Guid.NewGuid(),
+            FriendlyName = "attached-doc",
+            FilePath = @"S:\Files\secret\attached-doc.pdf",
+            Key = "SUPER_SECRET_AES_KEY",
+            Encrypted = true,
+            AllowPublicAccess = true,
+            Description = "internal notes",
+            ModifiedBy = "author"
+        };
+        var block = new Models.VIPER.ContentBlock
+        {
+            Content = "<p>body</p>",
+            Title = "Public Block",
+            System = "Viper",
+            FriendlyName = "public-fn",
+            AllowPublicAccess = true,
+            ModifiedOn = DateTime.Now,
+            ModifiedBy = "author",
+            ContentBlockToFiles = { new Models.VIPER.ContentBlockToFile { FileGuid = file.FileGuid, File = file } },
+            ContentHistories = { new Models.VIPER.ContentHistory { ContentBlockContent = "<p>OLD SECRET VERSION</p>", ModifiedOn = DateTime.Now.AddDays(-1), ModifiedBy = "author" } }
+        };
+        _context.Files.Add(file);
+        _context.ContentBlocks.Add(block);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = _controller.GetContentBlockByFn("public-fn");
+
+        Assert.NotNull(result.Value);
+        var json = System.Text.Json.JsonSerializer.Serialize(result.Value,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+
+        // Consumer contract (VueApp ContentBlock type) preserved.
+        Assert.Contains("\"contentBlockId\"", json);
+        Assert.Contains("\"content\"", json);
+        Assert.Contains("\"title\"", json);
+        // No entity internals or secrets.
+        Assert.DoesNotContain("\"key\"", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("filePath", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("contentHistories", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("SUPER_SECRET_AES_KEY", json);
+        Assert.DoesNotContain(@"S:\Files", json);
+    }
+
     #endregion
 
     #region Create
