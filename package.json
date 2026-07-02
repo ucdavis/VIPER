@@ -28,6 +28,8 @@
         "mailpit:start": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js start",
         "mailpit:status": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js status",
         "mailpit:stop": "node --env-file-if-exists=.env.local scripts/manage-mailpit.js stop",
+        "jenkins:status": "node --env-file-if-exists=.env.local scripts/jenkins-status.js",
+        "jenkins:watch": "node --env-file-if-exists=.env.local scripts/jenkins-status.js --watch",
         "merge": "node scripts/merge-to-dev.js",
         "precommit": "node scripts/precommit.js",
         "prepare": "husky",

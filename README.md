@@ -314,6 +314,17 @@ When you next push to `Development`, the hook waits about 10 seconds so the push
 lands first, then triggers the parameterized Jenkins job in the background.
 Credentials stay in `.env.local`, which is not tracked by git.
 
+**Checking build status:**
+
+The same Jenkins credentials power a build status checker:
+
+- `npm run jenkins:status` - one-shot status of the deploy job's latest build
+- `npm run jenkins:watch` - poll an in-progress build until it finishes
+
+Both report the build number, result, and live progress. The internal Jenkins
+uses a self-signed cert, which these tools (and the pre-push trigger) currently
+skip verifying, pending a trusted certificate.
+
 ## Email Testing with Mailpit
 
 Mailpit captures emails sent by the application during development without sending real emails.
