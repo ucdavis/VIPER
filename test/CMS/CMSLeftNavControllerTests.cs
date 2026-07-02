@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using NSubstitute.ReturnsExtensions;
 using Viper.Areas.CMS.Controllers;
 using Viper.Areas.CMS.Models.DTOs;
@@ -114,20 +115,30 @@ public sealed class CMSLeftNavControllerTests
     #region SaveItems
 
     [Fact]
-    public async Task SaveItems_ReturnsBadRequest_OnDuplicateItemIds()
+    public async Task SaveItems_ReturnsBadRequest_OnArgumentException()
     {
-        var items = new List<LeftNavItemEdit>
-        {
-            new() { LeftNavItemId = 2, MenuItemText = "A" },
-            new() { LeftNavItemId = 2, MenuItemText = "B" }
-        };
+        // The duplicate-id guard now lives in the service; the controller maps its ArgumentException to 400.
+        var items = new List<LeftNavItemEdit> { new() { LeftNavItemId = 2, MenuItemText = "A" } };
+        _leftNavService.SaveItemsAsync(5, items, Arg.Any<CancellationToken>())
+            .Throws(new ArgumentException("Duplicate item ids are not allowed."));
 
         var result = await _controller.SaveItems(5, items, TestContext.Current.CancellationToken);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("Duplicate item ids", badRequest.Value?.ToString());
-        await _leftNavService.DidNotReceive().SaveItemsAsync(Arg.Any<int>(), Arg.Any<List<LeftNavItemEdit>>(),
-            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SaveItems_ReturnsConflict_OnStaleItemId()
+    {
+        var items = new List<LeftNavItemEdit> { new() { LeftNavItemId = 99, MenuItemText = "Stale" } };
+        _leftNavService.SaveItemsAsync(5, items, Arg.Any<CancellationToken>())
+            .Throws(new InvalidOperationException("One or more items no longer exist in this menu. Reload and try again."));
+
+        var result = await _controller.SaveItems(5, items, TestContext.Current.CancellationToken);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.Contains("no longer exist", conflict.Value?.ToString());
     }
 
     [Fact]

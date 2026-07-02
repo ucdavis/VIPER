@@ -46,8 +46,15 @@ namespace Viper.Areas.CMS.Controllers
         [HttpPost]
         public async Task<ActionResult<LeftNavMenuDto>> CreateMenu(LeftNavMenuAddEdit menu, CancellationToken ct = default)
         {
-            var created = await _leftNavService.CreateMenuAsync(menu, ct);
-            return CreatedAtAction(nameof(GetMenu), new { leftNavMenuId = created.LeftNavMenuId }, created);
+            try
+            {
+                var created = await _leftNavService.CreateMenuAsync(menu, ct);
+                return CreatedAtAction(nameof(GetMenu), new { leftNavMenuId = created.LeftNavMenuId }, created);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // PUT /api/cms/left-navs/5
@@ -55,12 +62,19 @@ namespace Viper.Areas.CMS.Controllers
         public async Task<ActionResult<LeftNavMenuDto>> UpdateMenu(int leftNavMenuId, LeftNavMenuAddEdit menu,
             CancellationToken ct = default)
         {
-            var updated = await _leftNavService.UpdateMenuAsync(leftNavMenuId, menu, ct);
-            if (updated == null)
+            try
             {
-                return NotFound();
+                var updated = await _leftNavService.UpdateMenuAsync(leftNavMenuId, menu, ct);
+                if (updated == null)
+                {
+                    return NotFound();
+                }
+                return updated;
             }
-            return updated;
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // PUT /api/cms/left-navs/5/items — full item list; order follows the array
@@ -68,17 +82,25 @@ namespace Viper.Areas.CMS.Controllers
         public async Task<ActionResult<LeftNavMenuDto>> SaveItems(int leftNavMenuId, List<LeftNavItemEdit> items,
             CancellationToken ct = default)
         {
-            if (items.Where(i => i.LeftNavItemId > 0).GroupBy(i => i.LeftNavItemId).Any(g => g.Count() > 1))
+            try
             {
-                return BadRequest("Duplicate item ids are not allowed.");
+                var updated = await _leftNavService.SaveItemsAsync(leftNavMenuId, items, ct);
+                if (updated == null)
+                {
+                    return NotFound();
+                }
+                return updated;
             }
-
-            var updated = await _leftNavService.SaveItemsAsync(leftNavMenuId, items, ct);
-            if (updated == null)
+            catch (ArgumentException ex)
             {
-                return NotFound();
+                // Malformed request (e.g. duplicate item ids).
+                return BadRequest(ex.Message);
             }
-            return updated;
+            catch (InvalidOperationException ex)
+            {
+                // Stale client: a supplied item id no longer exists in the menu.
+                return Conflict(ex.Message);
+            }
         }
 
         // DELETE /api/cms/left-navs/5 — deletes the menu and all items (no soft delete, matching legacy)
