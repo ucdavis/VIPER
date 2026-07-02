@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Areas.CMS.Validation;
+namespace Viper.Areas.CMS.Validation;
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public sealed class SafeUrlAttribute : ValidationAttribute
