@@ -83,13 +83,37 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         await SeedBlockAsync();
         await SeedBlockAsync(b => b.DeletedOn = DateTime.Now);
 
-        var active = await _service.GetContentBlocksAsync("active", null, null, null, ct: TestContext.Current.CancellationToken);
-        var deleted = await _service.GetContentBlocksAsync("deleted", null, null, null, ct: TestContext.Current.CancellationToken);
-        var all = await _service.GetContentBlocksAsync("all", null, null, null, ct: TestContext.Current.CancellationToken);
+        var active = await _service.GetContentBlocksAsync("active", null, null, null, null, 1, 50, "title", false, TestContext.Current.CancellationToken);
+        var deleted = await _service.GetContentBlocksAsync("deleted", null, null, null, null, 1, 50, "title", false, TestContext.Current.CancellationToken);
+        var all = await _service.GetContentBlocksAsync("all", null, null, null, null, 1, 50, "title", false, TestContext.Current.CancellationToken);
 
-        Assert.Single(active);
-        Assert.Single(deleted);
-        Assert.Equal(2, all.Count);
+        Assert.Single(active.Blocks);
+        Assert.Single(deleted.Blocks);
+        Assert.Equal(2, all.Blocks.Count);
+        Assert.Equal(2, all.Total);
+    }
+
+    [Fact]
+    public async Task GetContentBlocks_PagesSortsAndReturnsTotal()
+    {
+        await SeedBlockAsync(b => b.Title = "Charlie");
+        await SeedBlockAsync(b => b.Title = "Alpha");
+        await SeedBlockAsync(b => b.Title = "Bravo");
+
+        var page1 = await _service.GetContentBlocksAsync("active", null, null, null, null, 1, 2, "title", false,
+            TestContext.Current.CancellationToken);
+        var page2 = await _service.GetContentBlocksAsync("active", null, null, null, null, 2, 2, "title", false,
+            TestContext.Current.CancellationToken);
+
+        // Total counts all matches; the page returns only its slice, sorted by title across pages.
+        Assert.Equal(3, page1.Total);
+        Assert.Equal(new[] { "Alpha", "Bravo" }, page1.Blocks.Select(b => b.Title));
+        Assert.Single(page2.Blocks);
+        Assert.Equal("Charlie", page2.Blocks[0].Title);
+
+        var desc = await _service.GetContentBlocksAsync("active", null, null, null, null, 1, 1, "title", true,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Charlie", desc.Blocks[0].Title);
     }
 
     [Fact]
@@ -97,9 +121,9 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     {
         await SeedBlockAsync();
 
-        var list = await _service.GetContentBlocksAsync("active", null, null, null, ct: TestContext.Current.CancellationToken);
+        var list = await _service.GetContentBlocksAsync("active", null, null, null, null, 1, 50, "title", false, TestContext.Current.CancellationToken);
 
-        Assert.Equal(string.Empty, list[0].Content);
+        Assert.Equal(string.Empty, list.Blocks[0].Content);
     }
 
     [Fact]
