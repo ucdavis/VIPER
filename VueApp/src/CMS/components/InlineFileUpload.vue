@@ -11,13 +11,13 @@
         >
             <q-spinner
                 v-if="busy"
-                size="24px"
+                size="sm"
                 color="primary"
             />
             <q-icon
                 v-else
                 :name="folder ? 'upload_file' : 'block'"
-                size="24px"
+                size="sm"
                 class="inline-upload__icon"
             />
             <span class="inline-upload__text">
@@ -331,13 +331,13 @@ defineExpose({ commit })
 
 .staged-file {
     border: 1px solid var(--ucdavis-blue-20);
-    border-radius: 4px;
-    padding: 8px;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
 }
 
 .staged-file__conflict {
-    margin-top: 4px;
-    padding-left: 24px;
+    margin-top: 0.25rem;
+    padding-left: 1.5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
