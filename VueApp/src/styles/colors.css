@@ -45,6 +45,24 @@
     /* UC Davis Secondary Palette (used as accents, never dominant) */
     --ucdavis-arboretum: #00c4b3;
     --ucdavis-cabernet: #481268;
+
+    /* Neutral surface tokens — blue-tinted near-whites with no equivalent in the
+       brand ramp (its lightest blue, --ucdavis-blue-10 #cdd6e0, is far too dark
+       for a panel fill). Borders use the existing --ucdavis-black-10 directly. */
+    --surface: #ffffff;
+    --surface-tint: #f5f7fb;
+    --surface-tint-raised: #fafbff;
+
+    /* Diff highlight tints — light green/red fills behind <ins>/<del> in the
+       content-history diff. Ink text on these clears WCAG AA; the underline/
+       strikethrough carry the meaning so color is not the only signal. */
+    --diff-add: #d7efdb;
+    --diff-remove: #f6d9dc;
+
+    /* Keyboard focus-ring color. Mirrors the literal used by the shared focus
+       ring in base.css / site.css so components can reference a token instead
+       of repeating the hex. */
+    --focus-ring-color: #258cfb;
 }
 
 /* Background utility classes — UC Davis palette */
@@ -61,6 +79,15 @@
 }
 .bg-ucdavis-gold-20 {
     background-color: var(--ucdavis-gold-20);
+}
+/* Secondary-palette accents for categorical distinction (charts, tags). Exposed as
+   bg-* utilities so Quasar color="arboretum"/"cabernet" resolves on badges/chips,
+   since these are not part of Quasar's registered brand palette. */
+.bg-arboretum {
+    background-color: var(--ucdavis-arboretum);
+}
+.bg-cabernet {
+    background-color: var(--ucdavis-cabernet);
 }
 /* Overrides Quasar's .text-warning; bright gold fails WCAG contrast on white.
    !important required to beat Quasar's own !important. */

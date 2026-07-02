@@ -1,8 +1,6 @@
 using System.IO.Compression;
 using System.Net;
-using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
@@ -27,35 +25,8 @@ namespace Viper.Areas.CMS.Data
 
         public IUserHelper UserHelper { get; set; }
 
-        public Dictionary<string, string> MimeTypes { get; set; } = new()
-        {
-            ["pdf"] = "application/pdf",
-            ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ["doc"] = "application/msword",
-            ["xls"] = "application/vnd.ms-excel",
-            ["xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ["csv"] = "text/csv",
-            ["ppt"] = "application/vnd.ms-powerpoint",
-            ["pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ["pptm"] = "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
-            ["txt"] = "text/plain",
-            ["html"] = "application/xhtml+xml",
-            ["gif"] = "image/gif",
-            ["png"] = "image/png",
-            ["jpg"] = "image/jpeg",
-            ["jpeg"] = "image/jpeg",
-            ["tiff"] = "image/tiff",
-            ["mp3"] = "audio/mpeg",
-            ["wav"] = "audio/wav",
-            ["mp4"] = "video/mp4",
-            ["webm"] = "video/webm",
-            ["oft"] = "application/vnd.ms-outlook",
-            ["eps"] = "application/postscript",
-            ["zip"] = "application/zip",
-            ["7z"] = "application/x-7z-compressed",
-            ["dmg"] = "application/x-apple-diskimage",
-            ["exe"] = "application/vnd.microsoft.portable-executable"
-        };
+        public Dictionary<string, string> MimeTypes { get; set; } =
+            new(Constants.CmsFileTypes.MimeTypes, StringComparer.OrdinalIgnoreCase);
 
         #endregion
 
@@ -306,20 +277,24 @@ namespace Viper.Areas.CMS.Data
 
         #region public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         /// <summary>
-        /// Get Friendly URL for a friendly name. Currently, always points to ColdFusion Viper
+        /// Get Friendly URL for a friendly name. Points to the VIPER 2 download handler
+        /// (CMSController.Files), which checks permissions internally and serves public
+        /// files anonymously, so no separate /public URL shape is needed.
         /// </summary>
         public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
         {
             string rootURL = String.Empty;
+            string pathBase = String.Empty;
             HttpRequest? thisRequest = HttpHelper.HttpContext?.Request;
 
             if (thisRequest != null)
             {
-                Uri url = new(thisRequest.GetDisplayUrl());
-                rootURL = url.Scheme + Uri.SchemeDelimiter + url.Host;
+                // Request.Host keeps any non-default port (url.Host would drop it)
+                rootURL = thisRequest.Scheme + Uri.SchemeDelimiter + thisRequest.Host;
+                pathBase = thisRequest.PathBase;
             }
 
-            return rootURL + (allowPublicAccess ? @"/public" : "") + @"/cms/files/?fn=" + WebUtility.UrlEncode(friendlyName);
+            return rootURL + pathBase + @"/CMS/Files?fn=" + WebUtility.UrlEncode(friendlyName);
         }
         #endregion
 
@@ -329,7 +304,8 @@ namespace Viper.Areas.CMS.Data
         /// </summary>
         public static string GetURL(string fileGUID, bool allowPublicAccess = false)
         {
-            return (allowPublicAccess ? @"/public" : "") + @"/cms/files/?id=" + fileGUID;
+            string pathBase = HttpHelper.HttpContext?.Request.PathBase ?? String.Empty;
+            return pathBase + @"/CMS/Files?id=" + fileGUID;
         }
         #endregion
 
@@ -496,6 +472,9 @@ namespace Viper.Areas.CMS.Data
                 }
 
                 byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
+                // The zip itself is inert, but keep the whole /CMS/Files surface consistent:
+                // no MIME sniffing on any download response.
+                CmsFileResponse.SetNoSniff(controller.Response);
                 return controller.File(bytes, MimeTypes["zip"], safeDownloadName);
             }
             finally
@@ -577,11 +556,15 @@ namespace Viper.Areas.CMS.Data
                 contentType = "application/octet-stream";
             }
 
+            // Stop the browser from MIME-sniffing a benign type into an active one.
+            CmsFileResponse.SetNoSniff(controller.Response);
+
             // Build Content-Disposition from the stored record's name, not the user-supplied
             // friendlyName param, and let the framework encode it so a hostile fn cannot shape
-            // the header. Mirrors the DownloadZip download-name hardening.
+            // the header. Mirrors the DownloadZip download-name hardening. Inline-unsafe types
+            // (html/svg) are forced to download so an uploaded page cannot run in the app origin.
             var downloadName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
-            var contentDisposition = new ContentDispositionHeaderValue("inline");
+            var contentDisposition = new ContentDispositionHeaderValue(CmsFileResponse.DispositionType(file.FilePath));
             contentDisposition.SetHttpFileName(downloadName);
             controller.Response.Headers.ContentDisposition = contentDisposition.ToString();
 
@@ -664,81 +647,19 @@ namespace Viper.Areas.CMS.Data
         #region public byte[] DecryptFile(byte[] encryptedData, string keystring)
         public byte[] DecryptFile(byte[] encryptedData, string keystring)
         {
-            byte[] secretkey = GetSecretKey(keystring);
-
-            using Aes aes = Aes.Create();
-            aes.Mode = CipherMode.ECB;
-
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, aes.CreateDecryptor(secretkey, null), CryptoStreamMode.Write))
-            {
-                cs.Write(encryptedData, 0, encryptedData.Length);
-            }
-            byte[] decryptedData = ms.ToArray();
-
-            return decryptedData;
-
+            string masterKey = CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetDefaultKeyFilePath());
+            return CmsFileCrypto.DecryptBytes(encryptedData, CmsFileCrypto.DecryptDbKey(keystring, masterKey));
         }
         #endregion
 
         #region public string DecryptAES(string encryptedString, string Key)
         /// <summary>
-        /// Required for Unix decoding FROM https://rextester.com/TGN19503
+        /// Decrypt a CF-format (UU-encoded AES-ECB) string with the given base64 key.
         /// </summary>
         /// <returns>decoded string</returns>
         public string DecryptAES(string encryptedString, string Key)
         {
-            //First write to memory
-            using MemoryStream mmsStream = new();
-            using StreamWriter srwTemp = new(mmsStream);
-            srwTemp.Write(encryptedString);
-            srwTemp.Flush();
-            mmsStream.Position = 0;
-
-            using MemoryStream outstream = new();
-
-            //CallingUUDecode
-            Codecs.UUDecode(mmsStream, outstream);
-
-            //Extract the bytes of each of the values
-            byte[] input = outstream.ToArray();
-            byte[] key = Convert.FromBase64String(Key);
-
-            string? decryptedText = null;
-
-            using (Aes aes = Aes.Create())
-            {
-                // initialize settings to match those used by CF
-                aes.Mode = CipherMode.ECB;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.BlockSize = 128;
-                aes.KeySize = 128;
-                aes.Key = key;
-
-                ICryptoTransform decryptor = aes.CreateDecryptor();
-
-                using MemoryStream msDecrypt = new(input);
-                using CryptoStream csDecrypt = new(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using StreamReader srDecrypt = new(csDecrypt);
-                decryptedText = srDecrypt.ReadToEnd();
-            }
-            return decryptedText;
-        }
-        #endregion
-
-        #region private byte[] getSecretKey(string key)
-        private byte[] GetSecretKey(string key)
-        {
-            string keyFileFolder = @"S:\Settings\";
-
-            if (HttpHelper.Environment?.EnvironmentName == "Development")
-            {
-                keyFileFolder = @"C:\Sites\Settings\";
-            }
-            string keyString = System.IO.File.ReadLines(keyFileFolder + "viperfiles.txt").Skip(1).Take(1).First();
-
-            byte[] hiddenKey = Convert.FromBase64String(DecryptAES(key, keyString));
-            return hiddenKey;
+            return CmsFileCrypto.DecryptDbKey(encryptedString, Key);
         }
         #endregion
 

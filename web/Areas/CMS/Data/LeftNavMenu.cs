@@ -8,14 +8,13 @@ namespace Viper.Areas.CMS.Data
     {
         private readonly VIPERContext? _viperContext;
         private readonly RAPSContext? _rapsContext;
+        private readonly IUserHelper _userHelper;
 
-        public IUserHelper UserHelper { get; private set; }
-
-        public LeftNavMenu(VIPERContext viperContext, RAPSContext rapsContext)
+        public LeftNavMenu(VIPERContext viperContext, RAPSContext rapsContext, IUserHelper? userHelper = null)
         {
             this._viperContext = viperContext;
             this._rapsContext = rapsContext;
-            UserHelper = new UserHelper();
+            _userHelper = userHelper ?? new UserHelper();
         }
 
         /// <summary>
@@ -46,14 +45,16 @@ namespace Viper.Areas.CMS.Data
                 return null;
             }
 
-            var currentUser = UserHelper.GetCurrentUser();
+            var currentUser = _userHelper.GetCurrentUser();
             List<NavMenu> cmsMenus = new();
             foreach (var m in menus)
             {
-                //by default, filter items based on user permissions
+                //by default, filter items based on user permissions; items with no
+                //permissions are visible to any logged-in user (legacy CMS behavior)
                 List<NavMenuItem> items = m.LeftNavItems
                     .Where(item => !filterItemsByPermissions
-                        || item.LeftNavItemToPermissions.Any(p => UserHelper.HasPermission(_rapsContext, currentUser, p.Permission)))
+                        || item.LeftNavItemToPermissions.Count == 0
+                        || item.LeftNavItemToPermissions.Any(p => _userHelper.HasPermission(_rapsContext, currentUser, p.Permission)))
                     .Select(item => new NavMenuItem(item))
                     .ToList();
                 cmsMenus.Add(new(m.MenuHeaderText, items));
