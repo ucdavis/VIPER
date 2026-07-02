@@ -7,19 +7,21 @@ namespace Viper.Areas.CMS.Services
     public class CmsNavMenu
     {
         private readonly RAPSContext _rapsContext;
-        public CmsNavMenu(RAPSContext context)
+        private readonly IUserHelper _userHelper;
+
+        public CmsNavMenu(RAPSContext context, IUserHelper? userHelper = null)
         {
             _rapsContext = context;
+            _userHelper = userHelper ?? new UserHelper();
         }
 
         public NavMenu Nav()
         {
-            UserHelper userHelper = new();
-            var user = userHelper.GetCurrentUser();
-            bool canManageBlocks = userHelper.HasPermission(_rapsContext, user, CmsPermissions.ManageContentBlocks);
-            bool canCreateBlocks = userHelper.HasPermission(_rapsContext, user, CmsPermissions.CreateContentBlock);
-            bool canManageFiles = userHelper.HasPermission(_rapsContext, user, CmsPermissions.AllFiles);
-            bool canManageNav = userHelper.HasPermission(_rapsContext, user, CmsPermissions.ManageNavigation);
+            var user = _userHelper.GetCurrentUser();
+            bool canManageBlocks = _userHelper.HasPermission(_rapsContext, user, CmsPermissions.ManageContentBlocks);
+            bool canCreateBlocks = _userHelper.HasPermission(_rapsContext, user, CmsPermissions.CreateContentBlock);
+            bool canManageFiles = _userHelper.HasPermission(_rapsContext, user, CmsPermissions.AllFiles);
+            bool canManageNav = _userHelper.HasPermission(_rapsContext, user, CmsPermissions.ManageNavigation);
 
             var nav = new List<NavMenuItem>();
 

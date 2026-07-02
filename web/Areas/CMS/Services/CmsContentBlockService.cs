@@ -546,7 +546,7 @@ namespace Viper.Areas.CMS.Services
             {
                 return;
             }
-            int existing = await _context.Files.CountAsync(f => fileGuids.Contains(f.FileGuid), ct);
+            int existing = await _context.Files.CountAsync(f => EF.Parameter(fileGuids).Contains(f.FileGuid), ct);
             if (existing != fileGuids.Count)
             {
                 throw new ArgumentException("One or more attached files do not exist.");
