@@ -263,7 +263,8 @@ public sealed class CmsLeftNavServiceTests : IDisposable
     [Fact]
     public async Task SaveItems_UnknownMenu_ReturnsNull()
     {
-        var dto = await _service.SaveItemsAsync(9999, new LeftNavItemsSave(), TestContext.Current.CancellationToken);
+        var dto = await _service.SaveItemsAsync(9999,
+            new LeftNavItemsSave { Items = new List<LeftNavItemEdit>() }, TestContext.Current.CancellationToken);
 
         Assert.Null(dto);
     }
@@ -312,6 +313,19 @@ public sealed class CmsLeftNavServiceTests : IDisposable
             _service.SaveItemsAsync(menu.LeftNavMenuId, request, TestContext.Current.CancellationToken));
         Assert.Contains("modified by test", ex.Message);
         Assert.Equal(0, await _context.LeftNavItems.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SaveItems_NullItems_ThrowsArgumentException()
+    {
+        // "items": null binds past JsonRequired; it must be a 400, not a NullReferenceException,
+        // and must not be read as "delete everything".
+        var menu = await SeedMenuAsync(m => m.LeftNavItems.Add(MakeItem("Keep Me", 1, url: "/keep")));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveItemsAsync(menu.LeftNavMenuId,
+            new LeftNavItemsSave { LastModifiedOn = menu.ModifiedOn, Items = null },
+            TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _context.LeftNavItems.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

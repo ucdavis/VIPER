@@ -132,7 +132,10 @@ namespace Viper.Areas.CMS.Services
 
         public async Task<LeftNavMenuDto?> SaveItemsAsync(int leftNavMenuId, LeftNavItemsSave request, CancellationToken ct = default)
         {
-            var items = request.Items;
+            // JsonRequired on the DTO catches an omitted property, but an explicit "items": null
+            // still binds; 400 rather than a NullReferenceException 500.
+            var items = request.Items
+                ?? throw new ArgumentException("Items is required - send an empty array to remove all items.");
 
             // Reject duplicate ids up front so every caller gets the guard (was in the controller).
             if (items.Where(i => i.LeftNavItemId > 0).GroupBy(i => i.LeftNavItemId).Any(g => g.Count() > 1))

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Models.DTOs;
@@ -323,12 +324,16 @@ namespace Viper.Areas.CMS.Controllers
 
     public class ContentOnlyUpdate
     {
+        // AllowEmptyStrings: clearing a block's content is a legitimate save; only a JSON null
+        // (which would bypass the non-nullable default) gets the automatic 400.
+        [Required(AllowEmptyStrings = true)]
         public string Content { get; set; } = string.Empty;
         public DateTime? LastModifiedOn { get; set; }
     }
 
     public class DiffAgainstHistoryRequest
     {
+        [Required(AllowEmptyStrings = true)]
         public string Content { get; set; } = string.Empty;
     }
 }

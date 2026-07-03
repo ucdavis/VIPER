@@ -64,7 +64,12 @@ namespace Viper.Areas.CMS.Models.DTOs
     public class LeftNavItemsSave
     {
         public DateTime? LastModifiedOn { get; set; }
-        public List<LeftNavItemEdit> Items { get; set; } = new();
+
+        // JsonRequired: an under-posted (omitted) items property would default to an empty list
+        // and silently delete every item in the menu; deleting all items requires an explicit [].
+        // Nullable because "items": null still binds past JsonRequired; the service maps it to 400.
+        [JsonRequired]
+        public List<LeftNavItemEdit>? Items { get; set; }
     }
 
     /// <summary>
