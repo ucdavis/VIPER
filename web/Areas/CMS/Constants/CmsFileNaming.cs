@@ -20,5 +20,17 @@ namespace Viper.Areas.CMS.Constants
         {
             return string.Join('\\', folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries));
         }
+
+        /// <summary>
+        /// Final path segment of a name, treating both '\' and '/' as separators so path
+        /// components are stripped identically on every OS (Path.GetFileName only honors the
+        /// host separator, so on Linux it would keep a "sub\file" prefix from a Windows-style
+        /// client value).
+        /// </summary>
+        public static string GetLeafName(string name)
+        {
+            int lastSeparator = name.LastIndexOfAny(['\\', '/']);
+            return lastSeparator >= 0 ? name[(lastSeparator + 1)..] : name;
+        }
     }
 }

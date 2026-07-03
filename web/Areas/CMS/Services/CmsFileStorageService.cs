@@ -277,15 +277,11 @@ namespace Viper.Areas.CMS.Services
             return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Final path segment of a name, treating both '\' and '/' as separators so path components
-        /// are stripped identically on every OS (Path.GetFileName only honors the host separator, so
-        /// on Linux it would keep a "sub\file" prefix from a legacy Windows-style name).
-        /// </summary>
+        // Both-separator leaf extraction lives in CmsFileNaming so callers outside the
+        // storage service (e.g. the check-name endpoint) strip path components identically.
         private static string GetLeafName(string name)
         {
-            int lastSeparator = name.LastIndexOfAny(['\\', '/']);
-            return lastSeparator >= 0 ? name[(lastSeparator + 1)..] : name;
+            return Constants.CmsFileNaming.GetLeafName(name);
         }
 
         // Reject on an explicit, OS-independent set rather than Path.GetInvalidFileNameChars, which

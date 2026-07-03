@@ -217,7 +217,9 @@ namespace Viper.Areas.CMS.Services
                 return;
             }
 
-            var normalized = friendlyName.ToLower();
+            // Invariant on the client side (culture-sensitive ToLower mishandles e.g. Turkish i);
+            // the EF-side ToLower below translates to SQL LOWER and never runs in .NET.
+            var normalized = friendlyName.ToLowerInvariant();
             bool taken = await _context.LeftNavMenus
                 .AnyAsync(m => m.FriendlyName != null && m.FriendlyName.ToLower() == normalized
                     && (exceptMenuId == null || m.LeftNavMenuId != exceptMenuId), ct);

@@ -210,7 +210,9 @@ namespace Viper.Areas.CMS.Services
             {
                 throw new ArgumentException("Invalid folder.");
             }
-            string name = Path.GetFileName(fileName);
+            // Both-separator leaf: Path.GetFileName is OS-dependent and would keep a "sub\name"
+            // prefix on Linux, leaking path separators into SuggestedName.
+            string name = CmsFileNaming.GetLeafName(fileName);
             if (string.IsNullOrWhiteSpace(name) || !CmsFileTypes.IsAllowedFileName(name))
             {
                 throw new ArgumentException("File type is not allowed.");
@@ -333,8 +335,8 @@ namespace Viper.Areas.CMS.Services
             {
                 // A failed or cancelled save never persisted the record. Drop the pending changes, then
                 // reconcile the managed store: restore an overwritten file's original bytes, or remove the
-                // freshly stored copy, so nothing is left orphaned or destroyed.
-                _logger.LogError(ex, "CMS file create save failed; reconciling the managed store before rethrowing.");
+                // freshly stored copy, so nothing is left orphaned or destroyed. No log here (S2139:
+                // the rethrown exception is logged by its handler); reconcile failures log critically.
                 _context.ChangeTracker.Clear();
                 ReconcileStoreAfterFailedCreate(finalPath, overwriteBackup);
                 throw;
@@ -551,8 +553,8 @@ namespace Viper.Areas.CMS.Services
             {
                 // A database save failure means the new state was not persisted; drop the pending
                 // changes and reconcile the on-disk file back to its original state before rethrowing.
-                _logger.LogError(ex, "CMS file {FileGuid} update save failed; reconciling the on-disk state before rethrowing.",
-                    entity.FileGuid);
+                // No log here (S2139: the rethrown exception is logged by its handler); reconcile
+                // failures log critically in the revert helpers.
                 _context.ChangeTracker.Clear();
                 if (originalFileBackup != null)
                 {
@@ -780,10 +782,18 @@ namespace Viper.Areas.CMS.Services
             string root = _storage.RootFolder;
             if (!filePath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
             {
+                // Records created on another OS/environment may carry either separator style.
                 int filesIndex = filePath.IndexOf(@"\Files\", StringComparison.OrdinalIgnoreCase);
+                if (filesIndex < 0)
+                {
+                    filesIndex = filePath.IndexOf("/Files/", StringComparison.OrdinalIgnoreCase);
+                }
                 if (filesIndex >= 0)
                 {
-                    return root + filePath[(filesIndex + @"\Files".Length)..];
+                    string rest = filePath[(filesIndex + @"\Files".Length)..]
+                        .Replace('/', Path.DirectorySeparatorChar)
+                        .Replace('\\', Path.DirectorySeparatorChar);
+                    return root + rest;
                 }
             }
             return filePath;

@@ -577,11 +577,15 @@ namespace Viper.Areas.CMS.Services
             {
                 return;
             }
+            // Case-insensitive like the left-nav sibling: SQL Server's default collation treats
+            // "Name" and "name" as equal, so the pre-check must too (and so must test providers).
+            var normalized = friendlyName.ToLowerInvariant();
             bool taken = await _context.ContentBlocks
-                .AnyAsync(b => b.FriendlyName == friendlyName && (exceptBlockId == null || b.ContentBlockId != exceptBlockId), ct);
+                .AnyAsync(b => b.FriendlyName != null && b.FriendlyName.ToLower() == normalized
+                    && (exceptBlockId == null || b.ContentBlockId != exceptBlockId), ct);
             if (taken)
             {
-                throw new ArgumentException("Friendly name must be unique");
+                throw new ArgumentException("Friendly name must be unique.");
             }
         }
 

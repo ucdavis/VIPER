@@ -449,15 +449,18 @@ header .q-avatar {
     top: 0;
 }
 
-/* Suppress focus outline on main content — useRouteFocus sets focus
-   programmatically for screen reader announcements only */
-#main-content:focus {
+/* Programmatic/mouse focus on the landmark containers stays quiet (useRouteFocus moves
+   focus for screen-reader announcements), but keyboard-initiated focus — a skip link
+   activated with Enter — keeps a visible ring so the jump target is apparent. */
+#main-content:focus,
+#leftNavMenu:focus {
     outline: none;
 }
 
-/* Same treatment for the drawer container targeted by "Skip to section menu" */
-#leftNavMenu:focus {
-    outline: none;
+#main-content:focus-visible,
+#leftNavMenu:focus-visible {
+    outline: 2px solid var(--q-primary);
+    outline-offset: -2px;
 }
 
 /* Workspace links carry the brand (DESIGN.md: Aggie Blue is the link color);
