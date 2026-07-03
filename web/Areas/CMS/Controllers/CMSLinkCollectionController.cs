@@ -189,14 +189,18 @@ namespace Viper.Areas.CMS.Controllers
                 return BadRequest("Mismatch in number of tag categories.");
             }
 
+            // Membership + duplicate validation (a duplicated id with a matching count would
+            // silently update one row twice and skip another), mirroring UpdateLinkOrder.
+            var tagCategoriesById = tagCategories.ToDictionary(tc => tc.LinkCollectionTagCategoryId);
+            if (updateDto.Any(dto => !tagCategoriesById.ContainsKey(dto.LinkCollectionTagCategoryId))
+                || updateDto.Select(dto => dto.LinkCollectionTagCategoryId).Distinct().Count() != updateDto.Count)
+            {
+                return BadRequest("One or more tag category IDs are invalid.");
+            }
+
             foreach (var dto in updateDto)
             {
-                var tagCategory = tagCategories.FirstOrDefault(tc => tc.LinkCollectionTagCategoryId == dto.LinkCollectionTagCategoryId);
-                if (tagCategory == null)
-                {
-                    return BadRequest($"Tag category with ID {dto.LinkCollectionTagCategoryId} not found in this collection.");
-                }
-                tagCategory.SortOrder = dto.SortOrder;
+                tagCategoriesById[dto.LinkCollectionTagCategoryId].SortOrder = dto.SortOrder;
             }
 
             await _context.SaveChangesAsync();

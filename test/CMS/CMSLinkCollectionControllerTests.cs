@@ -303,6 +303,25 @@ public sealed class CMSLinkCollectionControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateLinkCollectionTagCategoryOrder_RejectsDuplicateIds_WithMatchingCount()
+    {
+        // A duplicated id with a matching count would silently update one row twice and
+        // skip another; the guard must reject it.
+        var collection = await SeedCollectionAsync();
+        var first = await SeedTagCategoryAsync(collection.LinkCollectionId, "First", 1);
+        await SeedTagCategoryAsync(collection.LinkCollectionId, "Second", 2);
+        var updates = new List<UpdateLinkCollectionTagCategoryOrderDto>
+        {
+            new() { LinkCollectionTagCategoryId = first.LinkCollectionTagCategoryId, SortOrder = 1 },
+            new() { LinkCollectionTagCategoryId = first.LinkCollectionTagCategoryId, SortOrder = 2 }
+        };
+
+        var result = await _controller.UpdateLinkCollectionTagCategoryOrder(collection.LinkCollectionId, updates);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
     public async Task UpdateLinkCollectionTagCategoryOrder_RejectsCountMismatch()
     {
         var collection = await SeedCollectionAsync();
