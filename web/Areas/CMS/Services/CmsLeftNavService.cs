@@ -20,9 +20,10 @@ namespace Viper.Areas.CMS.Services
         /// <summary>
         /// Replace the menu's items with the supplied list: items with id 0 are added,
         /// existing ids are updated, omitted ids are deleted, and DisplayOrder follows
-        /// the array order. Matches the legacy editor's batch save.
+        /// the array order. Matches the legacy editor's batch save. The request's
+        /// LastModifiedOn stamp guards the whole batch against concurrent saves.
         /// </summary>
-        Task<LeftNavMenuDto?> SaveItemsAsync(int leftNavMenuId, List<LeftNavItemEdit> items, CancellationToken ct = default);
+        Task<LeftNavMenuDto?> SaveItemsAsync(int leftNavMenuId, LeftNavItemsSave request, CancellationToken ct = default);
     }
 
     /// <summary>
@@ -129,8 +130,10 @@ namespace Viper.Areas.CMS.Services
             return true;
         }
 
-        public async Task<LeftNavMenuDto?> SaveItemsAsync(int leftNavMenuId, List<LeftNavItemEdit> items, CancellationToken ct = default)
+        public async Task<LeftNavMenuDto?> SaveItemsAsync(int leftNavMenuId, LeftNavItemsSave request, CancellationToken ct = default)
         {
+            var items = request.Items;
+
             // Reject duplicate ids up front so every caller gets the guard (was in the controller).
             if (items.Where(i => i.LeftNavItemId > 0).GroupBy(i => i.LeftNavItemId).Any(g => g.Count() > 1))
             {
@@ -149,6 +152,10 @@ namespace Viper.Areas.CMS.Services
             {
                 return null;
             }
+
+            // Item saves bump the menu's ModifiedOn, so the same stamp guards both endpoints:
+            // without this, two editors' batch saves silently overwrite each other's items.
+            AssertNotStale(menu, request.LastModifiedOn);
 
             var existingById = menu.LeftNavItems.ToDictionary(i => i.LeftNavItemId);
 
@@ -230,22 +237,8 @@ namespace Viper.Areas.CMS.Services
             }
         }
 
-        // Mirrors CmsFileService/CmsContentBlockService: a missing stamp is a 400 (the client must
-        // send it) and a stale one is a 409 (someone saved since the editor loaded the menu).
-        private static void AssertNotStale(LeftNavMenu menu, DateTime? lastModifiedOn)
-        {
-            if (lastModifiedOn == null)
-            {
-                throw new ArgumentException("LastModifiedOn is required so concurrent edits can be detected.");
-            }
-            // Compare to the second: serialized timestamps lose sub-second precision round-tripping
-            // through the client.
-            if (Math.Abs((menu.ModifiedOn - lastModifiedOn.Value).TotalSeconds) >= 1)
-            {
-                throw new CmsConcurrencyException(
-                    $"This menu was modified by {menu.ModifiedBy} on {menu.ModifiedOn:g}. Reload to get the latest version.");
-            }
-        }
+        private static void AssertNotStale(LeftNavMenu menu, DateTime? lastModifiedOn) =>
+            CmsServiceHelpers.AssertNotStale("menu", menu.ModifiedOn, menu.ModifiedBy, lastModifiedOn);
 
         private async Task<LeftNavMenu?> LoadMenuAsync(int leftNavMenuId, bool tracking, CancellationToken ct)
         {
@@ -320,14 +313,6 @@ namespace Viper.Areas.CMS.Services
             return _userHelper.GetCurrentUser()?.LoginId ?? "unknown";
         }
 
-        private static List<string> CleanList(List<string>? values)
-        {
-            // A client can post "permissions": null explicitly; treat it as empty rather than 500.
-            return (values ?? [])
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Select(v => v.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
+        private static List<string> CleanList(List<string>? values) => CmsServiceHelpers.CleanList(values);
     }
 }

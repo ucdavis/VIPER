@@ -434,20 +434,8 @@ namespace Viper.Areas.CMS.Services
             return CmsFileMapper.ToCmsFileDto(entity, names);
         }
 
-        private static void AssertNotStale(File entity, DateTime? lastModifiedOn)
-        {
-            if (lastModifiedOn == null)
-            {
-                throw new ArgumentException("LastModifiedOn is required so concurrent edits can be detected.");
-            }
-            // Compare to the second: serialized timestamps lose sub-second precision round-tripping
-            // through the client.
-            if (Math.Abs((entity.ModifiedOn - lastModifiedOn.Value).TotalSeconds) >= 1)
-            {
-                throw new CmsConcurrencyException(
-                    $"This file was modified by {entity.ModifiedBy} on {entity.ModifiedOn:g}. Reload to get the latest version.");
-            }
-        }
+        private static void AssertNotStale(File entity, DateTime? lastModifiedOn) =>
+            CmsServiceHelpers.AssertNotStale("file", entity.ModifiedOn, entity.ModifiedBy, lastModifiedOn);
 
         /// <summary>
         /// A replacement upload keeps the record's name and path, so its bytes must be an allowed
@@ -899,14 +887,7 @@ namespace Viper.Areas.CMS.Services
             return string.Join("; ", parts);
         }
 
-        private static List<string> CleanList(List<string> values)
-        {
-            return values
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Select(v => v.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
+        private static List<string> CleanList(List<string> values) => CmsServiceHelpers.CleanList(values);
 
         private static string? NullIfEmpty(string? value)
         {

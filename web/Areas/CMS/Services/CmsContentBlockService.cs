@@ -540,20 +540,8 @@ namespace Viper.Areas.CMS.Services
             return await query.FirstOrDefaultAsync(b => b.ContentBlockId == contentBlockId, ct);
         }
 
-        private static void AssertNotStale(ContentBlock block, DateTime? lastModifiedOn)
-        {
-            if (lastModifiedOn == null)
-            {
-                throw new ArgumentException("LastModifiedOn is required so concurrent edits can be detected.");
-            }
-            // Compare to the second: serialized timestamps lose sub-second precision round-tripping
-            // through the client.
-            if (Math.Abs((block.ModifiedOn - lastModifiedOn.Value).TotalSeconds) >= 1)
-            {
-                throw new CmsConcurrencyException(
-                    $"This content block was modified by {block.ModifiedBy} on {block.ModifiedOn:g}. Reload to get the latest version.");
-            }
-        }
+        private static void AssertNotStale(ContentBlock block, DateTime? lastModifiedOn) =>
+            CmsServiceHelpers.AssertNotStale("content block", block.ModifiedOn, block.ModifiedBy, lastModifiedOn);
 
         private async Task AssertFilesExistAsync(List<Guid> fileGuids, CancellationToken ct)
         {
@@ -661,14 +649,6 @@ namespace Viper.Areas.CMS.Services
             public ContentBlock Block { get; set; } = null!;
         }
 
-        private static List<string> CleanList(ICollection<string>? values)
-        {
-            // A client can post "permissions": null explicitly; treat it as empty rather than 500.
-            return (values ?? [])
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Select(v => v.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
+        private static List<string> CleanList(ICollection<string>? values) => CmsServiceHelpers.CleanList(values);
     }
 }
