@@ -410,17 +410,17 @@ header .q-avatar {
    A fixed width with a 95vw cap keeps modals comfortable on desktop and off
    the screen edges on small viewports. */
 .dialog-card-sm {
-    width: 480px;
+    width: 30rem;
     max-width: 95vw;
 }
 
 .dialog-card-md {
-    width: 600px;
+    width: 37.5rem;
     max-width: 95vw;
 }
 
 .dialog-card-lg {
-    width: 900px;
+    width: 56.25rem;
     max-width: 95vw;
 }
 
@@ -428,11 +428,11 @@ header .q-avatar {
    out-specifies the single classes above and silently shrank md/lg dialogs when the
    inline widths moved here. Lift the cap to each class's declared width. */
 .q-dialog__inner--minimized > .dialog-card-md {
-    max-width: min(600px, 95vw);
+    max-width: min(37.5rem, 95vw);
 }
 
 .q-dialog__inner--minimized > .dialog-card-lg {
-    max-width: min(900px, 95vw);
+    max-width: min(56.25rem, 95vw);
 }
 
 /* Skip to content link — visible on focus for keyboard users */
