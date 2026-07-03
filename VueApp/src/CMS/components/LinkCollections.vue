@@ -63,7 +63,10 @@
             No links found.
         </StatusBanner>
 
-        <template v-else-if="props.groupByTagCategory == null || props.groupByTagCategory.length == 0">
+        <!-- groupById is null when no group-by category was requested OR the requested name
+             didn't match any tag category on the collection; either way fall back to the
+             flat list rather than rendering an empty grouped view. -->
+        <template v-else-if="groupById === null">
             <div
                 class="q-pa-md row q-gutter-md"
                 v-if="linkCollection != null"

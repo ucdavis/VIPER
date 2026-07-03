@@ -202,6 +202,13 @@ describe("LinkCollections.vue - group by tag category", () => {
         expect(vm.groupedLinks.size).toBe(0)
     })
 
+    it("falls back to the flat list when the group category matches nothing", async () => {
+        const wrapper = await mountLoaded({ linkCollectionName: "Resources", groupByTagCategory: "Nonexistent" })
+        // The group name resolves to no tag category, so grouping is skipped rather
+        // than rendering an empty grouped view (a blank page on a public component).
+        expect(linkCardTitles(wrapper)).toHaveLength(3)
+    })
+
     it("computes the sorted set of group header values", async () => {
         const wrapper = await mountLoaded({ linkCollectionName: "Resources", groupByTagCategory: "Subject" })
         const vm = wrapper.vm as unknown as { groupByValues: string[] }
