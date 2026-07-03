@@ -149,7 +149,7 @@ public sealed class CMSContentControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task GetContentBlockByFn_ReturnsNotFound_WhenMissing()
+    public void GetContentBlockByFn_ReturnsNotFound_WhenMissing()
     {
         var result = _controller.GetContentBlockByFn("does-not-exist");
 

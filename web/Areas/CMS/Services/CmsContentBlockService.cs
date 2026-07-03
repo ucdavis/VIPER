@@ -161,8 +161,7 @@ namespace Viper.Areas.CMS.Services
                         .Select(f => new
                         {
                             f.FileGuid,
-                            f.File.FriendlyName,
-                            f.File.AllowPublicAccess
+                            f.File.FriendlyName
                         })
                         .OrderBy(f => f.FriendlyName)
                         .ToList()
