@@ -323,6 +323,25 @@ public sealed class CMSLinkCollectionLinksTests : IDisposable
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    [Fact]
+    public async Task UpdateLinkOrder_RejectsDuplicateIds_WithMatchingCount()
+    {
+        // Matches the link count, but the same id appears twice: the guard must reject on
+        // distinctness, not just count (mirrors the tag-category reorder guard's coverage).
+        var collection = await SeedCollectionAsync();
+        var first = await SeedLinkAsync(collection.LinkCollectionId, "First", 1);
+        await SeedLinkAsync(collection.LinkCollectionId, "Second", 2);
+        var updates = new List<UpdateLinkOrderDto>
+        {
+            new() { LinkId = first.LinkId, SortOrder = 1 },
+            new() { LinkId = first.LinkId, SortOrder = 2 }
+        };
+
+        var result = await _controller.UpdateLinkOrder(collection.LinkCollectionId, updates);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
     #endregion
 
     #region SaveLinkTags
