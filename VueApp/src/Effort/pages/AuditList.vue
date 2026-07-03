@@ -178,7 +178,7 @@
             </template>
             <template #body-cell-action="props">
                 <q-td :props="props">
-                    <StatusBadge :color="getActionColor(props.row.action)">
+                    <StatusBadge :color="getAuditActionColor(props.row.action)">
                         {{ props.row.action }}
                     </StatusBadge>
                 </q-td>
@@ -195,24 +195,7 @@
                             class="text-caption"
                         >
                             <strong>{{ key }}:</strong>
-                            <!-- Reference value (old === new): show once without diff styling -->
-                            <template v-if="detail.oldValue === detail.newValue">
-                                <span>{{ detail.oldValue }}</span>
-                            </template>
-                            <!-- Changed value: show old → new -->
-                            <template v-else>
-                                <span
-                                    v-if="detail.oldValue !== null"
-                                    class="text-negative"
-                                    >{{ detail.oldValue }}</span
-                                >
-                                <span v-if="detail.oldValue !== null && detail.newValue !== null"> &rarr; </span>
-                                <span
-                                    v-if="detail.newValue !== null"
-                                    class="text-positive"
-                                    >{{ detail.newValue }}</span
-                                >
-                            </template>
+                            <ChangeDetailDiff :detail="detail" />
                         </div>
                     </template>
                     <template v-else-if="props.row.changes">
@@ -281,7 +264,7 @@
                     >
                         <div class="row items-start q-gutter-sm flex-wrap">
                             <StatusBadge
-                                :color="getActionColor(props.row.action)"
+                                :color="getAuditActionColor(props.row.action)"
                                 class="q-mr-sm"
                             >
                                 {{ props.row.action }}
@@ -299,26 +282,7 @@
                                 >
                                     <span v-if="idx > 0"> &bull; </span>
                                     <strong>{{ key }}:</strong>
-                                    <!-- Reference value (old === new): show once without diff styling -->
-                                    <template v-if="detail.oldValue === detail.newValue">
-                                        <span>{{ detail.oldValue }}</span>
-                                    </template>
-                                    <!-- Changed value: show old → new -->
-                                    <template v-else>
-                                        <span
-                                            v-if="detail.oldValue !== null"
-                                            class="text-negative"
-                                            >{{ detail.oldValue }}</span
-                                        >
-                                        <span v-if="detail.oldValue !== null && detail.newValue !== null">
-                                            &rarr;
-                                        </span>
-                                        <span
-                                            v-if="detail.newValue !== null"
-                                            class="text-positive"
-                                            >{{ detail.newValue }}</span
-                                        >
-                                    </template>
+                                    <ChangeDetailDiff :detail="detail" />
                                 </span>
                             </div>
                             <span
@@ -357,7 +321,7 @@
                         <q-card-section class="q-pa-sm">
                             <div class="row items-center q-mb-xs">
                                 <StatusBadge
-                                    :color="getActionColor(props.row.action)"
+                                    :color="getAuditActionColor(props.row.action)"
                                     class="q-mr-sm"
                                 >
                                     {{ props.row.action }}
@@ -398,26 +362,7 @@
                                     :key="key"
                                 >
                                     <strong>{{ key }}:</strong>
-                                    <!-- Reference value (old === new): show once without diff styling -->
-                                    <template v-if="detail.oldValue === detail.newValue">
-                                        <span>{{ detail.oldValue }}</span>
-                                    </template>
-                                    <!-- Changed value: show old → new -->
-                                    <template v-else>
-                                        <span
-                                            v-if="detail.oldValue !== null"
-                                            class="text-negative"
-                                            >{{ detail.oldValue }}</span
-                                        >
-                                        <span v-if="detail.oldValue !== null && detail.newValue !== null">
-                                            &rarr;
-                                        </span>
-                                        <span
-                                            v-if="detail.newValue !== null"
-                                            class="text-positive"
-                                            >{{ detail.newValue }}</span
-                                        >
-                                    </template>
+                                    <ChangeDetailDiff :detail="detail" />
                                 </div>
                             </div>
                             <div
@@ -441,9 +386,11 @@ import { useRoute, useRouter } from "vue-router"
 import { useDebounceFn } from "@vueuse/core"
 import { useQuasar } from "quasar"
 import type { QTableColumn, QTableProps } from "quasar"
+import ChangeDetailDiff from "../components/ChangeDetailDiff.vue"
 import { effortAuditService } from "../services/audit-service"
 import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { getAuditActionColor } from "@/composables/use-audit-colors"
 import StatusBadge from "@/components/StatusBadge.vue"
 import type { ChangeDetail, EffortAuditRow, ModifierInfo, TermDto } from "../types"
 
@@ -553,17 +500,6 @@ const columns: QTableColumn[] = [
 
 // Tablet columns - same as desktop but without Action and Changes (they appear in a second row)
 const tabletColumns: QTableColumn[] = columns.slice(0, 5)
-
-function getActionColor(action: string): string {
-    if (action.startsWith("Create")) return "positive"
-    if (action.startsWith("Update")) return "primary"
-    if (action.startsWith("Delete")) return "negative"
-    if (action.startsWith("Open") || action.startsWith("Reopen")) return "secondary"
-    if (action.startsWith("Close")) return "warning"
-    if (action.startsWith("Import")) return "info"
-    if (action.startsWith("Verif")) return "positive"
-    return "grey-8"
-}
 
 function filterModifiers(val: string, update: (fn: () => void) => void) {
     update(() => {
