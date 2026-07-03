@@ -184,12 +184,7 @@ namespace Viper.Areas.CMS.Services
                 ModifiedBy = b.ModifiedBy,
                 DeletedOn = b.DeletedOn,
                 Permissions = b.Permissions,
-                Files = b.Files.Select(f => new ContentBlockFileDto
-                {
-                    FileGuid = f.FileGuid,
-                    FriendlyName = f.FriendlyName,
-                    Url = Data.CMS.GetFriendlyURL(f.FriendlyName)
-                }).ToList()
+                Files = b.Files.Select(f => CmsContentBlockMapper.ToFileDto(f.FileGuid, f.FriendlyName)).ToList()
             }).ToList();
 
             return (dtos, total);

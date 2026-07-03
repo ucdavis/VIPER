@@ -102,12 +102,13 @@ namespace Viper.Areas.CMS.Controllers
             // FK constraints are not ON DELETE CASCADE, so remove dependents before
             // the collection. Queuing all removals into a single SaveChanges keeps it
             // atomic. Order: link tags -> links -> tag categories -> collection.
-            var collectionLinkIds = _context.Links
+            var collectionLinks = await _context.Links
                 .Where(l => l.LinkCollectionId == id)
-                .Select(l => l.LinkId);
+                .ToListAsync();
+            var collectionLinkIds = collectionLinks.Select(l => l.LinkId).ToList();
             _context.LinkTags.RemoveRange(
                 _context.LinkTags.Where(lt => collectionLinkIds.Contains(lt.LinkId)));
-            _context.Links.RemoveRange(_context.Links.Where(l => l.LinkCollectionId == id));
+            _context.Links.RemoveRange(collectionLinks);
             _context.LinkCollectionTagCategories.RemoveRange(
                 _context.LinkCollectionTagCategories.Where(tc => tc.LinkCollectionId == id));
             _context.LinkCollections.Remove(linkCollection);

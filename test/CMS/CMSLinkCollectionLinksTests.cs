@@ -304,6 +304,25 @@ public sealed class CMSLinkCollectionLinksTests : IDisposable
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
+    [Fact]
+    public async Task UpdateLinkOrder_RejectsUnknownLinkId_WithMatchingCount()
+    {
+        var collection = await SeedCollectionAsync();
+        var first = await SeedLinkAsync(collection.LinkCollectionId, "First", 1);
+        await SeedLinkAsync(collection.LinkCollectionId, "Second", 2);
+        // Matches the link count, but one id belongs to no link in the collection: the guard must
+        // reject on membership, not just count (an unknown id used to crash the First() lookup).
+        var updates = new List<UpdateLinkOrderDto>
+        {
+            new() { LinkId = first.LinkId, SortOrder = 2 },
+            new() { LinkId = 999999, SortOrder = 1 }
+        };
+
+        var result = await _controller.UpdateLinkOrder(collection.LinkCollectionId, updates);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
     #endregion
 
     #region SaveLinkTags

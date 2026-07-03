@@ -100,6 +100,7 @@ namespace Viper.Areas.CMS.Services
                 return null;
             }
 
+            AssertNotStale(menu, request.LastModifiedOn);
             await AssertFriendlyNameUniqueAsync(request.FriendlyName, leftNavMenuId, ct);
 
             ApplyMenuFields(menu, request);
@@ -226,6 +227,23 @@ namespace Viper.Areas.CMS.Services
             if (taken)
             {
                 throw new ArgumentException("Friendly name must be unique.");
+            }
+        }
+
+        // Mirrors CmsFileService/CmsContentBlockService: a missing stamp is a 400 (the client must
+        // send it) and a stale one is a 409 (someone saved since the editor loaded the menu).
+        private static void AssertNotStale(LeftNavMenu menu, DateTime? lastModifiedOn)
+        {
+            if (lastModifiedOn == null)
+            {
+                throw new ArgumentException("LastModifiedOn is required so concurrent edits can be detected.");
+            }
+            // Compare to the second: serialized timestamps lose sub-second precision round-tripping
+            // through the client.
+            if (Math.Abs((menu.ModifiedOn - lastModifiedOn.Value).TotalSeconds) >= 1)
+            {
+                throw new CmsConcurrencyException(
+                    $"This menu was modified by {menu.ModifiedBy} on {menu.ModifiedOn:g}. Reload to get the latest version.");
             }
         }
 

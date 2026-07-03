@@ -111,7 +111,8 @@ public sealed class CmsLeftNavServiceTests : IDisposable
         var updated = await _service.UpdateMenuAsync(created.LeftNavMenuId, new LeftNavMenuAddEdit
         {
             MenuHeaderText = "Renamed Menu",
-            System = "Viper"
+            System = "Viper",
+            LastModifiedOn = created.ModifiedOn
         }, TestContext.Current.CancellationToken);
 
         Assert.Equal("Renamed Menu", updated!.MenuHeaderText);
@@ -139,15 +140,45 @@ public sealed class CmsLeftNavServiceTests : IDisposable
 
         // Renaming beta onto alpha's friendly name (any case) is rejected.
         await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateMenuAsync(beta.LeftNavMenuId,
-            new LeftNavMenuAddEdit { MenuHeaderText = "B", System = "Viper", FriendlyName = "ALPHA" },
+            new LeftNavMenuAddEdit { MenuHeaderText = "B", System = "Viper", FriendlyName = "ALPHA", LastModifiedOn = beta.ModifiedOn },
             TestContext.Current.CancellationToken));
 
         // Keeping its own friendly name (self-match excluded) is allowed.
         var updated = await _service.UpdateMenuAsync(alpha.LeftNavMenuId,
-            new LeftNavMenuAddEdit { MenuHeaderText = "A renamed", System = "Viper", FriendlyName = "ALPHA" },
+            new LeftNavMenuAddEdit { MenuHeaderText = "A renamed", System = "Viper", FriendlyName = "ALPHA", LastModifiedOn = alpha.ModifiedOn },
             TestContext.Current.CancellationToken);
 
         Assert.NotNull(updated);
+    }
+
+    [Fact]
+    public async Task UpdateMenu_StaleLastModifiedOn_ThrowsConcurrency()
+    {
+        var menu = await SeedMenuAsync();
+
+        var ex = await Assert.ThrowsAsync<CmsConcurrencyException>(() => _service.UpdateMenuAsync(
+            menu.LeftNavMenuId,
+            new LeftNavMenuAddEdit
+            {
+                MenuHeaderText = "Renamed",
+                System = "Viper",
+                LastModifiedOn = menu.ModifiedOn.AddMinutes(-5)
+            },
+            TestContext.Current.CancellationToken));
+
+        // Names who saved and when so the user knows whose edit they'd clobber.
+        Assert.Contains("modified by test", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateMenu_MissingLastModifiedOn_ThrowsArgumentException()
+    {
+        var menu = await SeedMenuAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateMenuAsync(
+            menu.LeftNavMenuId,
+            new LeftNavMenuAddEdit { MenuHeaderText = "Renamed", System = "Viper" },
+            TestContext.Current.CancellationToken));
     }
 
     [Fact]

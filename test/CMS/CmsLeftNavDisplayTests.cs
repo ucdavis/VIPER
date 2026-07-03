@@ -82,6 +82,23 @@ public sealed class CmsLeftNavDisplayTests : IDisposable
     }
 
     [Fact]
+    public async Task GetLeftNavMenus_AnonymousUser_HidesPermissionLessItems()
+    {
+        var friendlyName = await SeedMixedMenuAsync();
+        // An anonymous request has no signed-in user; GetCurrentUser returns null.
+        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+
+        var menus = new DataLeftNav(_context, _rapsContext, _userHelper)
+            .GetLeftNavMenus(friendlyName: friendlyName);
+
+        var items = Assert.Single(menus!).MenuItems!;
+        // Permission-less items are visible only to logged-in users, so an anonymous request sees
+        // none of them; holding no permissions, it sees the permissioned items too - nothing shows.
+        Assert.DoesNotContain("Public", items.Select(i => i.MenuItemText));
+        Assert.Empty(items);
+    }
+
+    [Fact]
     public async Task GetLeftNavMenus_ReturnsAllItems_WhenFilteringDisabled()
     {
         var friendlyName = await SeedMixedMenuAsync();

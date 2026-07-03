@@ -254,6 +254,11 @@ const menu = ref({
     friendlyName: null as string | null,
 })
 
+// The concurrency stamp for the settings save: the menu's modifiedOn as loaded, advanced from each
+// save response so a second save isn't rejected as stale. Kept out of `menu` so it doesn't skew the
+// settings dirty check.
+const menuModifiedOn = ref<string | null>(null)
+
 type EditableItem = {
     key: number
     leftNavItemId: number
@@ -329,6 +334,7 @@ async function loadMenu() {
         return
     }
     savedMenu = res.result
+    menuModifiedOn.value = res.result.modifiedOn
     menu.value = {
         menuHeaderText: res.result.menuHeaderText,
         system: res.result.system,
@@ -355,7 +361,25 @@ function buildMenuPayload() {
         viperSectionPath: menu.value.viperSectionPath || null,
         page: menu.value.page || null,
         friendlyName: menu.value.friendlyName || null,
+        // Create ignores this; edit uses it as the stale-edit guard (409 on mismatch).
+        lastModifiedOn: isNew.value ? null : menuModifiedOn.value,
     }
+}
+
+// A 409 means someone else saved the menu settings first; offer to reload their version.
+function handleMenuSaveConflict(res: { errors: string[] | null }) {
+    $q.dialog({
+        title: "Edit Conflict",
+        message:
+            (res.errors?.[0] ?? "This menu was changed by someone else.") +
+            " Reload the latest version? Your unsaved changes will be lost.",
+        cancel: { label: "Keep editing", flat: true },
+        persistent: true,
+        ok: { label: "Reload", color: "primary", unelevated: true },
+    }).onOk(() => {
+        // loadMenu re-fetches and re-captures the baselines, clearing the settings dirty state.
+        void loadMenu()
+    })
 }
 
 async function saveMenu() {
@@ -366,11 +390,17 @@ async function saveMenu() {
     const res = isNew.value ? await post(apiURL, payload) : await put(apiURL + "/" + menuId.value, payload)
     savingMenu.value = false
 
+    if (res.status === 409) {
+        handleMenuSaveConflict(res)
+        return
+    }
     if (!res.success) {
         menuFormError.value = res.errors?.[0] ?? "Failed to save menu"
         return
     }
     $q.notify({ type: "positive", message: isNew.value ? "Menu created — now add items" : "Menu settings saved" })
+    // Advance the concurrency stamp from the save response so a subsequent save isn't stale.
+    menuModifiedOn.value = res.result.modifiedOn
     resetMenuDirty()
     if (isNew.value) {
         // the menuId watch loads the created menu once the route changes
@@ -461,6 +491,7 @@ watch(menuId, (id) => {
         }
         items.value = []
         savedMenu = null
+        menuModifiedOn.value = null
         menuFormError.value = ""
         itemsError.value = ""
         captureBaselines()

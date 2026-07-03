@@ -31,6 +31,12 @@ namespace Viper.Areas.CMS.Models.DTOs
     // is rejected as a 400 rather than surfacing as a 500 when SQL Server truncates/rejects it.
     public class LeftNavMenuAddEdit
     {
+        /// <summary>
+        /// ModifiedOn value the client loaded; updates with a stale value get 409 Conflict
+        /// and a missing value gets 400 (mirrors CMSBlockAddEdit.LastModifiedOn).
+        /// </summary>
+        public DateTime? LastModifiedOn { get; set; }
+
         [Required]
         [MaxLength(100)]
         public string MenuHeaderText { get; set; } = string.Empty;

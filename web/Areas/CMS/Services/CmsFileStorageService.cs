@@ -269,9 +269,8 @@ namespace Viper.Areas.CMS.Services
             // System.IO qualified: the sibling Viper.Areas.Directory namespace shadows it here.
             if (IsUnderRoot(dirPath) && System.IO.Directory.Exists(dirPath))
             {
-                foreach (var file in System.IO.Directory.EnumerateFiles(dirPath))
+                foreach (var leaf in System.IO.Directory.EnumerateFiles(dirPath).Select(Path.GetFileName))
                 {
-                    var leaf = Path.GetFileName(file);
                     if (!string.IsNullOrEmpty(leaf))
                     {
                         taken.Add(leaf);

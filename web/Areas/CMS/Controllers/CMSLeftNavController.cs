@@ -75,6 +75,12 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest(ex.Message);
             }
+            // A stale edit must surface as 409 (someone saved first); CmsConcurrencyException
+            // derives from InvalidOperationException, so catch it explicitly rather than as a 500.
+            catch (CmsConcurrencyException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
 
         // PUT /api/cms/left-navs/5/items — full item list; order follows the array
