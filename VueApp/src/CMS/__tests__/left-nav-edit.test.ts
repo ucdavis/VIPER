@@ -81,3 +81,38 @@ describe("LeftNavEdit.vue - menu settings save", () => {
         expect(document.body.textContent).toContain("Someone else saved this menu.")
     })
 })
+
+describe("LeftNavEdit.vue - items save", () => {
+    type ItemsVm = { saveItems: () => Promise<void> }
+
+    it("PUTs the items with the menu's stamp, then advances the stamp from the response", async () => {
+        mockPut.mockResolvedValue({ success: true, result: { ...MENU, modifiedOn: "2024-03-02T09:00:00" } })
+        const { wrapper } = await mountEdit()
+        const vm = wrapper.vm as unknown as ItemsVm
+
+        await vm.saveItems()
+        await flushPromises()
+
+        const [url, payload] = mockPut.mock.calls[0]!
+        expect(url).toContain("cms/left-navs/7/items")
+        expect(payload).toMatchObject({ lastModifiedOn: "2024-03-01T12:00:00", items: [] })
+
+        // Saving items bumps the menu's ModifiedOn server-side; the next save (items or
+        // settings) must carry the advanced stamp or it would 409 against the user's own save.
+        await vm.saveItems()
+        await flushPromises()
+        expect((mockPut.mock.calls[1]![1] as { lastModifiedOn: string }).lastModifiedOn).toBe("2024-03-02T09:00:00")
+    })
+
+    it("opens the Edit Conflict dialog when the items save returns a 409", async () => {
+        mockPut.mockResolvedValue({ success: false, status: 409, errors: ["This menu was modified by rex."] })
+        const { wrapper } = await mountEdit()
+        const vm = wrapper.vm as unknown as ItemsVm
+
+        await vm.saveItems()
+        await flushPromises()
+
+        expect(document.body.textContent).toContain("Edit Conflict")
+        expect(document.body.textContent).toContain("This menu was modified by rex.")
+    })
+})

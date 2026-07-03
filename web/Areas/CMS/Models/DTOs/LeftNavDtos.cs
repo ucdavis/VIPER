@@ -56,6 +56,18 @@ namespace Viper.Areas.CMS.Models.DTOs
     }
 
     /// <summary>
+    /// Batch item save: the full item list plus the menu's concurrency stamp. Items ride on the
+    /// menu's ModifiedOn, so a stale stamp gets 409 and a missing one 400, mirroring
+    /// LeftNavMenuAddEdit.LastModifiedOn - without it, two editors' batch saves silently
+    /// overwrite each other's item order and permissions.
+    /// </summary>
+    public class LeftNavItemsSave
+    {
+        public DateTime? LastModifiedOn { get; set; }
+        public List<LeftNavItemEdit> Items { get; set; } = new();
+    }
+
+    /// <summary>
     /// Full item list for a menu; saving replaces the menu's items (new items have id 0,
     /// omitted ids are deleted, order follows the array).
     /// </summary>

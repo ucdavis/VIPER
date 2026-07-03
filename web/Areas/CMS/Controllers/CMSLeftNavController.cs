@@ -83,14 +83,15 @@ namespace Viper.Areas.CMS.Controllers
             }
         }
 
-        // PUT /api/cms/left-navs/5/items — full item list; order follows the array
+        // PUT /api/cms/left-navs/5/items — full item list plus the menu's concurrency stamp;
+        // order follows the array
         [HttpPut("{leftNavMenuId:int}/items")]
-        public async Task<ActionResult<LeftNavMenuDto>> SaveItems(int leftNavMenuId, List<LeftNavItemEdit> items,
+        public async Task<ActionResult<LeftNavMenuDto>> SaveItems(int leftNavMenuId, LeftNavItemsSave request,
             CancellationToken ct = default)
         {
             try
             {
-                var updated = await _leftNavService.SaveItemsAsync(leftNavMenuId, items, ct);
+                var updated = await _leftNavService.SaveItemsAsync(leftNavMenuId, request, ct);
                 if (updated == null)
                 {
                     return NotFound();
@@ -99,12 +100,13 @@ namespace Viper.Areas.CMS.Controllers
             }
             catch (ArgumentException ex)
             {
-                // Malformed request (e.g. duplicate item ids).
+                // Malformed request (e.g. duplicate item ids, missing LastModifiedOn).
                 return BadRequest(ex.Message);
             }
             catch (InvalidOperationException ex)
             {
-                // Stale client: a supplied item id no longer exists in the menu.
+                // Stale client: an outdated LastModifiedOn stamp (CmsConcurrencyException derives
+                // from InvalidOperationException) or a supplied item id no longer in the menu.
                 return Conflict(ex.Message);
             }
         }

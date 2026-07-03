@@ -446,16 +446,25 @@ async function saveItems() {
     }
 
     savingItems.value = true
-    const payload = items.value.map((i) => ({
-        leftNavItemId: i.leftNavItemId,
-        menuItemText: i.menuItemText,
-        isHeader: i.isHeader,
-        url: i.isHeader ? null : i.url,
-        permissions: i.permissions,
-    }))
+    const payload = {
+        // Items ride on the menu's ModifiedOn; a stale stamp gets 409 so concurrent editors
+        // can't silently overwrite each other's item changes.
+        lastModifiedOn: menuModifiedOn.value,
+        items: items.value.map((i) => ({
+            leftNavItemId: i.leftNavItemId,
+            menuItemText: i.menuItemText,
+            isHeader: i.isHeader,
+            url: i.isHeader ? null : i.url,
+            permissions: i.permissions,
+        })),
+    }
     const res = await put(apiURL + "/" + menuId.value + "/items", payload)
     savingItems.value = false
 
+    if (res.status === 409) {
+        handleMenuSaveConflict(res)
+        return
+    }
     if (!res.success) {
         itemsError.value = res.errors?.[0] ?? "Failed to save items"
         return
@@ -463,6 +472,9 @@ async function saveItems() {
     $q.notify({ type: "positive", message: "Items saved" })
     savedMenu = res.result
     items.value = toEditableItems(res.result)
+    // Saving items bumps the menu's ModifiedOn; advance the shared stamp so a following
+    // settings (or items) save isn't rejected as stale.
+    menuModifiedOn.value = res.result.modifiedOn
     resetItemsDirty()
 }
 

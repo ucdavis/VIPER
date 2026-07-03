@@ -204,11 +204,10 @@ public sealed class CmsLeftNavServiceTests : IDisposable
         });
         var keepId = menu.LeftNavItems.First(i => i.MenuItemText == "Keep Me").LeftNavItemId;
 
-        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, new List<LeftNavItemEdit>
-        {
-            new() { LeftNavItemId = 0, MenuItemText = "New Header", IsHeader = true },
-            new() { LeftNavItemId = keepId, MenuItemText = "Keep Me Renamed", Url = "/kept", Permissions = new List<string> { "SVMSecure.New" } },
-        }, TestContext.Current.CancellationToken);
+        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, ItemsSave(menu,
+            new LeftNavItemEdit { LeftNavItemId = 0, MenuItemText = "New Header", IsHeader = true },
+            new LeftNavItemEdit { LeftNavItemId = keepId, MenuItemText = "Keep Me Renamed", Url = "/kept", Permissions = new List<string> { "SVMSecure.New" } }),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(2, dto!.Items.Count);
         Assert.Equal("New Header", dto.Items[0].MenuItemText);
@@ -226,10 +225,9 @@ public sealed class CmsLeftNavServiceTests : IDisposable
     {
         var menu = await SeedMenuAsync();
 
-        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, new List<LeftNavItemEdit>
-        {
-            new() { LeftNavItemId = 0, MenuItemText = "Header", IsHeader = true, Url = "/should-be-dropped" },
-        }, TestContext.Current.CancellationToken);
+        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, ItemsSave(menu,
+            new LeftNavItemEdit { LeftNavItemId = 0, MenuItemText = "Header", IsHeader = true, Url = "/should-be-dropped" }),
+            TestContext.Current.CancellationToken);
 
         Assert.Null(dto!.Items[0].Url);
     }
@@ -241,11 +239,10 @@ public sealed class CmsLeftNavServiceTests : IDisposable
         // renders them as blank dividers. A menu containing one must stay saveable.
         var menu = await SeedMenuAsync();
 
-        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, new List<LeftNavItemEdit>
-        {
-            new() { LeftNavItemId = 0, MenuItemText = "", IsHeader = true },
-            new() { LeftNavItemId = 0, MenuItemText = "A Link", IsHeader = false, Url = "/link" },
-        }, TestContext.Current.CancellationToken);
+        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, ItemsSave(menu,
+            new LeftNavItemEdit { LeftNavItemId = 0, MenuItemText = "", IsHeader = true },
+            new LeftNavItemEdit { LeftNavItemId = 0, MenuItemText = "A Link", IsHeader = false, Url = "/link" }),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(2, dto!.Items.Count);
         Assert.Equal("", dto.Items[0].MenuItemText);
@@ -258,16 +255,15 @@ public sealed class CmsLeftNavServiceTests : IDisposable
         var menu = await SeedMenuAsync();
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _service.SaveItemsAsync(menu.LeftNavMenuId, new List<LeftNavItemEdit>
-            {
-                new() { LeftNavItemId = 0, MenuItemText = "  ", IsHeader = false, Url = "/link" },
-            }, TestContext.Current.CancellationToken));
+            _service.SaveItemsAsync(menu.LeftNavMenuId, ItemsSave(menu,
+                new LeftNavItemEdit { LeftNavItemId = 0, MenuItemText = "  ", IsHeader = false, Url = "/link" }),
+                TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task SaveItems_UnknownMenu_ReturnsNull()
     {
-        var dto = await _service.SaveItemsAsync(9999, new List<LeftNavItemEdit>(), TestContext.Current.CancellationToken);
+        var dto = await _service.SaveItemsAsync(9999, new LeftNavItemsSave(), TestContext.Current.CancellationToken);
 
         Assert.Null(dto);
     }
@@ -279,10 +275,8 @@ public sealed class CmsLeftNavServiceTests : IDisposable
 
         // A stale client posts an id that no longer exists in the menu.
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SaveItemsAsync(menu.LeftNavMenuId,
-            new List<LeftNavItemEdit>
-            {
-                new() { LeftNavItemId = 987654, MenuItemText = "Deleted Elsewhere" }
-            }, TestContext.Current.CancellationToken));
+            ItemsSave(menu, new LeftNavItemEdit { LeftNavItemId = 987654, MenuItemText = "Deleted Elsewhere" }),
+            TestContext.Current.CancellationToken));
 
         // Nothing was created; the menu still holds only its original item.
         Assert.Equal(1, await _context.LeftNavItems.CountAsync(TestContext.Current.CancellationToken));
@@ -295,10 +289,45 @@ public sealed class CmsLeftNavServiceTests : IDisposable
         var keepId = menu.LeftNavItems.First().LeftNavItemId;
 
         await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveItemsAsync(menu.LeftNavMenuId,
-            new List<LeftNavItemEdit>
-            {
-                new() { LeftNavItemId = keepId, MenuItemText = "A" },
-                new() { LeftNavItemId = keepId, MenuItemText = "B" }
-            }, TestContext.Current.CancellationToken));
+            ItemsSave(menu,
+                new LeftNavItemEdit { LeftNavItemId = keepId, MenuItemText = "A" },
+                new LeftNavItemEdit { LeftNavItemId = keepId, MenuItemText = "B" }),
+            TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public async Task SaveItems_StaleLastModifiedOn_ThrowsConcurrency()
+    {
+        // Item saves ride on the menu's ModifiedOn; a stale stamp means another editor saved
+        // (settings or items) after this client loaded, and the batch must not clobber them.
+        var menu = await SeedMenuAsync();
+
+        var request = new LeftNavItemsSave
+        {
+            LastModifiedOn = menu.ModifiedOn.AddMinutes(-5),
+            Items = new List<LeftNavItemEdit> { new() { LeftNavItemId = 0, MenuItemText = "Header", IsHeader = true } }
+        };
+
+        var ex = await Assert.ThrowsAsync<CmsConcurrencyException>(() =>
+            _service.SaveItemsAsync(menu.LeftNavMenuId, request, TestContext.Current.CancellationToken));
+        Assert.Contains("modified by test", ex.Message);
+        Assert.Equal(0, await _context.LeftNavItems.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SaveItems_MissingLastModifiedOn_ThrowsArgumentException()
+    {
+        var menu = await SeedMenuAsync();
+
+        var request = new LeftNavItemsSave
+        {
+            Items = new List<LeftNavItemEdit> { new() { LeftNavItemId = 0, MenuItemText = "Header", IsHeader = true } }
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SaveItemsAsync(menu.LeftNavMenuId, request, TestContext.Current.CancellationToken));
+    }
+
+    private static LeftNavItemsSave ItemsSave(LeftNavMenu menu, params LeftNavItemEdit[] items) =>
+        new() { LastModifiedOn = menu.ModifiedOn, Items = items.ToList() };
 }
