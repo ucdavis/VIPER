@@ -45,7 +45,7 @@
                         color="negative"
                         label="Retry"
                         :loading="isLoading"
-                        @click="loadAuditTrail"
+                        @click="initialize"
                     />
                 </template>
             </StatusBanner>
