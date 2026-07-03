@@ -33,7 +33,7 @@
             <div class="row no-wrap">
                 <q-btn
                     v-for="action in item.actions"
-                    :key="action.icon"
+                    :key="action.label"
                     flat
                     dense
                     round

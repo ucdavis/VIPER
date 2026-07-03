@@ -34,7 +34,9 @@ const CMS_ADMIN_PERMISSIONS = [
 // router-link :to and programmatic navigation resolve exactly as they do in production.
 const stub = { template: "<div />" }
 const CMS_ROUTES: RouteRecordRaw[] = [
-    { path: "/", name: "CmsHome", component: stub },
+    { path: "/CMS/Home", name: "CmsHome", component: stub },
+    // Root alias so tests that mount at the initial "/" location still resolve a route.
+    { path: "/", redirect: "/CMS/Home" },
     { path: "/CMS/ManageContentBlocks", name: "CmsContentBlocks", component: stub },
     { path: "/CMS/ManageContentBlocks/History", name: "CmsContentBlockHistory", component: stub },
     { path: "/CMS/ManageContentBlocks/Edit/:id?", name: "CmsContentBlockEdit", component: stub },
