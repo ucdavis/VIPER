@@ -22,34 +22,17 @@ const contentBlock: Ref<ContentBlock | null> = ref(null)
 
 async function loadContentBlock() {
     const { get } = useFetch()
-    const r = await get(import.meta.env.VITE_API_URL + "cms/content/fn/" + props.contentBlockName)
-    contentBlock.value = r.result
+    // Capture the name we're loading; if props.contentBlockName changes while this request is in
+    // flight, a slower earlier response must not overwrite the newer block's content.
+    const requestedName = props.contentBlockName
+    const r = await get(import.meta.env.VITE_API_URL + "cms/content/fn/" + requestedName)
+    if (props.contentBlockName !== requestedName) return
+    contentBlock.value = r.success ? r.result : null
 }
 
-watch(
-    () => props,
-    () => {
-        loadContentBlock()
-    },
-    { immediate: true, deep: true },
-)
-
-loadContentBlock()
+// Reload only when the block name changes. props is reactive, so watching the
+// specific source (instead of a deep watch on props) avoids the duplicate
+// immediate fetch and unrelated re-runs. Headings for the sanitized HTML are
+// styled globally in styles/base.css (shared with the diff view).
+watch(() => props.contentBlockName, loadContentBlock, { immediate: true })
 </script>
-
-<style>
-.content-block h1 {
-    font-size: 2rem;
-    line-height: 2rem;
-}
-
-.content-block h2 {
-    font-size: 2rem;
-    line-height: 2rem;
-}
-
-.content-block h3 {
-    font-size: 2rem;
-    line-height: 2rem;
-}
-</style>
