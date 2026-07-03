@@ -9,15 +9,6 @@ using Viper.Services;
 
 namespace Viper.Areas.CMS.Services
 {
-    /// <summary>
-    /// Thrown when an update is based on a stale copy of a block (someone else saved since
-    /// the editor loaded it). Controllers translate this to 409 Conflict.
-    /// </summary>
-    public class CmsConcurrencyException : InvalidOperationException
-    {
-        public CmsConcurrencyException(string message) : base(message) { }
-    }
-
     public interface ICmsContentBlockService
     {
         Task<(List<ContentBlockDto> Blocks, int Total)> GetContentBlocksAsync(string status, string? system,
