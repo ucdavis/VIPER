@@ -141,8 +141,16 @@ namespace Viper.Areas.CMS.Services
                 return true;
             }
             // Also check the DB in case a record exists whose disk file is missing; a new file
-            // at that path would be served under the orphaned record's permissions.
-            return _context.Files.Any(f => f.FilePath == targetPath);
+            // at that path would be served under the orphaned record's permissions. Records
+            // created under another environment's storage root (ReplaceRootFolder rewrites
+            // them at read time) claim the same folder+name, so match the path suffix in
+            // either separator style rather than only the exact current-root path.
+            string[] segments = folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            string leaf = GetLeafName(fileName);
+            string suffixBack = "\\" + string.Join('\\', segments) + "\\" + leaf;
+            string suffixFwd = "/" + string.Join('/', segments) + "/" + leaf;
+            return _context.Files.Any(f => f.FilePath == targetPath
+                || f.FilePath.EndsWith(suffixBack) || f.FilePath.EndsWith(suffixFwd));
         }
 
         public string GetAvailableFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null)

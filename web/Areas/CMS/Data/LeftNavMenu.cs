@@ -50,10 +50,11 @@ namespace Viper.Areas.CMS.Data
             foreach (var m in menus)
             {
                 //by default, filter items based on user permissions; items with no
-                //permissions are visible to any logged-in user (legacy CMS behavior)
+                //permissions are visible to any LOGGED-IN user (legacy CMS behavior) - an
+                //anonymous request (e.g. an [AllowAnonymous] page rendering a menu) sees none
                 List<NavMenuItem> items = m.LeftNavItems
                     .Where(item => !filterItemsByPermissions
-                        || item.LeftNavItemToPermissions.Count == 0
+                        || (currentUser != null && item.LeftNavItemToPermissions.Count == 0)
                         || item.LeftNavItemToPermissions.Any(p => _userHelper.HasPermission(_rapsContext, currentUser, p.Permission)))
                     .Select(item => new NavMenuItem(item))
                     .ToList();

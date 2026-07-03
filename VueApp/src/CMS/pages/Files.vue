@@ -340,7 +340,9 @@ function syncFiltersToUrl() {
 // lookup chain). Link it on the VIPER 1 host, matching the legacy UI, so
 // clicking exercises the same path end users' old links take.
 function oldUrlHref(oldUrl: string): string {
-    return import.meta.env.VITE_VIPER_1_HOME + oldUrl.replace(/^\//, "")
+    // Join with exactly one slash regardless of whether the env var carries a trailing one.
+    const viper1Host = (import.meta.env.VITE_VIPER_1_HOME ?? "").replace(/\/$/, "")
+    return viper1Host + "/" + oldUrl.replace(/^\//, "")
 }
 
 const statusOptions = [

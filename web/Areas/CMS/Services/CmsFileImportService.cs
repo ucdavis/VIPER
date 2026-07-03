@@ -238,7 +238,7 @@ namespace Viper.Areas.CMS.Services
                 {
                     FileGuid = Guid.NewGuid(),
                     FilePath = finalPath,
-                    Folder = request.Folder,
+                    Folder = CmsFileNaming.NormalizeFolderKey(request.Folder),
                     FriendlyName = friendlyName,
                     Encrypted = encrypt,
                     Key = dbKey,

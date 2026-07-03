@@ -63,6 +63,10 @@ let searchSeq = 0
 
 async function searchPeople(val: string, update: (fn: () => void) => void) {
     if (val.trim().length < 2) {
+        // Invalidate any in-flight search too, or its late response would repopulate
+        // the options we just cleared.
+        searchSeq += 1
+        loading.value = false
         update(() => {
             options.value = []
         })

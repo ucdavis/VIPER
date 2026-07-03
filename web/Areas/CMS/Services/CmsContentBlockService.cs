@@ -89,6 +89,10 @@ namespace Viper.Areas.CMS.Services
             string? viperSectionPath, string? search, bool? isPublic, int page, int perPage, string? sortBy,
             bool descending, CancellationToken ct = default)
         {
+            // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            page = Math.Max(page, 1);
+            perPage = Math.Max(perPage, 1);
+
             var query = _context.ContentBlocks
                 .AsNoTracking()
                 .AsSplitQuery()
@@ -192,7 +196,7 @@ namespace Viper.Areas.CMS.Services
                 {
                     FileGuid = f.FileGuid,
                     FriendlyName = f.FriendlyName,
-                    Url = Data.CMS.GetFriendlyURL(f.FriendlyName, f.AllowPublicAccess)
+                    Url = Data.CMS.GetFriendlyURL(f.FriendlyName)
                 }).ToList()
             }).ToList();
 
@@ -459,6 +463,10 @@ namespace Viper.Areas.CMS.Services
 
         public async Task<List<ContentHistoryAuditDto>> GetHistoryEntriesAsync(CmsContentHistoryFilter filter, int page, int perPage, CancellationToken ct = default)
         {
+            // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            page = Math.Max(page, 1);
+            perPage = Math.Max(perPage, 1);
+
             return await BuildHistoryQuery(filter)
                 .OrderByDescending(x => x.History.ModifiedOn)
                 .ThenByDescending(x => x.History.ContentHistoryId)

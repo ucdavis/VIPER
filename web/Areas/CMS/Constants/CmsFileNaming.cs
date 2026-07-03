@@ -10,5 +10,15 @@ namespace Viper.Areas.CMS.Constants
         {
             return folder.Replace('\\', '-').Replace('/', '-') + "-" + fileName;
         }
+
+        /// <summary>
+        /// Canonical stored form of a folder path: segments joined with '\' (the legacy
+        /// convention). Folder input accepts either separator style, so records must be
+        /// written canonically or the list filter's prefix match would miss them.
+        /// </summary>
+        public static string NormalizeFolderKey(string folder)
+        {
+            return string.Join('\\', folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries));
+        }
     }
 }

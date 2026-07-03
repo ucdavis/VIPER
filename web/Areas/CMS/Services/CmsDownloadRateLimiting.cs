@@ -43,13 +43,14 @@ namespace Viper.Areas.CMS.Services
                 {
                     var httpContext = context.HttpContext;
 
-                    // Visibility for tuning the limits on TEST/PROD. Partition key is the
-                    // CAS login or proxy-resolved client IP, not raw user input.
+                    // Visibility for tuning the limits on TEST/PROD. Sanitize the partition key
+                    // too: for anonymous requests it falls back to the proxy-resolved client IP,
+                    // which can derive from a user-controllable forwarded header.
                     httpContext.RequestServices
                         .GetRequiredService<ILoggerFactory>()
                         .CreateLogger(nameof(CmsDownloadRateLimiting))
                         .LogInformation("Download rate limit hit for {PartitionKey} on {Path}",
-                            GetPartitionKey(httpContext),
+                            LogSanitizer.SanitizeString(GetPartitionKey(httpContext)),
                             LogSanitizer.SanitizeString(httpContext.Request.Path));
 
                     // A response already in flight can't take headers or a new body.

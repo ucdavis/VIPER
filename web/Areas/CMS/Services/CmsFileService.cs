@@ -72,6 +72,10 @@ namespace Viper.Areas.CMS.Services
             bool? encrypted, bool? isPublic, int page, int perPage, string? sortBy, bool descending,
             string? restrictDeletedToOwner = null, CancellationToken ct = default)
         {
+            // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            page = Math.Max(page, 1);
+            perPage = Math.Max(perPage, 1);
+
             var query = _context.Files
                 .AsNoTracking()
                 .Include(f => f.FileToPermissions)
@@ -83,8 +87,12 @@ namespace Viper.Areas.CMS.Services
             if (!string.IsNullOrEmpty(folder))
             {
                 // Folder may have subfolders stored as "folder\sub"; match the top-level folder.
+                // New records store the canonical '\' form (NormalizeFolderKey), but legacy rows
+                // may carry '/' separators; match subfolders in either style.
                 var folderPrefix = folder + @"\";
-                query = query.Where(f => f.Folder == folder || (f.Folder != null && f.Folder.StartsWith(folderPrefix)));
+                var folderPrefixAlt = folder + "/";
+                query = query.Where(f => f.Folder == folder || (f.Folder != null
+                    && (f.Folder.StartsWith(folderPrefix) || f.Folder.StartsWith(folderPrefixAlt))));
             }
 
             query = ApplyStatusFilter(query, status, restrictDeletedToOwner);
@@ -292,7 +300,7 @@ namespace Viper.Areas.CMS.Services
             {
                 FileGuid = Guid.NewGuid(),
                 FilePath = finalPath,
-                Folder = request.Folder,
+                Folder = CmsFileNaming.NormalizeFolderKey(request.Folder),
                 FriendlyName = friendlyName,
                 Encrypted = encrypt,
                 Key = dbKey,
@@ -326,6 +334,7 @@ namespace Viper.Areas.CMS.Services
                 // A failed or cancelled save never persisted the record. Drop the pending changes, then
                 // reconcile the managed store: restore an overwritten file's original bytes, or remove the
                 // freshly stored copy, so nothing is left orphaned or destroyed.
+                _logger.LogError(ex, "CMS file create save failed; reconciling the managed store before rethrowing.");
                 _context.ChangeTracker.Clear();
                 ReconcileStoreAfterFailedCreate(finalPath, overwriteBackup);
                 throw;
@@ -542,6 +551,8 @@ namespace Viper.Areas.CMS.Services
             {
                 // A database save failure means the new state was not persisted; drop the pending
                 // changes and reconcile the on-disk file back to its original state before rethrowing.
+                _logger.LogError(ex, "CMS file {FileGuid} update save failed; reconciling the on-disk state before rethrowing.",
+                    entity.FileGuid);
                 _context.ChangeTracker.Clear();
                 if (originalFileBackup != null)
                 {

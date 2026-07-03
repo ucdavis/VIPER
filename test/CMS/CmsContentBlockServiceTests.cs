@@ -117,6 +117,19 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetContentBlocks_PageZero_ClampsToFirstPage()
+    {
+        // ApiPagination admits page=0; Skip(-perPage) would throw, so the service clamps.
+        await SeedBlockAsync(b => b.Title = "Alpha");
+
+        var result = await _service.GetContentBlocksAsync("active", null, null, null, null, 0, 0, "title", false,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result.Total);
+        Assert.Single(result.Blocks);
+    }
+
+    [Fact]
     public async Task GetContentBlocks_ListOmitsContent()
     {
         await SeedBlockAsync();

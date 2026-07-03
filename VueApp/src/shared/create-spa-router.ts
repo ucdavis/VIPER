@@ -11,7 +11,9 @@ import { useRouteFocus } from "@/composables/use-route-focus"
  * vary per SPA.
  */
 export function createSpaRouter(routes: RouteRecordRaw[]): Router {
-    const baseUrl = import.meta.env.VITE_VIPER_HOME
+    // Same normalization as bootstrap-spa: tolerate a missing env var (tests,
+    // misconfigured builds) and a trailing slash.
+    const baseUrl = (import.meta.env.VITE_VIPER_HOME ?? "/").replace(/\/$/, "")
     const router = createRouter({
         scrollBehavior: (to, from) => {
             // Scroll to the fragment target on router-driven hash navigation,

@@ -25,8 +25,8 @@ namespace Viper.Areas.CMS.Models
                 })
                 .OrderBy(p => p.Name ?? p.IamId)
                 .ToList();
-            dto.Url = Data.CMS.GetURL(file.FileGuid.ToString(), file.AllowPublicAccess);
-            dto.FriendlyUrl = Data.CMS.GetFriendlyURL(file.FriendlyName, file.AllowPublicAccess);
+            dto.Url = Data.CMS.GetURL(file.FileGuid.ToString());
+            dto.FriendlyUrl = Data.CMS.GetFriendlyURL(file.FriendlyName);
             // When a file is in the trash, surface the date the purge job will permanently delete it.
             dto.PurgeOn = file.DeletedOn?.AddDays(CmsTrash.RetentionDays);
             return dto;

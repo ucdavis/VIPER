@@ -206,6 +206,39 @@ public sealed class CmsFileStorageServiceTests : IDisposable
         Assert.True(_service.FileNameInUse("cats", "dbonly.pdf"));
     }
 
+    [Fact]
+    public void FileNameInUse_DetectsRecordStoredUnderAnotherStorageRoot()
+    {
+        // Rows created in another environment keep that environment's root in FilePath
+        // (ReplaceRootFolder rewrites them at read time); the collision check must still
+        // treat the folder+name as taken, in either separator style.
+        _context.Files.Add(new Viper.Models.VIPER.File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = @"S:\Files\cats\otherroot.pdf",
+            Folder = "cats",
+            FriendlyName = "cats-otherroot.pdf",
+            Description = "",
+            ModifiedBy = "test",
+            ModifiedOn = DateTime.Now
+        });
+        _context.Files.Add(new Viper.Models.VIPER.File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = "/srv/files/cats/fwdroot.pdf",
+            Folder = "cats",
+            FriendlyName = "cats-fwdroot.pdf",
+            Description = "",
+            ModifiedBy = "test",
+            ModifiedOn = DateTime.Now
+        });
+        _context.SaveChanges();
+
+        Assert.True(_service.FileNameInUse("cats", "otherroot.pdf"));
+        Assert.True(_service.FileNameInUse("cats", "fwdroot.pdf"));
+        Assert.False(_service.FileNameInUse("cats", "stillfree.pdf"));
+    }
+
     #endregion
 
     #region SaveToTempAsync / ReplaceInPlace / DeleteManagedFile

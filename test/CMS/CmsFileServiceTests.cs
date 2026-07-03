@@ -201,6 +201,19 @@ public sealed class CmsFileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateFile_NormalizesForwardSlashFolderToCanonicalForm()
+    {
+        // IsValidFolder accepts both separator styles, but records store the canonical
+        // '\' form so the list filter's "folder\" prefix match finds subfolder rows.
+        var request = new CmsFileCreateRequest { Folder = "cats/photos" };
+
+        await _service.CreateFileAsync(request, MakeFormFile("pic.jpg"), TestContext.Current.CancellationToken);
+
+        var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(@"cats\photos", saved.Folder);
+    }
+
+    [Fact]
     public async Task CreateFile_SavesPermissionsAndPeople_Deduplicated()
     {
         var request = new CmsFileCreateRequest

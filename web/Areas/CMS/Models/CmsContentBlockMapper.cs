@@ -16,7 +16,7 @@ namespace Viper.Areas.CMS.Models
                 {
                     FileGuid = f.FileGuid,
                     FriendlyName = f.File.FriendlyName,
-                    Url = Data.CMS.GetFriendlyURL(f.File.FriendlyName, f.File.AllowPublicAccess)
+                    Url = Data.CMS.GetFriendlyURL(f.File.FriendlyName)
                 })
                 .OrderBy(f => f.FriendlyName)
                 .ToList();

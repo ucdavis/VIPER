@@ -251,13 +251,13 @@ namespace Viper.Areas.CMS.Data
         }
         #endregion
 
-        #region public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
+        #region public static string GetFriendlyURL(string friendlyName)
         /// <summary>
         /// Get Friendly URL for a friendly name. Points to the VIPER 2 download handler
         /// (CMSController.Files), which checks permissions internally and serves public
         /// files anonymously, so no separate /public URL shape is needed.
         /// </summary>
-        public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
+        public static string GetFriendlyURL(string friendlyName)
         {
             string rootURL = String.Empty;
             string pathBase = String.Empty;
@@ -274,11 +274,11 @@ namespace Viper.Areas.CMS.Data
         }
         #endregion
 
-        #region public static string GetURL(string fileGUID, bool allowPublicAccess = false)
+        #region public static string GetURL(string fileGUID)
         /// <summary>
         /// Get url for a fileGUID
         /// </summary>
-        public static string GetURL(string fileGUID, bool allowPublicAccess = false)
+        public static string GetURL(string fileGUID)
         {
             string pathBase = HttpHelper.HttpContext?.Request.PathBase ?? String.Empty;
             return pathBase + @"/CMS/Files?id=" + fileGUID;
@@ -676,9 +676,9 @@ namespace Viper.Areas.CMS.Data
 
         CMSFile? GetFileByFolderAndName(string folder, string name);
 
-        static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false) => throw new NotImplementedException();
+        static string GetFriendlyURL(string friendlyName) => throw new NotImplementedException();
 
-        static string GetURL(string fileGUID, bool allowPublicAccess = false) => throw new NotImplementedException();
+        static string GetURL(string fileGUID) => throw new NotImplementedException();
 
         static string GetRootFileFolder() => throw new NotImplementedException();
 
