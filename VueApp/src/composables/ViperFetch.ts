@@ -163,8 +163,8 @@ async function fetchWrapper(url: string, options: any = {}) {
             }
         })
     const resultObj: Result = {
-        result: result,
-        errors: errors,
+        result,
+        errors,
         success: errors.length === 0,
         pagination: null,
         status: httpStatus,
@@ -271,7 +271,21 @@ function useFetch() {
         return await fetchWrapper(url, options)
     }
 
-    return { get, post, put, del, patch, createUrlSearchParams }
+    // Multipart variants for file uploads: the browser sets the Content-Type
+    // (with boundary) itself, so no header is added here.
+    async function postForm(url: string, body: FormData, options: any = {}): Promise<Result> {
+        options.method = "POST"
+        options.body = body
+        return await fetchWrapper(url, options)
+    }
+
+    async function putForm(url: string, body: FormData, options: any = {}): Promise<Result> {
+        options.method = "PUT"
+        options.body = body
+        return await fetchWrapper(url, options)
+    }
+
+    return { get, post, put, del, patch, postForm, putForm, createUrlSearchParams }
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

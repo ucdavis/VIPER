@@ -7,7 +7,14 @@ import { nextTick } from "vue"
  * alone does not move focus.
  */
 export function useRouteFocus(router: Router) {
-    router.afterEach(() => {
+    router.afterEach((to, from) => {
+        // Same-path navigations never move focus. In-page anchors (skip links): the
+        // browser already focused the fragment target. Query-only updates (URL-synced
+        // filters, debounced searches): the user is mid-interaction in a control, and
+        // yanking focus to <main> would eat their keystrokes.
+        if (to.path === from.path) {
+            return
+        }
         nextTick(() => {
             const main = document.querySelector("#main-content") || document.querySelector("main")
             if (main instanceof HTMLElement) {

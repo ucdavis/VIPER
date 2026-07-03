@@ -27,6 +27,7 @@ using Polly.Timeout;
 using QuestPDF.Infrastructure;
 using Scrutor;
 using Viper;
+using Viper.Areas.CMS.Services;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
@@ -96,6 +97,9 @@ try
     // Forwarded-headers wiring (Cloudflare + F5 trusted proxies). No-op
     // in Development. See ForwardedHeadersExtensions.
     builder.Services.AddViperForwardedHeaders(builder.Environment, logger);
+
+    // Rate limiting for CMS downloads (single files + ZIP archives). See CmsDownloadRateLimiting.
+    builder.Services.AddCmsDownloadRateLimiting(builder.Configuration);
 
     // Add services to the container.
     builder.Services.AddControllersWithViews(options =>
@@ -511,6 +515,10 @@ try
     // Auth/session run after the SPA shell block so built Vue assets skip them, but
     // still before health checks, Hangfire, and controllers, which need an authenticated user.
     app.UseAuthentication();
+    // After authentication so download rate-limit buckets can key on the logged-in user
+    // (kinder to shared campus NAT), but before authorization so abusive traffic is
+    // limited without paying the authorization cost first.
+    app.UseRateLimiter();
     app.UseAuthorization();
     app.UseCookiePolicy();
     app.UseSession();
