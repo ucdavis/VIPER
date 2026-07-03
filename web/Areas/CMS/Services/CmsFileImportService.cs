@@ -174,7 +174,7 @@ namespace Viper.Areas.CMS.Services
             string webroot = Path.GetFullPath(_legacyWebroot! + Path.DirectorySeparatorChar);
 
             string? error = null;
-            if (!sourcePath.StartsWith(webroot, StringComparison.OrdinalIgnoreCase))
+            if (!sourcePath.StartsWith(webroot, CmsFilePathSafety.PathComparison))
             {
                 error = "Path is outside the legacy webroot.";
             }
