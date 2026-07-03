@@ -171,7 +171,8 @@ namespace Viper.Areas.CMS.Services
             string tempFolder = Path.Join(Path.GetTempPath(), "Viper-CMS-Uploads");
             System.IO.Directory.CreateDirectory(tempFolder);
             string tempPath = Path.Join(tempFolder, Guid.NewGuid().ToString("N"));
-            await using FileStream stream = new(tempPath, FileMode.CreateNew);
+            // useAsync so CopyToAsync performs true async I/O instead of blocking a request thread.
+            await using FileStream stream = new(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
             await file.CopyToAsync(stream, ct);
             return tempPath;
         }
@@ -269,12 +270,11 @@ namespace Viper.Areas.CMS.Services
             // System.IO qualified: the sibling Viper.Areas.Directory namespace shadows it here.
             if (IsUnderRoot(dirPath) && System.IO.Directory.Exists(dirPath))
             {
-                foreach (var leaf in System.IO.Directory.EnumerateFiles(dirPath).Select(Path.GetFileName))
+                foreach (var leaf in System.IO.Directory.EnumerateFiles(dirPath)
+                    .Select(Path.GetFileName)
+                    .Where(leaf => !string.IsNullOrEmpty(leaf)))
                 {
-                    if (!string.IsNullOrEmpty(leaf))
-                    {
-                        taken.Add(leaf);
-                    }
+                    taken.Add(leaf!);
                 }
             }
 

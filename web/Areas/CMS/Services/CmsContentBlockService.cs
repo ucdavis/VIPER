@@ -207,7 +207,7 @@ namespace Viper.Areas.CMS.Services
         public async Task<ContentBlockDto> CreateContentBlockAsync(CMSBlockAddEdit request, CancellationToken ct = default)
         {
             await AssertFriendlyNameUniqueAsync(request.FriendlyName, null, ct);
-            var fileGuids = request.FileGuids.Distinct().ToList();
+            var fileGuids = (request.FileGuids ?? new List<Guid>()).Distinct().ToList();
             await AssertFilesExistAsync(fileGuids, ct);
 
             var block = new ContentBlock();
@@ -240,7 +240,7 @@ namespace Viper.Areas.CMS.Services
 
             AssertNotStale(block, request.LastModifiedOn);
             await AssertFriendlyNameUniqueAsync(request.FriendlyName, contentBlockId, ct);
-            var fileGuids = request.FileGuids.Distinct().ToList();
+            var fileGuids = (request.FileGuids ?? new List<Guid>()).Distinct().ToList();
             await AssertFilesExistAsync(fileGuids, ct);
 
             SavePreviousVersionToHistory(block);
@@ -661,9 +661,10 @@ namespace Viper.Areas.CMS.Services
             public ContentBlock Block { get; set; } = null!;
         }
 
-        private static List<string> CleanList(ICollection<string> values)
+        private static List<string> CleanList(ICollection<string>? values)
         {
-            return values
+            // A client can post "permissions": null explicitly; treat it as empty rather than 500.
+            return (values ?? [])
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Select(v => v.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)

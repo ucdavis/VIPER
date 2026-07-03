@@ -107,7 +107,7 @@ namespace Viper.Areas.CMS.Controllers
                 .ToListAsync();
             var collectionLinkIds = collectionLinks.Select(l => l.LinkId).ToList();
             _context.LinkTags.RemoveRange(
-                _context.LinkTags.Where(lt => collectionLinkIds.Contains(lt.LinkId)));
+                _context.LinkTags.Where(lt => EF.Parameter(collectionLinkIds).Contains(lt.LinkId)));
             _context.Links.RemoveRange(collectionLinks);
             _context.LinkCollectionTagCategories.RemoveRange(
                 _context.LinkCollectionTagCategories.Where(tc => tc.LinkCollectionId == id));

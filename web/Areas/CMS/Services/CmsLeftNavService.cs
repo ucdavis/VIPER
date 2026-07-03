@@ -320,9 +320,10 @@ namespace Viper.Areas.CMS.Services
             return _userHelper.GetCurrentUser()?.LoginId ?? "unknown";
         }
 
-        private static List<string> CleanList(List<string> values)
+        private static List<string> CleanList(List<string>? values)
         {
-            return values
+            // A client can post "permissions": null explicitly; treat it as empty rather than 500.
+            return (values ?? [])
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Select(v => v.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)

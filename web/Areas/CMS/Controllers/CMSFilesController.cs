@@ -271,7 +271,7 @@ namespace Viper.Areas.CMS.Controllers
             }
             if (request.FilePaths.Count > MaxBatchItems)
             {
-                return BadRequest("A single request may include at most 500 items.");
+                return BadRequest($"A single request may include at most {MaxBatchItems} items.");
             }
 
             try
@@ -299,7 +299,7 @@ namespace Viper.Areas.CMS.Controllers
             }
             if (request.FilePaths.Count > MaxBatchItems)
             {
-                return BadRequest("A single request may include at most 500 items.");
+                return BadRequest($"A single request may include at most {MaxBatchItems} items.");
             }
 
             try
@@ -327,7 +327,7 @@ namespace Viper.Areas.CMS.Controllers
             }
             if (fileGuids.Count > MaxBatchItems)
             {
-                return BadRequest("A single request may include at most 500 items.");
+                return BadRequest($"A single request may include at most {MaxBatchItems} items.");
             }
             return await _importService.BulkEncryptAsync(fileGuids, ct);
         }
