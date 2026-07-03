@@ -90,7 +90,7 @@
             </template>
             <template #body-cell-action="cellProps">
                 <q-td :props="cellProps">
-                    <StatusBadge :color="getActionColor(cellProps.row.action)">
+                    <StatusBadge :color="getAuditActionColor(cellProps.row.action)">
                         {{ cellProps.row.action }}
                     </StatusBadge>
                 </q-td>
@@ -108,7 +108,7 @@
                 <ListCard>
                     <template #header>
                         <div class="row items-center q-gutter-x-sm">
-                            <StatusBadge :color="getActionColor(row.action)">
+                            <StatusBadge :color="getAuditActionColor(row.action)">
                                 {{ row.action }}
                             </StatusBadge>
                             <span class="text-caption text-grey-7">
@@ -141,6 +141,7 @@
 import { inject, onMounted } from "vue"
 import { useQuasar, type QTableProps } from "quasar"
 import { useDateFunctions } from "@/composables/DateFunctions"
+import { getAuditActionColor } from "@/composables/use-audit-colors"
 import { useUrlFilteredTable } from "@/CMS/composables/use-url-filtered-table"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import StatusBadge from "@/components/StatusBadge.vue"
@@ -173,18 +174,6 @@ const columns: QTableProps["columns"] = [
     { name: "action", label: "Action", field: "action", align: "left" },
     { name: "detail", label: "Detail", field: "detail", align: "left" },
 ]
-
-// Same palette logic as the Effort audit trail (AuditList.getActionColor):
-// create-like is green, edits blue, deletes red, restores teal, imports cyan.
-function getActionColor(action: string): string {
-    if (action === "AccessFileDenied") return "warning"
-    if (action.startsWith("Add") || action.startsWith("Upload")) return "positive"
-    if (action.startsWith("Edit")) return "primary"
-    if (action.startsWith("Delete")) return "negative"
-    if (action.startsWith("CancelDelete")) return "secondary"
-    if (action.startsWith("Import")) return "info"
-    return "grey-8"
-}
 
 // Filters + the per-file deep-link (?fileGuid) sync to the URL and drive the server-paged fetch;
 // see useUrlFilteredTable. The action filter defaults to null (unset) to match the clearable select.
