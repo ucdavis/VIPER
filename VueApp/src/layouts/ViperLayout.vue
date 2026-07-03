@@ -1,9 +1,19 @@
 <template>
     <div id="pageTop"></div>
+    <!-- Skip links stay raw <a> fragment links on purpose: WCAG "bypass blocks" (2.4.1) needs the
+         native in-page anchor jump, which Quasar's routed components don't provide. -->
     <a
         href="#main-content"
         class="skip-to-content"
         >Skip to main content</a
+    >
+    <!-- gt-sm: the drawer is hidden below QDrawer's show-if-above breakpoint,
+         so the skip link would target an invisible element on small screens -->
+    <a
+        v-if="navarea"
+        href="#leftNavMenu"
+        class="skip-to-content gt-sm"
+        >Skip to section menu</a
     >
     <q-layout view="hHh lpR fFf">
         <q-header

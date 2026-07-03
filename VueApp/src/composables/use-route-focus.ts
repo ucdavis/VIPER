@@ -7,7 +7,19 @@ import { nextTick } from "vue"
  * alone does not move focus.
  */
 export function useRouteFocus(router: Router) {
-    router.afterEach(() => {
+    router.afterEach((to, from, failure) => {
+        // An aborted, cancelled, or redirected navigation never actually changed the page, so leave
+        // focus where it is (e.g. an open dialog) rather than yanking it to <main>.
+        if (failure) {
+            return
+        }
+        // Same-path navigations never move focus. In-page anchors (skip links): the
+        // browser already focused the fragment target. Query-only updates (URL-synced
+        // filters, debounced searches): the user is mid-interaction in a control, and
+        // yanking focus to <main> would eat their keystrokes.
+        if (to.path === from.path) {
+            return
+        }
         nextTick(() => {
             const main = document.querySelector("#main-content") || document.querySelector("main")
             if (main instanceof HTMLElement) {
@@ -17,6 +29,12 @@ export function useRouteFocus(router: Router) {
                     main.setAttribute("tabindex", "-1")
                     main.addEventListener("blur", () => main.removeAttribute("tabindex"), { once: true })
                 }
+                // Tag this focus as route-driven so CSS can suppress the landmark
+                // focus ring: browsers count programmatic focus() as :focus-visible
+                // after keyboard input or on a fresh page load, which would draw
+                // the ring on every navigation. The ring belongs to skip-link jumps.
+                main.dataset.routeFocus = ""
+                main.addEventListener("blur", () => delete main.dataset.routeFocus, { once: true })
                 main.focus({ preventScroll: true })
             }
         })

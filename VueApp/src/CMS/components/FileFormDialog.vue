@@ -1,0 +1,560 @@
+<template>
+    <q-dialog
+        :model-value="modelValue"
+        persistent
+        aria-labelledby="file-dialog-title"
+        @update:model-value="emit('update:modelValue', $event)"
+        @hide="resetForm"
+        @keydown.escape="handleClose"
+    >
+        <q-card class="dialog-card-md">
+            <q-card-section class="row items-center q-pb-none">
+                <div
+                    id="file-dialog-title"
+                    class="text-h6"
+                >
+                    {{ isEdit ? "Edit File" : "Add File" }}
+                </div>
+                <q-space />
+                <q-btn
+                    icon="close"
+                    flat
+                    round
+                    dense
+                    aria-label="Close dialog"
+                    @click="handleClose"
+                />
+            </q-card-section>
+
+            <q-form
+                ref="formRef"
+                greedy
+                @submit.prevent="save"
+                @validation-error="onValidationError"
+            >
+                <q-card-section class="q-gutter-y-sm">
+                    <div
+                        v-if="isEdit"
+                        class="text-body2 q-mb-sm"
+                    >
+                        <strong>{{ displayFile?.friendlyName }}</strong>
+                        <div class="text-caption text-grey-8">
+                            Link:
+                            <a
+                                :href="displayFile?.friendlyUrl"
+                                target="_blank"
+                                rel="noopener"
+                            >
+                                {{ displayFile?.friendlyUrl }}
+                            </a>
+                            <q-btn
+                                flat
+                                dense
+                                size="sm"
+                                icon="content_copy"
+                                aria-label="Copy link"
+                                @click="copyUrl"
+                            >
+                                <q-tooltip>Copy link</q-tooltip>
+                            </q-btn>
+                        </div>
+                    </div>
+
+                    <q-file
+                        v-model="form.upload"
+                        dense
+                        outlined
+                        :label="isEdit ? 'Replace file (optional)' : 'File'"
+                        :accept="acceptedExtensions"
+                        :rules="isEdit ? [] : [(v: File | null) => !!v || 'Please choose a file']"
+                        :hint="
+                            isEdit
+                                ? 'Uploading a new file replaces the current content, keeping the same name'
+                                : undefined
+                        "
+                    >
+                        <template #prepend>
+                            <q-icon name="attach_file" />
+                        </template>
+                    </q-file>
+
+                    <q-select
+                        v-if="!isEdit"
+                        v-model="form.folder"
+                        dense
+                        options-dense
+                        outlined
+                        label="VIPER app (folder)"
+                        :options="folders"
+                        :rules="[(v: string | null) => !!v || 'Please select a folder']"
+                    />
+
+                    <q-input
+                        v-model="form.description"
+                        dense
+                        outlined
+                        type="textarea"
+                        rows="2"
+                        label="Description"
+                        maxlength="1000"
+                    />
+
+                    <q-input
+                        v-model="form.oldUrl"
+                        dense
+                        outlined
+                        label="Old URL"
+                        maxlength="256"
+                        hint="Legacy VIPER 1 path this file replaces (optional)"
+                    />
+
+                    <PermissionSelector v-model="form.permissions" />
+
+                    <PersonSelector
+                        v-model="form.people"
+                        label="People with access"
+                    />
+
+                    <div class="row q-gutter-x-lg">
+                        <q-toggle
+                            v-model="form.allowPublicAccess"
+                            label="Public access"
+                        />
+                        <q-toggle
+                            v-model="form.encrypt"
+                            label="Encrypt file"
+                        />
+                    </div>
+
+                    <StatusBanner
+                        v-if="formError"
+                        type="error"
+                    >
+                        {{ formError }}
+                    </StatusBanner>
+                </q-card-section>
+
+                <q-card-actions align="right">
+                    <q-btn
+                        flat
+                        label="Cancel"
+                        dense
+                        no-caps
+                        @click="handleClose"
+                    />
+                    <q-btn
+                        type="submit"
+                        :label="isEdit ? 'Save Changes' : 'Upload'"
+                        color="primary"
+                        dense
+                        no-caps
+                        :loading="saving"
+                    >
+                        <template #loading>
+                            <q-spinner
+                                size="1em"
+                                class="q-mr-sm"
+                            />
+                            {{ isEdit ? "Save Changes" : "Upload" }}
+                        </template>
+                    </q-btn>
+                </q-card-actions>
+            </q-form>
+
+            <q-dialog
+                v-model="showConflict"
+                persistent
+                aria-labelledby="conflict-dialog-title"
+            >
+                <q-card class="dialog-card-sm">
+                    <q-card-section class="row items-center q-pb-none">
+                        <div
+                            id="conflict-dialog-title"
+                            class="text-h6"
+                        >
+                            File name already exists
+                        </div>
+                        <q-space />
+                        <q-btn
+                            icon="close"
+                            flat
+                            round
+                            dense
+                            aria-label="Close file name conflict dialog"
+                            @click="showConflict = false"
+                        />
+                    </q-card-section>
+                    <q-card-section>
+                        <p class="text-body2">
+                            <strong>{{ form.upload?.name }}</strong> already exists in <strong>{{ form.folder }}</strong
+                            >{{ conflictDetail }}. Choose how to continue:
+                        </p>
+                        <q-option-group
+                            v-model="conflictChoice"
+                            :options="conflictOptions"
+                        />
+                        <q-input
+                            v-if="conflictChoice === 'rename'"
+                            v-model="renameTo"
+                            dense
+                            outlined
+                            label="New file name"
+                            class="q-mt-sm"
+                            :rules="[(v: string) => !!v?.trim() || 'Enter a file name']"
+                            hide-bottom-space
+                        />
+                    </q-card-section>
+                    <q-card-actions align="right">
+                        <q-btn
+                            color="primary"
+                            dense
+                            no-caps
+                            :label="conflictChoice === 'rename' ? 'Upload with new name' : 'Overwrite'"
+                            :loading="saving"
+                            @click="resolveConflict"
+                        >
+                            <template #loading>
+                                <q-spinner
+                                    size="1em"
+                                    class="q-mr-sm"
+                                />
+                                {{ conflictChoice === "rename" ? "Upload with new name" : "Overwrite" }}
+                            </template>
+                        </q-btn>
+                    </q-card-actions>
+                </q-card>
+            </q-dialog>
+        </q-card>
+    </q-dialog>
+</template>
+
+<script setup lang="ts">
+// Template-size synthetic complexity only; submitSave is split into small helpers below.
+// fallow-ignore-file complexity
+import { computed, inject, ref, watch } from "vue"
+import { useQuasar } from "quasar"
+import { useFetch } from "@/composables/ViperFetch"
+import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
+import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
+import PersonSelector from "@/CMS/components/PersonSelector.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
+import { CMS_ACCEPTED_EXTENSIONS } from "@/CMS/file-types"
+import type { CmsFile, CmsFileNameCheck, CmsFilePerson } from "@/CMS/types/"
+
+const props = defineProps<{
+    modelValue: boolean
+    folders: string[]
+    file: CmsFile | null
+}>()
+
+const emit = defineEmits<{
+    "update:modelValue": [value: boolean]
+    saved: [file: CmsFile]
+}>()
+
+const apiURL = inject("apiURL") + "cms/files/"
+const $q = useQuasar()
+const { get, postForm, putForm, createUrlSearchParams } = useFetch()
+
+const acceptedExtensions = CMS_ACCEPTED_EXTENSIONS
+
+const isEdit = computed(() => props.file !== null)
+const formRef = ref()
+const saving = ref(false)
+const formError = ref("")
+
+type FileForm = {
+    upload: File | null
+    folder: string | null
+    description: string
+    oldUrl: string
+    allowPublicAccess: boolean
+    encrypt: boolean
+    permissions: string[]
+    people: CmsFilePerson[]
+}
+
+const emptyForm = (): FileForm => ({
+    upload: null,
+    folder: null,
+    description: "",
+    oldUrl: "",
+    allowPublicAccess: false,
+    encrypt: false,
+    permissions: [],
+    people: [],
+})
+
+const form = ref<FileForm>(emptyForm())
+
+// useUnsavedChanges compares JSON.stringify snapshots, but a File's properties are prototype
+// getters, so it serializes to "{}" and choosing one leaves the form looking clean. Swap it for
+// a name+size identity so a selection is visible to the dirty check.
+const dirtySnapshot = computed(() => ({
+    ...form.value,
+    upload: form.value.upload ? `${form.value.upload.name}:${form.value.upload.size}` : null,
+}))
+
+const { setInitialState, confirmClose } = useUnsavedChanges(dirtySnapshot)
+
+const conflict = ref<CmsFileNameCheck | null>(null)
+const showConflict = ref(false)
+const conflictChoice = ref<"rename" | "overwrite">("rename")
+const renameTo = ref("")
+
+const conflictOptions = computed(() => [
+    { label: "Upload with a new name", value: "rename" },
+    {
+        label: conflict.value?.existingFileGuid
+            ? "Overwrite the existing file (replaces its content and details)"
+            : "Overwrite the existing file on disk",
+        value: "overwrite",
+    },
+])
+
+const conflictDetail = computed(() => {
+    if (!conflict.value?.existingFriendlyName) return ""
+    return ` (${conflict.value.existingFriendlyName}${conflict.value.existingDeleted ? ", deleted" : ""})`
+})
+
+// The record being edited. Starts as the parent's row but diverges when an edit-conflict
+// "Reload" pulls the latest version: its modifiedOn is what the save presents as
+// lastModifiedOn for the 409 stale-edit guard.
+const latestFile = ref<CmsFile | null>(null)
+
+// The record whose name/link the template shows and copyUrl copies. After a 409 "Reload" pulls the
+// concurrent edit's version into latestFile, this must reflect that (not the stale props.file the
+// parent row still holds). props.file stays the identity source for isEdit and the save fileGuid.
+const displayFile = computed(() => latestFile.value ?? props.file)
+
+function populateForm(file: CmsFile | null) {
+    if (file) {
+        form.value = {
+            upload: null,
+            folder: file.folder,
+            description: file.description ?? "",
+            oldUrl: file.oldUrl ?? "",
+            allowPublicAccess: file.allowPublicAccess,
+            encrypt: file.encrypted,
+            permissions: [...file.permissions],
+            people: file.people.map((p) => ({ ...p })),
+        }
+    } else {
+        form.value = emptyForm()
+    }
+}
+
+watch(
+    () => [props.modelValue, props.file] as const,
+    ([open]) => {
+        if (!open) return
+        latestFile.value = props.file
+        populateForm(props.file)
+        formError.value = ""
+        setInitialState()
+    },
+)
+
+function resetForm() {
+    form.value = emptyForm()
+    conflict.value = null
+    showConflict.value = false
+    formError.value = ""
+    formRef.value?.resetValidation()
+}
+
+async function handleClose() {
+    if (await confirmClose()) {
+        emit("update:modelValue", false)
+    }
+}
+
+// The q-form focuses the first invalid field on a failed submit; this surfaces a matching
+// message next to the action buttons so the failure is obvious.
+function onValidationError() {
+    formError.value = isEdit.value
+        ? "Please complete the required fields before saving."
+        : "Please choose a file and complete the required fields before uploading."
+}
+
+async function copyUrl() {
+    if (!displayFile.value) return
+    try {
+        await navigator.clipboard.writeText(displayFile.value.friendlyUrl)
+        $q.notify({ type: "positive", message: "Link copied" })
+    } catch {
+        $q.notify({ type: "negative", message: "Failed to copy link" })
+    }
+}
+
+type SubmitOptions = {
+    fileName?: string
+    overwrite?: boolean
+    overwriteGuid?: string
+}
+
+function buildFormData(opts: SubmitOptions = {}): FormData {
+    const data = new FormData()
+    if (form.value.upload) {
+        data.append("file", form.value.upload)
+    }
+    if (!isEdit.value && !opts.overwriteGuid) {
+        data.append("folder", form.value.folder ?? "")
+        if (opts.fileName) {
+            data.append("fileName", opts.fileName)
+        }
+        if (opts.overwrite) {
+            data.append("overwrite", "true")
+        }
+    }
+    // Updates must present the ModifiedOn they loaded; a stale value gets a 409 so a
+    // concurrent edit (or a record that changed after the overwrite prompt) isn't clobbered.
+    if (isEdit.value && latestFile.value) {
+        data.append("lastModifiedOn", latestFile.value.modifiedOn)
+    } else if (opts.overwriteGuid && conflict.value?.existingModifiedOn) {
+        data.append("lastModifiedOn", conflict.value.existingModifiedOn)
+    }
+    data.append("description", form.value.description)
+    data.append("oldUrl", form.value.oldUrl)
+    data.append("allowPublicAccess", form.value.allowPublicAccess.toString())
+    data.append("encrypt", form.value.encrypt.toString())
+    for (const p of form.value.permissions) {
+        data.append("permissions", p)
+    }
+    for (const person of form.value.people) {
+        data.append("iamIds", person.iamId)
+    }
+    return data
+}
+
+async function save() {
+    if (saving.value) return
+    formError.value = ""
+
+    // New uploads check the destination name first; a conflict prompts for rename/overwrite.
+    if (!isEdit.value && form.value.upload && form.value.folder) {
+        saving.value = true
+        const params = createUrlSearchParams({ folder: form.value.folder, fileName: form.value.upload.name })
+        const check = await get(apiURL + "check-name?" + params)
+        saving.value = false
+        if (check.success && check.result.inUse) {
+            conflict.value = check.result
+            conflictChoice.value = "rename"
+            renameTo.value = check.result.suggestedName
+            showConflict.value = true
+            return
+        }
+    }
+    await submitSave()
+}
+
+async function resolveConflict() {
+    if (saving.value) return
+    // Keep the conflict dialog open until the upload succeeds, so its buttons show the
+    // loading state and a failure leaves the user here instead of stranded on the form.
+    if (conflictChoice.value === "rename") {
+        const name = renameTo.value.trim()
+        if (!name) return
+        if (await submitSave({ fileName: name })) showConflict.value = false
+        return
+    }
+    const opts: SubmitOptions = conflict.value?.existingFileGuid
+        ? { overwriteGuid: conflict.value.existingFileGuid }
+        : { overwrite: true }
+    if (await submitSave(opts)) showConflict.value = false
+}
+
+// Edit updates the current record; overwriteGuid replaces an existing managed file's content and
+// details; otherwise this is a new upload.
+function sendSave(opts: SubmitOptions) {
+    if (isEdit.value) return putForm(apiURL + props.file!.fileGuid, buildFormData())
+    if (opts.overwriteGuid) return putForm(apiURL + opts.overwriteGuid, buildFormData(opts))
+    return postForm(apiURL, buildFormData(opts))
+}
+
+// A 409 means the record changed since we loaded it. For an edit, offer to reload the latest
+// version into the form (mirrors ContentBlockEdit's conflict dialog). For an overwrite-by-upload,
+// refresh the name-check data so the retry presents the record's current ModifiedOn.
+async function handleSaveConflict(res: { errors: string[] | null }) {
+    if (showConflict.value) {
+        await refreshOverwriteConflict()
+        $q.notify({
+            type: "negative",
+            message:
+                (res.errors?.[0] ?? "The existing file was changed by someone else.") +
+                " Overwrite again to replace the latest version.",
+        })
+        return
+    }
+    $q.dialog({
+        title: "Edit Conflict",
+        message:
+            (res.errors?.[0] ?? "This file was changed by someone else.") +
+            " Reload the latest version? Your unsaved changes will be lost.",
+        cancel: { label: "Keep editing", flat: true },
+        persistent: true,
+        ok: { label: "Reload", color: "primary", unelevated: true },
+    }).onOk(() => void reloadLatest())
+}
+
+async function reloadLatest() {
+    if (!props.file) return
+    const res = await get(apiURL + props.file.fileGuid)
+    if (!res.success || !res.result) {
+        $q.notify({ type: "negative", message: "Failed to reload the file" })
+        return
+    }
+    latestFile.value = res.result
+    populateForm(res.result)
+    formError.value = ""
+    setInitialState()
+}
+
+// Re-run the pre-upload name check so conflict.existingModifiedOn (and the named record)
+// reflect the current state; without this a retry would 409 forever on the old timestamp.
+async function refreshOverwriteConflict() {
+    if (!form.value.upload || !form.value.folder) return
+    const params = createUrlSearchParams({ folder: form.value.folder, fileName: form.value.upload.name })
+    const check = await get(apiURL + "check-name?" + params)
+    if (check.success && check.result.inUse) {
+        conflict.value = check.result
+    }
+}
+
+// During conflict resolution the user is in the conflict sub-dialog, so a toast is the only place
+// they'd see the error; otherwise surface it on the main form banner.
+function reportSaveError(res: { errors: string[] | null }) {
+    const message = res.errors?.[0] ?? `Failed to ${isEdit.value ? "save" : "upload"} file`
+    if (showConflict.value) {
+        $q.notify({ type: "negative", message })
+    } else {
+        formError.value = message
+    }
+}
+
+function saveSuccessMessage(opts: SubmitOptions): string {
+    if (isEdit.value) return "File updated"
+    return opts.overwrite || opts.overwriteGuid ? "File overwritten" : "File uploaded"
+}
+
+async function submitSave(opts: SubmitOptions = {}): Promise<boolean> {
+    if (saving.value) return false
+    saving.value = true
+    const res = await sendSave(opts)
+    saving.value = false
+
+    if (res.status === 409) {
+        await handleSaveConflict(res)
+        return false
+    }
+    if (!res.success) {
+        reportSaveError(res)
+        return false
+    }
+
+    $q.notify({ type: "positive", message: saveSuccessMessage(opts) })
+    emit("saved", res.result)
+    emit("update:modelValue", false)
+    return true
+}
+</script>
