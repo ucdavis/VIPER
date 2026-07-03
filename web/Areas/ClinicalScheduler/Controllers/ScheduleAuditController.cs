@@ -152,6 +152,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                     return BadRequest("A valid rotation is required.");
                 }
 
+                if (weekId <= 0)
+                {
+                    return BadRequest("A valid week is required.");
+                }
+
                 var history = await _auditService.GetRotationWeekAuditAsync(rotationId, weekId, cancellationToken);
                 return Ok(history);
             }
@@ -181,6 +186,11 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                 if (string.IsNullOrWhiteSpace(mothraId))
                 {
                     return BadRequest("A clinician (mothraId) is required.");
+                }
+
+                if (weekId <= 0)
+                {
+                    return BadRequest("A valid week is required.");
                 }
 
                 var history = await _auditService.GetClinicianWeekAuditAsync(mothraId, weekId, cancellationToken);
