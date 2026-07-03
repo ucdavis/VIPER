@@ -15,7 +15,8 @@ namespace Viper.Areas.CMS.Models
         public static CmsFileDto ToCmsFileDto(File file, IReadOnlyDictionary<string, string>? namesByIamId = null)
         {
             var dto = ToCmsFileDtoBase(file);
-            dto.FileName = Path.GetFileName(file.FilePath);
+            // Both-separator leaf: FilePath can carry another environment's separators.
+            dto.FileName = CmsFileNaming.GetLeafName(file.FilePath);
             dto.Permissions = file.FileToPermissions.Select(p => p.Permission).OrderBy(p => p).ToList();
             dto.People = file.FileToPeople
                 .Select(p => new CmsFilePersonDto

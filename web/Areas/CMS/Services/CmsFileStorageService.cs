@@ -283,7 +283,7 @@ namespace Viper.Areas.CMS.Services
                 .ToList();
             foreach (var path in dbPaths)
             {
-                taken.Add(Constants.CmsFileNaming.GetLeafName(path));
+                taken.Add(CmsFileNaming.GetLeafName(path));
             }
             return taken;
         }
@@ -318,7 +318,7 @@ namespace Viper.Areas.CMS.Services
         // storage service (e.g. the check-name endpoint) strip path components identically.
         private static string GetLeafName(string name)
         {
-            return Constants.CmsFileNaming.GetLeafName(name);
+            return CmsFileNaming.GetLeafName(name);
         }
 
         // Reject on an explicit, OS-independent set rather than Path.GetInvalidFileNameChars, which

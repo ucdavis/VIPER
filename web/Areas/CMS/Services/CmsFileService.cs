@@ -245,7 +245,9 @@ namespace Viper.Areas.CMS.Services
             {
                 throw new ArgumentException("Invalid folder.");
             }
-            string uploadName = Path.GetFileName(
+            // Both-separator leaf: some clients send Windows-style paths (C:\fakepath\name.pdf)
+            // that Path.GetFileName would keep intact on Linux.
+            string uploadName = CmsFileNaming.GetLeafName(
                 string.IsNullOrWhiteSpace(request.FileName) ? file.FileName : request.FileName);
             if (string.IsNullOrWhiteSpace(uploadName) || !CmsFileTypes.IsAllowedFileName(uploadName))
             {
