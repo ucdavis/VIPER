@@ -196,6 +196,16 @@ public class HtmlSanitizerServiceTests
         Assert.Equal(first, second);
     }
 
+    [Theory]
+    [InlineData("<ins class=\"diffins\"><script>alert(1)</script>added</ins>")]
+    [InlineData("<del class=\"diffdel\">removed</del><ins class=\"diffins\">added</ins>")]
+    public void SanitizeDiff_is_idempotent(string input)
+    {
+        var first = _sanitizer.SanitizeDiff(input);
+        var second = _sanitizer.SanitizeDiff(first);
+        Assert.Equal(first, second);
+    }
+
     // === Real-world snapshots from production ContentBlock data ===
     // If these break, several admin pages will visibly regress — review before relaxing.
 

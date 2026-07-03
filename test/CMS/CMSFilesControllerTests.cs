@@ -462,6 +462,17 @@ public sealed class CMSFilesControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task BulkEncrypt_ReturnsBadRequest_WhenOverBatchLimit()
+    {
+        var guids = Enumerable.Range(0, 501).Select(_ => Guid.NewGuid()).ToList();
+
+        var result = await _controller.BulkEncrypt(guids, TestContext.Current.CancellationToken);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        await _importService.DidNotReceive().BulkEncryptAsync(Arg.Any<List<Guid>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task BulkEncrypt_PassesGuidsThrough()
     {
         var guids = new List<Guid> { Guid.NewGuid() };

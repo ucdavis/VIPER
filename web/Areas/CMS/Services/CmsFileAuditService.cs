@@ -84,8 +84,9 @@ namespace Viper.Areas.CMS.Services
         public async Task<List<FileAudit>> GetAuditEntriesAsync(CmsFileAuditFilter filter, int page, int perPage, CancellationToken ct = default)
         {
             // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            // The upper bound stops a caller from defeating pagination with a giant page size.
             page = Math.Max(page, 1);
-            perPage = Math.Max(perPage, 1);
+            perPage = Math.Clamp(perPage, 1, 500);
 
             return await BuildQuery(filter)
                 .OrderByDescending(a => a.Timestamp)

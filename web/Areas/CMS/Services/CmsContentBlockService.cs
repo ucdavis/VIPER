@@ -81,8 +81,9 @@ namespace Viper.Areas.CMS.Services
             bool descending, CancellationToken ct = default)
         {
             // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            // The upper bound stops a caller from defeating pagination with a giant page size.
             page = Math.Max(page, 1);
-            perPage = Math.Max(perPage, 1);
+            perPage = Math.Clamp(perPage, 1, 500);
 
             var query = _context.ContentBlocks
                 .AsNoTracking()
@@ -455,8 +456,9 @@ namespace Viper.Areas.CMS.Services
         public async Task<List<ContentHistoryAuditDto>> GetHistoryEntriesAsync(CmsContentHistoryFilter filter, int page, int perPage, CancellationToken ct = default)
         {
             // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            // The upper bound stops a caller from defeating pagination with a giant page size.
             page = Math.Max(page, 1);
-            perPage = Math.Max(perPage, 1);
+            perPage = Math.Clamp(perPage, 1, 500);
 
             return await BuildHistoryQuery(filter)
                 .OrderByDescending(x => x.History.ModifiedOn)

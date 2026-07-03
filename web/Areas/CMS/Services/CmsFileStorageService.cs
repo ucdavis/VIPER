@@ -238,17 +238,54 @@ namespace Viper.Areas.CMS.Services
         {
             string baseName = Path.GetFileNameWithoutExtension(fileName);
             string extension = Path.GetExtension(fileName);
-            // Match legacy behavior: append _0, _1, ... _999 until unique.
+            // Preload the folder's taken names once (one disk listing + one DB query) so the
+            // legacy _0.._999 probe loops in memory instead of issuing a query per candidate.
+            var taken = GetTakenLeafNames(folder);
             for (int i = 0; i < 1000; i++)
             {
                 string candidate = $"{baseName}_{i}{extension}";
-                if (!FileNameInUse(folder, candidate)
-                    && (reservedNames == null || !reservedNames.Contains(candidate)))
+                if (!taken.Contains(candidate)
+                    && (reservedNames == null || !reservedNames.Contains(candidate))
+                    // Final single-name confirmation guards the race with a concurrent upload.
+                    && !FileNameInUse(folder, candidate))
                 {
                     return candidate;
                 }
             }
             throw new InvalidOperationException($"Unable to generate a unique name for {fileName} in {folder}.");
+        }
+
+        /// <summary>
+        /// Every leaf name already claimed in a folder: files on disk plus DB records whose
+        /// Folder matches in either separator style (their FilePath may carry another
+        /// environment's storage root, so the path itself is not compared).
+        /// </summary>
+        private HashSet<string> GetTakenLeafNames(string folder)
+        {
+            var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            string[] segments = folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            string dirPath = Path.GetFullPath(Path.Join(RootFolder, Path.Join(segments)));
+            // System.IO qualified: the sibling Viper.Areas.Directory namespace shadows it here.
+            if (IsUnderRoot(dirPath) && System.IO.Directory.Exists(dirPath))
+            {
+                foreach (var file in System.IO.Directory.EnumerateFiles(dirPath))
+                {
+                    taken.Add(Path.GetFileName(file));
+                }
+            }
+
+            string canonBack = string.Join('\\', segments);
+            string canonFwd = string.Join('/', segments);
+            var dbPaths = _context.Files
+                .Where(f => f.Folder == canonBack || f.Folder == canonFwd)
+                .Select(f => f.FilePath)
+                .ToList();
+            foreach (var path in dbPaths)
+            {
+                taken.Add(Constants.CmsFileNaming.GetLeafName(path));
+            }
+            return taken;
         }
 
         private string BuildTargetPath(string folder, string fileName)

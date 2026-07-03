@@ -64,7 +64,7 @@ namespace Viper.Areas.CMS.Data
                 HashSet<string> userPermissions = new(StringComparer.OrdinalIgnoreCase);
                 if (currentUser != null)
                 {
-                    isCmsAdmin = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks");
+                    isCmsAdmin = UserHelper.HasPermission(_rapsContext, currentUser, Constants.CmsPermissions.ManageContentBlocks);
                     hasSvmSecure = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure");
                     userPermissions = UserHelper.GetAllPermissions(_rapsContext, currentUser)
                         .Select(p => p.Permission)
@@ -613,9 +613,15 @@ namespace Viper.Areas.CMS.Data
         {
             // Legacy parity: anonymous/public access is audited too (null user -> null login/iam),
             // while requests from the internal kiosk range (192.168.*) are not audited at all.
-            if (HttpHelper.HttpContext?.Connection.RemoteIpAddress?.ToString().StartsWith("192.168.") == true)
+            // Dual-mode sockets surface IPv4 as ::ffff:192.168.x.x, so unmap before the check.
+            var remoteIp = HttpHelper.HttpContext?.Connection.RemoteIpAddress;
+            if (remoteIp != null)
             {
-                return;
+                var normalizedIp = remoteIp.IsIPv4MappedToIPv6 ? remoteIp.MapToIPv4() : remoteIp;
+                if (normalizedIp.ToString().StartsWith("192.168.", StringComparison.Ordinal))
+                {
+                    return;
+                }
             }
 
             UserHelper userHelper = new();
@@ -640,10 +646,14 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region public byte[] DecryptFile(byte[] encryptedData, string keystring)
+        // Cached per CMS instance (per request): DownloadZip decrypts once per encrypted file
+        // in the archive loop, and each call would otherwise re-read the key file from disk.
+        private string? _masterKey;
+
         public byte[] DecryptFile(byte[] encryptedData, string keystring)
         {
-            string masterKey = CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetDefaultKeyFilePath());
-            return CmsFileCrypto.DecryptBytes(encryptedData, CmsFileCrypto.DecryptDbKey(keystring, masterKey));
+            _masterKey ??= CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetDefaultKeyFilePath());
+            return CmsFileCrypto.DecryptBytes(encryptedData, CmsFileCrypto.DecryptDbKey(keystring, _masterKey));
         }
         #endregion
 

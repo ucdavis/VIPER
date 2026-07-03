@@ -73,8 +73,9 @@ namespace Viper.Areas.CMS.Services
             string? restrictDeletedToOwner = null, CancellationToken ct = default)
         {
             // ApiPagination admits page=0, and Skip with a negative offset throws; clamp both knobs.
+            // The upper bound stops a caller from defeating pagination with a giant page size.
             page = Math.Max(page, 1);
-            perPage = Math.Max(perPage, 1);
+            perPage = Math.Clamp(perPage, 1, 500);
 
             var query = _context.Files
                 .AsNoTracking()
@@ -273,7 +274,17 @@ namespace Viper.Areas.CMS.Services
                     {
                         overwriteBackup = _storage.BackupManagedFile(targetPath);
                     }
-                    _storage.ReplaceInPlace(tempPath, targetPath);
+                    try
+                    {
+                        _storage.ReplaceInPlace(tempPath, targetPath);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // The replace may have destroyed the original bytes mid-swap; restore the
+                        // backup (or remove a partial copy) so the store stays consistent.
+                        ReconcileStoreAfterFailedCreate(targetPath, overwriteBackup);
+                        throw;
+                    }
                     finalPath = targetPath;
                 }
                 else
@@ -389,7 +400,9 @@ namespace Viper.Areas.CMS.Services
                 : null;
 
             var changes = new List<string>();
-            ApplyEncryptionToggle(entity, request.Encrypt ?? false, changes);
+            // A pending replacement writes the new bytes already in the target crypto state,
+            // so transforming the old bytes it is about to overwrite would be wasted work.
+            ApplyEncryptionToggle(entity, request.Encrypt ?? false, changes, transformDisk: file == null);
             ApplyScalarFieldChanges(entity, request, changes);
 
             ApplyPermissionDeltas(entity, CleanList(request.Permissions), changes);
@@ -447,12 +460,12 @@ namespace Viper.Areas.CMS.Services
         /// Applies the encryption toggle in place before any replacement upload, so the replacement
         /// is written with the file's final encryption state. Records the change for the audit trail.
         /// </summary>
-        private void ApplyEncryptionToggle(File entity, bool encrypt, List<string> changes)
+        private void ApplyEncryptionToggle(File entity, bool encrypt, List<string> changes, bool transformDisk)
         {
             if (encrypt && !entity.Encrypted)
             {
                 string dbKey = _encryption.GenerateKeyForDb();
-                if (_storage.ManagedFileExists(entity.FilePath))
+                if (transformDisk && _storage.ManagedFileExists(entity.FilePath))
                 {
                     _encryption.EncryptFileInPlace(entity.FilePath, dbKey);
                 }
@@ -462,7 +475,7 @@ namespace Viper.Areas.CMS.Services
             }
             else if (!encrypt && entity.Encrypted)
             {
-                if (!string.IsNullOrEmpty(entity.Key) && _storage.ManagedFileExists(entity.FilePath))
+                if (transformDisk && !string.IsNullOrEmpty(entity.Key) && _storage.ManagedFileExists(entity.FilePath))
                 {
                     _encryption.DecryptFileInPlace(entity.FilePath, entity.Key);
                 }

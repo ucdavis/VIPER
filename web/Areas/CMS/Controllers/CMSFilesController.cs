@@ -21,6 +21,10 @@ namespace Viper.Areas.CMS.Controllers
     {
         private const long MaxUploadBytes = 100_000_000;
 
+        // Import/preview/bulk-encrypt process items sequentially (file + DB work per item), so an
+        // oversized batch risks blowing through the request timeout.
+        private const int MaxBatchItems = 500;
+
         private readonly ICmsFileService _fileService;
         private readonly ICmsFileStorageService _storage;
         private readonly ICmsFileAuditService _auditService;
@@ -265,6 +269,10 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest("At least one file path is required.");
             }
+            if (request.FilePaths.Count > MaxBatchItems)
+            {
+                return BadRequest("A single request may include at most 500 items.");
+            }
 
             try
             {
@@ -289,6 +297,10 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest("At least one file path is required.");
             }
+            if (request.FilePaths.Count > MaxBatchItems)
+            {
+                return BadRequest("A single request may include at most 500 items.");
+            }
 
             try
             {
@@ -312,6 +324,10 @@ namespace Viper.Areas.CMS.Controllers
             if (fileGuids.Count == 0)
             {
                 return BadRequest("At least one file is required.");
+            }
+            if (fileGuids.Count > MaxBatchItems)
+            {
+                return BadRequest("A single request may include at most 500 items.");
             }
             return await _importService.BulkEncryptAsync(fileGuids, ct);
         }

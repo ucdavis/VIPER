@@ -373,16 +373,12 @@ namespace Viper.Areas.CMS.Services
                     RollBackUnsavedEncryption(file, dbKey, ex, result);
                 }
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException
+                or FormatException or System.Security.Cryptography.CryptographicException or ArgumentException)
             {
-                result.Message = ex.Message;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                result.Message = ex.Message;
-            }
-            catch (InvalidOperationException ex)
-            {
+                // Same expected file/key failure set as import: malformed key data (FormatException,
+                // CryptographicException) or a bad path (ArgumentException) must fail THIS item, not
+                // unwind the whole batch and drop earlier results.
                 result.Message = ex.Message;
             }
             return result;
