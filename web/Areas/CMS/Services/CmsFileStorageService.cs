@@ -271,7 +271,11 @@ namespace Viper.Areas.CMS.Services
             {
                 foreach (var file in System.IO.Directory.EnumerateFiles(dirPath))
                 {
-                    taken.Add(Path.GetFileName(file));
+                    var leaf = Path.GetFileName(file);
+                    if (!string.IsNullOrEmpty(leaf))
+                    {
+                        taken.Add(leaf);
+                    }
                 }
             }
 

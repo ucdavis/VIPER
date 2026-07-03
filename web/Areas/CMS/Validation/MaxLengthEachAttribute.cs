@@ -21,6 +21,14 @@ public sealed class MaxLengthEachAttribute : ValidationAttribute
 
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
+        // A string is IEnumerable<char>, so applying this attribute to a string property would
+        // silently iterate characters and never enforce Length; fail loudly instead.
+        if (value is string)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(MaxLengthEachAttribute)} applies to collections of strings; use [MaxLength] for a string property.");
+        }
+
         if (value is not IEnumerable items)
         {
             return ValidationResult.Success;

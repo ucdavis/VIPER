@@ -68,15 +68,14 @@ namespace Viper.Areas.CMS.Services
                 File.WriteAllBytes(tempPath, transform(contents));
                 File.Move(tempPath, filePath, overwrite: true);
             }
-            catch (IOException)
+            finally
             {
-                CleanUpTempFile(tempPath);
-                throw;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                CleanUpTempFile(tempPath);
-                throw;
+                // Any failure path must remove the temp copy - after a decrypt it holds
+                // plaintext, and a stray .tmp would otherwise linger in the managed store.
+                if (File.Exists(tempPath))
+                {
+                    CleanUpTempFile(tempPath);
+                }
             }
         }
 

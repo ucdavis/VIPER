@@ -42,4 +42,12 @@ public sealed class MaxLengthEachAttributeTests
     {
         Assert.Equal(ValidationResult.Success, Validate(new List<string>(), 500));
     }
+
+    [Fact]
+    public void StringValue_ThrowsMisuseGuard()
+    {
+        // A string is IEnumerable<char>; applying the attribute to a string property would
+        // silently iterate characters and never enforce Length. Misuse must fail loudly.
+        Assert.Throws<InvalidOperationException>(() => Validate(new string('a', 501), 500));
+    }
 }
