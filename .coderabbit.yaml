@@ -46,6 +46,11 @@ reviews:
     languagetool:
       enabled: true
       level: default
+    # Biome's strict JSON parser can't read appsettings*.json (ASP.NET parses those as
+    # JSON-with-comments by design), so it warned on every review touching them. Its lint
+    # coverage is already provided by CI (oxlint/oxfmt, JSCPD, Fallow, ReSharper, CodeQL).
+    biome:
+      enabled: false
 
 chat:
   auto_reply: true
