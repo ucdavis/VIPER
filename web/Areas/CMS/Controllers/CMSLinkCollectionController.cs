@@ -2,6 +2,7 @@ using Areas.CMS.Models;
 using Areas.CMS.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.CMS.Constants;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
@@ -31,19 +32,13 @@ namespace Viper.Areas.CMS.Controllers
             {
                 LinkCollectionId = lc.LinkCollectionId,
                 LinkCollection = lc.LinkCollectionName,
-                LinkCollectionTagCategories = lc.LinkCollectionTagCategories.Select(tc => new LinkCollectionTagCategoryDto
-                {
-                    LinkCollectionTagCategoryId = tc.LinkCollectionTagCategoryId,
-                    LinkCollectionId = tc.LinkCollectionId,
-                    LinkCollectionTagCategory = tc.LinkCollectionTagCategoryName,
-                    SortOrder = tc.SortOrder
-                }).ToList()
+                LinkCollectionTagCategories = lc.LinkCollectionTagCategories.Select(ToTagCategoryDto).ToList()
             });
 
             return Ok(result);
         }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         [HttpPost]
         public async Task<ActionResult<LinkCollectionDto>> PostLinkCollection(CreateLinkCollectionDto createDto)
         {
@@ -68,10 +63,10 @@ namespace Viper.Areas.CMS.Controllers
                 LinkCollectionTagCategories = new List<LinkCollectionTagCategoryDto>()
             };
 
-            return CreatedAtAction(nameof(linkCollection), new { id = linkCollection.LinkCollectionId }, result);
+            return CreatedAtAction(nameof(GetLinkCollections), new { linkCollectionName = linkCollection.LinkCollectionName }, result);
         }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutLinkCollection(int id, CreateLinkCollectionDto updateDto)
         {
@@ -94,7 +89,7 @@ namespace Viper.Areas.CMS.Controllers
             return Ok(updateDto);
         }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteLinkCollection(int id)
         {
@@ -104,6 +99,18 @@ namespace Viper.Areas.CMS.Controllers
                 return NotFound();
             }
 
+            // FK constraints are not ON DELETE CASCADE, so remove dependents before
+            // the collection. Queuing all removals into a single SaveChanges keeps it
+            // atomic. Order: link tags -> links -> tag categories -> collection.
+            var collectionLinks = await _context.Links
+                .Where(l => l.LinkCollectionId == id)
+                .ToListAsync();
+            var collectionLinkIds = collectionLinks.Select(l => l.LinkId).ToList();
+            _context.LinkTags.RemoveRange(
+                _context.LinkTags.Where(lt => EF.Parameter(collectionLinkIds).Contains(lt.LinkId)));
+            _context.Links.RemoveRange(collectionLinks);
+            _context.LinkCollectionTagCategories.RemoveRange(
+                _context.LinkCollectionTagCategories.Where(tc => tc.LinkCollectionId == id));
             _context.LinkCollections.Remove(linkCollection);
             await _context.SaveChangesAsync();
 
@@ -124,26 +131,23 @@ namespace Viper.Areas.CMS.Controllers
                 .OrderBy(lc => lc.SortOrder)
                 .ToListAsync();
 
-            var results = categories
-                .Select(c => new LinkCollectionTagCategoryDto
-                {
-                    LinkCollectionTagCategoryId = c.LinkCollectionTagCategoryId,
-                    LinkCollectionId = c.LinkCollectionId,
-                    LinkCollectionTagCategory = c.LinkCollectionTagCategoryName,
-                    SortOrder = c.SortOrder
-                })
-                .ToList();
+            var results = categories.Select(ToTagCategoryDto).ToList();
 
             return Ok(results);
         }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         [HttpPost("{collectionId}/tags")]
-        public async Task<ActionResult<CreateLinkCollectionTagCategoryDto>> CreateLinkCollectionTagCategory(int collectionId, CreateLinkCollectionTagCategoryDto createLinkTagCategoryDto)
+        public async Task<ActionResult<LinkCollectionTagCategoryDto>> CreateLinkCollectionTagCategory(int collectionId, CreateLinkCollectionTagCategoryDto createLinkTagCategoryDto)
         {
             if (!await _context.LinkCollections.AnyAsync(lc => lc.LinkCollectionId == collectionId))
             {
                 return NotFound();
+            }
+
+            if (createLinkTagCategoryDto.LinkCollectionId != collectionId)
+            {
+                return BadRequest("Collection ID in route does not match the request body.");
             }
 
             if (await _context.LinkCollectionTagCategories
@@ -161,10 +165,13 @@ namespace Viper.Areas.CMS.Controllers
             };
             _context.LinkCollectionTagCategories.Add(tagCategory);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(tagCategory), new { id = tagCategory.LinkCollectionTagCategoryId }, createLinkTagCategoryDto);
+
+            // Return the saved DTO so the client receives the generated id. The follow-up
+            // tag-order PUT needs that id to address the newly created category.
+            return CreatedAtAction(nameof(GetLinkCollectionTagCategories), new { collectionId }, ToTagCategoryDto(tagCategory));
         }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         [HttpPut("{collectionId}/tags/order")]
         public async Task<IActionResult> UpdateLinkCollectionTagCategoryOrder(int collectionId, List<UpdateLinkCollectionTagCategoryOrderDto> updateDto)
         {
@@ -182,17 +189,25 @@ namespace Viper.Areas.CMS.Controllers
                 return BadRequest("Mismatch in number of tag categories.");
             }
 
+            // Membership + duplicate validation (a duplicated id with a matching count would
+            // silently update one row twice and skip another), mirroring UpdateLinkOrder.
+            var tagCategoriesById = tagCategories.ToDictionary(tc => tc.LinkCollectionTagCategoryId);
+            if (updateDto.Any(dto => !tagCategoriesById.ContainsKey(dto.LinkCollectionTagCategoryId))
+                || updateDto.Select(dto => dto.LinkCollectionTagCategoryId).Distinct().Count() != updateDto.Count)
+            {
+                return BadRequest("One or more tag category IDs are invalid.");
+            }
+
             foreach (var dto in updateDto)
             {
-                var tagCategory = tagCategories.First(tc => tc.LinkCollectionTagCategoryId == dto.LinkCollectionTagCategoryId);
-                tagCategory.SortOrder = dto.SortOrder;
+                tagCategoriesById[dto.LinkCollectionTagCategoryId].SortOrder = dto.SortOrder;
             }
 
             await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        [Permission(Allow = "SVMSecure.CMS.ManageContentBlocks")]
+        [Permission(Allow = CmsPermissions.ManageContentBlocks)]
         [HttpDelete("{collectionId}/tags/{tagCategoryId}")]
         public async Task<IActionResult> DeleteLinkCollectionTagCategory(int collectionId, int tagCategoryId)
         {
@@ -210,5 +225,13 @@ namespace Viper.Areas.CMS.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
+
+        private static LinkCollectionTagCategoryDto ToTagCategoryDto(LinkCollectionTagCategory tagCategory) => new()
+        {
+            LinkCollectionTagCategoryId = tagCategory.LinkCollectionTagCategoryId,
+            LinkCollectionId = tagCategory.LinkCollectionId,
+            LinkCollectionTagCategory = tagCategory.LinkCollectionTagCategoryName,
+            SortOrder = tagCategory.SortOrder
+        };
     }
 }

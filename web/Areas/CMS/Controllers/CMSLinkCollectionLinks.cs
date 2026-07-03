@@ -117,7 +117,7 @@ namespace Viper.Areas.CMS.Controllers
             _context.Links.Add(link);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(link), new { id = link.LinkId }, new LinkDto
+            return CreatedAtAction(nameof(GetLinks), new { collectionId }, new LinkDto
             {
                 LinkId = link.LinkId,
                 LinkCollectionId = link.LinkCollectionId,
@@ -190,15 +190,19 @@ namespace Viper.Areas.CMS.Controllers
                 .Where(l => l.LinkCollectionId == collectionId)
                 .ToListAsync();
 
-            if (links.Count != updateDto.Count)
+            // Membership validation, not just count: an unknown or duplicate LinkId slipped past the
+            // count-only guard and crashed the First() lookup below with a 500.
+            var linksById = links.ToDictionary(l => l.LinkId);
+            if (links.Count != updateDto.Count
+                || updateDto.Any(li => !linksById.ContainsKey(li.LinkId))
+                || updateDto.Select(li => li.LinkId).Distinct().Count() != updateDto.Count)
             {
                 return BadRequest("One or more LinkIds are invalid.");
             }
 
             foreach (var li in updateDto)
             {
-                var link = links.First(l => l.LinkId == li.LinkId);
-                link.SortOrder = li.SortOrder;
+                linksById[li.LinkId].SortOrder = li.SortOrder;
             }
 
             await _context.SaveChangesAsync();
