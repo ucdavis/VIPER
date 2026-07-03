@@ -59,9 +59,9 @@
                 class="q-mb-md"
             >
                 <q-card flat>
-                    <q-card-section :class="$q.screen.gt.sm ? 'q-pa-none' : ''">
+                    <q-card-section :class="filterSectionClass">
                         <div class="row q-col-gutter-sm">
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
+                            <div :class="filterColClass">
                                 <q-select
                                     v-model="currentYear"
                                     :options="yearOptions"
@@ -72,12 +72,12 @@
                                     @update:model-value="onYearChange"
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
+                            <div :class="filterColClass">
                                 <q-select
                                     v-model="selectedTermCode"
                                     :options="termOptions"
                                     label="Term"
-                                    :display-value="selectedTermCode == null ? 'All terms' : undefined"
+                                    :display-value="termDisplayValue"
                                     dense
                                     options-dense
                                     outlined
@@ -86,12 +86,12 @@
                                     map-options
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
+                            <div :class="filterColClass">
                                 <q-select
                                     v-model="selectedRotationId"
                                     :options="rotationOptions"
                                     label="Rotation"
-                                    :display-value="selectedRotationId == null ? 'All rotations' : undefined"
+                                    :display-value="rotationDisplayValue"
                                     dense
                                     options-dense
                                     outlined
@@ -100,12 +100,12 @@
                                     map-options
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
+                            <div :class="filterColClass">
                                 <q-select
                                     v-model="selectedArea"
                                     :options="areaOptions"
                                     label="Area"
-                                    :display-value="selectedArea == null ? 'All schedules' : undefined"
+                                    :display-value="areaDisplayValue"
                                     dense
                                     options-dense
                                     outlined
@@ -114,7 +114,7 @@
                                     map-options
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
+                            <div :class="filterColClass">
                                 <q-select
                                     v-model="selectedModifier"
                                     :options="filteredModifierOptions"
@@ -132,7 +132,7 @@
                                     @filter="filterModifiers"
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
+                            <div :class="filterColClass">
                                 <q-select
                                     v-model="selectedPerson"
                                     :options="filteredPersonOptions"
@@ -150,7 +150,7 @@
                                     @filter="filterPersons"
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-6'">
+                            <div :class="dateColClass">
                                 <q-input
                                     v-model="fromDate"
                                     type="date"
@@ -160,7 +160,7 @@
                                     clearable
                                 />
                             </div>
-                            <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-6'">
+                            <div :class="dateColClass">
                                 <q-input
                                     v-model="toDate"
                                     type="date"
@@ -186,203 +186,36 @@
                 </q-card>
             </q-expansion-item>
 
-            <!-- Results - Desktop (lg+): full table -->
-            <q-table
-                v-if="$q.screen.gt.md"
-                row-key="scheduleAuditId"
-                :rows="entries"
-                :columns="columns"
-                :loading="isLoading"
-                v-model:pagination="pagination"
-                :rows-per-page-options="[10, 25, 50, 100]"
-                binary-state-sort
-                dense
-                flat
-                bordered
-            >
-                <template #body-cell-timeStamp="props">
-                    <q-td :props="props">
-                        {{ formatDateTime(props.row.timeStamp, { dateStyle: "short", timeStyle: "short" }) }}
-                    </q-td>
-                </template>
-                <template #body-cell-action="props">
-                    <q-td :props="props">
-                        <StatusBadge :color="getAuditActionColor(props.row.action)">
-                            {{ props.row.action }}
-                        </StatusBadge>
-                    </q-td>
-                </template>
-                <template #no-data>
-                    <div class="full-width text-center q-pa-md text-grey-7">
-                        No audit entries found matching this filter.
-                    </div>
-                </template>
-            </q-table>
-
-            <!-- Results - Tablet (sm/md): main columns + a stacked Action/Week/Area row -->
-            <q-table
-                v-else-if="$q.screen.gt.xs"
-                row-key="scheduleAuditId"
-                :rows="entries"
-                :columns="tabletColumns"
-                :loading="isLoading"
-                v-model:pagination="pagination"
-                :rows-per-page-options="[10, 25, 50, 100]"
-                binary-state-sort
-                dense
-                flat
-                bordered
-            >
-                <template #body="props">
-                    <q-tr :props="props">
-                        <q-td
-                            key="timeStamp"
-                            :props="props"
-                        >
-                            {{ formatDateTime(props.row.timeStamp, { dateStyle: "short", timeStyle: "short" }) }}
-                        </q-td>
-                        <q-td
-                            key="modifiedByName"
-                            :props="props"
-                        >
-                            {{ props.row.modifiedByName }}
-                        </q-td>
-                        <q-td
-                            key="personName"
-                            :props="props"
-                        >
-                            {{ props.row.personName }}
-                        </q-td>
-                        <q-td
-                            key="rotationName"
-                            :props="props"
-                        >
-                            {{ props.row.rotationName }}
-                        </q-td>
-                        <q-td
-                            key="term"
-                            :props="props"
-                        >
-                            {{ props.row.term }}
-                        </q-td>
-                    </q-tr>
-                    <q-tr :props="props">
-                        <q-td
-                            :colspan="tabletColumns.length"
-                            class="bg-grey-1 q-py-xs"
-                        >
-                            <div class="row items-center q-gutter-sm">
-                                <StatusBadge :color="getAuditActionColor(props.row.action)">
-                                    {{ props.row.action }}
-                                </StatusBadge>
-                                <span
-                                    v-if="formatWeekCell(props.row.weekNum, props.row.weekStart)"
-                                    class="text-caption text-grey-8"
-                                >
-                                    {{ formatWeekCell(props.row.weekNum, props.row.weekStart) }}
-                                </span>
-                                <span class="text-caption text-grey-7">{{ props.row.area }}</span>
-                            </div>
-                        </q-td>
-                    </q-tr>
-                </template>
-            </q-table>
-
-            <!-- Results - Mobile (xs): card layout -->
-            <q-table
-                v-else
-                row-key="scheduleAuditId"
-                :rows="entries"
-                :columns="columns"
-                :loading="isLoading"
-                v-model:pagination="pagination"
-                :rows-per-page-options="[10, 25, 50, 100]"
-                grid
-                binary-state-sort
-                dense
-                flat
-                bordered
-            >
-                <template #item="props">
-                    <div class="q-pa-xs col-12">
-                        <q-card
-                            flat
-                            bordered
-                        >
-                            <q-card-section class="q-pa-sm">
-                                <div class="row items-center q-mb-xs">
-                                    <StatusBadge
-                                        :color="getAuditActionColor(props.row.action)"
-                                        class="q-mr-sm"
-                                    >
-                                        {{ props.row.action }}
-                                    </StatusBadge>
-                                    <span class="text-caption text-grey-7">
-                                        {{
-                                            formatDateTime(props.row.timeStamp, {
-                                                dateStyle: "short",
-                                                timeStyle: "short",
-                                            })
-                                        }}
-                                    </span>
-                                </div>
-                                <div
-                                    v-if="props.row.personName"
-                                    class="text-subtitle2"
-                                >
-                                    {{ props.row.personName }}
-                                </div>
-                                <div class="text-caption text-grey-8">
-                                    <span v-if="props.row.rotationName">{{ props.row.rotationName }}</span>
-                                    <span v-if="props.row.rotationName && props.row.term"> &bull; </span>
-                                    <span v-if="props.row.term">{{ props.row.term }}</span>
-                                </div>
-                                <div
-                                    v-if="formatWeekCell(props.row.weekNum, props.row.weekStart)"
-                                    class="text-caption text-grey-8"
-                                >
-                                    {{ formatWeekCell(props.row.weekNum, props.row.weekStart) }}
-                                </div>
-                                <div class="text-caption q-mt-xs">
-                                    <span class="text-grey-7">by</span> {{ props.row.modifiedByName }}
-                                    <span class="text-grey-7"> &middot; </span>{{ props.row.area }}
-                                </div>
-                            </q-card-section>
-                        </q-card>
-                    </div>
-                </template>
-            </q-table>
+            <!-- Results -->
+            <AuditLogResultsTable
+                :entries="entries"
+                :is-loading="isLoading"
+            />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
-import type { Ref } from "vue"
 import { useQuasar } from "quasar"
-import type { QTableColumn, QTableProps } from "quasar"
 import { useDebounceFn } from "@vueuse/core"
 import { usePermissionsStore } from "../stores/permissions"
 import { usePermissionChecks } from "../composables/use-permission-checks"
 import { AuditLogService } from "../services/audit-log-service"
 import { RotationService } from "../services/rotation-service"
 import { PageDataService } from "../services/page-data-service"
-import { useDateFunctions } from "@/composables/DateFunctions"
 import StatusBanner from "@/components/StatusBanner.vue"
-import StatusBadge from "@/components/StatusBadge.vue"
 import SchedulerNavigation from "../components/SchedulerNavigation.vue"
 import AccessDeniedCard from "../components/AccessDeniedCard.vue"
+import AuditLogResultsTable from "../components/AuditLogResultsTable.vue"
 import { ACCESS_DENIED_MESSAGES, ACCESS_DENIED_SUBTITLES } from "../constants/permission-messages"
-import { getAuditActionColor } from "../utils/audit-actions"
 import { useAuditEntries } from "../composables/use-audit-entries"
-import type { AuditLogEntry } from "../types/audit-types"
 
 const INPUT_DEBOUNCE_MS = 300
 
 const permissionsStore = usePermissionsStore()
 const { isLoadingPermissions, goToHome } = usePermissionChecks()
 const $q = useQuasar()
-const { formatDate, formatDateTime } = useDateFunctions()
 
 const { entries, isLoading, error, load } = useAuditEntries()
 const ready = ref(false)
@@ -411,6 +244,16 @@ const areaOptions: { label: string; value: string }[] = [
     { label: "Student Schedules", value: "Students" },
 ]
 
+// Responsive layout classes, computed once so the template stays branch-free.
+const filterColClass = computed(() => ($q.screen.gt.sm ? "col-12 col-md-6 col-lg-3" : "col-12"))
+const dateColClass = computed(() => ($q.screen.gt.sm ? "col-12 col-md-6 col-lg-3" : "col-6"))
+const filterSectionClass = computed(() => ($q.screen.gt.sm ? "q-pa-none" : ""))
+
+// "All ..." placeholder text while a clearable filter is empty.
+const termDisplayValue = computed(() => (selectedTermCode.value === null ? "All terms" : undefined))
+const rotationDisplayValue = computed(() => (selectedRotationId.value === null ? "All rotations" : undefined))
+const areaDisplayValue = computed(() => (selectedArea.value === null ? "All schedules" : undefined))
+
 // Filters panel: always open on desktop, collapsible on mobile (mirrors the Effort audit trail).
 const filtersExpanded = ref(false)
 const filtersExpandedComputed = computed({
@@ -419,43 +262,6 @@ const filtersExpandedComputed = computed({
         filtersExpanded.value = val
     },
 })
-
-const pagination = ref({
-    sortBy: "timeStamp",
-    descending: true,
-    rowsPerPage: 25,
-}) as Ref<QTableProps["pagination"]>
-
-function formatWeekCell(weekNum: number, weekStart: string | null): string {
-    const date = weekStart ? formatDate(weekStart) : ""
-    if (weekNum) {
-        return date ? `Wk ${weekNum} · ${date}` : `Wk ${weekNum}`
-    }
-    return date
-}
-
-const columns: QTableColumn<AuditLogEntry>[] = [
-    { name: "timeStamp", label: "Date", field: "timeStamp", align: "left", sortable: true },
-    { name: "modifiedByName", label: "Modified By", field: "modifiedByName", align: "left", sortable: true },
-    { name: "personName", label: "Person", field: "personName", align: "left", sortable: true },
-    { name: "area", label: "Area", field: "area", align: "left", sortable: true },
-    { name: "rotationName", label: "Rotation", field: "rotationName", align: "left", sortable: true },
-    { name: "term", label: "Term", field: "term", align: "left", sortable: true },
-    {
-        name: "week",
-        label: "Week",
-        field: "weekNum",
-        align: "left",
-        sortable: true,
-        format: (val: number, row: AuditLogEntry) => formatWeekCell(val, row.weekStart),
-    },
-    { name: "action", label: "Action", field: "action", align: "left", sortable: true },
-]
-
-// Tablet (sm/md): a reduced column set; Action/Week/Area move to a stacked detail row.
-const tabletColumns = columns.filter((column) =>
-    ["timeStamp", "modifiedByName", "personName", "rotationName", "term"].includes(column.name),
-)
 
 function filterModifiers(val: string, update: (fn: () => void) => void) {
     update(() => {
