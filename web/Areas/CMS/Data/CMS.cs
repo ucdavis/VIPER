@@ -1,8 +1,6 @@
 using System.IO.Compression;
 using System.Net;
-using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
@@ -27,35 +25,8 @@ namespace Viper.Areas.CMS.Data
 
         public IUserHelper UserHelper { get; set; }
 
-        public Dictionary<string, string> MimeTypes { get; set; } = new()
-        {
-            ["pdf"] = "application/pdf",
-            ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ["doc"] = "application/msword",
-            ["xls"] = "application/vnd.ms-excel",
-            ["xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ["csv"] = "text/csv",
-            ["ppt"] = "application/vnd.ms-powerpoint",
-            ["pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ["pptm"] = "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
-            ["txt"] = "text/plain",
-            ["html"] = "application/xhtml+xml",
-            ["gif"] = "image/gif",
-            ["png"] = "image/png",
-            ["jpg"] = "image/jpeg",
-            ["jpeg"] = "image/jpeg",
-            ["tiff"] = "image/tiff",
-            ["mp3"] = "audio/mpeg",
-            ["wav"] = "audio/wav",
-            ["mp4"] = "video/mp4",
-            ["webm"] = "video/webm",
-            ["oft"] = "application/vnd.ms-outlook",
-            ["eps"] = "application/postscript",
-            ["zip"] = "application/zip",
-            ["7z"] = "application/x-7z-compressed",
-            ["dmg"] = "application/x-apple-diskimage",
-            ["exe"] = "application/vnd.microsoft.portable-executable"
-        };
+        public Dictionary<string, string> MimeTypes { get; set; } =
+            new(Constants.CmsFileTypes.MimeTypes, StringComparer.OrdinalIgnoreCase);
 
         #endregion
 
@@ -86,6 +57,20 @@ namespace Viper.Areas.CMS.Data
 
             if (blocks != null && _rapsContext != null)
             {
+                // Resolve the user's access once, not per (block x permission) - mirrors
+                // CheckFilePermission's single-resolve HashSet approach.
+                var isCmsAdmin = false;
+                var hasSvmSecure = false;
+                HashSet<string> userPermissions = new(StringComparer.OrdinalIgnoreCase);
+                if (currentUser != null)
+                {
+                    isCmsAdmin = UserHelper.HasPermission(_rapsContext, currentUser, Constants.CmsPermissions.ManageContentBlocks);
+                    hasSvmSecure = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure");
+                    userPermissions = UserHelper.GetAllPermissions(_rapsContext, currentUser)
+                        .Select(p => p.Permission)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                }
+
                 foreach (var b in blocks)
                 {
                     var hasAccess = b.AllowPublicAccess; //block is available without authentication
@@ -93,13 +78,12 @@ namespace Viper.Areas.CMS.Data
                     {
                         hasAccess =
                             //CMS admin
-                            UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.CMS.ManageContentBlocks") ||
+                            isCmsAdmin ||
                             //available to all logged in users
-                            b.ContentBlockToPermissions.Count == 0 && UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure") ||
+                            b.ContentBlockToPermissions.Count == 0 && hasSvmSecure ||
                             //available due to having specific permission(s)
                             b.ContentBlockToPermissions.Count > 0 && b.ContentBlockToPermissions
-                                .Any(cp => UserHelper.GetAllPermissions(_rapsContext, currentUser)
-                                    .Any(p => string.Compare(cp.Permission, p.Permission, true) == 0));
+                                .Any(cp => userPermissions.Contains(cp.Permission));
                     }
                     // only include blocks that the user has permission to see
                     if (hasAccess)
@@ -204,6 +188,7 @@ namespace Viper.Areas.CMS.Data
         public CMSFile? GetFileByGuid(Guid fileGuid)
         {
             var file = _viperContext?.Files
+                .AsNoTracking()
                 .Include(p => p.FileToPermissions)
                 .Include(p => p.FileToPeople)
                 .AsSplitQuery()
@@ -216,6 +201,7 @@ namespace Viper.Areas.CMS.Data
         public CMSFile? GetFileByOldUrl(string oldUrl)
         {
             var file = _viperContext?.Files
+                .AsNoTracking()
                 .Include(p => p.FileToPermissions)
                 .Include(p => p.FileToPeople)
                 .AsSplitQuery()
@@ -228,6 +214,7 @@ namespace Viper.Areas.CMS.Data
         public CMSFile? GetFileByFriendlyName(string friendlyName)
         {
             var file = _viperContext?.Files
+                .AsNoTracking()
                 .Include(p => p.FileToPermissions)
                 .Include(p => p.FileToPeople)
                 .AsSplitQuery()
@@ -241,6 +228,7 @@ namespace Viper.Areas.CMS.Data
         {
             var filePath = folder + @"\" + name;
             var file = _viperContext?.Files
+                .AsNoTracking()
                 .Include(p => p.FileToPermissions)
                 .Include(p => p.FileToPeople)
                 .AsSplitQuery()
@@ -263,73 +251,37 @@ namespace Viper.Areas.CMS.Data
         }
         #endregion
 
-        #region public IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted)
+        #region public static string GetFriendlyURL(string friendlyName)
         /// <summary>
-        /// Search for matching files
+        /// Get Friendly URL for a friendly name. Points to the VIPER 2 download handler
+        /// (CMSController.Files), which checks permissions internally and serves public
+        /// files anonymously, so no separate /public URL shape is needed.
         /// </summary>
-        public IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted)
-        {
-
-            // get files based on paramenters
-            var files = _viperContext?.Files
-                    .Include(p => p.FileToPermissions)
-                    .Include(p => p.FileToPeople)
-                    .Where(f => (string.IsNullOrEmpty(folder) && f.FilePath.Contains(folder + @"\")) || string.IsNullOrEmpty(folder))
-                    .Where(f => f.AllowPublicAccess.Equals(isPublic) || isPublic == null)
-                    .Where(c => (string.IsNullOrEmpty(status) || (c.DeletedOn == null && status.ToLower() != "active") || (c.DeletedOn != null && status.ToLower() == "active")))
-                    .Where(f => f.Encrypted.Equals(encrypted) || encrypted == null)
-                    .Where(f => (string.IsNullOrEmpty(search) || f.FriendlyName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                        f.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                        string.IsNullOrEmpty(f.OldUrl) ? string.IsNullOrEmpty(search) : f.OldUrl.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                        f.FilePath.Contains(search, StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(c => c.FriendlyName)
-                .AsSplitQuery()
-                .ToList();
-
-            if (files != null)
-            {
-                List<CMSFile> cmslist = new();
-                foreach (var f in files)
-                {
-                    CMSFile cmsf = new(f);
-                    cmslist.Add(cmsf);
-                    ReplaceRootFolder(cmsf);
-                }
-
-                return cmslist;
-            }
-
-            return new List<CMSFile>();
-
-        }
-        #endregion
-
-        #region public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
-        /// <summary>
-        /// Get Friendly URL for a friendly name. Currently, always points to ColdFusion Viper
-        /// </summary>
-        public static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false)
+        public static string GetFriendlyURL(string friendlyName)
         {
             string rootURL = String.Empty;
+            string pathBase = String.Empty;
             HttpRequest? thisRequest = HttpHelper.HttpContext?.Request;
 
             if (thisRequest != null)
             {
-                Uri url = new(thisRequest.GetDisplayUrl());
-                rootURL = url.Scheme + Uri.SchemeDelimiter + url.Host;
+                // Request.Host keeps any non-default port (url.Host would drop it)
+                rootURL = thisRequest.Scheme + Uri.SchemeDelimiter + thisRequest.Host;
+                pathBase = thisRequest.PathBase;
             }
 
-            return rootURL + (allowPublicAccess ? @"/public" : "") + @"/cms/files/?fn=" + WebUtility.UrlEncode(friendlyName);
+            return rootURL + pathBase + @"/CMS/Files?fn=" + WebUtility.UrlEncode(friendlyName);
         }
         #endregion
 
-        #region public static string GetURL(string fileGUID, bool allowPublicAccess = false)
+        #region public static string GetURL(string fileGUID)
         /// <summary>
         /// Get url for a fileGUID
         /// </summary>
-        public static string GetURL(string fileGUID, bool allowPublicAccess = false)
+        public static string GetURL(string fileGUID)
         {
-            return (allowPublicAccess ? @"/public" : "") + @"/cms/files/?id=" + fileGUID;
+            string pathBase = HttpHelper.HttpContext?.Request.PathBase ?? String.Empty;
+            return pathBase + @"/CMS/Files?id=" + fileGUID;
         }
         #endregion
 
@@ -448,15 +400,27 @@ namespace Viper.Areas.CMS.Data
                 CMSFile? file = GetFile(guid, null, null, null, null);
 
                 // only add files that exist and where the user has permission
-                if (file != null && System.IO.File.Exists(file.FilePath) && CheckFilePermission(file))
+                if (file == null || !System.IO.File.Exists(file.FilePath))
                 {
-                    if (currentUser != null && _viperContext != null)
-                    {
-                        AuditFileAccess(_viperContext, file, currentUser, "AccessFile", string.Empty);
-                    }
-
-                    files.Add(file);
+                    continue;
                 }
+
+                if (!CheckFilePermission(file))
+                {
+                    // Legacy parity: a denied file in a ZIP request is audited like a single-file deny.
+                    if (_viperContext != null)
+                    {
+                        AuditFileAccess(_viperContext, file, currentUser, "AccessFileDenied", string.Empty);
+                    }
+                    continue;
+                }
+
+                if (_viperContext != null)
+                {
+                    AuditFileAccess(_viperContext, file, currentUser, "AccessFile", string.Empty);
+                }
+
+                files.Add(file);
             }
 
             if (files.Count == 0)
@@ -496,6 +460,9 @@ namespace Viper.Areas.CMS.Data
                 }
 
                 byte[] bytes = System.IO.File.ReadAllBytes(tempFileName);
+                // The zip itself is inert, but keep the whole /CMS/Files surface consistent:
+                // no MIME sniffing on any download response.
+                CmsFileResponse.SetNoSniff(controller.Response);
                 return controller.File(bytes, MimeTypes["zip"], safeDownloadName);
             }
             finally
@@ -548,7 +515,7 @@ namespace Viper.Areas.CMS.Data
 
             if (!CheckFilePermission(file))
             {
-                if (currentUser != null && _viperContext != null)
+                if (_viperContext != null)
                 {
                     AuditFileAccess(_viperContext, file, currentUser, "AccessFileDenied", detail);
                 }
@@ -557,7 +524,7 @@ namespace Viper.Areas.CMS.Data
                 return controller.View("~/Views/Home/403.cshtml", (HttpStatusCode)403);
             }
 
-            if (currentUser != null && _viperContext != null)
+            if (_viperContext != null)
             {
                 AuditFileAccess(_viperContext, file, currentUser, "AccessFile", detail);
             }
@@ -577,11 +544,15 @@ namespace Viper.Areas.CMS.Data
                 contentType = "application/octet-stream";
             }
 
+            // Stop the browser from MIME-sniffing a benign type into an active one.
+            CmsFileResponse.SetNoSniff(controller.Response);
+
             // Build Content-Disposition from the stored record's name, not the user-supplied
             // friendlyName param, and let the framework encode it so a hostile fn cannot shape
-            // the header. Mirrors the DownloadZip download-name hardening.
+            // the header. Mirrors the DownloadZip download-name hardening. Inline-unsafe types
+            // (html/svg) are forced to download so an uploaded page cannot run in the app origin.
             var downloadName = CmsFilePathSafety.SanitizeZipEntryName(file.FriendlyName, file.FilePath);
-            var contentDisposition = new ContentDispositionHeaderValue("inline");
+            var contentDisposition = new ContentDispositionHeaderValue(CmsFileResponse.DispositionType(file.FilePath));
             contentDisposition.SetHttpFileName(downloadName);
             controller.Response.Headers.ContentDisposition = contentDisposition.ToString();
 
@@ -637,20 +608,33 @@ namespace Viper.Areas.CMS.Data
                 LogSanitizer.SanitizeString(request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
         }
 
-        #region public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
-        public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail)
+        #region public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser? user, string action, string detail)
+        public static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser? user, string action, string detail)
         {
+            // Legacy parity: anonymous/public access is audited too (null user -> null login/iam),
+            // while requests from the internal kiosk range (192.168.*) are not audited at all.
+            // Dual-mode sockets surface IPv4 as ::ffff:192.168.x.x, so unmap before the check.
+            var remoteIp = HttpHelper.HttpContext?.Connection.RemoteIpAddress;
+            if (remoteIp != null)
+            {
+                var normalizedIp = remoteIp.IsIPv4MappedToIPv6 ? remoteIp.MapToIPv4() : remoteIp;
+                if (normalizedIp.ToString().StartsWith("192.168.", StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
             UserHelper userHelper = new();
 
             FileAudit fileAudit = new()
             {
                 Timestamp = DateTime.Now,
-                Loginid = user.LoginId,
+                Loginid = user?.LoginId,
                 Action = action,
                 Detail = detail,
                 FileGuid = file.FileGuid,
                 FilePath = file.FilePath,
-                IamId = user.IamId,
+                IamId = user?.IamId,
                 FileMetaData = JsonSerializer.Serialize<CMSFileMetaData>(file.MetaData),
                 ClientData = JsonSerializer.Serialize(userHelper.GetClientData())
             };
@@ -662,83 +646,25 @@ namespace Viper.Areas.CMS.Data
         #endregion
 
         #region public byte[] DecryptFile(byte[] encryptedData, string keystring)
+        // Cached per CMS instance (per request): DownloadZip decrypts once per encrypted file
+        // in the archive loop, and each call would otherwise re-read the key file from disk.
+        private string? _masterKey;
+
         public byte[] DecryptFile(byte[] encryptedData, string keystring)
         {
-            byte[] secretkey = GetSecretKey(keystring);
-
-            using Aes aes = Aes.Create();
-            aes.Mode = CipherMode.ECB;
-
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, aes.CreateDecryptor(secretkey, null), CryptoStreamMode.Write))
-            {
-                cs.Write(encryptedData, 0, encryptedData.Length);
-            }
-            byte[] decryptedData = ms.ToArray();
-
-            return decryptedData;
-
+            _masterKey ??= CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetConfiguredKeyFilePath());
+            return CmsFileCrypto.DecryptBytes(encryptedData, CmsFileCrypto.DecryptDbKey(keystring, _masterKey));
         }
         #endregion
 
         #region public string DecryptAES(string encryptedString, string Key)
         /// <summary>
-        /// Required for Unix decoding FROM https://rextester.com/TGN19503
+        /// Decrypt a CF-format (UU-encoded AES-ECB) string with the given base64 key.
         /// </summary>
         /// <returns>decoded string</returns>
         public string DecryptAES(string encryptedString, string Key)
         {
-            //First write to memory
-            using MemoryStream mmsStream = new();
-            using StreamWriter srwTemp = new(mmsStream);
-            srwTemp.Write(encryptedString);
-            srwTemp.Flush();
-            mmsStream.Position = 0;
-
-            using MemoryStream outstream = new();
-
-            //CallingUUDecode
-            Codecs.UUDecode(mmsStream, outstream);
-
-            //Extract the bytes of each of the values
-            byte[] input = outstream.ToArray();
-            byte[] key = Convert.FromBase64String(Key);
-
-            string? decryptedText = null;
-
-            using (Aes aes = Aes.Create())
-            {
-                // initialize settings to match those used by CF
-                aes.Mode = CipherMode.ECB;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.BlockSize = 128;
-                aes.KeySize = 128;
-                aes.Key = key;
-
-                ICryptoTransform decryptor = aes.CreateDecryptor();
-
-                using MemoryStream msDecrypt = new(input);
-                using CryptoStream csDecrypt = new(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using StreamReader srDecrypt = new(csDecrypt);
-                decryptedText = srDecrypt.ReadToEnd();
-            }
-            return decryptedText;
-        }
-        #endregion
-
-        #region private byte[] getSecretKey(string key)
-        private byte[] GetSecretKey(string key)
-        {
-            string keyFileFolder = @"S:\Settings\";
-
-            if (HttpHelper.Environment?.EnvironmentName == "Development")
-            {
-                keyFileFolder = @"C:\Sites\Settings\";
-            }
-            string keyString = System.IO.File.ReadLines(keyFileFolder + "viperfiles.txt").Skip(1).Take(1).First();
-
-            byte[] hiddenKey = Convert.FromBase64String(DecryptAES(key, keyString));
-            return hiddenKey;
+            return CmsFileCrypto.DecryptDbKey(encryptedString, Key);
         }
         #endregion
 
@@ -760,11 +686,9 @@ namespace Viper.Areas.CMS.Data
 
         CMSFile? GetFileByFolderAndName(string folder, string name);
 
-        IEnumerable<CMSFile> GetAllFiles(string? folder, bool? isPublic, string? search, string? status, bool? encrypted);
+        static string GetFriendlyURL(string friendlyName) => throw new NotImplementedException();
 
-        static string GetFriendlyURL(string friendlyName, bool allowPublicAccess = false) => throw new NotImplementedException();
-
-        static string GetURL(string fileGUID, bool allowPublicAccess = false) => throw new NotImplementedException();
+        static string GetURL(string fileGUID) => throw new NotImplementedException();
 
         static string GetRootFileFolder() => throw new NotImplementedException();
 
@@ -778,7 +702,7 @@ namespace Viper.Areas.CMS.Data
 
         IActionResult ProvideFile(Controller controller, string id, string friendlyName, string oldURL);
 
-        static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser user, string action, string detail) => throw new NotImplementedException();
+        static void AuditFileAccess(VIPERContext viperContext, CMSFile file, AaudUser? user, string action, string detail) => throw new NotImplementedException();
 
         byte[] DecryptFile(byte[] encryptedData, string keystring);
 
