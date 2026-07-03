@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,7 +24,7 @@ namespace Viper.test.ClinicalScheduler
         private readonly IPermissionValidator _mockPermissionValidator;
         private readonly IUserHelper _mockUserHelper;
         private readonly IEmailTemplateRenderer _mockEmailTemplateRenderer;
-        private readonly ClinicalSchedulerContext _context;
+        private readonly ToggleThrowContext _context;
         private readonly TestableScheduleEditService _service;
         private bool _disposed;
 
@@ -33,7 +34,7 @@ namespace Viper.test.ClinicalScheduler
             var options = new DbContextOptionsBuilder<ClinicalSchedulerContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
-            _context = new ClinicalSchedulerContext(options);
+            _context = new ToggleThrowContext(options);
 
             _mockPermissionService = Substitute.For<ISchedulePermissionService>();
             _mockAuditService = Substitute.For<IScheduleAuditService>();
@@ -425,6 +426,56 @@ namespace Viper.test.ClinicalScheduler
                 ex.Message.Contains("Failed to add instructor") ||
                 (ex.InnerException != null && ex.InnerException.Message.Contains("already scheduled")),
                 $"Expected duplicate schedule error but got: {ex.Message}");
+        }
+
+        [Theory]
+        [InlineData(2627, false)] // bare unique-constraint violation
+        [InlineData(2601, true)]  // duplicate key in a unique index, wrapped in DbUpdateException (EF's real path)
+        public async Task AddInstructorAsync_DbSaveThrowsDuplicateKey_ThrowsAlreadyScheduled(int errorNumber, bool wrapInDbUpdate)
+        {
+            // Arrange - a save that fails with a SQL Server duplicate/unique-key error (2627 or 2601) must be
+            // classified as a duplicate, whether raised bare or wrapped by EF in a DbUpdateException.
+            var sqlFailure = SqlExceptionFactory.Create(errorNumber);
+            Exception saveFailure = wrapInDbUpdate ? new DbUpdateException("save failed", sqlFailure) : sqlFailure;
+            _context.SaveException = saveFailure;
+            var testYear = DateTime.Now.Year + 1;
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _service.AddInstructorAsync("test123", 1, new[] { 1 }, testYear, false, TestContext.Current.CancellationToken));
+            Assert.Contains("already be scheduled", ex.Message);
+            Assert.Same(saveFailure, ex.InnerException); // original failure is preserved as the inner exception
+        }
+
+        [Fact]
+        public async Task AddInstructorAsync_DbSaveThrowsNonDuplicateSqlError_ThrowsGenericDatabaseError()
+        {
+            // Arrange - a non-duplicate database error (547 = constraint/foreign-key violation) must NOT be
+            // treated as a duplicate; it falls through to the generic "database operation failed" message.
+            _context.SaveException = SqlExceptionFactory.Create(547);
+            var testYear = DateTime.Now.Year + 1;
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _service.AddInstructorAsync("test123", 1, new[] { 1 }, testYear, false, TestContext.Current.CancellationToken));
+            Assert.Contains("Database operation failed", ex.Message);
+            Assert.IsType<SqlException>(ex.InnerException);
+        }
+
+        [Fact]
+        public async Task ToggleThrowContext_SaveException_IsOneShot()
+        {
+            // The helper documents that only the *next* save throws. Verify it consumes the exception so a
+            // subsequent save persists normally, guarding against brittle multi-save tests.
+            _context.SaveException = new InvalidOperationException("boom");
+
+            // First save consumes the exception and throws...
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _context.SaveChangesAsync(TestContext.Current.CancellationToken));
+
+            // ...the next save persists normally instead of throwing again.
+            var affected = await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(0, affected);
         }
 
         [Fact]
