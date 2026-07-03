@@ -13,6 +13,14 @@ namespace Viper.Areas.CMS.Services
     /// </summary>
     public static class CmsFilePathSafety
     {
+        /// <summary>
+        /// Comparison for path-containment checks: Windows paths are case-insensitive, but on a
+        /// case-sensitive filesystem an ignore-case match would treat a differently-cased sibling
+        /// (e.g. /srv/Files vs /srv/files) as under the root and weaken the containment guarantee.
+        /// </summary>
+        public static StringComparison PathComparison =>
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
         private const string DefaultDownloadName = "FileDownload.zip";
 
         private static readonly HashSet<string> ReservedWindowsNames = new(StringComparer.OrdinalIgnoreCase)

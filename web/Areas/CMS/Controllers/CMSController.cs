@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Services;
 
@@ -21,6 +23,7 @@ namespace Viper.Areas.CMS.Controllers
         }
 
         [HttpGet]
+        [EnableRateLimiting(CmsDownloadRateLimiting.PolicyName)]
         public IActionResult Files(string id = "", string fn = "", string oldURL = "", string ids = "", string fileName = "")
         {
             Data.CMS cms = new(_viperContext, _rapsContext, _sanitizerService, _cmsLogger);
