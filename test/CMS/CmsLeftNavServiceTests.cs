@@ -204,6 +204,36 @@ public sealed class CmsLeftNavServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveItems_EmptyHeaderText_IsAllowed()
+    {
+        // Legacy parity: menus use empty-text headers as spacer rows, and the display side
+        // renders them as blank dividers. A menu containing one must stay saveable.
+        var menu = await SeedMenuAsync();
+
+        var dto = await _service.SaveItemsAsync(menu.LeftNavMenuId, new List<LeftNavItemEdit>
+        {
+            new() { LeftNavItemId = 0, MenuItemText = "", IsHeader = true },
+            new() { LeftNavItemId = 0, MenuItemText = "A Link", IsHeader = false, Url = "/link" },
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, dto!.Items.Count);
+        Assert.Equal("", dto.Items[0].MenuItemText);
+        Assert.True(dto.Items[0].IsHeader);
+    }
+
+    [Fact]
+    public async Task SaveItems_EmptyLinkText_Throws()
+    {
+        var menu = await SeedMenuAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SaveItemsAsync(menu.LeftNavMenuId, new List<LeftNavItemEdit>
+            {
+                new() { LeftNavItemId = 0, MenuItemText = "  ", IsHeader = false, Url = "/link" },
+            }, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task SaveItems_UnknownMenu_ReturnsNull()
     {
         var dto = await _service.SaveItemsAsync(9999, new List<LeftNavItemEdit>(), TestContext.Current.CancellationToken);

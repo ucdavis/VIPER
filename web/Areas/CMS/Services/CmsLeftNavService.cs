@@ -136,6 +136,13 @@ namespace Viper.Areas.CMS.Services
                 throw new ArgumentException("Duplicate item ids are not allowed.");
             }
 
+            // Links need text; a header may be blank - legacy menus use empty headers as spacer
+            // rows and the display side still renders them that way.
+            if (items.Any(i => !i.IsHeader && string.IsNullOrWhiteSpace(i.MenuItemText)))
+            {
+                throw new ArgumentException("Every link needs text - fill in the empty link before saving.");
+            }
+
             var menu = await LoadMenuAsync(leftNavMenuId, tracking: true, ct);
             if (menu == null)
             {

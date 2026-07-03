@@ -117,8 +117,10 @@
                 </template>
                 <template #body-cell-fileName="cellProps">
                     <q-td :props="cellProps">
-                        <template v-if="cellProps.row.fileName">
-                            {{ cellProps.row.fileName }}
+                        <!-- Show the friendly name the file will be listed under (folder-name),
+                             matching the post-import "Imported as" column, not the bare disk name. -->
+                        <template v-if="cellProps.row.friendlyName">
+                            {{ cellProps.row.friendlyName }}
                             <div
                                 v-if="cellProps.row.renamedFrom"
                                 class="text-caption text-warning"

@@ -411,9 +411,10 @@ function onItemsReorder() {
 
 async function saveItems() {
     itemsError.value = ""
-    const emptyItem = items.value.find((i) => !i.menuItemText || i.menuItemText.trim() === "")
-    if (emptyItem) {
-        itemsError.value = "Every item needs text — fill in the empty item before saving."
+    // Headers may be blank (legacy spacer rows still render as an empty divider); links need text.
+    const emptyLink = items.value.find((i) => !i.isHeader && (!i.menuItemText || i.menuItemText.trim() === ""))
+    if (emptyLink) {
+        itemsError.value = "Every link needs text — fill in the empty link before saving."
         return
     }
 

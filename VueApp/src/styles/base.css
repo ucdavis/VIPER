@@ -420,6 +420,17 @@ header .q-avatar {
     max-width: 95vw;
 }
 
+/* Quasar caps minimized dialogs at 560px via .q-dialog__inner--minimized > div, which
+   out-specifies the single classes above and silently shrank md/lg dialogs when the
+   inline widths moved here. Lift the cap to each class's declared width. */
+.q-dialog__inner--minimized > .dialog-card-md {
+    max-width: min(600px, 95vw);
+}
+
+.q-dialog__inner--minimized > .dialog-card-lg {
+    max-width: min(900px, 95vw);
+}
+
 /* Skip to content link — visible on focus for keyboard users */
 .skip-to-content {
     position: absolute;

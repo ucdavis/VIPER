@@ -60,7 +60,8 @@ namespace Viper.Areas.CMS.Models.DTOs
         [JsonRequired]
         public int LeftNavItemId { get; set; }
 
-        [Required]
+        // Not [Required]: a header item may have empty text (legacy renders it as a blank
+        // spacer row). Links still need text - enforced in CmsLeftNavService.SaveItemsAsync.
         [MaxLength(250)]
         public string MenuItemText { get; set; } = string.Empty;
 

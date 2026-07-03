@@ -128,7 +128,9 @@
             </q-card>
         </q-expansion-item>
 
-        <!-- Search box and clear-filters on their own row above the table, matching the CMS audit trail -->
+        <!-- Search box on its own row above the table, matching the CMS audit trail. Unlike the
+             CMS audit (few filters), this page keeps a bulk Clear Filters button: it has nine
+             filters and clearing also reloads the cascading subject/course dropdown options. -->
         <div class="row items-center q-mb-sm">
             <div class="col-12 col-sm-4 col-lg-3">
                 <q-input
