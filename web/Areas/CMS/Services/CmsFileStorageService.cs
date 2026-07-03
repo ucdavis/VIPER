@@ -311,7 +311,7 @@ namespace Viper.Areas.CMS.Services
         {
             string fullPath = Path.GetFullPath(filePath);
             string root = Path.GetFullPath(RootFolder + Path.DirectorySeparatorChar);
-            return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+            return fullPath.StartsWith(root, CmsFilePathSafety.PathComparison);
         }
 
         // Both-separator leaf extraction lives in CmsFileNaming so callers outside the

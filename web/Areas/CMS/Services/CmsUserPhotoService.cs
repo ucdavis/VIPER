@@ -125,7 +125,7 @@ namespace Viper.Areas.CMS.Services
 
             var photoPath = Path.GetFullPath(Path.Join(_profilePhotoPath, Path.GetFileName(iamId) + ".jpg"));
             var root = Path.GetFullPath(_profilePhotoPath + Path.DirectorySeparatorChar);
-            if (!photoPath.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(photoPath))
+            if (!photoPath.StartsWith(root, CmsFilePathSafety.PathComparison) || !File.Exists(photoPath))
             {
                 return null;
             }

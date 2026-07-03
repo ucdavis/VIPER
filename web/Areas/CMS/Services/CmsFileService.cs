@@ -804,7 +804,7 @@ namespace Viper.Areas.CMS.Services
         private string NormalizeRootFolder(string filePath)
         {
             string root = _storage.RootFolder;
-            if (!filePath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            if (!filePath.StartsWith(root, CmsFilePathSafety.PathComparison))
             {
                 // Records created on another OS/environment may carry either separator style.
                 int filesIndex = filePath.IndexOf(@"\Files\", StringComparison.OrdinalIgnoreCase);
