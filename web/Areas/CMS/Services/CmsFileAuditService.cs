@@ -63,7 +63,7 @@ namespace Viper.Areas.CMS.Services
                 Folder = file.Folder,
                 Encrypted = file.Encrypted,
                 Public = file.AllowPublicAccess,
-                Modified = file.ModifiedOn.ToString("yyyy-MM-dd HH:mm:ss"),
+                Modified = file.ModifiedOn.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
                 ModifiedBy = file.ModifiedBy
             };
 

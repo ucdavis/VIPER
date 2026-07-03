@@ -498,10 +498,11 @@ try
     // Auth/session run after the SPA shell block so built Vue assets skip them, but
     // still before health checks, Hangfire, and controllers, which need an authenticated user.
     app.UseAuthentication();
-    app.UseAuthorization();
-    // After auth so download rate-limit buckets can key on the logged-in user
-    // instead of the client IP (kinder to shared campus NAT).
+    // After authentication so download rate-limit buckets can key on the logged-in user
+    // (kinder to shared campus NAT), but before authorization so abusive traffic is
+    // limited without paying the authorization cost first.
     app.UseRateLimiter();
+    app.UseAuthorization();
     app.UseCookiePolicy();
     app.UseSession();
 
