@@ -41,4 +41,16 @@ public class DateRangeHelperTests
 
         Assert.Equal(DateTime.MaxValue, result);
     }
+
+    [Fact]
+    public void ExclusiveUpperBound_CeilingDayWithTimeComponent_ReturnedUnchanged()
+    {
+        // A timestamp ON the ceiling day still carries a time of day, so it passes through
+        // unchanged rather than being widened to DateTime.MaxValue.
+        var to = DateTime.MaxValue.Date.AddHours(12);
+
+        var result = DateRangeHelper.ExclusiveUpperBound(to);
+
+        Assert.Equal(to, result);
+    }
 }

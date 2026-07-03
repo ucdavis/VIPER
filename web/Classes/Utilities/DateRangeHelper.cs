@@ -13,6 +13,13 @@ public static class DateRangeHelper
     /// </summary>
     public static DateTime ExclusiveUpperBound(DateTime to)
     {
+        // A value carrying a time of day is already an exclusive bound - return it unchanged
+        // (checked first so a ceiling-day timestamp is not widened to end of time).
+        if (to.Date != to)
+        {
+            return to;
+        }
+
         // There is no day after DateTime.MaxValue.Date to advance to, so AddDays(1) would throw
         // for a user-suppliable filter value at the ceiling. Clamp to MaxValue, which is still a
         // safe exclusive upper bound (nothing sorts after it).
@@ -21,6 +28,6 @@ public static class DateRangeHelper
             return DateTime.MaxValue;
         }
 
-        return to.Date == to ? to.AddDays(1) : to;
+        return to.AddDays(1);
     }
 }

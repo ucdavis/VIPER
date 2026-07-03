@@ -30,6 +30,16 @@ namespace Viper.Areas.CMS.Services
         }
 
         /// <summary>
+        /// Key file location honoring the CMS:EncryptionKeyFile override. Non-DI callers
+        /// (Data.CMS's download path) must use this so an environment that overrides the
+        /// path decrypts with the same key CmsFileEncryptionService encrypts with.
+        /// </summary>
+        public static string GetConfiguredKeyFilePath()
+        {
+            return HttpHelper.Settings?["CMS:EncryptionKeyFile"] ?? GetDefaultKeyFilePath();
+        }
+
+        /// <summary>
         /// Read the master key (base64 string) from line 2 of the key file.
         /// </summary>
         public static string ReadMasterKey(string keyFilePath)

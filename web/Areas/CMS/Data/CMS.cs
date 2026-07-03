@@ -652,7 +652,7 @@ namespace Viper.Areas.CMS.Data
 
         public byte[] DecryptFile(byte[] encryptedData, string keystring)
         {
-            _masterKey ??= CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetDefaultKeyFilePath());
+            _masterKey ??= CmsFileCrypto.ReadMasterKey(CmsFileCrypto.GetConfiguredKeyFilePath());
             return CmsFileCrypto.DecryptBytes(encryptedData, CmsFileCrypto.DecryptDbKey(keystring, _masterKey));
         }
         #endregion
