@@ -1,15 +1,8 @@
 <template>
     <q-card
         :bordered="true"
-        :clickable="isSafe"
-        v-ripple="isSafe"
-        :class="['link-card', isSafe ? 'cursor-pointer q-hoverable' : '']"
-        @click="isSafe && openWebReports(props.link.url)"
+        class="link-card"
     >
-        <span
-            v-if="isSafe"
-            class="q-focus-helper"
-        ></span>
         <q-card-section class="q-py-sm">
             <div class="text-h3">
                 <a
@@ -38,14 +31,13 @@
                     v-for="tag in props.link.linkTags"
                     :key="tag.linkTagId"
                 >
-                    <q-badge
+                    <StatusBadge
                         v-if="tag.linkCollectionTagCategoryId == lct.linkCollectionTagCategoryId"
-                        :color="getTagStyle(lct.sortOrder).color"
-                        :text-color="getTagStyle(lct.sortOrder).textColor"
-                        class="link-tag q-px-sm"
+                        :color="getTagColor(lct.sortOrder)"
+                        class="q-px-sm q-mr-xs"
                     >
                         {{ tag.value }}
-                    </q-badge>
+                    </StatusBadge>
                 </template>
             </template>
         </q-card-section>
@@ -53,9 +45,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue"
+import { computed } from "vue"
 import type { Link, LinkCollection } from "@/CMS/types"
 import { safeHref } from "@/CMS/utils/url"
+import StatusBadge from "@/components/StatusBadge.vue"
 const props = defineProps<{
     link: Link
     linkCollection: LinkCollection
@@ -64,43 +57,28 @@ const props = defineProps<{
 const hrefForLink = computed(() => safeHref(props.link.url))
 const isSafe = computed(() => hrefForLink.value !== "#")
 
-// Each tag category's sortOrder (1-based) indexes this palette. Gold and Tahoe
-// are light enough to require dark text for WCAG AA contrast (≥4.5:1).
-const TAG_STYLES: ReadonlyArray<{ color: string; textColor: string }> = [
-    { color: "warning", textColor: "dark" },
-    { color: "secondary", textColor: "white" },
-    { color: "negative", textColor: "white" },
-    { color: "positive", textColor: "white" },
-    { color: "info", textColor: "dark" },
-    { color: "primary", textColor: "white" },
-]
+// Each tag category's sortOrder (1-based) indexes this categorical palette. It is
+// built from non-semantic brand roles only (Aggie Blue, the secondary-palette
+// arboretum/cabernet accents, Blue 70, and Ink) so status colors — positive,
+// negative, warning, info — keep their meaning and never read as a tag category.
+// StatusBadge derives the WCAG-AA text color for each (dark on arboretum, white
+// on the rest).
+const TAG_COLORS = ["primary", "arboretum", "cabernet", "secondary", "dark"] as const
 
-function getTagStyle(order: number) {
-    const idx = order >= 1 ? (order - 1) % TAG_STYLES.length : 0
-    return TAG_STYLES[idx]!
+function getTagColor(order: number) {
+    const idx = order >= 1 ? (order - 1) % TAG_COLORS.length : 0
+    return TAG_COLORS[idx]
 }
-
-function openWebReports(url: string) {
-    const href = safeHref(url)
-    if (href === "#") return
-    window.open(href, "_blank", "noopener,noreferrer")?.focus()
-}
-
-watch(props, () => {}, { deep: true })
 </script>
 
 <style scoped>
 .link-card {
-    max-width: 350px;
+    max-width: 21.875rem;
     width: 100%;
 }
 
 .link-card a {
     text-decoration: none;
     color: inherit;
-}
-
-.link-tag {
-    margin-right: 2px;
 }
 </style>
