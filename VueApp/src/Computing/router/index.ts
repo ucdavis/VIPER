@@ -1,4 +1,4 @@
-import { createSpaRouter } from "@/shared/createSpaRouter"
+import { createSpaRouter } from "@/shared/create-spa-router"
 import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 
