@@ -220,9 +220,13 @@ namespace Viper.Areas.CMS.Services
             }
 
             string targetPath = _storage.BuildManagedPath(folder, name);
+            // Match by path OR derived friendly name: a record created under another
+            // environment's storage root carries a different FilePath but the same friendly
+            // name, while a record whose friendly name was later edited still matches by path.
+            string derivedFriendlyName = CmsFileNaming.BuildFriendlyName(folder, name);
             var existing = await _context.Files
                 .AsNoTracking()
-                .FirstOrDefaultAsync(f => f.FilePath == targetPath, ct);
+                .FirstOrDefaultAsync(f => f.FilePath == targetPath || f.FriendlyName == derivedFriendlyName, ct);
             bool inUse = existing != null || _storage.FileNameInUse(folder, name);
             return new CmsFileNameCheckDto
             {
@@ -265,7 +269,12 @@ namespace Viper.Areas.CMS.Services
                 if (request.Overwrite == true && _storage.FileNameInUse(request.Folder, uploadName))
                 {
                     string targetPath = _storage.BuildManagedPath(request.Folder, uploadName);
-                    if (await _context.Files.AnyAsync(f => f.FilePath == targetPath, ct))
+                    // Match by path OR derived friendly name so a record created under another
+                    // environment's storage root blocks the overwrite BEFORE any bytes are
+                    // touched, instead of failing later on friendly-name uniqueness and rolling
+                    // back an already-performed disk swap.
+                    string overwriteFriendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, uploadName);
+                    if (await _context.Files.AnyAsync(f => f.FilePath == targetPath || f.FriendlyName == overwriteFriendlyName, ct))
                     {
                         throw new InvalidOperationException(
                             $"{uploadName} belongs to an existing file record; replace its content by editing that file.");

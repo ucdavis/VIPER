@@ -576,6 +576,46 @@ public sealed class CmsFileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckName_RecordUnderAnotherStorageRoot_MatchesByFriendlyName()
+    {
+        // A record created in another environment carries that root in FilePath, but its
+        // derived friendly name is stable; the conflict payload must identify the record so
+        // the client offers "edit that file" rather than a plain disk overwrite.
+        var file = await SeedFileAsync(f =>
+        {
+            f.FilePath = @"S:\Files\cats\foreign.pdf";
+            f.FriendlyName = "cats-foreign.pdf";
+        });
+        _storage.IsValidFolder("cats").Returns(true);
+        _storage.BuildManagedPath("cats", "foreign.pdf").Returns(@"C:\FakeRoot\cats\foreign.pdf");
+
+        var check = await _service.CheckNameAsync("cats", "foreign.pdf", TestContext.Current.CancellationToken);
+
+        Assert.Equal(file.FileGuid, check.ExistingFileGuid);
+        Assert.Equal("cats-foreign.pdf", check.ExistingFriendlyName);
+    }
+
+    [Fact]
+    public async Task CreateFile_OverwriteOfForeignRootRecord_FailsBeforeTouchingDisk()
+    {
+        await SeedFileAsync(f =>
+        {
+            f.FilePath = @"S:\Files\cats\foreign.pdf";
+            f.FriendlyName = "cats-foreign.pdf";
+        });
+        _storage.FileNameInUse("cats", "foreign.pdf").Returns(true);
+        _storage.BuildManagedPath("cats", "foreign.pdf").Returns(@"C:\FakeRoot\cats\foreign.pdf");
+        var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.CreateFileAsync(request, MakeFormFile("foreign.pdf"), TestContext.Current.CancellationToken));
+
+        // The guard must fire before any disk mutation.
+        _storage.DidNotReceive().ReplaceInPlace(Arg.Any<string>(), Arg.Any<string>());
+        _storage.DidNotReceive().BackupManagedFile(Arg.Any<string>());
+    }
+
+    [Fact]
     public async Task CheckName_ExistingRecord_ReturnsItsModifiedOn()
     {
         // The overwrite flow echoes this back as LastModifiedOn, so it must be the record's value.
