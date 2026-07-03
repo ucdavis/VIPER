@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using HtmlDiffer = HtmlDiff.HtmlDiff;
+using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Models.DTOs;
 using Viper.Classes.SQLContext;
@@ -21,7 +22,45 @@ namespace Viper.Areas.CMS.Services
 
         Task<ContentBlockDto?> UpdateContentBlockAsync(int contentBlockId, CMSBlockAddEdit request, CancellationToken ct = default);
 
-        Task<ContentBlockDto?> UpdateContentOnlyAsync(int contentBlockId, string content, DateTime? lastModifiedOn, CancellationToken ct = default);
+        Task<ContentBlockDto?> UpdateContentOnlyAsync(int contentBlockId, string content, DateTime? lastModifiedOn,
+            List<Guid>? fileGuids = null, CancellationToken ct = default);
+
+        /// <summary>
+        /// Whether the current user may edit this block's content and attached files. True for
+        /// ManageContentBlocks holders (any block, unchanged), otherwise true only for a live block
+        /// whose edit-permission list intersects the user's permissions. Anonymous or missing block
+        /// fails closed.
+        /// </summary>
+        Task<bool> CanEditAsync(int contentBlockId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Active blocks the current user may edit by delegation (their permissions intersect the
+        /// block's edit-permission list). Projected without Content. Empty for anonymous users.
+        /// </summary>
+        Task<List<ContentBlockDto>> GetEditableBlocksAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Active files whose friendly name contains the search term AND the current user could
+        /// download (public, unrestricted, permission match, or person grant - mirrors
+        /// Data.CMS.CheckFilePermission), for the editor's attach-by-search picker. Minimal DTO
+        /// (guid + friendly name only). Empty when the term is shorter than 2 chars or anonymous.
+        /// </summary>
+        Task<List<CmsAttachableFileDto>> SearchAttachableFilesAsync(string? search, CancellationToken ct = default);
+
+        /// <summary>
+        /// The block's section path (its upload folder) without loading the full block - no
+        /// content sanitization, files, or permissions. Found=false when the block does not exist.
+        /// For callers like the pre-upload name check that run repeatedly while staging files.
+        /// </summary>
+        Task<(bool Found, string? SectionPath)> GetSectionPathAsync(int contentBlockId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Whether the editor may roll back (soft-delete) a file it just uploaded to this block:
+        /// null when the file does not exist, false when it is not an eligible rollback (uploaded by
+        /// someone else, in a folder other than the block's, or still attached to another block), and
+        /// true when the current user uploaded it into this block's folder and no other block uses it.
+        /// </summary>
+        Task<bool?> IsFileRollbackDeletableAsync(int contentBlockId, Guid fileGuid, CancellationToken ct = default);
 
         Task<bool> SoftDeleteAsync(int contentBlockId, CancellationToken ct = default);
 
@@ -66,12 +105,15 @@ namespace Viper.Areas.CMS.Services
     public class CmsContentBlockService : ICmsContentBlockService
     {
         private readonly VIPERContext _context;
+        private readonly RAPSContext _rapsContext;
         private readonly IHtmlSanitizerService _sanitizer;
         private readonly IUserHelper _userHelper;
 
-        public CmsContentBlockService(VIPERContext context, IHtmlSanitizerService sanitizer, IUserHelper userHelper)
+        public CmsContentBlockService(VIPERContext context, RAPSContext rapsContext,
+            IHtmlSanitizerService sanitizer, IUserHelper userHelper)
         {
             _context = context;
+            _rapsContext = rapsContext;
             _sanitizer = sanitizer;
             _userHelper = userHelper;
         }
@@ -218,6 +260,10 @@ namespace Viper.Areas.CMS.Services
             {
                 block.ContentBlockToPermissions.Add(new ContentBlockToPermission { Permission = permission });
             }
+            foreach (var permission in CleanList(request.EditPermissions))
+            {
+                block.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = permission });
+            }
             foreach (var fileGuid in fileGuids)
             {
                 block.ContentBlockToFiles.Add(new ContentBlockToFile { FileGuid = fileGuid });
@@ -248,6 +294,7 @@ namespace Viper.Areas.CMS.Services
             block.ModifiedBy = CurrentLoginId();
 
             ApplyPermissionDeltas(block, CleanList(request.Permissions));
+            ApplyEditPermissionDeltas(block, CleanList(request.EditPermissions));
             ApplyFileDeltas(block, fileGuids);
 
             await _context.SaveChangesAsync(ct);
@@ -255,7 +302,7 @@ namespace Viper.Areas.CMS.Services
         }
 
         public async Task<ContentBlockDto?> UpdateContentOnlyAsync(int contentBlockId, string content,
-            DateTime? lastModifiedOn, CancellationToken ct = default)
+            DateTime? lastModifiedOn, List<Guid>? fileGuids = null, CancellationToken ct = default)
         {
             var block = await LoadBlockAsync(contentBlockId, tracking: true, ct);
             if (block == null)
@@ -264,13 +311,237 @@ namespace Viper.Areas.CMS.Services
             }
 
             AssertNotStale(block, lastModifiedOn);
+
+            // Validate + replace attachments only when the caller sent a set; null leaves the block's
+            // files untouched, so a plain content save need not resend them.
+            List<Guid>? distinctGuids = null;
+            if (fileGuids != null)
+            {
+                distinctGuids = fileGuids.Distinct().ToList();
+                await AssertFilesExistAsync(distinctGuids, ct);
+                // Newly-added files only: keeping a manager-attached restricted file must not
+                // fail a delegate's content save.
+                var alreadyAttached = block.ContentBlockToFiles.Select(f => f.FileGuid).ToHashSet();
+                await AssertFilesAttachableAsync(distinctGuids.Where(g => !alreadyAttached.Contains(g)).ToList(),
+                    block.ViperSectionPath, ct);
+            }
+
             SavePreviousVersionToHistory(block);
             block.Content = content;
             block.ModifiedOn = DateTime.Now;
             block.ModifiedBy = CurrentLoginId();
 
+            if (distinctGuids != null)
+            {
+                ApplyFileDeltas(block, distinctGuids);
+            }
+
             await _context.SaveChangesAsync(ct);
             return await GetContentBlockAsync(contentBlockId, ct);
+        }
+
+        public async Task<bool> CanEditAsync(int contentBlockId, CancellationToken ct = default)
+        {
+            var currentUser = _userHelper.GetCurrentUser();
+            if (currentUser == null)
+            {
+                return false;
+            }
+
+            // Load only what the decision needs: the block's deleted flag and its edit-permission
+            // strings. A missing block fails closed even for managers.
+            var block = await _context.ContentBlocks
+                .AsNoTracking()
+                .Where(b => b.ContentBlockId == contentBlockId)
+                .Select(b => new
+                {
+                    b.DeletedOn,
+                    EditPermissions = b.ContentBlockToEditPermissions.Select(p => p.Permission).ToList()
+                })
+                .FirstOrDefaultAsync(ct);
+            if (block == null)
+            {
+                return false;
+            }
+
+            // Full manage overrides everything (managers edit any block via the list page).
+            if (_userHelper.HasPermission(_rapsContext, currentUser, CmsPermissions.ManageContentBlocks))
+            {
+                return true;
+            }
+
+            // Delegated editing is explicit: an empty edit list is manager-only (NOT the view-list's
+            // empty-means-all rule), and a soft-deleted block is never editable by a delegate.
+            if (block.DeletedOn != null || block.EditPermissions.Count == 0)
+            {
+                return false;
+            }
+
+            // Resolve the user's permissions once into a case-insensitive set, mirroring
+            // Data.CMS.CheckFilePermission, then intersect with the block's edit permissions.
+            var userPermissions = _userHelper.GetAllPermissions(_rapsContext, currentUser)
+                .Select(p => p.Permission)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return block.EditPermissions.Any(p => userPermissions.Contains(p));
+        }
+
+        public async Task<List<ContentBlockDto>> GetEditableBlocksAsync(CancellationToken ct = default)
+        {
+            var currentUser = _userHelper.GetCurrentUser();
+            if (currentUser == null)
+            {
+                return new List<ContentBlockDto>();
+            }
+
+            // Delegated matches only, as documented: managers work from the full list page, and
+            // the hub's "Blocks you can edit" card is manager-hidden and expects empty here.
+            if (_userHelper.HasPermission(_rapsContext, currentUser, CmsPermissions.ManageContentBlocks))
+            {
+                return new List<ContentBlockDto>();
+            }
+
+            // Single-resolve: the user's permissions are read once and reused for every block.
+            var userPermissions = _userHelper.GetAllPermissions(_rapsContext, currentUser)
+                .Select(p => p.Permission)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (userPermissions.Count == 0)
+            {
+                return new List<ContentBlockDto>();
+            }
+
+            // Narrow to active blocks that delegate editing at all, projecting without Content, then
+            // intersect in memory so the match is OrdinalIgnoreCase across SQL and test providers.
+            var candidates = await _context.ContentBlocks
+                .AsNoTracking()
+                .Where(b => b.DeletedOn == null && b.ContentBlockToEditPermissions.Any())
+                .OrderBy(b => b.Title)
+                .Select(b => new
+                {
+                    b.ContentBlockId,
+                    b.Title,
+                    b.FriendlyName,
+                    b.ViperSectionPath,
+                    b.Page,
+                    b.ModifiedOn,
+                    b.ModifiedBy,
+                    EditPermissions = b.ContentBlockToEditPermissions.Select(p => p.Permission).ToList()
+                })
+                .ToListAsync(ct);
+
+            return candidates
+                .Where(b => b.EditPermissions.Any(p => userPermissions.Contains(p)))
+                .Select(b => new ContentBlockDto
+                {
+                    ContentBlockId = b.ContentBlockId,
+                    Title = b.Title,
+                    FriendlyName = b.FriendlyName,
+                    ViperSectionPath = b.ViperSectionPath,
+                    Page = b.Page,
+                    ModifiedOn = b.ModifiedOn,
+                    ModifiedBy = b.ModifiedBy
+                })
+                .ToList();
+        }
+
+        public async Task<List<CmsAttachableFileDto>> SearchAttachableFilesAsync(string? search, CancellationToken ct = default)
+        {
+            // Require a meaningful term so the picker doesn't return the whole store on an empty query.
+            if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
+            {
+                return new List<CmsAttachableFileDto>();
+            }
+            var currentUser = _userHelper.GetCurrentUser();
+            if (currentUser == null)
+            {
+                return new List<CmsAttachableFileDto>();
+            }
+            var term = search.Trim();
+
+            // Name-matched candidates with just the fields the access rules need; the rules are
+            // applied in memory (mirroring GetEditableBlocksAsync) so the permission match stays
+            // OrdinalIgnoreCase across SQL Server and test providers. The candidate pool is capped
+            // so a broad two-character term cannot pull the whole store into memory; accessible
+            // files sorting after the cap are missed, which a longer search term resolves.
+            var candidates = await _context.Files
+                .AsNoTracking()
+                .Where(f => f.DeletedOn == null && f.FriendlyName.Contains(term))
+                .OrderBy(f => f.FriendlyName)
+                .Take(200)
+                .Select(f => new
+                {
+                    f.FileGuid,
+                    f.FriendlyName,
+                    f.AllowPublicAccess,
+                    Permissions = f.FileToPermissions.Select(p => p.Permission).ToList(),
+                    People = f.FileToPeople.Select(p => p.IamId).ToList()
+                })
+                .ToListAsync(ct);
+
+            var userPermissions = _userHelper.GetAllPermissions(_rapsContext, currentUser)
+                .Select(p => p.Permission)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // "any SVMSecure user" reuses the already-resolved set rather than re-running the
+            // (4-query) permission resolve HasPermission would trigger on every keystroke here.
+            bool hasSvmSecure = userPermissions.Contains("SVMSecure");
+
+            // This endpoint is reachable by delegated editors, so it must not leak names/guids of
+            // files the user could not download. Same rules as Data.CMS.CheckFilePermission:
+            // public, unrestricted (any SVMSecure user), permission match, or explicit person grant.
+            return candidates
+                .Where(f => f.AllowPublicAccess
+                    || (f.Permissions.Count == 0 && hasSvmSecure)
+                    || f.Permissions.Any(p => userPermissions.Contains(p))
+                    || (currentUser.IamId != null && f.People.Contains(currentUser.IamId)))
+                .Take(25)
+                .Select(f => new CmsAttachableFileDto
+                {
+                    FileGuid = f.FileGuid,
+                    FriendlyName = f.FriendlyName
+                })
+                .ToList();
+        }
+
+        public async Task<(bool Found, string? SectionPath)> GetSectionPathAsync(int contentBlockId, CancellationToken ct = default)
+        {
+            var row = await _context.ContentBlocks
+                .AsNoTracking()
+                .Where(b => b.ContentBlockId == contentBlockId)
+                .Select(b => new { b.ViperSectionPath })
+                .FirstOrDefaultAsync(ct);
+            return row == null ? (false, null) : (true, row.ViperSectionPath);
+        }
+
+        public async Task<bool?> IsFileRollbackDeletableAsync(int contentBlockId, Guid fileGuid, CancellationToken ct = default)
+        {
+            var file = await _context.Files
+                .AsNoTracking()
+                .Where(f => f.FileGuid == fileGuid)
+                .Select(f => new { f.ModifiedBy, f.Folder })
+                .FirstOrDefaultAsync(ct);
+            if (file == null)
+            {
+                return null;
+            }
+
+            var sectionPath = await _context.ContentBlocks
+                .AsNoTracking()
+                .Where(b => b.ContentBlockId == contentBlockId)
+                .Select(b => b.ViperSectionPath)
+                .FirstOrDefaultAsync(ct);
+
+            // Rollback is only for a file the current user just uploaded into this block's folder.
+            var login = _userHelper.GetCurrentUser()?.LoginId;
+            if (login == null
+                || !string.Equals(file.ModifiedBy, login, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(file.Folder, sectionPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Never trash a file another block still attaches — that would break the other block.
+            bool attachedElsewhere = await _context.ContentBlockToFiles
+                .AnyAsync(cbf => cbf.FileGuid == fileGuid && cbf.ContentBlockId != contentBlockId, ct);
+            return !attachedElsewhere;
         }
 
         public async Task<bool> SoftDeleteAsync(int contentBlockId, CancellationToken ct = default)
@@ -305,6 +576,7 @@ namespace Viper.Areas.CMS.Services
         {
             var block = await _context.ContentBlocks
                 .Include(b => b.ContentBlockToPermissions)
+                .Include(b => b.ContentBlockToEditPermissions)
                 .Include(b => b.ContentBlockToFiles)
                 .Include(b => b.ContentHistories)
                 .AsSplitQuery()
@@ -317,6 +589,7 @@ namespace Viper.Areas.CMS.Services
             _context.RemoveRange(block.ContentHistories);
             _context.RemoveRange(block.ContentBlockToFiles);
             _context.RemoveRange(block.ContentBlockToPermissions);
+            _context.RemoveRange(block.ContentBlockToEditPermissions);
             _context.Remove(block);
             await _context.SaveChangesAsync(ct);
             return true;
@@ -529,6 +802,7 @@ namespace Viper.Areas.CMS.Services
         {
             var query = _context.ContentBlocks
                 .Include(b => b.ContentBlockToPermissions)
+                .Include(b => b.ContentBlockToEditPermissions)
                 .Include(b => b.ContentBlockToFiles)
                     .ThenInclude(f => f.File)
                 .AsSplitQuery();
@@ -552,6 +826,67 @@ namespace Viper.Areas.CMS.Services
             if (existing != fileGuids.Count)
             {
                 throw new ArgumentException("One or more attached files do not exist.");
+            }
+        }
+
+        // The content-only PATCH is reachable by delegated editors, so newly-attached files must
+        // pass the same rules as downloads (public, unrestricted, permission match, person grant -
+        // mirrors SearchAttachableFilesAsync), the one exception being a file the caller uploaded
+        // for this block's folder (below); otherwise a guessed GUID would leak a restricted file's
+        // name through the block's attachment list.
+        private async Task AssertFilesAttachableAsync(List<Guid> fileGuids, string? blockFolder, CancellationToken ct)
+        {
+            if (fileGuids.Count == 0)
+            {
+                return;
+            }
+            // Active files only, matching the search: attaching a soft-deleted file by GUID would
+            // resurrect it into an active block. A deleted file simply comes back missing here.
+            var files = await _context.Files
+                .AsNoTracking()
+                .Where(f => f.DeletedOn == null && EF.Parameter(fileGuids).Contains(f.FileGuid))
+                .Select(f => new
+                {
+                    f.AllowPublicAccess,
+                    f.ModifiedBy,
+                    f.Folder,
+                    Permissions = f.FileToPermissions.Select(p => p.Permission).ToList(),
+                    People = f.FileToPeople.Select(p => p.IamId).ToList()
+                })
+                .ToListAsync(ct);
+            if (files.Count != fileGuids.Count)
+            {
+                throw new ArgumentException("One or more files cannot be attached because they are deleted.");
+            }
+
+            var currentUser = _userHelper.GetCurrentUser();
+            var userPermissions = currentUser == null
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : _userHelper.GetAllPermissions(_rapsContext, currentUser)
+                    .Select(p => p.Permission)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Derive from the set already resolved above instead of a second permission resolve;
+            // the set is empty for an anonymous user, so this stays false there.
+            bool hasSvmSecure = userPermissions.Contains("SVMSecure");
+            var login = currentUser?.LoginId;
+
+            // A file the current user uploaded into THIS block's folder is always attachable by them. An
+            // inline upload inherits the block's VIEW permissions, which a delegated editor need not hold
+            // (edit and view lists are independent), so the download-access rules above would otherwise
+            // reject the file they just created. ModifiedBy is server-set to the uploader and can't be
+            // forged; the folder match scopes the exception to a file uploaded FOR this block, so a
+            // delegate cannot move a restricted file they uploaded elsewhere onto a block with broader
+            // visibility. This mirrors the uploader+folder check in IsFileRollbackDeletableAsync.
+            bool allAttachable = files.All(f => f.AllowPublicAccess
+                || (f.Permissions.Count == 0 && hasSvmSecure)
+                || f.Permissions.Any(p => userPermissions.Contains(p))
+                || (currentUser?.IamId != null && f.People.Contains(currentUser.IamId))
+                || (login != null
+                    && string.Equals(f.ModifiedBy, login, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(f.Folder, blockFolder, StringComparison.OrdinalIgnoreCase)));
+            if (!allAttachable)
+            {
+                throw new ArgumentException("One or more files cannot be attached because you do not have access to them.");
             }
         }
 
@@ -598,43 +933,40 @@ namespace Viper.Areas.CMS.Services
             block.BlockOrder = request.BlockOrder;
         }
 
-        private void ApplyPermissionDeltas(ContentBlock block, List<string> requested)
+        // Reconciles a block's child collection (permissions / edit-permissions / files) to the
+        // requested key set: remove children whose key is no longer requested, add requested keys not
+        // already present. One implementation instead of three hand-kept copies of the same delta.
+        private void ApplyChildDeltas<TChild, TKey>(ICollection<TChild> children, List<TKey> requested,
+            Func<TChild, TKey> keyOf, Func<TKey, TChild> create, IEqualityComparer<TKey> comparer)
+            where TChild : class
         {
-            var existing = block.ContentBlockToPermissions.ToList();
-            foreach (var cbp in existing.Where(cbp => !requested.Contains(cbp.Permission, StringComparer.OrdinalIgnoreCase)))
+            var requestedKeys = new HashSet<TKey>(requested, comparer);
+            foreach (var child in children.Where(c => !requestedKeys.Contains(keyOf(c))).ToList())
             {
-                block.ContentBlockToPermissions.Remove(cbp);
-                _context.Remove(cbp);
+                children.Remove(child);
+                _context.Remove(child);
             }
-            var existingNames = existing.Select(p => p.Permission).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var permission in requested.Where(p => !existingNames.Contains(p)))
+            var existingKeys = new HashSet<TKey>(children.Select(keyOf), comparer);
+            foreach (var key in requestedKeys.Where(k => !existingKeys.Contains(k)))
             {
-                block.ContentBlockToPermissions.Add(new ContentBlockToPermission
-                {
-                    ContentBlockId = block.ContentBlockId,
-                    Permission = permission
-                });
+                children.Add(create(key));
             }
         }
 
-        private void ApplyFileDeltas(ContentBlock block, List<Guid> requested)
-        {
-            var existing = block.ContentBlockToFiles.ToList();
-            foreach (var cbf in existing.Where(cbf => !requested.Contains(cbf.FileGuid)))
-            {
-                block.ContentBlockToFiles.Remove(cbf);
-                _context.Remove(cbf);
-            }
-            var existingGuids = existing.Select(f => f.FileGuid).ToHashSet();
-            foreach (var fileGuid in requested.Where(g => !existingGuids.Contains(g)))
-            {
-                block.ContentBlockToFiles.Add(new ContentBlockToFile
-                {
-                    ContentBlockId = block.ContentBlockId,
-                    FileGuid = fileGuid
-                });
-            }
-        }
+        private void ApplyPermissionDeltas(ContentBlock block, List<string> requested) =>
+            ApplyChildDeltas(block.ContentBlockToPermissions, requested, p => p.Permission,
+                permission => new ContentBlockToPermission { ContentBlockId = block.ContentBlockId, Permission = permission },
+                StringComparer.OrdinalIgnoreCase);
+
+        private void ApplyEditPermissionDeltas(ContentBlock block, List<string> requested) =>
+            ApplyChildDeltas(block.ContentBlockToEditPermissions, requested, p => p.Permission,
+                permission => new ContentBlockToEditPermission { ContentBlockId = block.ContentBlockId, Permission = permission },
+                StringComparer.OrdinalIgnoreCase);
+
+        private void ApplyFileDeltas(ContentBlock block, List<Guid> requested) =>
+            ApplyChildDeltas(block.ContentBlockToFiles, requested, f => f.FileGuid,
+                fileGuid => new ContentBlockToFile { ContentBlockId = block.ContentBlockId, FileGuid = fileGuid },
+                EqualityComparer<Guid>.Default);
 
         private string CurrentLoginId()
         {

@@ -16,6 +16,7 @@ namespace Viper.Areas.CMS.Models.DTOs
         public string ModifiedBy { get; set; } = string.Empty;
         public DateTime? DeletedOn { get; set; }
         public List<string> Permissions { get; set; } = new();
+        public List<string> EditPermissions { get; set; } = new();
         public List<ContentBlockFileDto> Files { get; set; } = new();
     }
 
@@ -37,6 +38,18 @@ namespace Viper.Areas.CMS.Models.DTOs
         public Guid FileGuid { get; set; }
         public string FriendlyName { get; set; } = string.Empty;
         public string Url { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Minimal shape for the editor's attach-by-search picker. Carries only the file's guid and
+    /// friendly name so delegated editors (who lack AllFiles) never see server paths, permission
+    /// lists, or people from the managed file store; the file's own download-time permission checks
+    /// still govern who can open it.
+    /// </summary>
+    public class CmsAttachableFileDto
+    {
+        public Guid FileGuid { get; set; }
+        public string FriendlyName { get; set; } = string.Empty;
     }
 
     public class ContentHistoryListItemDto
