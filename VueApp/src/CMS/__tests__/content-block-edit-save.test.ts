@@ -46,11 +46,12 @@ const BLOCK = {
     modifiedBy: "editor",
     deletedOn: null,
     permissions: ["SVMSecure.CMS"],
+    editPermissions: ["SVMSecure.CMS.Delegate"],
     files: [{ fileGuid: "f1", friendlyName: "a.pdf", url: "/files/a.pdf" }],
 }
 
 // The payload buildSavePayload derives from BLOCK (files flattened to fileGuids, modifiedOn
-// becoming the lastModifiedOn concurrency stamp).
+// becoming the lastModifiedOn concurrency stamp, editPermissions carried through).
 const EXPECTED_PUT_PAYLOAD = {
     contentBlockId: 7,
     content: "<p>hello</p>",
@@ -63,6 +64,7 @@ const EXPECTED_PUT_PAYLOAD = {
     friendlyName: "welcome",
     allowPublicAccess: false,
     permissions: ["SVMSecure.CMS"],
+    editPermissions: ["SVMSecure.CMS.Delegate"],
     fileGuids: ["f1"],
     lastModifiedOn: "2024-03-01T12:00:00",
 }
@@ -173,6 +175,14 @@ describe("ContentBlockEdit.vue - save payload", () => {
         expect(document.body.textContent).toContain("Content block saved")
     })
 
+    it("renders the Edit access permission selector for a manager", async () => {
+        const { wrapper } = await mountEdit()
+        const editAccess = wrapper
+            .findAllComponents({ name: "QSelect" })
+            .find((s) => s.props("label") === "Edit access")
+        expect(editAccess).toBeTruthy()
+    })
+
     it("create-mode save POSTs with a null lastModifiedOn and empty friendlyName collapsed to null", async () => {
         mockPost.mockResolvedValue({ success: true, result: { ...BLOCK, contentBlockId: 42, files: [] } })
         const { wrapper, router } = await mountEdit({ params: {} })
@@ -245,7 +255,7 @@ describe("ContentBlockEdit.vue - staged upload commit", () => {
 
         // The new upload is soft-deleted and detached again; the pre-existing file stays.
         expect(mockDel).toHaveBeenCalledOnce()
-        expect(mockDel.mock.calls[0]![0]).toContain("cms/files/f2")
+        expect(mockDel.mock.calls[0]![0]).toContain("CMS/content/7/files/f2")
         expect(wrapper.text()).toContain("Friendly name already in use")
         expect(wrapper.text()).toContain("a.pdf")
         expect(wrapper.text()).not.toContain("b.pdf")
@@ -262,7 +272,7 @@ describe("ContentBlockEdit.vue - 409 conflict handling", () => {
 
         await submitForm(wrapper)
 
-        expect(mockDel.mock.calls[0]![0]).toContain("cms/files/f2")
+        expect(mockDel.mock.calls[0]![0]).toContain("CMS/content/7/files/f2")
         expect(document.body.textContent).toContain("Edit Conflict")
         expect(document.body.textContent).toContain("Someone else saved this block.")
 
@@ -285,17 +295,17 @@ describe("ContentBlockEdit.vue - 409 conflict handling", () => {
     })
 })
 
-// Like routeGet, but the file-search endpoint returns a catalog including one already-attached
-// file (f1) and one new candidate (f9).
+// Like routeGet, but the attachable-files endpoint returns candidates including one already-attached
+// file (f1) and one new candidate (f9). The endpoint's slim shape omits the URL.
 function routeGetWithFileSearch() {
     mockGet.mockImplementation((...args: unknown[]) => {
         const url = args[0] as string
-        if (url.includes("cms/files/")) {
+        if (url.includes("attachable-files")) {
             return Promise.resolve({
                 success: true,
                 result: [
-                    { fileGuid: "f1", friendlyName: "a.pdf", friendlyUrl: "/files/a.pdf" },
-                    { fileGuid: "f9", friendlyName: "new.pdf", friendlyUrl: "/files/new.pdf" },
+                    { fileGuid: "f1", friendlyName: "a.pdf" },
+                    { fileGuid: "f9", friendlyName: "new.pdf" },
                 ],
             })
         }
@@ -307,7 +317,7 @@ function routeGetWithFileSearch() {
 }
 
 describe("ContentBlockEdit.vue - attached files", () => {
-    it("searches active files (excluding already-attached ones) and attaches the selection", async () => {
+    it("searches attachable files (excluding already-attached ones) and attaches the selection", async () => {
         routeGetWithFileSearch()
         const { wrapper } = await mountEdit()
 
@@ -318,9 +328,10 @@ describe("ContentBlockEdit.vue - attached files", () => {
         await flushPromises()
         await flushPromises()
 
-        const fileSearch = mockGet.mock.calls.map((c) => c[0] as string).find((u) => u.includes("cms/files/?"))
+        // The block-scoped attachable-files endpoint (not the global file catalog) backs the search.
+        const fileSearch = mockGet.mock.calls.map((c) => c[0] as string).find((u) => u.includes("attachable-files"))
         expect(fileSearch).toContain("search=pdf")
-        expect(fileSearch).toContain("status=active")
+        expect(fileSearch).toContain("contentBlockId=7")
         // The already-attached f1 is excluded from the options.
         const options = attachSelect.props("options") as { fileGuid: string }[]
         expect(options.map((o) => o.fileGuid)).toEqual(["f9"])

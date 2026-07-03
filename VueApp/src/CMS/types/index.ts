@@ -61,6 +61,10 @@ type CmsContentBlock = {
     modifiedBy: string
     deletedOn: string | null
     permissions: string[]
+    // Holders of any of these permissions may edit this block's content and files (but not its
+    // settings) even without ManageContentBlocks. Managers manage this list; delegated editors
+    // receive it but never see it in the UI.
+    editPermissions: string[]
     files: CmsContentBlockFile[]
 }
 
@@ -68,6 +72,25 @@ type CmsContentBlockFile = {
     fileGuid: string
     friendlyName: string
     url: string
+}
+
+// A block the current user may edit via delegation (GET /api/CMS/content/editable). It carries just
+// enough to render the hub's "Blocks you can edit" list and link to the editor.
+type EditableBlock = {
+    contentBlockId: number
+    title: string | null
+    friendlyName: string | null
+    viperSectionPath: string | null
+    page: string | null
+    modifiedOn: string
+    modifiedBy: string
+}
+
+// A managed file the user may attach to a block, from GET /api/CMS/content/attachable-files. Deliberately
+// slimmer than CmsFile: the search only needs the GUID to attach and a name to display.
+type AttachableFile = {
+    fileGuid: string
+    friendlyName: string
 }
 
 type CmsContentHistoryItem = {
@@ -202,6 +225,8 @@ export type {
     ContentBlock,
     CmsContentBlock,
     CmsContentBlockFile,
+    EditableBlock,
+    AttachableFile,
     CmsContentHistoryItem,
     CmsLeftNavMenu,
     CmsFile,
