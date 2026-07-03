@@ -226,7 +226,10 @@ import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import SortableList from "@/components/SortableList.vue"
-import LeftNavMenuSettingsFields from "@/CMS/components/LeftNavMenuSettingsFields.vue"
+import LeftNavMenuSettingsFields, {
+    type MenuSettings,
+    createEmptyMenuSettings,
+} from "@/CMS/components/LeftNavMenuSettingsFields.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import type { CmsLeftNavMenu } from "@/CMS/types/"
@@ -246,13 +249,7 @@ const savingItems = ref(false)
 const menuFormError = ref("")
 const itemsError = ref("")
 
-const menu = ref({
-    menuHeaderText: "" as string | null,
-    system: "Viper",
-    viperSectionPath: null as string | null,
-    page: null as string | null,
-    friendlyName: null as string | null,
-})
+const menu = ref<MenuSettings>(createEmptyMenuSettings())
 
 // The concurrency stamp for the settings save: the menu's modifiedOn as loaded, advanced from each
 // save response so a second save isn't rejected as stale. Kept out of `menu` so it doesn't skew the
@@ -482,13 +479,7 @@ function revertItems() {
 // (create -> redirect after save, or browser back to the create route).
 watch(menuId, (id) => {
     if (id === null) {
-        menu.value = {
-            menuHeaderText: "",
-            system: "Viper",
-            viperSectionPath: null,
-            page: null,
-            friendlyName: null,
-        }
+        menu.value = createEmptyMenuSettings()
         items.value = []
         savedMenu = null
         menuModifiedOn.value = null
@@ -557,7 +548,7 @@ onMounted(() => {
 /* Match the Link Collections rows exactly: tinted cards on small/medium screens,
    borderless grouped rows in the panel on desktop. Header rows keep a distinct tint. */
 .menu-items :deep(.sortable-row) {
-    border: 1px solid var(--ucdavis-black-10);
+    border: 0.0625rem solid var(--ucdavis-black-10);
     border-radius: 0.25rem;
     padding: 0.75rem;
     background: var(--surface-tint-raised);
@@ -567,14 +558,14 @@ onMounted(() => {
     background: var(--surface-tint);
 }
 
-@media (width >= 1024px) {
+@media (width >= 64rem) {
     .menu-items :deep(.sortable-list__items) {
         gap: 0;
     }
 
     .menu-items :deep(.sortable-row) {
         border: none;
-        border-bottom: 1px solid var(--ucdavis-black-10);
+        border-bottom: 0.0625rem solid var(--ucdavis-black-10);
         border-radius: 0;
         padding: 0.75rem 0.5rem;
         background: transparent;

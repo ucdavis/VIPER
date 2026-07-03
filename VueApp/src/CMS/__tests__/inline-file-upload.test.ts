@@ -332,4 +332,27 @@ describe("inlineFileUpload.vue - commit", () => {
         // The staged list is NOT cleared, so the user can retry the save.
         expect(wrapper.findAll(".staged-file")).toHaveLength(2)
     })
+
+    it("keeps rolling back and rethrows the original error when a rollback delete fails", async () => {
+        mockPostForm
+            .mockResolvedValueOnce({ success: true, result: cmsFile("n1", "a.pdf") })
+            .mockResolvedValueOnce({ success: true, result: cmsFile("n2", "b.pdf") })
+            .mockResolvedValueOnce({ success: false, errors: ["disk full"] })
+        // The first rollback delete rejects; it must not abort the remaining rollbacks nor mask
+        // the upload error the caller sees.
+        mockDel.mockRejectedValueOnce(new Error("delete blew up")).mockResolvedValue({ success: true, result: null })
+        const wrapper = mountUpload()
+        await stage("a.pdf")
+        await stage("b.pdf")
+        await stage("c.pdf")
+
+        // The ORIGINAL upload error propagates, not the rollback delete error.
+        await expect(commitOf(wrapper)()).rejects.toThrow("disk full")
+
+        // Both created files were still attempted for rollback despite the first delete failing.
+        expect(mockDel).toHaveBeenCalledTimes(2)
+        const deleted = mockDel.mock.calls.map((c) => c[0] as string)
+        expect(deleted.some((u) => u.includes("cms/files/n1"))).toBe(true)
+        expect(deleted.some((u) => u.includes("cms/files/n2"))).toBe(true)
+    })
 })

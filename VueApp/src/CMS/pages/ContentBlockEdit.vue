@@ -481,6 +481,8 @@ async function loadHistoryVersion() {
             type: "info",
             message: "Loaded an older version into the editor. Save to make it the current version.",
         })
+    } else {
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to load the selected version" })
     }
 }
 
@@ -676,6 +678,8 @@ async function restoreBlock() {
     if (res.success) {
         $q.notify({ type: "positive", message: "Content block restored" })
         await loadBlock()
+    } else {
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Failed to restore the content block" })
     }
 }
 

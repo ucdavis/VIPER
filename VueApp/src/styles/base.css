@@ -83,11 +83,15 @@ body {
 }
 
 /* Flat q-btn links suppress Quasar's focus helper enough to fail
-   WCAG 2.4.7; restore the system focus ring for keyboard users. */
+   WCAG 2.4.7; restore the system focus ring for keyboard users. The
+   transparent outline is invisible normally but becomes the focus
+   indicator under Windows forced-colors/high-contrast, where box-shadow
+   is dropped. */
 .q-card__actions .q-btn:focus-visible {
+    outline: 2px solid transparent;
     box-shadow:
         0 0 0 0.1rem white,
-        0 0 0 0.25rem #258cfb;
+        0 0 0 0.25rem var(--focus-ring-color);
 }
 
 /*Placeholders used when loading*/

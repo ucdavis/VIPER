@@ -4,9 +4,10 @@ import { useRouteFocus } from "@/composables/use-route-focus"
 
 /**
  * Standard VIPER SPA router: web history rooted at VITE_VIPER_HOME,
- * scroll-to-top on page navigation (query-only changes keep the scroll
- * position), hash-fragment scrolling for router-driven anchor links, and
- * route-change focus management for accessibility.
+ * scroll restoration on popstate (browser back/forward), scroll-to-top on
+ * page navigation (query-only changes keep the scroll position), hash-fragment
+ * scrolling for router-driven anchor links, and route-change focus management
+ * for accessibility.
  * Callers wire their own `beforeEach` guard since auth/permission rules
  * vary per SPA.
  */
@@ -15,7 +16,12 @@ export function createSpaRouter(routes: RouteRecordRaw[]): Router {
     // misconfigured builds) and a trailing slash.
     const baseUrl = (import.meta.env.VITE_VIPER_HOME ?? "/").replace(/\/$/, "")
     const router = createRouter({
-        scrollBehavior: (to, from) => {
+        scrollBehavior: (to, from, savedPosition) => {
+            // Browser back/forward restores the position the user left this entry at;
+            // honour it before any of the path/hash defaults below.
+            if (savedPosition) {
+                return savedPosition
+            }
             // Scroll to the fragment target on router-driven hash navigation,
             // but not on query-only changes where the hash merely persists.
             if (to.hash && (to.path !== from.path || to.hash !== from.hash)) {

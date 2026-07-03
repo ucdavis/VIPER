@@ -17,7 +17,7 @@
 
         <VueDraggable
             v-model="model"
-            :animation="200"
+            :animation="reducedMotion === 'reduce' ? 0 : 200"
             :disabled="disabled"
             handle=".sortable-row__handle"
             ghost-class="sortable-row--ghost"
@@ -56,7 +56,7 @@
                         color="secondary"
                         icon="arrow_upward"
                         :aria-label="moveUpLabel"
-                        :disable="index === 0"
+                        :disable="disabled || index === 0"
                         @click="onMoveUp(index)"
                     >
                         <q-tooltip>{{ moveUpLabel }}</q-tooltip>
@@ -69,7 +69,7 @@
                         color="secondary"
                         icon="arrow_downward"
                         :aria-label="moveDownLabel"
-                        :disable="index === model.length - 1"
+                        :disable="disabled || index === model.length - 1"
                         @click="onMoveDown(index)"
                     >
                         <q-tooltip>{{ moveDownLabel }}</q-tooltip>

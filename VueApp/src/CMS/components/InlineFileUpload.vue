@@ -1,11 +1,11 @@
 <template>
-    <div>
-        <button
-            ref="dropZoneRef"
-            type="button"
-            class="inline-upload"
+    <div ref="rootEl">
+        <q-btn
+            flat
+            no-caps
+            class="inline-upload full-width"
             :class="{ 'inline-upload--over': isOverDropZone && !disabled }"
-            :disabled="disabled"
+            :disable="disabled"
             :aria-label="ariaLabel"
             @click="activate"
         >
@@ -24,7 +24,7 @@
                 <template v-if="!folder">{{ disabledHint }}</template>
                 <template v-else>Drag a file here, or click to choose one. It uploads when you save.</template>
             </span>
-        </button>
+        </q-btn>
 
         <!-- Files staged for upload on Save. Nothing is created on the server until the block is saved. -->
         <div
@@ -88,7 +88,7 @@ import { useDropZone, useFileDialog } from "@vueuse/core"
 import { useFetch } from "@/composables/ViperFetch"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { CMS_ACCEPTED_EXTENSIONS } from "@/CMS/file-types"
-import type { CmsFile } from "@/CMS/types/"
+import type { CmsFile, CmsFileNameCheck } from "@/CMS/types/"
 
 // Stages files for upload on the block's Save (nothing is created server-side until then), using the
 // block's own folder + permissions. On a name conflict the user picks per file: overwrite the
@@ -106,21 +106,14 @@ const emit = defineEmits<{ "staged-count": [count: number] }>()
 const apiURL = inject("apiURL") + "cms/files/"
 const { get, postForm, putForm, del, createUrlSearchParams } = useFetch()
 
-type NameCheck = {
-    inUse: boolean
-    suggestedName: string
-    existingFileGuid: string | null
-    existingFriendlyName: string | null
-    existingDeleted: boolean
-}
 type StagedFile = {
     key: string
     file: File
-    conflict: NameCheck | null
+    conflict: CmsFileNameCheck | null
     action: "rename" | "overwrite" | "existing"
 }
 
-const dropZoneRef = ref<HTMLElement | null>(null)
+const rootEl = ref<HTMLElement | null>(null)
 const staged = ref<StagedFile[]>([])
 const busy = ref(false)
 const error = ref("")
@@ -142,7 +135,7 @@ const { open: openFileDialog, onChange: onFileDialogChange } = useFileDialog({
     multiple: false,
 })
 onFileDialogChange((files) => stageFile(files?.[0]))
-const { isOverDropZone } = useDropZone(dropZoneRef, {
+const { isOverDropZone } = useDropZone(rootEl, {
     multiple: false,
     onDrop: (files) => stageFile(files?.[0]),
 })
@@ -179,7 +172,7 @@ async function stageFile(file: File | null | undefined) {
     try {
         const params = createUrlSearchParams({ folder: props.folder!, fileName: file.name })
         const check = await get(apiURL + "check-name?" + params)
-        const conflict: NameCheck | null = check.success && check.result.inUse ? check.result : null
+        const conflict: CmsFileNameCheck | null = check.success && check.result.inUse ? check.result : null
         staged.value.push({ key: String(++keyCounter), file, conflict, action: "rename" })
     } finally {
         busy.value = false
@@ -209,8 +202,14 @@ async function commit(): Promise<{ attached: CmsFile[]; createdGuids: string[] }
         staged.value = []
         return { attached, createdGuids }
     } catch (e) {
+        // Best-effort rollback: isolate each delete so one failure neither stops the remaining
+        // rollbacks nor masks the original upload error, which is always what we rethrow.
         for (const guid of createdGuids) {
-            await del(apiURL + guid)
+            try {
+                await del(apiURL + guid)
+            } catch {
+                // Swallow rollback failures; the leftover file falls to the trash-purge job.
+            }
         }
         throw e
     } finally {
@@ -277,31 +276,30 @@ defineExpose({ commit })
 
 <style scoped>
 .inline-upload {
-    display: flex;
     width: 100%;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
     padding: 1rem;
     text-align: center;
-    border: 2px dashed var(--q-primary);
+    border: 0.125rem dashed var(--q-primary);
     border-radius: 0.25rem;
     background-color: transparent;
-    font: inherit;
     color: var(--ucdavis-black-60);
-    cursor: pointer;
-    appearance: none;
     transition:
         box-shadow 0.15s ease,
         border-style 0.15s ease;
+}
+
+/* q-btn lays its label out in a centred row; stack the icon over the hint text and
+   keep the same gap the raw button used. */
+.inline-upload :deep(.q-btn__content) {
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 /* Emphasise via the border/ring rather than a fill so the hint text keeps its AA
    contrast against the dialog background in every state. */
 .inline-upload--over {
     border-style: solid;
-    box-shadow: 0 0 0 2px var(--ucdavis-blue-20);
+    box-shadow: 0 0 0 0.125rem var(--ucdavis-blue-20);
 }
 
 .inline-upload:focus-visible {
@@ -311,17 +309,15 @@ defineExpose({ commit })
         0 0 0 0.25rem var(--focus-ring-color);
 }
 
-.inline-upload:disabled {
+.inline-upload.disabled {
     border-color: var(--ucdavis-black-60);
-    cursor: not-allowed;
-    opacity: 0.85;
 }
 
 .inline-upload__icon {
     color: var(--q-primary);
 }
 
-.inline-upload:disabled .inline-upload__icon {
+.inline-upload.disabled .inline-upload__icon {
     color: var(--ucdavis-black-60);
 }
 

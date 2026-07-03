@@ -306,16 +306,22 @@ const filterFolders = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLD
 const showDialog = ref(false)
 const editingFile = ref<CmsFile | null>(null)
 
+// Maps the URL query into the filter shape, shared by the initial state and the re-sync watcher
+// below so the two can't drift.
+function parseFiltersFromQuery(query: typeof route.query) {
+    return {
+        folder: typeof query.folder === "string" ? query.folder : ALL_FOLDERS,
+        status: typeof query.status === "string" ? query.status : "active",
+        search: typeof query.search === "string" ? query.search : "",
+        encryptedOnly: query.encrypted === "1",
+        publicOnly: query.public === "1",
+    }
+}
+
 // Filters initialize from the URL so views can be shared/deep-linked
 // (the hub's recent-activity rail uses ?search=<file name>). The deleted/all views are open to all
 // file managers; the API scopes them to files the user deleted (admins see the whole trash).
-const filters = ref({
-    folder: typeof route.query.folder === "string" ? route.query.folder : ALL_FOLDERS,
-    status: typeof route.query.status === "string" ? route.query.status : "active",
-    search: typeof route.query.search === "string" ? route.query.search : "",
-    encryptedOnly: route.query.encrypted === "1",
-    publicOnly: route.query.public === "1",
-})
+const filters = ref(parseFiltersFromQuery(route.query))
 
 // Reflect the active filters back into the URL (defaults are omitted).
 // `upload` is a one-shot action flag, never a persisted filter: strip it here so a
@@ -494,13 +500,7 @@ function deletedLabel(row: CmsFile): string {
 watch(
     () => route.query,
     (query) => {
-        const next = {
-            folder: typeof query.folder === "string" ? query.folder : ALL_FOLDERS,
-            status: typeof query.status === "string" ? query.status : "active",
-            search: typeof query.search === "string" ? query.search : "",
-            encryptedOnly: query.encrypted === "1",
-            publicOnly: query.public === "1",
-        }
+        const next = parseFiltersFromQuery(query)
         const f = filters.value
         if (
             next.folder === f.folder &&

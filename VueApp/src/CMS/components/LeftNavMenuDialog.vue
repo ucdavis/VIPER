@@ -76,7 +76,10 @@
 import { inject, ref, watch } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
-import LeftNavMenuSettingsFields, { type MenuSettings } from "@/CMS/components/LeftNavMenuSettingsFields.vue"
+import LeftNavMenuSettingsFields, {
+    type MenuSettings,
+    createEmptyMenuSettings,
+} from "@/CMS/components/LeftNavMenuSettingsFields.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -92,15 +95,7 @@ const formRef = ref()
 const saving = ref(false)
 const formError = ref("")
 
-const emptyMenu = (): MenuSettings => ({
-    menuHeaderText: "",
-    system: "Viper",
-    viperSectionPath: null,
-    page: null,
-    friendlyName: null,
-})
-
-const menu = ref<MenuSettings>(emptyMenu())
+const menu = ref<MenuSettings>(createEmptyMenuSettings())
 
 const { setInitialState, confirmClose } = useUnsavedChanges(menu)
 
@@ -109,7 +104,7 @@ watch(
     () => props.modelValue,
     (open) => {
         if (open) {
-            menu.value = emptyMenu()
+            menu.value = createEmptyMenuSettings()
             formError.value = ""
             formRef.value?.resetValidation()
             setInitialState()

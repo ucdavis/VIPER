@@ -28,6 +28,17 @@ type CmsFilePerson = {
     name: string | null
 }
 
+// Result of the pre-upload name check: whether the destination name is taken and, if so, the
+// suggested free name plus details of the record it collides with (for the overwrite/reuse prompt).
+type CmsFileNameCheck = {
+    inUse: boolean
+    suggestedName: string
+    existingFileGuid: string | null
+    existingFriendlyName: string | null
+    existingDeleted: boolean
+    existingModifiedOn: string | null
+}
+
 type CmsPersonOption = {
     iamId: string
     name: string
@@ -195,6 +206,7 @@ export type {
     CmsLeftNavMenu,
     CmsFile,
     CmsFilePerson,
+    CmsFileNameCheck,
     CmsPersonOption,
     CmsFileAudit,
     CmsContentHistoryAudit,

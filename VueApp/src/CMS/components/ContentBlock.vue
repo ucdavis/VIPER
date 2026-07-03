@@ -22,7 +22,11 @@ const contentBlock: Ref<ContentBlock | null> = ref(null)
 
 async function loadContentBlock() {
     const { get } = useFetch()
-    const r = await get(import.meta.env.VITE_API_URL + "cms/content/fn/" + props.contentBlockName)
+    // Capture the name we're loading; if props.contentBlockName changes while this request is in
+    // flight, a slower earlier response must not overwrite the newer block's content.
+    const requestedName = props.contentBlockName
+    const r = await get(import.meta.env.VITE_API_URL + "cms/content/fn/" + requestedName)
+    if (props.contentBlockName !== requestedName) return
     contentBlock.value = r.success ? r.result : null
 }
 

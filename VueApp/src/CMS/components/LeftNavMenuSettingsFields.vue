@@ -46,7 +46,7 @@
     />
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
 export type MenuSettings = {
     menuHeaderText: string | null
     system: string
@@ -55,6 +55,20 @@ export type MenuSettings = {
     friendlyName: string | null
 }
 
+// A blank menu-settings baseline. Shared with LeftNavMenuDialog (add modal) and LeftNavEdit
+// (edit page reset + initial state) so a "new menu" starts identical in all three spots.
+export function createEmptyMenuSettings(): MenuSettings {
+    return {
+        menuHeaderText: "",
+        system: "Viper",
+        viperSectionPath: null,
+        page: null,
+        friendlyName: null,
+    }
+}
+</script>
+
+<script setup lang="ts">
 // Shared by the add modal (LeftNavMenuDialog) and the edit page (LeftNavEdit) so the menu
 // settings form stays identical in both. The model is a shared reactive object; field edits
 // mutate it in place, which both callers observe.

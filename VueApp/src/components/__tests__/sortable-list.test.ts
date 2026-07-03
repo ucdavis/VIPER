@@ -98,6 +98,21 @@ describe("SortableList - move buttons", () => {
         expect(rowText(wrapper)).toEqual(["Alpha", "Charlie", "Bravo"])
     })
 
+    it("disables every move button and fires no reorder when the list is disabled", async () => {
+        const { wrapper } = mountList(threeItems(), { disabled: true })
+        const ups = wrapper.findAll('[aria-label="Move up"]')
+        const downs = wrapper.findAll('[aria-label="Move down"]')
+
+        // The disabled prop overrides the position-based enablement: no move button is interactive.
+        expect(ups.every((b) => b.attributes("disabled") !== undefined)).toBe(true)
+        expect(downs.every((b) => b.attributes("disabled") !== undefined)).toBe(true)
+
+        await downs[0]!.trigger("click")
+
+        expect(wrapper.emitted("reorder")).toBeFalsy()
+        expect(rowText(wrapper)).toEqual(["Alpha", "Bravo", "Charlie"])
+    })
+
     it("uses custom move-button labels when provided", () => {
         const { wrapper } = mountList(threeItems(), {
             moveUpLabel: "Move link up",

@@ -18,6 +18,13 @@ describe("createSpaRouter scroll behavior", () => {
         expect(scrollBehavior(route("/b"), route("/a"), null)).toStrictEqual({ left: 0, top: 0 })
     })
 
+    it("restores the saved position (popstate back/forward) as-is, before any path/hash logic", () => {
+        const savedPosition = { left: 0, top: 420 }
+        // A different-page or hash navigation would otherwise scroll to top / the fragment;
+        // savedPosition wins because it means a browser back/forward.
+        expect(scrollBehavior(route("/b", "#section"), route("/a"), savedPosition)).toBe(savedPosition)
+    })
+
     it("keeps scroll position for query-only changes on the same page", () => {
         expect(scrollBehavior(route("/a"), route("/a"), null)).toBeFalsy()
     })

@@ -104,6 +104,7 @@ const NAME_TAKEN = {
         existingFileGuid: "eg9",
         existingFriendlyName: "report.pdf",
         existingDeleted: false,
+        existingModifiedOn: "2024-02-02T00:00:00",
     },
 }
 
@@ -199,6 +200,8 @@ describe("FileFormDialog.vue - name conflict resolution", () => {
         expect(url).toContain("cms/files/eg9")
         // Overwriting a managed record replaces content in place; no folder/new-name fields.
         expect(body.has("folder")).toBeFalsy()
+        // The existing record's ModifiedOn (echoed by the check) rides along as the stale-edit guard.
+        expect(body.get("lastModifiedOn")).toBe("2024-02-02T00:00:00")
         expect(bodyText()).toContain("File overwritten")
     })
 

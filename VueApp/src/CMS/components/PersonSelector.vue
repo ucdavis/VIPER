@@ -11,6 +11,7 @@
         :options="options"
         :loading="loading"
         option-value="iamId"
+        option-label="name"
         hint="Type at least 2 characters to search people"
         @update:model-value="emit('update:modelValue', $event ?? [])"
         @filter="searchPeople"

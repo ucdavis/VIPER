@@ -37,15 +37,15 @@
                         v-if="isEdit"
                         class="text-body2 q-mb-sm"
                     >
-                        <strong>{{ file?.friendlyName }}</strong>
+                        <strong>{{ displayFile?.friendlyName }}</strong>
                         <div class="text-caption text-grey-8">
                             Link:
                             <a
-                                :href="file?.friendlyUrl"
+                                :href="displayFile?.friendlyUrl"
                                 target="_blank"
                                 rel="noopener"
                             >
-                                {{ file?.friendlyUrl }}
+                                {{ displayFile?.friendlyUrl }}
                             </a>
                             <q-btn
                                 flat
@@ -239,7 +239,7 @@ import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import PersonSelector from "@/CMS/components/PersonSelector.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { CMS_ACCEPTED_EXTENSIONS } from "@/CMS/file-types"
-import type { CmsFile, CmsFilePerson } from "@/CMS/types/"
+import type { CmsFile, CmsFileNameCheck, CmsFilePerson } from "@/CMS/types/"
 
 const props = defineProps<{
     modelValue: boolean
@@ -274,15 +274,6 @@ type FileForm = {
     people: CmsFilePerson[]
 }
 
-type NameCheck = {
-    inUse: boolean
-    suggestedName: string
-    existingFileGuid: string | null
-    existingFriendlyName: string | null
-    existingDeleted: boolean
-    existingModifiedOn: string | null
-}
-
 const emptyForm = (): FileForm => ({
     upload: null,
     folder: null,
@@ -306,7 +297,7 @@ const dirtySnapshot = computed(() => ({
 
 const { setInitialState, confirmClose } = useUnsavedChanges(dirtySnapshot)
 
-const conflict = ref<NameCheck | null>(null)
+const conflict = ref<CmsFileNameCheck | null>(null)
 const showConflict = ref(false)
 const conflictChoice = ref<"rename" | "overwrite">("rename")
 const renameTo = ref("")
@@ -330,6 +321,11 @@ const conflictDetail = computed(() => {
 // "Reload" pulls the latest version: its modifiedOn is what the save presents as
 // lastModifiedOn for the 409 stale-edit guard.
 const latestFile = ref<CmsFile | null>(null)
+
+// The record whose name/link the template shows and copyUrl copies. After a 409 "Reload" pulls the
+// concurrent edit's version into latestFile, this must reflect that (not the stale props.file the
+// parent row still holds). props.file stays the identity source for isEdit and the save fileGuid.
+const displayFile = computed(() => latestFile.value ?? props.file)
 
 function populateForm(file: CmsFile | null) {
     if (file) {
@@ -382,9 +378,9 @@ function onValidationError() {
 }
 
 async function copyUrl() {
-    if (!props.file) return
+    if (!displayFile.value) return
     try {
-        await navigator.clipboard.writeText(props.file.friendlyUrl)
+        await navigator.clipboard.writeText(displayFile.value.friendlyUrl)
         $q.notify({ type: "positive", message: "Link copied" })
     } catch {
         $q.notify({ type: "negative", message: "Failed to copy link" })

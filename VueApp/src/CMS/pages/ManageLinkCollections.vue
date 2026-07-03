@@ -432,6 +432,9 @@ let nextTempTagId = -1
 // (SortableList reorder, createTag push, deleteTag splice), not just the ref identity.
 const collectionDialogState = computed(() => ({
     name: collectionData.value.linkCollection ?? "",
+    // A name typed into the add-tag box but not yet added is still an unsaved edit; track it so
+    // closing prompts instead of silently discarding it.
+    addTag: addTag.value,
     draftTags: draftTags.value.map((t) => ({ id: t.linkCollectionTagCategoryId, label: t.linkCollectionTagCategory })),
     deletedTagIds: [...deletedTagIds.value],
 }))
