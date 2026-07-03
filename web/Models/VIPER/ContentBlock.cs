@@ -32,5 +32,7 @@ public class ContentBlock
 
     public virtual ICollection<ContentBlockToPermission> ContentBlockToPermissions { get; set; } = new List<ContentBlockToPermission>();
 
+    public virtual ICollection<ContentBlockToEditPermission> ContentBlockToEditPermissions { get; set; } = new List<ContentBlockToEditPermission>();
+
     public virtual ICollection<ContentHistory> ContentHistories { get; set; } = new List<ContentHistory>();
 }

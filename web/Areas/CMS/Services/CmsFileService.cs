@@ -28,6 +28,14 @@ namespace Viper.Areas.CMS.Services
 
         Task<bool> SoftDeleteFileAsync(Guid fileGuid, CancellationToken ct = default);
 
+        /// <summary>
+        /// Rechecks the not-shared-elsewhere condition and soft-deletes in one step, so a block that
+        /// attaches the file in the gap between an eligibility check and the delete does not get its
+        /// attachment stranded. Returns false (file left in place) when the file is missing, already
+        /// deleted, or now attached to a block other than <paramref name="contentBlockId"/>.
+        /// </summary>
+        Task<bool> RollbackDeleteFileAsync(Guid fileGuid, int contentBlockId, CancellationToken ct = default);
+
         Task<bool> RestoreFileAsync(Guid fileGuid, CancellationToken ct = default);
 
         Task<bool> PermanentlyDeleteFileAsync(Guid fileGuid, CancellationToken ct = default);
@@ -675,6 +683,30 @@ namespace Viper.Areas.CMS.Services
         {
             var entity = await LoadFileAsync(fileGuid, tracking: true, ct);
             if (entity == null)
+            {
+                return false;
+            }
+            entity.DeletedOn = DateTime.Now;
+            entity.ModifiedOn = DateTime.Now;
+            entity.ModifiedBy = CurrentLoginId();
+            _audit.Audit(entity, CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
+            await _context.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<bool> RollbackDeleteFileAsync(Guid fileGuid, int contentBlockId, CancellationToken ct = default)
+        {
+            var entity = await LoadFileAsync(fileGuid, tracking: true, ct);
+            if (entity == null || entity.DeletedOn != null)
+            {
+                return false;
+            }
+            // Recheck immediately before deleting, in the same operation, so a block that attaches this
+            // file after the caller's eligibility check does not have its attachment deleted from under
+            // it (the check and delete are no longer split across two separate service calls).
+            bool attachedElsewhere = await _context.ContentBlockToFiles
+                .AnyAsync(cbf => cbf.FileGuid == fileGuid && cbf.ContentBlockId != contentBlockId, ct);
+            if (attachedElsewhere)
             {
                 return false;
             }
