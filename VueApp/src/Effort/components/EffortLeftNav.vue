@@ -13,6 +13,7 @@
         <div
             class="q-pa-sm"
             id="leftNavMenu"
+            tabindex="-1"
         >
             <q-btn
                 dense

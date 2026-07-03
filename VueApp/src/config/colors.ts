@@ -29,7 +29,8 @@ const semanticColors = {
 
 // Quasar/brand colors whose backgrounds are light enough that white foreground
 // text fails WCAG contrast. Pair these with text-color="dark".
-const LIGHT_BACKGROUND_COLORS = new Set(["warning", "info", "accent"])
+// (arboretum #00c4b3: white is 2.2:1, ink is 7.7:1 — needs dark text.)
+const LIGHT_BACKGROUND_COLORS = new Set(["warning", "info", "accent", "arboretum"])
 
 function getAccessibleTextColor(color: string | null | undefined): "dark" | "white" {
     return color && LIGHT_BACKGROUND_COLORS.has(color) ? "dark" : "white"

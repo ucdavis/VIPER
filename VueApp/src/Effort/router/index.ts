@@ -1,4 +1,4 @@
-import { createSpaRouter } from "@/shared/createSpaRouter"
+import { createSpaRouter } from "@/shared/create-spa-router"
 import { effortRoutes as routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"

@@ -79,7 +79,19 @@ body {
 .form-check-input:focus {
     box-shadow:
         0 0 0 0.1rem white,
-        0 0 0 0.25rem #258cfb;
+        0 0 0 0.25rem var(--focus-ring-color);
+}
+
+/* Flat q-btn links suppress Quasar's focus helper enough to fail
+   WCAG 2.4.7; restore the system focus ring for keyboard users. The
+   transparent outline is invisible normally but becomes the focus
+   indicator under Windows forced-colors/high-contrast, where box-shadow
+   is dropped. */
+.q-card__actions .q-btn:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem var(--focus-ring-color);
 }
 
 /*Placeholders used when loading*/
@@ -286,6 +298,30 @@ div.breadcrumbs {
     font-weight: bold;
 }
 
+/* Breadcrumb-style parent links inside page headings. Underlined by default so
+   they read as links: the heading text is black and bold, and the Aggie-Blue
+   link color alone is too close to it to signal a link (WCAG 1.4.1) - and on
+   touch there's no hover to reveal one. */
+.q-page-container h1 a {
+    text-decoration: underline;
+}
+
+/* List-page header: a page title beside its primary action(s). Inline (title
+   left, action right) on tablet and up; on phones the action drops below the
+   title, both left-aligned - a deliberate stack rather than an incidental wrap.
+   The .q-page-container prefix outweighs Quasar's .row so the direction flips. */
+@media (max-width: 599.98px) {
+    .q-page-container .list-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .q-page-container .list-page-header > .q-space {
+        display: none;
+    }
+}
+
 .q-dialog h2,
 .q-dialog .text-h2,
 .q-page-container h2,
@@ -350,6 +386,55 @@ header .q-avatar {
     width: 31px !important;
 }
 
+/* QTable card (grid) mode field rows — used when dense list tables collapse to
+   stacked cards on small screens. Label column is fixed-width so values align. */
+.list-card-field {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.125rem 0;
+}
+
+.list-card-label {
+    flex: 0 0 7rem;
+    font-weight: 600;
+    color: var(--ucdavis-black-70);
+}
+
+.list-card-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Dialog card widths — replaces inline width styles on q-card inside q-dialog.
+   A fixed width with a 95vw cap keeps modals comfortable on desktop and off
+   the screen edges on small viewports. */
+.dialog-card-sm {
+    width: 30rem;
+    max-width: 95vw;
+}
+
+.dialog-card-md {
+    width: 37.5rem;
+    max-width: 95vw;
+}
+
+.dialog-card-lg {
+    width: 56.25rem;
+    max-width: 95vw;
+}
+
+/* Quasar caps minimized dialogs at 560px via .q-dialog__inner--minimized > div, which
+   out-specifies the single classes above and silently shrank md/lg dialogs when the
+   inline widths moved here. Lift the cap to each class's declared width. */
+.q-dialog__inner--minimized > .dialog-card-md {
+    max-width: min(37.5rem, 95vw);
+}
+
+.q-dialog__inner--minimized > .dialog-card-lg {
+    max-width: min(56.25rem, 95vw);
+}
+
 /* Skip to content link — visible on focus for keyboard users */
 .skip-to-content {
     position: absolute;
@@ -368,10 +453,47 @@ header .q-avatar {
     top: 0;
 }
 
-/* Suppress focus outline on main content — useRouteFocus sets focus
-   programmatically for screen reader announcements only */
-#main-content:focus {
+/* The landmark focus ring marks skip-link jumps (WCAG 2.4.7). Route-change
+   focus (useRouteFocus, for screen-reader announcements) tags itself with
+   data-route-focus and stays ringless: browsers count programmatic focus()
+   as :focus-visible after keyboard input or on a fresh page load, which
+   would otherwise draw the ring on every navigation. */
+#main-content:focus,
+#leftNavMenu:focus {
     outline: none;
+}
+
+#main-content:focus-visible,
+#leftNavMenu:focus-visible {
+    outline: 2px solid var(--q-primary);
+    outline-offset: -2px;
+}
+
+#main-content[data-route-focus]:focus-visible {
+    outline: none;
+}
+
+/* Workspace links carry the brand (DESIGN.md: Aggie Blue is the link color);
+   without this, content anchors fall back to browser default blue/purple.
+   Buttons, nav items, and tabs manage their own colors. */
+#main-content a:not(.q-btn):not(.q-item):not(.q-tab) {
+    color: var(--q-primary);
+}
+
+/* Dense table action buttons keep a 24px minimum hit area (WCAG 2.2 SC 2.5.8) */
+.q-td .q-btn {
+    min-width: 24px;
+    min-height: 24px;
+}
+
+/* On touch devices, give the CMS card-mode action buttons the 44px comfort
+   target (WCAG 2.5.5); pointer devices keep the dense default. Scoped to the
+   list cards so it doesn't reflow every dense table app-wide. */
+@media (pointer: coarse) {
+    .list-card .q-card__actions .q-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
 /* Quasar palette AA contrast overrides (!important required to override Quasar's !important).
@@ -398,6 +520,25 @@ header .q-avatar {
 .q-tree .q-tree__arrow {
     color: var(--ucdavis-blue-70);
     font-size: 1.4rem;
+}
+
+/* Headings inside sanitized CMS content (v-html). Shared by the live content
+   block (CMS/components/ContentBlock.vue) and the history diff view
+   (CMS/components/ContentDiffDialog.vue) so both render block headings the same.
+   Declared globally because scoped styles don't reach v-html children. */
+.content-block h1 {
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+.content-block h2 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+}
+
+.content-block h3 {
+    font-size: 1.25rem;
+    line-height: 1.3;
 }
 
 /* Screen reader only — visually hidden but accessible to assistive technology */
