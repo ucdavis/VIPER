@@ -126,7 +126,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     .ToListAsync(cancellationToken);
 
                 _logger.LogDebug("Found {Count} total existing schedules for MothraId='{MothraId}' in weeks [{WeekIds}]: {Details}",
-                    allExistingForWeeks.Count, LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds),
+                    allExistingForWeeks.Count, LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeString(string.Join(",", weekIds)),
                     string.Join(", ", allExistingForWeeks.Select(s => $"Week {s.WeekId} in Rotation {s.RotationId} (ID: {s.InstructorScheduleId})")));
 
 
@@ -245,7 +245,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception saveEx) when (saveEx is DbUpdateException or SqlException)
             {
                 _logger.LogError(saveEx, "Database save failed for MothraId='{MothraId}', RotationId={RotationId}, WeekIds=[{WeekIds}]",
-                    LogSanitizer.SanitizeId(mothraId), rotationId, string.Join(",", weekIds));
+                    LogSanitizer.SanitizeId(mothraId), rotationId, LogSanitizer.SanitizeString(string.Join(",", weekIds)));
 
                 // Only a unique/duplicate-key violation means the instructor is already scheduled.
                 // Other DB errors (foreign-key, check constraints, etc.) fall through to the generic message.
@@ -554,7 +554,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Error checking other rotation schedules for {MothraId} on weeks {WeekIds} for grad year {GradYear}",
-                    LogSanitizer.SanitizeId(mothraId), string.Join(",", weekIds), LogSanitizer.SanitizeYear(gradYear));
+                    LogSanitizer.SanitizeId(mothraId), LogSanitizer.SanitizeString(string.Join(",", weekIds)), LogSanitizer.SanitizeYear(gradYear));
                 throw new InvalidOperationException("Failed to retrieve other rotation schedules. Please try again or contact support if the problem persists.", ex);
             }
         }
@@ -581,7 +581,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                _logger.LogError(ex, "Error getting scheduled instructors for rotation {RotationId} on weeks {WeekIds}", rotationId, string.Join(",", weekIds));
+                _logger.LogError(ex, "Error getting scheduled instructors for rotation {RotationId} on weeks {WeekIds}", rotationId, LogSanitizer.SanitizeString(string.Join(",", weekIds)));
                 throw new InvalidOperationException("Failed to retrieve scheduled instructors. Please try again or contact support if the problem persists.", ex);
             }
         }
