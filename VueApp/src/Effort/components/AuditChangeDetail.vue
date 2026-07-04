@@ -1,4 +1,5 @@
 <template>
+    <strong>{{ name }}:</strong>
     <!-- Reference value (old === new): show once without diff styling -->
     <template v-if="detail.oldValue === detail.newValue">
         <span>{{ detail.oldValue }}</span>
@@ -22,9 +23,8 @@
 <script setup lang="ts">
 import type { ChangeDetail } from "../types"
 
-// One audit change value, rendered the same way in every AuditList layout
-// (desktop expando, tablet detail row, mobile card).
 defineProps<{
+    name: string
     detail: ChangeDetail
 }>()
 </script>
