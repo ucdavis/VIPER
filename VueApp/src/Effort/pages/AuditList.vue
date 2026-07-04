@@ -9,7 +9,7 @@
             label="Filters"
             header-class="bg-grey-2 lt-md"
             :header-style="$q.screen.gt.sm ? 'display: none' : ''"
-            class="q-mb-sm"
+            class="q-mb-md"
         >
             <q-card flat>
                 <q-card-section :class="$q.screen.gt.sm ? 'q-pa-none' : ''">
@@ -21,6 +21,7 @@
                                 option-label="termName"
                                 option-value="termCode"
                                 label="Term"
+                                :display-value="filter.termCode == null ? 'All terms' : undefined"
                                 dense
                                 options-dense
                                 outlined
@@ -35,6 +36,7 @@
                                 v-model="filter.action"
                                 :options="actions"
                                 label="Action"
+                                :display-value="filter.action == null ? 'All actions' : undefined"
                                 dense
                                 options-dense
                                 outlined
@@ -48,6 +50,8 @@
                                 option-label="fullName"
                                 option-value="personId"
                                 label="Modified By"
+                                stack-label
+                                placeholder="All users"
                                 dense
                                 options-dense
                                 outlined
@@ -66,6 +70,8 @@
                                 option-label="fullName"
                                 option-value="personId"
                                 label="Instructor"
+                                stack-label
+                                placeholder="All instructors"
                                 dense
                                 options-dense
                                 outlined
@@ -102,6 +108,8 @@
                                 v-model="filter.subjectCode"
                                 :options="subjectCodes"
                                 label="Subject Code"
+                                stack-label
+                                placeholder="All subjects"
                                 dense
                                 options-dense
                                 outlined
@@ -115,6 +123,8 @@
                                 v-model="filter.courseNumber"
                                 :options="courseNumbers"
                                 label="Course Number"
+                                stack-label
+                                placeholder="All courses"
                                 dense
                                 options-dense
                                 outlined
@@ -124,36 +134,35 @@
                             />
                         </div>
                     </div>
+                    <div class="row q-mt-sm">
+                        <div class="col-12 text-right">
+                            <q-btn
+                                label="Clear Filters"
+                                color="secondary"
+                                dense
+                                flat
+                                @click="clearFilter"
+                            />
+                        </div>
+                    </div>
                 </q-card-section>
             </q-card>
         </q-expansion-item>
 
-        <!-- Search box on its own row above the table, matching the CMS audit trail. Unlike the
-             CMS audit (few filters), this page keeps a bulk Clear Filters button: it has nine
-             filters and clearing also reloads the cascading subject/course dropdown options. -->
-        <div class="row items-center q-mb-sm">
-            <div class="col-12 col-sm-4 col-lg-3">
-                <q-input
-                    v-model="filter.searchText"
-                    label="Search changes"
-                    dense
-                    outlined
-                    clearable
-                    hide-bottom-space
-                >
-                    <template #prepend>
-                        <q-icon name="search" />
-                    </template>
-                </q-input>
-            </div>
-            <q-space />
-            <q-btn
-                label="Clear Filters"
-                color="secondary"
+        <!-- Free-text search across change details, on top of the results table -->
+        <div class="row q-mb-md">
+            <q-input
+                v-model="filter.searchText"
+                :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-4' : 'col-12'"
+                label="Search changes"
                 dense
-                flat
-                @click="clearFilter"
-            />
+                outlined
+                clearable
+            >
+                <template #prepend>
+                    <q-icon name="search" />
+                </template>
+            </q-input>
         </div>
 
         <!-- Results Table - Desktop view (lg and up) -->
@@ -194,8 +203,10 @@
                             :key="key"
                             class="text-caption"
                         >
-                            <strong>{{ key }}:</strong>
-                            <ChangeDetailDiff :detail="detail" />
+                            <AuditChangeDetail
+                                :name="String(key)"
+                                :detail="detail"
+                            />
                         </div>
                     </template>
                     <template v-else-if="props.row.changes">
@@ -281,8 +292,10 @@
                                     :key="key"
                                 >
                                     <span v-if="idx > 0"> &bull; </span>
-                                    <strong>{{ key }}:</strong>
-                                    <ChangeDetailDiff :detail="detail" />
+                                    <AuditChangeDetail
+                                        :name="key"
+                                        :detail="detail"
+                                    />
                                 </span>
                             </div>
                             <span
@@ -361,8 +374,10 @@
                                     v-for="(detail, key) in props.row.changesDetail"
                                     :key="key"
                                 >
-                                    <strong>{{ key }}:</strong>
-                                    <ChangeDetailDiff :detail="detail" />
+                                    <AuditChangeDetail
+                                        :name="String(key)"
+                                        :detail="detail"
+                                    />
                                 </div>
                             </div>
                             <div
@@ -386,12 +401,12 @@ import { useRoute, useRouter } from "vue-router"
 import { useDebounceFn } from "@vueuse/core"
 import { useQuasar } from "quasar"
 import type { QTableColumn, QTableProps } from "quasar"
-import ChangeDetailDiff from "../components/ChangeDetailDiff.vue"
 import { effortAuditService } from "../services/audit-service"
 import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import { getAuditActionColor } from "@/composables/use-audit-colors"
 import StatusBadge from "@/components/StatusBadge.vue"
+import AuditChangeDetail from "../components/AuditChangeDetail.vue"
 import type { ChangeDetail, EffortAuditRow, ModifierInfo, TermDto } from "../types"
 
 // Constants
