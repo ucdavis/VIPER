@@ -33,14 +33,21 @@ while read local_ref local_sha remote_ref remote_sha; do
     if [[ "$remote_ref" == "refs/heads/Development" ]]; then
         echo "Jenkins build will be triggered in 10 seconds..."
         # Run in background with delay so push completes first
-        # Credentials passed via stdin to avoid exposure in process listings
+        # Credentials passed via stdin to avoid exposure in process listings.
+        # insecure: the internal Jenkins host uses a cert curl does not trust, and
+        # without it the TLS handshake fails and the trigger silently no-ops
+        # (output is discarded). The result is logged so a failed trigger is visible.
         (
             sleep 10
-            curl -s -X POST --ssl-revoke-best-effort --config - <<EOF
+            http_code=$(curl -k -s -o /dev/null -w "%{http_code}" -X POST --ssl-revoke-best-effort --config - <<EOF
 user = "${JENKINS_USER}:${JENKINS_API_TOKEN}"
 url = "${JENKINS_URL}?token=${JENKINS_JOB_TOKEN}&Branch=Development&cause=Git+push+to+Development"
 EOF
-        ) > /dev/null 2>&1 &
+            )
+            if [ "$http_code" != "201" ]; then
+                echo "Warning: Jenkins trigger returned HTTP $http_code (expected 201)" >&2
+            fi
+        ) &
     fi
 done
 
