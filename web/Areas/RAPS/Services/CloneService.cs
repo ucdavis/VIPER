@@ -21,12 +21,12 @@ namespace Viper.Areas.RAPS.Services
             "VMDO SVM-IT"
         };
 
-        public CloneService(RAPSContext context)
+        public CloneService(RAPSContext context, IUserHelper? userHelper = null)
         {
             _context = context;
-            _auditService = new RAPSAuditService(context);
-            _securityService = new RAPSSecurityService(context);
-            UserHelper = new UserHelper();
+            UserHelper = userHelper ?? new UserHelper();
+            _auditService = new RAPSAuditService(context, UserHelper);
+            _securityService = new RAPSSecurityService(context, UserHelper);
         }
 
         private async Task<List<TblRoleMember>> GetRoleMembers(string instance, string memberId)
@@ -185,71 +185,119 @@ namespace Viper.Areas.RAPS.Services
 
         public async Task Clone(string instance, string sourceMemberId, string targetMemberId, CloneConfirm objectsToClone)
         {
+            //GetUserComparison loads the target's existing rows into the change tracker, so Update/Delete
+            //must act on those tracked instances (via FindAsync) instead of attaching new ones with the same keys
             MemberCloneObjects memberCloneObjects = await GetUserComparison(instance, sourceMemberId, targetMemberId);
-            foreach (RoleClone role in memberCloneObjects.Roles
-                .Where(role => objectsToClone.RoleIds.Contains(role.RoleId)))
+            string? modBy = UserHelper.GetCurrentUser()?.LoginId;
+            await CloneRoles(memberCloneObjects.Roles, new HashSet<int>(objectsToClone.RoleIds), targetMemberId, modBy);
+            await ClonePermissions(memberCloneObjects.Permissions, new HashSet<int>(objectsToClone.PermissionIds), targetMemberId, modBy);
+
+            //single save so role changes, permission changes, and audit logs commit or fail together
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task CloneRoles(List<RoleClone> roles, HashSet<int> roleIds, string targetMemberId, string? modBy)
+        {
+            foreach (RoleClone role in roles
+                .Where(role => roleIds.Contains(role.RoleId)))
             {
-                RAPSAuditService.AuditActionType action = RAPSAuditService.AuditActionType.Create;
-                TblRoleMember rm = new()
-                {
-                    RoleId = role.RoleId,
-                    MemberId = targetMemberId,
-                    ModBy = UserHelper.GetCurrentUser()?.LoginId,
-                    ModTime = DateTime.Now,
-                    StartDate = role.Source?.StartDate?.ToDateTime(new TimeOnly(0, 0, 0)),
-                    EndDate = role.Source?.EndDate?.ToDateTime(new TimeOnly(0, 0, 0))
-                };
+                DateTime? startDate = role.Source?.StartDate?.ToDateTime(new TimeOnly(0, 0, 0));
+                DateTime? endDate = role.Source?.EndDate?.ToDateTime(new TimeOnly(0, 0, 0));
                 switch (role.Action)
                 {
                     case RoleClone.CloneAction.Create:
-                        rm.AddDate = DateTime.Now;
-                        _context.TblRoleMembers.Add(rm);
-                        break;
+                        {
+                            TblRoleMember rm = new()
+                            {
+                                RoleId = role.RoleId,
+                                MemberId = targetMemberId,
+                                ModBy = modBy,
+                                ModTime = DateTime.Now,
+                                StartDate = startDate,
+                                EndDate = endDate,
+                                AddDate = DateTime.Now
+                            };
+                            _context.TblRoleMembers.Add(rm);
+                            _auditService.AuditRoleMemberChange(rm, RAPSAuditService.AuditActionType.Create, null, modBy);
+                            break;
+                        }
                     case RoleClone.CloneAction.Update:
-                        action = RAPSAuditService.AuditActionType.Update;
-                        _context.TblRoleMembers.Update(rm);
-                        break;
+                        {
+                            TblRoleMember? existing = await _context.TblRoleMembers.FindAsync(role.RoleId, targetMemberId);
+                            if (existing != null)
+                            {
+                                existing.StartDate = startDate;
+                                existing.EndDate = endDate;
+                                existing.ModBy = modBy;
+                                existing.ModTime = DateTime.Now;
+                                _auditService.AuditRoleMemberChange(existing, RAPSAuditService.AuditActionType.Update, null, modBy);
+                            }
+                            break;
+                        }
                     case RoleClone.CloneAction.Delete:
-                        action = RAPSAuditService.AuditActionType.Delete;
-                        _context.TblRoleMembers.Remove(rm);
-                        break;
+                        {
+                            TblRoleMember? existing = await _context.TblRoleMembers.FindAsync(role.RoleId, targetMemberId);
+                            if (existing != null)
+                            {
+                                _context.TblRoleMembers.Remove(existing);
+                                _auditService.AuditRoleMemberChange(existing, RAPSAuditService.AuditActionType.Delete, null, modBy);
+                            }
+                            break;
+                        }
                 }
-                _auditService.AuditRoleMemberChange(rm, action, null);
             }
-            await _context.SaveChangesAsync();
+        }
 
-            foreach (PermissionClone permission in memberCloneObjects.Permissions
-                .Where(p => objectsToClone.PermissionIds.Contains(p.PermissionId)))
+        private async Task ClonePermissions(List<PermissionClone> permissions, HashSet<int> permissionIds, string targetMemberId, string? modBy)
+        {
+            foreach (PermissionClone permission in permissions
+                .Where(p => permissionIds.Contains(p.PermissionId)))
             {
-                RAPSAuditService.AuditActionType action = RAPSAuditService.AuditActionType.Create;
-                TblMemberPermission mp = new()
-                {
-                    PermissionId = permission.PermissionId,
-                    MemberId = targetMemberId,
-                    ModBy = UserHelper.GetCurrentUser()?.LoginId,
-                    ModTime = DateTime.Now,
-                    StartDate = permission.Source?.StartDate,
-                    EndDate = permission.Source?.EndDate,
-                    Access = permission.Source?.Access ?? 1
-                };
                 switch (permission.Action)
                 {
                     case PermissionClone.CloneAction.Create:
-                        mp.AddDate = DateTime.Now;
-                        _context.TblMemberPermissions.Add(mp);
-                        break;
+                        {
+                            TblMemberPermission mp = new()
+                            {
+                                PermissionId = permission.PermissionId,
+                                MemberId = targetMemberId,
+                                ModBy = modBy,
+                                ModTime = DateTime.Now,
+                                StartDate = permission.Source?.StartDate,
+                                EndDate = permission.Source?.EndDate,
+                                Access = permission.Source?.Access ?? 1,
+                                AddDate = DateTime.Now
+                            };
+                            _context.TblMemberPermissions.Add(mp);
+                            _auditService.AuditPermissionMemberChange(mp, RAPSAuditService.AuditActionType.Create);
+                            break;
+                        }
                     case PermissionClone.CloneAction.Delete:
-                        action = RAPSAuditService.AuditActionType.Delete;
-                        _context.TblMemberPermissions.Remove(mp);
-                        break;
+                        {
+                            TblMemberPermission? existing = await _context.TblMemberPermissions.FindAsync(targetMemberId, permission.PermissionId);
+                            if (existing != null)
+                            {
+                                _context.TblMemberPermissions.Remove(existing);
+                                _auditService.AuditPermissionMemberChange(existing, RAPSAuditService.AuditActionType.Delete);
+                            }
+                            break;
+                        }
                     default: //Update, AccessFlag, UpdateAndAccessFlag
-                        action = RAPSAuditService.AuditActionType.Update;
-                        _context.TblMemberPermissions.Update(mp);
-                        break;
+                        {
+                            TblMemberPermission? existing = await _context.TblMemberPermissions.FindAsync(targetMemberId, permission.PermissionId);
+                            if (existing != null)
+                            {
+                                existing.StartDate = permission.Source?.StartDate;
+                                existing.EndDate = permission.Source?.EndDate;
+                                existing.Access = permission.Source?.Access ?? 1;
+                                existing.ModBy = modBy;
+                                existing.ModTime = DateTime.Now;
+                                _auditService.AuditPermissionMemberChange(existing, RAPSAuditService.AuditActionType.Update);
+                            }
+                            break;
+                        }
                 }
-                _auditService.AuditPermissionMemberChange(mp, action);
             }
-            await _context.SaveChangesAsync();
         }
     }
 }

@@ -152,12 +152,18 @@
             methods: {
                 //if both source and target user are selected, load the roles/permissions to clone
                 checkUsersSelected: function () {
-                    if (this?.sourceUser?.value.length && this?.targetUser?.value.length) {
+                    //any reload invalidates row selections from the previous comparison
+                    this.selectedRoles = []
+                    this.selectedPermissions = []
+                    if (this.sourceUser?.value?.length && this.targetUser?.value?.length) {
                         viperFetch(this, `Members/${this.sourceUser.value}/cloneTo/${this.targetUser.value}`)
                             .then(data => {
                                 this.cloneObject = data
                                 this.dataLoaded = true
                             })
+                    }
+                    else {
+                        this.dataLoaded = false
                     }
                 },
                 submitClone: async function () {
@@ -179,7 +185,7 @@
 
                     if(this.VMACSPush) {
                         Quasar.Loading.show({ message: "Updating VMACS" })
-                        await viperFetch(this, "Members/" + this.sourceUser.value + "/Roles/VMACSExport", { method: "POST" })
+                        await viperFetch(this, "Members/" + this.targetUser.value + "/Roles/VMACSExport", { method: "POST" })
                         Quasar.Loading.hide()
                     }
                 }
