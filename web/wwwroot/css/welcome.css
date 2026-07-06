@@ -78,6 +78,15 @@
        the gradient-darkened photo, so make focus visible and obvious. */
     --welcome-focus-ring: 0 0 0 0.1875rem rgba(255, 197, 25, 0.85);
 
+    /* Ambient-tinted shadows: Aggie Blue rather than black, so every darkening
+       layer on the splash (hero gradients, legibility bands, these halos, the
+       card lift) derives from the same brand hue. Alphas sit slightly above the
+       old black values to preserve perceived depth. Mirrored in DESIGN.md's
+       Shadow Vocabulary. */
+    --welcome-text-halo: 0 0.125rem 0.5rem rgba(2, 40, 81, 0.5);
+    --welcome-footer-halo: 0 0.0625rem 0.1875rem rgba(2, 40, 81, 0.6);
+    --welcome-card-shadow: 0 1.875rem 5rem rgba(2, 40, 81, 0.5);
+
     --welcome-font: "Proxima Nova", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
@@ -284,7 +293,7 @@ body {
     z-index: 1;
     /* Soft halo so the editorial text stays legible against bright photo regions
        (e.g., the building photo) without needing per-image gradient tuning. */
-    text-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.45);
+    text-shadow: var(--welcome-text-halo);
 }
 
 .welcome-editorial__rule {
@@ -324,7 +333,7 @@ body {
     color: var(--welcome-card-fg);
     padding: 2.5rem;
     border-top: 0.1875rem solid var(--welcome-accent);
-    box-shadow: 0 1.875rem 5rem rgba(0, 0, 0, 0.45);
+    box-shadow: var(--welcome-card-shadow);
 }
 
 .welcome-card__heading {
@@ -405,7 +414,7 @@ body {
     align-items: center;
     gap: 1rem;
     letter-spacing: 0.04em;
-    text-shadow: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.55);
+    text-shadow: var(--welcome-footer-halo);
 }
 
 .welcome-footer__links {
