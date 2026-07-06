@@ -9,7 +9,7 @@
             label="Filters"
             header-class="bg-grey-2 lt-md"
             :header-style="$q.screen.gt.sm ? 'display: none' : ''"
-            class="q-mb-sm"
+            class="q-mb-md"
         >
             <q-card flat>
                 <q-card-section :class="$q.screen.gt.sm ? 'q-pa-none' : ''">
@@ -134,36 +134,35 @@
                             />
                         </div>
                     </div>
+                    <div class="row q-mt-sm">
+                        <div class="col-12 text-right">
+                            <q-btn
+                                label="Clear Filters"
+                                color="secondary"
+                                dense
+                                flat
+                                @click="clearFilter"
+                            />
+                        </div>
+                    </div>
                 </q-card-section>
             </q-card>
         </q-expansion-item>
 
-        <!-- Search box on its own row above the table, matching the CMS audit trail. Unlike the
-             CMS audit (few filters), this page keeps a bulk Clear Filters button: it has nine
-             filters and clearing also reloads the cascading subject/course dropdown options. -->
-        <div class="row items-center q-mb-sm">
-            <div class="col-12 col-sm-4 col-lg-3">
-                <q-input
-                    v-model="filter.searchText"
-                    label="Search changes"
-                    dense
-                    outlined
-                    clearable
-                    hide-bottom-space
-                >
-                    <template #prepend>
-                        <q-icon name="search" />
-                    </template>
-                </q-input>
-            </div>
-            <q-space />
-            <q-btn
-                label="Clear Filters"
-                color="secondary"
+        <!-- Free-text search across change details, on top of the results table -->
+        <div class="row q-mb-md">
+            <q-input
+                v-model="filter.searchText"
+                :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-4' : 'col-12'"
+                label="Search changes"
                 dense
-                flat
-                @click="clearFilter"
-            />
+                outlined
+                clearable
+            >
+                <template #prepend>
+                    <q-icon name="search" />
+                </template>
+            </q-input>
         </div>
 
         <!-- Results Table - Desktop view (lg and up) -->
