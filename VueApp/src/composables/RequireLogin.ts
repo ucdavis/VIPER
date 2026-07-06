@@ -44,12 +44,14 @@ function getCurrentPath(): string {
  */
 function getLoginUrl(): ComputedRef<string> {
     const route = useRoute()
+    const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
+    const applicationBase = viperHome.length === 1 ? "" : viperHome.slice(0, -1)
     return computed(() => {
-        // Reference route.fullPath so the URL recomputes after navigation. Optional chaining
-        // keeps this safe outside a router context (e.g. unit tests). The value itself comes
-        // from getCurrentPath, which includes the app base prefix that route.fullPath omits.
-        const _routeDep = route?.fullPath
-        return buildLoginUrl(getCurrentPath(), "login")
+        // Reading route.fullPath makes this reactive (the URL recomputes after navigation), but it
+        // omits the app base the router was created with, so prefix it back (same pattern as
+        // requireLogin). Fall back to the browser location outside a router context (e.g. unit tests).
+        const returnPath = route ? `${applicationBase}${route.fullPath}` : getCurrentPath()
+        return buildLoginUrl(returnPath, "login")
     })
 }
 

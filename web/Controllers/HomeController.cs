@@ -110,7 +110,7 @@ namespace Viper.Controllers
             // Only passive arrivals get the splash: the bare site root or a top-level area
             // landing page (e.g. "/ClinicalScheduler"). A deep link (e.g. "/ClinicalScheduler/rotation")
             // skips the interstitial and goes straight to CAS so we don't interrupt a targeted workflow.
-            if (!IsSplashTarget(relativeReturnUrl, GetAreaNames()))
+            if (!IsSplashTarget(relativeReturnUrl, GetAreaNames(_actionDescriptorProvider)))
             {
                 return RedirectToAction(nameof(Login), new { ReturnUrl });
             }
@@ -164,16 +164,31 @@ namespace Viper.Controllers
         // no hand-maintained list: add an area the usual way and it is picked up automatically.
         private const string AreaNamespacePrefix = "Viper.Areas.";
 
+        // Cached per descriptor collection: the collection is immutable and replaced wholesale
+        // (new instance) only when endpoints change, so the area set is derived once instead of
+        // per anonymous /welcome request. Benign race: concurrent first requests may each compute
+        // the set; last writer wins with an identical result.
+        private static (ActionDescriptorCollection Source, HashSet<string> Areas)? _areaNamesCache;
+
         // The set of top-level area names (e.g. "Effort", "ClinicalScheduler"). Used to tell an area
         // landing page ("/Effort" → splash) apart from a deep link ("/Effort/Reports" → CAS).
-        private HashSet<string> GetAreaNames()
+        private static HashSet<string> GetAreaNames(IActionDescriptorCollectionProvider actionDescriptorProvider)
         {
-            return _actionDescriptorProvider.ActionDescriptors.Items
-                .OfType<ControllerActionDescriptor>()
-                .Select(d => AreaFromControllerNamespace(d.ControllerTypeInfo.Namespace))
-                .Where(area => area != null)
-                .Select(area => area!)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var descriptors = actionDescriptorProvider.ActionDescriptors;
+            var cache = _areaNamesCache;
+            if (cache == null || !ReferenceEquals(cache.Value.Source, descriptors))
+            {
+                var areas = descriptors.Items
+                    .OfType<ControllerActionDescriptor>()
+                    .Select(d => AreaFromControllerNamespace(d.ControllerTypeInfo.Namespace))
+                    .Where(area => area != null)
+                    .Select(area => area!)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                cache = (descriptors, areas);
+                _areaNamesCache = cache;
+            }
+
+            return cache.Value.Areas;
         }
 
         // Extracts the area segment from a controller namespace, e.g. "Viper.Areas.Effort.Controllers"
@@ -216,6 +231,19 @@ namespace Viper.Controllers
             }
 
             return areaNames.Contains(path);
+        }
+
+        // Routing is case-insensitive, so the /api guard must be too; matching on a segment
+        // boundary keeps non-API paths that merely start with "api" (e.g. "/apiary") out of
+        // the guard. internal (not private) so it is unit-testable via InternalsVisibleTo.
+        internal static bool IsApiPath(string url)
+        {
+            if (!url.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return url.Length == 4 || url[4] is '/' or '?' or '#';
         }
 
         // Removes the application's PathBase prefix (e.g. "/2" in a subpath deployment) from a return
@@ -296,7 +324,8 @@ namespace Viper.Controllers
             // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
             // "/2/api/..." ReturnUrl can't slip past this root-relative check and get
             // forwarded to CAS.
-            if (StripPathBase(returnURL, Request.PathBase.Value)?.StartsWith("/api") == true)
+            var apiCheckUrl = StripPathBase(returnURL, Request.PathBase.Value);
+            if (apiCheckUrl != null && IsApiPath(apiCheckUrl))
             {
                 return Unauthorized();
             }

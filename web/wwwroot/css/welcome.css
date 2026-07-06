@@ -171,7 +171,8 @@ body {
 /* -------- Hero ------------------------------------------------------------ */
 .welcome-hero {
     position: relative;
-    min-height: calc(100vh - 3.1875rem);
+    /* Fill the viewport below the header: 0.75rem bar padding + 2.75rem brand + 0.1875rem rule. */
+    min-height: calc(100vh - 3.6875rem);
     overflow: hidden;
     display: flex;
     align-items: center;

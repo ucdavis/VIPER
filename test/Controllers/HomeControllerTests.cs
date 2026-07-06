@@ -337,8 +337,25 @@ public sealed class HomeControllerTests
         Assert.Equal("~/", redirect.Url);
     }
 
+    // The /api guard matches the api segment case-insensitively (routing is case-insensitive) and
+    // on a segment boundary, so "/api", "/api/...", "/api?..." are rejected in any casing while
+    // non-API paths that merely start with "api" (e.g. "/apiary") pass through to CAS.
+    [Theory]
+    [InlineData("/api", true)]
+    [InlineData("/api/foo", true)]
+    [InlineData("/API/foo", true)]
+    [InlineData("/Api?x=1", true)]
+    [InlineData("/api#frag", true)]
+    [InlineData("/apiary", false)]
+    [InlineData("/", false)]
+    public void IsApiPath_MatchesApiSegmentCaseInsensitivelyOnBoundary(string url, bool expected)
+    {
+        Assert.Equal(expected, HomeController.IsApiPath(url));
+    }
+
     [Theory]
     [InlineData("/api/secret")]
+    [InlineData("/API/secret")] // routing is case-insensitive, so the guard must be too
     [InlineData("~/api/secret")] // app-relative form must not bypass the /api guard
     public void Login_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
     {
@@ -349,11 +366,24 @@ public sealed class HomeControllerTests
         Assert.IsType<UnauthorizedResult>(result);
     }
 
+    // A non-API path that merely starts with "api" is not caught by the guard; it proceeds to the
+    // normal CAS redirect.
+    [Fact]
+    public void Login_ForwardsNonApiPathStartingWithApiToCas()
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Login("/apiary");
+
+        Assert.IsType<RedirectResult>(result);
+    }
+
     // Under a subpath deployment the /api ReturnUrl arrives base-prefixed ("/2/api/..."). The base is
     // stripped before the guard so it is still rejected and never forwarded to CAS. Regression guard for
     // the pre-strip /api check that a "/2/api/..." ReturnUrl slipped past.
     [Theory]
     [InlineData("/2/api/secret")]
+    [InlineData("/2/API/secret")] // base-prefixed + mixed case must not bypass the guard
     [InlineData("~/2/api/secret")] // app-relative + base-prefixed must not bypass the guard either
     public void Login_RejectsSubpathApiReturnUrl_WithUnauthorized(string returnUrl)
     {

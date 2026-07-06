@@ -362,8 +362,7 @@ try
 
         // Allow fonts to be downloaded from:
         csp.AllowFonts
-            .FromSelf()// This domain
-            .From("fonts.gstatic.com");
+            .FromSelf(); // Self-hosted under /fonts - no external font CDN
 
         // Allow other sites to put this in an iframe?
         csp.AllowFraming
@@ -387,7 +386,6 @@ try
         // Allow styles
         csp.AllowStyles
             .FromSelf() // This domain
-            .From("fonts.googleapis.com") // Google Fonts stylesheets
             .AllowUnsafeInline(); // Allows inline CSS
     }));
 
@@ -442,6 +440,7 @@ try
         RedirectToAppendTrailingSlash = true
     });
 
+    // Login screen fonts, served with long-lived cache headers.
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(
