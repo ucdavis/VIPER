@@ -94,6 +94,7 @@
             "rules": {
                 "no-console": "off",
                 "no-void": "off",
+                "no-implicit-globals": "off",
                 "import/no-commonjs": "off",
                 "import/no-nodejs-modules": "off",
                 "import/unambiguous": "off",
