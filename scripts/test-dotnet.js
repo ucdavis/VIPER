@@ -84,13 +84,28 @@ function ensureBuild() {
 }
 
 /**
+ * Build `dotnet test` args from the CLI: bare patterns become a FullyQualifiedName
+ * filter (npm run test:backend -- MyTestClass); if any arg starts with "-",
+ * all args pass through to `dotnet test` verbatim
+ * @returns {string[]}
+ */
+function getTestArgs() {
+    const args = process.argv.slice(2)
+    if (args.length === 0 || args.some((arg) => arg.startsWith("-"))) {
+        return args
+    }
+    return ["--filter", args.map((pattern) => `FullyQualifiedName~${pattern}`).join("|")]
+}
+
+/**
  * Run dotnet test
+ * @param {string[]} extraArgs - Additional args forwarded to `dotnet test`
  * @returns {boolean} - Success status
  */
-function runTests() {
-    logger.info("Running tests...")
+function runTests(extraArgs) {
+    logger.info(extraArgs.length > 0 ? `Running tests: ${extraArgs.join(" ")}` : "Running tests...")
     try {
-        execFileSync("dotnet", ["test", precommitDll, "--verbosity=normal", "--nologo"], {
+        execFileSync("dotnet", ["test", precommitDll, "--verbosity=normal", "--nologo", ...extraArgs], {
             encoding: "utf8",
             timeout: 300_000, // 5 minute timeout for tests
             stdio: "inherit",
@@ -115,7 +130,7 @@ function main() {
     }
 
     // Run tests
-    const testSuccess = runTests()
+    const testSuccess = runTests(getTestArgs())
     process.exit(testSuccess ? 0 : 1)
 }
 
