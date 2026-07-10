@@ -36,7 +36,8 @@ while read local_ref local_sha remote_ref remote_sha; do
         # Credentials passed via stdin to avoid exposure in process listings
         (
             sleep 10
-            curl -s -X POST --ssl-revoke-best-effort --config - <<EOF
+            # -k: skip TLS verification for the internal Jenkins self-signed cert (interim until the CA is trusted)
+            curl -s -k -X POST --ssl-revoke-best-effort --config - <<EOF
 user = "${JENKINS_USER}:${JENKINS_API_TOKEN}"
 url = "${JENKINS_URL}?token=${JENKINS_JOB_TOKEN}&Branch=Development&cause=Git+push+to+Development"
 EOF
