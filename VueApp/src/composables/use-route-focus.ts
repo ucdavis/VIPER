@@ -24,6 +24,12 @@ export function useRouteFocus(router: Router) {
                     main.setAttribute("tabindex", "-1")
                     main.addEventListener("blur", () => main.removeAttribute("tabindex"), { once: true })
                 }
+                // Tag this focus as route-driven so CSS can suppress the landmark
+                // focus ring: browsers count programmatic focus() as :focus-visible
+                // after keyboard input or on a fresh page load, which would draw
+                // the ring on every navigation. The ring belongs to skip-link jumps.
+                main.dataset.routeFocus = ""
+                main.addEventListener("blur", () => delete main.dataset.routeFocus, { once: true })
                 main.focus({ preventScroll: true })
             }
         })

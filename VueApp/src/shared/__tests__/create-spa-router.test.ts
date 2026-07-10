@@ -73,6 +73,30 @@ describe("route-change focus management", () => {
         expect(document.activeElement?.id).toBe("main-content")
     })
 
+    it("tags route-driven focus so CSS suppresses the landmark focus ring", async () => {
+        const router = buildRouter()
+        await router.push("/")
+        await router.isReady()
+
+        await router.push("/other")
+        await nextTick()
+
+        expect(document.querySelector<HTMLElement>("#main-content")!.dataset.routeFocus).toBeDefined()
+    })
+
+    it("clears the route-focus tag on blur so a later skip-link jump keeps its ring", async () => {
+        const router = buildRouter()
+        await router.push("/")
+        await router.isReady()
+
+        await router.push("/other")
+        await nextTick()
+
+        document.querySelector<HTMLElement>("#leftNavMenu")!.focus()
+
+        expect(document.querySelector<HTMLElement>("#main-content")!.dataset.routeFocus).toBeUndefined()
+    })
+
     it("does not steal focus on in-page anchor navigation (skip links)", async () => {
         const router = buildRouter()
         await router.push("/other")
