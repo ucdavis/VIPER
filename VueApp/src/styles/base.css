@@ -555,9 +555,11 @@ header .q-avatar {
     top: 0;
 }
 
-/* Programmatic/mouse focus on the landmark containers stays quiet (useRouteFocus moves
-   focus for screen-reader announcements), but keyboard-initiated focus — a skip link
-   activated with Enter — keeps a visible ring so the jump target is apparent. */
+/* The landmark focus ring marks skip-link jumps (WCAG 2.4.7). Route-change
+   focus (useRouteFocus, for screen-reader announcements) tags itself with
+   data-route-focus and stays ringless: browsers count programmatic focus()
+   as :focus-visible after keyboard input or on a fresh page load, which
+   would otherwise draw the ring on every navigation. */
 #main-content:focus,
 #leftNavMenu:focus {
     outline: none;
@@ -567,6 +569,10 @@ header .q-avatar {
 #leftNavMenu:focus-visible {
     outline: 2px solid var(--q-primary);
     outline-offset: -2px;
+}
+
+#main-content[data-route-focus]:focus-visible {
+    outline: none;
 }
 
 /* Workspace links carry the brand (DESIGN.md: Aggie Blue is the link color);
