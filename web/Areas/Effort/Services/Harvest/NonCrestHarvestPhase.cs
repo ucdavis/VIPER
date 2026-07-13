@@ -429,13 +429,12 @@ public sealed class NonCrestHarvestPhase : HarvestPhaseBase
         }
 
         foreach (var course in courses
-            .Where(c => c.Source == EffortConstants.SourceNonCrest && !academicDepts.Contains(c.CustDept)))
+            .Where(c => c.Source == EffortConstants.SourceNonCrest
+                && !academicDepts.Contains(c.CustDept)
+                && !string.IsNullOrWhiteSpace(c.Crn)
+                && directorDeptByCrn.ContainsKey(c.Crn)))
         {
-            if (!string.IsNullOrWhiteSpace(course.Crn) &&
-                directorDeptByCrn.TryGetValue(course.Crn, out var iorDept))
-            {
-                course.CustDept = iorDept;
-            }
+            course.CustDept = directorDeptByCrn[course.Crn];
         }
     }
 }
