@@ -1,16 +1,9 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Models.AAUD;
-using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Areas.Directory.Models;
-using System.Runtime.Versioning;
-using System.Collections.Generic;
 using Viper.Areas.Directory.Services;
-using Viper.Classes.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Viper.Areas.Directory.Controllers
@@ -20,13 +13,13 @@ namespace Viper.Areas.Directory.Controllers
     public class UserInfoController : AreaController
     {
         public Classes.SQLContext.AAUDContext _aaud;
-        private UserInfoService _userInfo;
+        private readonly UserInfoService _userInfo;
         public IUserHelper UserHelper;
         private readonly RAPSContext _rapsContext;
 
         public UserInfoController(
-            RAPSContext rapsContext, 
-            AAUDContext aaudContext, 
+            RAPSContext rapsContext,
+            AAUDContext aaudContext,
             CoursesContext coursesContext,
             EquipmentLoanContext equipmentLoanContext,
             PPSContext ppsContext,
@@ -36,12 +29,12 @@ namespace Viper.Areas.Directory.Controllers
             _aaud = aaudContext;
             _rapsContext = rapsContext;
             UserHelper = new UserHelper();
-            
+
             // Get services from DI container
             var httpClientFactory = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IHttpClientFactory)) as IHttpClientFactory;
             var memoryCache = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IMemoryCache)) as IMemoryCache;
             var configuration = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration;
-            
+
             _userInfo = new UserInfoService(
                 aaudContext,
                 rapsContext,
@@ -106,18 +99,6 @@ namespace Viper.Areas.Directory.Controllers
                 userInfo.CanViewLoans = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.loans");
                 userInfo.CanViewInstinct = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
                 userInfo.CanViewADGroups = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
-
-                userInfo.CanViewDirectoryDetail = true;
-                userInfo.CanViewStudentID = true;
-                userInfo.CanViewIAM = true;
-                userInfo.CanViewRoles = true;
-                userInfo.CanViewUCPath = true;
-                userInfo.CanViewUCPathDetail = true;
-                userInfo.CanViewIDCards = true;
-                userInfo.CanViewKeys = true;
-                userInfo.CanViewLoans = true;
-                userInfo.CanViewInstinct = true;
-                userInfo.CanViewADGroups = true;
 
                 return View("~/Areas/Directory/Views/UserInfo.cshtml", userInfo);
             }

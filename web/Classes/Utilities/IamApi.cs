@@ -1,5 +1,4 @@
 using System.Collections.Specialized;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Web;
@@ -472,15 +471,15 @@ namespace Viper.Classes.Utilities
                 return null;
             }
 
-            foreach (var format in _formats.Where(f => DateTime.TryParseExact(value, f, null, System.Globalization.DateTimeStyles.None, out _)))
+            foreach (var format in _formats)
             {
-                if (DateTime.TryParseExact(value, format, null, System.Globalization.DateTimeStyles.None, out var result))
+                if (DateTime.TryParseExact(value, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var result))
                 {
                     return result;
                 }
             }
 
-            if (DateTime.TryParse(value, out var dt))
+            if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
             {
                 return dt;
             }

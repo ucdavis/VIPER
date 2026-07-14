@@ -2,16 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
@@ -19,11 +11,8 @@ using Viper.Models.AAUD;
 using Viper.Models.EquipmentLoan;
 using Viper.Models.IDCards;
 using Viper.Models.Keys;
-using Viper.Models.PPS;
 using Viper.Models.RAPS;
 using Viper.Models.Courses;
-using Viper.Models.IAM;
-using Xunit;
 
 namespace Viper.test.Services
 {
@@ -35,7 +24,7 @@ namespace Viper.test.Services
         public UserInfoServiceUnitTests()
         {
             _memoryCache = new MemoryCache(new MemoryCacheOptions());
-            
+
             var configData = new Dictionary<string, string?>
             {
                 { "Instinct:ApiUrl", "https://uc-davis.api.instinctvet.com/" },
@@ -63,15 +52,15 @@ namespace Viper.test.Services
         }
 
         private AaudUser CreateTestUser(
-            string iamId, 
-            string mothraId, 
-            string loginId = "testuser", 
-            string? employeeId = null, 
-            string? employeePKey = null, 
-            string? studentPKey = null, 
-            string? firstName = "Jane", 
-            string? lastName = "Doe", 
-            string? middleName = null, 
+            string iamId,
+            string mothraId,
+            string loginId = "testuser",
+            string? employeeId = null,
+            string? employeePKey = null,
+            string? studentPKey = null,
+            string? firstName = "Jane",
+            string? lastName = "Doe",
+            string? middleName = null,
             string? displayFullName = "Jane Doe",
             string? pidm = null)
         {
@@ -381,7 +370,7 @@ namespace Viper.test.Services
                     LoanComments = "Projector Loan"
                 };
                 loansSetup.Loans.Add(newLoan);
-                
+
                 var asset = new Asset
                 {
                     AssetId = 808,
@@ -398,7 +387,7 @@ namespace Viper.test.Services
                     LoanitemCheckout = DateTime.Today,
                     LoanitemCheckoutPidm = "checkout-pidm"
                 });
-                
+
                 await loansSetup.SaveChangesAsync();
             }
 
@@ -505,7 +494,7 @@ namespace Viper.test.Services
 
             // Assert
             Assert.NotNull(result);
-            
+
             // Check formatted Roles
             Assert.Single(result.SystemRoles);
             Assert.Equal("VIPER", result.SystemRoles[0].System);
@@ -767,6 +756,35 @@ namespace Viper.test.Services
             Assert.Null(response.ErrorMessage);
             Assert.NotNull(response.Data);
             Assert.Single(response.Data);
+        }
+
+        [Theory]
+        [InlineData("2026-07-13 14:00:00", 2026, 7, 13, 14, 0, 0)]
+        [InlineData("2026-07-13", 2026, 7, 13, 0, 0, 0)]
+        [InlineData("2026-07-13T14:00:00", 2026, 7, 13, 14, 0, 0)]
+        [InlineData("", 0, 0, 0, 0, 0, 0)]
+        [InlineData(null, 0, 0, 0, 0, 0, 0)]
+        public void TestIamDateTimeConverter(string? input, int expectedYear, int expectedMonth, int expectedDay, int expectedHour, int expectedMinute, int expectedSecond)
+        {
+            var options = new System.Text.Json.JsonSerializerOptions();
+            options.Converters.Add(new IamDateTimeConverter());
+
+            if (input == null)
+            {
+                var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>("null", options);
+                Assert.Null(result);
+            }
+            else if (string.IsNullOrEmpty(input))
+            {
+                var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>("\"\"", options);
+                Assert.Null(result);
+            }
+            else
+            {
+                var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>($"\"{input}\"", options);
+                Assert.NotNull(result);
+                Assert.Equal(new DateTime(expectedYear, expectedMonth, expectedDay, expectedHour, expectedMinute, expectedSecond, DateTimeKind.Unspecified), result.Value);
+            }
         }
 
         private class MockHttpMessageHandler : HttpMessageHandler
