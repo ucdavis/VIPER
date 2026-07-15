@@ -41,7 +41,7 @@
                 class="q-mb-md"
             >
                 <!-- Week grid -->
-                <div class="row q-gutter-md q-mb-lg q-pa-md">
+                <div class="row q-gutter-md q-mb-lg q-pa-md schedule-week-grid">
                     <WeekCell
                         v-for="week in semester.weeks"
                         :key="week.weekId"
@@ -55,10 +55,12 @@
                         :is-loading="loadingWeekId === week.weekId"
                         :selectable="enableWeekSelection"
                         :selected="isWeekSelected(week.weekId)"
+                        :can-view-history="canShowHistory"
                         @click="onWeekClick"
                         @shift-click="onWeekShiftClick"
                         @remove-assignment="handleRemoveAssignment"
                         @toggle-primary="handleTogglePrimary"
+                        @view-history="openWeekHistory"
                     />
                 </div>
             </q-expansion-item>
@@ -69,7 +71,19 @@
             v-if="showLegend && schedulesBySemester && schedulesBySemester.length > 0"
             :show-warning="showWarningInLegend"
             :show-bulk-guide="enableWeekSelection"
+            :show-history="canViewHistory"
             :item-type="viewMode === 'rotation' ? 'clinician' : 'rotation'"
+        />
+
+        <!-- One shared dialog; the clicked week sets where it opens, then it pages the schedule.
+             Always mounted (it self-guards on a null context) to keep the template simpler. -->
+        <WeekHistoryDialog
+            v-model="historyOpen"
+            :view-mode="viewMode"
+            :context-id="historyContextId"
+            :context-label="historyContextLabel"
+            :weeks="allWeeks"
+            :start-week-id="historyStartWeekId"
         />
     </div>
 </template>
@@ -78,6 +92,7 @@
 import { computed, ref } from "vue"
 import { useKeyModifier, useEventListener } from "@vueuse/core"
 import WeekCell from "./WeekCell.vue"
+import WeekHistoryDialog from "./WeekHistoryDialog.vue"
 import ScheduleLegend from "./ScheduleLegend.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import type { WeekItem, ScheduleAssignment, ScheduleSemester, ViewMode } from "./schedule-view-types"
@@ -110,6 +125,11 @@ interface Props {
     // Selection mode
     enableWeekSelection?: boolean
 
+    // Inline per-week history (manager-only)
+    canViewHistory?: boolean
+    historyContextId?: number | string | null
+    historyContextLabel?: string
+
     // Custom messages
     noDataMessage?: string
     emptyStateMessage?: string
@@ -141,6 +161,9 @@ const props = withDefaults(defineProps<Props>(), {
     showPrimaryToggle: true,
     requiresPrimaryForWeek: false,
     enableWeekSelection: false,
+    canViewHistory: false,
+    historyContextId: null,
+    historyContextLabel: "",
     noDataMessage: "No schedule data available",
     emptyStateMessage: "Click to add assignment",
     readOnlyEmptyMessage: "No assignments",
@@ -178,6 +201,22 @@ const allWeeks = computed(() => {
     }
     return weeks
 })
+
+// Gate once here (context is schedule-level), then feed the flat week list to one shared dialog.
+const canShowHistory = computed(
+    () =>
+        props.canViewHistory &&
+        props.historyContextId !== null &&
+        props.historyContextId !== undefined &&
+        props.historyContextId !== "",
+)
+const historyOpen = ref(false)
+const historyStartWeekId = ref<number | null>(null)
+
+function openWeekHistory(week: WeekItem) {
+    historyStartWeekId.value = week.weekId
+    historyOpen.value = true
+}
 
 // Check if a week is selected
 function isWeekSelected(weekId: number): boolean {
@@ -349,5 +388,13 @@ defineExpose({
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+/* Mobile single column: q-gutter-md adds only a left margin, which left-pins the card */
+@media (max-width: 599.98px) {
+    .schedule-week-grid,
+    .schedule-week-grid > * {
+        margin-left: 0;
+    }
 }
 </style>
