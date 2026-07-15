@@ -121,6 +121,7 @@ namespace Viper.test.ClinicalScheduler
             var auditEntry1 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded);
             var auditEntry2 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.PrimaryEvaluatorSet);
             var auditEntry3 = CreateAuditEntry("other456", 2, 1, "modifier", ScheduleAuditActions.InstructorAdded); // Different rotation
+            var auditEntry4 = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded, ScheduleAuditAreas.Students); // Student area
 
             // Create an InstructorSchedule record first since the method looks it up
             await _context.InstructorSchedules.AddAsync(new InstructorSchedule
@@ -132,7 +133,7 @@ namespace Viper.test.ClinicalScheduler
                 Evaluator = false
             });
 
-            await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3);
+            await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4);
             await _context.SaveChangesAsync();
 
             // Act
@@ -157,8 +158,9 @@ namespace Viper.test.ClinicalScheduler
             var auditEntry2 = CreateAuditEntry("test456", rotationId, weekId, "modifier", ScheduleAuditActions.InstructorRemoved);
             var auditEntry3 = CreateAuditEntry("test789", 2, weekId, "modifier", ScheduleAuditActions.InstructorAdded); // Different rotation
             var auditEntry4 = CreateAuditEntry("test321", rotationId, 2, "modifier", ScheduleAuditActions.InstructorAdded); // Different week
+            var auditEntry5 = CreateAuditEntry("student1", rotationId, weekId, "modifier", ScheduleAuditActions.InstructorAdded, ScheduleAuditAreas.Students); // Student area
 
-            await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4);
+            await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4, auditEntry5);
             await _context.SaveChangesAsync();
 
             // Act
@@ -173,6 +175,40 @@ namespace Viper.test.ClinicalScheduler
             });
             Assert.Contains(result, entry => entry.MothraId == "test123");
             Assert.Contains(result, entry => entry.MothraId == "test456");
+        }
+
+        [Fact]
+        public async Task GetRotationWeekAuditAsync_ExcludesStudentAreaEntries()
+        {
+            // The shared audit table also records student schedule changes for the
+            // same rotation/week; the clinician-page popover must not show them.
+            var clinicianEntry = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded);
+            var studentEntry = CreateAuditEntry("student1", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded, ScheduleAuditAreas.Students);
+            await _context.ScheduleAudits.AddRangeAsync(clinicianEntry, studentEntry);
+            await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var result = await _service.GetRotationWeekAuditAsync(1, 1, TestContext.Current.CancellationToken);
+
+            var entry = Assert.Single(result);
+            Assert.Equal("test123", entry.MothraId);
+            Assert.Equal(ScheduleAuditAreas.Clinicians, entry.Area);
+        }
+
+        [Fact]
+        public async Task GetClinicianWeekAuditAsync_ExcludesStudentAreaEntries()
+        {
+            // A clinician who was previously a UCD student must not see their
+            // student-era entries mixed into their clinician week history.
+            var clinicianEntry = CreateAuditEntry("test123", 1, 1, "modifier", ScheduleAuditActions.InstructorAdded);
+            var studentEntry = CreateAuditEntry("test123", 2, 1, "modifier", ScheduleAuditActions.InstructorAdded, ScheduleAuditAreas.Students);
+            await _context.ScheduleAudits.AddRangeAsync(clinicianEntry, studentEntry);
+            await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var result = await _service.GetClinicianWeekAuditAsync("test123", 1, TestContext.Current.CancellationToken);
+
+            var entry = Assert.Single(result);
+            Assert.Equal(1, entry.RotationId);
+            Assert.Equal(ScheduleAuditAreas.Clinicians, entry.Area);
         }
 
         [Fact]
@@ -202,7 +238,7 @@ namespace Viper.test.ClinicalScheduler
             Assert.Empty(result);
         }
 
-        private ScheduleAudit CreateAuditEntry(string mothraId, int rotationId, int weekId, string modifiedBy, string action)
+        private ScheduleAudit CreateAuditEntry(string mothraId, int rotationId, int weekId, string modifiedBy, string action, string area = ScheduleAuditAreas.Clinicians)
         {
             return new ScheduleAudit
             {
@@ -212,7 +248,7 @@ namespace Viper.test.ClinicalScheduler
                 Action = action,
                 ModifiedBy = modifiedBy,
                 TimeStamp = DateTime.UtcNow,
-                Area = "Clinicians"
+                Area = area
             };
         }
 

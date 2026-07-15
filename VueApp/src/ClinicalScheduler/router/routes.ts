@@ -36,6 +36,12 @@ const routes = [
         component: () => import("@/ClinicalScheduler/pages/ClinicianScheduleView.vue"),
         name: "ClinicianScheduleWithId",
     },
+    {
+        path: "/ClinicalScheduler/audit",
+        meta: { layout: ViperLayout },
+        component: () => import("@/ClinicalScheduler/pages/AuditLogPage.vue"),
+        name: "AuditLog",
+    },
 ]
 
 export { routes as clinicalSchedulerRoutes }

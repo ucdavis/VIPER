@@ -20,6 +20,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             var userHelper = new UserHelper();
             var user = userHelper.GetCurrentUser();
             var hasAccess = userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Base);
+            var hasManage = userHelper.HasPermission(_rapsContext, user, ClinicalSchedulePermissions.Manage);
 
             var nav = new List<NavMenuItem>
             {
@@ -43,6 +44,12 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     var clinicianLabel = await _permissionService.GetClinicianViewLabelAsync(cancellationToken);
                     nav.Add(new NavMenuItem { MenuItemText = clinicianLabel, MenuItemURL = "~/ClinicalScheduler/clinician", IndentLevel = 1 });
                 }
+
+                if (hasManage)
+                {
+                    nav.Add(new NavMenuItem { MenuItemText = "Audit Trail", MenuItemURL = "~/ClinicalScheduler/audit", IndentLevel = 1 });
+                }
+
 
                 nav.Add(new NavMenuItem { MenuItemText = "Clinical Scheduler 1.0", MenuItemURL = $"{oldViperUrl}/clinicalScheduler/" });
             }

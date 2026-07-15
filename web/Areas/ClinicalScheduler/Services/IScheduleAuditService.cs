@@ -1,3 +1,4 @@
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Models.ClinicalScheduler;
 
 namespace Viper.Areas.ClinicalScheduler.Services
@@ -90,6 +91,87 @@ namespace Viper.Areas.ClinicalScheduler.Services
         /// <returns>List of audit entries</returns>
         Task<List<ScheduleAudit>> GetRotationWeekAuditHistoryAsync(
             int rotationId,
+            int weekId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get a filtered, display-ready audit log for a grad year.
+        /// Mirrors the legacy "Schedule Changes Audit log" page query.
+        /// </summary>
+        /// <param name="gradYear">Grad year to scope results to (via the week's grad year)</param>
+        /// <param name="rotationId">Optional rotation filter</param>
+        /// <param name="termCode">Optional term (semester) filter, scoped to the grad year</param>
+        /// <param name="person">Optional MothraID of the affected student/clinician</param>
+        /// <param name="modifiedBy">Optional MothraID of the user who made the change</param>
+        /// <param name="area">Optional area filter (Students / Clinicians)</param>
+        /// <param name="fromDate">Optional inclusive lower bound on the change timestamp</param>
+        /// <param name="toDate">Optional inclusive upper bound on the change timestamp</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Up to 2500 enriched audit entries, newest first</returns>
+        Task<List<AuditLogEntryDto>> GetAuditLogAsync(
+            int gradYear,
+            int? rotationId,
+            int? termCode,
+            string? person,
+            string? modifiedBy,
+            string? area,
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the distinct terms (semesters) that fall within a grad year, for the audit
+        /// trail "Term" filter.
+        /// </summary>
+        /// <param name="gradYear">Grad year to scope the terms to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Distinct terms ordered chronologically</returns>
+        Task<List<AuditTermDto>> GetAuditTermsAsync(
+            int gradYear,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the distinct set of users who have made an audited schedule change,
+        /// used to populate the audit trail "Modified By" filter.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Distinct modifiers ordered by display name</returns>
+        Task<List<AuditModifierDto>> GetAuditModifiersAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the distinct set of affected students/clinicians that appear in the audit
+        /// trail, used to populate the audit trail "Person" filter.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Distinct affected persons ordered by display name</returns>
+        Task<List<AuditModifierDto>> GetAuditPersonsAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the display-ready audit trail for a single rotation + week, newest first.
+        /// Powers the inline per-week audit popover in the Schedule-by-Rotation grid.
+        /// </summary>
+        /// <param name="rotationId">Rotation the week belongs to</param>
+        /// <param name="weekId">Week to scope the history to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Enriched audit entries for the rotation/week, newest first</returns>
+        Task<List<AuditLogEntryDto>> GetRotationWeekAuditAsync(
+            int rotationId,
+            int weekId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the display-ready audit trail for a single clinician + week, newest first
+        /// (across all rotations that week). Powers the inline per-week audit popover in
+        /// the Schedule-by-Clinician grid.
+        /// </summary>
+        /// <param name="mothraId">MothraID of the affected clinician</param>
+        /// <param name="weekId">Week to scope the history to</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Enriched audit entries for the clinician/week, newest first</returns>
+        Task<List<AuditLogEntryDto>> GetClinicianWeekAuditAsync(
+            string mothraId,
             int weekId,
             CancellationToken cancellationToken = default);
 

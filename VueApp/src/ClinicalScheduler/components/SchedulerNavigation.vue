@@ -35,6 +35,14 @@
             :id="`clinician-tab`"
             role="tab"
         />
+        <q-route-tab
+            v-if="permissionsStore.hasManagePermission"
+            name="audit"
+            label="Audit Trail"
+            :to="{ name: 'AuditLog' }"
+            :id="`audit-tab`"
+            role="tab"
+        />
     </q-tabs>
 </template>
 
