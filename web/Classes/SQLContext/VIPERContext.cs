@@ -33,6 +33,8 @@ public partial class VIPERContext : DbContext
 
     public virtual DbSet<ContentBlockToPermission> ContentBlockToPermissions { get; set; }
 
+    public virtual DbSet<ContentBlockToEditPermission> ContentBlockToEditPermissions { get; set; }
+
     public virtual DbSet<ContentHistory> ContentHistories { get; set; }
 
     public virtual DbSet<FieldType> FieldTypes { get; set; }
@@ -300,6 +302,25 @@ public partial class VIPERContext : DbContext
                 .HasForeignKey(d => d.ContentBlockId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ContentBlockToPermissions_ContentBlock");
+        });
+
+        modelBuilder.Entity<ContentBlockToEditPermission>(entity =>
+        {
+            entity.HasKey(e => e.ContentBlockEditPermissionId).HasName("PK_ContentBlockToEditPermission");
+
+            entity.ToTable("ContentBlockToEditPermission");
+
+            entity.Property(e => e.ContentBlockEditPermissionId).HasColumnName("ContentBlockEditPermissionID");
+            entity.Property(e => e.ContentBlockId).HasColumnName("ContentBlockID");
+            entity.Property(e => e.Permission)
+                .HasMaxLength(500)
+                .IsUnicode(false)
+                .HasColumnName("permission");
+
+            entity.HasOne(d => d.ContentBlock).WithMany(p => p.ContentBlockToEditPermissions)
+                .HasForeignKey(d => d.ContentBlockId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ContentBlockToEditPermission_ContentBlock");
         });
 
         modelBuilder.Entity<ContentHistory>(entity =>

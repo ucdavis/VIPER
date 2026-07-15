@@ -11,7 +11,7 @@
         :label="label"
         :options="filteredOptions"
         :loading="loading"
-        hint="Users need any one of the selected permissions"
+        :hint="hint"
         @update:model-value="emit('update:modelValue', $event ?? [])"
         @filter="filterOptions"
     />
@@ -25,8 +25,9 @@ withDefaults(
     defineProps<{
         modelValue: string[]
         label?: string
+        hint?: string
     }>(),
-    { label: "Permissions" },
+    { label: "Permissions", hint: "Users need any one of the selected permissions" },
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: string[]] }>()

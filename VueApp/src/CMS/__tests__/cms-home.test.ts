@@ -3,9 +3,11 @@ import { useUserStore } from "@/store/UserStore"
 import { mountCms, flushPromises } from "./test-utils"
 
 // The hub checks the trash for files nearing the purge cutoff (file managers only).
-const getMock = vi.fn<(...args: unknown[]) => Promise<{ success: boolean; result: unknown[] }>>(() =>
-    Promise.resolve({ success: true, result: [] }),
-)
+// Default GET: empty success. routeEditable() overrides this per test; the beforeEach below restores
+// it so the override never leaks into a later test (which previously required this suite to run last).
+const defaultGetImpl = (): Promise<{ success: boolean; result: unknown[] }> =>
+    Promise.resolve({ success: true, result: [] })
+const getMock = vi.fn<(...args: unknown[]) => Promise<{ success: boolean; result: unknown[] }>>(defaultGetImpl)
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: getMock,
@@ -20,6 +22,10 @@ vi.mock("@/composables/ViperFetch", () => ({
         },
     }),
 }))
+
+beforeEach(() => {
+    getMock.mockImplementation(defaultGetImpl)
+})
 
 function trashedFile(friendlyName: string, purgeOn: string) {
     return { fileGuid: `g-${friendlyName}`, friendlyName, purgeOn, deletedOn: "2024-01-01T00:00:00" }
@@ -136,5 +142,82 @@ describe("cmsHome.vue - permission-gated sections", () => {
 
         expect(wrapper.text()).toContain("Your account does not have access to any CMS tools.")
         expect(wrapper.findAllComponents({ name: "QBtn" })).toHaveLength(0)
+    })
+})
+
+/**
+ * Delegated editors (no ManageContentBlocks) get a "Blocks you can edit" card listing GET /editable
+ * results, linking each to its editor. It shows only for non-managers with a non-empty list, and it
+ * suppresses the no-access banner. Managers use the normal Content Blocks card, so they never fetch
+ * or render this card. routeEditable() overrides the shared get() mock within these specs; the
+ * beforeEach above restores it, so their ordering relative to the other specs no longer matters.
+ */
+describe("cmsHome.vue - delegated editable blocks card", () => {
+    const EDITABLE = [
+        {
+            contentBlockId: 11,
+            title: "Alpha",
+            friendlyName: "alpha",
+            viperSectionPath: "/a",
+            page: null,
+            modifiedOn: "2024-01-01T00:00:00",
+            modifiedBy: "u",
+        },
+        {
+            contentBlockId: 12,
+            title: null,
+            friendlyName: "beta",
+            viperSectionPath: "/b",
+            page: null,
+            modifiedOn: "2024-01-02T00:00:00",
+            modifiedBy: "u",
+        },
+    ]
+
+    function routeEditable(items: unknown[]) {
+        getMock.mockImplementation((...args: unknown[]) => {
+            const url = args[0] as unknown as string
+            if (url.includes("editable")) {
+                return Promise.resolve({ success: true, result: items })
+            }
+            return Promise.resolve({ success: true, result: [] })
+        })
+    }
+
+    function editLinks(wrapper: Awaited<ReturnType<typeof mountHome>>) {
+        return wrapper
+            .findAllComponents({ name: "QBtn" })
+            .filter((b) => (b.props("to") as { name?: string } | undefined)?.name === "CmsContentBlockEdit")
+    }
+
+    it("lists editable blocks with edit links and suppresses the no-access banner for a non-manager", async () => {
+        routeEditable(EDITABLE)
+        const wrapper = await mountHome(["SVMSecure.CMS"])
+        await flushPromises()
+        await flushPromises()
+
+        expect(wrapper.text()).toContain("Blocks you can edit")
+        expect(wrapper.text()).not.toContain("does not have access to any CMS tools")
+
+        // Falls back to the friendly name when a block has no title (block 12 -> "beta").
+        expect(editLinks(wrapper).map((b) => b.props("label"))).toStrictEqual(["Alpha", "beta"])
+        expect(editLinks(wrapper)[0]!.props("to")).toStrictEqual({
+            name: "CmsContentBlockEdit",
+            params: { id: 11 },
+        })
+    })
+
+    it("does not fetch or show the editable card for a manager", async () => {
+        // The shared get() mock accumulates calls across tests; clear it so this assertion only
+        // sees this manager mount's requests.
+        getMock.mockClear()
+        routeEditable(EDITABLE)
+        const wrapper = await mountHome() // Full admin
+        await flushPromises()
+
+        expect(wrapper.text()).not.toContain("Blocks you can edit")
+        // Managers still get the normal tool card, and never hit the editable endpoint.
+        expect(wrapper.text()).toContain("Content Blocks")
+        expect(getMock.mock.calls.map((c) => c[0] as unknown as string).some((u) => u.includes("editable"))).toBeFalsy()
     })
 })
