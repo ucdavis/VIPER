@@ -96,6 +96,10 @@
                             />
                         </div>
 
+                        <p class="text-body2 text-grey-8 q-mt-none q-mb-sm">
+                            Users need any one of an item's "Visible to" permissions to see it.
+                        </p>
+
                         <SortableList
                             v-model="items"
                             item-key="key"
@@ -139,6 +143,7 @@
                                         <PermissionSelector
                                             v-model="item.permissions"
                                             label="Visible to"
+                                            :hint="null"
                                         />
                                     </div>
                                 </div>

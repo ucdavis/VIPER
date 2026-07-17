@@ -11,7 +11,7 @@
         :label="label"
         :options="filteredOptions"
         :loading="loading"
-        :hint="hint"
+        :hint="hint ?? undefined"
         @update:model-value="emit('update:modelValue', $event ?? [])"
         @filter="filterOptions"
     />
@@ -21,11 +21,13 @@
 import { inject, ref } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 
+// hint accepts null to opt out entirely (no reserved bottom space), since passing
+// undefined would fall back to the default hint.
 withDefaults(
     defineProps<{
         modelValue: string[]
         label?: string
-        hint?: string
+        hint?: string | null
     }>(),
     { label: "Permissions", hint: "Users need any one of the selected permissions" },
 )
