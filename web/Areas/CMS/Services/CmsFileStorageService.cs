@@ -29,6 +29,13 @@ namespace Viper.Areas.CMS.Services
         bool FileNameInUse(string folder, string fileName);
 
         /// <summary>
+        /// True if a file record already claims folder\fileName: by exact current-root path, by
+        /// path suffix (a record created under another environment's storage root — see
+        /// CmsFileService.NormalizeRootFolder), or by <paramref name="friendlyName"/> if given.
+        /// </summary>
+        bool HasFileRecord(string folder, string fileName, string? friendlyName = null);
+
+        /// <summary>
         /// The name MoveIntoPlace would store folder\fileName under: the name itself when free,
         /// otherwise the first free name_0..name_999 candidate. <paramref name="reservedNames"/>
         /// (optional) are treated as already taken, so callers planning several writes in one
@@ -141,16 +148,24 @@ namespace Viper.Areas.CMS.Services
                 return true;
             }
             // Also check the DB in case a record exists whose disk file is missing; a new file
-            // at that path would be served under the orphaned record's permissions. Records
-            // created under another environment's storage root (ReplaceRootFolder rewrites
-            // them at read time) claim the same folder+name, so match the path suffix in
-            // either separator style rather than only the exact current-root path.
+            // at that path would be served under the orphaned record's permissions.
+            return HasFileRecord(folder, fileName);
+        }
+
+        public bool HasFileRecord(string folder, string fileName, string? friendlyName = null)
+        {
+            string targetPath = BuildTargetPath(folder, fileName);
+            // Records created under another environment's storage root (ReplaceRootFolder/
+            // NormalizeRootFolder rewrite them at read time) claim the same folder+name, so
+            // match the path suffix in either separator style rather than only the exact
+            // current-root path.
             string[] segments = folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
             string leaf = GetLeafName(fileName);
             string suffixBack = "\\" + string.Join('\\', segments) + "\\" + leaf;
             string suffixFwd = "/" + string.Join('/', segments) + "/" + leaf;
             return _context.Files.Any(f => f.FilePath == targetPath
-                || f.FilePath.EndsWith(suffixBack) || f.FilePath.EndsWith(suffixFwd));
+                || f.FilePath.EndsWith(suffixBack) || f.FilePath.EndsWith(suffixFwd)
+                || (friendlyName != null && f.FriendlyName == friendlyName));
         }
 
         public string GetAvailableFileName(string folder, string fileName, IReadOnlySet<string>? reservedNames = null)
