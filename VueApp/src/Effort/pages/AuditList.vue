@@ -21,6 +21,7 @@
                                 option-label="termName"
                                 option-value="termCode"
                                 label="Term"
+                                :display-value="filter.termCode == null ? 'All terms' : undefined"
                                 dense
                                 options-dense
                                 outlined
@@ -35,6 +36,7 @@
                                 v-model="filter.action"
                                 :options="actions"
                                 label="Action"
+                                :display-value="filter.action == null ? 'All actions' : undefined"
                                 dense
                                 options-dense
                                 outlined
@@ -48,6 +50,8 @@
                                 option-label="fullName"
                                 option-value="personId"
                                 label="Modified By"
+                                stack-label
+                                placeholder="All users"
                                 dense
                                 options-dense
                                 outlined
@@ -66,6 +70,8 @@
                                 option-label="fullName"
                                 option-value="personId"
                                 label="Instructor"
+                                stack-label
+                                placeholder="All instructors"
                                 dense
                                 options-dense
                                 outlined
@@ -75,15 +81,6 @@
                                 use-input
                                 :input-debounce="INPUT_DEBOUNCE_MS"
                                 @filter="filterInstructors"
-                            />
-                        </div>
-                        <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-12'">
-                            <q-input
-                                v-model="filter.searchText"
-                                label="Search Changes"
-                                dense
-                                outlined
-                                clearable
                             />
                         </div>
                         <div :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-3' : 'col-6'">
@@ -111,6 +108,8 @@
                                 v-model="filter.subjectCode"
                                 :options="subjectCodes"
                                 label="Subject Code"
+                                stack-label
+                                placeholder="All subjects"
                                 dense
                                 options-dense
                                 outlined
@@ -124,6 +123,8 @@
                                 v-model="filter.courseNumber"
                                 :options="courseNumbers"
                                 label="Course Number"
+                                stack-label
+                                placeholder="All courses"
                                 dense
                                 options-dense
                                 outlined
@@ -147,6 +148,22 @@
                 </q-card-section>
             </q-card>
         </q-expansion-item>
+
+        <!-- Free-text search across change details, on top of the results table -->
+        <div class="row q-mb-md">
+            <q-input
+                v-model="filter.searchText"
+                :class="$q.screen.gt.sm ? 'col-12 col-md-6 col-lg-4' : 'col-12'"
+                label="Search changes"
+                dense
+                outlined
+                clearable
+            >
+                <template #prepend>
+                    <q-icon name="search" />
+                </template>
+            </q-input>
+        </div>
 
         <!-- Results Table - Desktop view (lg and up) -->
         <q-table
@@ -290,27 +307,10 @@
                                     :key="key"
                                 >
                                     <span v-if="idx > 0"> &bull; </span>
-                                    <strong>{{ key }}:</strong>
-                                    <!-- Reference value (old === new): show once without diff styling -->
-                                    <template v-if="detail.oldValue === detail.newValue">
-                                        <span>{{ detail.oldValue }}</span>
-                                    </template>
-                                    <!-- Changed value: show old → new -->
-                                    <template v-else>
-                                        <span
-                                            v-if="detail.oldValue !== null"
-                                            class="text-negative"
-                                            >{{ detail.oldValue }}</span
-                                        >
-                                        <span v-if="detail.oldValue !== null && detail.newValue !== null">
-                                            &rarr;
-                                        </span>
-                                        <span
-                                            v-if="detail.newValue !== null"
-                                            class="text-positive"
-                                            >{{ detail.newValue }}</span
-                                        >
-                                    </template>
+                                    <AuditChangeDetail
+                                        :name="key"
+                                        :detail="detail"
+                                    />
                                 </span>
                             </div>
                             <span
@@ -389,27 +389,10 @@
                                     v-for="(detail, key) in props.row.changesDetail"
                                     :key="key"
                                 >
-                                    <strong>{{ key }}:</strong>
-                                    <!-- Reference value (old === new): show once without diff styling -->
-                                    <template v-if="detail.oldValue === detail.newValue">
-                                        <span>{{ detail.oldValue }}</span>
-                                    </template>
-                                    <!-- Changed value: show old → new -->
-                                    <template v-else>
-                                        <span
-                                            v-if="detail.oldValue !== null"
-                                            class="text-negative"
-                                            >{{ detail.oldValue }}</span
-                                        >
-                                        <span v-if="detail.oldValue !== null && detail.newValue !== null">
-                                            &rarr;
-                                        </span>
-                                        <span
-                                            v-if="detail.newValue !== null"
-                                            class="text-positive"
-                                            >{{ detail.newValue }}</span
-                                        >
-                                    </template>
+                                    <AuditChangeDetail
+                                        :name="String(key)"
+                                        :detail="detail"
+                                    />
                                 </div>
                             </div>
                             <div
@@ -437,6 +420,7 @@ import { effortAuditService } from "../services/audit-service"
 import { termService } from "../services/term-service"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import StatusBadge from "@/components/StatusBadge.vue"
+import AuditChangeDetail from "../components/AuditChangeDetail.vue"
 import type { ChangeDetail, EffortAuditRow, ModifierInfo, TermDto } from "../types"
 
 // Constants

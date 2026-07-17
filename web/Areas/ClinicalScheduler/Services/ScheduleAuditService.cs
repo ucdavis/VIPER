@@ -1,6 +1,8 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.ClinicalScheduler.Constants;
+using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
+using Viper.Areas.Curriculum.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.ClinicalScheduler;
@@ -106,12 +108,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return new List<ScheduleAudit>();
                 }
 
-                // Find audit entries matching the rotation, week, and instructor
+                // Find audit entries matching the rotation, week, and instructor.
+                // Clinicians only: the shared audit table also records student schedule
+                // changes, which are out of scope for an instructor schedule's history.
                 return await _context.ScheduleAudits
                     .AsNoTracking()
                     .Where(a => a.RotationId == schedule.RotationId
                         && a.WeekId == schedule.WeekId
-                        && a.MothraId == schedule.MothraId)
+                        && a.MothraId == schedule.MothraId
+                        && a.Area == ScheduleAuditAreas.Clinicians)
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
@@ -129,9 +134,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
+                // Clinicians only; see GetInstructorScheduleAuditHistoryAsync
                 return await _context.ScheduleAudits
                     .AsNoTracking()
-                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId)
+                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId && a.Area == ScheduleAuditAreas.Clinicians)
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
@@ -140,6 +146,281 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
                 throw new InvalidOperationException($"Failed to retrieve audit history for rotation {rotationId}, week {weekId}. Please try again or contact support if the problem persists.", ex);
             }
+        }
+
+        public async Task<List<AuditLogEntryDto>> GetAuditLogAsync(
+            int gradYear,
+            int? rotationId,
+            int? termCode,
+            string? person,
+            string? modifiedBy,
+            string? area,
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Scope to the grad year via vWeek (a week belongs to a grad year there),
+                // and left-join names so a missing person/rotation lookup never drops a row.
+                var query =
+                    from a in _context.ScheduleAudits.AsNoTracking()
+                    join vw in _context.VWeeks on a.WeekId equals vw.WeekId
+                    where vw.GradYear == gradYear
+                    join rot in _context.Rotations on a.RotationId equals rot.RotId into rotJoin
+                    from rot in rotJoin.DefaultIfEmpty()
+                    join ap in _context.Persons on a.MothraId equals ap.IdsMothraId into affectedJoin
+                    from ap in affectedJoin.DefaultIfEmpty()
+                    join mp in _context.Persons on a.ModifiedBy equals mp.IdsMothraId into modifierJoin
+                    from mp in modifierJoin.DefaultIfEmpty()
+                    select new { Audit = a, Week = vw, Rotation = rot, Affected = ap, Modifier = mp };
+
+                if (rotationId is { } selectedRotationId)
+                {
+                    query = query.Where(x => x.Audit.RotationId == selectedRotationId);
+                }
+                if (termCode is { } selectedTermCode)
+                {
+                    query = query.Where(x => x.Week.TermCode == selectedTermCode);
+                }
+                if (!string.IsNullOrWhiteSpace(area))
+                {
+                    query = query.Where(x => x.Audit.Area == area);
+                }
+                if (!string.IsNullOrWhiteSpace(modifiedBy))
+                {
+                    query = query.Where(x => x.Audit.ModifiedBy == modifiedBy);
+                }
+                if (fromDate is { } fromTimestamp)
+                {
+                    query = query.Where(x => x.Audit.TimeStamp >= fromTimestamp);
+                }
+                if (toDate is { } toTimestamp)
+                {
+                    // The date picker binds to midnight at the start of the day, so advance the
+                    // bound a day to include changes made anytime on the selected end date
+                    // (matches the Effort audit upper-bound handling).
+                    var endOfDay = toTimestamp.AddDays(1);
+                    query = query.Where(x => x.Audit.TimeStamp < endOfDay);
+                }
+                if (!string.IsNullOrWhiteSpace(person))
+                {
+                    query = query.Where(x => x.Audit.MothraId == person);
+                }
+
+                var entries = await query
+                    .OrderByDescending(x => x.Audit.TimeStamp)
+                    .Take(2500)
+                    .Select(x => new AuditLogEntryDto
+                    {
+                        ScheduleAuditId = x.Audit.ScheduleAuditId,
+                        Area = x.Audit.Area,
+                        MothraId = x.Audit.MothraId,
+                        PersonName = x.Affected != null ? x.Affected.PersonDisplayFullName : (x.Audit.MothraId ?? string.Empty),
+                        Action = x.Audit.Action,
+                        RotationId = x.Audit.RotationId,
+                        RotationName = x.Rotation != null ? x.Rotation.Name : string.Empty,
+                        WeekId = x.Audit.WeekId,
+                        WeekNum = x.Week.WeekNum,
+                        WeekStart = x.Week.DateStart,
+                        TermCode = x.Week.TermCode,
+                        ModifiedBy = x.Audit.ModifiedBy,
+                        ModifiedByName = x.Modifier != null ? x.Modifier.PersonDisplayFullName : x.Audit.ModifiedBy,
+                        TimeStamp = x.Audit.TimeStamp,
+                    })
+                    .ToListAsync(cancellationToken);
+
+                return ApplyTermDescriptions(entries);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit log for grad year {GradYear}", LogSanitizer.SanitizeYear(gradYear));
+                throw new InvalidOperationException("Failed to retrieve the audit log. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditTermDto>> GetAuditTermsAsync(
+            int gradYear,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Distinct terms the grad year's weeks fall into; codes sort chronologically.
+                var termCodes = await _context.VWeeks.AsNoTracking()
+                    .Where(w => w.GradYear == gradYear)
+                    .Select(w => w.TermCode)
+                    .Distinct()
+                    .OrderBy(t => t)
+                    .ToListAsync(cancellationToken);
+
+                return termCodes
+                    .Select(termCode => new AuditTermDto
+                    {
+                        TermCode = termCode,
+                        Term = TermCodeService.GetTermCodeDescription(termCode),
+                    })
+                    .ToList();
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit terms for grad year {GradYear}", LogSanitizer.SanitizeYear(gradYear));
+                throw new InvalidOperationException("Failed to retrieve the terms for this grad year. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditModifierDto>> GetAuditModifiersAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Left join so a modifier whose MothraId no longer resolves in Persons still
+                // appears in the filter, matching the raw-ID fallback in GetAuditLogAsync.
+                return await (
+                    from a in _context.ScheduleAudits.AsNoTracking()
+                    where a.ModifiedBy != ""
+                    join p in _context.Persons on a.ModifiedBy equals p.IdsMothraId into modifierJoin
+                    from p in modifierJoin.DefaultIfEmpty()
+                    select new AuditModifierDto
+                    {
+                        MothraId = a.ModifiedBy,
+                        DisplayName = p != null ? p.PersonDisplayFullName : a.ModifiedBy,
+                    })
+                    .Distinct()
+                    .OrderBy(m => m.DisplayName)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit log modifiers");
+                throw new InvalidOperationException("Failed to retrieve the list of audit modifiers. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditModifierDto>> GetAuditPersonsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Left join so an affected person whose MothraId no longer resolves in Persons
+                // still appears in the filter, matching the raw-ID fallback in GetAuditLogAsync.
+                return await (
+                    from a in _context.ScheduleAudits.AsNoTracking()
+                    where a.MothraId != null && a.MothraId != ""
+                    join p in _context.Persons on a.MothraId equals p.IdsMothraId into affectedJoin
+                    from p in affectedJoin.DefaultIfEmpty()
+                    select new AuditModifierDto
+                    {
+                        MothraId = a.MothraId!,
+                        DisplayName = p != null ? p.PersonDisplayFullName : a.MothraId!,
+                    })
+                    .Distinct()
+                    .OrderBy(m => m.DisplayName)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit log persons");
+                throw new InvalidOperationException("Failed to retrieve the list of audited persons. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditLogEntryDto>> GetRotationWeekAuditAsync(
+            int rotationId,
+            int weekId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Clinician scheduling context only: the shared ScheduleAudit table also
+                // holds student schedule changes (Area = Students) for the same
+                // rotation/week, which would read as phantom roster entries here.
+                var audits = _context.ScheduleAudits.AsNoTracking()
+                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId && a.Area == ScheduleAuditAreas.Clinicians);
+                var entries = await BuildEnrichedAuditQuery(audits)
+                    .OrderByDescending(x => x.TimeStamp)
+                    .ToListAsync(cancellationToken);
+                return ApplyTermDescriptions(entries);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit history for rotation {RotationId}, week {WeekId}", rotationId, weekId);
+                throw new InvalidOperationException("Failed to retrieve the audit trail for this week. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        public async Task<List<AuditLogEntryDto>> GetClinicianWeekAuditAsync(
+            string mothraId,
+            int weekId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Clinicians only, same as GetRotationWeekAuditAsync: a clinician who was
+                // previously a UCD student would otherwise see student-era entries here.
+                var audits = _context.ScheduleAudits.AsNoTracking()
+                    .Where(a => a.MothraId == mothraId && a.WeekId == weekId && a.Area == ScheduleAuditAreas.Clinicians);
+                var entries = await BuildEnrichedAuditQuery(audits)
+                    .OrderByDescending(x => x.TimeStamp)
+                    .ToListAsync(cancellationToken);
+                return ApplyTermDescriptions(entries);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Error retrieving audit history for clinician {MothraId}, week {WeekId}", LogSanitizer.SanitizeString(mothraId), weekId);
+                throw new InvalidOperationException("Failed to retrieve the audit trail for this week. Please try again or contact support if the problem persists.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Build the display-ready (name / rotation / week-enriched) projection for a
+        /// pre-filtered set of audit rows. Left-joins every lookup so a missing match never
+        /// drops a row; shared by the per-rotation-week and per-clinician-week history queries.
+        /// </summary>
+        private IQueryable<AuditLogEntryDto> BuildEnrichedAuditQuery(IQueryable<ScheduleAudit> audits)
+        {
+            // Base Weeks (unique per WeekId), not vWeek (one row per WeekId x grad year),
+            // which would duplicate every audit row for a week that spans two grad years.
+            // WeekNum stays 0 for the same reason: it is a per-grad-year concept, so a
+            // week-scoped query has no single unambiguous week number.
+            return
+                from a in audits
+                join w in _context.Weeks on a.WeekId equals w.WeekId into weekJoin
+                from w in weekJoin.DefaultIfEmpty()
+                join rot in _context.Rotations on a.RotationId equals rot.RotId into rotJoin
+                from rot in rotJoin.DefaultIfEmpty()
+                join ap in _context.Persons on a.MothraId equals ap.IdsMothraId into affectedJoin
+                from ap in affectedJoin.DefaultIfEmpty()
+                join mp in _context.Persons on a.ModifiedBy equals mp.IdsMothraId into modifierJoin
+                from mp in modifierJoin.DefaultIfEmpty()
+                select new AuditLogEntryDto
+                {
+                    ScheduleAuditId = a.ScheduleAuditId,
+                    Area = a.Area,
+                    MothraId = a.MothraId,
+                    PersonName = ap != null ? ap.PersonDisplayFullName : (a.MothraId ?? string.Empty),
+                    Action = a.Action,
+                    RotationId = a.RotationId,
+                    RotationName = rot != null ? rot.Name : string.Empty,
+                    WeekId = a.WeekId,
+                    WeekStart = w != null ? w.DateStart : null,
+                    TermCode = w != null ? w.TermCode : 0,
+                    ModifiedBy = a.ModifiedBy,
+                    ModifiedByName = mp != null ? mp.PersonDisplayFullName : a.ModifiedBy,
+                    TimeStamp = a.TimeStamp,
+                };
+        }
+
+        /// <summary>
+        /// Fill in the term description from the SQL-populated term code.
+        /// GetTermCodeDescription is C#, not SQL-translatable, so this runs after materializing.
+        /// </summary>
+        private static List<AuditLogEntryDto> ApplyTermDescriptions(List<AuditLogEntryDto> entries)
+        {
+            foreach (var entry in entries)
+            {
+                entry.Term = entry.TermCode > 0 ? TermCodeService.GetTermCodeDescription(entry.TermCode) : string.Empty;
+            }
+            return entries;
         }
 
         /// <summary>
