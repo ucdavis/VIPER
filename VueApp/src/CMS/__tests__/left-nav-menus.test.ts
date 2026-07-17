@@ -3,7 +3,8 @@ import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-u
 
 /**
  * LeftNavMenus list: filter inputs drive system/search query params, returned rows bind to the
- * table, and the ?add=1 deep-link opens the add dialog on mount.
+ * table, and the ?add=1 deep-link opens the add dialog (on mount and on in-app
+ * navigation), consuming the flag.
  */
 
 const mockGet = vi.fn<(...args: unknown[]) => unknown>()
@@ -97,9 +98,24 @@ describe("LeftNavMenus.vue", () => {
         expect(lastUrl()).toContain("system=Public")
     })
 
-    it("opens the add dialog when ?add=1 is present on mount", async () => {
-        const wrapper = await mountPage({ add: "1" })
+    it("opens the add dialog when ?add=1 is present on mount and strips the flag", async () => {
+        const { wrapper, router } = await mountPageWithRouter({ add: "1" })
+        await flushRouter()
+
         expect(wrapper.findComponent({ name: "LeftNavMenuDialog" }).props("modelValue")).toBeTruthy()
+        expect(router.currentRoute.value.query.add).toBeUndefined()
+    })
+
+    it("re-opens the add dialog when navigation adds ?add=1, consuming the flag", async () => {
+        const { wrapper, router } = await mountPageWithRouter()
+        expect(wrapper.findComponent({ name: "LeftNavMenuDialog" }).props("modelValue")).toBeFalsy()
+
+        await router.push({ path: "/CMS/ManageLeftNav", query: { add: "1" } })
+        await flushRouter()
+
+        expect(wrapper.findComponent({ name: "LeftNavMenuDialog" }).props("modelValue")).toBeTruthy()
+        // The flag is stripped so re-clicking the nav link can re-open the dialog later.
+        expect(router.currentRoute.value.query.add).toBeUndefined()
     })
 
     it("leaves the add dialog closed without ?add=1", async () => {

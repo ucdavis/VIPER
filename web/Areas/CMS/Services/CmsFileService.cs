@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Constants;
@@ -279,12 +280,13 @@ namespace Viper.Areas.CMS.Services
                 if (request.Overwrite == true && _storage.FileNameInUse(request.Folder, uploadName))
                 {
                     string targetPath = _storage.BuildManagedPath(request.Folder, uploadName);
-                    // Match by path OR derived friendly name so a record created under another
-                    // environment's storage root blocks the overwrite BEFORE any bytes are
-                    // touched, instead of failing later on friendly-name uniqueness and rolling
-                    // back an already-performed disk swap.
+                    // Match by path, path suffix, or derived friendly name (the same predicate
+                    // FileNameInUse used to detect this record in the first place) so a record
+                    // created under another environment's storage root still blocks the
+                    // overwrite BEFORE any bytes are touched, instead of failing later on
+                    // friendly-name uniqueness and rolling back an already-performed disk swap.
                     string overwriteFriendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, uploadName);
-                    if (await _context.Files.AnyAsync(f => f.FilePath == targetPath || f.FriendlyName == overwriteFriendlyName, ct))
+                    if (_storage.HasFileRecord(request.Folder, uploadName, overwriteFriendlyName))
                     {
                         throw new InvalidOperationException(
                             $"{uploadName} belongs to an existing file record; replace its content by editing that file.");
@@ -696,26 +698,45 @@ namespace Viper.Areas.CMS.Services
 
         public async Task<bool> RollbackDeleteFileAsync(Guid fileGuid, int contentBlockId, CancellationToken ct = default)
         {
-            var entity = await LoadFileAsync(fileGuid, tracking: true, ct);
-            if (entity == null || entity.DeletedOn != null)
+            // The load, the deleted check, and the "not attached elsewhere" recheck all happen
+            // inside the same Serializable transaction, so the whole decision is made atomically:
+            // SQL Server range-locks what this transaction read, so a concurrent delete or attach
+            // to a different block either commits first (and this recheck then sees it) or blocks
+            // until this transaction finishes — it can no longer land in the gap between a
+            // snapshot taken before the transaction and the save at the end of it.
+            return await ExecuteInTransactionAsync(async token =>
             {
-                return false;
-            }
-            // Recheck immediately before deleting, in the same operation, so a block that attaches this
-            // file after the caller's eligibility check does not have its attachment deleted from under
-            // it (the check and delete are no longer split across two separate service calls).
-            bool attachedElsewhere = await _context.ContentBlockToFiles
-                .AnyAsync(cbf => cbf.FileGuid == fileGuid && cbf.ContentBlockId != contentBlockId, ct);
-            if (attachedElsewhere)
-            {
-                return false;
-            }
-            entity.DeletedOn = DateTime.Now;
-            entity.ModifiedOn = DateTime.Now;
-            entity.ModifiedBy = CurrentLoginId();
-            _audit.Audit(entity, CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
-            await _context.SaveChangesAsync(ct);
-            return true;
+                var entity = await LoadFileAsync(fileGuid, tracking: true, token);
+                if (entity == null || entity.DeletedOn != null)
+                {
+                    return false;
+                }
+                bool attachedElsewhere = await _context.ContentBlockToFiles
+                    .AnyAsync(cbf => cbf.FileGuid == fileGuid && cbf.ContentBlockId != contentBlockId, token);
+                if (attachedElsewhere)
+                {
+                    return false;
+                }
+                entity.DeletedOn = DateTime.Now;
+                entity.ModifiedOn = DateTime.Now;
+                entity.ModifiedBy = CurrentLoginId();
+                _audit.Audit(entity, CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
+                await _context.SaveChangesAsync(token);
+                return true;
+            }, IsolationLevel.Serializable, ct);
+        }
+
+        /// <summary>
+        /// Runs <paramref name="operation"/> inside a database transaction at the given isolation
+        /// level. Overridden in tests to bypass transactions (the EF in-memory provider doesn't
+        /// support them).
+        /// </summary>
+        protected virtual Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            IsolationLevel isolationLevel,
+            CancellationToken cancellationToken)
+        {
+            return TransactionHelper.ExecuteInTransactionAsync(_context.Database, operation, isolationLevel, cancellationToken);
         }
 
         public async Task<bool> RestoreFileAsync(Guid fileGuid, CancellationToken ct = default)

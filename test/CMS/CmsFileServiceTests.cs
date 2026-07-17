@@ -24,7 +24,7 @@ public sealed class CmsFileServiceTests : IDisposable
     private readonly ICmsFileEncryptionService _encryption;
     private readonly ICmsFileAuditService _audit;
     private readonly IUserHelper _userHelper;
-    private readonly CmsFileService _service;
+    private readonly TestableCmsFileService _service;
     private readonly List<VIPERContext> _extraContexts = new();
     private readonly List<MemoryStream> _formFileStreams = new();
 
@@ -49,7 +49,7 @@ public sealed class CmsFileServiceTests : IDisposable
         _audit = Substitute.For<ICmsFileAuditService>();
         _userHelper = Substitute.For<IUserHelper>();
 
-        _service = new CmsFileService(_context, _aaudContext, _storage, _encryption, _audit, _userHelper,
+        _service = new TestableCmsFileService(_context, _aaudContext, _storage, _encryption, _audit, _userHelper,
             Substitute.For<ILogger<CmsFileService>>());
     }
 
@@ -321,6 +321,7 @@ public sealed class CmsFileServiceTests : IDisposable
         const string targetPath = @"C:\FakeRoot\cats\report.pdf";
         _storage.FileNameInUse("cats", "report.pdf").Returns(true);
         _storage.BuildManagedPath("cats", "report.pdf").Returns(targetPath);
+        _storage.HasFileRecord("cats", "report.pdf", Arg.Any<string?>()).Returns(true);
 
         // Seed a Files row whose FilePath matches the target path.
         await SeedFileAsync(f =>
@@ -605,6 +606,7 @@ public sealed class CmsFileServiceTests : IDisposable
         });
         _storage.FileNameInUse("cats", "foreign.pdf").Returns(true);
         _storage.BuildManagedPath("cats", "foreign.pdf").Returns(@"C:\FakeRoot\cats\foreign.pdf");
+        _storage.HasFileRecord("cats", "foreign.pdf", Arg.Any<string?>()).Returns(true);
         var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
@@ -753,6 +755,48 @@ public sealed class CmsFileServiceTests : IDisposable
         var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(saved.DeletedOn);
         _audit.Received(1).Audit(Arg.Any<File>(), CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
+    }
+
+    [Fact]
+    public async Task RollbackDeleteFile_NotAttachedElsewhere_SoftDeletesAndAudits()
+    {
+        var file = await SeedFileAsync();
+
+        var result = await _service.RollbackDeleteFileAsync(file.FileGuid, contentBlockId: 5, TestContext.Current.CancellationToken);
+
+        Assert.True(result);
+        var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.NotNull(saved.DeletedOn);
+        _audit.Received(1).Audit(Arg.Any<File>(), CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
+    }
+
+    [Fact]
+    public async Task RollbackDeleteFile_AlreadyDeleted_ReturnsFalse_DoesNotReAudit()
+    {
+        var deletedOn = DateTime.Now.AddMinutes(-5);
+        var file = await SeedFileAsync(f => f.DeletedOn = deletedOn);
+
+        var result = await _service.RollbackDeleteFileAsync(file.FileGuid, contentBlockId: 5, TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+        var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(deletedOn, saved.DeletedOn);
+        _audit.DidNotReceive().Audit(Arg.Any<File>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task RollbackDeleteFile_AttachedToAnotherBlock_ReturnsFalse_LeavesFileInPlace()
+    {
+        var file = await SeedFileAsync();
+        _context.ContentBlockToFiles.Add(new ContentBlockToFile { ContentBlockId = 99, FileGuid = file.FileGuid });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _service.RollbackDeleteFileAsync(file.FileGuid, contentBlockId: 5, TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+        var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Null(saved.DeletedOn);
+        _audit.DidNotReceive().Audit(Arg.Any<File>(), Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Fact]

@@ -87,6 +87,7 @@
                         label="VIPER app (folder)"
                         :options="folders"
                         :rules="[(v: string | null) => !!v || 'Please select a folder']"
+                        hint="Where the file is stored; it can't be changed after upload."
                     />
 
                     <q-input

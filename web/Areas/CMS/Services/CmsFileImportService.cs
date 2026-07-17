@@ -43,12 +43,9 @@ namespace Viper.Areas.CMS.Services
             _audit = audit;
             _userHelper = userHelper;
             _logger = logger;
-            // The dev default is a Windows path; on any other OS leave it unset so the
-            // import endpoints fail fast with the explicit not-configured error instead
-            // of probing a path that cannot exist.
-            _legacyWebroot = configuration["CMS:LegacyWebrootPath"]
-                ?? (HttpHelper.Environment?.EnvironmentName == "Development" && OperatingSystem.IsWindows()
-                    ? @"C:\Sites\https\VIPER" : null);
+            // Set per environment in appsettings.{Environment}.json; when unset the import
+            // endpoints fail fast with the explicit not-configured error.
+            _legacyWebroot = configuration["CMS:LegacyWebrootPath"];
         }
 
         public async Task<List<CmsFileImportResult>> ImportFilesAsync(CmsFileImportRequest request, CancellationToken ct = default)
@@ -62,10 +59,7 @@ namespace Viper.Areas.CMS.Services
                 throw new ArgumentException("Invalid folder.");
             }
 
-            var permissions = request.Permissions
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Select(p => p.Trim())
-                .ToList();
+            var permissions = CmsServiceHelpers.CleanList(request.Permissions);
             if (request.UseDefaultPermission == true)
             {
                 string topFolder = request.Folder.Split(['\\', '/'], StringSplitOptions.None)[0];
@@ -159,6 +153,13 @@ namespace Viper.Areas.CMS.Services
             // every OS. Path APIs only honor the host separator, so on Linux a "..\" segment would
             // otherwise be read as part of a filename and slip past the outside-webroot check.
             var segments = rawPath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            // The legacy import tolerated lines pasted with the site prefix (e.g. "viper/cats/x.pdf")
+            // by stripping it; drop a leading "viper" segment so those lines resolve, and so the
+            // recorded OldUrl stays webroot-relative like the legacy oldURL.
+            if (segments.Length > 0 && string.Equals(segments[0], "viper", StringComparison.OrdinalIgnoreCase))
+            {
+                segments = segments[1..];
+            }
             string relative = string.Join('/', segments);
             string sourcePath;
             string fileName;

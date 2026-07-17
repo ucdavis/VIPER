@@ -156,6 +156,15 @@ describe("Files.vue - onRequest pagination passthrough", () => {
         expect(url).toContain("sortBy=modifiedOn")
         expect(url).toContain("descending=true")
     })
+
+    it("maps a Purges column sort to the deletedOn sort the API supports", async () => {
+        const wrapper = await mountPage({ status: "deleted" })
+        await wrapper.findComponent({ name: "QTable" }).vm.$emit("request", {
+            pagination: { page: 1, rowsPerPage: 25, sortBy: "purgeOn", descending: false },
+        })
+        await flushPromises()
+        expect(lastListUrl()).toContain("sortBy=deletedOn")
+    })
 })
 
 describe("Files.vue - delete and restore actions", () => {
@@ -247,6 +256,32 @@ describe("Files.vue - row presentation", () => {
             .findAllComponents({ name: "StatusIcon" })
             .find((c) => (c.props("label") as string).startsWith("Deleted"))!
         expect(deletedIcon.props("label")).toBe("Deleted 02/01/24 · purges 03/02/24")
+    })
+
+    it("shows the Purges column in the deleted view, with a warning badge when purge is imminent", async () => {
+        const soon = new Date(Date.now() + 3 * 86_400_000).toISOString()
+        routeGet({ rows: [{ ...FILE_ROW, deletedOn: "2024-02-01T00:00:00", purgeOn: soon }] })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        expect(wrapper.text()).toContain("Purges")
+        const badge = wrapper.findAllComponents({ name: "StatusBadge" }).find((b) => b.props("label") === "soon")
+        expect(badge).toBeTruthy()
+    })
+
+    it("shows the purge date without the badge when the purge is not imminent", async () => {
+        const far = new Date(Date.now() + 20 * 86_400_000).toISOString()
+        routeGet({ rows: [{ ...FILE_ROW, deletedOn: "2024-02-01T00:00:00", purgeOn: far }] })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        expect(wrapper.text()).toContain("Purges")
+        const badge = wrapper.findAllComponents({ name: "StatusBadge" }).find((b) => b.props("label") === "soon")
+        expect(badge).toBeFalsy()
+    })
+
+    it("omits the Purges column in the active view", async () => {
+        const wrapper = await mountPage()
+
+        expect(wrapper.text()).not.toContain("Purges")
     })
 
     it("links the old URL on the VIPER 1 host so legacy links are exercised end to end", async () => {

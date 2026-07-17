@@ -160,6 +160,25 @@ public sealed class CmsFileStorageServiceTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("report?.pdf")]
+    [InlineData("report:1.pdf")]
+    [InlineData("report<1>.pdf")]
+    [InlineData("report|1.pdf")]
+    public void MoveIntoPlace_InvalidNameCharacter_Throws(string fileName)
+    {
+        var temp = CreateTempFile();
+
+        try
+        {
+            Assert.Throws<ArgumentException>(() => _service.MoveIntoPlace(temp, "cats", fileName, makeUnique: false));
+        }
+        finally
+        {
+            File.Delete(temp);
+        }
+    }
+
     [Fact]
     public void MoveIntoPlace_InvalidFolder_Throws()
     {
@@ -237,6 +256,51 @@ public sealed class CmsFileStorageServiceTests : IDisposable
         Assert.True(_service.FileNameInUse("cats", "otherroot.pdf"));
         Assert.True(_service.FileNameInUse("cats", "fwdroot.pdf"));
         Assert.False(_service.FileNameInUse("cats", "stillfree.pdf"));
+    }
+
+    #endregion
+
+    #region HasFileRecord
+
+    [Fact]
+    public void HasFileRecord_MatchesByFriendlyNameEvenWhenPathDoesNotMatchAtAll()
+    {
+        // A record renamed/moved on disk previously has a path that matches neither the
+        // current root nor the target folder+name by suffix; only its friendly name still
+        // identifies it as the record that owns this name.
+        _context.Files.Add(new Viper.Models.VIPER.File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = Path.Join(_root, "cats", "renamed-elsewhere.pdf"),
+            Folder = "cats",
+            FriendlyName = "cats-report.pdf",
+            Description = "",
+            ModifiedBy = "test",
+            ModifiedOn = DateTime.Now
+        });
+        _context.SaveChanges();
+
+        Assert.True(_service.HasFileRecord("cats", "report.pdf", "cats-report.pdf"));
+        Assert.False(_service.HasFileRecord("cats", "report.pdf", "cats-something-else.pdf"));
+    }
+
+    [Fact]
+    public void HasFileRecord_WithNoFriendlyNameGiven_StillMatchesByPathSuffix()
+    {
+        _context.Files.Add(new Viper.Models.VIPER.File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = @"S:\Files\cats\otherroot.pdf",
+            Folder = "cats",
+            FriendlyName = "cats-otherroot.pdf",
+            Description = "",
+            ModifiedBy = "test",
+            ModifiedOn = DateTime.Now
+        });
+        _context.SaveChanges();
+
+        Assert.True(_service.HasFileRecord("cats", "otherroot.pdf"));
+        Assert.False(_service.HasFileRecord("cats", "stillfree.pdf"));
     }
 
     #endregion

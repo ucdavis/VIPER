@@ -96,6 +96,10 @@
                             />
                         </div>
 
+                        <p class="text-body2 text-grey-8 q-mt-none q-mb-sm">
+                            Users need any one of an item's "Visible to" permissions to see it.
+                        </p>
+
                         <SortableList
                             v-model="items"
                             item-key="key"
@@ -139,6 +143,7 @@
                                         <PermissionSelector
                                             v-model="item.permissions"
                                             label="Visible to"
+                                            :hint="null"
                                         />
                                     </div>
                                 </div>
@@ -442,6 +447,12 @@ async function saveItems() {
     const emptyLink = items.value.find((i) => !i.isHeader && (!i.menuItemText || i.menuItemText.trim() === ""))
     if (emptyLink) {
         itemsError.value = "Every link needs text — fill in the empty link before saving."
+        return
+    }
+    // A blank URL would save but render as an inert, non-clickable spacer row.
+    const linkWithoutUrl = items.value.find((i) => !i.isHeader && (!i.url || i.url.trim() === ""))
+    if (linkWithoutUrl) {
+        itemsError.value = "Every link needs a URL — fill in the empty link before saving."
         return
     }
 

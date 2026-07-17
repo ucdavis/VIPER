@@ -3,6 +3,7 @@ import type { Component } from "vue"
 import { createPinia } from "pinia"
 import type { Router } from "vue-router"
 import { initializeQuasar } from "@/composables/QuasarConfig"
+import { stripTrailingSlashes } from "./strip-trailing-slashes"
 
 /* oxlint-disable import/no-unassigned-import -- CSS imports for side effects */
 import "quasar/dist/quasar.css"
@@ -17,7 +18,7 @@ type BootstrapSpaOptions = {
 }
 
 export function bootstrapSpa({ areaPath, appComponent, router, provides }: BootstrapSpaOptions): void {
-    const base = (import.meta.env.VITE_VIPER_HOME ?? "/").replace(/\/$/, "")
+    const base = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/")
     if (!globalThis.location.pathname.toLowerCase().startsWith(`${base}${areaPath}`.toLowerCase())) {
         return
     }
