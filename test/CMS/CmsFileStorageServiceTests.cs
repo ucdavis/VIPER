@@ -160,6 +160,25 @@ public sealed class CmsFileStorageServiceTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("report?.pdf")]
+    [InlineData("report:1.pdf")]
+    [InlineData("report<1>.pdf")]
+    [InlineData("report|1.pdf")]
+    public void MoveIntoPlace_InvalidNameCharacter_Throws(string fileName)
+    {
+        var temp = CreateTempFile();
+
+        try
+        {
+            Assert.Throws<ArgumentException>(() => _service.MoveIntoPlace(temp, "cats", fileName, makeUnique: false));
+        }
+        finally
+        {
+            File.Delete(temp);
+        }
+    }
+
     [Fact]
     public void MoveIntoPlace_InvalidFolder_Throws()
     {
