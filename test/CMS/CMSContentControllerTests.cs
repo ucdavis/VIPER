@@ -784,13 +784,8 @@ public sealed class CMSContentControllerTests : IDisposable
     [Fact]
     public async Task UploadBlockFile_BuildsRequestFromBlock()
     {
-        _blockService.GetContentBlockAsync(5, Arg.Any<CancellationToken>()).Returns(new ContentBlockDto
-        {
-            ContentBlockId = 5,
-            ViperSectionPath = "students",
-            AllowPublicAccess = true,
-            Permissions = new List<string> { "SVMSecure.View" }
-        });
+        _blockService.GetUploadSettingsAsync(5, Arg.Any<CancellationToken>())
+            .Returns((true, "students", true, new List<string> { "SVMSecure.View" }));
         _fileService.CreateFileAsync(Arg.Any<CmsFileCreateRequest>(), Arg.Any<IFormFile>(), Arg.Any<CancellationToken>())
             .Returns(new CmsFileDto());
         var file = FakeFormFile("doc.pdf");
@@ -812,11 +807,8 @@ public sealed class CMSContentControllerTests : IDisposable
     {
         // Mirrors CheckBlockFileName: without a section path there is no upload folder, and the
         // request must not fall back to the storage root.
-        _blockService.GetContentBlockAsync(5, Arg.Any<CancellationToken>()).Returns(new ContentBlockDto
-        {
-            ContentBlockId = 5,
-            ViperSectionPath = null
-        });
+        _blockService.GetUploadSettingsAsync(5, Arg.Any<CancellationToken>())
+            .Returns((true, (string?)null, false, new List<string>()));
 
         var result = await _controller.UploadBlockFile(5, new ContentBlockFileUpload(), FakeFormFile("doc.pdf"),
             TestContext.Current.CancellationToken);

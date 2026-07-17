@@ -436,23 +436,23 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return BadRequest("A file is required.");
             }
-            var block = await _blockService.GetContentBlockAsync(contentBlockId, ct);
-            if (block == null)
+            var (found, sectionPath, allowPublicAccess, permissions) = await _blockService.GetUploadSettingsAsync(contentBlockId, ct);
+            if (!found)
             {
                 return NotFound();
             }
             // The section path IS the upload folder; refuse the upload when the block has none
             // (mirrors CheckBlockFileName) rather than falling back to the storage root.
-            if (string.IsNullOrEmpty(block.ViperSectionPath))
+            if (string.IsNullOrEmpty(sectionPath))
             {
                 return BadRequest("The content block has no VIPER section path to upload into.");
             }
 
             var request = new CmsFileCreateRequest
             {
-                Folder = block.ViperSectionPath,
-                AllowPublicAccess = block.AllowPublicAccess,
-                Permissions = block.Permissions,
+                Folder = sectionPath,
+                AllowPublicAccess = allowPublicAccess,
+                Permissions = permissions,
                 FileName = form.FileName,
                 Overwrite = form.Overwrite
             };
@@ -502,7 +502,7 @@ namespace Viper.Areas.CMS.Controllers
             // deleted out from under it. A false result means it became shared/gone in that window.
             return await _fileService.RollbackDeleteFileAsync(fileGuid, contentBlockId, ct)
                 ? NoContent()
-                : Conflict("The file could not be rolled back; it may now be attached to another block.");
+                : Conflict("The file could not be rolled back; it may have been deleted already or attached to another block.");
         }
 
         private void LogFileConflict(string operation, string? folder, string? fileName, Exception ex)
