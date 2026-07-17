@@ -35,6 +35,9 @@ namespace Viper.Areas.RAPS.Controllers
         /// Getting left nav for each page. This is a little complicated - alternatively, ViewData["ViperLeftNav"] = await Nav() 
         /// could be added to each action.
         /// </summary>
+#pragma warning disable S6967, S6932 // filter override, not an action: returning BadRequest is impossible and checking ModelState here would
+        // blanket-validate every RAPS action; the raw query-string values read here only feed left-nav context
+        // (never authorization), are TryParse-guarded, and model binding is not available in a filter
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
@@ -64,6 +67,7 @@ namespace Viper.Areas.RAPS.Controllers
                 instance,
                 page);
         }
+#pragma warning restore S6967, S6932
 
         /// <summary>
         /// RAPS home page
@@ -85,6 +89,7 @@ namespace Viper.Areas.RAPS.Controllers
             };
         }
 
+        [NonAction]
         public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER", string page = "")
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
@@ -292,6 +297,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{instance}/[action]")]
         public async Task<IActionResult> RoleMembers(string instance, int RoleId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["RoleId"] = RoleId;
             ViewData["canEditPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
 
@@ -330,6 +339,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> RolePermissions(int roleId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["roleId"] = roleId;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
         }
@@ -355,6 +368,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionMembers(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -373,6 +390,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionRoles(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -388,6 +409,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionRolesRO(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -403,6 +428,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> AllMembersWithPermission(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -506,6 +535,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> ExportToVMACS(string? server = null, string? loginId = null, bool? debugOnly = false)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             var vmacsExport = new VMACSExport(_RAPSContext);
             var servers = vmacsExport.GetServers();
             if (server != null && servers.Contains(server))
@@ -557,6 +590,10 @@ namespace Viper.Areas.RAPS.Controllers
         [SupportedOSPlatform("windows")]
         public async Task<IActionResult> GroupSync(int groupId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             OuGroup? group = await _RAPSContext.OuGroups.FindAsync(groupId);
             if (group != null)
             {

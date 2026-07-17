@@ -1,12 +1,12 @@
 namespace Viper.Areas.RAPS.Models
 {
     /// <summary>
-    /// DTO for creating/editing groups. GroupId is 0 for new groups.
+    /// DTO for creating/editing groups. GroupId is null for new groups.
     /// This class is also a base class for Group which sets GroupId in constructor.
     /// </summary>
     public class GroupAddEdit
     {
-        public int GroupId { get; set; }
+        public int? GroupId { get; set; }
 
         public string Name { get; set; } = null!;
 
