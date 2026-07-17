@@ -7,8 +7,7 @@
         />
 
         <p class="text-body2 text-grey-8 q-mb-md">
-            Every saved edit keeps the version it replaced. This lists those past versions across all content blocks.
-            The current version of each block is on its edit page.
+            Every row is a past version a save replaced. Use "Diff vs current" to see what's changed since then.
         </p>
 
         <div class="row q-col-gutter-md q-mb-sm">
@@ -116,6 +115,22 @@
                     >
                         <q-tooltip>Diff with previous version</q-tooltip>
                     </q-btn>
+                    <q-btn
+                        dense
+                        flat
+                        no-caps
+                        size="sm"
+                        color="secondary"
+                        icon="difference"
+                        class="diff-action-btn"
+                        :disable="cellProps.row.blockDeleted"
+                        aria-label="Diff vs current"
+                        @click="viewDiffVsCurrent(cellProps.row)"
+                    >
+                        <q-tooltip>{{
+                            cellProps.row.blockDeleted ? "Not available for deleted blocks" : "Diff vs current"
+                        }}</q-tooltip>
+                    </q-btn>
                 </q-td>
             </template>
 
@@ -163,10 +178,23 @@
                             size="sm"
                             color="secondary"
                             icon="compare_arrows"
-                            label="Diff"
+                            label="Diff vs previous"
                             class="diff-action-btn"
                             aria-label="Diff with previous version"
                             @click="viewDiff(row)"
+                        />
+                        <q-btn
+                            dense
+                            flat
+                            no-caps
+                            size="sm"
+                            color="secondary"
+                            icon="difference"
+                            label="Diff vs current"
+                            class="diff-action-btn"
+                            :disable="row.blockDeleted"
+                            aria-label="Diff vs current"
+                            @click="viewDiffVsCurrent(row)"
                         />
                     </template>
                 </ListCard>
@@ -198,11 +226,11 @@ import DateRangeFilter from "@/CMS/components/DateRangeFilter.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
 import ListCardField from "@/CMS/components/ListCardField.vue"
-import type { CmsContentHistoryAudit, CmsContentHistoryDiff } from "@/CMS/types/"
+import type { CmsContentBlock, CmsContentHistoryAudit, CmsContentHistoryDiff } from "@/CMS/types/"
 
 const apiBase = inject("apiURL")
 const $q = useQuasar()
-const { get } = useFetch()
+const { get, post } = useFetch()
 const { formatDateTime } = useDateFunctions()
 
 const columns: QTableProps["columns"] = [
@@ -235,7 +263,7 @@ const {
     pagination: { sortBy: "modifiedOn", descending: true },
 })
 
-const { viewer, openViewer, applyDiff, failViewer, savedDiffSubtitle } = useContentDiffViewer()
+const { viewer, openViewer, applyDiff, failViewer, savedDiffSubtitle, diffStamp } = useContentDiffViewer()
 
 async function viewDiff(row: CmsContentHistoryAudit) {
     openViewer(blockLabel(row))
@@ -248,6 +276,37 @@ async function viewDiff(row: CmsContentHistoryAudit) {
     }
 }
 
+// Diffs this row's saved content against the block's CURRENT live content — the comparison
+// readers actually want after a recent save (bniedzie: the newest row's own "diff with
+// previous" shows the change *before* the latest one, not the latest change itself). Same
+// POST-diff flow as the hub rail's "View latest change" (RecentActivity.vue openLatestDiff):
+// history rows only hold superseded versions, so comparing against "now" needs the posted
+// draft content rather than a second saved version.
+async function viewDiffVsCurrent(row: CmsContentHistoryAudit) {
+    openViewer(blockLabel(row))
+    const blockRes = await get(apiBase + "CMS/content/" + row.contentBlockId)
+    if (!blockRes.success) {
+        failViewer("Failed to load the current version")
+        return
+    }
+    const current = blockRes.result as CmsContentBlock
+    const res = await post(
+        apiBase + "CMS/content/" + row.contentBlockId + "/history/" + row.contentHistoryId + "/diff",
+        {
+            content: current.content,
+        },
+    )
+    if (res.success) {
+        const diff = res.result as CmsContentHistoryDiff
+        applyDiff(
+            diff,
+            `Changes from ${diffStamp(diff.oldModifiedOn, diff.oldModifiedBy)} to ${diffStamp(current.modifiedOn, current.modifiedBy)}`,
+        )
+    } else {
+        failViewer(res.errors?.[0] ?? "Failed to load the current version")
+    }
+}
+
 onMounted(reload)
 </script>
 
@@ -256,8 +315,8 @@ onMounted(reload)
    44px touch target on coarse pointers. Mouse/trackpad keep the dense table-action size. */
 @media (pointer: coarse) {
     .diff-action-btn {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
     }
 }
 </style>
