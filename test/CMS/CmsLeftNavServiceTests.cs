@@ -261,6 +261,17 @@ public sealed class CmsLeftNavServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveItems_EmptyLinkUrl_Throws()
+    {
+        var menu = await SeedMenuAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SaveItemsAsync(menu.LeftNavMenuId, ItemsSave(menu,
+                new LeftNavItemEdit { LeftNavItemId = 0, MenuItemText = "Link", IsHeader = false, Url = "  " }),
+                TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task SaveItems_UnknownMenu_ReturnsNull()
     {
         var dto = await _service.SaveItemsAsync(9999,
@@ -276,7 +287,7 @@ public sealed class CmsLeftNavServiceTests : IDisposable
 
         // A stale client posts an id that no longer exists in the menu.
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SaveItemsAsync(menu.LeftNavMenuId,
-            ItemsSave(menu, new LeftNavItemEdit { LeftNavItemId = 987654, MenuItemText = "Deleted Elsewhere" }),
+            ItemsSave(menu, new LeftNavItemEdit { LeftNavItemId = 987654, MenuItemText = "Deleted Elsewhere", Url = "/gone" }),
             TestContext.Current.CancellationToken));
 
         // Nothing was created; the menu still holds only its original item.
