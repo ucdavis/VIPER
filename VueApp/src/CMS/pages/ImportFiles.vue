@@ -10,7 +10,7 @@
             Moves files out of the legacy VIPER webroot into the managed file store. The original path is saved as the
             file's Old URL, so existing links keep working through the file handler. Enter one path per line, relative
             to the legacy webroot (e.g.
-            <code>/cats/docs/manual.pdf</code>).
+            <code>/cats/docs/manual.pdf</code>); a leading <code>viper/</code> is ignored.
         </p>
 
         <q-form
@@ -82,6 +82,13 @@
 
         <template v-else>
             <h2 class="text-h6 text-primary q-mb-sm">Confirm Import</h2>
+            <StatusBanner
+                v-if="strippedPathCount"
+                type="info"
+            >
+                Removed the leading "viper/" from {{ strippedPathCount }}
+                {{ inflect("path", strippedPathCount) }}; paths are relative to the legacy webroot.
+            </StatusBanner>
             <p class="text-body2">
                 {{ importableCount }} of {{ preview.length }} {{ inflect("file", preview.length) }} will be imported
                 into <strong>{{ options.folder }}</strong
@@ -195,6 +202,7 @@ import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 
 type ImportResult = {
@@ -225,6 +233,7 @@ const importing = ref(false)
 const previewing = ref(false)
 const preview = ref<ImportPreview[] | null>(null)
 const results = ref<ImportResult[]>([])
+const strippedPathCount = ref(0)
 
 const options = ref({
     folder: null as string | null,
@@ -285,7 +294,20 @@ function buildRequest() {
     }
 }
 
+// Mirrors the server-side tolerance (a leading "viper" segment is ignored): rewrite the
+// textarea so the user sees the paths the import will actually use, and count the changed
+// lines for the preview banner. The server still strips, so the API stays safe on its own.
+function stripLeadingViper() {
+    const lines = paths.value.split("\n")
+    const cleaned = lines.map((line) => line.replace(/^\s*[\\/]?viper[\\/]/i, "/"))
+    strippedPathCount.value = cleaned.filter((line, i) => line !== lines[i]).length
+    if (strippedPathCount.value > 0) {
+        paths.value = cleaned.join("\n")
+    }
+}
+
 async function runPreview() {
+    stripLeadingViper()
     const request = buildRequest()
     if (!request.filePaths.length || !request.folder) return
 
