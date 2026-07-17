@@ -150,6 +150,13 @@ namespace Viper.Areas.CMS.Services
                 throw new ArgumentException("Every link needs text - fill in the empty link before saving.");
             }
 
+            // Links need a destination too; a blank Url would render as an inert, non-clickable
+            // spacer row (the display side keys header/spacer rendering off an empty Url).
+            if (items.Any(i => !i.IsHeader && string.IsNullOrWhiteSpace(i.Url)))
+            {
+                throw new ArgumentException("Every link needs a URL - fill in the empty link before saving.");
+            }
+
             var menu = await LoadMenuAsync(leftNavMenuId, tracking: true, ct);
             if (menu == null)
             {
