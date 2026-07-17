@@ -238,28 +238,50 @@ function extractZip(zipPath, extractPath) {
 
                     zipfile.openReadStream(entry, (streamErr, readStream) => {
                         if (streamErr) {
+                            zipfile.close()
                             logError(`Failed to read entry ${entry.fileName}: ${streamErr.message}`)
                             reject(streamErr)
                             return
                         }
 
-                        const writeStream = fs.createWriteStream(filePath)
+                        // Extract via .partial + rename so interruptions never leave truncated files
+                        const partialPath = `${filePath}.partial`
+                        const writeStream = fs.createWriteStream(partialPath)
+                        let failed = false
 
-                        // Wait for writeStream close (not readStream end) to ensure
-                        // Data is fully flushed to disk before processing next entry
                         writeStream.on("close", () => {
+                            // "close" also fires after an error; never finalize a failed write
+                            if (failed) {
+                                return
+                            }
+                            try {
+                                fs.renameSync(partialPath, filePath)
+                            } catch (renameErr) {
+                                zipfile.close()
+                                logError(`Error finalizing ${filePath}: ${renameErr.message}`)
+                                reject(renameErr)
+                                return
+                            }
                             extractedFiles.push(entry.fileName)
                             logInfo(`Extracted: ${entry.fileName}`)
                             zipfile.readEntry()
                         })
 
                         readStream.on("error", (readErr) => {
+                            failed = true
+                            writeStream.destroy()
+                            zipfile.close()
                             logError(`Error reading ${entry.fileName}: ${readErr.message}`)
                             reject(readErr)
                         })
 
                         writeStream.on("error", (writeErr) => {
-                            logError(`Error writing ${filePath}: ${writeErr.message}`)
+                            failed = true
+                            // pipe does not tear down the source on a destination error;
+                            // stop reading and release the zip fd so the process can exit
+                            readStream.destroy()
+                            zipfile.close()
+                            logError(`Error writing ${partialPath}: ${writeErr.message}`)
                             reject(writeErr)
                         })
 
@@ -458,25 +480,45 @@ function startMailpit() {
     return new Promise((resolve, _reject) => {
         logInfo("Starting Mailpit...")
 
-        const process = spawn(MAILPIT_EXE, [], {
+        const mailpitProcess = spawn(MAILPIT_EXE, [], {
             detached: true,
             stdio: "ignore",
             windowsHide: true,
         })
 
-        process.unref()
+        let startupTimer
+        let resolved = false
+        const safeResolve = (value) => {
+            if (resolved) {
+                return
+            }
+            resolved = true
+            clearTimeout(startupTimer)
+            resolve(value)
+        }
+
+        mailpitProcess.on("error", (err) => {
+            logError(`Failed to start Mailpit: ${err.message}`)
+            safeResolve(false)
+        })
+
+        mailpitProcess.unref()
 
         // Wait a moment and check if it started successfully
-        setTimeout(async () => {
+        startupTimer = setTimeout(async () => {
             const isRunning = await checkMailpitWeb()
+            // The error handler may have won during the await; don't emit contradictory logs
+            if (resolved) {
+                return
+            }
             if (isRunning) {
                 logSuccess("Mailpit started successfully!")
                 logInfo(`📧 SMTP Server: localhost:${SMTP_PORT}`)
                 logInfo(`🌐 Web Interface: http://localhost:${WEB_PORT}`)
-                resolve(true)
+                safeResolve(true)
             } else {
                 logError("Mailpit failed to start properly")
-                resolve(false)
+                safeResolve(false)
             }
         }, STARTUP_DELAY)
     })
@@ -585,7 +627,15 @@ async function manageMailpit() {
 
         // Check if Mailpit is installed
         const status = getMailpitStatus()
-        if (status.installed) {
+        if (status.installed && !status.version) {
+            logWarning("Mailpit binary is corrupt or unreadable, reinstalling...")
+            const reinstalled = await installMailpit()
+            if (!reinstalled) {
+                logError("Failed to reinstall Mailpit")
+                logInfo("You can try again with: npm run mailpit:start")
+                return false
+            }
+        } else if (status.installed) {
             // Already installed — check for updates
             try {
                 const { version: latest } = await getLatestRelease()
