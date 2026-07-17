@@ -6,14 +6,18 @@ import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-u
  * the list query (contentBlockId/modifiedBy/from/to/search/page/perPage) and binds rowsNumber,
  * syncFiltersToUrl reflects active filters back (omitting empties), clearBlockFilter drops the
  * block chip and reloads, viewDiff fetches the GET diff endpoint and drives ContentDiffDialog
- * with a comparison/original subtitle, and the route.query watcher's equality guard avoids a
- * double-fetch on self-writes. DateRangeFilter is mounted real to exercise the binding end-to-end.
+ * with a comparison/original subtitle, viewDiffVsCurrent fetches the block's live content and
+ * POSTs it against this row for a "what's changed since" comparison (disabled for deleted
+ * blocks), and the route.query watcher's equality guard avoids a double-fetch on self-writes.
+ * DateRangeFilter is mounted real to exercise the binding end-to-end.
  */
 
 const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),
+        post: (...args: unknown[]) => mockPost(...args),
         createUrlSearchParams: (obj: Record<string, string | number | null | undefined>) => {
             const params = new URLSearchParams()
             for (const [k, v] of Object.entries(obj)) {
@@ -47,7 +51,15 @@ type DiffResult = {
     newModifiedBy: string | null
 }
 
-function routeGet(opts: { rows?: unknown[]; total?: number; diff?: DiffResult | { fail: true } } = {}) {
+function routeGet(
+    opts: {
+        rows?: unknown[]
+        total?: number
+        diff?: DiffResult | { fail: true }
+        blockDetail?: { success: boolean; result?: unknown }
+        diffVsCurrent?: DiffResult | { fail: true }
+    } = {},
+) {
     const rows = opts.rows ?? [HISTORY_ROW]
     mockGet.mockReset()
     mockGet.mockImplementation((...args: unknown[]) => {
@@ -58,11 +70,21 @@ function routeGet(opts: { rows?: unknown[]; total?: number; diff?: DiffResult | 
             }
             return Promise.resolve({ success: true, result: opts.diff })
         }
+        if (/CMS\/content\/\d+$/u.test(url)) {
+            return Promise.resolve(opts.blockDetail ?? { success: true, result: { content: "<p>now</p>" } })
+        }
         return Promise.resolve({
             success: true,
             result: rows,
             pagination: opts.total === undefined ? undefined : { totalRecords: opts.total },
         })
+    })
+    mockPost.mockReset()
+    mockPost.mockImplementation(() => {
+        if (opts.diffVsCurrent && "fail" in opts.diffVsCurrent) {
+            return Promise.resolve({ success: false, errors: ["boom"] })
+        }
+        return Promise.resolve({ success: true, result: opts.diffVsCurrent })
     })
 }
 
@@ -80,7 +102,7 @@ async function mountPage(query: Record<string, string> = {}) {
     return { wrapper, router }
 }
 
-describe("ContentBlockHistory.vue - list request", () => {
+describe("contentBlockHistory.vue - list request", () => {
     beforeEach(() => routeGet({ total: 17 }))
 
     it("requests page 1 with default perPage on mount and binds rowsNumber", async () => {
@@ -115,7 +137,7 @@ describe("ContentBlockHistory.vue - list request", () => {
     })
 })
 
-describe("ContentBlockHistory.vue - filter to URL sync", () => {
+describe("contentBlockHistory.vue - filter to URL sync", () => {
     beforeEach(() => routeGet({ total: 5 }))
 
     it("syncFiltersToUrl writes only the active filters to the URL (empties omitted)", async () => {
@@ -154,11 +176,11 @@ describe("ContentBlockHistory.vue - filter to URL sync", () => {
         // equal to filters and returns without a second fetch.
         await flushPromises()
         await flushPromises()
-        expect(mockGet.mock.calls.length).toBe(callsAfterSearch)
+        expect(mockGet.mock.calls).toHaveLength(callsAfterSearch)
     })
 })
 
-describe("ContentBlockHistory.vue - viewDiff", () => {
+describe("contentBlockHistory.vue - viewDiff", () => {
     it("fetches the GET diff endpoint and shows the comparison subtitle for a non-original version", async () => {
         routeGet({
             diff: {
@@ -225,5 +247,83 @@ describe("ContentBlockHistory.vue - viewDiff", () => {
         const dialog = wrapper.findComponent({ name: "ContentDiffDialog" })
         expect(dialog.props("modelValue")).toBeFalsy()
         expect(document.body.textContent).toContain("boom")
+    })
+})
+
+describe("contentBlockHistory.vue - viewDiffVsCurrent", () => {
+    it("posts this row's content against the block's current content and shows the change", async () => {
+        routeGet({
+            blockDetail: {
+                success: true,
+                result: { content: "<p>now</p>", modifiedOn: "2024-04-01T09:00:00", modifiedBy: "editor" },
+            },
+            diffVsCurrent: {
+                content: "<p>diff <ins>added</ins></p>",
+                hasComparison: true,
+                hasChanges: true,
+                oldModifiedOn: "2024-03-01T12:00:00",
+                oldModifiedBy: "editor",
+                newModifiedOn: null,
+                newModifiedBy: null,
+            },
+        })
+        const { wrapper } = await mountPage()
+        await wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.attributes("aria-label") === "Diff vs current")!
+            .trigger("click")
+        await flushPromises()
+
+        // History rows only hold superseded versions, so comparing against "now" needs the
+        // POST diff carrying the block's live content (fetched via GET content/<blockId>).
+        expect(mockPost).toHaveBeenCalledOnce()
+        const [diffUrl, diffBody] = mockPost.mock.calls[0] as [string, unknown]
+        expect(diffUrl).toContain("CMS/content/7/history/55/diff")
+        expect(diffBody).toStrictEqual({ content: "<p>now</p>" })
+
+        const dialog = wrapper.findComponent({ name: "ContentDiffDialog" })
+        expect(dialog.props("modelValue")).toBeTruthy()
+        expect(dialog.props("diffHtml")).toContain("added")
+        expect(dialog.props("subtitle")).toContain("Changes from")
+        // "new" side of the subtitle comes from the block detail's own stamp, not the diff
+        // response (a POST diff has no saved "new" version to stamp).
+        expect(dialog.props("subtitle")).toContain("by editor")
+    })
+
+    it("fails gracefully when the current version can't be loaded", async () => {
+        routeGet({ blockDetail: { success: false } })
+        const { wrapper } = await mountPage()
+        await wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.attributes("aria-label") === "Diff vs current")!
+            .trigger("click")
+        await flushPromises()
+
+        expect(mockPost).not.toHaveBeenCalled()
+        expect(wrapper.findComponent({ name: "ContentDiffDialog" }).props("modelValue")).toBeFalsy()
+        expect(document.body.textContent).toContain("Failed to load the current version")
+    })
+
+    it("notifies and closes the viewer when the diff-vs-current request fails", async () => {
+        routeGet({ diffVsCurrent: { fail: true } })
+        const { wrapper } = await mountPage()
+        await wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.attributes("aria-label") === "Diff vs current")!
+            .trigger("click")
+        await flushPromises()
+
+        const dialog = wrapper.findComponent({ name: "ContentDiffDialog" })
+        expect(dialog.props("modelValue")).toBeFalsy()
+        expect(document.body.textContent).toContain("boom")
+    })
+
+    it("disables the action for a deleted block", async () => {
+        routeGet({ rows: [{ ...HISTORY_ROW, blockDeleted: true }] })
+        const { wrapper } = await mountPage()
+        const button = wrapper
+            .findAllComponents({ name: "QBtn" })
+            .find((b) => b.attributes("aria-label") === "Diff vs current")!
+        expect(button.props("disable")).toBeTruthy()
     })
 })
