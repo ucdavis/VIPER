@@ -138,6 +138,25 @@ public sealed class CmsFileImportServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Import_NullPermissions_TreatedAsEmpty_DoesNotThrow()
+    {
+        CreateWebrootFile(@"cats\docs\manual.pdf");
+        var request = new CmsFileImportRequest
+        {
+            FilePaths = new List<string> { "cats/docs/manual.pdf" },
+            Folder = @"cats\docs",
+            UseDefaultPermission = true,
+            Permissions = null!
+        };
+
+        await _service.ImportFilesAsync(request, TestContext.Current.CancellationToken);
+
+        var saved = await _context.Files.Include(f => f.FileToPermissions).SingleAsync(TestContext.Current.CancellationToken);
+        var permissions = saved.FileToPermissions.Select(p => p.Permission).ToList();
+        Assert.Equal(new[] { "SVMSecure.cats" }, permissions);
+    }
+
+    [Fact]
     public async Task Import_TraversalOutsideWebroot_Fails()
     {
         var request = new CmsFileImportRequest

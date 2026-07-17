@@ -59,10 +59,7 @@ namespace Viper.Areas.CMS.Services
                 throw new ArgumentException("Invalid folder.");
             }
 
-            var permissions = request.Permissions
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Select(p => p.Trim())
-                .ToList();
+            var permissions = CmsServiceHelpers.CleanList(request.Permissions);
             if (request.UseDefaultPermission == true)
             {
                 string topFolder = request.Folder.Split(['\\', '/'], StringSplitOptions.None)[0];
