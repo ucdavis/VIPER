@@ -262,6 +262,51 @@ public sealed class CMSFilesControllerTests : IDisposable
         Assert.IsType<ConflictObjectResult>(result.Result);
     }
 
+    [Fact]
+    public async Task UploadFile_ReturnsStoreError_WithReason_OnFileSystemFailure()
+    {
+        var request = new CmsFileCreateRequest { Folder = "cats" };
+        _fileService.CreateFileAsync(request, Arg.Any<IFormFile>(), Arg.Any<CancellationToken>())
+            .Throws(new UnauthorizedAccessException("Access to the path 'S:\\Files\\cats\\report.pdf' is denied."));
+
+        var result = await _controller.UploadFile(request, MakeFormFile(), TestContext.Current.CancellationToken);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
+        Assert.Contains("file store", (string)objectResult.Value!);
+        Assert.Contains("is denied", (string)objectResult.Value!);
+    }
+
+    [Fact]
+    public async Task UploadFile_ReturnsRecordError_WithInnerReason_OnDbFailure()
+    {
+        var request = new CmsFileCreateRequest { Folder = "cats" };
+        _fileService.CreateFileAsync(request, Arg.Any<IFormFile>(), Arg.Any<CancellationToken>())
+            .Throws(new DbUpdateException("save failed", new Exception("String or binary data would be truncated.")));
+
+        var result = await _controller.UploadFile(request, MakeFormFile(), TestContext.Current.CancellationToken);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
+        // The inner exception's message (the actionable detail) is surfaced, not the boilerplate wrapper.
+        Assert.Contains("would be truncated", (string)objectResult.Value!);
+    }
+
+    [Fact]
+    public async Task UpdateFile_ReturnsStoreError_OnFileSystemFailure()
+    {
+        var guid = Guid.NewGuid();
+        var request = new CmsFileUpdateRequest { Description = "x" };
+        _fileService.UpdateFileAsync(guid, request, Arg.Any<IFormFile?>(), Arg.Any<CancellationToken>())
+            .Throws(new IOException("The process cannot access the file."));
+
+        var result = await _controller.UpdateFile(guid, request, MakeFormFile(), TestContext.Current.CancellationToken);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
+        Assert.Contains("file store", (string)objectResult.Value!);
+    }
+
     #endregion
 
     #region Delete / Restore
