@@ -266,7 +266,8 @@ namespace Viper.Areas.CMS.Services
         private void ApplyItemPermissionDeltas(LeftNavItem item, List<string> requested)
         {
             var existing = item.LeftNavItemToPermissions.ToList();
-            foreach (var p in existing.Where(p => !requested.Contains(p.Permission, StringComparer.OrdinalIgnoreCase)))
+            var requestedSet = new HashSet<string>(requested, StringComparer.OrdinalIgnoreCase);
+            foreach (var p in existing.Where(p => !requestedSet.Contains(p.Permission)))
             {
                 item.LeftNavItemToPermissions.Remove(p);
                 _context.Remove(p);
