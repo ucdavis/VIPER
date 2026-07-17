@@ -184,11 +184,19 @@ namespace Viper.Areas.CMS.Services
         public async Task<string> SaveToTempAsync(IFormFile file, CancellationToken ct = default)
         {
             string tempFolder = Path.Join(Path.GetTempPath(), "Viper-CMS-Uploads");
-            System.IO.Directory.CreateDirectory(tempFolder);
             string tempPath = Path.Join(tempFolder, Guid.NewGuid().ToString("N"));
-            // useAsync so CopyToAsync performs true async I/O instead of blocking a request thread.
-            await using FileStream stream = new(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
-            await file.CopyToAsync(stream, ct);
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempFolder);
+                // useAsync so CopyToAsync performs true async I/O instead of blocking a request thread.
+                await using FileStream stream = new(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
+                await file.CopyToAsync(stream, ct);
+            }
+            // Name the path; the raw exception often omits it and admins can't read server logs.
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new IOException($"Could not write the upload to temporary storage at '{tempFolder}': {ex.Message}", ex);
+            }
             return tempPath;
         }
 
@@ -215,15 +223,29 @@ namespace Viper.Areas.CMS.Services
             }
 
             string targetPath = BuildTargetPath(folder, finalName);
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            File.Move(tempPath, targetPath);
+            try
+            {
+                System.IO.Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                File.Move(tempPath, targetPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new IOException($"Could not write to '{targetPath}': {ex.Message}", ex);
+            }
             return targetPath;
         }
 
         public void ReplaceInPlace(string tempPath, string existingFilePath)
         {
             AssertUnderRoot(existingFilePath);
-            File.Move(tempPath, existingFilePath, overwrite: true);
+            try
+            {
+                File.Move(tempPath, existingFilePath, overwrite: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new IOException($"Could not write to '{existingFilePath}': {ex.Message}", ex);
+            }
         }
 
         public string BackupManagedFile(string filePath)
