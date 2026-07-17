@@ -395,6 +395,23 @@ public sealed class CMSFilesControllerTests : IDisposable
             string.Empty, Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task GetFiles_FailsClosed_WhenNonAdminHasNoLoginId()
+    {
+        var user = new AaudUser { AaudUserId = 1, LoginId = null };
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(false);
+        _fileService.GetFilesAsync(null, "deleted", null, null, null, 1, 50, "friendlyName", false,
+            string.Empty, Arg.Any<CancellationToken>()).Returns((new List<CmsFileDto>(), 0));
+
+        await _controller.GetFiles(null, null, null, null, null, "deleted", ct: TestContext.Current.CancellationToken);
+
+        // A non-admin with no LoginId must scope the trash to nothing, not fall through to the
+        // admin-level unrestricted (null) view.
+        await _fileService.Received(1).GetFilesAsync(null, "deleted", null, null, null, 1, 50, "friendlyName", false,
+            string.Empty, Arg.Any<CancellationToken>());
+    }
+
     #endregion
 
     #region Import / Preview / Bulk-encrypt
