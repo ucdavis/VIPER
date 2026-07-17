@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import type { RouteRecordRaw, Router } from "vue-router"
 import { useRouteFocus } from "@/composables/use-route-focus"
+import { stripTrailingSlashes } from "./strip-trailing-slashes"
 
 /**
  * Standard VIPER SPA router: web history rooted at VITE_VIPER_HOME,
@@ -15,7 +16,7 @@ export function createSpaRouter(routes: RouteRecordRaw[]): Router {
     // Same normalization as bootstrap-spa: tolerate a missing env var (tests,
     // misconfigured builds) and a trailing slash. The root base stays an explicit
     // "/" rather than decaying to an empty string.
-    const baseUrl = (import.meta.env.VITE_VIPER_HOME ?? "/").replace(/\/$/, "") || "/"
+    const baseUrl = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/") || "/"
     const router = createRouter({
         scrollBehavior: (to, from, savedPosition) => {
             // Browser back/forward restores the position the user left this entry at;
@@ -28,7 +29,13 @@ export function createSpaRouter(routes: RouteRecordRaw[]): Router {
             if (to.hash && (to.path !== from.path || to.hash !== from.hash)) {
                 return { el: to.hash }
             }
-            return to.path === from.path ? false : { left: 0, top: 0 }
+            // Same page, same fragment: a query-only change, so hold the reader's place.
+            // Dropping a fragment (/page#section -> /page) falls through to the top instead,
+            // which would otherwise leave the page parked at the old anchor.
+            if (to.path === from.path && to.hash === from.hash) {
+                return false
+            }
+            return { left: 0, top: 0 }
         },
         history: createWebHistory(baseUrl),
         routes,
