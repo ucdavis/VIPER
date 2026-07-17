@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using NLog;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -19,16 +20,18 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _RAPSContext;
         private readonly RAPSSecurityService _securityService;
+        private readonly IServiceScopeFactory _scopeFactory;
         public IUserHelper UserHelper { get; private set; }
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(RAPSContext context)
+        public RAPSController(RAPSContext context, IServiceScopeFactory scopeFactory)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
             UserHelper = new UserHelper();
+            _scopeFactory = scopeFactory;
         }
 
         /// <summary>
@@ -596,11 +599,34 @@ namespace Viper.Areas.RAPS.Controllers
             OuGroup? group = await _RAPSContext.OuGroups.FindAsync(groupId);
             if (group != null)
             {
-                _ = new OuGroupService(_RAPSContext).Sync(groupId, group.Name);
+                _ = SyncGroupInBackground(groupId, group.Name);
             }
 
             ViewData["Group"] = group;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Sync.cshtml"));
+        }
+
+        /// <summary>
+        /// Run the AD/OU group sync outside the request scope so it can keep running after the response
+        /// is returned (the sync page tells users it may take a few minutes). Resolves its own RAPSContext
+        /// from a fresh DI scope, since the request-scoped _RAPSContext is disposed once the request ends.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        [NonAction]
+        public async Task SyncGroupInBackground(int groupId, string groupName)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<RAPSContext>();
+                await new OuGroupService(context).Sync(groupId, groupName);
+            }
+            catch (Exception ex)
+            {
+                // Background-job entry point: the task is discarded, so anything not caught
+                // here becomes an unobserved exception and the sync fails with no log entry.
+                LogManager.GetCurrentClassLogger().Error(ex, "Group sync failed for group {GroupId}", groupId);
+            }
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
