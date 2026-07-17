@@ -271,12 +271,13 @@ namespace Viper.Areas.CMS.Services
                 if (request.Overwrite == true && _storage.FileNameInUse(request.Folder, uploadName))
                 {
                     string targetPath = _storage.BuildManagedPath(request.Folder, uploadName);
-                    // Match by path OR derived friendly name so a record created under another
-                    // environment's storage root blocks the overwrite BEFORE any bytes are
-                    // touched, instead of failing later on friendly-name uniqueness and rolling
-                    // back an already-performed disk swap.
+                    // Match by path, path suffix, or derived friendly name (the same predicate
+                    // FileNameInUse used to detect this record in the first place) so a record
+                    // created under another environment's storage root still blocks the
+                    // overwrite BEFORE any bytes are touched, instead of failing later on
+                    // friendly-name uniqueness and rolling back an already-performed disk swap.
                     string overwriteFriendlyName = CmsFileNaming.BuildFriendlyName(request.Folder, uploadName);
-                    if (await _context.Files.AnyAsync(f => f.FilePath == targetPath || f.FriendlyName == overwriteFriendlyName, ct))
+                    if (_storage.HasFileRecord(request.Folder, uploadName, overwriteFriendlyName))
                     {
                         throw new InvalidOperationException(
                             $"{uploadName} belongs to an existing file record; replace its content by editing that file.");

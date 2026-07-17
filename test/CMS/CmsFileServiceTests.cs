@@ -321,6 +321,7 @@ public sealed class CmsFileServiceTests : IDisposable
         const string targetPath = @"C:\FakeRoot\cats\report.pdf";
         _storage.FileNameInUse("cats", "report.pdf").Returns(true);
         _storage.BuildManagedPath("cats", "report.pdf").Returns(targetPath);
+        _storage.HasFileRecord("cats", "report.pdf", Arg.Any<string?>()).Returns(true);
 
         // Seed a Files row whose FilePath matches the target path.
         await SeedFileAsync(f =>
@@ -605,6 +606,7 @@ public sealed class CmsFileServiceTests : IDisposable
         });
         _storage.FileNameInUse("cats", "foreign.pdf").Returns(true);
         _storage.BuildManagedPath("cats", "foreign.pdf").Returns(@"C:\FakeRoot\cats\foreign.pdf");
+        _storage.HasFileRecord("cats", "foreign.pdf", Arg.Any<string?>()).Returns(true);
         var request = new CmsFileCreateRequest { Folder = "cats", Overwrite = true };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
