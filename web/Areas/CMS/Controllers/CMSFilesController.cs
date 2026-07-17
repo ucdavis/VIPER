@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models.DTOs;
 using Viper.Areas.CMS.Services;
@@ -174,6 +176,14 @@ namespace Viper.Areas.CMS.Controllers
                 LogFileConflict(nameof(UploadFile), request.Folder, file.FileName, ex);
                 return BadRequest(ex.Message);
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return FileStoreError(nameof(UploadFile), ex);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException)
+            {
+                return FileRecordError(nameof(UploadFile), ex);
+            }
         }
 
         // PUT /api/cms/files/{fileGuid}
@@ -206,6 +216,14 @@ namespace Viper.Areas.CMS.Controllers
             {
                 LogFileConflict(nameof(UpdateFile), null, file?.FileName, ex);
                 return BadRequest(ex.Message);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return FileStoreError(nameof(UpdateFile), ex);
+            }
+            catch (Exception ex) when (ex is DbUpdateException or SqlException)
+            {
+                return FileRecordError(nameof(UpdateFile), ex);
             }
         }
 
@@ -338,6 +356,25 @@ namespace Viper.Areas.CMS.Controllers
                 LogSanitizer.SanitizeString(operation),
                 LogSanitizer.SanitizeString(folder),
                 LogSanitizer.SanitizeString(fileName));
+        }
+
+        // Return the failing stage + reason for disk/DB errors rather than the generic 500.
+        // Endpoints are permission-gated, so the message (no stack trace) is safe to expose.
+        private ObjectResult FileStoreError(string operation, Exception ex)
+        {
+            _logger.LogError(ex, "CMS file {Operation} failed writing to the file store", operation);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                "The file could not be saved to the CMS file store. The storage location may be "
+                + $"unavailable or not writable. Details: {ex.Message}");
+        }
+
+        private ObjectResult FileRecordError(string operation, Exception ex)
+        {
+            _logger.LogError(ex, "CMS file {Operation} failed saving the database record", operation);
+            // Actionable detail is on the inner SqlException; DbUpdateException's own message is boilerplate.
+            string reason = (ex.InnerException ?? ex).Message;
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                $"A database error occurred while saving the file record. Details: {reason}");
         }
     }
 }
