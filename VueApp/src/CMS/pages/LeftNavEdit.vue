@@ -444,6 +444,12 @@ async function saveItems() {
         itemsError.value = "Every link needs text — fill in the empty link before saving."
         return
     }
+    // A blank URL would save but render as an inert, non-clickable spacer row.
+    const linkWithoutUrl = items.value.find((i) => !i.isHeader && (!i.url || i.url.trim() === ""))
+    if (linkWithoutUrl) {
+        itemsError.value = "Every link needs a URL — fill in the empty link before saving."
+        return
+    }
 
     savingItems.value = true
     const payload = {
