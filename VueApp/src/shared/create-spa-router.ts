@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import type { RouteRecordRaw, Router } from "vue-router"
 import { useRouteFocus } from "@/composables/use-route-focus"
+import { stripTrailingSlashes } from "./strip-trailing-slashes"
 
 /**
  * Standard VIPER SPA router: web history rooted at VITE_VIPER_HOME,
@@ -15,7 +16,7 @@ export function createSpaRouter(routes: RouteRecordRaw[]): Router {
     // Same normalization as bootstrap-spa: tolerate a missing env var (tests,
     // misconfigured builds) and a trailing slash. The root base stays an explicit
     // "/" rather than decaying to an empty string.
-    const baseUrl = (import.meta.env.VITE_VIPER_HOME ?? "/").replace(/\/$/, "") || "/"
+    const baseUrl = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/") || "/"
     const router = createRouter({
         scrollBehavior: (to, from, savedPosition) => {
             // Browser back/forward restores the position the user left this entry at;
