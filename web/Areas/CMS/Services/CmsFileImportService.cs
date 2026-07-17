@@ -156,6 +156,13 @@ namespace Viper.Areas.CMS.Services
             // every OS. Path APIs only honor the host separator, so on Linux a "..\" segment would
             // otherwise be read as part of a filename and slip past the outside-webroot check.
             var segments = rawPath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            // The legacy import tolerated lines pasted with the site prefix (e.g. "viper/cats/x.pdf")
+            // by stripping it; drop a leading "viper" segment so those lines resolve, and so the
+            // recorded OldUrl stays webroot-relative like the legacy oldURL.
+            if (segments.Length > 0 && string.Equals(segments[0], "viper", StringComparison.OrdinalIgnoreCase))
+            {
+                segments = segments[1..];
+            }
             string relative = string.Join('/', segments);
             string sourcePath;
             string fileName;
