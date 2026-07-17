@@ -173,6 +173,20 @@
                 <ModifiedStamp :cell-props="cellProps" />
             </template>
 
+            <template #body-cell-purgeOn="cellProps">
+                <q-td :props="cellProps">
+                    <template v-if="cellProps.row.purgeOn">
+                        {{ formatDate(cellProps.row.purgeOn) }}
+                        <StatusBadge
+                            v-if="purgeImminent(cellProps.row)"
+                            color="warning"
+                            label="soon"
+                            class="q-ml-xs"
+                        />
+                    </template>
+                </q-td>
+            </template>
+
             <template #body-cell-actions="cellProps">
                 <q-td :props="cellProps">
                     <EditButton
@@ -247,6 +261,18 @@
                     <ListCardField label="Modified">
                         <ModifiedStamp :row="row" />
                     </ListCardField>
+                    <ListCardField
+                        v-if="row.purgeOn"
+                        label="Purges"
+                    >
+                        {{ formatDate(row.purgeOn) }}
+                        <StatusBadge
+                            v-if="purgeImminent(row)"
+                            color="warning"
+                            label="soon"
+                            class="q-ml-xs"
+                        />
+                    </ListCardField>
 
                     <template #actions>
                         <EditButton
@@ -276,11 +302,12 @@
 <script setup lang="ts">
 // Template-size synthetic complexity only; the page's data logic lives in useServerTable.
 // fallow-ignore-file complexity
-import { inject, nextTick, onMounted, ref, watch } from "vue"
+import { computed, inject, nextTick, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useServerTable } from "@/CMS/composables/use-server-table"
+import StatusBadge from "@/components/StatusBadge.vue"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
@@ -363,14 +390,18 @@ const fileTools = [
     { label: "Bulk Encrypt", icon: "lock", to: { name: "CmsBulkEncrypt" } },
 ]
 
-const columns: QTableProps["columns"] = [
+const columns = computed<QTableProps["columns"]>(() => [
     { name: "friendlyName", label: "File", field: "friendlyName", align: "left", sortable: true },
     { name: "folder", label: "VIPER app", field: "folder", align: "left", sortable: true },
     { name: "permissions", label: "Access", field: "permissions", align: "left" },
     { name: "oldUrl", label: "Old URL", field: "oldUrl", align: "left", sortable: true },
     { name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true },
+    // Only trash rows carry a purge date, so the column exists only where they can appear.
+    ...(filters.value.status !== "active"
+        ? [{ name: "purgeOn", label: "Purges", field: "purgeOn", align: "left" as const, sortable: true }]
+        : []),
     { name: "actions", label: "Actions", field: "fileGuid", align: "center" },
-]
+])
 
 const {
     rows: files,
@@ -390,7 +421,8 @@ const {
         isPublic: filters.value.publicOnly ? "true" : null,
         page: p.page,
         perPage: p.rowsPerPage,
-        sortBy: p.sortBy ?? "friendlyName",
+        // PurgeOn is deletedOn plus the fixed retention window, so they order identically.
+        sortBy: p.sortBy === "purgeOn" ? "deletedOn" : (p.sortBy ?? "friendlyName"),
         descending: p.descending ? "true" : "false",
     }),
 })
@@ -491,6 +523,14 @@ function formatDate(value: string | null): string {
 function deletedLabel(row: CmsFile): string {
     const base = `Deleted ${formatDate(row.deletedOn)}`
     return row.purgeOn ? `${base} · purges ${formatDate(row.purgeOn)}` : base
+}
+
+// An overdue purge date (the purge job hasn't caught up yet) still counts as imminent.
+const PURGE_SOON_DAYS = 7
+
+function purgeImminent(row: CmsFile): boolean {
+    if (!row.purgeOn) return false
+    return new Date(row.purgeOn).getTime() - Date.now() <= PURGE_SOON_DAYS * 86_400_000
 }
 
 // When in-app navigation reuses this view with a different query (e.g. re-clicking the
