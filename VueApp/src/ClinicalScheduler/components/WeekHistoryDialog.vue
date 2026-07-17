@@ -1,7 +1,13 @@
 <template>
-    <!-- Centered (Quasar default) so it always opens in the same place, not anchored to the icon -->
+    <!-- Top-anchored so the card grows downward from a fixed edge; the header (and its
+         back/forward nav) stays put between weeks of different heights, not re-centered.
+         Pin the scale transition: top-anchored dialogs otherwise default to a slide, which
+         would make this the only modal that doesn't open/close like the rest of the app. -->
     <q-dialog
         v-model="open"
+        position="top"
+        transition-show="scale"
+        transition-hide="scale"
         :aria-labelledby="titleId"
     >
         <q-card class="week-history-dialog-card">
@@ -110,5 +116,8 @@ onKeyStroke("ArrowRight", (e) => {
     /* Fixed width, not vw, which would overflow the dialog inset and clip the close button */
     width: 22rem;
     max-width: 100%;
+
+    /* Drop below the top edge so the top-anchored dialog doesn't sit flush against it */
+    margin-top: 10vh;
 }
 </style>
