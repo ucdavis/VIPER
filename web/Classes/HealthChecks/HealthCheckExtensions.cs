@@ -81,6 +81,21 @@ namespace Viper.Classes.HealthChecks
                     healthyWhenMissing: environment.IsDevelopment()),
                 tags: new[] { "ready" });
 
+            // CMS legacy-import source. The import endpoints read files out of the
+            // legacy VIPER 1 webroot at the CMS:LegacyWebrootPath setting, so a missing
+            // or unreachable directory there breaks every import. It is a read-only
+            // source (imports write into S:\Files, covered above), so no writable probe
+            // is needed. Skipped in dev, where the legacy webroot is not mounted on
+            // every machine, the same pattern as the disk-space-cms check above.
+            var legacyWebrootPath = configuration["CMS:LegacyWebrootPath"];
+            builder.AddCheck(
+                "disk-space-cms-legacy",
+                new DiskSpaceHealthCheck(
+                    explicitDrivePath: legacyWebrootPath,
+                    requirePathExists: true,
+                    healthyWhenMissing: environment.IsDevelopment()),
+                tags: new[] { "ready" });
+
             // NLog writes to LoggingPath (C:\nlog in dev, S:\nlog in test/prod).
             // requirePathExists + verifyWritable together catch the three failure
             // modes: missing directory, ACL/readonly regression, or drive full.
