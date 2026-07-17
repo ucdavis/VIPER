@@ -433,6 +433,7 @@ const editorToolbar = [
     ["link", "hr", "quote"],
     ["removeFormat"],
     ["undo", "redo"],
+    ["viewsource"],
 ]
 
 async function loadBlock() {
