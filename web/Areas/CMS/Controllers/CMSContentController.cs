@@ -100,9 +100,9 @@ namespace Viper.Areas.CMS.Controllers
         {
             // status: 1 = active only. A public display endpoint must never serve soft-deleted
             // blocks (passing null would include DeletedOn != null rows).
-            var blocks = new Data.CMS(_context, _rapsContext, _sanitizerService)
-                .GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, 1)?.ToList();
-            if (blocks == null || blocks.Count == 0)
+            var block = new Data.CMS(_context, _rapsContext, _sanitizerService)
+                .GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, 1)?.FirstOrDefault();
+            if (block == null)
             {
                 return NotFound();
             }
@@ -112,7 +112,7 @@ namespace Viper.Areas.CMS.Controllers
             // permission rows) nor management metadata (editor login ids, permission names,
             // System/section placement). Content is already render-sanitized by
             // GetContentBlocksAllowed; display consumers read only content + title.
-            return CmsContentBlockMapper.ToPublicDto(blocks[0]);
+            return CmsContentBlockMapper.ToPublicDto(block);
         }
 
         //GET: content/5/history
