@@ -92,9 +92,11 @@ namespace Viper.Classes.HealthChecks
                         "VMACS directory endpoint returned a response that was not valid XML.");
                 }
             }
-            catch (HttpRequestException ex)
+            catch (HttpRequestException)
             {
-                return HealthCheckResult.Degraded($"VMACS directory endpoint unreachable: {ex.Message}");
+                // The probe URI carries the auth token in its query string; never echo
+                // the exception message into the health payload (exposed at /health/detail).
+                return HealthCheckResult.Degraded("VMACS directory endpoint unreachable.");
             }
             catch (OperationCanceledException)
             {

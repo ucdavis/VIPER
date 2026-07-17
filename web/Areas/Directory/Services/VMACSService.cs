@@ -20,7 +20,9 @@ namespace Viper.Areas.Directory.Services
         private static string? VmacsBaseUrl =>
             HttpHelper.GetSetting<string>("Vmacs", "BaseUrl");
 
-        private static readonly HttpClient sharedClient = new();
+        // Bound the per-lookup wait: DirectoryController blocks on Search().Result
+        // once per result, so a hung endpoint must not stall for the default 100s.
+        private static readonly HttpClient sharedClient = new() { Timeout = TimeSpan.FromSeconds(10) };
 
         protected VMACSService() { }
 
