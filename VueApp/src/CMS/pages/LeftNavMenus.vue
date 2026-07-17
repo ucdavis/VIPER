@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue"
+import { inject, nextTick, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { inflect } from "inflection"
@@ -258,11 +258,24 @@ function onMenuCreated(leftNavMenuId: number) {
     void router.push({ name: "CmsLeftNavEdit", params: { id: leftNavMenuId } })
 }
 
+// The "Add Left-Nav Menu" left-nav link targets ?add=1; consume the flag so re-clicking
+// the link opens the dialog even when this page is already mounted (in-app navigation
+// reuses the component instance, so onMounted alone would miss it).
+// Strip the query BEFORE opening: route-focus moves focus to <main> after each
+// navigation (use-route-focus.ts), which would close an already-open dialog.
+watch(
+    () => route.query.add,
+    async (add) => {
+        if (add !== undefined) {
+            await router.replace({ query: { ...route.query, add: undefined } })
+            await nextTick()
+            showAddDialog.value = true
+        }
+    },
+    { immediate: true },
+)
+
 onMounted(() => {
-    // The "Add Left-Nav Menu" nav entry deep-links here with ?add=1 to open the dialog.
-    if (route.query.add === "1") {
-        showAddDialog.value = true
-    }
     loadMenus()
 })
 </script>
