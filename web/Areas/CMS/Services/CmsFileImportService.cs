@@ -43,12 +43,9 @@ namespace Viper.Areas.CMS.Services
             _audit = audit;
             _userHelper = userHelper;
             _logger = logger;
-            // The dev default is a Windows path; on any other OS leave it unset so the
-            // import endpoints fail fast with the explicit not-configured error instead
-            // of probing a path that cannot exist.
-            _legacyWebroot = configuration["CMS:LegacyWebrootPath"]
-                ?? (HttpHelper.Environment?.EnvironmentName == "Development" && OperatingSystem.IsWindows()
-                    ? @"C:\Sites\https\VIPER" : null);
+            // Set per environment in appsettings.{Environment}.json; when unset the import
+            // endpoints fail fast with the explicit not-configured error.
+            _legacyWebroot = configuration["CMS:LegacyWebrootPath"];
         }
 
         public async Task<List<CmsFileImportResult>> ImportFilesAsync(CmsFileImportRequest request, CancellationToken ct = default)
