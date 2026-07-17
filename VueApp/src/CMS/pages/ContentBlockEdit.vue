@@ -136,7 +136,7 @@
                                 :options="['Viper', 'Public']"
                                 :rules="[(v: string | null) => !!v || 'System is required']"
                                 aria-required="true"
-                                hide-bottom-space
+                                hint="Which site shows this block: the VIPER intranet or the public site."
                                 @update:model-value="onSystemChange"
                             />
 
