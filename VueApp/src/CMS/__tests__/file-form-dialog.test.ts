@@ -67,12 +67,14 @@ describe("fileFormDialog.vue - add vs edit mode", () => {
         const add = mountDialog({ modelValue: true, folders: ["Apps", "Reports"], file: null })
         await flushPromises()
         expect(bodyText()).toContain("VIPER app (folder)")
+        expect(bodyText()).toContain("it can't be changed after upload")
         add.unmount()
         document.body.innerHTML = ""
 
         mountDialog({ modelValue: true, folders: ["Apps"], file: existingFile() })
         await flushPromises()
         expect(bodyText()).not.toContain("VIPER app (folder)")
+        expect(bodyText()).not.toContain("it can't be changed after upload")
     })
 
     it("applies the accepted-extensions allow-list to the file input", async () => {
