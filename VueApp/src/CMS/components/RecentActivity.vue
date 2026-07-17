@@ -109,7 +109,7 @@ const items = ref<ActivityItem[]>([])
 // so the block's latest change (newest history row -> live content) needs the POST diff with
 // the current content, exactly like the editor's compare-against-draft flow.
 async function openLatestDiff(b: CmsContentBlock, label: string) {
-    openViewer(label)
+    const token = openViewer(label)
     const listParams = createUrlSearchParams({ contentBlockId: b.contentBlockId, page: 1, perPage: 1 })
     const [blockRes, listRes] = await Promise.all([
         get(apiURL + "CMS/content/" + b.contentBlockId),
@@ -117,12 +117,12 @@ async function openLatestDiff(b: CmsContentBlock, label: string) {
     ])
     const previous = ((listRes.result ?? []) as CmsContentHistoryAudit[])[0]
     if (listRes.success && !previous) {
-        closeViewer()
+        closeViewer(token)
         $q.notify({ type: "info", message: "No edit history for this block yet." })
         return
     }
     if (!listRes.success || !blockRes.success) {
-        failViewer("Failed to load the latest change")
+        failViewer(token, "Failed to load the latest change")
         return
     }
     const res = await post(
@@ -134,11 +134,12 @@ async function openLatestDiff(b: CmsContentBlock, label: string) {
     if (res.success) {
         const diff = res.result as CmsContentHistoryDiff
         applyDiff(
+            token,
             diff,
             `Changes from ${diffStamp(diff.oldModifiedOn, diff.oldModifiedBy)} to ${diffStamp(b.modifiedOn, b.modifiedBy)}`,
         )
     } else {
-        failViewer(res.errors?.[0] ?? "Failed to load the latest change")
+        failViewer(token, res.errors?.[0] ?? "Failed to load the latest change")
     }
 }
 

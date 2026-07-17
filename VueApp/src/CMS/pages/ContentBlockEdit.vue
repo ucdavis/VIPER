@@ -492,18 +492,19 @@ const { viewer: diffViewer, openViewer: openDiffViewer, applyDiff, failViewer } 
 // (the "old" side). The current content is posted because it may include unsaved edits.
 async function diffAgainstCurrent() {
     if (!selectedHistory.value) return
-    openDiffViewer("Current editor content vs previous version")
+    const token = openDiffViewer("Current editor content vs previous version")
     const res = await post(
         apiURL + "/" + blockId.value + "/history/" + selectedHistory.value.contentHistoryId + "/diff",
         { content: block.value.content },
     )
     if (res.success) {
         applyDiff(
+            token,
             res.result as CmsContentHistoryDiff,
             `Changes from ${historyLabel(selectedHistory.value)} to your current editor content`,
         )
     } else {
-        failViewer(res.errors?.[0] ?? "Failed to build the diff")
+        failViewer(token, res.errors?.[0] ?? "Failed to build the diff")
     }
 }
 
