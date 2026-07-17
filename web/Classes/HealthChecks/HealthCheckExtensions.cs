@@ -197,17 +197,33 @@ namespace Viper.Classes.HealthChecks
                     tags: new[] { "ready" });
             }
 
-            // VMACs - clinical data source (Areas/Directory/Services/VMACSService.cs
-            // and Areas/RAPS/Services/VMACSExport.cs). Simple HTTP probe.
-            // Same LazyInitializer pattern as campus-cas above - see that note.
-            AdaptivePollingHealthCheck? vmacsCheck = null;
+            // VMACS directory service - the /trust/query.xml lookup endpoint that
+            // Areas/Directory/Services/VMACSService.cs depends on (distinct from the
+            // VMACS RAPS export REST API in Areas/RAPS/Services/VMACSExport.cs). URL
+            // is environment-specific (vmacs-qa in dev/test, vmacs-vmth in prod) from
+            // Vmacs:BaseUrl. The probe issues the same authenticated query as Search
+            // against a sentinel login, so a failure here pinpoints the endpoint being
+            // down rather than a VIPER bug. Severity encodes fault: an outage is
+            // Degraded (directory enrichment is optional, VIPER still works) while a
+            // missing URL or rejected token is Unhealthy. Custom adaptive-polling
+            // durations (vs the shared 1h/5min helper) because this endpoint is known
+            // to be flaky: probe ~once/day while healthy, hourly while down (and on
+            // the first poll after startup, since the cache starts empty). Dev has no
+            // SSM-sourced token, so a missing token there is treated as skipped.
+            var vmacsBaseUrl = configuration["Vmacs:BaseUrl"];
+            var vmacsAuthToken = configuration["Credentials:VmacsAuthToken"];
+            AdaptivePollingHealthCheck? vmacsDirectoryCheck = null;
             builder.Add(new HealthCheckRegistration(
-                "campus-vmacs",
-                sp => LazyInitializer.EnsureInitialized(ref vmacsCheck, () =>
-                    WithAdaptivePolling(new HttpEndpointHealthCheck(
-                        sp.GetRequiredService<IHttpClientFactory>(),
-                        "https://vmacs-vmth.vetmed.ucdavis.edu",
-                        "VMACs"))),
+                "campus-vmacs-directory",
+                sp => LazyInitializer.EnsureInitialized(ref vmacsDirectoryCheck, () =>
+                    new AdaptivePollingHealthCheck(
+                        new VmacsDirectoryHealthCheck(
+                            sp.GetRequiredService<IHttpClientFactory>(),
+                            vmacsBaseUrl,
+                            vmacsAuthToken,
+                            healthyWhenTokenMissing: environment.IsDevelopment()),
+                        healthyCacheDuration: TimeSpan.FromDays(1),
+                        unhealthyCacheDuration: TimeSpan.FromHours(1))),
                 failureStatus: HealthStatus.Unhealthy,
                 tags: new[] { "ready" }));
 
