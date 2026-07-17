@@ -71,14 +71,27 @@ namespace Viper.Classes.HealthChecks
                 tags: new[] { "ready" });
 
             // CMS files drive. Same pattern as photos - the drive (S:\) is a network
-            // share unmounted on developer machines, so skip in dev. Path mirrors
-            // Areas/CMS/Data/CMS.GetRootFileFolder().
-            var cmsFilesPath = environment.IsDevelopment() ? @"C:\Sites\Files" : @"S:\Files";
+            // share unmounted on developer machines, so skip in dev. Resolve the root the same
+            // way CmsFileStorageService does so a CMS:FileStorageRoot override is probed instead
+            // of the default; the fallback mirrors Areas/CMS/Data/CMS.GetRootFileFolder().
+            var cmsFilesPath = configuration["CMS:FileStorageRoot"]
+                ?? (environment.IsDevelopment() ? @"C:\Sites\Files" : @"S:\Files");
             builder.AddCheck(
                 "disk-space-cms",
                 new DiskSpaceHealthCheck(
                     explicitDrivePath: cmsFilesPath,
                     healthyWhenMissing: environment.IsDevelopment()),
+                tags: new[] { "ready" });
+
+            // CMS file store writability: the store root plus every top-level "VIPER app" folder
+            // must accept a write, since uploads move files into them. disk-space-cms only proves
+            // the drive is mounted with free space; this probes actual write access per folder and
+            // names any that regress. Adaptive polling keeps the probe writes hourly while healthy.
+            builder.AddCheck(
+                "disk-space-cms-writable",
+                WithAdaptivePolling(new CmsFileStoreHealthCheck(
+                    cmsFilesPath,
+                    healthyWhenMissing: environment.IsDevelopment())),
                 tags: new[] { "ready" });
 
             // CMS legacy-import source. The import endpoints read files out of the
