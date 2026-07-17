@@ -98,6 +98,25 @@ public sealed class CmsFileImportServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Import_LeadingViperSegment_IsStrippedLikeLegacy()
+    {
+        var source = CreateWebrootFile(@"cats\docs\manual.pdf");
+        var request = new CmsFileImportRequest
+        {
+            FilePaths = new List<string> { "viper/cats/docs/manual.pdf" },
+            Folder = "cats"
+        };
+
+        var results = await _service.ImportFilesAsync(request, TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(results);
+        Assert.True(result.Success, result.Message);
+        Assert.False(File.Exists(source));
+        var saved = await _context.Files.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("/cats/docs/manual.pdf", saved.OldUrl);
+    }
+
+    [Fact]
     public async Task Import_DefaultPermission_AddsSvmSecureFolder()
     {
         CreateWebrootFile(@"cats\docs\manual.pdf");
@@ -174,6 +193,24 @@ public sealed class CmsFileImportServiceTests : IDisposable
     }
 
     #region Preview
+
+    [Fact]
+    public async Task Preview_LeadingViperSegment_StripsRegardlessOfCaseAndSeparators()
+    {
+        var source = CreateWebrootFile(@"cats\docs\manual.pdf");
+        var request = new CmsFileImportRequest
+        {
+            FilePaths = new List<string> { @"\VIPER\cats\docs\manual.pdf" },
+            Folder = "cats"
+        };
+
+        var results = await _service.PreviewImportAsync(request, TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(results);
+        Assert.True(result.CanImport, result.Message);
+        Assert.Equal("/cats/docs/manual.pdf", result.OldUrl);
+        Assert.True(File.Exists(source));
+    }
 
     [Fact]
     public async Task Preview_ValidFile_ReportsNamesWithoutMoving()
