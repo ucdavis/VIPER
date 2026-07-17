@@ -55,6 +55,15 @@ namespace Viper.Areas.CMS.Services
         Task<(bool Found, string? SectionPath)> GetSectionPathAsync(int contentBlockId, CancellationToken ct = default);
 
         /// <summary>
+        /// The block's upload destination settings (section path, public flag, view permissions)
+        /// without loading the full block - no content sanitization or attached files. For the
+        /// inline-upload endpoint, which may be called repeatedly during a multi-file upload.
+        /// Found=false when the block does not exist.
+        /// </summary>
+        Task<(bool Found, string? SectionPath, bool AllowPublicAccess, List<string> Permissions)> GetUploadSettingsAsync(
+            int contentBlockId, CancellationToken ct = default);
+
+        /// <summary>
         /// Whether the editor may roll back (soft-delete) a file it just uploaded to this block:
         /// null when the file does not exist, false when it is not an eligible rollback (uploaded by
         /// someone else, in a folder other than the block's, or still attached to another block), and
@@ -364,8 +373,15 @@ namespace Viper.Areas.CMS.Services
                 return false;
             }
 
+            // Resolve the user's permissions once into a case-insensitive set, mirroring
+            // Data.CMS.CheckFilePermission, then reuse it for both the manager check and the
+            // delegated-edit-list intersection instead of re-resolving via HasPermission.
+            var userPermissions = _userHelper.GetAllPermissions(_rapsContext, currentUser)
+                .Select(p => p.Permission)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             // Full manage overrides everything (managers edit any block via the list page).
-            if (_userHelper.HasPermission(_rapsContext, currentUser, CmsPermissions.ManageContentBlocks))
+            if (userPermissions.Contains(CmsPermissions.ManageContentBlocks))
             {
                 return true;
             }
@@ -377,11 +393,6 @@ namespace Viper.Areas.CMS.Services
                 return false;
             }
 
-            // Resolve the user's permissions once into a case-insensitive set, mirroring
-            // Data.CMS.CheckFilePermission, then intersect with the block's edit permissions.
-            var userPermissions = _userHelper.GetAllPermissions(_rapsContext, currentUser)
-                .Select(p => p.Permission)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             return block.EditPermissions.Any(p => userPermissions.Contains(p));
         }
 
@@ -393,18 +404,15 @@ namespace Viper.Areas.CMS.Services
                 return new List<ContentBlockDto>();
             }
 
-            // Delegated matches only, as documented: managers work from the full list page, and
-            // the hub's "Blocks you can edit" card is manager-hidden and expects empty here.
-            if (_userHelper.HasPermission(_rapsContext, currentUser, CmsPermissions.ManageContentBlocks))
-            {
-                return new List<ContentBlockDto>();
-            }
-
-            // Single-resolve: the user's permissions are read once and reused for every block.
+            // Single-resolve: the user's permissions are read once and reused for the manager
+            // check below and for every block, instead of HasPermission re-resolving them.
             var userPermissions = _userHelper.GetAllPermissions(_rapsContext, currentUser)
                 .Select(p => p.Permission)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (userPermissions.Count == 0)
+
+            // Delegated matches only, as documented: managers work from the full list page, and
+            // the hub's "Blocks you can edit" card is manager-hidden and expects empty here.
+            if (userPermissions.Contains(CmsPermissions.ManageContentBlocks) || userPermissions.Count == 0)
             {
                 return new List<ContentBlockDto>();
             }
@@ -511,12 +519,30 @@ namespace Viper.Areas.CMS.Services
             return row == null ? (false, null) : (true, row.ViperSectionPath);
         }
 
+        public async Task<(bool Found, string? SectionPath, bool AllowPublicAccess, List<string> Permissions)> GetUploadSettingsAsync(
+            int contentBlockId, CancellationToken ct = default)
+        {
+            var row = await _context.ContentBlocks
+                .AsNoTracking()
+                .Where(b => b.ContentBlockId == contentBlockId)
+                .Select(b => new
+                {
+                    b.ViperSectionPath,
+                    b.AllowPublicAccess,
+                    Permissions = b.ContentBlockToPermissions.Select(p => p.Permission).ToList()
+                })
+                .FirstOrDefaultAsync(ct);
+            return row == null
+                ? (false, null, false, new List<string>())
+                : (true, row.ViperSectionPath, row.AllowPublicAccess, row.Permissions);
+        }
+
         public async Task<bool?> IsFileRollbackDeletableAsync(int contentBlockId, Guid fileGuid, CancellationToken ct = default)
         {
             var file = await _context.Files
                 .AsNoTracking()
                 .Where(f => f.FileGuid == fileGuid)
-                .Select(f => new { f.ModifiedBy, f.Folder })
+                .Select(f => new { f.ModifiedBy, f.Folder, f.DeletedOn })
                 .FirstOrDefaultAsync(ct);
             if (file == null)
             {
@@ -529,9 +555,11 @@ namespace Viper.Areas.CMS.Services
                 .Select(b => b.ViperSectionPath)
                 .FirstOrDefaultAsync(ct);
 
-            // Rollback is only for a file the current user just uploaded into this block's folder.
+            // Rollback is only for a file the current user just uploaded into this block's folder,
+            // and only while it's still live - an already soft-deleted file has nothing to roll back.
             var login = _userHelper.GetCurrentUser()?.LoginId;
-            if (login == null
+            if (file.DeletedOn != null
+                || login == null
                 || !string.Equals(file.ModifiedBy, login, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(file.Folder, sectionPath, StringComparison.OrdinalIgnoreCase))
             {
@@ -856,7 +884,7 @@ namespace Viper.Areas.CMS.Services
                 .ToListAsync(ct);
             if (files.Count != fileGuids.Count)
             {
-                throw new ArgumentException("One or more files cannot be attached because they are deleted.");
+                throw new ArgumentException("One or more files cannot be attached because they are deleted or missing.");
             }
 
             var currentUser = _userHelper.GetCurrentUser();

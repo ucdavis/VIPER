@@ -573,8 +573,16 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         _userHelper.HasPermission(_rapsContext, user, CmsPermissions.ManageContentBlocks).Returns(isManager);
         _userHelper.HasPermission(_rapsContext, user, "SVMSecure")
             .Returns(permissions.Contains("SVMSecure"));
+        // Mirrors the real UserHelper: HasPermission is derived from GetAllPermissions, so a
+        // manager's set must actually contain the permission for CanEditAsync's single-resolve
+        // HashSet check to see it.
+        var allPermissions = permissions.ToList();
+        if (isManager)
+        {
+            allPermissions.Add(CmsPermissions.ManageContentBlocks);
+        }
         _userHelper.GetAllPermissions(_rapsContext, user)
-            .Returns(permissions.Select(p => new TblPermission { Permission = p }).ToList());
+            .Returns(allPermissions.Select(p => new TblPermission { Permission = p }).ToList());
     }
 
     private async Task<Models.VIPER.File> SeedFileAsync(string friendlyName, string folder = "cats",
@@ -1079,6 +1087,20 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         var file = await SeedFileAsync("cats-x.pdf", folder: "cats", modifiedBy: "delegate");
         _context.ContentBlockToFiles.Add(new ContentBlockToFile { ContentBlockId = other.ContentBlockId, FileGuid = file.FileGuid });
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_False_WhenAlreadyDeleted()
+    {
+        var block = await SeedBlockAsync(); // cats
+        var file = await SeedFileAsync("cats-x.pdf", folder: "cats", modifiedBy: "delegate",
+            customize: f => f.DeletedOn = DateTime.Now);
         _userHelper.GetCurrentUser().Returns(DelegateUser());
 
         var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
