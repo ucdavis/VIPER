@@ -94,7 +94,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
-            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.SingleAsync(r => r.MothraId == memberId) : null;
+            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.AsNoTracking().SingleOrDefaultAsync(r => r.MothraId == memberId) : null;
 
             var nav = new List<NavMenuItem>
             {
