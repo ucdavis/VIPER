@@ -200,7 +200,7 @@ namespace Viper.Areas.CMS.Services
             }
 
             string finalName = GetLeafName(fileName);
-            if (string.IsNullOrWhiteSpace(finalName) || !CmsFileTypes.IsAllowedFileName(finalName))
+            if (string.IsNullOrWhiteSpace(finalName) || !CmsFileTypes.IsAllowedFileName(finalName) || HasInvalidNameChar(finalName))
             {
                 throw new ArgumentException("Invalid file name", nameof(fileName));
             }
