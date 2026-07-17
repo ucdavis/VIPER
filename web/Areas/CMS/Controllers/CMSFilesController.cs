@@ -257,7 +257,7 @@ namespace Viper.Areas.CMS.Controllers
             {
                 return string.Empty;
             }
-            return IsCmsAdmin() ? null : user.LoginId;
+            return IsCmsAdmin() ? null : (user.LoginId ?? string.Empty);
         }
 
         // POST /api/cms/files/import — move files from the legacy VIPER webroot into the store
