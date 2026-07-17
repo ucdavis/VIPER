@@ -11,6 +11,8 @@ export interface UseAuditEntries {
     isLoading: Ref<boolean>
     error: Ref<string | null>
     load: (request: () => Promise<ApiResult<AuditLogEntry[]>>) => Promise<void>
+    /** Clear entries/error so the next load shows a clean loading state, not stale content */
+    reset: () => void
 }
 
 /**
@@ -39,12 +41,14 @@ export function useAuditEntries(): UseAuditEntries {
             if (response.success) {
                 entries.value = response.result
             } else {
+                entries.value = []
                 error.value = response.errors?.join(", ") || LOAD_FAILED
             }
         } catch (err) {
             if (requestId !== latestRequestId) {
                 return
             }
+            entries.value = []
             error.value = err instanceof Error ? err.message : LOAD_ERROR
         } finally {
             if (requestId === latestRequestId) {
@@ -53,5 +57,14 @@ export function useAuditEntries(): UseAuditEntries {
         }
     }
 
-    return { entries, isLoading, error, load }
+    // Drop the current result (and invalidate any in-flight load) so a reopened
+    // surface shows its loading state, not stale rows.
+    function reset(): void {
+        latestRequestId += 1
+        entries.value = []
+        error.value = null
+        isLoading.value = false
+    }
+
+    return { entries, isLoading, error, load, reset }
 }

@@ -29,13 +29,9 @@
                 />
                 <span>Week {{ week.weekNumber }} ({{ formatDate(week.dateStart) }})</span>
                 <WeekHistoryButton
-                    v-if="canViewHistory && historyViewMode && historyContextId != null && historyContextId !== ''"
-                    :view-mode="historyViewMode"
-                    :context-id="historyContextId"
-                    :week-id="week.weekId"
+                    v-if="canViewHistory"
                     :week-number="week.weekNumber"
-                    :week-date-start="week.dateStart"
-                    :context-label="historyContextLabel"
+                    @view-history="$emit('view-history', week)"
                 />
             </div>
 
@@ -211,11 +207,8 @@ interface Props {
     isLoading?: boolean
     selectable?: boolean
     selected?: boolean
-    // Inline per-week history (manager-only)
+    // Manager-only audit-trail trigger; ScheduleView owns the dialog and its context.
     canViewHistory?: boolean
-    historyViewMode?: "rotation" | "clinician"
-    historyContextId?: number | string | null
-    historyContextLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -229,9 +222,6 @@ const props = withDefaults(defineProps<Props>(), {
     selectable: false,
     selected: false,
     canViewHistory: false,
-    historyViewMode: undefined,
-    historyContextId: null,
-    historyContextLabel: "",
 })
 
 const emit = defineEmits<{
@@ -239,6 +229,7 @@ const emit = defineEmits<{
     "remove-assignment": [assignmentId: number, displayName: string, isPrimary?: boolean]
     "toggle-primary": [assignmentId: number, isPrimary: boolean, displayName: string]
     "shift-click": [week: Props["week"]]
+    "view-history": [week: Props["week"]]
 }>()
 
 // Computed properties
@@ -292,8 +283,11 @@ const {
 // Touch taps don't bubble through a child control's @click.stop, so ignore any
 // tap/click that starts on an in-cell control (it must not also schedule the week).
 function originatesOnControl(event?: Event): boolean {
-    const target = event?.target as HTMLElement | null
-    return !!target?.closest("button, [role='button'], a, input, select, textarea")
+    if (!event) return false
+    // composedPath covers text-node targets (some touch taps) that event.target misses
+    return event
+        .composedPath()
+        .some((node) => node instanceof Element && node.matches("button, [role='button'], a, input, select, textarea"))
 }
 
 function handleClick(event?: MouseEvent) {
@@ -391,7 +385,7 @@ const cardClasses = computed(() => {
 }
 
 /* Mobile single column: fill the width instead of capping at 280px */
-@media (max-width: 599.98px) {
+@media (width <= 599.98px) {
     .week-schedule-card {
         max-width: none;
         min-width: 0;

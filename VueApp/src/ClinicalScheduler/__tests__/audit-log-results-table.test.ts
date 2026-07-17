@@ -1,4 +1,5 @@
 import AuditLogResultsTable from "../components/AuditLogResultsTable.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
 import { createTestWrapper } from "./test-utils"
 import type { AuditLogEntry } from "../types/audit-types"
 
@@ -42,13 +43,15 @@ describe("auditLogResultsTable", () => {
     })
 
     it("renders one row per entry", () => {
-        expect.assertions(2)
+        expect.assertions(3)
 
         const wrapper = mountTable([
             makeEntry(),
             makeEntry({ scheduleAuditId: 2, personName: "Dr. Second", action: "Removed from rotation" }),
         ])
 
+        // One action badge renders per entry across every responsive table variant.
+        expect(wrapper.findAllComponents(StatusBadge)).toHaveLength(2)
         expect(wrapper.text()).toContain("Dr. Second")
         expect(wrapper.text()).toContain("Removed from rotation")
     })

@@ -1,5 +1,6 @@
 import WeekHistoryContent from "../components/WeekHistoryContent.vue"
 import { createTestWrapper } from "./test-utils"
+import { useDateFunctions } from "@/composables/DateFunctions"
 import type { AuditLogEntry } from "../types/audit-types"
 
 function makeEntry(overrides: Partial<AuditLogEntry> = {}): AuditLogEntry {
@@ -85,5 +86,68 @@ describe("weekHistoryContent", () => {
         const wrapper = mountContent({ viewMode: "clinician", entries: [makeEntry()] })
 
         expect(wrapper.find(".week-history__subject").text()).toBe("Cardiology")
+    })
+
+    it("labels the week navigation with the current week and date", () => {
+        expect.assertions(2)
+
+        const { formatDate } = useDateFunctions()
+        const wrapper = mountContent({ weekNumber: 3, weekDateStart: "2026-01-05" })
+
+        const label = wrapper.find(".week-history__nav-label").text()
+        expect(label).toContain("Week 3")
+        expect(label).toContain(formatDate("2026-01-05"))
+    })
+
+    it("emits prev/next when the enabled nav controls are clicked", async () => {
+        expect.assertions(2)
+
+        const wrapper = mountContent({ canPrev: true, canNext: true })
+
+        await wrapper.find("[aria-label='Previous week']").trigger("click")
+        await wrapper.find("[aria-label='Next week']").trigger("click")
+
+        expect(wrapper.emitted("prev")).toHaveLength(1)
+        expect(wrapper.emitted("next")).toHaveLength(1)
+    })
+
+    it("disables nav controls at the schedule ends", () => {
+        expect.assertions(2)
+
+        const wrapper = mountContent({ canPrev: false, canNext: false })
+
+        expect(wrapper.find("[aria-label='Previous week']").classes()).toContain("disabled")
+        expect(wrapper.find("[aria-label='Next week']").classes()).toContain("disabled")
+    })
+
+    it("shows skeleton rows only on the initial load (no entries yet)", () => {
+        expect.assertions(2)
+
+        const wrapper = mountContent({ isLoading: true, entries: [] })
+
+        expect(wrapper.findAll(".week-history__skeleton-row")).toHaveLength(3)
+        expect(wrapper.find(".week-history__list").exists()).toBeFalsy()
+    })
+
+    it("keeps the current rows (dimmed) instead of a skeleton while paging weeks", () => {
+        expect.assertions(3)
+
+        // Entries already present while loading = paging to another week
+        const wrapper = mountContent({ isLoading: true, entries: [makeEntry()] })
+
+        expect(wrapper.findAll(".week-history__skeleton-row")).toHaveLength(0)
+        const list = wrapper.find(".week-history__list")
+        expect(list.exists()).toBeTruthy()
+        expect(list.classes()).toContain("week-history__list--loading")
+    })
+
+    it("shows the loading progress bar only while a fetch is in flight", () => {
+        expect.assertions(2)
+
+        const loading = mountContent({ isLoading: true, entries: [makeEntry()] })
+        const idle = mountContent({ isLoading: false, entries: [makeEntry()] })
+
+        expect(loading.find(".week-history__progress").exists()).toBeTruthy()
+        expect(idle.find(".week-history__progress").exists()).toBeFalsy()
     })
 })

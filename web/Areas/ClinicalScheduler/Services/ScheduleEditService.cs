@@ -184,47 +184,25 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     // Save all schedule entities at once for better performance
                     await _context.SaveChangesAsync(cancellationToken);
 
+                    // Audit inside the transaction so a schedule change can never commit
+                    // without its trail; an audit failure rolls the change back
+                    // (matching the legacy scheduler's in-transaction auditing).
+                    await WriteAddAuditEntriesAsync(
+                        mothraId!, rotationId, isPrimaryEvaluator, createdSchedules, removedPrimarySchedules, currentUser.MothraId, cancellationToken);
+
                     return (createdSchedules, removedPrimarySchedules);
                 }, IsolationLevel.Serializable, cancellationToken);
 
                 var (createdSchedules, removedPrimarySchedules) = result;
 
-                // Send notifications and log audit entries AFTER successful transaction commit
-                // This ensures we don't send emails for operations that were rolled back
-                // Post-transaction operations are wrapped in try-catch to prevent perceived failures
-                try
+                // Notify AFTER the commit so emails never fire for rolled-back
+                // changes. The sender swallows its own failures.
+                foreach (var (_, removedSchedules) in removedPrimarySchedules)
                 {
-                    // Send notifications for any removed primary evaluators
-                    foreach (var (_, removedSchedules) in removedPrimarySchedules)
+                    foreach (var removedSchedule in removedSchedules)
                     {
-                        foreach (var removedSchedule in removedSchedules)
-                        {
-                            await HandlePrimaryEvaluatorRemovalAsync(removedSchedule, currentUser.MothraId, cancellationToken, mothraId);
-                        }
+                        await SendPrimaryEvaluatorRemovedNotificationAsync(removedSchedule, currentUser.MothraId, cancellationToken, mothraId);
                     }
-
-                    // Log audit entries after successful save (so we have InstructorScheduleId)
-#pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
-                    foreach (var schedule in createdSchedules)
-                    {
-                        await _auditService.LogInstructorAddedAsync(
-                            mothraId!, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
-
-                        if (isPrimaryEvaluator)
-                        {
-                            await _auditService.LogPrimaryEvaluatorSetAsync(
-                                mothraId!, rotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
-                        }
-                    }
-#pragma warning restore S3267
-                }
-#pragma warning disable CA1031 // Intentional broad catch: post-transaction work (email/audit notifications) must not roll back the successful database changes above.
-                catch (Exception postTransactionEx)
-#pragma warning restore CA1031
-                {
-                    // Log warning but don't fail the operation - the database changes were successful
-                    _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor {MothraId} in rotation {RotationId}, but database changes were successful",
-                        LogSanitizer.SanitizeId(mothraId), rotationId);
                 }
 
                 _logger.LogInformation("Successfully added instructor {MothraId} to rotation {RotationId} for {WeekCount} weeks (Primary: {IsPrimary})",
@@ -257,6 +235,43 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // For other database errors, wrap with context
                 throw new InvalidOperationException($"Database operation failed while adding instructor {mothraId} to rotation {rotationId}. Please try again or contact support if the problem persists.", saveEx);
             }
+        }
+
+        /// <summary>
+        /// Writes the audit entries for an add operation. Must be called inside the
+        /// same transaction as the schedule changes so the trail commits atomically.
+        /// </summary>
+        private async Task WriteAddAuditEntriesAsync(
+            string mothraId,
+            int rotationId,
+            bool isPrimaryEvaluator,
+            List<InstructorSchedule> createdSchedules,
+            Dictionary<int, List<InstructorSchedule>> removedPrimarySchedules,
+            string modifiedByMothraId,
+            CancellationToken cancellationToken)
+        {
+#pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
+            foreach (var (_, removedSchedules) in removedPrimarySchedules)
+            {
+                foreach (var removedSchedule in removedSchedules)
+                {
+                    await _auditService.LogPrimaryEvaluatorUnsetAsync(
+                        removedSchedule.MothraId, removedSchedule.RotationId, removedSchedule.WeekId, modifiedByMothraId, cancellationToken);
+                }
+            }
+
+            foreach (var schedule in createdSchedules)
+            {
+                await _auditService.LogInstructorAddedAsync(
+                    mothraId, rotationId, schedule.WeekId, modifiedByMothraId, cancellationToken);
+
+                if (isPrimaryEvaluator)
+                {
+                    await _auditService.LogPrimaryEvaluatorSetAsync(
+                        mothraId, rotationId, schedule.WeekId, modifiedByMothraId, cancellationToken);
+                }
+            }
+#pragma warning restore S3267
         }
 
         // SQL Server: 2627 = unique constraint violation, 2601 = duplicate key in a unique index.
@@ -333,29 +348,25 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     // Remove the schedule
                     _context.InstructorSchedules.Remove(schedule);
                     await _context.SaveChangesAsync(cancellationToken);
-                    return true;
-                }, cancellationToken);
 
-                // Send notifications and log audit entries AFTER successful transaction commit
-                // This ensures we don't send emails for operations that were rolled back
-                // Post-transaction operations are wrapped in try-catch to prevent perceived failures
-                try
-                {
+                    // Audit inside the transaction; see AddInstructorAsync for rationale
                     await _auditService.LogInstructorRemovedAsync(
                         schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
 
                     if (wasPrimaryEvaluator)
                     {
-                        await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken);
+                        await _auditService.LogPrimaryEvaluatorUnsetAsync(
+                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
                     }
-                }
-#pragma warning disable CA1031 // Intentional broad catch: post-transaction work (email/audit notifications) must not roll back the successful database changes above.
-                catch (Exception postTransactionEx)
-#pragma warning restore CA1031
+
+                    return true;
+                }, cancellationToken);
+
+                // Notify AFTER the commit so emails never fire for rolled-back
+                // changes. The sender swallows its own failures.
+                if (wasPrimaryEvaluator)
                 {
-                    // Log warning but don't fail the operation - the database changes were successful
-                    _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for instructor removal {ScheduleId}, but database changes were successful",
-                        instructorScheduleId);
+                    await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, currentUser.MothraId, cancellationToken);
                 }
 
                 _logger.LogInformation("Successfully removed instructor {MothraId} from rotation {RotationId}, week {WeekId} (WasPrimary: {WasPrimary})",
@@ -444,39 +455,43 @@ namespace Viper.Areas.ClinicalScheduler.Services
 
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    return (previousPrimaryName, removedPrimarySchedules);
-                }, cancellationToken);
-
-                var (previousPrimaryName, removedPrimarySchedules) = result;
-
-                // Send notifications and log audit entries AFTER successful transaction commit
-                // This ensures we don't send emails for operations that were rolled back
-                // Post-transaction operations are wrapped in try-catch to prevent perceived failures
-                try
-                {
+                    // Audit inside the transaction; see AddInstructorAsync for rationale
                     if (isPrimary)
                     {
-                        // Send notifications for any removed primary evaluators
+#pragma warning disable S3267 // Loop contains async operations that cannot be simplified to Select
                         foreach (var removedSchedule in removedPrimarySchedules)
                         {
-                            await HandlePrimaryEvaluatorRemovalAsync(removedSchedule, currentUser.MothraId, cancellationToken, schedule.MothraId, requiresPrimaryEvaluator);
+                            await _auditService.LogPrimaryEvaluatorUnsetAsync(
+                                removedSchedule.MothraId, removedSchedule.RotationId, removedSchedule.WeekId, currentUser.MothraId, cancellationToken);
                         }
+#pragma warning restore S3267
 
                         await _auditService.LogPrimaryEvaluatorSetAsync(
                             schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
                     }
                     else
                     {
-                        await HandlePrimaryEvaluatorRemovalAsync(schedule, currentUser.MothraId, cancellationToken, null, requiresPrimaryEvaluator);
+                        await _auditService.LogPrimaryEvaluatorUnsetAsync(
+                            schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUser.MothraId, cancellationToken);
+                    }
+
+                    return (previousPrimaryName, removedPrimarySchedules);
+                }, cancellationToken);
+
+                var (previousPrimaryName, removedPrimarySchedules) = result;
+
+                // Notify AFTER the commit so emails never fire for rolled-back
+                // changes. The sender swallows its own failures.
+                if (isPrimary)
+                {
+                    foreach (var removedSchedule in removedPrimarySchedules)
+                    {
+                        await SendPrimaryEvaluatorRemovedNotificationAsync(removedSchedule, currentUser.MothraId, cancellationToken, schedule.MothraId, requiresPrimaryEvaluator);
                     }
                 }
-#pragma warning disable CA1031 // Intentional broad catch: post-transaction work (email/audit notifications) must not roll back the successful database changes above.
-                catch (Exception postTransactionEx)
-#pragma warning restore CA1031
+                else
                 {
-                    // Log warning but don't fail the operation - the database changes were successful
-                    _logger.LogWarning(postTransactionEx, "Post-transaction operations failed for primary evaluator update {ScheduleId}, but database changes were successful",
-                        instructorScheduleId);
+                    await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, currentUser.MothraId, cancellationToken, null, requiresPrimaryEvaluator);
                 }
 
                 _logger.LogInformation("Set primary evaluator for {MothraId} on rotation {RotationId}, week {WeekId} to {IsPrimary}",
@@ -622,25 +637,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
 
             return existingPrimary;
-        }
-
-        /// <summary>
-        /// Handles the complete process of removing a primary evaluator status,
-        /// including audit logging and email notifications
-        /// </summary>
-        private async Task HandlePrimaryEvaluatorRemovalAsync(
-            InstructorSchedule schedule,
-            string currentUserMothraId,
-            CancellationToken cancellationToken,
-            string? newPrimaryMothraId = null,
-            bool requiresPrimaryEvaluator = false)
-        {
-            // Log the primary evaluator removal
-            await _auditService.LogPrimaryEvaluatorUnsetAsync(
-                schedule.MothraId, schedule.RotationId, schedule.WeekId, currentUserMothraId, cancellationToken);
-
-            // Send email notification
-            await SendPrimaryEvaluatorRemovedNotificationAsync(schedule, currentUserMothraId, cancellationToken, newPrimaryMothraId, requiresPrimaryEvaluator);
         }
 
         /// <summary>

@@ -108,12 +108,15 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return new List<ScheduleAudit>();
                 }
 
-                // Find audit entries matching the rotation, week, and instructor
+                // Find audit entries matching the rotation, week, and instructor.
+                // Clinicians only: the shared audit table also records student schedule
+                // changes, which are out of scope for an instructor schedule's history.
                 return await _context.ScheduleAudits
                     .AsNoTracking()
                     .Where(a => a.RotationId == schedule.RotationId
                         && a.WeekId == schedule.WeekId
-                        && a.MothraId == schedule.MothraId)
+                        && a.MothraId == schedule.MothraId
+                        && a.Area == ScheduleAuditAreas.Clinicians)
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
@@ -131,9 +134,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
+                // Clinicians only; see GetInstructorScheduleAuditHistoryAsync
                 return await _context.ScheduleAudits
                     .AsNoTracking()
-                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId)
+                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId && a.Area == ScheduleAuditAreas.Clinicians)
                     .OrderByDescending(a => a.TimeStamp)
                     .ToListAsync(cancellationToken);
             }
@@ -230,7 +234,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                _logger.LogError(ex, "Error retrieving audit log for grad year {GradYear}", gradYear);
+                _logger.LogError(ex, "Error retrieving audit log for grad year {GradYear}", LogSanitizer.SanitizeYear(gradYear));
                 throw new InvalidOperationException("Failed to retrieve the audit log. Please try again or contact support if the problem persists.", ex);
             }
         }
@@ -259,7 +263,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             }
             catch (Exception ex) when (ex is DbUpdateException or SqlException or InvalidOperationException)
             {
-                _logger.LogError(ex, "Error retrieving audit terms for grad year {GradYear}", gradYear);
+                _logger.LogError(ex, "Error retrieving audit terms for grad year {GradYear}", LogSanitizer.SanitizeYear(gradYear));
                 throw new InvalidOperationException("Failed to retrieve the terms for this grad year. Please try again or contact support if the problem persists.", ex);
             }
         }
@@ -301,7 +305,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // still appears in the filter, matching the raw-ID fallback in GetAuditLogAsync.
                 return await (
                     from a in _context.ScheduleAudits.AsNoTracking()
-                    where a.MothraId != null
+                    where a.MothraId != null && a.MothraId != ""
                     join p in _context.Persons on a.MothraId equals p.IdsMothraId into affectedJoin
                     from p in affectedJoin.DefaultIfEmpty()
                     select new AuditModifierDto
@@ -327,8 +331,11 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
+                // Clinician scheduling context only: the shared ScheduleAudit table also
+                // holds student schedule changes (Area = Students) for the same
+                // rotation/week, which would read as phantom roster entries here.
                 var audits = _context.ScheduleAudits.AsNoTracking()
-                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId);
+                    .Where(a => a.RotationId == rotationId && a.WeekId == weekId && a.Area == ScheduleAuditAreas.Clinicians);
                 var entries = await BuildEnrichedAuditQuery(audits)
                     .OrderByDescending(x => x.TimeStamp)
                     .ToListAsync(cancellationToken);
@@ -348,8 +355,10 @@ namespace Viper.Areas.ClinicalScheduler.Services
         {
             try
             {
+                // Clinicians only, same as GetRotationWeekAuditAsync: a clinician who was
+                // previously a UCD student would otherwise see student-era entries here.
                 var audits = _context.ScheduleAudits.AsNoTracking()
-                    .Where(a => a.MothraId == mothraId && a.WeekId == weekId);
+                    .Where(a => a.MothraId == mothraId && a.WeekId == weekId && a.Area == ScheduleAuditAreas.Clinicians);
                 var entries = await BuildEnrichedAuditQuery(audits)
                     .OrderByDescending(x => x.TimeStamp)
                     .ToListAsync(cancellationToken);

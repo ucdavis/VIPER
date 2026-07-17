@@ -227,8 +227,9 @@ const selectedRotationId = ref<number | null>(null)
 const selectedArea = ref<string | null>(null)
 const selectedModifier = ref<string | null>(null)
 const selectedPerson = ref<string | null>(null)
-const fromDate = ref<string>("")
-const toDate = ref<string>("")
+// string | null: Quasar clearable date inputs emit null when cleared (API filters accept it)
+const fromDate = ref<string | null>(null)
+const toDate = ref<string | null>(null)
 
 // Filter dropdown options
 const yearOptions = ref<number[]>([])
@@ -346,17 +347,23 @@ async function loadFilterOptions() {
     }
 }
 
-async function loadTermOptions() {
-    const response = await AuditLogService.getTerms(currentYear.value ?? undefined)
-    if (response.success) {
+let latestTermRequestId = 0
+
+async function loadTermOptions(year = currentYear.value) {
+    const requestId = ++latestTermRequestId
+    const response = await AuditLogService.getTerms(year ?? undefined)
+    // Out-of-order getTerms responses (rapid year changes) must not overwrite newer options.
+    if (requestId === latestTermRequestId && response.success) {
         termOptions.value = response.result.map((term) => ({ label: term.term, value: term.termCode }))
     }
 }
 
 async function onYearChange() {
+    const year = currentYear.value
     // Terms are grad-year specific, so reset the term filter and reload its options.
     selectedTermCode.value = null
-    await loadTermOptions()
+    await loadTermOptions(year)
+    if (year !== currentYear.value) return
     void loadAuditTrail()
 }
 
@@ -366,8 +373,8 @@ function clearFilters() {
     selectedArea.value = null
     selectedModifier.value = null
     selectedPerson.value = null
-    fromDate.value = ""
-    toDate.value = ""
+    fromDate.value = null
+    toDate.value = null
 }
 
 // Auto-apply when any filter other than the year changes (the year loads immediately via onYearChange).
@@ -379,15 +386,20 @@ watch([selectedRotationId, selectedTermCode, selectedArea, selectedModifier, sel
 })
 
 async function initialize() {
-    if (!permissionsStore.userPermissions) {
-        await permissionsStore.initialize()
+    try {
+        if (!permissionsStore.userPermissions) {
+            await permissionsStore.initialize()
+        }
+        if (permissionsStore.hasManagePermission) {
+            await Promise.all([loadPageData(), loadFilterOptions()])
+            await loadTermOptions()
+            await loadAuditTrail()
+        }
+    } catch (err) {
+        error.value = err instanceof Error ? err.message : "Failed to load the audit trail"
+    } finally {
+        ready.value = true
     }
-    if (permissionsStore.hasManagePermission) {
-        await Promise.all([loadPageData(), loadFilterOptions()])
-        await loadTermOptions()
-        await loadAuditTrail()
-    }
-    ready.value = true
 }
 
 onMounted(() => {
