@@ -77,17 +77,26 @@ namespace Viper.Classes.HealthChecks
             {
                 File.WriteAllBytes(probePath, Array.Empty<byte>());
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            // A short reason, not ex.Message, which would repeat the probe's full path and GUID.
+            catch (UnauthorizedAccessException)
             {
-                return $"{dir} ({ex.Message})";
+                return $"{dir} (access denied)";
+            }
+            catch (IOException)
+            {
+                return $"{dir} (not writable)";
             }
             try
             {
                 File.Delete(probePath);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (UnauthorizedAccessException)
             {
-                return $"{dir} (probe not removable: {ex.Message})";
+                return $"{dir} (created but not deletable: access denied)";
+            }
+            catch (IOException)
+            {
+                return $"{dir} (created but not deletable)";
             }
             return null;
         }
