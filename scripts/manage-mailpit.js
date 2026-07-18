@@ -238,6 +238,7 @@ function extractZip(zipPath, extractPath) {
 
                     zipfile.openReadStream(entry, (streamErr, readStream) => {
                         if (streamErr) {
+                            zipfile.close()
                             logError(`Failed to read entry ${entry.fileName}: ${streamErr.message}`)
                             reject(streamErr)
                             return
@@ -256,6 +257,7 @@ function extractZip(zipPath, extractPath) {
                             try {
                                 fs.renameSync(partialPath, filePath)
                             } catch (renameErr) {
+                                zipfile.close()
                                 logError(`Error finalizing ${filePath}: ${renameErr.message}`)
                                 reject(renameErr)
                                 return
@@ -268,12 +270,17 @@ function extractZip(zipPath, extractPath) {
                         readStream.on("error", (readErr) => {
                             failed = true
                             writeStream.destroy()
+                            zipfile.close()
                             logError(`Error reading ${entry.fileName}: ${readErr.message}`)
                             reject(readErr)
                         })
 
                         writeStream.on("error", (writeErr) => {
                             failed = true
+                            // pipe does not tear down the source on a destination error;
+                            // stop reading and release the zip fd so the process can exit
+                            readStream.destroy()
+                            zipfile.close()
                             logError(`Error writing ${partialPath}: ${writeErr.message}`)
                             reject(writeErr)
                         })
@@ -473,33 +480,45 @@ function startMailpit() {
     return new Promise((resolve, _reject) => {
         logInfo("Starting Mailpit...")
 
-        const process = spawn(MAILPIT_EXE, [], {
+        const mailpitProcess = spawn(MAILPIT_EXE, [], {
             detached: true,
             stdio: "ignore",
             windowsHide: true,
         })
 
         let startupTimer
-
-        process.on("error", (err) => {
+        let resolved = false
+        const safeResolve = (value) => {
+            if (resolved) {
+                return
+            }
+            resolved = true
             clearTimeout(startupTimer)
+            resolve(value)
+        }
+
+        mailpitProcess.on("error", (err) => {
             logError(`Failed to start Mailpit: ${err.message}`)
-            resolve(false)
+            safeResolve(false)
         })
 
-        process.unref()
+        mailpitProcess.unref()
 
         // Wait a moment and check if it started successfully
         startupTimer = setTimeout(async () => {
             const isRunning = await checkMailpitWeb()
+            // The error handler may have won during the await; don't emit contradictory logs
+            if (resolved) {
+                return
+            }
             if (isRunning) {
                 logSuccess("Mailpit started successfully!")
                 logInfo(`📧 SMTP Server: localhost:${SMTP_PORT}`)
                 logInfo(`🌐 Web Interface: http://localhost:${WEB_PORT}`)
-                resolve(true)
+                safeResolve(true)
             } else {
                 logError("Mailpit failed to start properly")
-                resolve(false)
+                safeResolve(false)
             }
         }, STARTUP_DELAY)
     })
