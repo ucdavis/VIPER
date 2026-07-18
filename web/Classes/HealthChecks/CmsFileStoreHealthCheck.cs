@@ -57,8 +57,10 @@ namespace Viper.Classes.HealthChecks
             };
             if (notWritable.Count > 0)
             {
+                // One folder per line; the dashboard renders \n via white-space: pre-line
+                // (healthchecks-ui-branding.css).
                 return Task.FromResult(HealthCheckResult.Unhealthy(
-                    $"{notWritable.Count} of {targets.Count} CMS folder(s) not writable: {string.Join("; ", notWritable)}",
+                    $"{notWritable.Count} of {targets.Count} CMS folder(s) not writable:\n{string.Join("\n", notWritable)}",
                     data: data));
             }
             return Task.FromResult(HealthCheckResult.Healthy(
