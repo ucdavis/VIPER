@@ -111,7 +111,9 @@ function routeCheckName(check: NameCheck) {
     })
 }
 
-function mountUpload(props: Partial<{ folder: string | null; allowPublicAccess: boolean }> = {}) {
+function mountUpload(
+    props: Partial<{ folder: string | null; allowPublicAccess: boolean; contentBlockId: number | null }> = {},
+) {
     return mountCms(InlineFileUpload, {
         props: {
             folder: "Apps",
@@ -354,5 +356,73 @@ describe("inlineFileUpload.vue - commit", () => {
         const deleted = mockDel.mock.calls.map((c) => c[0] as string)
         expect(deleted.some((u) => u.includes("cms/files/n1"))).toBe(true)
         expect(deleted.some((u) => u.includes("cms/files/n2"))).toBe(true)
+    })
+})
+
+// With a contentBlockId, the uploader targets the block-scoped files API a delegated editor can
+// reach: check-name/upload/rollback all live under CMS/content/{id}/files, the folder + permissions
+// come from the block (not the client), and the per-file overwrite-in-place / use-existing paths
+// (which that API lacks) are unavailable.
+describe("inlineFileUpload.vue - block-scoped (delegated) mode", () => {
+    it("checks names and uploads through the block-scoped files API, sending only the file", async () => {
+        mockPostForm.mockResolvedValue({ success: true, result: cmsFile("c1", "report.pdf") })
+        const wrapper = mountUpload({ contentBlockId: 7 })
+        await stage("report.pdf")
+
+        const checkUrl = mockGet.mock.calls[0]![0] as string
+        expect(checkUrl).toContain("CMS/content/7/files/check-name")
+        // The block implies the folder, so it is not sent.
+        expect(checkUrl).not.toContain("folder=")
+
+        const result = await commitOf(wrapper)()
+
+        const [url, data] = mockPostForm.mock.calls[0]! as [string, FormData]
+        expect(url).toContain("CMS/content/7/files/")
+        expect(data.has("folder")).toBeFalsy()
+        expect(data.has("permissions")).toBeFalsy()
+        expect(data.has("allowPublicAccess")).toBeFalsy()
+        expect(result.createdGuids).toStrictEqual(["c1"])
+    })
+
+    it("rolls back through the block-scoped delete when a later upload fails", async () => {
+        mockPostForm
+            .mockResolvedValueOnce({ success: true, result: cmsFile("c1", "a.pdf") })
+            .mockResolvedValueOnce({ success: false, errors: ["disk full"] })
+        mockDel.mockResolvedValue({ success: true, result: null })
+        const wrapper = mountUpload({ contentBlockId: 7 })
+        await stage("a.pdf")
+        await stage("b.pdf")
+
+        await expect(commitOf(wrapper)()).rejects.toThrow("disk full")
+
+        expect(mockDel.mock.calls[0]![0]).toContain("CMS/content/7/files/c1")
+    })
+
+    it("offers only rename and overwrite on a conflict (no use-existing) in block-scoped mode", async () => {
+        routeCheckName(CONFLICT)
+        const wrapper = mountUpload({ contentBlockId: 7 })
+        await stage("report.pdf")
+
+        const options = wrapper.findComponent({ name: "QOptionGroup" }).props("options") as { label: string }[]
+        expect(options.map((o) => o.label)).toStrictEqual([
+            "Upload under a new name (report_1.pdf)",
+            "Overwrite the existing file",
+        ])
+    })
+
+    it("uploads with the overwrite flag (POST, not PUT) when overwrite is chosen in block-scoped mode", async () => {
+        routeCheckName(CONFLICT)
+        mockPostForm.mockResolvedValue({ success: true, result: cmsFile("c2", "report.pdf") })
+        const wrapper = mountUpload({ contentBlockId: 7 })
+        await stage("report.pdf")
+
+        wrapper.findComponent({ name: "QOptionGroup" }).vm.$emit("update:modelValue", "overwrite")
+        const result = await commitOf(wrapper)()
+
+        expect(mockPutForm).not.toHaveBeenCalled()
+        const [url, data] = mockPostForm.mock.calls[0]! as [string, FormData]
+        expect(url).toContain("CMS/content/7/files/")
+        expect(data.get("overwrite")).toBe("true")
+        expect(result.createdGuids).toStrictEqual(["c2"])
     })
 })
