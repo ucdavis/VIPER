@@ -20,7 +20,10 @@ namespace Viper.Classes
             MenuItemText = leftNavItem.MenuItemText;
             IsHeader = leftNavItem.IsHeader;
             DisplayOrder = (int)(leftNavItem.DisplayOrder != null ? leftNavItem.DisplayOrder : 0);
-            MenuItemURL = leftNavItem.Url;
+            // Headers are persisted with a null Url; the view's header/spacer branch checks
+            // MenuItemURL against "" specifically, so a null here would wrongly take the link
+            // branch and fail resolving a null URL.
+            MenuItemURL = leftNavItem.Url ?? "";
         }
     }
 }
