@@ -14,12 +14,13 @@ namespace Viper.Areas.CMS.Controllers
         private readonly IHtmlSanitizerService _sanitizerService;
         private readonly ILogger<Data.CMS> _cmsLogger;
 
-        public CMSController(RAPSContext rapsContext, VIPERContext viperContext, IHtmlSanitizerService sanitizerService, ILogger<Data.CMS> cmsLogger)
+        public CMSController(RAPSContext rapsContext, VIPERContext viperContext, IHtmlSanitizerService sanitizerService, ILoggerFactory loggerFactory)
         {
             _rapsContext = rapsContext;
             _viperContext = viperContext;
             _sanitizerService = sanitizerService;
-            _cmsLogger = cmsLogger;
+            //the logger belongs to Data.CMS (which does the logging), not this controller
+            _cmsLogger = loggerFactory.CreateLogger<Data.CMS>();
         }
 
         [HttpGet]
