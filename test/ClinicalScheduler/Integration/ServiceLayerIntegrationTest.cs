@@ -24,9 +24,25 @@ namespace Viper.test.ClinicalScheduler.Integration
 
         public ServiceLayerIntegrationTest()
         {
-
             // Create mock services since actual services require VIPERContext
-            // Note: studentLogger not used since we're mocking the service
+            _studentScheduleService = CreateMockStudentScheduleService();
+            _instructorScheduleService = CreateMockInstructorScheduleService();
+
+            _clinicalScheduleService = new ClinicalScheduleService(
+                _studentScheduleService,
+                _instructorScheduleService
+            );
+
+            var personLogger = Substitute.For<ILogger<PersonService>>();
+            _personService = new PersonService(personLogger, Context, AaudContext);
+
+            // EvaluationPolicyService is now static-like with no constructor parameters needed
+            _evaluationPolicyService = new EvaluationPolicyService();
+        }
+
+        // Note: studentLogger not used since we're mocking the service
+        private static IStudentScheduleService CreateMockStudentScheduleService()
+        {
             var mockStudentService = Substitute.For<IStudentScheduleService>();
             mockStudentService.GetStudentScheduleAsync(
                 Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
@@ -84,9 +100,12 @@ namespace Viper.test.ClinicalScheduler.Integration
 
                     return Task.FromResult(mockData);
                 });
-            _studentScheduleService = mockStudentService;
+            return mockStudentService;
+        }
 
-            // Note: instructorLogger not used since we're mocking the service
+        // Note: instructorLogger not used since we're mocking the service
+        private static IInstructorScheduleService CreateMockInstructorScheduleService()
+        {
             var mockInstructorService = Substitute.For<IInstructorScheduleService>();
             mockInstructorService.GetInstructorScheduleAsync(
                 Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
@@ -159,18 +178,7 @@ namespace Viper.test.ClinicalScheduler.Integration
 
                     return Task.FromResult(mockData);
                 });
-            _instructorScheduleService = mockInstructorService;
-
-            _clinicalScheduleService = new ClinicalScheduleService(
-                _studentScheduleService,
-                _instructorScheduleService
-            );
-
-            var personLogger = Substitute.For<ILogger<PersonService>>();
-            _personService = new PersonService(personLogger, Context, AaudContext);
-
-            // EvaluationPolicyService is now static-like with no constructor parameters needed
-            _evaluationPolicyService = new EvaluationPolicyService();
+            return mockInstructorService;
         }
 
         [Fact]
