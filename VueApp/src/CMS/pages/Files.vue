@@ -106,7 +106,7 @@
             :loading="loading"
             v-model:pagination="pagination"
             :rows-per-page-options="[25, 50, 100, 250]"
-            :grid="$q.screen.lt.sm"
+            :grid="$q.screen.lt.md"
             dense
             flat
             bordered
@@ -203,10 +203,13 @@
             </template>
 
             <template #item="{ row }">
-                <ListCard>
+                <ListCard class="list-card-compact">
                     <template #header>
+                        <!-- Title, status icons, and row actions share the first line so edit/delete
+                             align with the file name rather than centring against a taller block. -->
                         <div class="row items-center no-wrap q-gutter-x-xs">
                             <a
+                                class="ellipsis card-header-title"
                                 :href="row.friendlyUrl"
                                 target="_blank"
                                 rel="noopener"
@@ -232,60 +235,64 @@
                                 color="negative"
                                 :label="deletedLabel(row)"
                             />
+                            <q-space />
+                            <div class="col-auto row items-center no-wrap list-card-actions">
+                                <EditButton
+                                    entity-name="file"
+                                    @click="openEditDialog(row)"
+                                />
+                                <DeleteRestoreButtons
+                                    :deleted="!!row.deletedOn"
+                                    entity-name="file"
+                                    @delete="deleteFile(row)"
+                                    @restore="restoreFile(row)"
+                                />
+                            </div>
                         </div>
                     </template>
 
-                    <ListCardField
-                        label="VIPER app"
-                        :value="row.folder"
-                    />
-                    <ListCardField label="Access">
-                        <PermissionChips
-                            :permissions="row.permissions"
-                            :people-count="row.people.length"
+                    <!-- Two fields per row (see .card-field-grid in base.css), always-present fields
+                         first, then the conditional Old URL / Purges. -->
+                    <div class="card-field-grid">
+                        <ListCardField
+                            label="VIPER app"
+                            :value="row.folder"
                         />
-                    </ListCardField>
-                    <ListCardField
-                        v-if="row.oldUrl"
-                        label="Old URL"
-                    >
-                        <a
-                            :href="oldUrlHref(row.oldUrl)"
-                            target="_blank"
-                            rel="noopener"
+                        <ListCardField label="Access">
+                            <PermissionChips
+                                :permissions="row.permissions"
+                                :people-count="row.people.length"
+                            />
+                        </ListCardField>
+                        <ListCardField label="Modified">
+                            <ModifiedStamp :row="row" />
+                        </ListCardField>
+                        <ListCardField
+                            v-if="row.oldUrl"
+                            label="Old URL"
                         >
-                            {{ row.oldUrl }}
-                            <span class="sr-only">(opens in new window)</span>
-                        </a>
-                    </ListCardField>
-                    <ListCardField label="Modified">
-                        <ModifiedStamp :row="row" />
-                    </ListCardField>
-                    <ListCardField
-                        v-if="row.purgeOn"
-                        label="Purges"
-                    >
-                        {{ formatDate(row.purgeOn) }}
-                        <StatusBadge
-                            v-if="purgeImminent(row)"
-                            color="warning"
-                            label="soon"
-                            class="q-ml-xs"
-                        />
-                    </ListCardField>
-
-                    <template #actions>
-                        <EditButton
-                            entity-name="file"
-                            @click="openEditDialog(row)"
-                        />
-                        <DeleteRestoreButtons
-                            :deleted="!!row.deletedOn"
-                            entity-name="file"
-                            @delete="deleteFile(row)"
-                            @restore="restoreFile(row)"
-                        />
-                    </template>
+                            <a
+                                :href="oldUrlHref(row.oldUrl)"
+                                target="_blank"
+                                rel="noopener"
+                            >
+                                {{ row.oldUrl }}
+                                <span class="sr-only">(opens in new window)</span>
+                            </a>
+                        </ListCardField>
+                        <ListCardField
+                            v-if="row.purgeOn"
+                            label="Purges"
+                        >
+                            {{ formatDate(row.purgeOn) }}
+                            <StatusBadge
+                                v-if="purgeImminent(row)"
+                                color="warning"
+                                label="soon"
+                                class="q-ml-xs"
+                            />
+                        </ListCardField>
+                    </div>
                 </ListCard>
             </template>
         </q-table>
@@ -390,18 +397,25 @@ const fileTools = [
     { label: "Bulk Encrypt", icon: "lock", to: { name: "CmsBulkEncrypt" } },
 ]
 
-const columns = computed<QTableProps["columns"]>(() => [
-    { name: "friendlyName", label: "File", field: "friendlyName", align: "left", sortable: true },
-    { name: "folder", label: "VIPER app", field: "folder", align: "left", sortable: true },
-    { name: "permissions", label: "Access", field: "permissions", align: "left" },
-    { name: "oldUrl", label: "Old URL", field: "oldUrl", align: "left", sortable: true },
-    { name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true },
+const columns = computed<QTableProps["columns"]>(() => {
+    const cols: QTableProps["columns"] = [
+        { name: "friendlyName", label: "File", field: "friendlyName", align: "left", sortable: true },
+        { name: "folder", label: "VIPER app", field: "folder", align: "left", sortable: true },
+        { name: "permissions", label: "Access", field: "permissions", align: "left" },
+        { name: "oldUrl", label: "Old URL", field: "oldUrl", align: "left", sortable: true },
+    ]
+    // Drop Modified below lg (< 1440px) so the table fits iPad landscape without horizontal scroll
+    // (the date + editor still show in card mode and on wide desktop). Mirrors Content Blocks.
+    if (!$q.screen.lt.lg) {
+        cols.push({ name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true })
+    }
     // Only trash rows carry a purge date, so the column exists only where they can appear.
-    ...(filters.value.status !== "active"
-        ? [{ name: "purgeOn", label: "Purges", field: "purgeOn", align: "left" as const, sortable: true }]
-        : []),
-    { name: "actions", label: "Actions", field: "fileGuid", align: "center" },
-])
+    if (filters.value.status !== "active") {
+        cols.push({ name: "purgeOn", label: "Purges", field: "purgeOn", align: "left", sortable: true })
+    }
+    cols.push({ name: "actions", label: "Actions", field: "fileGuid", align: "center" })
+    return cols
+})
 
 const {
     rows: files,
