@@ -1,6 +1,6 @@
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
 import type { CmsFile } from "@/CMS/types"
-import { mountCms, flushPromises } from "./test-utils"
+import { mountCms, flushPromises, clickBodyButton } from "./test-utils"
 
 /**
  * FileFormDialog upload outcomes: a clean add POSTs the form with folder/flags, a taken name
@@ -87,14 +87,6 @@ async function fillAddForm(wrapper: ReturnType<typeof mountDialog>, fileName = "
     await flushPromises()
 }
 
-// Click the LAST matching button: a dismissed dialog's portal can linger mid-transition, so the
-// newest dialog is always the live one.
-function clickBodyButton(label: string) {
-    const btn = [...document.body.querySelectorAll("button")].filter((b) => b.textContent?.includes(label)).at(-1)
-    expect(btn, `expected a "${label}" button`).toBeTruthy()
-    btn!.click()
-}
-
 const NAME_FREE = { success: true, result: { inUse: false } }
 const NAME_TAKEN = {
     success: true,
@@ -114,7 +106,7 @@ beforeEach(() => {
     mockPutForm.mockReset()
 })
 
-describe("FileFormDialog.vue - add-mode upload", () => {
+describe("fileFormDialog.vue - add-mode upload", () => {
     it("checks the destination name, then POSTs the upload with folder, flags, and toggles", async () => {
         mockGet.mockResolvedValue(NAME_FREE)
         mockPostForm.mockResolvedValue({ success: true, result: existingFile() })
@@ -144,11 +136,11 @@ describe("FileFormDialog.vue - add-mode upload", () => {
 
         expect(bodyText()).toContain("File uploaded")
         expect(wrapper.emitted("saved")).toBeTruthy()
-        expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([false])
+        expect(wrapper.emitted("update:modelValue")?.at(-1)).toStrictEqual([false])
     })
 })
 
-describe("FileFormDialog.vue - name conflict resolution", () => {
+describe("fileFormDialog.vue - name conflict resolution", () => {
     async function openConflict() {
         mockGet.mockResolvedValue(NAME_TAKEN)
         const wrapper = mountDialog({ modelValue: true, folders: ["Apps"], file: null })
@@ -185,7 +177,7 @@ describe("FileFormDialog.vue - name conflict resolution", () => {
         expect(wrapper.emitted("saved")).toBeTruthy()
     })
 
-    it("PUTs to the existing record's guid when overwrite is chosen for a managed file", async () => {
+    it("pUTs to the existing record's guid when overwrite is chosen for a managed file", async () => {
         const wrapper = await openConflict()
         mockPutForm.mockResolvedValue({ success: true, result: existingFile() })
 
@@ -205,7 +197,7 @@ describe("FileFormDialog.vue - name conflict resolution", () => {
         expect(bodyText()).toContain("File overwritten")
     })
 
-    it("POSTs with the overwrite flag when the conflicting name has no managed record", async () => {
+    it("pOSTs with the overwrite flag when the conflicting name has no managed record", async () => {
         mockGet.mockResolvedValue({
             ...NAME_TAKEN,
             result: { ...NAME_TAKEN.result, existingFileGuid: null, existingFriendlyName: null },
@@ -244,13 +236,13 @@ describe("FileFormDialog.vue - name conflict resolution", () => {
     })
 })
 
-describe("FileFormDialog.vue - copy link", () => {
+describe("fileFormDialog.vue - copy link", () => {
     function stubClipboard(writeText: (text: string) => Promise<void>) {
         Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
     }
 
     it("copies the friendly URL and confirms", async () => {
-        const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
+        const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue()
         stubClipboard(writeText)
         const wrapper = mountDialog({ modelValue: true, folders: ["Apps"], file: existingFile() })
         await flushPromises()

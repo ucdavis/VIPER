@@ -73,7 +73,12 @@
                 >
                     {{ emptyMessage }}
                 </q-card-section>
-                <q-card-section class="scroll diff-body">
+                <!-- Only mount the diff body when there is something to compare; with no comparison
+                     diffHtml is empty, so this would render an empty scroll region. -->
+                <q-card-section
+                    v-else
+                    class="scroll diff-body"
+                >
                     <!-- diffHtml is re-sanitized server-side after diffing (SanitizeDiff), keeping only ins/del markers -->
                     <!-- eslint-disable vue/no-v-html -->
                     <div

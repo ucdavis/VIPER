@@ -39,6 +39,15 @@ const props = defineProps<{
     labelId?: string
 }>()
 
+// Every caller must give the editing area an accessible name (a QEditor with none is invisible to
+// screen readers): pass `labelId` (preferred, the id of a visible label) or `ariaLabel`. This can't
+// be a type-level union - that stops vue-tsc mapping the kebab-case `aria-label` attribute callers
+// use onto the prop - so enforce it as a dev-only invariant instead. It compiles out of production
+// and never fires for a compliant caller; passing both is fine, `labelId` wins in applyAccessibleName.
+if (import.meta.env.DEV && !props.labelId && !props.ariaLabel) {
+    throw new Error("RichTextEditor requires a `labelId` or `ariaLabel` so the editing area is announced.")
+}
+
 const emit = defineEmits<{
     "update:modelValue": [value: string]
 }>()
@@ -110,11 +119,11 @@ watch(() => [props.ariaLabel, props.labelId], applyAccessibleName)
    Only the gaps shrink - the buttons keep their size, so touch targets are unchanged. */
 @media (width <= 599.98px) {
     :deep(.q-editor__toolbar-group) {
-        margin: 0 2px;
+        margin: 0 0.125rem;
     }
 
     :deep(.q-editor__toolbar .q-btn) {
-        margin: 2px;
+        margin: 0.125rem;
     }
 }
 </style>

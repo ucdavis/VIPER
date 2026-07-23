@@ -1,7 +1,7 @@
 import LinkCollections from "@/CMS/components/LinkCollections.vue"
 import ManageLinkCollections from "@/CMS/pages/ManageLinkCollections.vue"
 import type { Link, LinkCollection } from "@/CMS/types"
-import { mountCms, flushPromises } from "./test-utils"
+import { mountCms, flushPromises, clickBodyButton } from "./test-utils"
 
 /**
  * LinkCollections is the most logic-dense CMS display component: it loads a collection and
@@ -103,7 +103,7 @@ function linkCardTitles(wrapper: ReturnType<typeof mountCms>): string[] {
     return wrapper.findAllComponents({ name: "Link" }).map((c) => (c.props("link") as Link).title)
 }
 
-describe("LinkCollections.vue - loading", () => {
+describe("linkCollections.vue - loading", () => {
     beforeEach(() => primeFetch())
 
     it("requests the collection by name then loads its links", async () => {
@@ -119,7 +119,7 @@ describe("LinkCollections.vue - loading", () => {
     })
 })
 
-describe("LinkCollections.vue - search filter", () => {
+describe("linkCollections.vue - search filter", () => {
     beforeEach(() => primeFetch())
 
     it("filters by title case-insensitively", async () => {
@@ -127,7 +127,7 @@ describe("LinkCollections.vue - search filter", () => {
         const vm = wrapper.vm as unknown as { search: string }
         vm.search = "anatomy"
         await flushPromises()
-        expect(linkCardTitles(wrapper).toSorted()).toEqual(["Anatomy Atlas", "Anatomy Guide"])
+        expect(linkCardTitles(wrapper).toSorted()).toStrictEqual(["Anatomy Atlas", "Anatomy Guide"])
     })
 
     it("matches on description text", async () => {
@@ -135,7 +135,7 @@ describe("LinkCollections.vue - search filter", () => {
         const vm = wrapper.vm as unknown as { search: string }
         vm.search = "interactions"
         await flushPromises()
-        expect(linkCardTitles(wrapper)).toEqual(["Pharmacology Notes"])
+        expect(linkCardTitles(wrapper)).toStrictEqual(["Pharmacology Notes"])
     })
 
     it("matches on a tag value", async () => {
@@ -144,7 +144,7 @@ describe("LinkCollections.vue - search filter", () => {
         vm.search = "pharmacology"
         await flushPromises()
         // "Pharmacology" matches both the title and the Subject tag of link 2 only.
-        expect(linkCardTitles(wrapper)).toEqual(["Pharmacology Notes"])
+        expect(linkCardTitles(wrapper)).toStrictEqual(["Pharmacology Notes"])
     })
 
     it("shows the empty banner when nothing matches", async () => {
@@ -157,7 +157,7 @@ describe("LinkCollections.vue - search filter", () => {
     })
 })
 
-describe("LinkCollections.vue - tag category filter", () => {
+describe("linkCollections.vue - tag category filter", () => {
     beforeEach(() => primeFetch())
 
     it("filters links to those carrying the selected tag value", async () => {
@@ -168,7 +168,7 @@ describe("LinkCollections.vue - tag category filter", () => {
         const subjectFilter = vm.tagFilters.find((t) => t.linkCollectionTagCategoryId === SUBJECT_CATEGORY_ID)!
         subjectFilter.selected = "Anatomy"
         await flushPromises()
-        expect(linkCardTitles(wrapper).toSorted()).toEqual(["Anatomy Atlas", "Anatomy Guide"])
+        expect(linkCardTitles(wrapper).toSorted()).toStrictEqual(["Anatomy Atlas", "Anatomy Guide"])
     })
 
     it("builds de-duplicated, sorted options per category from the link tags", async () => {
@@ -178,20 +178,20 @@ describe("LinkCollections.vue - tag category filter", () => {
         }
         const subject = vm.tagFilters.find((t) => t.linkCollectionTagCategoryId === SUBJECT_CATEGORY_ID)!
         // Anatomy appears twice in the data but must be de-duplicated.
-        expect(subject.options).toEqual(["Anatomy", "Pharmacology"])
+        expect(subject.options).toStrictEqual(["Anatomy", "Pharmacology"])
     })
 })
 
-describe("LinkCollections.vue - group by tag category", () => {
+describe("linkCollections.vue - group by tag category", () => {
     beforeEach(() => primeFetch())
 
     it("buckets links by their value in the group-by tag category", async () => {
         const wrapper = await mountLoaded({ linkCollectionName: "Resources", groupByTagCategory: "Subject" })
         const vm = wrapper.vm as unknown as { groupedLinks: Map<string, Link[]> }
         const anatomy = (vm.groupedLinks.get("Anatomy") ?? []).map((l) => l.title)
-        expect(anatomy.toSorted()).toEqual(["Anatomy Atlas", "Anatomy Guide"])
+        expect(anatomy.toSorted()).toStrictEqual(["Anatomy Atlas", "Anatomy Guide"])
         const pharm = (vm.groupedLinks.get("Pharmacology") ?? []).map((l) => l.title)
-        expect(pharm).toEqual(["Pharmacology Notes"])
+        expect(pharm).toStrictEqual(["Pharmacology Notes"])
     })
 
     it("renders all links and builds no buckets when no group category is set", async () => {
@@ -212,17 +212,9 @@ describe("LinkCollections.vue - group by tag category", () => {
     it("computes the sorted set of group header values", async () => {
         const wrapper = await mountLoaded({ linkCollectionName: "Resources", groupByTagCategory: "Subject" })
         const vm = wrapper.vm as unknown as { groupByValues: string[] }
-        expect(vm.groupByValues).toEqual(["Anatomy", "Pharmacology"])
+        expect(vm.groupByValues).toStrictEqual(["Anatomy", "Pharmacology"])
     })
 })
-
-// Quasar plugin dialogs teleport to document.body; click the LAST matching button since a
-// dismissed dialog's portal can briefly linger mid-transition.
-function clickBodyButton(label: string) {
-    const btn = [...document.body.querySelectorAll("button")].filter((b) => b.textContent?.includes(label)).at(-1)
-    expect(btn, `expected a "${label}" button`).toBeTruthy()
-    btn!.click()
-}
 
 const MANAGE_COLLECTION = { linkCollectionId: 7, linkCollection: "Resources" }
 const MANAGE_TAGS = [{ linkCollectionTagCategoryId: 1, linkCollectionTagCategory: "Type", sortOrder: 1 }]
@@ -235,8 +227,12 @@ function primeManageFetch() {
     mockDel.mockReset()
     mockGet.mockImplementation((...args: unknown[]) => {
         const url = args[0] as string
-        if (url.includes("/links")) return Promise.resolve({ success: true, result: [] })
-        if (url.includes("/tags")) return Promise.resolve({ success: true, result: MANAGE_TAGS })
+        if (url.includes("/links")) {
+            return Promise.resolve({ success: true, result: [] })
+        }
+        if (url.includes("/tags")) {
+            return Promise.resolve({ success: true, result: MANAGE_TAGS })
+        }
         return Promise.resolve({ success: true, result: [MANAGE_COLLECTION] })
     })
 }
@@ -246,7 +242,7 @@ type ManageVm = {
     draftTags: { linkCollectionTagCategoryId: number; linkCollectionTagCategory: string; sortOrder: number }[]
 }
 
-describe("ManageLinkCollections.vue - Edit Collection dialog unsaved-changes guard", () => {
+describe("manageLinkCollections.vue - Edit Collection dialog unsaved-changes guard", () => {
     beforeEach(() => primeManageFetch())
 
     async function mountManage() {
@@ -276,12 +272,12 @@ describe("ManageLinkCollections.vue - Edit Collection dialog unsaved-changes gua
         await flushPromises()
         // The guard intercepts the close instead of silently discarding the staged edits.
         expect(document.body.textContent).toContain("Unsaved Changes")
-        expect(vm.showCollectionDialog).toBe(true)
+        expect(vm.showCollectionDialog).toBeTruthy()
 
         clickBodyButton("Discard Changes")
         await flushPromises()
         await flushPromises()
-        expect(vm.showCollectionDialog).toBe(false)
+        expect(vm.showCollectionDialog).toBeFalsy()
     })
 
     it("closes without prompting when nothing was edited", async () => {
@@ -295,6 +291,6 @@ describe("ManageLinkCollections.vue - Edit Collection dialog unsaved-changes gua
         await flushPromises()
         await flushPromises()
         // Clean dialog: confirmClose resolves immediately, so the dialog just closes.
-        expect(vm.showCollectionDialog).toBe(false)
+        expect(vm.showCollectionDialog).toBeFalsy()
     })
 })

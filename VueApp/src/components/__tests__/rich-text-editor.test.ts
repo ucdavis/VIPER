@@ -21,13 +21,38 @@ async function flush() {
  */
 
 // QEditor probes rich-text support during setup; happy-dom ships none of the execCommand family.
+// Stub them for this file only, saving and restoring the originals so the patched globals don't
+// leak into other test files sharing this environment.
+const COMMAND_KEYS = [
+    "execCommand",
+    "queryCommandState",
+    "queryCommandValue",
+    "queryCommandSupported",
+    "queryCommandEnabled",
+] as const
+const savedCommands: Record<string, unknown> = {}
+
 beforeAll(() => {
     const d = document as unknown as Record<string, unknown>
+    for (const key of COMMAND_KEYS) {
+        savedCommands[key] = d[key]
+    }
     d.execCommand = () => true
     d.queryCommandState = () => false
     d.queryCommandValue = () => ""
     d.queryCommandSupported = () => true
     d.queryCommandEnabled = () => true
+})
+
+afterAll(() => {
+    const d = document as unknown as Record<string, unknown>
+    for (const key of COMMAND_KEYS) {
+        if (key in savedCommands && savedCommands[key] !== undefined) {
+            d[key] = savedCommands[key]
+        } else {
+            delete d[key]
+        }
+    }
 })
 
 const TOOLBAR = [
@@ -37,9 +62,11 @@ const TOOLBAR = [
     ["viewsource"],
 ]
 
+// Default to a name so mounts that don't care about the accessible name still satisfy the
+// component's "labelId or ariaLabel required" invariant; name-specific tests override it.
 async function mountEditor(props: Record<string, unknown> = {}) {
     const wrapper = mount(RichTextEditor, {
-        props: { modelValue: "<p>hi</p>", toolbar: TOOLBAR, ...props },
+        props: { modelValue: "<p>hi</p>", toolbar: TOOLBAR, ariaLabel: "Editor", ...props },
         global: { plugins: [[Quasar, {}]] },
     })
     await flush()

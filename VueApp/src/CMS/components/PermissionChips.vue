@@ -17,7 +17,7 @@
                 clickable
                 size="sm"
                 color="grey-4"
-                :aria-label="`Show all ${permissions.length} permissions`"
+                :aria-label="`Show all ${permissions.length} ${inflect('permission', permissions.length)}`"
             >
                 +{{ permissions.length - maxShown }} more
                 <q-menu

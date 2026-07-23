@@ -229,6 +229,7 @@ export type {
     AttachableFile,
     CmsContentHistoryItem,
     CmsLeftNavMenu,
+    CmsLeftNavItem,
     CmsFile,
     CmsFilePerson,
     CmsFileNameCheck,

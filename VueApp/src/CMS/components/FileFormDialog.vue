@@ -181,7 +181,7 @@
                             flat
                             round
                             dense
-                            aria-label="Close dialog"
+                            aria-label="Close file name conflict dialog"
                             @click="showConflict = false"
                         />
                     </q-card-section>

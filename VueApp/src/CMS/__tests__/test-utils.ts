@@ -16,9 +16,10 @@ import { useUserStore } from "@/store/UserStore"
  * manager (the role these tests assume).
  */
 
-// Components build request URLs as inject("apiURL") + "cms/...". Tests assert against
-// this prefix, so keep it stable and obvious.
-const TEST_API_URL = "/api/"
+// Components build request URLs as inject("apiURL") + "cms/...". Mirror production by injecting the
+// same base the app does (VITE_API_URL, e.g. "/2/api/" on TEST); assertions target the "cms/..."
+// suffix, not this prefix, so they hold regardless of the configured base.
+const TEST_API_URL = import.meta.env.VITE_API_URL
 
 // The CMS area's full permission set; mounted pages default to this so existing tests see the
 // same UI a manager would. Mirrors the route meta in src/CMS/router/routes.ts.
@@ -98,4 +99,13 @@ async function flushRouter(cycles = 10): Promise<void> {
     await flushRouter(cycles - 1)
 }
 
-export { createTestRouter, mountCms, flushPromises, flushRouter }
+// Click the last body-level <button> whose text includes `label`. Quasar plugin dialogs/menus
+// teleport to document.body (outside the mounted wrapper), and a dismissed dialog's portal can
+// linger mid-transition, so the newest (last) match is always the live one.
+function clickBodyButton(label: string): void {
+    const btn = [...document.body.querySelectorAll("button")].filter((b) => b.textContent?.includes(label)).at(-1)
+    expect(btn, `expected a "${label}" button`).toBeTruthy()
+    btn!.click()
+}
+
+export { createTestRouter, mountCms, flushPromises, flushRouter, clickBodyButton }

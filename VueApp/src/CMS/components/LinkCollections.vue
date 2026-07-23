@@ -179,11 +179,12 @@ function loadFilters() {
                 selected: null,
             })
         }
+        // Index the filters by category once so the tag loop below is a constant-time lookup
+        // instead of a .find() scan per tag (links x tags x categories).
+        const filtersByCategory = new Map(tagFilters.value.map((f) => [f.linkCollectionTagCategoryId, f]))
         for (const l of links.value) {
             for (const lt of l.linkTags) {
-                const filter = tagFilters.value.find(
-                    (f) => f.linkCollectionTagCategoryId === lt.linkCollectionTagCategoryId,
-                )
+                const filter = filtersByCategory.get(lt.linkCollectionTagCategoryId)
                 if (filter) {
                     filter.options.push(lt.value)
                 }
