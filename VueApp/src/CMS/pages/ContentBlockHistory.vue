@@ -315,8 +315,8 @@ onMounted(reload)
    44px touch target on coarse pointers. Mouse/trackpad keep the dense table-action size. */
 @media (pointer: coarse) {
     .diff-action-btn {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
     }
 }
 </style>

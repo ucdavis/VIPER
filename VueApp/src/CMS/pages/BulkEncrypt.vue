@@ -48,7 +48,7 @@
                     dense
                     no-caps
                     class="q-pr-md"
-                    :disable="!selected.length"
+                    :disable="!selected.length || selected.length > MAX_BATCH_ITEMS"
                     :loading="encrypting"
                     @click="encryptSelected"
                 >
@@ -60,6 +60,12 @@
                         Encrypting...
                     </template>
                 </q-btn>
+            </div>
+            <div
+                v-if="selected.length > MAX_BATCH_ITEMS"
+                class="col-12 text-caption text-negative q-mt-xs"
+            >
+                Select at most {{ MAX_BATCH_ITEMS }} files to encrypt at once.
             </div>
         </div>
 
@@ -168,6 +174,9 @@ type FolderOption = { label: string; value: string }
 const ALL_FOLDERS = "All"
 
 const folderOptions = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLDERS }])
+// Mirrors the controller's MaxBatchItems: past this the bulk-encrypt POST 400s, so gate the action
+// in the UI instead of surfacing that error.
+const MAX_BATCH_ITEMS = 500
 const selected = ref<CmsFile[]>([])
 const results = ref<BulkEncryptResult[]>([])
 const encrypting = ref(false)

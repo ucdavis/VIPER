@@ -27,18 +27,14 @@
                 v-for="lct in props.linkCollection.linkCollectionTagCategories"
                 :key="lct.linkCollectionTagCategoryId"
             >
-                <template
-                    v-for="tag in props.link.linkTags"
+                <StatusBadge
+                    v-for="tag in tagsByCategory.get(lct.linkCollectionTagCategoryId) ?? []"
                     :key="tag.linkTagId"
+                    :color="getTagColor(lct.sortOrder)"
+                    class="q-px-sm q-mr-xs"
                 >
-                    <StatusBadge
-                        v-if="tag.linkCollectionTagCategoryId == lct.linkCollectionTagCategoryId"
-                        :color="getTagColor(lct.sortOrder)"
-                        class="q-px-sm q-mr-xs"
-                    >
-                        {{ tag.value }}
-                    </StatusBadge>
-                </template>
+                    {{ tag.value }}
+                </StatusBadge>
             </template>
         </q-card-section>
     </q-card>
@@ -56,6 +52,21 @@ const props = defineProps<{
 
 const hrefForLink = computed(() => safeHref(props.link.url))
 const isSafe = computed(() => hrefForLink.value !== "#")
+
+// Group this link's tags by category once so the template renders each category's badges by a
+// constant-time lookup instead of rescanning every tag per category (O(categories x tags)).
+const tagsByCategory = computed(() => {
+    const byCategory = new Map<number, typeof props.link.linkTags>()
+    for (const tag of props.link.linkTags) {
+        const existing = byCategory.get(tag.linkCollectionTagCategoryId)
+        if (existing) {
+            existing.push(tag)
+        } else {
+            byCategory.set(tag.linkCollectionTagCategoryId, [tag])
+        }
+    }
+    return byCategory
+})
 
 // Each tag category's sortOrder (1-based) indexes this categorical palette. It is
 // built from non-semantic brand roles only (Aggie Blue, the secondary-palette

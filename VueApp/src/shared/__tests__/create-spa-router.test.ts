@@ -124,4 +124,21 @@ describe("route-change focus management", () => {
 
         expect(document.activeElement?.id).toBe("leftNavMenu")
     })
+
+    it("does not steal focus when a navigation is aborted (guard returns false)", async () => {
+        // An aborted nav never changes the page, so useRouteFocus's `failure` guard must leave focus
+        // put (e.g. an open dialog) rather than yanking it to <main>.
+        const router = buildRouter()
+        await router.push("/")
+        await router.isReady()
+
+        const openControl = document.querySelector<HTMLElement>("#leftNavMenu")!
+        openControl.focus()
+        router.beforeEach(() => false)
+        await router.push("/other")
+        await nextTick()
+
+        expect(document.activeElement?.id).toBe("leftNavMenu")
+        expect(document.querySelector<HTMLElement>("#main-content")!.dataset.routeFocus).toBeUndefined()
+    })
 })

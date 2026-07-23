@@ -19,16 +19,16 @@ const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
  */
 // The endpoint param selects the destination: "welcome" is the passive splash (auth-challenge /
 // guard redirects); "login" goes straight to CAS for explicit "Log in" buttons, so a deliberate
-// click isn't met with another sign-in screen.
+// click isn't met with another sign-in screen. Both are built from the normalized base so
+// VITE_VIPER_HOME="/2" gives "/2/login" (not the slash-less "/2login") and "/2///" collapses.
 function buildLoginUrl(returnPath: string, endpoint: "welcome" | "login" = "welcome"): string {
-    const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
-    const applicationBase = stripTrailingSlashes(viperHome)
+    const applicationBase = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/")
     const fallbackPath = `${applicationBase}/`
 
     if (isValidInternalPath(returnPath)) {
-        return `${viperHome}${endpoint}?ReturnUrl=${encodeURIComponent(returnPath)}`
+        return `${applicationBase}/${endpoint}?ReturnUrl=${encodeURIComponent(returnPath)}`
     }
-    return `${viperHome}${endpoint}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
+    return `${applicationBase}/${endpoint}?ReturnUrl=${encodeURIComponent(fallbackPath)}`
 }
 
 /**

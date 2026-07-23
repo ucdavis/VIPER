@@ -147,7 +147,7 @@
             </template>
 
             <template #item="{ row }">
-                <ListCard class="content-block-card">
+                <ListCard class="list-card-compact">
                     <template #header>
                         <!-- Title, status icons, and the row actions all share the first line so the
                              edit/delete buttons align with the title (not centred against the taller
@@ -196,9 +196,10 @@
                     </template>
 
                     <!-- Two fields per row (VIPER section | Page, then Access | Modified) so the card
-                         stays compact. A CSS grid (see <style>) keeps the fields aligned with the title
-                         text - unlike q-col-gutter, whose negative margin pulls them left - and it
-                         collapses to one column below sm where half-width would be cramped. -->
+                         stays compact. A CSS grid (see .card-field-grid in base.css) keeps the fields
+                         aligned with the title text - unlike q-col-gutter, whose negative margin pulls
+                         them left - and it collapses to one column below sm where half-width would be
+                         cramped. -->
                     <div class="card-field-grid">
                         <ListCardField
                             label="VIPER section"
@@ -227,6 +228,7 @@
 <script setup lang="ts">
 // Template-size synthetic complexity only (large filter + table markup); script logic is small.
 // fallow-ignore-file complexity
+// Card grid-mode styling is shared with Files via .list-card-compact / .card-field-grid in base.css.
 import { computed, inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
@@ -395,66 +397,3 @@ onMounted(() => {
     reload()
 })
 </script>
-
-<style scoped>
-/* Let a long title shrink and ellipsis instead of pushing the inline row actions off the card. */
-.card-header-title {
-    min-width: 0;
-}
-
-/* Tighten the grid-mode card: trim the section padding (it was too airy up top) so the header
-   sits closer to the card edge. */
-.content-block-card :deep(.q-card__section) {
-    padding: 0.5rem 1rem;
-}
-
-/* The 44px touch target made the row-action buttons tower over the single-line title, opening a
-   gap above the friendly name. A 32px target keeps them comfortable and above the 24px WCAG 2.5.8
-   (AA) floor while letting the title row stay compact. */
-@media (pointer: coarse) {
-    .content-block-card :deep(.list-card-actions .q-btn) {
-        min-width: 2rem;
-        min-height: 2rem;
-    }
-}
-
-/* Two fields per row on sm+ (one below), via a CSS grid so the fields line up with the title text.
-   q-col-gutter would negative-margin the row 8px left of the title; a grid gap avoids that. */
-.card-field-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.375rem 1rem;
-    margin-top: 0.5rem;
-}
-
-@media (min-width: 600px) {
-    .card-field-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-/* Stack each field's label above its value. The shared ListCardField's default 7rem side label
-   leaves too little room at half-width, so long values - notably permission chips - spilled into
-   the neighbouring column. min-width:0 lets each grid cell shrink so values wrap, and the q-chip
-   rules let a long permission wrap within its column instead of overflowing. */
-.card-field-grid :deep(.list-card-field) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.125rem;
-    min-width: 0;
-}
-
-.card-field-grid :deep(.list-card-label) {
-    flex: none;
-}
-
-.card-field-grid :deep(.q-chip) {
-    max-width: 100%;
-    height: auto;
-}
-
-.card-field-grid :deep(.q-chip__content) {
-    white-space: normal;
-    overflow-wrap: anywhere;
-}
-</style>

@@ -27,401 +27,434 @@
             />
             <h2>Effort 3.0</h2>
 
-            <q-list
-                dense
-                separator
-            >
-                <!-- Current Term - clickable with pencil icon -->
-                <q-item
-                    v-if="currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'TermSelection' }"
-                    class="leftNavHeader"
+            <!-- QItem hardcodes role="listitem", which overrides the native link role on
+                 anchors; explicit roles restore link semantics (headers/subheaders are
+                 presentational), so no role="list" wrapper is needed. -->
+            <nav aria-label="Effort navigation">
+                <q-list
+                    dense
+                    separator
                 >
-                    <q-item-section>
-                        <q-item-label class="term-label">
-                            <span class="term-text">{{ currentTerm.termName }}</span>
-                            <q-icon
-                                name="edit"
-                                size="1rem"
-                                class="q-ml-xs"
-                            />
-                        </q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-else
-                    clickable
-                    v-ripple
-                    :to="{ name: 'TermSelection' }"
-                    class="leftNavHeader"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Select a Term</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Current Term - clickable with pencil icon -->
+                    <q-item
+                        v-if="currentTerm"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'TermSelection' }"
+                        class="leftNavHeader"
+                    >
+                        <q-item-section>
+                            <q-item-label class="term-label">
+                                <span class="term-text">{{ currentTerm.termName }}</span>
+                                <q-icon
+                                    name="edit"
+                                    size="1rem"
+                                    class="q-ml-xs"
+                                />
+                            </q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-else
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'TermSelection' }"
+                        class="leftNavHeader"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Select a Term</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Dashboard - bird's eye view for admins and department coordinators -->
-                <q-item
-                    v-if="(isAdmin || hasViewDept) && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'StaffDashboard', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Dashboard</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Dashboard - bird's eye view for admins and department coordinators -->
+                    <q-item
+                        v-if="(isAdmin || hasViewDept) && currentTerm"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'StaffDashboard', params: { termCode: currentTerm.termCode } }"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Dashboard</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Instructors - for users with instructor permissions -->
-                <q-item
-                    v-if="canViewInstructors && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'InstructorList', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Instructors</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Instructors - for users with instructor permissions -->
+                    <q-item
+                        v-if="canViewInstructors && currentTerm"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'InstructorList', params: { termCode: currentTerm.termCode } }"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Instructors</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Courses - for users with course permissions -->
-                <q-item
-                    v-if="canViewCourses && currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'CourseList', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Courses</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Courses - for users with course permissions -->
+                    <q-item
+                        v-if="canViewCourses && currentTerm"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'CourseList', params: { termCode: currentTerm.termCode } }"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Courses</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- My Effort - can view/verify their own effort -->
-                <q-item
-                    v-if="currentTerm"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'MyEffort', params: { termCode: currentTerm.termCode } }"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">My Effort</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- My Effort - can view/verify their own effort -->
+                    <q-item
+                        v-if="currentTerm"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'MyEffort', params: { termCode: currentTerm.termCode } }"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">My Effort</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Manage Terms - only for ManageTerms users -->
-                <q-item
-                    v-if="hasManageTerms"
-                    clickable
-                    v-ripple
-                    :to="
-                        currentTerm
-                            ? { name: 'TermManagement', query: { termCode: currentTerm.termCode } }
-                            : { name: 'TermManagement' }
-                    "
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Manage Terms</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Manage Terms - only for ManageTerms users -->
+                    <q-item
+                        v-if="hasManageTerms"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="
+                            currentTerm
+                                ? { name: 'TermManagement', query: { termCode: currentTerm.termCode } }
+                                : { name: 'TermManagement' }
+                        "
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Manage Terms</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Manage Units - only for ManageUnits users -->
-                <q-item
-                    v-if="hasManageUnits"
-                    clickable
-                    v-ripple
-                    :to="
-                        currentTerm
-                            ? { name: 'UnitListWithTerm', params: { termCode: currentTerm.termCode } }
-                            : { name: 'UnitList' }
-                    "
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Manage Units</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Manage Units - only for ManageUnits users -->
+                    <q-item
+                        v-if="hasManageUnits"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="
+                            currentTerm
+                                ? { name: 'UnitListWithTerm', params: { termCode: currentTerm.termCode } }
+                                : { name: 'UnitList' }
+                        "
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Manage Units</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Manage Effort Types - only for ManageEffortTypes users -->
-                <q-item
-                    v-if="hasManageEffortTypes"
-                    clickable
-                    v-ripple
-                    :to="
-                        currentTerm
-                            ? { name: 'EffortTypeListWithTerm', params: { termCode: currentTerm.termCode } }
-                            : { name: 'EffortTypeList' }
-                    "
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Manage Effort Types</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Manage Effort Types - only for ManageEffortTypes users -->
+                    <q-item
+                        v-if="hasManageEffortTypes"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="
+                            currentTerm
+                                ? { name: 'EffortTypeListWithTerm', params: { termCode: currentTerm.termCode } }
+                                : { name: 'EffortTypeList' }
+                        "
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Manage Effort Types</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Percent Assignment Types - view-only list for admins -->
-                <q-item
-                    v-if="isAdmin"
-                    clickable
-                    v-ripple
-                    :to="
-                        currentTerm
-                            ? { name: 'PercentAssignTypeListWithTerm', params: { termCode: currentTerm.termCode } }
-                            : { name: 'PercentAssignTypeList' }
-                    "
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Percent Assignment Types</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Percent Assignment Types - view-only list for admins -->
+                    <q-item
+                        v-if="isAdmin"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="
+                            currentTerm
+                                ? { name: 'PercentAssignTypeListWithTerm', params: { termCode: currentTerm.termCode } }
+                                : { name: 'PercentAssignTypeList' }
+                        "
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Percent Assignment Types</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Audit - for ViewAudit or ViewDeptAudit users (term optional) -->
-                <q-item
-                    v-if="hasAnyAuditAccess"
-                    clickable
-                    v-ripple
-                    :to="
-                        currentTerm
-                            ? { name: 'EffortAuditWithTerm', params: { termCode: currentTerm.termCode } }
-                            : { name: 'EffortAudit' }
-                    "
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Audit Trail</q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Audit - for ViewAudit or ViewDeptAudit users (term optional) -->
+                    <q-item
+                        v-if="hasAnyAuditAccess"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="
+                            currentTerm
+                                ? { name: 'EffortAuditWithTerm', params: { termCode: currentTerm.termCode } }
+                                : { name: 'EffortAudit' }
+                        "
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Audit Trail</q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Help -->
-                <q-item
-                    clickable
-                    v-ripple
-                    href="https://ucdsvm.knowledgeowl.com/help/effort-system-overview"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="leftNavLink"
-                >
-                    <q-item-section>
-                        <q-item-label
-                            lines="1"
-                            class="help-label"
-                        >
-                            <q-icon
-                                name="help_outline"
-                                size="xs"
-                            />
-                            <span>Help</span>
-                            <q-icon
-                                name="open_in_new"
-                                size="xs"
-                                class="q-ml-xs"
-                                aria-hidden="true"
-                            />
-                            <span class="sr-only">(opens in new window)</span>
-                        </q-item-label>
-                    </q-item-section>
-                </q-item>
+                    <!-- Help -->
+                    <q-item
+                        clickable
+                        v-ripple
+                        role="link"
+                        href="https://ucdsvm.knowledgeowl.com/help/effort-system-overview"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="leftNavLink"
+                    >
+                        <q-item-section>
+                            <q-item-label
+                                lines="1"
+                                class="help-label"
+                            >
+                                <q-icon
+                                    name="help_outline"
+                                    size="xs"
+                                />
+                                <span>Help</span>
+                                <q-icon
+                                    name="open_in_new"
+                                    size="xs"
+                                    class="q-ml-xs"
+                                    aria-hidden="true"
+                                />
+                                <span class="sr-only">(opens in new window)</span>
+                            </q-item-label>
+                        </q-item-section>
+                    </q-item>
 
-                <!-- Reports (legacy: ViewDept OR ViewAllDepartments OR Reports) -->
-                <q-item
-                    v-if="canViewReports"
-                    class="leftNavHeader q-mt-sm"
-                >
-                    <q-item-section>
-                        <q-item-label class="text-weight-bold">Reports</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <!-- Merit & Promotion sub-header -->
-                <q-item
-                    v-if="canViewReports"
-                    class="leftNavSubHeader"
-                >
-                    <q-item-section>
-                        <q-item-label
-                            lines="1"
-                            class="text-weight-medium"
-                            >Merit &amp; Promotion</q-item-label
-                        >
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'MeritAverage', params: reportParams }"
-                    :active="route.name === 'MeritAverage'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Average</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'MeritDetail', params: reportParams }"
-                    :active="route.name === 'MeritDetail'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Detail</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'MultiYearReport', params: reportParams }"
-                    :active="route.name === 'MultiYearReport'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Multi-Year</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'MeritSummary', params: reportParams }"
-                    :active="route.name === 'MeritSummary'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Summary</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'ClinicalEffort', params: reportParams }"
-                    :active="route.name === 'ClinicalEffort'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Clinical Effort</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewScheduledCliWeeks"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'ScheduledCliWeeks', params: reportParams }"
-                    :active="route.name === 'ScheduledCliWeeks'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Scheduled CLI Weeks</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <!-- Teaching Activity sub-header -->
-                <q-item
-                    v-if="canViewReports"
-                    class="leftNavSubHeader"
-                >
-                    <q-item-section>
-                        <q-item-label
-                            lines="1"
-                            class="text-weight-medium"
-                            >Teaching Activity</q-item-label
-                        >
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'TeachingActivityGrouped', params: reportParams }"
-                    :active="route.name === 'TeachingActivityGrouped'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Grouped</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'TeachingActivityIndividual', params: reportParams }"
-                    :active="route.name === 'TeachingActivityIndividual'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Individual</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'DeptSummary', params: reportParams }"
-                    :active="route.name === 'DeptSummary'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Dept Summary</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="isAdmin || hasSchoolSummary"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'SchoolSummary', params: reportParams }"
-                    :active="route.name === 'SchoolSummary'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">School Summary</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <!-- Evaluation sub-header -->
-                <q-item
-                    v-if="canViewReports"
-                    class="leftNavSubHeader"
-                >
-                    <q-item-section>
-                        <q-item-label
-                            lines="1"
-                            class="text-weight-medium"
-                            >Evaluation</q-item-label
-                        >
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'EvalSummary', params: reportParams }"
-                    :active="route.name === 'EvalSummary'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Summary</q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-item
-                    v-if="canViewReports"
-                    clickable
-                    v-ripple
-                    :to="{ name: 'EvalDetail', params: reportParams }"
-                    :active="route.name === 'EvalDetail'"
-                    class="leftNavLink leftNavIndent1"
-                >
-                    <q-item-section>
-                        <q-item-label lines="1">Detail</q-item-label>
-                    </q-item-section>
-                </q-item>
-            </q-list>
+                    <!-- Reports (legacy: ViewDept OR ViewAllDepartments OR Reports) -->
+                    <q-item
+                        v-if="canViewReports"
+                        class="leftNavHeader q-mt-sm"
+                        role="presentation"
+                    >
+                        <q-item-section>
+                            <q-item-label class="text-weight-bold">Reports</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <!-- Merit & Promotion sub-header -->
+                    <q-item
+                        v-if="canViewReports"
+                        class="leftNavSubHeader"
+                        role="presentation"
+                    >
+                        <q-item-section>
+                            <q-item-label
+                                lines="1"
+                                class="text-weight-medium"
+                                >Merit &amp; Promotion</q-item-label
+                            >
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'MeritAverage', params: reportParams }"
+                        :active="route.name === 'MeritAverage'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Average</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'MeritDetail', params: reportParams }"
+                        :active="route.name === 'MeritDetail'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Detail</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'MultiYearReport', params: reportParams }"
+                        :active="route.name === 'MultiYearReport'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Multi-Year</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'MeritSummary', params: reportParams }"
+                        :active="route.name === 'MeritSummary'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Summary</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'ClinicalEffort', params: reportParams }"
+                        :active="route.name === 'ClinicalEffort'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Clinical Effort</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewScheduledCliWeeks"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'ScheduledCliWeeks', params: reportParams }"
+                        :active="route.name === 'ScheduledCliWeeks'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Scheduled CLI Weeks</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <!-- Teaching Activity sub-header -->
+                    <q-item
+                        v-if="canViewReports"
+                        class="leftNavSubHeader"
+                        role="presentation"
+                    >
+                        <q-item-section>
+                            <q-item-label
+                                lines="1"
+                                class="text-weight-medium"
+                                >Teaching Activity</q-item-label
+                            >
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'TeachingActivityGrouped', params: reportParams }"
+                        :active="route.name === 'TeachingActivityGrouped'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Grouped</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'TeachingActivityIndividual', params: reportParams }"
+                        :active="route.name === 'TeachingActivityIndividual'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Individual</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'DeptSummary', params: reportParams }"
+                        :active="route.name === 'DeptSummary'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Dept Summary</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="isAdmin || hasSchoolSummary"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'SchoolSummary', params: reportParams }"
+                        :active="route.name === 'SchoolSummary'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">School Summary</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <!-- Evaluation sub-header -->
+                    <q-item
+                        v-if="canViewReports"
+                        class="leftNavSubHeader"
+                        role="presentation"
+                    >
+                        <q-item-section>
+                            <q-item-label
+                                lines="1"
+                                class="text-weight-medium"
+                                >Evaluation</q-item-label
+                            >
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'EvalSummary', params: reportParams }"
+                        :active="route.name === 'EvalSummary'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Summary</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                    <q-item
+                        v-if="canViewReports"
+                        clickable
+                        v-ripple
+                        role="link"
+                        :to="{ name: 'EvalDetail', params: reportParams }"
+                        :active="route.name === 'EvalDetail'"
+                        class="leftNavLink leftNavIndent1"
+                    >
+                        <q-item-section>
+                            <q-item-label lines="1">Detail</q-item-label>
+                        </q-item-section>
+                    </q-item>
+                </q-list>
+            </nav>
         </div>
     </q-drawer>
 </template>

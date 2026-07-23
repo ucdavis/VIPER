@@ -3,7 +3,9 @@ import { ref } from "vue"
 
 type ReorderKey = string | number
 
-const DEFAULT_FLASH_MS = 600
+// Matches the 1s `sortable-row-flash` animation in SortableList.vue so the highlight class stays
+// applied for the full animation instead of being cleared ~400ms early (which cut the fade short).
+const DEFAULT_FLASH_MS = 1000
 
 interface UseReorderOptions<T> {
     /** Stable, unique key for an item. Drives the post-move highlight. */

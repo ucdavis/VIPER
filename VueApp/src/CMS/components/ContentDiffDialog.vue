@@ -144,12 +144,12 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 .cms-diff :deep(ins.diffins img),
 .cms-diff :deep(ins.diffmod img) {
-    outline: 2px solid var(--q-positive);
+    outline: 0.125rem solid var(--q-positive);
 }
 
 .cms-diff :deep(del.diffdel img),
 .cms-diff :deep(del.diffmod img) {
-    outline: 2px solid var(--q-negative);
+    outline: 0.125rem solid var(--q-negative);
 }
 
 /* Keep arbitrary historical content (wide tables, large images) inside the dialog. */

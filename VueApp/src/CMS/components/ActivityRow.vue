@@ -52,17 +52,21 @@
 
 <script setup lang="ts">
 import { useTimeAgo } from "@vueuse/core"
+import { useDateFunctions } from "@/composables/DateFunctions"
 import type { ActivityItem, RailAction } from "@/CMS/types/"
 
 const props = defineProps<{
     item: ActivityItem
 }>()
 
+const { formatDateTime } = useDateFunctions()
+
 // Reactive relative time so the "X ago" stamp advances on its own while the row stays mounted.
 const timeAgo = useTimeAgo(() => new Date(props.item.modifiedOn))
 
+// Fixed en-US stamp for the hover tooltip (via the CMS formatter), independent of browser locale.
 function formatFullDate(value: string): string {
-    return new Date(value).toLocaleString()
+    return formatDateTime(value, { dateStyle: "short", timeStyle: "short" })
 }
 
 // Actions with their own `to` navigate via QBtn; run-actions just run. The stretched

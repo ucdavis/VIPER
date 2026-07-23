@@ -18,8 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref } from "vue"
-import { useFetch } from "@/composables/ViperFetch"
+import { ref } from "vue"
+import { getPermissionOptions } from "@/CMS/services/cms-options-service"
 
 // hint accepts null to opt out entirely (no reserved bottom space), since passing
 // undefined would fall back to the default hint.
@@ -34,7 +34,6 @@ withDefaults(
 
 const emit = defineEmits<{ "update:modelValue": [value: string[]] }>()
 
-const apiURL = inject("apiURL") + "cms/options/"
 const allPermissions = ref<string[]>([])
 const filteredOptions = ref<string[]>([])
 const loading = ref(false)
@@ -42,10 +41,9 @@ let loaded = false
 
 async function loadPermissions() {
     loading.value = true
-    const { get } = useFetch()
-    const res = await get(apiURL + "permissions")
-    if (res.success) {
-        allPermissions.value = res.result
+    const result = await getPermissionOptions()
+    if (result !== null) {
+        allPermissions.value = result
         loaded = true
     }
     loading.value = false

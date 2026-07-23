@@ -43,8 +43,8 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref } from "vue"
-import { useFetch } from "@/composables/ViperFetch"
+import { ref } from "vue"
+import { searchPeopleOptions } from "@/CMS/services/cms-options-service"
 import type { CmsPersonOption } from "@/CMS/types/"
 
 // Selected people keep { iamId, name } so chips can show names for people
@@ -57,7 +57,6 @@ defineProps<{
 
 const emit = defineEmits<{ "update:modelValue": [value: { iamId: string; name: string | null }[]] }>()
 
-const apiURL = inject("apiURL") + "cms/options/"
 const options = ref<CmsPersonOption[]>([])
 const loading = ref(false)
 // Guards against out-of-order responses: only the latest search may update options
@@ -76,12 +75,11 @@ async function searchPeople(val: string, update: (fn: () => void) => void) {
     }
     const seq = ++searchSeq
     loading.value = true
-    const { get, createUrlSearchParams } = useFetch()
-    const res = await get(apiURL + "people?" + createUrlSearchParams({ search: val.trim() }))
+    const result = await searchPeopleOptions(val.trim())
     if (seq !== searchSeq) return
     loading.value = false
     update(() => {
-        options.value = res.success ? res.result : []
+        options.value = result ?? []
     })
 }
 </script>

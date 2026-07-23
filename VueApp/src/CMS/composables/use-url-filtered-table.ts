@@ -67,17 +67,18 @@ export function useUrlFilteredTable<TRow, F extends UrlFilters>(options: UrlFilt
         for (const [key, value] of Object.entries(filters.value)) {
             query[key] = value || undefined
         }
-        router.replace({ query })
+        return router.replace({ query })
     }
 
+    // Propagate both the URL write and the refetch (mirrors use-server-table's reloadFirstPage) so a
+    // caller can await reload() to know when the fetch actually finished, not resolve immediately.
     function reload() {
-        syncFiltersToUrl()
-        table.reloadFirstPage()
+        return Promise.all([syncFiltersToUrl(), table.reloadFirstPage()])
     }
 
     function clearPrimaryFilter() {
         primary.value = null
-        reload()
+        return reload()
     }
 
     function filtersMatch(next: F): boolean {

@@ -6,6 +6,8 @@ import { Quasar, Notify, Dialog } from "quasar"
 import { createPinia, setActivePinia } from "pinia"
 import { nextTick } from "vue"
 import { useUserStore } from "@/store/UserStore"
+import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
+import type { CmsFile } from "@/CMS/types"
 
 /**
  * Shared test utilities for CMS component/page tests.
@@ -108,4 +110,45 @@ function clickBodyButton(label: string): void {
     btn!.click()
 }
 
-export { createTestRouter, mountCms, flushPromises, flushRouter, clickBodyButton }
+// Stub the async person/permission selectors so FileFormDialog tests don't fire their own fetches;
+// the v-model still flows through.
+const selectorStub = {
+    props: ["modelValue", "label"],
+    emits: ["update:modelValue"],
+    template: "<div class='selector-stub' />",
+}
+
+// A representative CmsFile for FileFormDialog tests; override fields per case.
+function existingFile(overrides: Partial<CmsFile> = {}): CmsFile {
+    return {
+        fileGuid: "guid-123",
+        fileName: "report.pdf",
+        folder: "Apps",
+        friendlyName: "report.pdf",
+        encrypted: false,
+        description: "A report",
+        allowPublicAccess: false,
+        oldUrl: "/old/report.pdf",
+        modifiedOn: "2024-01-01T00:00:00",
+        modifiedBy: "u",
+        deletedOn: null,
+        purgeOn: null,
+        permissions: ["SVMSecure.CMS"],
+        people: [{ iamId: "iam1", name: "Person One" }],
+        url: "/files/guid-123",
+        friendlyUrl: "/Apps/report.pdf",
+        ...overrides,
+    }
+}
+
+// Mount FileFormDialog with the selectors stubbed; shared by its two test specs.
+function mountFileDialog(props: { modelValue: boolean; folders: string[]; file: CmsFile | null }) {
+    return mountCms(FileFormDialog, {
+        props,
+        global: {
+            stubs: { PermissionSelector: selectorStub, PersonSelector: selectorStub },
+        },
+    })
+}
+
+export { createTestRouter, mountCms, flushPromises, flushRouter, clickBodyButton, existingFile, mountFileDialog }

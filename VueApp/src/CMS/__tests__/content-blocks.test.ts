@@ -1,5 +1,5 @@
 import ContentBlocks from "@/CMS/pages/ContentBlocks.vue"
-import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-utils"
+import { mountCms, flushPromises, flushRouter, createTestRouter, clickBodyButton } from "./test-utils"
 
 /**
  * ContentBlocks is a server-paged list (like Files): filter inputs must drive the right query
@@ -196,16 +196,9 @@ describe("ContentBlocks.vue - onRequest pagination passthrough", () => {
     })
 })
 
-// Quasar plugin dialogs ($q.dialog) and notifications teleport to document.body. Click the LAST
-// match: a dismissed dialog's portal can linger mid-transition, so the newest dialog is the live
-// one. The body is never wiped between tests (Quasar caches its notification container there),
-// so toast assertions use per-test-unique messages.
-function clickBodyButton(label: string) {
-    const btn = [...document.body.querySelectorAll("button")].filter((b) => b.textContent?.includes(label)).at(-1)
-    expect(btn, `expected a "${label}" button in the dialog`).toBeTruthy()
-    btn!.click()
-}
-
+// The body is never wiped between tests (Quasar caches its notification container there), so toast
+// assertions use per-test-unique messages; clickBodyButton (shared, from test-utils) reaches the
+// dialog/notification buttons Quasar teleports to document.body.
 function listCallCount(): number {
     return mockGet.mock.calls.map((c) => c[0] as string).filter((u) => !u.includes("/section-paths")).length
 }

@@ -1,6 +1,4 @@
-import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
-import type { CmsFile } from "@/CMS/types"
-import { mountCms, flushPromises, clickBodyButton } from "./test-utils"
+import { flushPromises, clickBodyButton, existingFile, mountFileDialog as mountDialog } from "./test-utils"
 
 /**
  * FileFormDialog upload outcomes: a clean add POSTs the form with folder/flags, a taken name
@@ -32,44 +30,6 @@ vi.mock("@/composables/ViperFetch", () => ({
         },
     }),
 }))
-
-// Stub the async selectors so they don't make their own fetches; their v-model still flows.
-const selectorStub = {
-    props: ["modelValue", "label"],
-    emits: ["update:modelValue"],
-    template: "<div class='selector-stub' />",
-}
-
-function existingFile(overrides: Partial<CmsFile> = {}): CmsFile {
-    return {
-        fileGuid: "guid-123",
-        fileName: "report.pdf",
-        folder: "Apps",
-        friendlyName: "report.pdf",
-        encrypted: false,
-        description: "A report",
-        allowPublicAccess: false,
-        oldUrl: "/old/report.pdf",
-        modifiedOn: "2024-01-01T00:00:00",
-        modifiedBy: "u",
-        deletedOn: null,
-        purgeOn: null,
-        permissions: ["SVMSecure.CMS"],
-        people: [{ iamId: "iam1", name: "Person One" }],
-        url: "/files/guid-123",
-        friendlyUrl: "/Apps/report.pdf",
-        ...overrides,
-    }
-}
-
-function mountDialog(props: { modelValue: boolean; folders: string[]; file: CmsFile | null }) {
-    return mountCms(FileFormDialog, {
-        props,
-        global: {
-            stubs: { PermissionSelector: selectorStub, PersonSelector: selectorStub },
-        },
-    })
-}
 
 // QDialog and notifications teleport to document.body.
 function bodyText(): string {
