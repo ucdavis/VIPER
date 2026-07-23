@@ -4,7 +4,6 @@ import pluginVue from "eslint-plugin-vue"
 import globals from "globals"
 import eslintConfigPrettier from "eslint-config-prettier"
 import a11y from "eslint-plugin-vuejs-accessibility"
-import quasarEslint from "@quasar/app-vite/eslint"
 import tsParser from "@typescript-eslint/parser"
 import vueParser from "vue-eslint-parser"
 import tseslint from "@typescript-eslint/eslint-plugin"
@@ -13,11 +12,8 @@ import { plugin as harlanzw } from "eslint-plugin-harlanzw"
 export default [
     // Global ignores - Exclude .ts and .js files since we use oxlint for TypeScript and JavaScript
     {
-        ignores: ["node_modules/**", "dist/**", "coverage/**", "*.d.ts", "**/*.ts", "**/*.js", "**/*.mjs", "**/*.cjs"],
+        ignores: ["node_modules/**", "dist/**", "coverage/**", "*.d.ts", "**/*.ts", "**/*.js", "**/*.mjs", "**/*.cjs", "src-capacitor/*", "src-cordova/*", ".quasar/*", "quasar.config.*.temporary.compiled*"],
     },
-
-    // Quasar recommended configuration (includes Quasar-specific rules)
-    ...quasarEslint.configs.recommended(),
 
     // ESLint recommended rules
     eslint.configs.recommended,
