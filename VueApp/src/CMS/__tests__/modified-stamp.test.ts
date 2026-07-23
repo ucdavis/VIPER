@@ -44,6 +44,23 @@ describe("ModifiedStamp.vue", () => {
         expect(wrapper.text()).not.toContain("/")
     })
 
+    it("shows a 'Recently updated' badge when modifiedOn is within the last week", () => {
+        const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString()
+        const wrapper = mountCms(ModifiedStamp, {
+            props: { row: { modifiedOn: twoDaysAgo, modifiedBy: "jdoe" } },
+        })
+        expect(wrapper.findComponent({ name: "StatusBadge" }).exists()).toBeTruthy()
+        expect(wrapper.text()).toContain("Recently updated")
+    })
+
+    it("omits the badge for content modified more than a week ago", () => {
+        const longAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
+        const wrapper = mountCms(ModifiedStamp, {
+            props: { row: { modifiedOn: longAgo, modifiedBy: "jdoe" } },
+        })
+        expect(wrapper.findComponent({ name: "StatusBadge" }).exists()).toBeFalsy()
+    })
+
     it("chooses the q-td (cellProps) branch when both cellProps and row are supplied", () => {
         // The template's v-if is on cellProps, so supplying both renders the q-td branch (and
         // the stamp computed prefers cellProps.row), never the plain-span row branch.

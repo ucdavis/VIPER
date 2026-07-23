@@ -49,14 +49,13 @@
                     >
                         Content
                     </div>
-                    <q-editor
-                        ref="contentEditorRef"
+                    <RichTextEditor
                         v-model="block.content"
                         dense
-                        class="content-editor"
+                        class="content-block-editor"
                         min-height="20rem"
                         :toolbar="editorToolbar"
-                        :definitions="{}"
+                        label-id="content-editor-label"
                     />
 
                     <div
@@ -353,6 +352,7 @@ import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import InlineFileUpload from "@/CMS/components/InlineFileUpload.vue"
+import RichTextEditor from "@/components/RichTextEditor.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
 import type {
@@ -379,7 +379,6 @@ const blockId = computed(() => (route.params.id ? Number(route.params.id) : null
 const isNew = computed(() => blockId.value === null)
 
 const formRef = ref()
-const contentEditorRef = ref()
 const saving = ref(false)
 const formError = ref("")
 
@@ -578,7 +577,12 @@ function onValidationError() {
 async function rollbackFiles(createdGuids: string[]) {
     if (createdGuids.length === 0) return
     for (const guid of createdGuids) {
-        await del(filesApiURL + guid)
+        try {
+            await del(filesApiURL + guid)
+        } catch {
+            // Best-effort cleanup: a failed delete must not abort the remaining rollbacks or throw
+            // past the caller, which would mask the real save/conflict outcome (matches InlineFileUpload.commit).
+        }
     }
     const removed = new Set(createdGuids)
     block.value.files = block.value.files.filter((f) => !removed.has(f.fileGuid))
@@ -630,17 +634,14 @@ async function handleSaveConflict(res: { errors: string[] | null }, rollbackGuid
     })
 }
 
-async function applySaveSuccess(res: { result: CmsContentBlock }) {
-    $q.notify({ type: "positive", message: isNew.value ? "Content block created" : "Content block saved" })
-    viewingVersion.value = false
-    selectedHistory.value = null
-    autoEnabledPublicAccess.value = false
-    if (isNew.value) {
-        void router.push({ name: "CmsContentBlockEdit", params: { id: res.result.contentBlockId } })
-    }
+function applySaveSuccess(res: { result: CmsContentBlock }) {
+    const title = res.result.title
+    $q.notify({ type: "positive", message: isNew.value ? `Created "${title}"` : `Saved "${title}"` })
+    // Adopt the saved server state and clear the dirty baseline so the unsaved-changes guard stays
+    // quiet, then return to the listing (the conventional post-save destination for this form).
     block.value = res.result
     resetDirtyState()
-    await loadHistory()
+    void router.push({ name: "CmsContentBlocks" })
 }
 
 async function saveBlock() {
@@ -671,7 +672,7 @@ async function saveBlock() {
         formError.value = res.errors?.[0] ?? "Failed to save content block"
         return
     }
-    await applySaveSuccess(res)
+    applySaveSuccess(res)
 }
 
 async function restoreBlock() {
@@ -685,9 +686,6 @@ async function restoreBlock() {
 }
 
 onMounted(() => {
-    // QEditor renders the focusable contenteditable as an inner element, so its accessible
-    // name has to be set there rather than on the wrapper the "Content" label sits beside.
-    contentEditorRef.value?.getContentEl()?.setAttribute("aria-labelledby", "content-editor-label")
     // Only the create form offers the (editable) section-path select; on edit it's read-only.
     if (isNew.value) loadFolders()
     loadBlock()
@@ -703,25 +701,5 @@ onMounted(() => {
 .required-field :deep(.q-field__label)::after {
     content: " *";
     color: var(--q-negative);
-}
-
-/* Let the editor toolbar wrap onto multiple rows on narrow screens instead of
-   scrolling horizontally; `dense` keeps each button group intact so groups wrap
-   as whole units rather than splitting mid-group. */
-.content-editor :deep(.q-editor__toolbar) {
-    flex-wrap: wrap;
-}
-
-/* On phones, trim the inter-button and inter-group gaps so the toolbar packs
-   into two rows instead of three. Only the gaps shrink - the buttons keep their
-   size, so touch targets are unchanged. */
-@media (width <= 599.98px) {
-    .content-editor :deep(.q-editor__toolbar-group) {
-        margin: 0 2px;
-    }
-
-    .content-editor :deep(.q-editor__toolbar .q-btn) {
-        margin: 2px;
-    }
 }
 </style>
