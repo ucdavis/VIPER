@@ -191,7 +191,7 @@ describe("ContentBlockEdit.vue - delegated (content-only) mode", () => {
         // The full-save verbs are never used in delegated mode.
         expect(mockPut).not.toHaveBeenCalled()
         expect(mockPost).not.toHaveBeenCalled()
-        expect(document.body.textContent).toContain("Content block saved")
+        expect(document.body.textContent).toContain('Saved "Welcome"')
     })
 
     it("opens the edit-conflict dialog when the content PATCH returns a 409", async () => {

@@ -56,14 +56,13 @@
                     >
                         Content
                     </div>
-                    <q-editor
-                        ref="contentEditorRef"
+                    <RichTextEditor
                         v-model="block.content"
                         dense
-                        class="content-editor"
+                        class="content-block-editor"
                         min-height="20rem"
                         :toolbar="editorToolbar"
-                        :definitions="{}"
+                        label-id="content-editor-label"
                     />
 
                     <div
@@ -401,6 +400,7 @@ import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import InlineFileUpload from "@/CMS/components/InlineFileUpload.vue"
+import RichTextEditor from "@/components/RichTextEditor.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
 import type {
@@ -440,7 +440,6 @@ const canAccessFiles = checkHasOnePermission(["SVMSecure.CMS.AllFiles"])
 const canEditFiles = computed(() => (isNew.value ? canAccessFiles : true))
 
 const formRef = ref()
-const contentEditorRef = ref()
 const saving = ref(false)
 const formError = ref("")
 
@@ -718,26 +717,17 @@ async function handleSaveConflict(res: { errors: string[] | null }, rollbackGuid
     })
 }
 
-async function applySaveSuccess(res: { result: CmsContentBlock | null }) {
-    $q.notify({ type: "positive", message: isNew.value ? "Content block created" : "Content block saved" })
-    viewingVersion.value = false
-    selectedHistory.value = null
-    autoEnabledPublicAccess.value = false
-    if (isNew.value && res.result) {
-        // Await so route.params.id (and thus blockId) updates to the new block BEFORE loadHistory runs
-        // below; otherwise loadHistory early-returns on the stale null id and the freshly created
-        // block's history never loads until a manual reload.
-        await router.push({ name: "CmsContentBlockEdit", params: { id: res.result.contentBlockId } })
-    }
-    // The full save returns the updated block; the content PATCH may return no body, so fall back to
-    // a reload to refresh the concurrency stamp, attachment URLs, and history.
+function applySaveSuccess(res: { result: CmsContentBlock | null }) {
+    const title = res.result?.title ?? block.value.title
+    $q.notify({ type: "positive", message: isNew.value ? `Created "${title}"` : `Saved "${title}"` })
+    // Adopt the saved server state (a delegated content PATCH returns no body) and clear the dirty
+    // baseline so the unsaved-changes guard stays quiet, then leave the form to the same place the
+    // load-error handler uses: managers to the listing, delegated editors (no listing access) home.
     if (res.result) {
         block.value = { ...res.result, editPermissions: res.result.editPermissions ?? [] }
-        resetDirtyState()
-        await loadHistory()
-    } else {
-        await loadBlock()
     }
+    resetDirtyState()
+    void router.push({ name: canManage.value ? "CmsContentBlocks" : "CmsHome" })
 }
 
 // Managers (and creators) save the whole block; delegated editors PATCH content + files only.
@@ -775,7 +765,7 @@ async function saveBlock() {
         formError.value = res.errors?.[0] ?? "Failed to save content block"
         return
     }
-    await applySaveSuccess(res)
+    applySaveSuccess(res)
 }
 
 async function restoreBlock() {
@@ -789,9 +779,6 @@ async function restoreBlock() {
 }
 
 onMounted(() => {
-    // QEditor renders the focusable contenteditable as an inner element, so its accessible
-    // name has to be set there rather than on the wrapper the "Content" label sits beside.
-    contentEditorRef.value?.getContentEl()?.setAttribute("aria-labelledby", "content-editor-label")
     // Only the create form offers the (editable) section-path select; on edit it's read-only.
     if (isNew.value) loadFolders()
     loadBlock()
@@ -823,25 +810,5 @@ onMounted(() => {
 
 .settings-summary dd:last-child {
     margin-bottom: 0;
-}
-
-/* Let the editor toolbar wrap onto multiple rows on narrow screens instead of
-   scrolling horizontally; `dense` keeps each button group intact so groups wrap
-   as whole units rather than splitting mid-group. */
-.content-editor :deep(.q-editor__toolbar) {
-    flex-wrap: wrap;
-}
-
-/* On phones, trim the inter-button and inter-group gaps so the toolbar packs
-   into two rows instead of three. Only the gaps shrink - the buttons keep their
-   size, so touch targets are unchanged. */
-@media (width <= 599.98px) {
-    .content-editor :deep(.q-editor__toolbar-group) {
-        margin: 0 2px;
-    }
-
-    .content-editor :deep(.q-editor__toolbar .q-btn) {
-        margin: 2px;
-    }
 }
 </style>

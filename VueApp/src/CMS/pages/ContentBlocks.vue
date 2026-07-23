@@ -65,7 +65,9 @@
         </div>
 
         <!-- Server-paged like Files: rows come back one page at a time, so no "All" (0) option.
-             Card mode at lt.sm matches Files (both have six columns), not the old lt.md. -->
+             Card mode kicks in below md (< 1024px) so iPad portrait drops to cards rather than a
+             horizontally-scrolling table; VIPER section + Page are merged into one Section/Page column
+             to keep the landscape/desktop table narrow. (Files still uses lt.sm and its own six columns.) -->
         <q-table
             :rows="blocks"
             :columns="columns"
@@ -73,7 +75,7 @@
             :loading="loading"
             v-model:pagination="pagination"
             :rows-per-page-options="[25, 50, 100, 250]"
-            :grid="$q.screen.lt.sm"
+            :grid="$q.screen.lt.md"
             dense
             flat
             bordered
@@ -101,6 +103,18 @@
                         />
                     </div>
                     <div class="text-caption text-grey-7">{{ cellProps.row.friendlyName }}</div>
+                </q-td>
+            </template>
+
+            <template #body-cell-location="cellProps">
+                <q-td :props="cellProps">
+                    <div>{{ cellProps.row.viperSectionPath }}</div>
+                    <div
+                        v-if="cellProps.row.page"
+                        class="text-caption text-grey-7"
+                    >
+                        {{ cellProps.row.page }}
+                    </div>
                 </q-td>
             </template>
 
@@ -133,65 +147,77 @@
             </template>
 
             <template #item="{ row }">
-                <ListCard>
+                <ListCard class="content-block-card">
                     <template #header>
-                        <div class="row items-center no-wrap q-gutter-x-xs">
-                            <router-link
-                                class="text-weight-medium"
-                                :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
+                        <!-- Title, status icons, and the row actions all share the first line so the
+                             edit/delete buttons align with the title (not centred against the taller
+                             title+friendly-name block); the friendly name drops to a second line. -->
+                        <div>
+                            <div class="row items-center no-wrap q-gutter-x-xs">
+                                <router-link
+                                    class="ellipsis text-weight-medium card-header-title"
+                                    :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
+                                >
+                                    {{ row.title || "(untitled)" }}
+                                </router-link>
+                                <StatusIcon
+                                    v-if="row.allowPublicAccess"
+                                    icon="public"
+                                    color="positive"
+                                    label="Public access"
+                                />
+                                <StatusIcon
+                                    v-if="row.deletedOn"
+                                    icon="delete_outline"
+                                    color="negative"
+                                    label="Deleted"
+                                />
+                                <q-space />
+                                <div class="col-auto row items-center no-wrap list-card-actions">
+                                    <EditButton
+                                        entity-name="content block"
+                                        :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
+                                    />
+                                    <DeleteRestoreButtons
+                                        :deleted="!!row.deletedOn"
+                                        entity-name="content block"
+                                        @delete="deleteBlock(row)"
+                                        @restore="restoreBlock(row)"
+                                    />
+                                </div>
+                            </div>
+                            <div
+                                v-if="row.friendlyName"
+                                class="text-caption text-grey-7"
                             >
-                                {{ row.title || "(untitled)" }}
-                            </router-link>
-                            <StatusIcon
-                                v-if="row.allowPublicAccess"
-                                icon="public"
-                                color="positive"
-                                label="Public access"
-                            />
-                            <StatusIcon
-                                v-if="row.deletedOn"
-                                icon="delete_outline"
-                                color="negative"
-                                label="Deleted"
-                            />
-                        </div>
-                        <div
-                            v-if="row.friendlyName"
-                            class="text-caption text-grey-7"
-                        >
-                            {{ row.friendlyName }}
+                                {{ row.friendlyName }}
+                            </div>
                         </div>
                     </template>
 
-                    <ListCardField
-                        v-if="row.viperSectionPath"
-                        label="VIPER section"
-                        :value="row.viperSectionPath"
-                    />
-                    <ListCardField
-                        v-if="row.page"
-                        label="Page"
-                        :value="row.page"
-                    />
-                    <ListCardField label="Access">
-                        <PermissionChips :permissions="row.permissions" />
-                    </ListCardField>
-                    <ListCardField label="Modified">
-                        <ModifiedStamp :row="row" />
-                    </ListCardField>
-
-                    <template #actions>
-                        <EditButton
-                            entity-name="content block"
-                            :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
+                    <!-- Two fields per row (VIPER section | Page, then Access | Modified) so the card
+                         stays compact. A CSS grid (see <style>) keeps the fields aligned with the title
+                         text - unlike q-col-gutter, whose negative margin pulls them left - and it
+                         collapses to one column below sm where half-width would be cramped. -->
+                    <div class="card-field-grid">
+                        <ListCardField
+                            label="VIPER section"
+                            :value="row.viperSectionPath"
                         />
-                        <DeleteRestoreButtons
-                            :deleted="!!row.deletedOn"
-                            entity-name="content block"
-                            @delete="deleteBlock(row)"
-                            @restore="restoreBlock(row)"
+                        <ListCardField
+                            label="Page"
+                            :value="row.page"
                         />
-                    </template>
+                        <ListCardField label="Access">
+                            <PermissionChips
+                                :permissions="row.permissions"
+                                stacked
+                            />
+                        </ListCardField>
+                        <ListCardField label="Modified">
+                            <ModifiedStamp :row="row" />
+                        </ListCardField>
+                    </div>
                 </ListCard>
             </template>
         </q-table>
@@ -201,7 +227,7 @@
 <script setup lang="ts">
 // Template-size synthetic complexity only (large filter + table markup); script logic is small.
 // fallow-ignore-file complexity
-import { inject, onMounted, ref, watch } from "vue"
+import { computed, inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
@@ -251,14 +277,22 @@ const statusOptions = [
     { label: "All", value: "all" },
 ]
 
-const columns: QTableProps["columns"] = [
-    { name: "title", label: "Title", field: "title", align: "left", sortable: true },
-    { name: "viperSectionPath", label: "VIPER section", field: "viperSectionPath", align: "left", sortable: true },
-    { name: "page", label: "Page", field: "page", align: "left", sortable: true },
-    { name: "permissions", label: "Access", field: "permissions", align: "left" },
-    { name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true },
-    { name: "actions", label: "Actions", field: "contentBlockId", align: "center" },
-]
+const columns = computed<QTableProps["columns"]>(() => {
+    const cols: QTableProps["columns"] = [
+        { name: "title", label: "Title", field: "title", align: "left", sortable: true },
+        // VIPER section (the placement folder) and Page (the placement key within it) are merged into
+        // one Section/Page column to keep the table narrow; it sorts by section, the coarser of the two.
+        { name: "location", label: "Section/Page", field: "viperSectionPath", align: "left", sortable: true },
+        { name: "permissions", label: "Access", field: "permissions", align: "left" },
+    ]
+    // Drop Modified below lg (< 1440px) so the table fits iPad landscape without horizontal scroll
+    // (the modified date + editor still show in card mode and on wide desktop). It returns at >= 1440.
+    if (!$q.screen.lt.lg) {
+        cols.push({ name: "modifiedOn", label: "Modified", field: "modifiedOn", align: "left", sortable: true })
+    }
+    cols.push({ name: "actions", label: "Actions", field: "contentBlockId", align: "center" })
+    return cols
+})
 
 // Server-paged list, mirroring Files: useServerTable owns rows/loading/pagination and
 // issues the GET on @request; buildParams maps the current filters + page/sort each request.
@@ -360,3 +394,66 @@ onMounted(() => {
     reload()
 })
 </script>
+
+<style scoped>
+/* Let a long title shrink and ellipsis instead of pushing the inline row actions off the card. */
+.card-header-title {
+    min-width: 0;
+}
+
+/* Tighten the grid-mode card: trim the section padding (it was too airy up top) so the header
+   sits closer to the card edge. */
+.content-block-card :deep(.q-card__section) {
+    padding: 0.5rem 1rem;
+}
+
+/* The 44px touch target made the row-action buttons tower over the single-line title, opening a
+   gap above the friendly name. A 32px target keeps them comfortable and above the 24px WCAG 2.5.8
+   (AA) floor while letting the title row stay compact. */
+@media (pointer: coarse) {
+    .content-block-card :deep(.list-card-actions .q-btn) {
+        min-width: 32px;
+        min-height: 32px;
+    }
+}
+
+/* Two fields per row on sm+ (one below), via a CSS grid so the fields line up with the title text.
+   q-col-gutter would negative-margin the row 8px left of the title; a grid gap avoids that. */
+.card-field-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.375rem 1rem;
+    margin-top: 0.5rem;
+}
+
+@media (min-width: 600px) {
+    .card-field-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Stack each field's label above its value. The shared ListCardField's default 7rem side label
+   leaves too little room at half-width, so long values - notably permission chips - spilled into
+   the neighbouring column. min-width:0 lets each grid cell shrink so values wrap, and the q-chip
+   rules let a long permission wrap within its column instead of overflowing. */
+.card-field-grid :deep(.list-card-field) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.card-field-grid :deep(.list-card-label) {
+    flex: none;
+}
+
+.card-field-grid :deep(.q-chip) {
+    max-width: 100%;
+    height: auto;
+}
+
+.card-field-grid :deep(.q-chip__content) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+</style>

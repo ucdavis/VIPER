@@ -14,10 +14,31 @@
                 v-if="permissions.length > maxShown"
                 dense
                 square
+                clickable
                 size="sm"
                 color="grey-4"
+                :aria-label="`Show all ${permissions.length} permissions`"
             >
                 +{{ permissions.length - maxShown }} more
+                <q-menu
+                    anchor="bottom left"
+                    self="top left"
+                >
+                    <q-list dense>
+                        <q-item-label
+                            header
+                            class="q-py-xs"
+                        >
+                            Permissions
+                        </q-item-label>
+                        <q-item
+                            v-for="p in permissions"
+                            :key="p"
+                        >
+                            <q-item-section>{{ p }}</q-item-section>
+                        </q-item>
+                    </q-list>
+                </q-menu>
             </q-chip>
             <q-chip
                 v-if="peopleCount > 0"

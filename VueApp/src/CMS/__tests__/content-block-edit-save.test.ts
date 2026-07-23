@@ -164,7 +164,7 @@ beforeEach(() => {
 describe("ContentBlockEdit.vue - save payload", () => {
     it("edit-mode save PUTs the full block payload with lastModifiedOn as the concurrency stamp", async () => {
         mockPut.mockResolvedValue({ success: true, result: { ...BLOCK } })
-        const { wrapper } = await mountEdit()
+        const { wrapper, router } = await mountEdit()
 
         await submitForm(wrapper)
 
@@ -172,7 +172,11 @@ describe("ContentBlockEdit.vue - save payload", () => {
         const [url, payload] = mockPut.mock.calls[0]!
         expect(url).toContain("CMS/content/7")
         expect(payload).toEqual(EXPECTED_PUT_PAYLOAD)
-        expect(document.body.textContent).toContain("Content block saved")
+        expect(document.body.textContent).toContain('Saved "Welcome"')
+
+        // A successful save returns to the content-block listing.
+        await flushRouter()
+        expect(router.currentRoute.value.name).toBe("CmsContentBlocks")
     })
 
     it("renders the Edit access permission selector for a manager", async () => {
@@ -206,11 +210,11 @@ describe("ContentBlockEdit.vue - save payload", () => {
             lastModifiedOn: null,
             fileGuids: [],
         })
-        expect(document.body.textContent).toContain("Content block created")
+        expect(document.body.textContent).toContain('Created "Welcome"')
 
-        // Success navigates from the create form to the new block's edit route.
+        // A successful save returns to the content-block listing.
         await flushRouter()
-        expect(router.currentRoute.value.params.id).toBe("42")
+        expect(router.currentRoute.value.name).toBe("CmsContentBlocks")
     })
 
     it("blocks submit and shows the required-fields banner when validation fails", async () => {
