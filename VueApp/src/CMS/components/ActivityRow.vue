@@ -20,8 +20,7 @@
                 caption
                 :title="formatFullDate(item.modifiedOn)"
             >
-                {{ item.typeLabel }} &middot; {{ item.verb ? item.verb + " " : ""
-                }}{{ formatTimeAgo(new Date(item.modifiedOn)) }} by
+                {{ item.typeLabel }} &middot; {{ item.verb ? item.verb + " " : "" }}{{ timeAgo }} by
                 {{ item.modifiedBy }}
             </q-item-label>
         </q-item-section>
@@ -52,12 +51,15 @@
 </template>
 
 <script setup lang="ts">
-import { formatTimeAgo } from "@vueuse/core"
+import { useTimeAgo } from "@vueuse/core"
 import type { ActivityItem, RailAction } from "@/CMS/types/"
 
-defineProps<{
+const props = defineProps<{
     item: ActivityItem
 }>()
+
+// Reactive relative time so the "X ago" stamp advances on its own while the row stays mounted.
+const timeAgo = useTimeAgo(() => new Date(props.item.modifiedOn))
 
 function formatFullDate(value: string): string {
     return new Date(value).toLocaleString()

@@ -342,7 +342,7 @@ defineExpose({ commit })
 }
 
 .staged-file {
-    border: 1px solid var(--ucdavis-blue-20);
+    border: 0.0625rem solid var(--ucdavis-blue-20);
     border-radius: 0.25rem;
     padding: 0.5rem;
 }

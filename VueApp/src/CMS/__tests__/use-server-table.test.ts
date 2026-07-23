@@ -35,7 +35,7 @@ function mountTable(options: { errorMessage?: string } = {}) {
         name: "ServerTableHost",
         setup() {
             table = useServerTable<Row>({
-                url: "/api/things",
+                url: `${import.meta.env.VITE_API_URL}things`,
                 errorMessage: options.errorMessage,
                 pagination: { sortBy: "name", descending: false, rowsPerPage: 25 },
                 buildParams: (p) => ({
@@ -67,7 +67,9 @@ describe("useServerTable", () => {
 
         await table.onRequest(request(2, { sortBy: "modifiedOn", descending: true }))
 
-        expect(mockGet.mock.calls[0]![0]).toBe("/api/things?page=2&perPage=25&sortBy=modifiedOn&descending=true")
+        expect(mockGet.mock.calls[0]![0]).toBe(
+            `${import.meta.env.VITE_API_URL}things?page=2&perPage=25&sortBy=modifiedOn&descending=true`,
+        )
         expect(table.rows.value).toStrictEqual([{ id: 1 }])
         expect(table.pagination.value).toMatchObject({
             rowsNumber: 91,

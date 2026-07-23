@@ -3,6 +3,7 @@ import { computed, inject } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
 import { useRouter, useRoute } from "vue-router"
+import { stripTrailingSlashes } from "@/shared/strip-trailing-slashes"
 import type { ComputedRef } from "vue"
 import type { RouteLocationNormalized } from "vue-router"
 
@@ -21,7 +22,7 @@ const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
 // click isn't met with another sign-in screen.
 function buildLoginUrl(returnPath: string, endpoint: "welcome" | "login" = "welcome"): string {
     const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
-    const applicationBase = viperHome.length === 1 ? "" : viperHome.slice(0, -1)
+    const applicationBase = stripTrailingSlashes(viperHome)
     const fallbackPath = `${applicationBase}/`
 
     if (isValidInternalPath(returnPath)) {
@@ -120,7 +121,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
 
             // Build return path with application base prefix for test/prod
             const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
-            const applicationBase = viperHome.length === 1 ? "" : viperHome.slice(0, -1)
+            const applicationBase = stripTrailingSlashes(viperHome)
             const fullReturnPath = `${applicationBase}${to.fullPath}`
             globalThis.location.href = buildLoginUrl(fullReturnPath)
             return false

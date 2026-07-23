@@ -46,14 +46,18 @@ const props = defineProps<{
 
 const stamp = computed<ModifiedRow>(() => props.cellProps?.row ?? props.row ?? { modifiedOn: "", modifiedBy: "" })
 
+// Parse modifiedOn once; NaN covers both an empty stamp and an unparseable value, so downstream
+// treats either as "no date" rather than rendering "Invalid Date" or mis-flagging recency.
+const modifiedTime = computed(() => (stamp.value.modifiedOn ? new Date(stamp.value.modifiedOn).getTime() : Number.NaN))
+
 const formatted = computed(() =>
-    stamp.value.modifiedOn
-        ? new Date(stamp.value.modifiedOn).toLocaleDateString("en-US", {
+    Number.isNaN(modifiedTime.value)
+        ? ""
+        : new Date(modifiedTime.value).toLocaleDateString("en-US", {
               year: "2-digit",
               month: "2-digit",
               day: "2-digit",
-          })
-        : "",
+          }),
 )
 
 // Flag rows edited within the last week so a listing surfaces freshly-changed content at a glance
@@ -61,10 +65,10 @@ const formatted = computed(() =>
 const RECENT_DAYS = 7
 
 const isRecent = computed(() => {
-    if (!stamp.value.modifiedOn) return false
-    const modified = new Date(stamp.value.modifiedOn).getTime()
-    if (Number.isNaN(modified)) return false
-    return Date.now() - modified <= RECENT_DAYS * 86_400_000
+    if (Number.isNaN(modifiedTime.value)) return false
+    const age = Date.now() - modifiedTime.value
+    // Within the window, and not in the future (clock skew or bad data would otherwise pass).
+    return age >= 0 && age <= RECENT_DAYS * 86_400_000
 })
 </script>
 
@@ -73,6 +77,6 @@ const isRecent = computed(() => {
    width instead of stretching to fit the label inline. */
 .recency-badge {
     display: block;
-    margin-top: 2px;
+    margin-top: 0.125rem;
 }
 </style>

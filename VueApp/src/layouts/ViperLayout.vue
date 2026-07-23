@@ -1,5 +1,7 @@
 <template>
     <div id="pageTop"></div>
+    <!-- Skip links stay raw <a> fragment links on purpose: WCAG "bypass blocks" (2.4.1) needs the
+         native in-page anchor jump, which Quasar's routed components don't provide. -->
     <a
         href="#main-content"
         class="skip-to-content"

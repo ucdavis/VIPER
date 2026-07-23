@@ -251,12 +251,18 @@ const sectionPaths = ref<string[]>([])
 
 // Filters initialize from the URL so views can be shared/deep-linked, matching
 // the Files list and audit trail.
-const filters = ref({
-    status: typeof route.query.status === "string" ? route.query.status : "active",
-    viperSectionPath: typeof route.query.section === "string" ? route.query.section : null,
-    search: typeof route.query.search === "string" ? route.query.search : "",
-    publicOnly: route.query.public === "1",
-})
+// Map the URL query into filter state; shared by the initial ref and the re-sync watcher below
+// (mirrors Files.vue's parseFiltersFromQuery) so the two never drift.
+function parseFiltersFromQuery(query: typeof route.query) {
+    return {
+        status: typeof query.status === "string" ? query.status : "active",
+        viperSectionPath: typeof query.section === "string" ? query.section : null,
+        search: typeof query.search === "string" ? query.search : "",
+        publicOnly: query.public === "1",
+    }
+}
+
+const filters = ref(parseFiltersFromQuery(route.query))
 
 // Reflect the active filters back into the URL (defaults are omitted).
 function syncFiltersToUrl() {
@@ -369,12 +375,7 @@ async function restoreBlock(block: CmsContentBlock) {
 watch(
     () => route.query,
     (query) => {
-        const next = {
-            status: typeof query.status === "string" ? query.status : "active",
-            viperSectionPath: typeof query.section === "string" ? query.section : null,
-            search: typeof query.search === "string" ? query.search : "",
-            publicOnly: query.public === "1",
-        }
+        const next = parseFiltersFromQuery(query)
         const f = filters.value
         if (
             next.status === f.status &&
@@ -412,8 +413,8 @@ onMounted(() => {
    (AA) floor while letting the title row stay compact. */
 @media (pointer: coarse) {
     .content-block-card :deep(.list-card-actions .q-btn) {
-        min-width: 32px;
-        min-height: 32px;
+        min-width: 2rem;
+        min-height: 2rem;
     }
 }
 

@@ -47,6 +47,7 @@
                 size="sm"
                 icon="person"
                 color="grey-4"
+                :aria-label="`${peopleCount} ${inflect('person', peopleCount)}`"
             >
                 {{ peopleCount }}
             </q-chip>
@@ -61,6 +62,8 @@
 </template>
 
 <script setup lang="ts">
+import { inflect } from "inflection"
+
 withDefaults(
     defineProps<{
         permissions: string[]

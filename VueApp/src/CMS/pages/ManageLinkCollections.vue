@@ -839,7 +839,7 @@ loadCollections()
 
 #allLinks {
     background: var(--surface);
-    border: 1px solid var(--ucdavis-black-10);
+    border: 0.0625rem solid var(--ucdavis-black-10);
     border-radius: 0.25rem;
     padding: 0.5rem 0.75rem;
 }
@@ -891,7 +891,7 @@ loadCollections()
 
 /* Card-per-row on small and medium screens. */
 .links-list :deep(.sortable-row) {
-    border: 1px solid var(--ucdavis-black-10);
+    border: 0.0625rem solid var(--ucdavis-black-10);
     border-radius: 0.25rem;
     padding: 0.75rem;
     background: var(--surface-tint-raised);
@@ -909,7 +909,7 @@ loadCollections()
 }
 
 .tags-fieldset {
-    border: 1px solid var(--q-primary);
+    border: 0.0625rem solid var(--q-primary);
     border-radius: 0.25rem;
     padding: 0.75rem 1rem 0.25rem;
 }
@@ -938,7 +938,7 @@ loadCollections()
 
     .links-list :deep(.sortable-row) {
         border: none;
-        border-bottom: 1px solid var(--ucdavis-black-10);
+        border-bottom: 0.0625rem solid var(--ucdavis-black-10);
         border-radius: 0;
         padding: 0.5rem 0;
         background: transparent;

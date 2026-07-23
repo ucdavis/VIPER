@@ -584,8 +584,8 @@ header .q-avatar {
 
 /* Dense table action buttons keep a 24px minimum hit area (WCAG 2.2 SC 2.5.8) */
 .q-td .q-btn {
-    min-width: 24px;
-    min-height: 24px;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
 }
 
 /* On touch devices, give the CMS card-mode action buttons the 44px comfort
@@ -594,8 +594,8 @@ header .q-avatar {
    cards move actions into the header and size those down themselves.) */
 @media (pointer: coarse) {
     .list-card .q-card__actions .q-btn {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
     }
 }
 

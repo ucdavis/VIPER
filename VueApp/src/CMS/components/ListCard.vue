@@ -18,6 +18,3 @@
         </q-card>
     </div>
 </template>
-
-<!-- Card shell for QTable grid (card) mode: a header region, stacked fields, and a
-     right-aligned actions row. Pairs with ListCardField for the label/value rows. -->

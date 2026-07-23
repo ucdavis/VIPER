@@ -7,7 +7,12 @@ import { nextTick } from "vue"
  * alone does not move focus.
  */
 export function useRouteFocus(router: Router) {
-    router.afterEach((to, from) => {
+    router.afterEach((to, from, failure) => {
+        // An aborted, cancelled, or redirected navigation never actually changed the page, so leave
+        // focus where it is (e.g. an open dialog) rather than yanking it to <main>.
+        if (failure) {
+            return
+        }
         // Same-path navigations never move focus. In-page anchors (skip links): the
         // browser already focused the fragment target. Query-only updates (URL-synced
         // filters, debounced searches): the user is mid-interaction in a control, and

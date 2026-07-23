@@ -38,7 +38,7 @@ async function mountTable(query: Record<string, string> = {}) {
         name: "UrlFilteredTableHost",
         setup() {
             table = useUrlFilteredTable<Row, Filters>({
-                url: "/api/audit",
+                url: `${import.meta.env.VITE_API_URL}audit`,
                 errorMessage: "Failed to load audit",
                 primaryKey: "fileGuid",
                 defaultFilters: () => ({ search: "", from: "" }),

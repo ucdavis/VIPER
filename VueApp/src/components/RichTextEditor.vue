@@ -81,10 +81,17 @@ const editorDefinitions = computed(() => {
 function applyAccessibleName() {
     const el = editorRef.value?.getContentEl()
     if (!el) return
+    // Set one naming attribute and clear the other so flipping between labelId and ariaLabel never
+    // leaves a stale attribute behind (ARIA would otherwise keep honouring the old one).
     if (props.labelId) {
         el.setAttribute("aria-labelledby", props.labelId)
+        el.removeAttribute("aria-label")
     } else if (props.ariaLabel) {
         el.setAttribute("aria-label", props.ariaLabel)
+        el.removeAttribute("aria-labelledby")
+    } else {
+        el.removeAttribute("aria-label")
+        el.removeAttribute("aria-labelledby")
     }
 }
 

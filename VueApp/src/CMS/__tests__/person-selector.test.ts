@@ -31,7 +31,7 @@ const PEOPLE: CmsPersonOption[] = [
 ]
 
 function mountSelector(modelValue: { iamId: string; name: string | null }[] = []) {
-    return mountCms(PersonSelector, { props: { modelValue } })
+    return mountCms(PersonSelector, { props: { modelValue, label: "People" } })
 }
 
 // Quasar's @filter handler is (val, update, abort); the component only uses (val, update), so

@@ -51,7 +51,8 @@ import type { CmsPersonOption } from "@/CMS/types/"
 // loaded from an existing file (where only iamId + name are known).
 defineProps<{
     modelValue: { iamId: string; name: string | null }[]
-    label?: string
+    // Required so the combobox always has an accessible name.
+    label: string
 }>()
 
 const emit = defineEmits<{ "update:modelValue": [value: { iamId: string; name: string | null }[]] }>()

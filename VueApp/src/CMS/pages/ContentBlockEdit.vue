@@ -654,7 +654,12 @@ function onValidationError() {
 async function rollbackFiles(createdGuids: string[]) {
     if (createdGuids.length === 0) return
     for (const guid of createdGuids) {
-        await del(fileRollbackBase.value + guid)
+        try {
+            await del(fileRollbackBase.value + guid)
+        } catch {
+            // Best-effort cleanup: a failed delete must not abort the remaining rollbacks or throw
+            // past the caller, which would mask the real save/conflict outcome (matches InlineFileUpload.commit).
+        }
     }
     const removed = new Set(createdGuids)
     block.value.files = block.value.files.filter((f) => !removed.has(f.fileGuid))
