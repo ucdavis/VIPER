@@ -75,19 +75,19 @@ namespace Viper.Areas.RAPS.Controllers
         /// RAPS home page
         /// </summary>
         [Route("/[area]/{instance?}")]
-        public async Task<ActionResult> Index(string? instance)
+        public ActionResult Index(string? instance)
         {
             ViewData["KeyColumnName"] = "RoleId";
             instance ??= _securityService.GetDefaultInstanceForUser();
 
             return instance.ToUpper() switch
             {
-                "VIPER" => await Task.Run(() => Redirect("~/raps/VIPER/rolelist")),
-                "VMACS.VMTH" => await Task.Run(() => Redirect("~/raps/VMACS.VMTH/rolelist")),
-                "VMACS.VMLF" => await Task.Run(() => Redirect("~/raps/VMACS.VMLF/rolelist")),
-                "VMACS.UCVMCSD" => await Task.Run(() => Redirect("~/raps/VMACS.UCVMCSD/rolelist")),
-                "VIPERFORMS" => await Task.Run(() => Redirect("~/raps/ViperForms/rolelist")),
-                _ => await Task.Run(() => View("~/Views/Home/403.cshtml")),
+                "VIPER" => Redirect("~/raps/VIPER/rolelist"),
+                "VMACS.VMTH" => Redirect("~/raps/VMACS.VMTH/rolelist"),
+                "VMACS.VMLF" => Redirect("~/raps/VMACS.VMLF/rolelist"),
+                "VMACS.UCVMCSD" => Redirect("~/raps/VMACS.UCVMCSD/rolelist"),
+                "VIPERFORMS" => Redirect("~/raps/ViperForms/rolelist"),
+                _ => View("~/Views/Home/403.cshtml"),
             };
         }
 
@@ -220,21 +220,21 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         /// <param name="Instance">RAPS Instance</param>
         [Route("/[area]/{instance}/[action]")]
-        public async Task<IActionResult> RoleList(string instance)
+        public IActionResult RoleList(string instance)
         {
             if (UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin"))
             {
-                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml"));
+                return View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml");
             }
 
             if (_securityService.IsAllowedTo("ViewAllRoles", instance) ||
                 !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).IsNullOrEmpty())
             {
-                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
+                return View("~/Areas/RAPS/Views/Roles/List.cshtml");
             }
 
             //TODO: Should probably have a deny access helper function that writes logs and sets view
-            return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            return View("~/Views/Home/403.cshtml");
         }
 
         /// <summary>
@@ -242,15 +242,15 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Route("/[area]/{instance}/[action]")]
         [Permission(Allow = "RAPS.Admin,RAPS.ViewRoles")]
-        public async Task<IActionResult> RoleTemplateList(string instance)
+        public IActionResult RoleTemplateList(string instance)
         {
             if (!_securityService.IsAllowedTo("ViewRoles", instance))
             {
-                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+                return View("~/Views/Home/403.cshtml");
             }
             ViewData["canEditRoleTemplates"] = _securityService.IsAllowedTo("EditRoleTemplates", instance);
             ViewData["canApplyTemplates"] = _securityService.IsAllowedTo("EditRoleMembership", instance);
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Templates.cshtml"));
+            return View("~/Areas/RAPS/Views/Roles/Templates.cshtml");
         }
 
         /// <summary>
@@ -258,13 +258,13 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Route("/[area]/{instance}/[action]")]
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
-        public async Task<IActionResult> RoleTemplateApply(string instance)
+        public IActionResult RoleTemplateApply(string instance)
         {
             if (!_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
-                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+                return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/ApplyTemplate.cshtml"));
+            return View("~/Areas/RAPS/Views/Roles/ApplyTemplate.cshtml");
         }
 
         /// <summary>
@@ -272,13 +272,13 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Route("/[area]/{instance}/[action]")]
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoles")]
-        public async Task<IActionResult> RoleTemplateRoles(string instance)
+        public IActionResult RoleTemplateRoles(string instance)
         {
             if (!_securityService.IsAllowedTo("EditRoleTemplates", instance))
             {
-                return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+                return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/TemplateRoles.cshtml"));
+            return View("~/Areas/RAPS/Views/Roles/TemplateRoles.cshtml");
         }
 
         /// <summary>
@@ -286,10 +286,10 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin")]
         [Route("/[area]/{instance}/DelegateRoles")]
-        public async Task<IActionResult> DelegateRoles()
+        public IActionResult DelegateRoles()
 
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/DelegateRoles.cshtml"));
+            return View("~/Areas/RAPS/Views/Roles/DelegateRoles.cshtml");
         }
 
         /// <summary>
@@ -326,12 +326,11 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> PermissionList()
+        public IActionResult PermissionList()
         {
-            return await Task.Run(() =>
-                UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin")
-                    ? View("~/Areas/RAPS/Views/Permissions/ListAdmin.cshtml")
-                    : View("~/Areas/RAPS/Views/Permissions/List.cshtml"));
+            return UserHelper.HasPermission(_RAPSContext, UserHelper.GetCurrentUser(), "RAPS.Admin")
+                ? View("~/Areas/RAPS/Views/Permissions/ListAdmin.cshtml")
+                : View("~/Areas/RAPS/Views/Permissions/List.cshtml");
         }
 
         /// <summary>
@@ -339,28 +338,28 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.ManageAllPermissions")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> RolePermissions(int roleId)
+        public IActionResult RolePermissions(int roleId)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest();
             }
             ViewData["roleId"] = roleId;
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
+            return View("~/Areas/RAPS/Views/Roles/Permissions.cshtml");
         }
 
         /// <summary>
         /// Compare permissions for two roles
         /// </summary>
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> RolePermissionsComparison(string instance)
+        public IActionResult RolePermissionsComparison(string instance)
         {
             if (_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
-                return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/PermissionComparison.cshtml"));
+                return View("~/Areas/RAPS/Views/Roles/PermissionComparison.cshtml");
             }
 
-            return await Task.Run(() => View("~/Views/Home/403.cshtml"));
+            return View("~/Views/Home/403.cshtml");
         }
 
         /// <summary>
@@ -382,7 +381,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Members.cshtml"));
+            return View("~/Areas/RAPS/Views/Permissions/Members.cshtml");
         }
 
         /// <summary>
@@ -404,7 +403,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/Roles.cshtml"));
+            return View("~/Areas/RAPS/Views/Permissions/Roles.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
@@ -423,7 +422,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/RolesRO.cshtml"));
+            return View("~/Areas/RAPS/Views/Permissions/RolesRO.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.ViewPermissions")]
@@ -442,7 +441,7 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return NotFound();
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Permissions/AllMembers.cshtml"));
+            return View("~/Areas/RAPS/Views/Permissions/AllMembers.cshtml");
         }
 
         /**
@@ -454,13 +453,13 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.UserLookup")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> UserSearch(string instance)
+        public IActionResult UserSearch(string instance)
         {
             ViewData["canRSOP"] = _securityService.IsAllowedTo("RSOP", instance);
             ViewData["canEditRoleMembership"] = _securityService.IsAllowedTo("EditRoleMembership", instance);
             ViewData["canEditMemberPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
             ViewData["canViewHistory"] = _securityService.IsAllowedTo("ViewHistory", instance);
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/List.cshtml"));
+            return View("~/Areas/RAPS/Views/Members/List.cshtml");
         }
 
         /// <summary>
@@ -468,7 +467,7 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> MemberRoles(string instance)
+        public IActionResult MemberRoles(string instance)
         {
             ViewData["canEditPermissions"] = _securityService.IsAllowedTo("ManageAllPermissions", instance);
             //EditRoleMembership grants access only to the VMACS instance
@@ -477,7 +476,7 @@ namespace Viper.Areas.RAPS.Controllers
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
                 return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Roles.cshtml"));
+            return View("~/Areas/RAPS/Views/Members/Roles.cshtml");
         }
 
         /// <summary>
@@ -485,9 +484,9 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.EditMemberPermissions")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> MemberPermissions()
+        public IActionResult MemberPermissions()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Permissions.cshtml"));
+            return View("~/Areas/RAPS/Views/Members/Permissions.cshtml");
         }
 
         /// <summary>
@@ -495,7 +494,7 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.RSOP")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> RSOP(string instance)
+        public IActionResult RSOP(string instance)
         {
             //RSOP grants access only to the VMACS instance
             if (!_securityService.IsAllowedTo("RSOP", instance))
@@ -503,7 +502,7 @@ namespace Viper.Areas.RAPS.Controllers
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
                 return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/RSOP.cshtml"));
+            return View("~/Areas/RAPS/Views/Members/RSOP.cshtml");
         }
 
         /// <summary>
@@ -511,7 +510,7 @@ namespace Viper.Areas.RAPS.Controllers
         /// </summary>
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> MemberHistory(string instance)
+        public IActionResult MemberHistory(string instance)
         {
             //EditRoleMembership grants access only to the VMACS instance
             if (!_securityService.IsAllowedTo("ViewHistory", instance))
@@ -519,18 +518,18 @@ namespace Viper.Areas.RAPS.Controllers
                 //TODO: Should probably have a deny access helper function that writes logs and sets view
                 return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/History.cshtml"));
+            return View("~/Areas/RAPS/Views/Members/History.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.Clone")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> UserClone(string instance)
+        public IActionResult UserClone(string instance)
         {
             if (!_securityService.IsAllowedTo("Clone", instance))
             {
                 return View("~/Views/Home/403.cshtml");
             }
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Members/Clone.cshtml"));
+            return View("~/Areas/RAPS/Views/Members/Clone.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin")]
@@ -554,7 +553,7 @@ namespace Viper.Areas.RAPS.Controllers
                 ViewData["Servers"] = servers;
             }
 
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Export.cshtml"));
+            return View("~/Areas/RAPS/Views/Export.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin")]
@@ -563,28 +562,28 @@ namespace Viper.Areas.RAPS.Controllers
         {
             ViewData["Messages"] = await new RoleViews(_RAPSContext)
                     .UpdateRoles(debugOnly: true);
-            return await Task.Run(() => View("~/Areas/RAPS/Views/RoleViewUpdate.cshtml"));
+            return View("~/Areas/RAPS/Views/RoleViewUpdate.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> GroupList()
+        public IActionResult GroupList()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/List.cshtml"));
+            return View("~/Areas/RAPS/Views/Groups/List.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> GroupRoles()
+        public IActionResult GroupRoles()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Roles.cshtml"));
+            return View("~/Areas/RAPS/Views/Groups/Roles.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> GroupMembers()
+        public IActionResult GroupMembers()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Members.cshtml"));
+            return View("~/Areas/RAPS/Views/Groups/Members.cshtml");
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
@@ -603,7 +602,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             ViewData["Group"] = group;
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Sync.cshtml"));
+            return View("~/Areas/RAPS/Views/Groups/Sync.cshtml");
         }
 
         /// <summary>
@@ -631,16 +630,16 @@ namespace Viper.Areas.RAPS.Controllers
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> CreateADGroup()
+        public IActionResult CreateADGroup()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/CreateADGroup.cshtml"));
+            return View("~/Areas/RAPS/Views/Groups/CreateADGroup.cshtml");
         }
 
         [Permission(Allow = "RAPS.ViewAuditTrail")]
         [Route("/[area]/{Instance}/[action]")]
-        public async Task<IActionResult> AuditTrail()
+        public IActionResult AuditTrail()
         {
-            return await Task.Run(() => View("~/Areas/RAPS/Views/AuditLog.cshtml"));
+            return View("~/Areas/RAPS/Views/AuditLog.cshtml");
         }
     }
 }

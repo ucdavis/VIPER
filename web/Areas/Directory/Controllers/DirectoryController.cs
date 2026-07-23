@@ -33,19 +33,19 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory home page
         /// </summary>
         [Route("")]
-        public async Task<ActionResult> Index(string? useExample)
+        public ActionResult Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml"));
+            return View("~/Areas/Directory/Views/Card.cshtml");
         }
 
         /// <summary>
         /// Directory home page
         /// </summary>
         [Route("nav")]
-        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
+        public ActionResult<IEnumerable<NavMenuItem>> Nav()
         {
             var nav = new List<NavMenuItem>();
-            return await Task.Run(() => nav);
+            return nav;
         }
 
 
@@ -107,10 +107,10 @@ namespace Viper.Areas.Directory.Controllers
         /// </summary>
         /// <param name="uid">User ID</param>
         [Route("userInfo/{mothraID}")]
-        public async Task<IActionResult> DirectoryResult(string mothraID)
+        public IActionResult DirectoryResult(string mothraID)
         {
             // pull in the user based on uid
-            return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
+            return View("~/Areas/Directory/Views/UserInfo.cshtml");
         }
 
         /// <summary>
