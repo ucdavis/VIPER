@@ -488,7 +488,8 @@ header .q-avatar {
 
 /* On touch devices, give the CMS card-mode action buttons the 44px comfort
    target (WCAG 2.5.5); pointer devices keep the dense default. Scoped to the
-   list cards so it doesn't reflow every dense table app-wide. */
+   list cards so it doesn't reflow every dense table app-wide. (Content-block
+   cards move actions into the header and size those down themselves.) */
 @media (pointer: coarse) {
     .list-card .q-card__actions .q-btn {
         min-width: 44px;
@@ -525,20 +526,53 @@ header .q-avatar {
 /* Headings inside sanitized CMS content (v-html). Shared by the live content
    block (CMS/components/ContentBlock.vue) and the history diff view
    (CMS/components/ContentDiffDialog.vue) so both render block headings the same.
-   Declared globally because scoped styles don't reach v-html children. */
-.content-block h1 {
+   The content-block editor (CMS/pages/ContentBlockEdit.vue) opts its QEditor
+   content area in via .content-block-editor so the editing surface previews the
+   same heading sizes it will publish at, rather than the compressed
+   .q-page-container chrome sizes it would otherwise inherit. Declared globally
+   because scoped styles reach neither v-html children nor QEditor's content. */
+.content-block h1,
+.content-block-editor .q-editor__content h1 {
     font-size: 2rem;
     line-height: 1.2;
 }
 
-.content-block h2 {
+.content-block h2,
+.content-block-editor .q-editor__content h2 {
     font-size: 1.5rem;
     line-height: 1.25;
 }
 
-.content-block h3 {
+.content-block h3,
+.content-block-editor .q-editor__content h3 {
     font-size: 1.25rem;
     line-height: 1.3;
+}
+
+/* QEditor's heading picker (the format_size dropdown) previews each option by rendering a real
+   heading inside its dropdown menu. That menu teleports to <body>, outside the .content-block-editor
+   scope above, so without this the previews fall back to browser-default sizes (h2 ~60px) and wildly
+   overstate the output. Pin them to the same published sizes so the picker matches what the editor
+   and live block render. QEditor is the only place in the app that renders headings inside a q-menu. */
+.q-menu h1 {
+    font-size: 2rem;
+}
+
+.q-menu h2 {
+    font-size: 1.5rem;
+}
+
+.q-menu h3 {
+    font-size: 1.25rem;
+}
+
+.q-menu h4 {
+    font-size: 1.1rem;
+}
+
+.q-menu h5,
+.q-menu h6 {
+    font-size: 1rem;
 }
 
 /* Screen reader only — visually hidden but accessible to assistive technology */
