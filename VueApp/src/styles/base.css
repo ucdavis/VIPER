@@ -406,6 +406,65 @@ header .q-avatar {
     overflow-wrap: anywhere;
 }
 
+/* CMS list-card grid mode (Content Blocks + Files): two fields per row on sm+ (one below), laid out
+   with a CSS grid so the fields line up with the card title - q-col-gutter's negative margin would
+   pull them ~8px left of it. */
+.card-field-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.375rem 1rem;
+    margin-top: 0.5rem;
+}
+
+@media (min-width: 600px) {
+    .card-field-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Stack each field's label above its value. The default 7rem side label leaves too little room at
+   half-width, so long values (notably permission chips) spilled into the neighbouring column;
+   min-width:0 lets a cell shrink so its value wraps instead of overflowing. */
+.card-field-grid .list-card-field {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.card-field-grid .list-card-label {
+    flex: none;
+}
+
+.card-field-grid .q-chip {
+    max-width: 100%;
+    height: auto;
+}
+
+.card-field-grid .q-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Let a long title shrink and ellipsis instead of pushing the inline row actions off the card. */
+.card-header-title {
+    min-width: 0;
+}
+
+/* Tighten the grid-mode card: trim the section padding so the header sits closer to the card edge. */
+.list-card-compact .q-card__section {
+    padding: 0.5rem 1rem;
+}
+
+/* A 44px touch target made the inline row-action buttons tower over the single-line title, opening a
+   gap above the caption line. 32px keeps them comfortable and above the 24px WCAG 2.5.8 (AA) floor. */
+@media (pointer: coarse) {
+    .list-card-compact .list-card-actions .q-btn {
+        min-width: 2rem;
+        min-height: 2rem;
+    }
+}
+
 /* Dialog card widths — replaces inline width styles on q-card inside q-dialog.
    A fixed width with a 95vw cap keeps modals comfortable on desktop and off
    the screen edges on small viewports. */
