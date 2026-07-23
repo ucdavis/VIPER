@@ -118,6 +118,8 @@ namespace Viper.Areas.Students.Services
                 return false;
             }
 
+            // Legitimate Task.Run: File.Exists is blocking I/O (photo store may be a
+            // network share) and callers fan these checks out with Task.WhenAll.
             return await Task.Run(() =>
             {
                 var photoPath = GetPhotoPath(mailId);

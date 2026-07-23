@@ -6,12 +6,12 @@ namespace Viper.Views.Shared.Components.LeftNav
     [ViewComponent(Name = "LeftNav")]
     public class LeftNavViewComponent : ViewComponent
     {
-        public async Task<IViewComponentResult> InvokeAsync(AaudUser user, int nav)
+        public IViewComponentResult Invoke(AaudUser user, int nav)
         {
 
 
 
-            return await Task.Run(() => View("Default", user));
+            return View("Default", user);
         }
 
     }

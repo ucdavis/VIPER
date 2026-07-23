@@ -5,7 +5,7 @@ namespace Viper.Views.Shared.Components.SessionTimeout
     [ViewComponent(Name = "SessionTimeout")]
     public class SessionTimeout : ViewComponent
     {
-        public async Task<IViewComponentResult> InvokeAsync()
+        public IViewComponentResult Invoke()
         {
             UserHelper userHelper = new UserHelper();
             string? loginId = userHelper.GetCurrentUser()?.LoginId;
@@ -14,7 +14,7 @@ namespace Viper.Views.Shared.Components.SessionTimeout
                 + "/public/timeout/seconds_until_timeout_v2.cfm?id="
                 + (loginId ?? "")
                 + "&service=" + (onDev ? "Viper2-dev" : "Viper2");
-            return await Task.Run(() => View("Default"));
+            return View("Default");
         }
 
     }
