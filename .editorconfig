@@ -163,6 +163,13 @@ dotnet_style_qualification_for_property = false:silent
 dotnet_style_qualification_for_method = false:silent
 dotnet_style_qualification_for_event = false:silent
 
-# EF Core scaffold-generated DbContext files — partial methods are intentional extension points
+# EF Core scaffold-generated DbContext files — partial methods are intentional extension points,
+# and the maintainability index is dominated by the generated OnModelCreating (not hand-maintained code)
 [**/SQLContext/*Context.cs]
 dotnet_diagnostic.S3251.severity = none
+dotnet_diagnostic.CA1505.severity = none
+
+# S6964: flags value-type props as under-postable, but ApiPagination is never bound from a request:
+# ApiPaginationAttribute.OnActionExecuting always constructs the object and overwrites the action argument
+[web/Models/ApiPagination.cs]
+dotnet_diagnostic.S6964.severity = none

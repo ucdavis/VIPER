@@ -40,7 +40,7 @@ namespace Viper.Views.Shared.Components.MainNav
             _context = context;
         }
 
-        public async Task<IViewComponentResult> InvokeAsync(AaudUser user)
+        public IViewComponentResult Invoke(AaudUser user)
         {
             ViewData["OldViperURL"] = oldViperURL;
             var userHelper = new UserHelper();
@@ -67,7 +67,7 @@ namespace Viper.Views.Shared.Components.MainNav
                 "scheduler" => "Computing",
                 _ => "VIPER Home",
             };
-            return await Task.Run(() => View("Default", user));
+            return View("Default", user);
         }
 
     }

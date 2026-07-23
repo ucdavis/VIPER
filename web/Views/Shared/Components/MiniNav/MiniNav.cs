@@ -8,10 +8,10 @@ namespace Viper.Views.Shared.Components.MiniNav
     {
         private readonly string oldViperURL = HttpHelper.GetOldViperRootURL();
 
-        public async Task<IViewComponentResult> InvokeAsync(AaudUser user)
+        public IViewComponentResult Invoke(AaudUser user)
         {
             ViewData["OldViperURL"] = oldViperURL;
-            return await Task.Run(() => View("Default", user));
+            return View("Default", user);
         }
 
     }

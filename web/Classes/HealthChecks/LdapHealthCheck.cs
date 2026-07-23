@@ -32,6 +32,8 @@ namespace Viper.Classes.HealthChecks
 
             try
             {
+                // Legitimate Task.Run: S.DS.Protocols has no async API, so the
+                // blocking LDAP bind is offloaded to keep the caller responsive.
                 await Task.Run(() =>
                 {
                     var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, _ldapSSLPort);

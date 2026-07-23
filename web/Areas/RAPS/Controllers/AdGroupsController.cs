@@ -81,7 +81,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             if (groupId != group.GroupId)
             {
-                BadRequest();
+                return BadRequest();
             }
 
             OuGroup? ouGroup = await _context.OuGroups.FindAsync(groupId);
