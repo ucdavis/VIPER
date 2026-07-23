@@ -3,6 +3,8 @@ import type { Ref } from "vue"
 import { ref, inject } from "vue"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import RichTextEditor from "@/components/RichTextEditor.vue"
+import { CTS_RICH_TEXT_TOOLBAR } from "@/CTS/constants"
 import type { Epa, Service } from "@/CTS/types"
 
 const $q = useQuasar()
@@ -104,17 +106,12 @@ getEpas()
             />
         </div>
         <div class="row">
-            <q-editor
+            <RichTextEditor
                 v-model="epa.description"
                 min-height="15rem"
                 class="col col-lg-6"
-                :toolbar="[
-                    ['left', 'center', 'right', 'justify'],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    ['quote', 'unordered', 'ordered', 'outdent', 'indent'],
-                    ['undo', 'redo'],
-                    ['viewsource'],
-                ]"
+                aria-label="EPA description"
+                :toolbar="CTS_RICH_TEXT_TOOLBAR"
             />
         </div>
         <div class="row">

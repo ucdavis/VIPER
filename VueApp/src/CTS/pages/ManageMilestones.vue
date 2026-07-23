@@ -2,6 +2,8 @@
 import { inject, ref, watch } from "vue"
 import type { Ref } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
+import RichTextEditor from "@/components/RichTextEditor.vue"
+import { CTS_RICH_TEXT_TOOLBAR } from "@/CTS/constants"
 import type { Competency, Level, Milestone, MilestoneLevel } from "@/CTS/types"
 
 const { get, post, put } = useFetch()
@@ -163,17 +165,11 @@ load()
                     {{ milestoneLevel.levelOrder }}. {{ milestoneLevel.levelName }}
                 </div>
                 <div class="col-12 col-sm-6 col-lg-6">
-                    <q-editor
+                    <RichTextEditor
                         v-model="milestoneLevel.description"
                         outlined
-                        label="Description"
-                        :toolbar="[
-                            ['left', 'center', 'right', 'justify'],
-                            ['bold', 'italic', 'underline', 'strike'],
-                            ['quote', 'unordered', 'ordered', 'outdent', 'indent'],
-                            ['undo', 'redo'],
-                            ['viewsource'],
-                        ]"
+                        :aria-label="`Description for level ${milestoneLevel.levelName}`"
+                        :toolbar="CTS_RICH_TEXT_TOOLBAR"
                     />
                 </div>
             </div>
