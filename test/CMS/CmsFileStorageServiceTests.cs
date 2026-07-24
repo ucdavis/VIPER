@@ -142,30 +142,17 @@ public sealed class CmsFileStorageServiceTests : IDisposable
         Assert.Equal(Path.Join(_root, "cats", "evil.pdf"), finalPath);
     }
 
+    // MoveIntoPlace rejects a filename with a disallowed extension or an invalid path character,
+    // both with an ArgumentException; one theory covers both since the assertion is identical.
     [Theory]
-    [InlineData("malware.bat")]
+    [InlineData("malware.bat")] // disallowed extension
     [InlineData("script.ps1")]
     [InlineData("noextension")]
-    public void MoveIntoPlace_DisallowedExtension_Throws(string fileName)
-    {
-        var temp = CreateTempFile();
-
-        try
-        {
-            Assert.Throws<ArgumentException>(() => _service.MoveIntoPlace(temp, "cats", fileName, makeUnique: false));
-        }
-        finally
-        {
-            File.Delete(temp);
-        }
-    }
-
-    [Theory]
-    [InlineData("report?.pdf")]
+    [InlineData("report?.pdf")] // invalid filename character
     [InlineData("report:1.pdf")]
     [InlineData("report<1>.pdf")]
     [InlineData("report|1.pdf")]
-    public void MoveIntoPlace_InvalidNameCharacter_Throws(string fileName)
+    public void MoveIntoPlace_InvalidFileName_Throws(string fileName)
     {
         var temp = CreateTempFile();
 
