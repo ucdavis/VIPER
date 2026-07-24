@@ -57,6 +57,9 @@
         "stylelint-config-standard": "^40.0.0",
         "yauzl": "^3.4.0"
     },
+    "overrides": {
+        "shell-quote": "^1.9.0"
+    },
     "volta": {
         "node": "24.16.0",
         "npm": "11.13.0"
