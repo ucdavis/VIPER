@@ -175,6 +175,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { inflect } from "inflection"
 import { useFetch } from "@/composables/ViperFetch"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import EditButton from "@/CMS/components/EditButton.vue"
 import LeftNavMenuDialog from "@/CMS/components/LeftNavMenuDialog.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
@@ -186,6 +187,7 @@ const apiURL = inject("apiURL") + "cms/left-navs"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const { get, del, createUrlSearchParams } = useFetch()
 
 const menus = ref<CmsLeftNavMenu[]>([])
@@ -231,17 +233,11 @@ async function loadMenus() {
 }
 
 async function deleteMenu(menu: CmsLeftNavMenu) {
-    const confirmed = await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title: "Delete Menu",
-            message: `Permanently delete "${menu.menuHeaderText || "(untitled)"}" and its ${menu.items.length} ${inflect("item", menu.items.length)}? This cannot be undone.`,
-            cancel: { label: "Cancel", flat: true },
-            persistent: true,
-            ok: { label: "Delete Menu", color: "negative", unelevated: true },
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
+    const confirmed = await confirmAction({
+        title: "Delete Menu",
+        message: `Permanently delete "${menu.menuHeaderText || "(untitled)"}" and its ${menu.items.length} ${inflect("item", menu.items.length)}? This cannot be undone.`,
+        okLabel: "Delete Menu",
+        okColor: "negative",
     })
     if (!confirmed) return
     const res = await del(apiURL + "/" + menu.leftNavMenuId)

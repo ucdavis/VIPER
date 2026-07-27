@@ -1,6 +1,6 @@
 import ContentBlockEdit from "@/CMS/pages/ContentBlockEdit.vue"
 import { useUserStore } from "@/store/UserStore"
-import { mountCms, flushPromises, createTestRouter } from "./test-utils"
+import { mountCms, flushPromises, flushRouter, createTestRouter } from "./test-utils"
 
 /**
  * Delegated editing: a user WITHOUT ManageContentBlocks/CreateContentBlock who reaches an existing
@@ -191,7 +191,18 @@ describe("ContentBlockEdit.vue - delegated (content-only) mode", () => {
         // The full-save verbs are never used in delegated mode.
         expect(mockPut).not.toHaveBeenCalled()
         expect(mockPost).not.toHaveBeenCalled()
+        // Same titled confirmation a manager gets; delegated mode differs in the endpoint, not the UX.
         expect(document.body.textContent).toContain('Saved "Welcome"')
+    })
+
+    it("sends a delegated editor home after saving, since they can't reach the manage listing", async () => {
+        mockPatch.mockResolvedValue({ success: true, result: { ...BLOCK } })
+        const { wrapper, router } = await mountDelegated()
+
+        await submitForm(wrapper)
+        await flushRouter()
+
+        expect(router.currentRoute.value.name).toBe("CmsHome")
     })
 
     it("opens the edit-conflict dialog when the content PATCH returns a 409", async () => {

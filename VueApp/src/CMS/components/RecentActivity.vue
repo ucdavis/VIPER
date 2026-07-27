@@ -13,30 +13,44 @@
             />
         </template>
 
-        <div
+        <StatusBanner
             v-else-if="failed"
-            class="text-body2 text-grey-8 q-mt-xs"
+            type="error"
+            class="q-mt-xs"
         >
             Couldn't load recent activity.
-        </div>
+        </StatusBanner>
 
-        <div
-            v-else-if="items.length === 0"
-            class="text-body2 text-grey-8 q-mt-xs"
-        >
-            Nothing edited recently.
-        </div>
+        <template v-else>
+            <!-- Some sources answered and some didn't. Warn before the list (or before the empty
+                 message, which would otherwise read as "nothing happened" when we simply don't
+                 know) rather than passing a partial answer off as the full picture. -->
+            <StatusBanner
+                v-if="partiallyFailed"
+                type="warning"
+                class="q-mt-xs"
+            >
+                Some recent activity couldn't be loaded.
+            </StatusBanner>
 
-        <q-list
-            v-else
-            dense
-        >
-            <ActivityRow
-                v-for="item in items"
-                :key="item.key"
-                :item="item"
-            />
-        </q-list>
+            <div
+                v-if="items.length === 0"
+                class="text-body2 text-grey-8 q-mt-xs"
+            >
+                Nothing edited recently.
+            </div>
+
+            <q-list
+                v-else
+                dense
+            >
+                <ActivityRow
+                    v-for="item in items"
+                    :key="item.key"
+                    :item="item"
+                />
+            </q-list>
+        </template>
 
         <ContentDiffDialog
             v-model="viewer.open"
@@ -57,6 +71,7 @@ import { useFetch } from "@/composables/ViperFetch"
 import { useContentDiffViewer } from "@/CMS/composables/use-content-diff-viewer"
 import ActivityRow from "@/CMS/components/ActivityRow.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import type {
     ActivityItem,
     CmsContentBlock,
@@ -87,13 +102,14 @@ const { viewer, openViewer, applyDiff, closeViewer, failViewer, diffStamp } = us
 
 const loading = ref(true)
 const failed = ref(false)
+const partiallyFailed = ref(false)
 const items = ref<ActivityItem[]>([])
 
 // History rows hold only superseded versions, and the GET diff endpoint compares two of them —
 // so the block's latest change (newest history row -> live content) needs the POST diff with
 // the current content, exactly like the editor's compare-against-draft flow.
 async function openLatestDiff(b: CmsContentBlock, label: string) {
-    openViewer(label)
+    const token = openViewer(label)
     const listParams = createUrlSearchParams({ contentBlockId: b.contentBlockId, page: 1, perPage: 1 })
     const [blockRes, listRes] = await Promise.all([
         get(apiURL + "CMS/content/" + b.contentBlockId),
@@ -101,12 +117,12 @@ async function openLatestDiff(b: CmsContentBlock, label: string) {
     ])
     const previous = ((listRes.result ?? []) as CmsContentHistoryAudit[])[0]
     if (listRes.success && !previous) {
-        closeViewer()
+        closeViewer(token)
         $q.notify({ type: "info", message: "No edit history for this block yet." })
         return
     }
     if (!listRes.success || !blockRes.success) {
-        failViewer("Failed to load the latest change")
+        failViewer(token, "Failed to load the latest change")
         return
     }
     const res = await post(
@@ -118,11 +134,12 @@ async function openLatestDiff(b: CmsContentBlock, label: string) {
     if (res.success) {
         const diff = res.result as CmsContentHistoryDiff
         applyDiff(
+            token,
             diff,
             `Changes from ${diffStamp(diff.oldModifiedOn, diff.oldModifiedBy)} to ${diffStamp(b.modifiedOn, b.modifiedBy)}`,
         )
     } else {
-        failViewer(res.errors?.[0] ?? "Failed to load the latest change")
+        failViewer(token, res.errors?.[0] ?? "Failed to load the latest change")
     }
 }
 
@@ -244,7 +261,9 @@ async function loadActivity() {
     ]
     const results = await Promise.allSettled(sources)
     const loaded = results.filter((r) => r.status === "fulfilled").flatMap((r) => r.value)
-    failed.value = sources.length > 0 && results.every((r) => r.status === "rejected")
+    const rejected = results.filter((r) => r.status === "rejected").length
+    failed.value = sources.length > 0 && rejected === results.length
+    partiallyFailed.value = rejected > 0 && !failed.value
     items.value = loaded
         .sort((a, b) => new Date(b.modifiedOn).getTime() - new Date(a.modifiedOn).getTime())
         .slice(0, MAX_ITEMS)

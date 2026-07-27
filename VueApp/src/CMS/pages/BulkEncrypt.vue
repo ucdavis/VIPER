@@ -151,6 +151,7 @@ import { inject, onMounted, ref } from "vue"
 import { inflect } from "inflection"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { useServerTable } from "@/CMS/composables/use-server-table"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import ListCard from "@/CMS/components/ListCard.vue"
@@ -167,6 +168,7 @@ type BulkEncryptResult = {
 
 const apiURL = inject("apiURL") + "cms/files/"
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const { get, post } = useFetch()
 
 type FolderOption = { label: string; value: string }
@@ -231,17 +233,10 @@ async function loadFolders() {
 }
 
 async function encryptSelected() {
-    const confirmed = await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title: "Encrypt Files",
-            message: `Encrypt ${selected.value.length} ${inflect("file", selected.value.length)} in place?`,
-            cancel: { label: "Cancel", flat: true },
-            persistent: true,
-            ok: { label: "Encrypt", color: "primary", unelevated: true },
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
+    const confirmed = await confirmAction({
+        title: "Encrypt Files",
+        message: `Encrypt ${selected.value.length} ${inflect("file", selected.value.length)} in place?`,
+        okLabel: "Encrypt",
     })
     if (!confirmed) return
 

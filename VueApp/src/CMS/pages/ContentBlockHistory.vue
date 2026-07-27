@@ -266,13 +266,13 @@ const {
 const { viewer, openViewer, applyDiff, failViewer, savedDiffSubtitle, diffStamp } = useContentDiffViewer()
 
 async function viewDiff(row: CmsContentHistoryAudit) {
-    openViewer(blockLabel(row))
+    const token = openViewer(blockLabel(row))
     const res = await get(apiBase + "CMS/content/" + row.contentBlockId + "/history/" + row.contentHistoryId + "/diff")
     if (res.success) {
         const diff = res.result as CmsContentHistoryDiff
-        applyDiff(diff, savedDiffSubtitle(diff))
+        applyDiff(token, diff, savedDiffSubtitle(diff))
     } else {
-        failViewer(res.errors?.[0] ?? "Failed to load this version")
+        failViewer(token, res.errors?.[0] ?? "Failed to load this version")
     }
 }
 
@@ -283,10 +283,10 @@ async function viewDiff(row: CmsContentHistoryAudit) {
 // history rows only hold superseded versions, so comparing against "now" needs the posted
 // draft content rather than a second saved version.
 async function viewDiffVsCurrent(row: CmsContentHistoryAudit) {
-    openViewer(blockLabel(row))
+    const token = openViewer(blockLabel(row))
     const blockRes = await get(apiBase + "CMS/content/" + row.contentBlockId)
     if (!blockRes.success) {
-        failViewer("Failed to load the current version")
+        failViewer(token, "Failed to load the current version")
         return
     }
     const current = blockRes.result as CmsContentBlock
@@ -299,11 +299,12 @@ async function viewDiffVsCurrent(row: CmsContentHistoryAudit) {
     if (res.success) {
         const diff = res.result as CmsContentHistoryDiff
         applyDiff(
+            token,
             diff,
             `Changes from ${diffStamp(diff.oldModifiedOn, diff.oldModifiedBy)} to ${diffStamp(current.modifiedOn, current.modifiedBy)}`,
         )
     } else {
-        failViewer(res.errors?.[0] ?? "Failed to load the current version")
+        failViewer(token, res.errors?.[0] ?? "Failed to load the current version")
     }
 }
 

@@ -204,20 +204,13 @@ function animateReorder(reorder: () => void) {
             if (delta === 0) {
                 continue
             }
-            el.style.transition = "none"
-            el.style.transform = `translateY(${delta}px)`
-            requestAnimationFrame(() => {
-                el.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
-                el.style.transform = ""
+            // Web Animations rather than inline styles: the transform lives outside the
+            // element's style attribute and unwinds itself when the animation ends, so
+            // there is no transition/transform to hand-clear afterwards.
+            el.animate([{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }], {
+                duration: SLIDE_MS,
+                easing: "cubic-bezier(0.22, 1, 0.36, 1)",
             })
-            el.addEventListener(
-                "transitionend",
-                () => {
-                    el.style.transition = ""
-                    el.style.transform = ""
-                },
-                { once: true },
-            )
         }
     })
 }

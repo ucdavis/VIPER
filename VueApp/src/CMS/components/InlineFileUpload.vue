@@ -250,9 +250,23 @@ function buildUploadData(item: StagedFile): FormData {
 
 // Overwrite replaces an existing record's content in place (legacy editFile), keeping its GUID.
 // It is destructive to a pre-existing file and can't be un-done, so it is NOT rolled back.
-// Global files API only (per-file PUT); see commitOne.
+// The edit endpoint is a whole-record save, so the record is re-read first: its ModifiedOn is the
+// required stale-edit guard, and its description, old URL, people, and encryption state are echoed
+// back. Omitting any of them would silently clear (or decrypt) the file we are only re-uploading.
+// Global files API only (per-file GET + PUT); see commitOne.
 async function overwriteInPlace(item: StagedFile, data: FormData): Promise<CommitResult> {
-    const res = await files.overwriteInPlace(item.conflict!.existingFileGuid!, data)
+    const guid = item.conflict!.existingFileGuid!
+    const existing = await files.getFile(guid)
+    if (!existing.success) throw new Error(existing.errors?.[0] ?? `Could not load ${item.file.name}`)
+    const current = existing.result as CmsFile
+    data.append("lastModifiedOn", current.modifiedOn)
+    data.append("description", current.description ?? "")
+    data.append("oldUrl", current.oldUrl ?? "")
+    data.append("encrypt", String(current.encrypted))
+    for (const person of current.people) {
+        data.append("iamIds", person.iamId)
+    }
+    const res = await files.overwriteInPlace(guid, data)
     if (!res.success) throw new Error(res.errors?.[0] ?? `Failed to overwrite ${item.file.name}`)
     return { file: res.result as CmsFile, created: false }
 }

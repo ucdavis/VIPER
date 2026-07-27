@@ -563,18 +563,19 @@ const { viewer: diffViewer, openViewer: openDiffViewer, applyDiff, failViewer } 
 // (the "old" side). The current content is posted because it may include unsaved edits.
 async function diffAgainstCurrent() {
     if (!selectedHistory.value) return
-    openDiffViewer("Current editor content vs previous version")
+    const token = openDiffViewer("Current editor content vs previous version")
     const res = await post(
         apiURL + "/" + blockId.value + "/history/" + selectedHistory.value.contentHistoryId + "/diff",
         { content: block.value.content },
     )
     if (res.success) {
         applyDiff(
+            token,
             res.result as CmsContentHistoryDiff,
             `Changes from ${historyLabel(selectedHistory.value)} to your current editor content`,
         )
     } else {
-        failViewer(res.errors?.[0] ?? "Failed to build the diff")
+        failViewer(token, res.errors?.[0] ?? "Failed to build the diff")
     }
 }
 
@@ -723,14 +724,19 @@ async function handleSaveConflict(res: { errors: string[] | null }, rollbackGuid
 }
 
 function applySaveSuccess(res: { result: CmsContentBlock | null }) {
+    // The manager save echoes the saved block back; the delegated content PATCH may return no body,
+    // so name the block from what is already on screen.
     const title = res.result?.title ?? block.value.title
     $q.notify({ type: "positive", message: isNew.value ? `Created "${title}"` : `Saved "${title}"` })
-    // Adopt the saved server state (a delegated content PATCH returns no body) and clear the dirty
-    // baseline so the unsaved-changes guard stays quiet, then leave the form to the same place the
-    // load-error handler uses: managers to the listing, delegated editors (no listing access) home.
+    viewingVersion.value = false
+    selectedHistory.value = null
+    autoEnabledPublicAccess.value = false
     if (res.result) {
         block.value = { ...res.result, editPermissions: res.result.editPermissions ?? [] }
     }
+    // Clear the dirty baseline (the editor now holds exactly what was saved) so the unsaved-changes
+    // guard stays quiet on the way out, then leave for wherever this editor came from: managers get
+    // the listing, delegated editors can't reach it and go home (same split as loadBlock's fallback).
     resetDirtyState()
     void router.push({ name: canManage.value ? "CmsContentBlocks" : "CmsHome" })
 }

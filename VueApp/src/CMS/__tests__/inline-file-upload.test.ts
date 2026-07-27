@@ -270,6 +270,43 @@ describe("inlineFileUpload.vue - commit", () => {
         expect(result.createdGuids).toStrictEqual([])
     })
 
+    it("carries the record's concurrency stamp and untouched metadata into the overwrite PUT", async () => {
+        // The edit endpoint is a whole-record save: without these the PUT 400s on the missing
+        // stale-edit guard, and once it stops 400ing it would blank the description/old URL/people
+        // and decrypt the file.
+        routeCheckName(CONFLICT)
+        mockGet.mockImplementation((...args: unknown[]) => {
+            const requestUrl = args[0] as string
+            if (requestUrl.includes("check-name")) {
+                return Promise.resolve({ success: true, result: CONFLICT })
+            }
+            return Promise.resolve({
+                success: true,
+                result: {
+                    ...cmsFile("eg1", "report.pdf"),
+                    description: "Quarterly report",
+                    oldUrl: "/old/report.pdf",
+                    encrypted: true,
+                    modifiedOn: "2024-05-05T08:00:00",
+                    people: [{ iamId: "iam-1", name: "Someone" }],
+                },
+            })
+        })
+        mockPutForm.mockResolvedValue({ success: true, result: cmsFile("eg1", "report.pdf") })
+        const wrapper = mountUpload()
+        await stage("report.pdf")
+
+        wrapper.findComponent({ name: "QOptionGroup" }).vm.$emit("update:modelValue", "overwrite")
+        await commitOf(wrapper)()
+
+        const [, data] = mockPutForm.mock.calls[0]! as [string, FormData]
+        expect(data.get("lastModifiedOn")).toBe("2024-05-05T08:00:00")
+        expect(data.get("description")).toBe("Quarterly report")
+        expect(data.get("oldUrl")).toBe("/old/report.pdf")
+        expect(data.get("encrypt")).toBe("true")
+        expect(data.getAll("iamIds")).toStrictEqual(["iam-1"])
+    })
+
     it("pOSTs with the overwrite flag when overwriting an on-disk file that has no record", async () => {
         routeCheckName({ ...CONFLICT, existingFileGuid: null })
         mockPostForm.mockResolvedValue({ success: true, result: cmsFile("n3", "report.pdf") })

@@ -29,7 +29,13 @@ export function createSpaRouter(routes: RouteRecordRaw[]): Router {
             if (to.hash && (to.path !== from.path || to.hash !== from.hash)) {
                 return { el: to.hash }
             }
-            return to.path === from.path ? false : { left: 0, top: 0 }
+            // Same page, same fragment: a query-only change, so hold the reader's place.
+            // Dropping a fragment (/page#section -> /page) falls through to the top instead,
+            // which would otherwise leave the page parked at the old anchor.
+            if (to.path === from.path && to.hash === from.hash) {
+                return false
+            }
+            return { left: 0, top: 0 }
         },
         history: createWebHistory(baseUrl),
         routes,

@@ -20,7 +20,12 @@ export function useContentDiffViewer() {
         hasChanges: true,
     })
 
-    function openViewer(title: string) {
+    // Every open takes the next token, and the finishers no-op unless they still hold it. Diff
+    // loads are multi-step and cancellable (dismiss the dialog, open another row), so without
+    // this a slow first response lands in - or closes - the dialog a later one already owns.
+    let currentToken = 0
+
+    function openViewer(title: string): number {
         viewer.value = {
             open: true,
             loading: true,
@@ -30,9 +35,14 @@ export function useContentDiffViewer() {
             hasComparison: true,
             hasChanges: true,
         }
+        currentToken += 1
+        return currentToken
     }
 
-    function applyDiff(diff: CmsContentHistoryDiff, subtitle: string) {
+    function applyDiff(token: number, diff: CmsContentHistoryDiff, subtitle: string) {
+        if (token !== currentToken) {
+            return
+        }
         viewer.value.content = diff.content
         viewer.value.hasComparison = diff.hasComparison
         viewer.value.hasChanges = diff.hasChanges
@@ -40,14 +50,20 @@ export function useContentDiffViewer() {
         viewer.value.loading = false
     }
 
-    function closeViewer() {
+    function closeViewer(token: number) {
+        if (token !== currentToken) {
+            return
+        }
         viewer.value.open = false
         viewer.value.loading = false
     }
 
-    function failViewer(message: string) {
+    function failViewer(token: number, message: string) {
+        if (token !== currentToken) {
+            return
+        }
         $q.notify({ type: "negative", message })
-        closeViewer()
+        closeViewer(token)
     }
 
     function diffStamp(on: string | null, by: string | null): string {

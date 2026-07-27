@@ -313,6 +313,7 @@ import { computed, inject, nextTick, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { useServerTable } from "@/CMS/composables/use-server-table"
 import StatusBadge from "@/components/StatusBadge.vue"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
@@ -329,6 +330,7 @@ const apiURL = inject("apiURL") + "cms/files/"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const { get, del, post, createUrlSearchParams } = useFetch()
 
 const ALL_FOLDERS = "All"
@@ -487,12 +489,12 @@ function openEditDialog(file: CmsFile) {
 }
 
 async function deleteFile(file: CmsFile) {
-    const confirmed = await confirmAction(
-        "Delete File",
-        `Mark "${file.friendlyName}" as deleted? It can be restored later.`,
-        "Delete",
-        "negative",
-    )
+    const confirmed = await confirmAction({
+        title: "Delete File",
+        message: `Mark "${file.friendlyName}" as deleted? It can be restored later.`,
+        okLabel: "Delete",
+        okColor: "negative",
+    })
     if (!confirmed) return
     const res = await del(apiURL + file.fileGuid)
     if (!res.success) {
@@ -511,21 +513,6 @@ async function restoreFile(file: CmsFile) {
     }
     $q.notify({ type: "positive", message: "File restored" })
     reload()
-}
-
-async function confirmAction(title: string, message: string, okLabel: string, okColor = "primary") {
-    return await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title,
-            message,
-            cancel: { label: "Cancel", flat: true },
-            persistent: true,
-            ok: { label: okLabel, color: okColor, unelevated: true },
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
-    })
 }
 
 function formatDate(value: string | null): string {

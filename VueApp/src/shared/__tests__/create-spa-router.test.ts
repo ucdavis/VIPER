@@ -40,6 +40,12 @@ describe("createSpaRouter scroll behavior", () => {
     it("keeps scroll position for query-only changes when the hash is unchanged", () => {
         expect(scrollBehavior(route("/a", "#section"), route("/a", "#section"), null)).toBeFalsy()
     })
+
+    it("scrolls to top when a fragment is removed from the current page", () => {
+        // Without this the page stays parked at the old anchor: there is no hash to scroll to,
+        // and same-path navigation otherwise means "keep the reader's place".
+        expect(scrollBehavior(route("/a"), route("/a", "#section"), null)).toStrictEqual({ left: 0, top: 0 })
+    })
 })
 
 describe("route-change focus management", () => {

@@ -127,6 +127,15 @@ describe("SortableList - drag commit", () => {
     it("announces and emits reorder when a drag ends (the array is already reordered by SortableJS)", async () => {
         const { wrapper } = mountList(threeItems())
 
+        // SortableJS mutates the bound array before `end` fires, so the mock has to do the same:
+        // reading newIndex off the pre-drop order would report the wrong row as the dragged one.
+        await wrapper.setProps({
+            modelValue: [
+                { id: 2, label: "Bravo" },
+                { id: 3, label: "Charlie" },
+                { id: 1, label: "Alpha" },
+            ],
+        })
         wrapper.findComponent({ name: "VueDraggable" }).vm.$emit("end", { oldIndex: 0, newIndex: 2 })
         await nextTick()
         await nextTick()
@@ -134,7 +143,7 @@ describe("SortableList - drag commit", () => {
         // CommitDrag doesn't move anything itself; it reports the item now sitting at newIndex.
         const events = wrapper.emitted("reorder")
         expect(events).toHaveLength(1)
-        expect(events![0]).toEqual([{ id: 3, label: "Charlie" }, 2, 0])
+        expect(events![0]).toEqual([{ id: 1, label: "Alpha" }, 2, 0])
         expect(wrapper.find('[role="status"]').text()).toBe("Moved to position 3 of 3")
     })
 
