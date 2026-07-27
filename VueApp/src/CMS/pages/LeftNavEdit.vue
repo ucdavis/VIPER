@@ -223,6 +223,7 @@ import { computed, inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import SortableList from "@/components/SortableList.vue"
@@ -238,6 +239,7 @@ const apiURL = inject("apiURL") + "cms/left-navs"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const { get, post, put } = useFetch()
 
 const menuId = computed(() => (route.params.id ? Number(route.params.id) : null))
@@ -297,17 +299,12 @@ onBeforeRouteLeave(async () => {
 })
 
 function confirmLeave(): Promise<boolean> {
-    return new Promise((resolve) => {
-        $q.dialog({
-            title: "Unsaved Changes",
-            message: "This menu has unsaved changes. Leave without saving?",
-            cancel: { label: "Keep Editing", flat: true },
-            ok: { label: "Leave", color: "negative", unelevated: true },
-            persistent: true,
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
+    return confirmAction({
+        title: "Unsaved Changes",
+        message: "This menu has unsaved changes. Leave without saving?",
+        okLabel: "Leave",
+        okColor: "negative",
+        cancelLabel: "Keep Editing",
     })
 }
 

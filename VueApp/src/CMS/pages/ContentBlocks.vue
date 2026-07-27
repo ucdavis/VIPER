@@ -233,6 +233,7 @@ import { computed, inject, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { useServerTable } from "@/CMS/composables/use-server-table"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
 import EditButton from "@/CMS/components/EditButton.vue"
@@ -247,6 +248,7 @@ const apiURL = inject("apiURL") + "CMS/content"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const { get, del, post } = useFetch()
 
 const sectionPaths = ref<string[]>([])
@@ -339,17 +341,11 @@ async function loadSectionPaths() {
 }
 
 async function deleteBlock(block: CmsContentBlock) {
-    const confirmed = await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title: "Delete Content Block",
-            message: `Mark "${block.title}" as deleted? It can be restored later.`,
-            cancel: { label: "Cancel", flat: true },
-            persistent: true,
-            ok: { label: "Delete", color: "negative", unelevated: true },
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
+    const confirmed = await confirmAction({
+        title: "Delete Content Block",
+        message: `Mark "${block.title}" as deleted? It can be restored later.`,
+        okLabel: "Delete",
+        okColor: "negative",
     })
     if (!confirmed) return
     const res = await del(apiURL + "/" + block.contentBlockId)

@@ -401,6 +401,7 @@ import { useQuasar } from "quasar"
 import type { Ref } from "vue"
 import type { LinkCollection, Link, LinkCollectionTagCategory, LinkWithTags } from "@/CMS/types/"
 import { useFetch } from "@/composables/ViperFetch"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import EditButton from "@/CMS/components/EditButton.vue"
 import SortableList from "@/components/SortableList.vue"
@@ -409,6 +410,7 @@ import { isSafeUrl } from "@/CMS/utils/url"
 
 const apiURL = (inject("apiURL") + "cms/linkCollections/") as string
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const collections: Ref<LinkCollection[]> = ref([])
 const collectionId: Ref<number | null> = ref(null)
 const collection: Ref<LinkCollection | null> = ref(null)
@@ -573,12 +575,12 @@ async function saveCollection() {
 }
 
 async function deleteCollection() {
-    const confirmed = await confirmAction(
-        "Delete Collection",
-        "This will remove the collection and all its links. Continue?",
-        "Delete Collection",
-        "negative",
-    )
+    const confirmed = await confirmAction({
+        title: "Delete Collection",
+        message: "This will remove the collection and all its links. Continue?",
+        okLabel: "Delete Collection",
+        okColor: "negative",
+    })
     if (!confirmed) return
     const { del } = useFetch()
     const res = await del(apiURL + collection.value?.linkCollectionId)
@@ -717,12 +719,12 @@ async function cancelLinkDialog() {
 }
 
 async function deleteLink() {
-    const confirmed = await confirmAction(
-        "Delete Link",
-        "This will permanently remove this link. Continue?",
-        "Delete Link",
-        "negative",
-    )
+    const confirmed = await confirmAction({
+        title: "Delete Link",
+        message: "This will permanently remove this link. Continue?",
+        okLabel: "Delete Link",
+        okColor: "negative",
+    })
     if (!confirmed) return
     const { del } = useFetch()
     const res = await del(apiURL + collectionId.value + "/links/" + link.value.linkId)
@@ -738,12 +740,12 @@ async function deleteLink() {
 
 // Row-level delete (the dialog keeps its own Delete for the link being edited).
 async function deleteLinkRow(li: LinkWithTags) {
-    const confirmed = await confirmAction(
-        "Delete Link",
-        `This will permanently remove "${li.title}". Continue?`,
-        "Delete Link",
-        "negative",
-    )
+    const confirmed = await confirmAction({
+        title: "Delete Link",
+        message: `This will permanently remove "${li.title}". Continue?`,
+        okLabel: "Delete Link",
+        okColor: "negative",
+    })
     if (!confirmed) return
     const { del } = useFetch()
     const res = await del(apiURL + collectionId.value + "/links/" + li.linkId)
@@ -753,28 +755,6 @@ async function deleteLinkRow(li: LinkWithTags) {
     }
     $q.notify({ type: "positive", message: "Link deleted" })
     loadLinks()
-}
-
-async function confirmAction(title: string, message: string, okLabel: string, okColor = "primary") {
-    return await new Promise<boolean>((resolve) => {
-        $q.dialog({
-            title,
-            message,
-            cancel: {
-                label: "Cancel",
-                flat: true,
-            },
-            persistent: true,
-            ok: {
-                label: okLabel,
-                color: okColor,
-                unelevated: true,
-            },
-        })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false))
-            .onDismiss(() => resolve(false))
-    })
 }
 
 async function linkOrder() {
