@@ -41,7 +41,7 @@
     "devDependencies": {
         "@double-great/stylelint-a11y": "^3.4.15",
         "@eslint/js": "^10.0.0",
-        "concurrently": "^10.0.3",
+        "concurrently": "^10.0.4",
         "cross-env": "^10.0.0",
         "eslint": "^10.5.0",
         "eslint-plugin-html": "^8.1.4",
