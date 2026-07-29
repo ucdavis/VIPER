@@ -1,4 +1,4 @@
-﻿namespace Viper.Areas.Directory.Models
+namespace Viper.Areas.Directory.Models
 {
     public class UCPathResult
     {

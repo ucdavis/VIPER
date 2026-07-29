@@ -1,5 +1,3 @@
-using Viper.Models.AAUD;
-using Viper.Areas.RAPS.Models;
 using Viper.Models.IAM;
 
 namespace Viper.Areas.Directory.Models

@@ -13,6 +13,7 @@ using Web.Authorization;
 namespace Viper.Areas.Directory.Controllers
 {
     [Area("Directory")]
+    [Route("[area]")]
     [Permission(Allow = "SVMSecure")]
     [Authorize(Roles = "VMDO SVM-IT")] //locking directory for now until it's complete
     public class DirectoryController : AreaController
@@ -31,7 +32,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Directory home page
         /// </summary>
-        [Route("/[area]/")]
+        [Route("")]
         public async Task<ActionResult> Index(string? useExample)
         {
             return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser()));
@@ -40,7 +41,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Directory home page
         /// </summary>
-        [Route("/[area]/nav")]
+        [Route("nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
             var nav = new List<NavMenuItem>();
@@ -53,7 +54,7 @@ namespace Viper.Areas.Directory.Controllers
         /// </summary>
         /// <param name="search">search string</param>
         [SupportedOSPlatform("windows")]
-        [Route("/[area]/search/{search}")]
+        [Route("search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
         {
             var individuals = await _aaud.AaudUsers
@@ -97,7 +98,7 @@ namespace Viper.Areas.Directory.Controllers
         /// </summary>
         /// <param name="search">search string</param>
         [SupportedOSPlatform("windows")]
-        [Route("/[area]/search/{search}/ucd")]
+        [Route("search/{search}/ucd")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
         {
             List<IndividualSearchResult> results = new();

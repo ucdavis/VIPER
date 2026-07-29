@@ -132,7 +132,7 @@ namespace Viper.Classes.Utilities
                 return new LdapUserContact(results.Entries[0]);
             }
             return null;
-            }
+        }
 
 
         /// <summary>

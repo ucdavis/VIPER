@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Viper.Areas.Directory.Models
 {
     public class InstinctResult
