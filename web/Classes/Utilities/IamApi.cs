@@ -473,12 +473,13 @@ namespace Viper.Classes.Utilities
                 return null;
             }
 
-            foreach (var format in _formats)
+            var matchedDate = _formats
+                .Select(format => DateTime.TryParseExact(value, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate) ? (DateTime?)parsedDate : null)
+                .FirstOrDefault(d => d != null);
+
+            if (matchedDate != null)
             {
-                if (DateTime.TryParseExact(value, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var result))
-                {
-                    return result;
-                }
+                return matchedDate;
             }
 
             if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
