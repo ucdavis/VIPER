@@ -442,12 +442,14 @@ namespace Viper.Classes.Utilities
         /// https://ucdavis.jira.com/wiki/spaces/IAM/pages/688849434/IAM+Web+Services+IAM-WS#IAMWebServices(IAM-WS)-BasicResponseFormat
         /// </summary>
         /// <typeparam name="T"></typeparam>
+#pragma warning disable S1144 // Unused private types or members should be removed
         private sealed class IntermediateResponse<T> where T : IIamData
         {
             public string ResponseDetails { get; set; } = string.Empty;
             public int ResponseStatus { get; set; }
             public DataArray<T>? ResponseData { get; set; }
         }
+#pragma warning restore S1144
 
         /// <summary>
         /// Data array is an object with a single key - results - that contains an array of data (even for things that return one record)
@@ -473,13 +475,13 @@ namespace Viper.Classes.Utilities
 
             foreach (var format in _formats)
             {
-                if (DateTime.TryParseExact(value, format, null, System.Globalization.DateTimeStyles.None, out var result))
+                if (DateTime.TryParseExact(value, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var result))
                 {
                     return result;
                 }
             }
 
-            if (DateTime.TryParse(value, out var dt))
+            if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
             {
                 return dt;
             }
