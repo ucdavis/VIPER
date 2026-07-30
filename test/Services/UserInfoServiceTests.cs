@@ -21,7 +21,7 @@ namespace Viper.test.Services
             _output = output;
         }
 
-        private DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
+        private static DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
         {
             return new DbContextOptionsBuilder<TContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -125,7 +125,7 @@ namespace Viper.test.Services
                     EmpCbuc = ""
                 });
 
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using (var coursesSetup = new CoursesContext(coursesOptions))
@@ -142,7 +142,7 @@ namespace Viper.test.Services
                     TermCurrentTerm = true,
                     TermTermType = ""
                 });
-                await coursesSetup.SaveChangesAsync();
+                await coursesSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);

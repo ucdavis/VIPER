@@ -64,7 +64,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// UserInfo Page
         /// </summary>
-        /// <param name="id">MothraID</param>
+        /// <param name="mothraID">MothraID</param>
         /// <returns></returns>
         [Route("{mothraID}")]
         public async Task<ActionResult> UserInfo(string? mothraID)

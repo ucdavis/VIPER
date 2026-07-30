@@ -36,7 +36,7 @@ namespace Viper.test.Services
         }
 
         // Helper to construct DbContextOptions for InMemory providers
-        private DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
+        private static DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
         {
             return new DbContextOptionsBuilder<TContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -44,7 +44,7 @@ namespace Viper.test.Services
         }
 
         // Helper to construct a mocked IHttpClientFactory using custom handler
-        private IHttpClientFactory CreateMockHttpClientFactory(Func<HttpRequestMessage, HttpResponseMessage> handlerFunc)
+        private static IHttpClientFactory CreateMockHttpClientFactory(Func<HttpRequestMessage, HttpResponseMessage> handlerFunc)
         {
             var factory = Substitute.For<IHttpClientFactory>();
             factory.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient(new MockHttpMessageHandler(handlerFunc)));
@@ -115,8 +115,8 @@ namespace Viper.test.Services
             var aaudOptions = CreateInMemoryOptions<AAUDContext>();
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
-                aaudSetup.AaudUsers.Add(CreateTestUser("iam-123", "mothra-123", "testuser", employeeId: "emp-123", pidm: "pidm-123", displayFullName: "Test User"));
-                await aaudSetup.SaveChangesAsync();
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-123", "mothra-123", employeeId: "emp-123", pidm: "pidm-123", displayFullName: "Test User"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -167,7 +167,7 @@ namespace Viper.test.Services
                     EmpAltDeptCode = "",
                     EmpCbuc = ""
                 });
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using (var coursesSetup = new CoursesContext(coursesOptions))
@@ -184,7 +184,7 @@ namespace Viper.test.Services
                     TermCurrentTerm = true,
                     TermTermType = ""
                 });
-                await coursesSetup.SaveChangesAsync();
+                await coursesSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -222,7 +222,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-cards", "mothra-cards", "carduser"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var idcardsOptions = CreateInMemoryOptions<IDCardsContext>();
@@ -237,9 +237,9 @@ namespace Viper.test.Services
                     IdCardLine2 = "Line 2 Text",
                     IdCardCurrentStatus = "A",
                     IdcardDeactivatedReason = "L",
-                    IdCardAppliedDate = new DateTime(2026, 1, 1),
-                    IdCardIssueDate = new DateTime(2026, 1, 2),
-                    IdcardDeactivatedDate = new DateTime(2026, 6, 1)
+                    IdCardAppliedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
+                    IdCardIssueDate = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified),
+                    IdcardDeactivatedDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Unspecified)
                 });
                 idcardsSetup.DvtCardStatuses.Add(new DvtCardStatus
                 {
@@ -255,7 +255,7 @@ namespace Viper.test.Services
                     DvtReasonVoidable = "",
                     DvtReasonDupOk = ""
                 });
-                await idcardsSetup.SaveChangesAsync();
+                await idcardsSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -282,9 +282,9 @@ namespace Viper.test.Services
             Assert.Equal("Line 2 Text", card.Line2);
             Assert.Equal("Active Card Status", card.StatusDescription);
             Assert.Equal("Lost Card", card.DeactivatedReason);
-            Assert.Equal(new DateTime(2026, 1, 1), card.Applied);
-            Assert.Equal(new DateTime(2026, 1, 2), card.Issued);
-            Assert.Equal(new DateTime(2026, 6, 1), card.Deactivated);
+            Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), card.Applied);
+            Assert.Equal(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified), card.Issued);
+            Assert.Equal(new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Unspecified), card.Deactivated);
         }
 
         [Fact]
@@ -296,7 +296,7 @@ namespace Viper.test.Services
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-keys", "mothra-keys"));
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-issuer", "mothra-issuer", "issuer", displayFullName: "John KeyIssuer"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var keysOptions = CreateInMemoryOptions<KeysContext>();
@@ -314,11 +314,11 @@ namespace Viper.test.Services
                     KeyId = 202,
                     AssignedTo = "mothra-keys",
                     CutNumber = "C1",
-                    IssuedDate = new DateTime(2026, 3, 1),
+                    IssuedDate = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Unspecified),
                     IssuedBy = "mothra-issuer",
                     Deleted = null
                 });
-                await keysSetup.SaveChangesAsync();
+                await keysSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -342,7 +342,7 @@ namespace Viper.test.Services
             Assert.Equal("Main Gate Access", assignment.AccessDescription);
             Assert.Equal("K99", assignment.KeyNumber);
             Assert.Equal("C1", assignment.CutNumber);
-            Assert.Equal(new DateTime(2026, 3, 1), assignment.IssuedDate);
+            Assert.Equal(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Unspecified), assignment.IssuedDate);
             Assert.Equal("John KeyIssuer", assignment.IssuedBy);
         }
 
@@ -354,7 +354,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-loans", "mothra-loans", pidm: "pidm-loans"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var loansOptions = CreateInMemoryOptions<EquipmentLoanContext>();
@@ -365,8 +365,8 @@ namespace Viper.test.Services
                     LoanId = 505,
                     LoanPidm = "pidm-loans",
                     LoanTechPidm = "tech-pidm-loans",
-                    LoanDate = new DateTime(2026, 5, 1),
-                    LoanDueDate = new DateTime(2026, 5, 10),
+                    LoanDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Unspecified),
+                    LoanDueDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Unspecified),
                     LoanComments = "Projector Loan"
                 };
                 loansSetup.Loans.Add(newLoan);
@@ -388,7 +388,7 @@ namespace Viper.test.Services
                     LoanitemCheckoutPidm = "checkout-pidm"
                 });
 
-                await loansSetup.SaveChangesAsync();
+                await loansSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -410,8 +410,8 @@ namespace Viper.test.Services
             Assert.Single(result.Loans);
             var loanResult = result.Loans[0];
             Assert.Equal("Epson Projector 4K", loanResult.AssetName);
-            Assert.Equal(new DateTime(2026, 5, 1), loanResult.LoanDate);
-            Assert.Equal(new DateTime(2026, 5, 10), loanResult.DueDate);
+            Assert.Equal(new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Unspecified), loanResult.LoanDate);
+            Assert.Equal(new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Unspecified), loanResult.DueDate);
             Assert.Equal("Projector Loan", loanResult.Comments);
         }
 
@@ -423,7 +423,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-raps", "mothra-raps"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var rapsOptions = CreateInMemoryOptions<RAPSContext>();
@@ -475,7 +475,7 @@ namespace Viper.test.Services
                     EndDate = null
                 });
 
-                await rapsSetup.SaveChangesAsync();
+                await rapsSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -520,7 +520,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-caller", "mothra-caller"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             // Mock responses for SearchForPerson (iam/people/search) and GetEmployeeAssociations (iam/associations/pps/{iamId})
@@ -613,7 +613,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-inst", "mothra-inst", firstName: "Jane", lastName: "Doe", middleName: "Alex"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             // HTTP Mock for token request and graphql user lookup
@@ -691,7 +691,7 @@ namespace Viper.test.Services
         [Fact]
         public async Task TestGetEmployeeAssociationsDirectly()
         {
-            var httpFactory = CreateMockHttpClientFactory(request =>
+            var httpFactory = CreateMockHttpClientFactory(_ =>
             {
                 var json = @"
                 {
@@ -726,7 +726,7 @@ namespace Viper.test.Services
         [Fact]
         public async Task TestDeserializeCorePersonDirectly()
         {
-            var httpFactory = CreateMockHttpClientFactory(request =>
+            var httpFactory = CreateMockHttpClientFactory(_ =>
             {
                 var json = @"
                 {

@@ -1105,9 +1105,10 @@ namespace Viper.Areas.Directory.Services
             foreach (var system in systems)
             {
                 // Filter roles belonging to the current system/instance
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                 var filteredRoles = roleMembers
                     .Where(rm => rm.Role != null && RAPSSecurityService.RoleBelongsToInstance(system, rm.Role))
-                    .Select(rm => rm.Role!)
+                    .Select(rm => rm.Role)
                     .OrderBy(r => r.DisplayName ?? r.Role);
 
                 foreach (var role in filteredRoles)
@@ -1407,6 +1408,7 @@ namespace Viper.Areas.Directory.Services
 
                 if (reportsTo != null)
                 {
+                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                     return reportsTo.JobcodeDesc ?? string.Empty;
                 }
 
@@ -1417,6 +1419,7 @@ namespace Viper.Areas.Directory.Services
 
                 if (currentReportsTo != null)
                 {
+                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                     return currentReportsTo.JobcodeDesc ?? string.Empty;
                 }
             }
@@ -1621,6 +1624,7 @@ namespace Viper.Areas.Directory.Services
             {
                 var uinformService = new UinformService();
                 var adUser = await uinformService.GetUser(samAccountName: result.LoginId);
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                 if (adUser != null && !string.IsNullOrEmpty(adUser.SamAccountName))
                 {
                     result.ADDisplayName = adUser.DisplayName;
@@ -2019,6 +2023,7 @@ namespace Viper.Areas.Directory.Services
         public string? Username { get; set; }
 
         [JsonPropertyName("roles")]
+        // ReSharper disable once CollectionNeverUpdated.Global
         public List<InstinctRole>? Roles { get; set; }
     }
 
