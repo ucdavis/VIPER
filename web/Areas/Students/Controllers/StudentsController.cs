@@ -38,6 +38,7 @@ namespace Viper.Areas.Students.Controllers
         }
 #pragma warning restore S6967
 
+        [NonAction]
         public NavMenu Nav()
         {
             var menu = new LeftNavMenu(_viperContext, _rapsContext).GetLeftNavMenus(friendlyName: "viper-students")?.FirstOrDefault();
