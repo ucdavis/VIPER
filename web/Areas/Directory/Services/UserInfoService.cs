@@ -92,7 +92,10 @@ namespace Viper.Areas.Directory.Services
             await PopulateIDCardsAsync(result);
             await PopulateKeysAsync(result);
             await PopulateLoansAsync(result);
-            await PopulateInstinctInfoAsync(result, individual);
+            if (individual != null)
+            {
+                await PopulateInstinctInfoAsync(result, individual);
+            }
             await PopulateActiveDirectoryInfoAsync(result);
 
             return result;
@@ -1791,7 +1794,10 @@ namespace Viper.Areas.Directory.Services
                         result.PasswordExpiresAt = matchedUser.PasswordExpiresAt;
                         result.Status = matchedUser.Status;
                         result.Username = matchedUser.Username;
-                        result.Roles = matchedUser.Roles?.Select(r => r.Label).ToList() ?? new List<string>();
+                        result.Roles = matchedUser.Roles?
+                            .Where(r => r.Label != null)
+                            .Select(r => r.Label!)
+                            .ToList() ?? new List<string>();
                         foundMatch = true;
                     }
                     if (!foundMatch)

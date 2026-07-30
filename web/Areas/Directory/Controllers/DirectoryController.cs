@@ -58,6 +58,10 @@ namespace Viper.Areas.Directory.Controllers
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetFromQuery([FromQuery] string search, [FromQuery] bool ucd = false)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             if (string.IsNullOrWhiteSpace(search))
             {
                 return Ok(new List<IndividualSearchResult>());
@@ -104,11 +108,7 @@ namespace Viper.Areas.Directory.Controllers
                 results.Add(result);
 
                 var vmsearch = VMACSService.Search(result.LoginId);
-                var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
-                if (vm != null && vm.item != null && vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
-                if (vm != null && vm.item != null && vm.item.Unit != null) result.Department = vm.item.Unit[0];
-
+                PopulateVmacsDetails(result, vmsearch.Result);
             });
             return results;
         }
@@ -149,10 +149,7 @@ namespace Viper.Areas.Directory.Controllers
                 results.Add(result);
 
                 var vmsearch = VMACSService.Search(result.LoginId);
-                var vm = vmsearch.Result;
-                if (vm != null && vm.item != null && vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
-                if (vm != null && vm.item != null && vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
-                if (vm != null && vm.item != null && vm.item.Unit != null) result.Department = vm.item.Unit[0];
+                PopulateVmacsDetails(result, vmsearch.Result);
             }
 
             return results;
@@ -169,6 +166,17 @@ namespace Viper.Areas.Directory.Controllers
             return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
         }
 
+        private static void PopulateVmacsDetails(IndividualSearchResult result, VMACSQuery? vm)
+        {
+            if (vm?.item != null)
+            {
+                if (vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
+                if (vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
+                if (vm.item.Unit != null) result.Department = vm.item.Unit[0];
+            }
+        }
+
+        [NonAction]
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                                          ActionExecutionDelegate next)
         {

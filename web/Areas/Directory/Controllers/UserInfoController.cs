@@ -78,7 +78,7 @@ namespace Viper.Areas.Directory.Controllers
             {
                 // Check if user is viewing their own page
                 var currentUser = _userHelper.GetCurrentUser();
-                bool ownPage = mothraID == currentUser.MothraId;
+                bool ownPage = currentUser != null && mothraID == currentUser.MothraId;
                 var individual = await _aaud.AaudUsers.Where(u => (u.MothraId == mothraID)).FirstOrDefaultAsync();
                 string? iamId = null;
                 if (individual != null) iamId = individual.IamId;
@@ -142,6 +142,7 @@ namespace Viper.Areas.Directory.Controllers
             return await Task.Run(() => nav);
         }
 
+        [NonAction]
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                                          ActionExecutionDelegate next)
         {
