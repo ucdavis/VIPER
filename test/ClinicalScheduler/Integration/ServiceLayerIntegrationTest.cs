@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.ClinicalScheduler.Extensions;
 using Viper.Areas.ClinicalScheduler.Models.DTOs.Responses;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.CTS.Models;
+using Viper.Classes.SQLContext;
 using Viper.Models.ClinicalScheduler;
 using CtsModels = Viper.Models.CTS;
 
@@ -16,6 +18,10 @@ namespace Viper.test.ClinicalScheduler.Integration
     /// </summary>
     public class ServiceLayerIntegrationTest : IntegrationTestBase
     {
+        private static readonly DateTime ScheduleStart = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Local);
+        private static readonly DateTime ScheduleEnd = new(2024, 1, 7, 0, 0, 0, DateTimeKind.Local);
+
+        private readonly VIPERContext _viperContext;
         private readonly IStudentScheduleService _studentScheduleService;
         private readonly IInstructorScheduleService _instructorScheduleService;
         private readonly ClinicalScheduleService _clinicalScheduleService;
@@ -24,142 +30,18 @@ namespace Viper.test.ClinicalScheduler.Integration
 
         public ServiceLayerIntegrationTest()
         {
+            // The schedule services read VIPERContext, which IntegrationTestBase does not supply.
+            // Give them a real in-memory one so these tests exercise the services themselves.
+            // A stub here would let the suite stay green with the services broken.
+            _viperContext = new VIPERContext(
+                new DbContextOptionsBuilder<VIPERContext>()
+                    .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                    .Options);
 
-            // Create mock services since actual services require VIPERContext
-            // Note: studentLogger not used since we're mocking the service
-            var mockStudentService = Substitute.For<IStudentScheduleService>();
-            mockStudentService.GetStudentScheduleAsync(
-                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
-                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
-                .Returns(callInfo =>
-                {
-                    var mothraId = callInfo.ArgAt<string>(1);
-                    var rotationId = callInfo.ArgAt<int?>(2);
-                    var weekId = callInfo.ArgAt<int?>(4);
-
-                    // Return mock data that matches the test scenarios
-                    var mockData = new List<ClinicalScheduledStudent>();
-
-                    // Add mock student data that matches the test expectations
-                    if ((rotationId == null || rotationId == CardiologyRotationId) &&
-                        (mothraId == null || mothraId == "12345") &&
-                        (weekId == null || weekId == 1))
-                    {
-                        mockData.Add(new ClinicalScheduledStudent
-                        {
-                            MothraId = "12345",
-                            FirstName = "Student",
-                            LastName = "One",
-                            FullName = "Student One",
-                            ServiceId = CardiologyServiceId,
-                            RotationId = CardiologyRotationId,
-                            WeekId = 1,
-                            ServiceName = "Cardiology Service",
-                            RotationName = "Cardiology",
-                            DateStart = DateTime.Now.AddDays(-1),
-                            DateEnd = DateTime.Now.AddDays(5)
-                        });
-                    }
-
-                    // Add mock data for rotation ID 300 tests
-                    if ((rotationId == null || rotationId == 300) &&
-                        (mothraId == null || mothraId == "12345") &&
-                        (weekId == null || weekId == 10))
-                    {
-                        mockData.Add(new ClinicalScheduledStudent
-                        {
-                            MothraId = "12345",
-                            FirstName = "Student",
-                            LastName = "One",
-                            FullName = "Student One",
-                            ServiceId = CardiologyServiceId,
-                            RotationId = 300,
-                            WeekId = 10,
-                            ServiceName = "Test Service",
-                            RotationName = "Test Rotation",
-                            DateStart = DateTime.Now.AddDays(-1),
-                            DateEnd = DateTime.Now.AddDays(5)
-                        });
-                    }
-
-                    return Task.FromResult(mockData);
-                });
-            _studentScheduleService = mockStudentService;
-
-            // Note: instructorLogger not used since we're mocking the service
-            var mockInstructorService = Substitute.For<IInstructorScheduleService>();
-            mockInstructorService.GetInstructorScheduleAsync(
-                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
-                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<bool?>())
-                .Returns(callInfo =>
-                {
-                    var mothraId = callInfo.ArgAt<string>(1);
-                    var rotationId = callInfo.ArgAt<int?>(2);
-                    var weekId = callInfo.ArgAt<int?>(4);
-
-                    // Return mock data that matches the test scenarios
-                    var mockData = new List<CtsModels.InstructorSchedule>();
-
-                    // Add mock instructor data that matches the test expectations
-                    if ((rotationId == null || rotationId == CardiologyRotationId) &&
-                        (mothraId == null || mothraId == "instructor1") &&
-                        (weekId == null || weekId == 1))
-                    {
-                        mockData.Add(new CtsModels.InstructorSchedule
-                        {
-                            InstructorScheduleId = 101,
-                            MothraId = "instructor1",
-                            RotationId = CardiologyRotationId,
-                            WeekId = 1,
-                            Evaluator = true
-                        });
-                    }
-
-                    // Add mock data for SurgeryRotationId tests
-                    if ((rotationId == null || rotationId == SurgeryRotationId) &&
-                        (mothraId == null || mothraId == "instructor1") &&
-                        (weekId == null || weekId == 1))
-                    {
-                        mockData.Add(new CtsModels.InstructorSchedule
-                        {
-                            InstructorScheduleId = 102,
-                            MothraId = "instructor1",
-                            RotationId = SurgeryRotationId,
-                            WeekId = 1,
-                            Evaluator = true
-                        });
-                    }
-
-                    // Add mock data for rotation ID 300 tests - return both instructors when querying rotation 300
-                    if ((rotationId == null || rotationId == 300))
-                    {
-                        if (weekId == null || weekId == 10)
-                        {
-                            mockData.Add(new CtsModels.InstructorSchedule
-                            {
-                                InstructorScheduleId = 301,
-                                MothraId = "instructor1",
-                                RotationId = 300,
-                                WeekId = 10,
-                                Evaluator = true
-                            });
-                        }
-                        if (weekId == null || weekId == 11)
-                        {
-                            mockData.Add(new CtsModels.InstructorSchedule
-                            {
-                                InstructorScheduleId = 302,
-                                MothraId = "instructor2",
-                                RotationId = 300,
-                                WeekId = 11,
-                                Evaluator = false
-                            });
-                        }
-                    }
-
-                    return Task.FromResult(mockData);
-                });
-            _instructorScheduleService = mockInstructorService;
+            _studentScheduleService = new StudentScheduleService(
+                _viperContext, Substitute.For<ILogger<StudentScheduleService>>());
+            _instructorScheduleService = new InstructorScheduleService(
+                _viperContext, Substitute.For<ILogger<InstructorScheduleService>>());
 
             _clinicalScheduleService = new ClinicalScheduleService(
                 _studentScheduleService,
@@ -173,23 +55,107 @@ namespace Viper.test.ClinicalScheduler.Integration
             _evaluationPolicyService = new EvaluationPolicyService();
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _viperContext.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Both services Include Week, Service and Rotation, so those rows must exist for a
+        /// schedule row to come back at all. Adds each only once per context.
+        /// </summary>
+        private void EnsureScheduleReferenceRows(int weekId, int rotationId)
+        {
+            if (_viperContext.Services.Local.All(s => s.ServiceId != CardiologyServiceId))
+            {
+                _viperContext.Services.Add(new CtsModels.Service
+                {
+                    ServiceId = CardiologyServiceId,
+                    ServiceName = "Cardiology Service",
+                    ShortName = "CARD"
+                });
+            }
+            if (_viperContext.Weeks.Local.All(w => w.WeekId != weekId))
+            {
+                _viperContext.Weeks.Add(new CtsModels.Week
+                {
+                    WeekId = weekId,
+                    DateStart = ScheduleStart,
+                    DateEnd = ScheduleEnd
+                });
+            }
+            if (_viperContext.Rotations.Local.All(r => r.RotId != rotationId))
+            {
+                _viperContext.Rotations.Add(new CtsModels.Rotation
+                {
+                    RotId = rotationId,
+                    ServiceId = CardiologyServiceId,
+                    Name = $"Rotation {rotationId}",
+                    Abbreviation = $"R{rotationId}"
+                });
+            }
+        }
+
+        private void AddInstructorSchedule(int id, string mothraId, int rotationId, int weekId, bool evaluator,
+            string lastName = "Instructor", string firstName = "Test")
+        {
+            EnsureScheduleReferenceRows(weekId, rotationId);
+            _viperContext.InstructorSchedules.Add(new CtsModels.InstructorSchedule
+            {
+                InstructorScheduleId = id,
+                MothraId = mothraId,
+                RotationId = rotationId,
+                ServiceId = CardiologyServiceId,
+                WeekId = weekId,
+                Evaluator = evaluator,
+                LastName = lastName,
+                FirstName = firstName,
+                FullName = $"{firstName} {lastName}",
+                RotationName = $"Rotation {rotationId}",
+                Abbreviation = $"R{rotationId}",
+                ServiceName = "Cardiology Service",
+                DateStart = ScheduleStart,
+                DateEnd = ScheduleEnd
+            });
+        }
+
+        private void AddStudentSchedule(int id, string mothraId, int rotationId, int weekId,
+            string lastName = "Student", string firstName = "Test")
+        {
+            EnsureScheduleReferenceRows(weekId, rotationId);
+            _viperContext.StudentSchedules.Add(new CtsModels.StudentSchedule
+            {
+                StudentScheduleId = id,
+                PersonId = id,
+                MothraId = mothraId,
+                RotationId = rotationId,
+                ServiceId = CardiologyServiceId,
+                WeekId = weekId,
+                LastName = lastName,
+                FirstName = firstName,
+                FullName = $"{firstName} {lastName}",
+                RotationName = $"Rotation {rotationId}",
+                Abbreviation = $"R{rotationId}",
+                ServiceName = "Cardiology Service",
+                DateStart = ScheduleStart,
+                DateEnd = ScheduleEnd
+            });
+        }
+
         [Fact]
         public async Task ServiceDecomposition_StudentScheduleService_WorksIndependently()
         {
-            // Arrange - Setup mock to return test data
-            var testStudent = new ClinicalScheduledStudent
-            {
-                MothraId = "student1"
-            };
-
-            var mockService = Substitute.For<IStudentScheduleService>();
-            mockService.GetStudentScheduleAsync(
-                Arg.Any<int?>(), Arg.Any<string>(), CardiologyRotationId, Arg.Any<int?>(),
-                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
-                .Returns(new List<ClinicalScheduledStudent> { testStudent });
+            // Arrange - two rotations, so the assertion proves the filter rather than the seed
+            AddStudentSchedule(1, "student1", CardiologyRotationId, weekId: 1);
+            AddStudentSchedule(2, "student2", SurgeryRotationId, weekId: 1);
+            await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act
-            var schedules = await mockService.GetStudentScheduleAsync(
+            var schedules = await _studentScheduleService.GetStudentScheduleAsync(
                 classYear: null,
                 mothraId: null,
                 rotationId: CardiologyRotationId,
@@ -200,25 +166,18 @@ namespace Viper.test.ClinicalScheduler.Integration
             );
 
             // Assert
-            Assert.NotEmpty(schedules);
             Assert.Single(schedules);
             Assert.Equal("student1", schedules[0].MothraId);
+            Assert.Equal(CardiologyRotationId, schedules[0].RotationId);
         }
 
         [Fact]
         public async Task ServiceDecomposition_InstructorScheduleService_WorksIndependently()
         {
-            // Arrange
-            var instructorSchedule = new InstructorSchedule
-            {
-                InstructorScheduleId = 10,
-                MothraId = "instructor1",
-                RotationId = SurgeryRotationId,
-                WeekId = 1,
-                Evaluator = true
-            };
-            Context.InstructorSchedules.Add(instructorSchedule);
-            await Context.SaveChangesAsync();
+            // Arrange - a second instructor on the same rotation keeps the mothraId filter honest
+            AddInstructorSchedule(10, "instructor1", SurgeryRotationId, weekId: 1, evaluator: true);
+            AddInstructorSchedule(11, "instructor2", SurgeryRotationId, weekId: 1, evaluator: false);
+            await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Use InstructorScheduleService directly (methods signatures are different)
             var schedules = await _instructorScheduleService.GetInstructorScheduleAsync(
@@ -244,12 +203,25 @@ namespace Viper.test.ClinicalScheduler.Integration
         [Fact]
         public async Task ClinicalScheduleService_DelegatesToNewServices_ForBackwardCompatibility()
         {
-            // Arrange - Test data is provided by mocked services
-            // The test focuses on service delegation, not actual data
-            await Context.SaveChangesAsync();
+            // Arrange - collaborators are mocked on purpose here. This test is about whether
+            // ClinicalScheduleService forwards to them, not about their queries, so it builds its
+            // own doubles rather than using the real services the other tests exercise.
+            var studentService = Substitute.For<IStudentScheduleService>();
+            studentService.GetStudentScheduleAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
+                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
+                .Returns(new List<ClinicalScheduledStudent> { new() { MothraId = "12345" } });
+
+            var instructorService = Substitute.For<IInstructorScheduleService>();
+            instructorService.GetInstructorScheduleAsync(
+                Arg.Any<int?>(), Arg.Any<string>(), Arg.Any<int?>(), Arg.Any<int?>(),
+                Arg.Any<int?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<bool?>())
+                .Returns(new List<CtsModels.InstructorSchedule> { new() { MothraId = "instructor1" } });
+
+            var delegatingService = new ClinicalScheduleService(studentService, instructorService);
 
             // Act - Use ClinicalScheduleService which should delegate
-            var studentSchedules = await _clinicalScheduleService.GetStudentSchedule(
+            var studentSchedules = await delegatingService.GetStudentSchedule(
                 classYear: null,
                 mothraId: null,
                 rotationId: CardiologyRotationId,
@@ -258,7 +230,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 startDate: null,
                 endDate: null
             );
-            var instructorSchedules = await _clinicalScheduleService.GetInstructorSchedule(
+            var instructorSchedules = await delegatingService.GetInstructorSchedule(
                 classYear: null,
                 mothraId: null,
                 rotationId: CardiologyRotationId,
@@ -269,9 +241,10 @@ namespace Viper.test.ClinicalScheduler.Integration
                 active: null
             );
 
-            // Assert - Verify delegation works correctly
-            Assert.NotEmpty(studentSchedules);
-            Assert.NotEmpty(instructorSchedules);
+            // Assert - the collaborators were called with the filter forwarded (every other
+            // argument matches its default), and their results came back untouched
+            await studentService.Received(1).GetStudentScheduleAsync(rotationId: CardiologyRotationId);
+            await instructorService.Received(1).GetInstructorScheduleAsync(rotationId: CardiologyRotationId);
             Assert.Equal("12345", studentSchedules[0].MothraId);
             Assert.Equal("instructor1", instructorSchedules[0].MothraId);
         }
@@ -359,52 +332,22 @@ namespace Viper.test.ClinicalScheduler.Integration
         [Fact]
         public async Task ServiceIntegration_CompleteScheduleManagement_Flow()
         {
-            // Arrange - Setup complete schedule scenario
-            var week1 = new Week { WeekId = 10, DateStart = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), DateEnd = new DateTime(2024, 1, 7, 0, 0, 0, DateTimeKind.Utc) };
-            var week2 = new Week { WeekId = 11, DateStart = new DateTime(2024, 1, 8, 0, 0, 0, DateTimeKind.Utc), DateEnd = new DateTime(2024, 1, 14, 0, 0, 0, DateTimeKind.Utc) };
-            Context.Weeks.AddRange(week1, week2);
-
-            var rotation = new Rotation
-            {
-                RotId = 300,
-                ServiceId = CardiologyServiceId,
-                Name = "Integration Test Rotation",
-                Abbreviation = "INT",
-                Active = true
-            };
-            Context.Rotations.Add(rotation);
-            await Context.SaveChangesAsync();
-
-            // Student schedule data would be added here if needed
-            // Currently the test uses mocked services that return test data
-
-            // Add instructor schedules
-            var instructorSchedule1 = new InstructorSchedule
-            {
-                InstructorScheduleId = 301,
-                MothraId = "instructor1",
-                RotationId = 300,
-                WeekId = 10,
-                Evaluator = true
-            };
-            var instructorSchedule2 = new InstructorSchedule
-            {
-                InstructorScheduleId = 302,
-                MothraId = "instructor2",
-                RotationId = 300,
-                WeekId = 11,
-                Evaluator = false
-            };
-            Context.InstructorSchedules.AddRange(instructorSchedule1, instructorSchedule2);
-            await Context.SaveChangesAsync();
+            // Arrange - one rotation spanning two weeks, plus a schedule on another rotation so
+            // the rotation and week filters have something to exclude
+            const int integrationRotationId = 300;
+            AddStudentSchedule(1, "12345", integrationRotationId, weekId: 10);
+            AddStudentSchedule(2, "67890", CardiologyRotationId, weekId: 11);
+            AddInstructorSchedule(301, "instructor1", integrationRotationId, weekId: 10, evaluator: true);
+            AddInstructorSchedule(302, "instructor2", integrationRotationId, weekId: 11, evaluator: false);
+            await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Test complete flow through services
             var rotationStudents = await _studentScheduleService.GetStudentScheduleAsync(
-                classYear: null, mothraId: null, rotationId: 300, serviceId: null,
+                classYear: null, mothraId: null, rotationId: integrationRotationId, serviceId: null,
                 weekId: null, startDate: null, endDate: null
             );
             var rotationInstructors = await _instructorScheduleService.GetInstructorScheduleAsync(
-                classYear: null, mothraId: null, rotationId: 300, serviceId: null,
+                classYear: null, mothraId: null, rotationId: integrationRotationId, serviceId: null,
                 weekId: null, startDate: null, endDate: null, active: null
             );
             var evaluators = rotationInstructors.Where(i => i.Evaluator).ToList();
@@ -487,16 +430,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             await _personService.GetClinicianFromAaudAsync("instructor1");
             // Person might be null if AAUD data is not seeded
 
-            var instructorSchedule = new InstructorSchedule
-            {
-                InstructorScheduleId = 401,
-                MothraId = "instructor1",
-                RotationId = CardiologyRotationId,
-                WeekId = 1,
-                Evaluator = true
-            };
-            Context.InstructorSchedules.Add(instructorSchedule);
-            await Context.SaveChangesAsync();
+            AddInstructorSchedule(401, "instructor1", CardiologyRotationId, weekId: 1, evaluator: true);
+            await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Verify data consistency across services
             var schedules = await _instructorScheduleService.GetInstructorScheduleAsync(
