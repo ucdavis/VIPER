@@ -49,6 +49,7 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 
 ## Testing & Git
 
+- **No VMACS production calls**: Unit tests, local environments, and test environments must NEVER send requests to the VMACS production server. All external HTTP requests (e.g., VMACS, Instinct, IAM API) must be mocked using in-memory databases and mock HTTP clients/factories to prevent production spam.
 - **UI**: Test UI changes with Playwright MCP (modals, forms, keyboard nav)
 - **API**: Use Playwright MCP to visit endpoints — APIs require browser auth, `curl` fails
 - **Git**: NEVER stage files until after code review. Workflow: changes → test → lint → summary → approval → stage

@@ -9,6 +9,8 @@ using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
 using Web.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Viper.Areas.CMS.Data;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -48,6 +50,24 @@ namespace Viper.Areas.Directory.Controllers
             return await Task.Run(() => nav);
         }
 
+
+        /// <summary>
+        /// Directory search via query parameters (handles special characters and avoids race conditions)
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetFromQuery([FromQuery] string search, [FromQuery] bool ucd = false)
+        {
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return Ok(new List<IndividualSearchResult>());
+            }
+            if (ucd)
+            {
+                return await GetUCD(search);
+            }
+            return await Get(search);
+        }
 
         /// <summary>
         /// Directory list
@@ -147,6 +167,20 @@ namespace Viper.Areas.Directory.Controllers
         {
             // pull in the user based on uid
             return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
+        }
+
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                                         ActionExecutionDelegate next)
+        {
+            var viperContext = context.HttpContext.RequestServices.GetRequiredService<VIPERContext>();
+            var rapsContext = context.HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+            var menu = new LeftNavMenu(viperContext, rapsContext).GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
+            if (menu != null)
+            {
+                ConvertNavLinksForDevelopment(menu);
+            }
+            ViewData["ViperLeftNav"] = menu ?? new NavMenu("", new List<NavMenuItem>());
+            await base.OnActionExecutionAsync(context, next);
         }
     }
 }

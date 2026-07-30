@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Viper.Areas.RAPS.Services;
+using System.Data.Common;
 
 namespace Viper.Areas.Directory.Services
 {
@@ -118,7 +119,7 @@ namespace Viper.Areas.Directory.Services
 
                 return await MapToUserInfoResultAsync(user, currentTerms);
             }
-            catch (Exception ex)
+            catch (DbException ex)
             {
                 Console.WriteLine($"Warning: GetUserByIamIdAsync failed: {ex.Message}");
                 return null;
@@ -145,7 +146,7 @@ namespace Viper.Areas.Directory.Services
 
                 return await MapToUserInfoResultAsync(user, currentTerms);
             }
-            catch (Exception ex)
+            catch (DbException ex)
             {
                 Console.WriteLine($"Warning: GetUserByMothraIdAsync failed: {ex.Message}");
                 return null;
@@ -1101,12 +1102,12 @@ namespace Viper.Areas.Directory.Services
             foreach (var system in systems)
             {
                 // Filter roles belonging to the current system/instance
-                var filtered = roleMembers
+                var filteredRoles = roleMembers
                     .Where(rm => rm.Role != null && RAPSSecurityService.RoleBelongsToInstance(system, rm.Role))
-                    .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role)
-                    .ToList();
+                    .Select(rm => rm.Role!)
+                    .OrderBy(r => r.DisplayName ?? r.Role);
 
-                foreach (var role in filtered.Select(rm => rm.Role).Where(r => r != null))
+                foreach (var role in filteredRoles)
                 {
                     string displayName = role.DisplayName ?? role.Role;
                     result.SystemRoles.Add(new SystemRole
