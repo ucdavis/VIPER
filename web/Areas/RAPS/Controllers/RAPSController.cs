@@ -1,9 +1,13 @@
+using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using NLog;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -19,16 +23,18 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _RAPSContext;
         private readonly RAPSSecurityService _securityService;
+        private readonly IServiceScopeFactory _scopeFactory;
         public IUserHelper UserHelper { get; private set; }
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(RAPSContext context)
+        public RAPSController(RAPSContext context, IServiceScopeFactory scopeFactory)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
             UserHelper = new UserHelper();
+            _scopeFactory = scopeFactory;
         }
 
         /// <summary>
@@ -42,7 +48,6 @@ namespace Viper.Areas.RAPS.Controllers
                                          ActionExecutionDelegate next)
         {
             await base.OnActionExecutionAsync(context, next);
-            await next();
             bool roleIdValid = int.TryParse(HttpContext?.Request?.Query["roleId"].FirstOrDefault(), out int roleId);
             bool permIdValid = int.TryParse(HttpContext?.Request?.Query["permissionId"].FirstOrDefault(), out int permissionId);
             string? memberId = HttpContext?.Request?.Query["memberId"].FirstOrDefault();
@@ -94,7 +99,7 @@ namespace Viper.Areas.RAPS.Controllers
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
-            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.SingleAsync(r => r.MothraId == memberId) : null;
+            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.AsNoTracking().SingleOrDefaultAsync(r => r.MothraId == memberId) : null;
 
             var nav = new List<NavMenuItem>
             {
@@ -597,11 +602,36 @@ namespace Viper.Areas.RAPS.Controllers
             OuGroup? group = await _RAPSContext.OuGroups.FindAsync(groupId);
             if (group != null)
             {
-                _ = new OuGroupService(_RAPSContext).Sync(groupId, group.Name);
+                _ = SyncGroupInBackground(groupId, group.Name);
             }
 
             ViewData["Group"] = group;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Sync.cshtml"));
+        }
+
+        /// <summary>
+        /// Run the AD/OU group sync outside the request scope so it can keep running after the response
+        /// is returned (the sync page tells users it may take a few minutes). Resolves its own RAPSContext
+        /// from a fresh DI scope, since the request-scoped _RAPSContext is disposed once the request ends.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private async Task SyncGroupInBackground(int groupId, string groupName)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<RAPSContext>();
+                await new OuGroupService(context).Sync(groupId, groupName);
+            }
+            // Every I/O boundary Sync crosses: EF/DI, the LDAP searches behind the OU path, and the
+            // uInform HTTP calls behind the AD3 path. The task is discarded, so an escaping exception
+            // becomes an unobserved one and the sync fails with no log entry.
+            catch (Exception ex) when (ex is SqlException or DbUpdateException or InvalidOperationException
+                or LdapException or DirectoryOperationException
+                or HttpRequestException or TaskCanceledException or JsonException)
+            {
+                LogManager.GetCurrentClassLogger().Error(ex, "Group sync failed for group {GroupId}", groupId);
+            }
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]
