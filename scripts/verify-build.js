@@ -13,6 +13,8 @@ const {
     getCachedBuildOutput,
     filterBuildErrors,
     isConfirmedWarningsOnly,
+    createSummaryDetailFilter,
+    countBuildWarnings,
     clearCacheIfRequested,
 } = require("./lib/build-cache")
 
@@ -54,8 +56,33 @@ function createErrorWithOutput(message, output) {
     return error
 }
 
-// Helper function to run commands and capture output for caching
+// Buffers the trailing partial line so a filtering decision is never split across two chunks.
+function createFilteredWriter(stream, shouldEmit) {
+    let pending = ""
+    return {
+        write(text) {
+            pending += text
+            const lines = pending.split("\n")
+            pending = lines.pop() ?? ""
+            for (const line of lines) {
+                if (shouldEmit(line)) {
+                    stream.write(`${line}\n`)
+                }
+            }
+        },
+        flush() {
+            if (pending && shouldEmit(pending)) {
+                stream.write(pending)
+            }
+            pending = ""
+        },
+    }
+}
+
+// options.lineFilter builds a per-stream predicate applied to displayed output only; the captured
+// output stays complete so caching and error filtering still see everything.
 function runCommandWithOutput(command, args, options = {}) {
+    const { lineFilter, ...spawnOptions } = options
     return new Promise((resolve, reject) => {
         let stdout = ""
         let stderr = ""
@@ -63,20 +90,26 @@ function runCommandWithOutput(command, args, options = {}) {
         const fullCommand = args.length > 0 ? `${command} ${args.join(" ")}` : command
         const child = spawn(fullCommand, {
             shell: true,
-            ...options,
+            ...spawnOptions,
         })
+
+        const passThrough = () => true
+        const outWriter = createFilteredWriter(process.stdout, lineFilter ? lineFilter() : passThrough)
+        const errWriter = createFilteredWriter(process.stderr, lineFilter ? lineFilter() : passThrough)
 
         child.stdout.on("data", (data) => {
             stdout += data.toString()
-            process.stdout.write(data)
+            outWriter.write(data.toString())
         })
 
         child.stderr.on("data", (data) => {
             stderr += data.toString()
-            process.stderr.write(data)
+            errWriter.write(data.toString())
         })
 
         child.on("exit", (code) => {
+            outWriter.flush()
+            errWriter.flush()
             const output = stdout + stderr
             if (code === 0) {
                 resolve(output)
@@ -86,6 +119,8 @@ function runCommandWithOutput(command, args, options = {}) {
         })
 
         child.on("error", (err) => {
+            outWriter.flush()
+            errWriter.flush()
             reject(createErrorWithOutput(err.message, stdout + stderr))
         })
     })
@@ -175,7 +210,15 @@ async function verifyDotNetBuild() {
             showCachedDotNetErrors(webFailed, testFailed)
             return false
         }
-        logger.success(".NET compilation passed ✓ (cached)")
+        // A cached run prints no build output, so surface the warning count the cache already holds
+        const warningCount = countBuildWarnings(
+            getCachedBuildOutput("Viper.test.csproj") ?? getCachedBuildOutput("Viper.csproj"),
+        )
+        logger.success(
+            warningCount > 0
+                ? `.NET compilation passed ✓ (cached, ${warningCount} warning(s))`
+                : ".NET compilation passed ✓ (cached)",
+        )
         return true
     }
 
@@ -195,6 +238,7 @@ async function verifyDotNetBuild() {
             ],
             {
                 env: { ...env, DOTNET_USE_COMPILER_SERVER: "1", DOTNET_CLI_FORCE_UTF8_ENCODING: "true" },
+                lineFilter: createSummaryDetailFilter,
             },
         )
 
