@@ -38,7 +38,7 @@ namespace Viper.test.ClinicalScheduler
         public const string CardiologyEditPermission = "SVMSecure.ClnSched.Edit.Cardio";
         public const string InternalMedicineEditPermission = "SVMSecure.ClnSched.Edit.IM";
 
-        public static readonly int TestYear = DateTime.UtcNow.Year;
+        public static readonly int TestYear = DateTime.Now.Year;
         public static readonly int TestTermCode = TestYear * 100 + 1;
 
         // Shared test infrastructure

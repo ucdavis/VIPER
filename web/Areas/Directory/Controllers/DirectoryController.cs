@@ -104,6 +104,11 @@ namespace Viper.Areas.Directory.Controllers
         /// Current AAUD users matching the search term on name or any directory identifier,
         /// ordered for display. Shared by Get and GetUCD.
         /// </summary>
+        /// <remarks>
+        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The
+        /// chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the
+        /// one non-nullable identifier on AaudUser.
+        /// </remarks>
         internal static Task<List<AaudUser>> SearchCurrentAaudUsers(AAUDContext aaud, string search)
         {
             return aaud.AaudUsers

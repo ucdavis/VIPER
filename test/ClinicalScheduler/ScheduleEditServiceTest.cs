@@ -137,11 +137,11 @@ namespace Viper.test.ClinicalScheduler
             // Add basic weeks and week grad years using TestDataBuilder
             var weekData = new[]
             {
-                TestDataBuilder.CreateWeekScenario(1, testGradYear, new DateTime(currentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-                TestDataBuilder.CreateWeekScenario(2, testGradYear, new DateTime(currentYear, 1, 8, 0, 0, 0, DateTimeKind.Utc)),
-                TestDataBuilder.CreateWeekScenario(10, testGradYear, new DateTime(currentYear, 3, 1, 0, 0, 0, DateTimeKind.Utc)),
-                TestDataBuilder.CreateWeekScenario(15, testGradYear, new DateTime(currentYear, 4, 1, 0, 0, 0, DateTimeKind.Utc)),
-                TestDataBuilder.CreateWeekScenario(20, testGradYear, new DateTime(currentYear, 5, 1, 0, 0, 0, DateTimeKind.Utc))
+                TestDataBuilder.CreateWeekScenario(1, testGradYear, new DateTime(currentYear, 1, 1, 0, 0, 0, DateTimeKind.Local)),
+                TestDataBuilder.CreateWeekScenario(2, testGradYear, new DateTime(currentYear, 1, 8, 0, 0, 0, DateTimeKind.Local)),
+                TestDataBuilder.CreateWeekScenario(10, testGradYear, new DateTime(currentYear, 3, 1, 0, 0, 0, DateTimeKind.Local)),
+                TestDataBuilder.CreateWeekScenario(15, testGradYear, new DateTime(currentYear, 4, 1, 0, 0, 0, DateTimeKind.Local)),
+                TestDataBuilder.CreateWeekScenario(20, testGradYear, new DateTime(currentYear, 5, 1, 0, 0, 0, DateTimeKind.Local))
             };
 
             foreach (var (week, weekGradYear) in weekData)

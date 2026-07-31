@@ -247,7 +247,7 @@ namespace Viper.test.ClinicalScheduler
                 WeekId = weekId,
                 Action = action,
                 ModifiedBy = modifiedBy,
-                TimeStamp = DateTime.UtcNow,
+                TimeStamp = DateTime.Now,
                 Area = area
             };
         }

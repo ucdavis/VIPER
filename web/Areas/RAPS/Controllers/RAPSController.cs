@@ -1,7 +1,10 @@
+using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NLog;
@@ -612,8 +615,7 @@ namespace Viper.Areas.RAPS.Controllers
         /// from a fresh DI scope, since the request-scoped _RAPSContext is disposed once the request ends.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        [NonAction]
-        public async Task SyncGroupInBackground(int groupId, string groupName)
+        private async Task SyncGroupInBackground(int groupId, string groupName)
         {
             try
             {
@@ -621,10 +623,13 @@ namespace Viper.Areas.RAPS.Controllers
                 var context = scope.ServiceProvider.GetRequiredService<RAPSContext>();
                 await new OuGroupService(context).Sync(groupId, groupName);
             }
-            catch (Exception ex)
+            // Every I/O boundary Sync crosses: EF/DI, the LDAP searches behind the OU path, and the
+            // uInform HTTP calls behind the AD3 path. The task is discarded, so an escaping exception
+            // becomes an unobserved one and the sync fails with no log entry.
+            catch (Exception ex) when (ex is SqlException or DbUpdateException or InvalidOperationException
+                or LdapException or DirectoryOperationException
+                or HttpRequestException or TaskCanceledException or JsonException)
             {
-                // Background-job entry point: the task is discarded, so anything not caught
-                // here becomes an unobserved exception and the sync fails with no log entry.
                 LogManager.GetCurrentClassLogger().Error(ex, "Group sync failed for group {GroupId}", groupId);
             }
         }

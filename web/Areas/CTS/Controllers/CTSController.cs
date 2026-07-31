@@ -37,6 +37,7 @@ namespace Viper.Areas.CTS.Controllers
         }
 #pragma warning restore S6967
 
+        [NonAction]
         public NavMenu Nav()
         {
             var nav = new List<NavMenuItem>

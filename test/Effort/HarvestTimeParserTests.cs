@@ -90,7 +90,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_SameDay_OneHourSession_Returns60()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "0800", date, "0900");
@@ -101,7 +101,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_SameDay_TwoHourSession_Returns120()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "1400", date, "1600");
@@ -112,7 +112,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_SameDay_90MinuteSession_Returns90()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "0930", date, "1100");
@@ -123,7 +123,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_EndTime2400_CalculatesCorrectly()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "2200", date, "2400");
@@ -134,8 +134,8 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_CrossesMidnight_CalculatesCorrectly()
     {
-        var startDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
-        var endDate = new DateTime(2024, 1, 16, 0, 0, 0, DateTimeKind.Utc);
+        var startDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
+        var endDate = new DateTime(2024, 1, 16, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             startDate, "2200", endDate, "0100");
@@ -146,7 +146,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_EndBeforeStart_ReturnsZero()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "1400", date, "1300");
@@ -157,7 +157,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_SameStartAndEnd_ReturnsZero()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "1400", date, "1400");
@@ -168,7 +168,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_InvalidTimeFormat_ReturnsZero()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "invalid", date, "0900");
@@ -179,7 +179,7 @@ public sealed class HarvestTimeParserTests
     [Fact]
     public void CalculateSessionMinutes_WithStandardTimeFormat_ParsesCorrectly()
     {
-        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local);
 
         var result = HarvestTimeParser.CalculateSessionMinutes(
             date, "8:00 AM", date, "9:30 AM");

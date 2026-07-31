@@ -189,6 +189,32 @@ namespace Viper.test.RAPS
             scopeFactory.DidNotReceive().CreateScope();
         }
 
+        [Fact]
+        public async Task GroupSync_RunsSyncInItsOwnScope_WhenGroupExists()
+        {
+            using var connection = await OpenConnectionAsync();
+            using var context = await CreateContextAsync(connection);
+            var group = new OuGroup { Name = "CN=Test Group,OU=SVM,DC=ou", Description = "Test group" };
+            context.OuGroups.Add(group);
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            // The scope resolves no RAPSContext, so the sync fails immediately and is swallowed by the
+            // background task's catch. That keeps AD out of the test while still proving the sync runs
+            // off a scope of its own rather than the request-scoped context.
+            var scope = Substitute.For<IServiceScope>();
+            scope.ServiceProvider.Returns(Substitute.For<IServiceProvider>());
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            scopeFactory.CreateScope().Returns(scope);
+            var controller = CreateController(context, scopeFactory);
+
+            var result = await controller.GroupSync(group.OugroupId);
+
+            var view = Assert.IsType<ViewResult>(result);
+            Assert.Same(group, view.ViewData["Group"]);
+            scopeFactory.Received(1).CreateScope();
+            scope.Received(1).Dispose();
+        }
+
         private static async Task AssertBadRequestForInvalidModelStateAsync(Func<RAPSController, Task<IActionResult>> action)
         {
             using var connection = await OpenConnectionAsync();
