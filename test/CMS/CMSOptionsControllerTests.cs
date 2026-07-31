@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
+using NSubstitute.ReturnsExtensions;
+using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Controllers;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -8,13 +11,14 @@ namespace Viper.test.CMS;
 
 /// <summary>
 /// Controller wiring tests for CMSOptionsController: the person search's minimum-length guard,
-/// 25-result cap, name/id matching, and last-name/first-name ordering, plus the instance-scoped
-/// permission list used by CMS tagging forms.
+/// 25-result cap, name/id matching, and last-name/first-name ordering, the instance-scoped
+/// permission list used by CMS tagging forms, and the per-user capability flags.
 /// </summary>
 public sealed class CMSOptionsControllerTests : IDisposable
 {
     private readonly RAPSContext _rapsContext;
     private readonly AAUDContext _aaudContext;
+    private readonly IUserHelper _userHelper;
     private readonly CMSOptionsController _controller;
 
     public CMSOptionsControllerTests()
@@ -23,8 +27,9 @@ public sealed class CMSOptionsControllerTests : IDisposable
             .UseInMemoryDatabase("RAPS_" + Guid.NewGuid()).Options);
         _aaudContext = new AAUDContext(new DbContextOptionsBuilder<AAUDContext>()
             .UseInMemoryDatabase("AAUD_" + Guid.NewGuid()).Options);
+        _userHelper = Substitute.For<IUserHelper>();
 
-        _controller = new CMSOptionsController(_rapsContext, _aaudContext);
+        _controller = new CMSOptionsController(_rapsContext, _aaudContext, _userHelper);
     }
 
     public void Dispose()
@@ -139,6 +144,34 @@ public sealed class CMSOptionsControllerTests : IDisposable
         var result = await _controller.GetPermissions(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { "SVMSecure.CMS.Alpha", "SVMSecure.CMS.Zeta" }, result.Value);
+    }
+
+    #endregion
+
+    #region GetCapabilities
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void GetCapabilities_ReportsPermanentDelete_FromAdminPermission(bool isAdmin)
+    {
+        var user = MakeUser(1, "Smith", "Amy", loginId: "asmith");
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.Admin).Returns(isAdmin);
+
+        var result = _controller.GetCapabilities();
+
+        Assert.Equal(isAdmin, result.Value!.CanPermanentlyDelete);
+    }
+
+    [Fact]
+    public void GetCapabilities_ReportsNoPermanentDelete_WhenNoCurrentUser()
+    {
+        _userHelper.GetCurrentUser().ReturnsNull();
+
+        var result = _controller.GetCapabilities();
+
+        Assert.False(result.Value!.CanPermanentlyDelete);
     }
 
     #endregion

@@ -52,7 +52,7 @@ function lastListUrl(): string {
     return listCalls.at(-1) ?? ""
 }
 
-function routeGet(opts: { rows?: unknown[]; total?: number } = {}) {
+function routeGet(opts: { rows?: unknown[]; total?: number; canPermanentlyDelete?: boolean } = {}) {
     const rows = opts.rows ?? [FILE_ROW]
     mockGet.mockReset()
     mockDel.mockReset()
@@ -64,6 +64,12 @@ function routeGet(opts: { rows?: unknown[]; total?: number } = {}) {
         }
         if (url.includes("folders")) {
             return Promise.resolve({ success: true, result: ["Apps", "Reports"] })
+        }
+        if (url.includes("options/capabilities")) {
+            return Promise.resolve({
+                success: true,
+                result: { canPermanentlyDelete: opts.canPermanentlyDelete ?? false },
+            })
         }
         // The paged list request.
         return Promise.resolve({
@@ -241,6 +247,96 @@ describe("Files.vue - delete and restore actions", () => {
         await flushPromises()
 
         expect(document.body.textContent).toContain("Failed to restore file")
+    })
+})
+
+// The legacy CMS "delete now": skips the 30-day trash. Admin-only, and the SPA can't tell from its
+// own permission list (loaded with the SVMSecure.CMS prefix), so it asks the capabilities endpoint.
+describe("Files.vue - permanent delete", () => {
+    const trashedRow = [{ ...FILE_ROW, deletedOn: "2024-02-01T00:00:00" }]
+
+    it("offers no permanent delete to a non-admin", async () => {
+        routeGet({ rows: trashedRow, canPermanentlyDelete: false })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        expect(wrapper.find('[aria-label="Permanently delete file"]').exists()).toBeFalsy()
+    })
+
+    it("offers permanent delete to an admin, on trashed rows only", async () => {
+        routeGet({ rows: trashedRow, canPermanentlyDelete: true })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        expect(wrapper.find('[aria-label="Permanently delete file"]').exists()).toBeTruthy()
+
+        routeGet({ rows: [FILE_ROW], canPermanentlyDelete: true })
+        const active = await mountPage()
+        expect(active.find('[aria-label="Permanently delete file"]').exists()).toBeFalsy()
+    })
+
+    it("permanently deletes with permanent=true and reloads once confirmed", async () => {
+        routeGet({ rows: trashedRow, canPermanentlyDelete: true })
+        mockDel.mockResolvedValue({ success: true, result: null })
+        const wrapper = await mountPage({ status: "deleted" })
+        const before = listCallCount()
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("permanentDelete")
+        await flushPromises()
+        expect(document.body.textContent).toContain('Permanently delete "a.pdf"?')
+        clickBodyButton("Delete Permanently")
+        await flushPromises()
+        await flushPromises()
+
+        expect(mockDel).toHaveBeenCalledOnce()
+        expect(mockDel.mock.calls[0]![0]).toContain("cms/files/g1?")
+        expect(mockDel.mock.calls[0]![0]).toContain("permanent=true")
+        expect(document.body.textContent).toContain("File permanently deleted")
+        expect(listCallCount()).toBeGreaterThan(before)
+    })
+
+    it("does not permanently delete when the confirm dialog is cancelled", async () => {
+        routeGet({ rows: trashedRow, canPermanentlyDelete: true })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("permanentDelete")
+        await flushPromises()
+        clickBodyButton("Cancel")
+        await flushPromises()
+
+        expect(mockDel).not.toHaveBeenCalled()
+    })
+
+    it("notifies and keeps the row when the permanent delete fails", async () => {
+        routeGet({ rows: trashedRow, canPermanentlyDelete: true })
+        mockDel.mockResolvedValue({ success: false, errors: ["nope"] })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        wrapper.findComponent({ name: "DeleteRestoreButtons" }).vm.$emit("permanentDelete")
+        await flushPromises()
+        clickBodyButton("Delete Permanently")
+        await flushPromises()
+        await flushPromises()
+
+        expect(document.body.textContent).toContain("Failed to permanently delete file")
+    })
+
+    it("hides permanent delete when the capabilities request fails", async () => {
+        routeGet({ rows: trashedRow })
+        mockGet.mockImplementation((...args: unknown[]) => {
+            const url = args[0] as string
+            if (url.includes("options/capabilities")) {
+                return Promise.resolve({ success: false, errors: ["boom"] })
+            }
+            if (url.includes("folder-counts")) {
+                return Promise.resolve({ success: true, result: [] })
+            }
+            if (url.includes("folders")) {
+                return Promise.resolve({ success: true, result: ["Apps"] })
+            }
+            return Promise.resolve({ success: true, result: trashedRow })
+        })
+        const wrapper = await mountPage({ status: "deleted" })
+
+        expect(wrapper.find('[aria-label="Permanently delete file"]').exists()).toBeFalsy()
     })
 })
 

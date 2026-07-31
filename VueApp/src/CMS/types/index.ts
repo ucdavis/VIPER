@@ -46,6 +46,12 @@ type CmsPersonOption = {
     mailId: string | null
 }
 
+// Server-decided capabilities the SPA can't derive from its own permission list, which only holds
+// SVMSecure.CMS-prefixed entries. The server enforces these regardless; they gate the UI only.
+type CmsCapabilities = {
+    canPermanentlyDelete: boolean
+}
+
 type CmsContentBlock = {
     contentBlockId: number
     content: string
@@ -234,6 +240,7 @@ export type {
     CmsFilePerson,
     CmsFileNameCheck,
     CmsPersonOption,
+    CmsCapabilities,
     CmsFileAudit,
     CmsContentHistoryAudit,
     CmsContentHistoryDiff,
