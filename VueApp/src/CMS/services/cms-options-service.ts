@@ -1,5 +1,5 @@
 import { useFetch } from "@/composables/ViperFetch"
-import type { CmsPersonOption } from "@/CMS/types"
+import type { CmsCapabilities, CmsPersonOption } from "@/CMS/types"
 
 /**
  * Shared CMS option-list lookups (people, permissions) so the selector components don't each
@@ -25,4 +25,12 @@ async function searchPeopleOptions(search: string): Promise<CmsPersonOption[] | 
     return res.success ? (res.result as CmsPersonOption[]) : null
 }
 
-export { getPermissionOptions, searchPeopleOptions }
+// Falls back to no extra capabilities when the request fails, so a hiccup hides an admin-only
+// action rather than offering one the server will refuse.
+async function getCapabilities(): Promise<CmsCapabilities> {
+    const { get } = useFetch()
+    const res = await get(`${optionsUrl}capabilities`)
+    return res.success ? (res.result as CmsCapabilities) : { canPermanentlyDelete: false }
+}
+
+export { getPermissionOptions, searchPeopleOptions, getCapabilities }

@@ -196,8 +196,10 @@
                     <DeleteRestoreButtons
                         :deleted="!!cellProps.row.deletedOn"
                         entity-name="file"
+                        :can-permanently-delete="canPermanentlyDelete"
                         @delete="deleteFile(cellProps.row)"
                         @restore="restoreFile(cellProps.row)"
+                        @permanent-delete="permanentlyDeleteFile(cellProps.row)"
                     />
                 </q-td>
             </template>
@@ -244,8 +246,10 @@
                                 <DeleteRestoreButtons
                                     :deleted="!!row.deletedOn"
                                     entity-name="file"
+                                    :can-permanently-delete="canPermanentlyDelete"
                                     @delete="deleteFile(row)"
                                     @restore="restoreFile(row)"
+                                    @permanent-delete="permanentlyDeleteFile(row)"
                                 />
                             </div>
                         </div>
@@ -315,6 +319,7 @@ import { useQuasar, type QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
 import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { useServerTable } from "@/CMS/composables/use-server-table"
+import { getCapabilities } from "@/CMS/services/cms-options-service"
 import StatusBadge from "@/components/StatusBadge.vue"
 import FileFormDialog from "@/CMS/components/FileFormDialog.vue"
 import DeleteRestoreButtons from "@/CMS/components/DeleteRestoreButtons.vue"
@@ -341,6 +346,11 @@ type FolderOption = { label: string; value: string }
 const filterFolders = ref<FolderOption[]>([{ label: ALL_FOLDERS, value: ALL_FOLDERS }])
 const showDialog = ref(false)
 const editingFile = ref<CmsFile | null>(null)
+const canPermanentlyDelete = ref(false)
+
+async function loadCapabilities() {
+    canPermanentlyDelete.value = (await getCapabilities()).canPermanentlyDelete
+}
 
 // Maps the URL query into the filter shape, shared by the initial state and the re-sync watcher
 // below so the two can't drift.
@@ -505,6 +515,27 @@ async function deleteFile(file: CmsFile) {
     reload()
 }
 
+// The legacy "delete now": bypasses the 30-day trash and removes record and bytes immediately.
+// Server-gated to CMS admins; canPermanentlyDelete only decides whether the button is offered.
+async function permanentlyDeleteFile(file: CmsFile) {
+    const confirmed = await confirmAction({
+        title: "Delete File Permanently",
+        message:
+            `Permanently delete "${file.friendlyName}"? The file and its record are removed ` +
+            `immediately and this cannot be undone.`,
+        okLabel: "Delete Permanently",
+        okColor: "negative",
+    })
+    if (!confirmed) return
+    const res = await del(`${apiURL}${file.fileGuid}?${createUrlSearchParams({ permanent: "true" })}`)
+    if (!res.success) {
+        $q.notify({ type: "negative", message: "Failed to permanently delete file" })
+        return
+    }
+    $q.notify({ type: "positive", message: "File permanently deleted" })
+    reload()
+}
+
 async function restoreFile(file: CmsFile) {
     const res = await post(apiURL + file.fileGuid + "/restore")
     if (!res.success) {
@@ -576,6 +607,7 @@ watch(
 
 onMounted(() => {
     loadFolders()
+    void loadCapabilities()
     reload()
 })
 </script>
