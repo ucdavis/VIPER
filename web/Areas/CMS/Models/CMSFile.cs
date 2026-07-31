@@ -12,8 +12,8 @@ namespace Viper.Areas.CMS.Models
 
         public CMSFile()
         {
-            FriendlyURL = Data.CMS.GetFriendlyURL(FriendlyName, AllowPublicAccess);
-            URL = Data.CMS.GetURL(FileGuid.ToString(), AllowPublicAccess);
+            FriendlyURL = Data.CMS.GetFriendlyURL(FriendlyName);
+            URL = Data.CMS.GetURL(FileGuid.ToString());
             MetaData = new CMSFileMetaData
             {
                 Folder = this.Folder,
@@ -41,8 +41,8 @@ namespace Viper.Areas.CMS.Models
             this.ModifiedOn = file.ModifiedOn;
             this.OldUrl = file.OldUrl;
 
-            FriendlyURL = Data.CMS.GetFriendlyURL(FriendlyName, AllowPublicAccess);
-            URL = Data.CMS.GetURL(FileGuid.ToString(), AllowPublicAccess);
+            FriendlyURL = Data.CMS.GetFriendlyURL(FriendlyName);
+            URL = Data.CMS.GetURL(FileGuid.ToString());
             MetaData = new CMSFileMetaData
             {
                 Folder = this.Folder,

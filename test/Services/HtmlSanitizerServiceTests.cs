@@ -196,6 +196,16 @@ public class HtmlSanitizerServiceTests
         Assert.Equal(first, second);
     }
 
+    [Theory]
+    [InlineData("<ins class=\"diffins\"><script>alert(1)</script>added</ins>")]
+    [InlineData("<del class=\"diffdel\">removed</del><ins class=\"diffins\">added</ins>")]
+    public void SanitizeDiff_is_idempotent(string input)
+    {
+        var first = _sanitizer.SanitizeDiff(input);
+        var second = _sanitizer.SanitizeDiff(first);
+        Assert.Equal(first, second);
+    }
+
     // === Real-world snapshots from production ContentBlock data ===
     // If these break, several admin pages will visibly regress — review before relaxing.
 
@@ -219,5 +229,52 @@ public class HtmlSanitizerServiceTests
         {
             Assert.Contains(token, output, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    // === SanitizeDiff — the diff-specific variant adds <ins>/<del> to the allowlist, but its
+    // output is rendered with v-html on the content-block diff pages, so it must keep the same
+    // XSS guarantees as the base sanitizer. These lock that down. ===
+
+    [Theory]
+    [InlineData("<ins class=\"diffins\"><script>alert(1)</script>added</ins>")]
+    [InlineData("<del class=\"diffdel\"><img src=\"x\" onerror=\"alert(1)\" alt=\"x\"></del>")]
+    [InlineData("<ins class=\"diffmod\"><a href=\"javascript:alert(1)\">x</a></ins>")]
+    public void SanitizeDiff_strips_xss_payloads_inside_change_markers(string input)
+    {
+        var output = _sanitizer.SanitizeDiff(input);
+        Assert.DoesNotContain("<script", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("alert(1)", output);
+        Assert.DoesNotContain("onerror", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("javascript:", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SanitizeDiff_strips_data_uri_in_img_src()
+    {
+        var input = "<ins class=\"diffins\"><img src=\"data:image/svg+xml;base64,PHN2Zw==\" alt=\"x\"></ins>";
+        var output = _sanitizer.SanitizeDiff(input);
+        Assert.DoesNotContain("data:", output);
+    }
+
+    [Theory]
+    [InlineData("<ins class=\"diffins\">added</ins>", "<ins", "diffins")]
+    [InlineData("<del class=\"diffdel\">removed</del>", "<del", "diffdel")]
+    [InlineData("<ins class=\"diffmod\">changed</ins>", "<ins", "diffmod")]
+    public void SanitizeDiff_preserves_change_markers_and_classes(string input, string tagFragment, string className)
+    {
+        var output = _sanitizer.SanitizeDiff(input);
+        Assert.Contains(tagFragment, output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(className, output);
+    }
+
+    [Theory]
+    [InlineData("<ins>added</ins>", "<ins")]
+    [InlineData("<del>removed</del>", "<del")]
+    public void Sanitize_strips_diff_markers_that_SanitizeDiff_keeps(string input, string tagFragment)
+    {
+        // The base content sanitizer does not allow <ins>/<del>; only the diff variant does.
+        // This proves the two policies genuinely differ rather than sharing one allowlist.
+        var output = _sanitizer.Sanitize(input);
+        Assert.DoesNotContain(tagFragment, output, StringComparison.OrdinalIgnoreCase);
     }
 }
