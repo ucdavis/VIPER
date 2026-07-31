@@ -27,7 +27,7 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 
 ## API & Cross-Environment
 
-- **Routes**: Absolute `/api/{area}/{controller}` + `ApiController` base. Never `[Area]` on APIs (causes 403)
+- **Routes**: Absolute `/api/{area}/{controller}` + `ApiController` base
 - **Frontend API calls**: Service layer + `useFetch()`, never raw `fetch()` (must unwrap `{ result, success }`)
 - **API URL**: `${import.meta.env.VITE_API_URL}`, never hardcode `/api/` (TEST uses `/2/` prefix)
 - **Subpath PathBase (`/2`)**: TEST/PROD run VIPER 2 under a `/2` PathBase (IIS sub-app), legacy VIPER 1 at `/`; with no base locally, these bugs surface only on TEST/PROD (not in unit tests). Use `~/` for app-root redirects, never bare `/` (escapes to the legacy site). Guards matching root-relative paths (`/api`, `/welcome`) must strip the base off the base-prefixed `ReturnUrl` (`/2/...`) or use `Request.PathBase`. `RedirectToAction`, `@Url.Content("~/")`, and tag-helpers include the base; raw string paths (`Redirect("/x")`, `returnUrl.StartsWith("/api")`) don't.
