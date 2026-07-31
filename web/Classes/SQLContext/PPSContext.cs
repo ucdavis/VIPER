@@ -6,7 +6,6 @@ namespace Viper.Classes.SQLContext;
 public partial class PPSContext : DbContext
 {
     public PPSContext()
-        : base()
     {
     }
 

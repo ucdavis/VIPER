@@ -5,11 +5,11 @@ namespace Viper.Areas.Directory.Models
 {
     public class DirectoryUser
     {
-        public bool CanDisplayIDs { get; set; } = false;
-        public bool CanEmulate { get; set; } = false;
-        public bool CanSeeAllStudents { get; set; } = false;
-        public bool CanSeeUCPathInfo { get; set; } = false;
-        public bool CanSeeAltPhoto { get; set; } = false;
+        public bool CanDisplayIDs { get; set; }
+        public bool CanEmulate { get; set; }
+        public bool CanSeeAllStudents { get; set; }
+        public bool CanSeeUCPathInfo { get; set; }
+        public bool CanSeeAltPhoto { get; set; }
 
         public DirectoryUser()
         {

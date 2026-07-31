@@ -7,7 +7,6 @@ public partial class KeysContext : DbContext
 {
 
     public KeysContext()
-        : base()
     {
     }
 
