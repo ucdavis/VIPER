@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Services;
@@ -642,7 +643,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     {
         var block = await SeedBlockAsync(b =>
             b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         Assert.False(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
     }
@@ -926,7 +927,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     {
         await SeedBlockAsync(b =>
             b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var blocks = await _service.GetEditableBlocksAsync(TestContext.Current.CancellationToken);
 
@@ -994,7 +995,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task SearchAttachableFiles_Anonymous_ReturnsEmpty()
     {
         await SeedFileAsync("report-match.pdf");
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         Assert.Empty(await _service.SearchAttachableFilesAsync("match", TestContext.Current.CancellationToken));
     }
