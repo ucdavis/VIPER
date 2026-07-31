@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using Viper.Areas.CMS.Data;
 
 namespace Viper.Classes
 {
@@ -30,6 +31,18 @@ namespace Viper.Classes
                     item.MenuItemURL = "http://localhost" + item.MenuItemURL;
                 }
             }
+        }
+
+        protected void PopulateLeftNav(ActionExecutingContext context, string friendlyName)
+        {
+            var viperContext = context.HttpContext.RequestServices.GetRequiredService<VIPERContext>();
+            var rapsContext = context.HttpContext.RequestServices.GetRequiredService<RAPSContext>();
+            var menu = new LeftNavMenu(viperContext, rapsContext).GetLeftNavMenus(friendlyName: friendlyName)?.FirstOrDefault();
+            if (menu != null)
+            {
+                ConvertNavLinksForDevelopment(menu);
+            }
+            ViewData["ViperLeftNav"] = menu ?? new NavMenu("", new List<NavMenuItem>());
         }
         //TODO: Handle 403 and 500 errors here? 
     }

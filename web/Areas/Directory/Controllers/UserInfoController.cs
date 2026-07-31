@@ -6,7 +6,6 @@ using Viper.Classes.SQLContext;
 using Viper.Areas.Directory.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Viper.Areas.CMS.Data;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -146,14 +145,7 @@ namespace Viper.Areas.Directory.Controllers
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                                          ActionExecutionDelegate next)
         {
-            var viperContext = context.HttpContext.RequestServices.GetRequiredService<VIPERContext>();
-            var rapsContext = context.HttpContext.RequestServices.GetRequiredService<RAPSContext>();
-            var menu = new LeftNavMenu(viperContext, rapsContext).GetLeftNavMenus(friendlyName: "viper-home")?.FirstOrDefault();
-            if (menu != null)
-            {
-                ConvertNavLinksForDevelopment(menu);
-            }
-            ViewData["ViperLeftNav"] = menu ?? new NavMenu("", new List<NavMenuItem>());
+            PopulateLeftNav(context, "viper-home");
             await base.OnActionExecutionAsync(context, next);
         }
     }
