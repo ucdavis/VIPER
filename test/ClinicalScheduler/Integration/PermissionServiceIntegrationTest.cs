@@ -100,8 +100,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 serviceId: null,
                 weekId: null,
                 startDate: null,
-                endDate: null
-            , TestContext.Current.CancellationToken);
+                endDate: null,
+                TestContext.Current.CancellationToken);
 
             var instructorScheduleResult = await _permissionService.CheckInstructorScheduleParamsAsync(
                 mothraId: null,
@@ -109,8 +109,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 serviceId: null,
                 weekId: null,
                 startDate: null,
-                endDate: null
-            , TestContext.Current.CancellationToken);
+                endDate: null,
+                TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(studentScheduleResult);
@@ -178,8 +178,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 serviceId: null,
                 weekId: null,
                 startDate: null,
-                endDate: null
-            , TestContext.Current.CancellationToken);
+                endDate: null,
+                TestContext.Current.CancellationToken);
 
             var otherScheduleResult = await _permissionService.CheckInstructorScheduleParamsAsync(
                 mothraId: "otheruser",
@@ -187,8 +187,8 @@ namespace Viper.test.ClinicalScheduler.Integration
                 serviceId: null,
                 weekId: null,
                 startDate: null,
-                endDate: null
-            , TestContext.Current.CancellationToken);
+                endDate: null,
+                TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(ownScheduleResult);
