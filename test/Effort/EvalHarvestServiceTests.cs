@@ -256,7 +256,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     [Fact]
     public async Task GetCourseEvaluationStatus_NoEvalData_ReturnsNoneStatus()
     {
-        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId);
+        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId, TestContext.Current.CancellationToken);
 
         Assert.True(result.CanEditAdHoc);
         Assert.Single(result.Instructors);
@@ -275,11 +275,11 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = false });
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId, Mean = 4.5, Respondents = 10 });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId);
+        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId, TestContext.Current.CancellationToken);
 
         Assert.False(result.CanEditAdHoc);
         var eval = result.Instructors[0].Evaluations[0];
@@ -296,11 +296,11 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = true });
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId, Mean = 3.0, Respondents = 5 });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId);
+        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId, TestContext.Current.CancellationToken);
 
         Assert.True(result.CanEditAdHoc);
         var eval = result.Instructors[0].Evaluations[0];
@@ -317,7 +317,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         // Add a second instructor on the child course
         _effortContext.Persons.Add(new EffortPerson { PersonId = 1001, TermCode = TestTermCode, FirstName = "Child", LastName = "Instructor", EffortDept = "DVM" });
         _effortContext.Records.Add(new EffortRecord { Id = 2, CourseId = TestChildCourseId, PersonId = 1001, TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Crn = TestChildCrn.ToString() });
-        await _effortContext.SaveChangesAsync();
+        await _effortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _viperContext.People.Add(new Person
         {
@@ -331,9 +331,9 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             ClientId = "C1001",
             Current = 1
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId);
+        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, result.Courses.Count);
         Assert.Equal(2, result.Instructors.Count);
@@ -346,7 +346,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     public async Task GetCourseEvaluationStatus_CourseNotFound_ThrowsInvalidOperationException()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.GetCourseEvaluationStatusAsync(9999));
+            () => _service.GetCourseEvaluationStatusAsync(9999, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -355,9 +355,9 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         // Harvested eval data on the course — even with no eval data for the specific instructor,
         // canEditAdHoc should be false and "None" entries should not be editable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = false });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId);
+        var result = await _service.GetCourseEvaluationStatusAsync(TestCourseId, TestContext.Current.CancellationToken);
 
         Assert.False(result.CanEditAdHoc);
         var eval = result.Instructors[0].Evaluations[0];
@@ -383,25 +383,25 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 10
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.NotNull(result.QuantId);
 
         // Verify records created in evalHarvest DB
-        var ehCourse = await _evalContext.Courses.FirstOrDefaultAsync(c => c.Crn == TestCrn && c.TermCode == TestTermCode);
+        var ehCourse = await _evalContext.Courses.FirstOrDefaultAsync(c => c.Crn == TestCrn && c.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.NotNull(ehCourse);
         Assert.True(ehCourse.IsAdHoc);
 
-        var ehPerson = await _evalContext.People.FirstOrDefaultAsync(p => p.MailId == TestMailId);
+        var ehPerson = await _evalContext.People.FirstOrDefaultAsync(p => p.MailId == TestMailId, TestContext.Current.CancellationToken);
         Assert.NotNull(ehPerson);
         Assert.Equal(TestMothraId, ehPerson.MothraId);
 
-        var question = await _evalContext.Questions.FirstOrDefaultAsync(q => q.Crn == TestCrn && q.TermCode == TestTermCode);
+        var question = await _evalContext.Questions.FirstOrDefaultAsync(q => q.Crn == TestCrn && q.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.NotNull(question);
         Assert.True(question.IsOverall);
 
-        var quant = await _evalContext.Quants.FirstOrDefaultAsync(q => q.QuantId == result.QuantId);
+        var quant = await _evalContext.Quants.FirstOrDefaultAsync(q => q.QuantId == result.QuantId, TestContext.Current.CancellationToken);
         Assert.NotNull(quant);
         Assert.Equal(20, quant.Respondents);
         Assert.Equal(TestMailId, quant.MailId);
@@ -421,7 +421,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("rating count", result.Error);
@@ -441,7 +441,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("Course not found", result.Error);
@@ -452,7 +452,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     {
         // Seed an effort course whose CRN is non-numeric (data quality edge case)
         _effortContext.Courses.Add(new EffortCourse { Id = 100, TermCode = TestTermCode, Crn = "INVALID", SubjCode = "DVM", CrseNumb = "500", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "DVM" });
-        await _effortContext.SaveChangesAsync();
+        await _effortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -465,7 +465,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("Invalid CRN", result.Error);
@@ -476,7 +476,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     {
         // Seed non-adhoc course record (harvested eval data)
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = false });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -489,7 +489,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("harvested eval data exists", result.Error);
@@ -509,7 +509,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("Instructor not found", result.Error);
@@ -531,7 +531,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             ClientId = "C2000",
             Current = 1
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -544,7 +544,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("not associated with this course", result.Error);
@@ -566,10 +566,10 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             ClientId = "C3000",
             Current = 1
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _effortContext.Records.Add(new EffortRecord { Id = 10, CourseId = TestCourseId, PersonId = 3000, TermCode = TestTermCode, EffortTypeId = "LEC", RoleId = 1, Crn = TestCrn.ToString() });
-        await _effortContext.SaveChangesAsync();
+        await _effortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -582,7 +582,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("no email", result.Error);
@@ -594,9 +594,9 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         // Seed an existing eval for this instructor + CRN
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId, Mean = 4.0, Respondents = 5 });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -609,7 +609,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("already exists", result.Error);
@@ -620,7 +620,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     {
         // Seed an existing adhoc course record
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = true });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateAdHocEvalRequest
         {
@@ -633,11 +633,11 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
             Count5 = 0
         };
 
-        var result = await _service.CreateAdHocEvaluationAsync(request);
+        var result = await _service.CreateAdHocEvaluationAsync(request, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         // Should not create a duplicate course record
-        var courseCount = await _evalContext.Courses.CountAsync(c => c.Crn == TestCrn && c.TermCode == TestTermCode);
+        var courseCount = await _evalContext.Courses.CountAsync(c => c.Crn == TestCrn && c.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.Equal(1, courseCount);
     }
 
@@ -652,17 +652,17 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = true });
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var quant = new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId, Mean = 3.0, Respondents = 5 };
         _evalContext.Quants.Add(quant);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateAdHocEvalRequest { Count1 = 2, Count2 = 3, Count3 = 5, Count4 = 8, Count5 = 2 };
 
-        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request);
+        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request, TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
-        var updated = await _evalContext.Quants.FirstAsync(q => q.QuantId == 1);
+        var updated = await _evalContext.Quants.FirstAsync(q => q.QuantId == 1, TestContext.Current.CancellationToken);
         Assert.Equal(20, updated.Respondents);
         Assert.Equal(2, updated.Count1N);
         Assert.Equal(8, updated.Count4N);
@@ -673,7 +673,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     {
         var request = new UpdateAdHocEvalRequest { Count1 = 0, Count2 = 0, Count3 = 0, Count4 = 0, Count5 = 0 };
 
-        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request);
+        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("rating count", result.Error);
@@ -684,7 +684,7 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
     {
         var request = new UpdateAdHocEvalRequest { Count1 = 0, Count2 = 0, Count3 = 1, Count4 = 0, Count5 = 0 };
 
-        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 9999, request);
+        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 9999, request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("not found", result.Error);
@@ -696,13 +696,13 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         // Seed a quant on a DIFFERENT CRN than the authorized course
         var question = new EhQuestion { QuestId = 1, Crn = 99999, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateAdHocEvalRequest { Count1 = 0, Count2 = 0, Count3 = 1, Count4 = 0, Count5 = 0 };
 
-        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request);
+        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("does not belong", result.Error);
@@ -715,13 +715,13 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = false });
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateAdHocEvalRequest { Count1 = 0, Count2 = 0, Count3 = 1, Count4 = 0, Count5 = 0 };
 
-        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request);
+        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("not an ad-hoc evaluation", result.Error);
@@ -734,13 +734,13 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         // the service is fail-closed: no course record means not ad-hoc, so update is rejected.
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateAdHocEvalRequest { Count1 = 0, Count2 = 0, Count3 = 1, Count4 = 0, Count5 = 0 };
 
-        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request);
+        var result = await _service.UpdateAdHocEvaluationAsync(TestCourseId, 1, request, TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Contains("not an ad-hoc evaluation", result.Error);
@@ -757,20 +757,20 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = true });
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 1);
+        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 1, TestContext.Current.CancellationToken);
 
         Assert.True(deleted);
-        Assert.Null(await _evalContext.Quants.FirstOrDefaultAsync(q => q.QuantId == 1));
+        Assert.Null(await _evalContext.Quants.FirstOrDefaultAsync(q => q.QuantId == 1, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task DeleteAdHocEvaluation_QuantNotFound_ReturnsFalse()
     {
-        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 9999);
+        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 9999, TestContext.Current.CancellationToken);
 
         Assert.False(deleted);
     }
@@ -781,11 +781,11 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         // Quant on a different CRN
         var question = new EhQuestion { QuestId = 1, Crn = 99999, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 1);
+        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 1, TestContext.Current.CancellationToken);
 
         Assert.False(deleted);
     }
@@ -797,11 +797,11 @@ public sealed class EvalHarvestServiceIntegrationTests : IDisposable
         _evalContext.Courses.Add(new EhCourse { Crn = TestCrn, TermCode = TestTermCode, FacilitatorEvalId = 0, SubjCode = "DVM", CrseNumb = "443", IsAdHoc = false });
         var question = new EhQuestion { QuestId = 1, Crn = TestCrn, TermCode = TestTermCode, IsOverall = true, FacilitatorEvalId = 0, Text = "Overall", Type = "5-pt", Order = 1 };
         _evalContext.Questions.Add(question);
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _evalContext.Quants.Add(new EhQuant { QuantId = 1, QuestionIdFk = question.QuestId, MailId = TestMailId });
-        await _evalContext.SaveChangesAsync();
+        await _evalContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 1);
+        var deleted = await _service.DeleteAdHocEvaluationAsync(TestCourseId, 1, TestContext.Current.CancellationToken);
 
         Assert.False(deleted);
     }

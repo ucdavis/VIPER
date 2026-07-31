@@ -107,7 +107,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.GetPercentagesForPersonAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(percentages);
 
         // Act
-        var result = await _controller.GetPercentagesForPerson(TestPersonId);
+        var result = await _controller.GetPercentagesForPerson(TestPersonId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -123,7 +123,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanViewPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetPercentagesForPerson(TestPersonId);
+        var result = await _controller.GetPercentagesForPerson(TestPersonId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -142,7 +142,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanViewPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetPercentage(TestPercentageId);
+        var result = await _controller.GetPercentage(TestPercentageId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -157,7 +157,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetPercentage(999);
+        var result = await _controller.GetPercentage(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -172,7 +172,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanViewPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetPercentage(TestPercentageId);
+        var result = await _controller.GetPercentage(TestPercentageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -200,7 +200,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.CreatePercentageAsync(request, Arg.Any<CancellationToken>()).Returns(percentage);
 
         // Act
-        var result = await _controller.CreatePercentage(request);
+        var result = await _controller.CreatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
@@ -216,7 +216,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanEditPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.CreatePercentage(request);
+        var result = await _controller.CreatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -238,7 +238,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.ValidatePercentageAsync(request, null, Arg.Any<CancellationToken>()).Returns(validationResult);
 
         // Act
-        var result = await _controller.CreatePercentage(request);
+        var result = await _controller.CreatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -262,7 +262,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.CreatePercentageAsync(request, Arg.Any<CancellationToken>()).Returns(percentage);
 
         // Act
-        var result = await _controller.CreatePercentage(request);
+        var result = await _controller.CreatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
@@ -286,7 +286,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.CreatePercentageAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Duplicate percentage assignment"));
 
         // Act
-        var result = await _controller.CreatePercentage(request);
+        var result = await _controller.CreatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -310,7 +310,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.CreatePercentageAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("DB error"));
 
         // Act
-        var result = await _controller.CreatePercentage(request);
+        var result = await _controller.CreatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -337,7 +337,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.ValidatePercentageAsync(request, null, Arg.Any<CancellationToken>()).Returns(validationResult);
 
         // Act
-        var result = await _controller.ValidatePercentage(request);
+        var result = await _controller.ValidatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -354,7 +354,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanEditPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.ValidatePercentage(request);
+        var result = await _controller.ValidatePercentage(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -387,7 +387,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.UpdatePercentageAsync(TestPercentageId, request, Arg.Any<CancellationToken>()).Returns(updatedPercentage);
 
         // Act
-        var result = await _controller.UpdatePercentage(TestPercentageId, request);
+        var result = await _controller.UpdatePercentage(TestPercentageId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -402,7 +402,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.UpdatePercentage(999, request);
+        var result = await _controller.UpdatePercentage(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -419,7 +419,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanEditPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.UpdatePercentage(TestPercentageId, request);
+        var result = await _controller.UpdatePercentage(TestPercentageId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -443,7 +443,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.ValidatePercentageAsync(Arg.Any<CreatePercentageRequest>(), TestPercentageId, Arg.Any<CancellationToken>()).Returns(validationResult);
 
         // Act
-        var result = await _controller.UpdatePercentage(TestPercentageId, request);
+        var result = await _controller.UpdatePercentage(TestPercentageId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -468,7 +468,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.UpdatePercentageAsync(TestPercentageId, request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Some other error"));
 
         // Act
-        var result = await _controller.UpdatePercentage(TestPercentageId, request);
+        var result = await _controller.UpdatePercentage(TestPercentageId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -494,7 +494,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.UpdatePercentageAsync(TestPercentageId, request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("DB error"));
 
         // Act
-        var result = await _controller.UpdatePercentage(TestPercentageId, request);
+        var result = await _controller.UpdatePercentage(TestPercentageId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -516,7 +516,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.DeletePercentageAsync(TestPercentageId, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.DeletePercentage(TestPercentageId);
+        var result = await _controller.DeletePercentage(TestPercentageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -529,7 +529,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.GetPercentageAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.DeletePercentage(999);
+        var result = await _controller.DeletePercentage(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -545,7 +545,7 @@ public sealed class PercentagesControllerTests
         _permissionServiceMock.CanEditPersonPercentagesAsync(TestPersonId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.DeletePercentage(TestPercentageId);
+        var result = await _controller.DeletePercentage(TestPercentageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -562,7 +562,7 @@ public sealed class PercentagesControllerTests
         _percentageServiceMock.DeletePercentageAsync(TestPercentageId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.DeletePercentage(TestPercentageId);
+        var result = await _controller.DeletePercentage(TestPercentageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);

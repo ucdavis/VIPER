@@ -60,7 +60,7 @@ public sealed class UnitsControllerTests
         _unitServiceMock.GetUnitsAsync(false, Arg.Any<CancellationToken>()).Returns(units);
 
         // Act
-        var result = await _controller.GetUnits();
+        var result = await _controller.GetUnits(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -79,7 +79,7 @@ public sealed class UnitsControllerTests
         _unitServiceMock.GetUnitsAsync(true, Arg.Any<CancellationToken>()).Returns(units);
 
         // Act
-        var result = await _controller.GetUnits(activeOnly: true);
+        var result = await _controller.GetUnits(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

@@ -59,7 +59,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         SetupUserWithFullAccess();
 
         // Act
-        var result = await _controller.GetPercentAssignTypes();
+        var result = await _controller.GetPercentAssignTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -85,7 +85,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         SetupUserWithFullAccess();
 
         // Act
-        var result = await _controller.GetPercentAssignTypes(activeOnly: true);
+        var result = await _controller.GetPercentAssignTypes(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -105,10 +105,10 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         // Add percentage assignments for type 1 (Lecture)
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1001, 1, "2024-25"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _controller.GetPercentAssignTypes();
+        var result = await _controller.GetPercentAssignTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -127,10 +127,10 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         // Same person, different years = counts as 2
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2023-24"));
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _controller.GetPercentAssignTypes();
+        var result = await _controller.GetPercentAssignTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -151,10 +151,10 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         var secondPercentage = CreateTestPercentage(TestUserAaudId, 1, "2024-25");
         secondPercentage.PercentageValue = 0.25;
         EffortContext.Percentages.Add(secondPercentage);
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _controller.GetPercentAssignTypes();
+        var result = await _controller.GetPercentAssignTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -270,7 +270,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         SetupUserWithFullAccess();
 
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -296,7 +296,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
 
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2023-24"));
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -320,7 +320,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1001, 1, "2023-24"));
         EffortContext.Percentages.Add(CreateTestPercentage(1002, 1, "2024-25"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -351,7 +351,7 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         var secondPercentage = CreateTestPercentage(TestUserAaudId, 1, "2024-25");
         secondPercentage.PercentageValue = 0.25;
         EffortContext.Percentages.Add(secondPercentage);
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.GetInstructorsByType(1, CancellationToken.None);
@@ -377,10 +377,10 @@ public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTes
         EffortContext.Percentages.Add(CreateTestPercentage(TestUserAaudId, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1001, 1, "2024-25"));
         EffortContext.Percentages.Add(CreateTestPercentage(1002, 2, "2024-25"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Get all types
-        var typesResult = await _controller.GetPercentAssignTypes(activeOnly: true);
+        var typesResult = await _controller.GetPercentAssignTypes(activeOnly: true, TestContext.Current.CancellationToken);
         var typesOk = Assert.IsType<OkObjectResult>(typesResult.Result);
         var types = Assert.IsAssignableFrom<IEnumerable<PercentAssignTypeDto>>(typesOk.Value).ToList();
         Assert.Equal(3, types.Count);
