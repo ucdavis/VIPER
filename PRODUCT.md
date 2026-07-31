@@ -1,53 +1,79 @@
 # Product
 
-## Register
+<!-- impeccable:product-schema 1 -->
 
-product
+## Platform
+
+web
 
 ## Users
 
-The UC Davis Weill School of Veterinary Medicine community: faculty, clinicians, staff, and students. They authenticate through campus CAS and use VIPER as the internal hub for the school's operational systems — role and permission administration (RAPS), effort reporting, clinical scheduling, competency tracking (CTS), the directory, and CMS-managed content.
+The UC Davis Weill School of Veterinary Medicine community: faculty, clinicians, staff, and students. They authenticate through campus CAS and use VIPER as the internal hub for the school's operational systems: role and permission administration (RAPS), effort reporting, clinical scheduling, competency tracking (CTS), the directory, and CMS-managed content.
 
-These are mandatory, repeat users, not visitors. They arrive mid-workflow, often under time pressure, to get a specific administrative, academic, or clinical task done — the app is a tool, not a destination. Technical comfort ranges widely, from daily power users to occasional ones, and the same screens are used across desktop and mobile.
+These are mandatory, repeat users, not visitors. They arrive mid-workflow, often under time pressure, to get a specific administrative, academic, or clinical task done. The app is a tool, not a destination. Technical comfort ranges widely, from daily power users to occasional ones, and the same screens are used across desktop and mobile.
 
 ## Product Purpose
 
 VIPER (2.0) is the School of Veterinary Medicine's internal web application suite: a single authenticated home, behind the UC Davis brand, for the operational systems the school runs on. It consolidates permission management, effort reporting, clinical scheduling, competency tracking, directory, and content into one consistent shell so staff and faculty don't juggle disconnected tools.
 
-Success looks like: tasks completed quickly and correctly with minimal training, consistent behavior across every area, and full accessibility for every user — on any device. The product earns trust by being reliable and clear, not by being novel.
+Success looks like: tasks completed quickly and correctly with minimal training, consistent behavior across every area, and full accessibility for every user, on any device. The product earns trust by being reliable and clear, not by being novel.
+
+## Positioning
+
+VIPER 2 is the incremental replacement for the legacy VIPER 1 site. The two run in parallel indefinitely: VIPER 2 under a `/2` PathBase, VIPER 1 at the root, with each area moving over when it is ready. That migration posture is the durable fact, not a phase to be finished and forgotten.
+
+What no neighboring product could truthfully copy is the school's own operational data and identity graph. VIPER sits directly on the SVM and campus systems of record (RAPS roles, AAUD identity, effort, rotations, competencies) rather than modeling a generic institution. A campus-wide system does not know a fourth-year rotation or a clinician's effort split; an off-the-shelf admin tool does not know UC Davis CAS or RAPS. VIPER's position is the shell that speaks both, so a user crosses between permission administration, effort, and scheduling without changing tools or mental models.
+
+Because migration is incremental, every new surface has to be legible next to a VIPER 1 page a user may hit in the same session, and a user's sense of "the school's system" spans both. Continuity of behavior across the boundary is part of the product, not a transitional courtesy.
+
+## Operating Context
+
+- **Access is never anonymous.** Every working surface is behind campus CAS single sign-on, gated by RAPS roles through `[Permission(Allow = "SVMSecure.{Area}")]`. The only unauthenticated surface in the product is the login and welcome page.
+- **Two sites, one perceived system.** TEST and PROD run VIPER 2 as an IIS sub-application under `/2`, beside legacy VIPER 1 at `/`. Local development has no base path, so subpath bugs surface only on TEST and PROD.
+- **Areas in the suite today.** Backend areas: CMS, CTS, ClinicalScheduler, Computing, Curriculum, Directory, Effort, RAPS, Scheduler, Students. Vue SPAs: CAHFS, CMS, CTS, ClinicalScheduler, Computing, Effort, Students.
+- **Release path.** Feature branch off `main`, merged to `Development` to deploy to TEST, then to `main` after approval on TEST. Jenkins runs the deploys.
+- **Usage scene.** Mid-task, time-pressured, often with a specific record in hand (a person, a rotation, a reporting period). Screens are used on desktop and on mobile from 390px up, including in clinical settings.
+
+## Capabilities and Constraints
+
+- **Stack.** ASP.NET 10 backend organized per area under `web/Areas/{AreaName}/`, with a Vue 3 multi-SPA frontend built by Vite into `wwwroot/vue/`. Quasar is the component vocabulary; new screens compose it rather than introducing bespoke markup.
+- **Data.** SQL Server 2016 with EF Core, spanning the CTS, RAPS, and AAUD schemas plus `effort` and `users`. The 2016 target rules out `STRING_AGG`, `TRIM`, `CONCAT_WS`, and `GREATEST`/`LEAST`.
+- **Identity.** `AaudUser.AaudUserId` equals `Person.PersonId`. Records are de-duplicated by MothraId.
+- **Terminology future work must preserve.** RAPS (roles and permissions), CTS (competency tracking), AAUD (campus identity), effort (reporting), rotation (clinical scheduling), MothraId, area.
+- **Open and undecided.** Which remaining VIPER 1 areas migrate next, and in what order, is not recorded here.
 
 ## Brand Personality
 
-Institutional, trustworthy, and efficient — the voice of a public university veterinary school. Three words: **authoritative, clear, accessible.**
+Institutional, trustworthy, and efficient: the voice of a public university veterinary school. Three words: **authoritative, clear, accessible.** It should feel unmistakably like UC Davis, calm and credible, with warmth coming from the school's mission rather than from decorative UI.
 
-It should feel unmistakably like UC Davis: Aggie Blue and gold, calm and credible, brand-disciplined. Warmth comes from the school's mission — animal and public health, teaching, the people and patients — surfaced through brand imagery on welcome surfaces, not from decorative UI inside the workspace. The copy voice is plain, direct, and respectful of the user's time: say what a control does and what will happen.
+The copy voice is plain, direct, and respectful of the user's time: say what a control does and what will happen. Never reach for marketing buzzwords (streamline, empower, supercharge, leverage, seamless, world-class, enterprise-grade, next-generation, game-changer); use specific nouns and verbs for what the product literally does.
 
-## Anti-references
+The visual expression of all this, including what VIPER must not look like, is specified in [DESIGN.md](DESIGN.md).
 
-VIPER should **not** look like a consumer SaaS marketing site, a trendy startup dashboard, or a generic off-the-shelf admin template. Specifically avoid:
+## Evidence on Hand
 
-- **Consumer-SaaS tells**: gradient text, glassmorphism, the hero-metric template (big number + small label + gradient accent), and identical icon-card grids.
-- **Marketing buzzwords**: streamline, empower, supercharge, leverage, seamless, world-class, enterprise-grade, next-generation, game-changer. Use specific nouns and verbs for what the product literally does.
-- **Off-brand color**: bright gold as a dominant surface or as text on white; dark-mode-with-neon-accents; anything that fights the UC Davis institutional palette.
-- **Marketing-scale UI inside the app**: display-scale hero headings on working screens (those belong only to brand surfaces like the login splash).
-- **Generic Material/Bootstrap admin look**: undifferentiated framework defaults with no brand discipline.
+Real assets that design work may rely on:
 
-## Design Principles
+- **Proxima Nova**, the UC Davis campus typeface, self-hosted as woff2 at regular, medium, bold, and extrabold, in both `VueApp/src/assets/fonts/proxima-nova/` and `web/wwwroot/fonts/proxima-nova/`.
+- **Self-hosted Roboto and Material Icons**: `VueApp/src/assets/fonts/roboto-v51-latin.woff2`, `roboto-v51-latin-ext.woff2`, and `material-icons.woff2`, built to `web/wwwroot/vue/assets/`.
+- **Five login hero photographs** in AVIF and JPG at `web/wwwroot/images/login/`: guinea pig, horse and foal, ophthalmology, the SVM building, and vetmed admin.
+- **Brand marks**: the rod of asclepius (`rod-of-asclepius-white.avif` and `.png`), the `_ViperBrand.cshtml` lockup partial, `web/wwwroot/images/UCDSVMLogo.png`, and `nopic.jpg` as the person-photo placeholder.
+- **The welcome splash**: `web/Views/Home/Welcome.cshtml`, `web/wwwroot/css/welcome.css`, and `WelcomePageHelper.cs` with tests.
 
-1. **The tool gets out of the way.** Inside the app, density, speed, and legibility beat decoration; every element earns its place. The brand greets users at the door (the login splash); the workspace stays quiet.
-2. **Accessibility is a floor, not a feature.** WCAG AA on every surface — contrast, landmarks, keyboard operation, screen-reader semantics — because the audience is mandatory daily users across a full range of needs.
-3. **Brand discipline over novelty.** Carry the UC Davis identity faithfully: Aggie Blue carries the weight, gold accents but never dominates, consistency wins. The school's credibility is the design's job.
-4. **Reuse over reinvention.** One Quasar component vocabulary, one token source, shared patterns (StatusBadge, StatusBanner, the dialog pattern). New screens compose existing parts rather than introducing one-offs.
+Absences that future work must not paper over:
+
+- **No marketing evidence exists.** There are no testimonials, customer logos, adoption metrics, benchmarks, or press. VIPER is mandatory internal software; never fabricate social proof for it. Real user, permission, and effort data lives only in the TEST and PROD databases.
+
+## Product Principles
+
+1. **The tool gets out of the way.** Density, speed, and legibility beat decoration; every element earns its place. The brand greets users at the door; the workspace stays quiet.
+2. **Accessibility is a floor, not a feature.** WCAG AA on every surface, for an audience that has no choice but to use this software.
+3. **Brand discipline over novelty.** Carry the UC Davis identity faithfully and consistently. The school's credibility is the design's job.
+4. **Reuse over reinvention.** One component vocabulary, one token source, shared patterns. New screens compose existing parts rather than introducing one-offs.
 5. **Correctness earns trust.** This is institutional software handling permissions, effort, and schedules. Clarity and predictability outrank cleverness; never surprise the user with what an action does.
 
 ## Accessibility & Inclusion
 
-WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to:
+WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and fonts are self-hosted for reliable rendering.
 
-- **Contrast**: ≥4.5:1 for body text, ≥3:1 for large text and UI. Quasar's mid-greys are remapped to AA-safe shades, bright gold is corrected before use as text, and inactive tab text is kept above the fade threshold.
-- **Structure**: exactly one `<main>` landmark per page; a visible skip-to-content link.
-- **Components**: every dialog has an accessible name and a close affordance; interactive non-buttons get full keyboard semantics (`enter`/`space`, `tabindex`, `role`, `aria-label`).
-- **Announcements**: screen-reader live regions are polite by default and assertive only in direct response to a user action.
-- **Motion & responsiveness**: reduced-motion preferences respected; layouts work from mobile (390px) up. Fonts are self-hosted for reliable rendering.
-
-Visual and component-level specifics live in [DESIGN.md](DESIGN.md).
+The component-level contract that delivers this (contrast ratios, landmarks, keyboard semantics, dialog naming, live-region politeness) is specified in [DESIGN.md](DESIGN.md).
