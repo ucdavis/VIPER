@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.CMS.Constants;
@@ -27,6 +28,14 @@ namespace Viper.Areas.CMS.Services
         Task<CmsFileDto?> UpdateFileAsync(Guid fileGuid, CmsFileUpdateRequest request, IFormFile? file, CancellationToken ct = default);
 
         Task<bool> SoftDeleteFileAsync(Guid fileGuid, CancellationToken ct = default);
+
+        /// <summary>
+        /// Rechecks the not-shared-elsewhere condition and soft-deletes in one step, so a block that
+        /// attaches the file in the gap between an eligibility check and the delete does not get its
+        /// attachment stranded. Returns false (file left in place) when the file is missing, already
+        /// deleted, or now attached to a block other than <paramref name="contentBlockId"/>.
+        /// </summary>
+        Task<bool> RollbackDeleteFileAsync(Guid fileGuid, int contentBlockId, CancellationToken ct = default);
 
         Task<bool> RestoreFileAsync(Guid fileGuid, CancellationToken ct = default);
 
@@ -685,6 +694,49 @@ namespace Viper.Areas.CMS.Services
             _audit.Audit(entity, CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
             await _context.SaveChangesAsync(ct);
             return true;
+        }
+
+        public async Task<bool> RollbackDeleteFileAsync(Guid fileGuid, int contentBlockId, CancellationToken ct = default)
+        {
+            // The load, the deleted check, and the "not attached elsewhere" recheck all happen
+            // inside the same Serializable transaction, so the whole decision is made atomically:
+            // SQL Server range-locks what this transaction read, so a concurrent delete or attach
+            // to a different block either commits first (and this recheck then sees it) or blocks
+            // until this transaction finishes — it can no longer land in the gap between a
+            // snapshot taken before the transaction and the save at the end of it.
+            return await ExecuteInTransactionAsync(async token =>
+            {
+                var entity = await LoadFileAsync(fileGuid, tracking: true, token);
+                if (entity == null || entity.DeletedOn != null)
+                {
+                    return false;
+                }
+                bool attachedElsewhere = await _context.ContentBlockToFiles
+                    .AnyAsync(cbf => cbf.FileGuid == fileGuid && cbf.ContentBlockId != contentBlockId, token);
+                if (attachedElsewhere)
+                {
+                    return false;
+                }
+                entity.DeletedOn = DateTime.Now;
+                entity.ModifiedOn = DateTime.Now;
+                entity.ModifiedBy = CurrentLoginId();
+                _audit.Audit(entity, CmsFileAuditActions.DeleteFile, "File Marked for Deletion");
+                await _context.SaveChangesAsync(token);
+                return true;
+            }, IsolationLevel.Serializable, ct);
+        }
+
+        /// <summary>
+        /// Runs <paramref name="operation"/> inside a database transaction at the given isolation
+        /// level. Overridden in tests to bypass transactions (the EF in-memory provider doesn't
+        /// support them).
+        /// </summary>
+        protected virtual Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            IsolationLevel isolationLevel,
+            CancellationToken cancellationToken)
+        {
+            return TransactionHelper.ExecuteInTransactionAsync(_context.Database, operation, isolationLevel, cancellationToken);
         }
 
         public async Task<bool> RestoreFileAsync(Guid fileGuid, CancellationToken ct = default)

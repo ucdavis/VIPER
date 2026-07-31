@@ -2,12 +2,12 @@
     <div class="q-pa-md">
         <BreadcrumbHeading
             :label="isNew ? 'Add Content Block' : 'Edit Content Block'"
-            parent-label="Manage Content Blocks"
-            :parent-to="{ name: 'CmsContentBlocks' }"
+            :parent-label="canManage ? 'Manage Content Blocks' : 'Content Management System'"
+            :parent-to="canManage ? { name: 'CmsContentBlocks' } : { name: 'CmsHome' }"
         />
 
         <StatusBanner
-            v-if="block.deletedOn"
+            v-if="block.deletedOn && canManage"
             type="warning"
             class="q-mb-md"
         >
@@ -33,6 +33,7 @@
             <div class="row q-col-gutter-lg">
                 <div class="col-12">
                     <q-input
+                        v-if="canManage"
                         v-model="block.title"
                         dense
                         outlined
@@ -42,6 +43,12 @@
                         aria-required="true"
                         hide-bottom-space
                     />
+                    <h2
+                        v-else
+                        class="text-h6 q-mt-none q-mb-md"
+                    >
+                        {{ block.title }}
+                    </h2>
 
                     <div
                         id="content-editor-label"
@@ -125,97 +132,113 @@
                         <q-card-section class="q-gutter-y-sm">
                             <h2 class="text-h6 q-my-none">Settings</h2>
 
-                            <q-select
-                                v-model="block.system"
-                                dense
-                                options-dense
-                                outlined
-                                label="System"
-                                class="required-field"
-                                :options="['Viper', 'Public']"
-                                :rules="[(v: string | null) => !!v || 'System is required']"
-                                aria-required="true"
-                                hint="Which site shows this block: the VIPER intranet or the public site."
-                                @update:model-value="onSystemChange"
-                            />
+                            <template v-if="canManage">
+                                <q-select
+                                    v-model="block.system"
+                                    dense
+                                    options-dense
+                                    outlined
+                                    label="System"
+                                    class="required-field"
+                                    :options="['Viper', 'Public']"
+                                    :rules="[(v: string | null) => !!v || 'System is required']"
+                                    aria-required="true"
+                                    hint="Which site shows this block: the VIPER intranet or the public site."
+                                    @update:model-value="onSystemChange"
+                                />
 
-                            <q-select
-                                v-if="isNew"
-                                v-model="block.viperSectionPath"
-                                dense
-                                options-dense
-                                outlined
-                                label="VIPER section path"
-                                class="required-field"
-                                :options="folders"
-                                :rules="[(v: string | null) => !!v || 'A VIPER section path is required']"
-                                aria-required="true"
-                                hint="The VIPER app folder this block's files are stored in; it can't be changed later."
-                            />
-                            <q-input
+                                <q-select
+                                    v-if="isNew"
+                                    v-model="block.viperSectionPath"
+                                    dense
+                                    options-dense
+                                    outlined
+                                    label="VIPER section path"
+                                    class="required-field"
+                                    :options="folders"
+                                    :rules="[(v: string | null) => !!v || 'A VIPER section path is required']"
+                                    aria-required="true"
+                                    hint="The VIPER app folder this block's files are stored in; it can't be changed later."
+                                />
+                                <q-input
+                                    v-else
+                                    :model-value="block.viperSectionPath"
+                                    dense
+                                    outlined
+                                    readonly
+                                    label="VIPER section path"
+                                >
+                                    <template #append>
+                                        <q-icon
+                                            name="help"
+                                            size="xs"
+                                            tabindex="0"
+                                            role="img"
+                                            aria-label="The section path can't be edited after the block is created"
+                                        >
+                                            <q-tooltip>
+                                                The section path can't be edited after the block is created.
+                                            </q-tooltip>
+                                        </q-icon>
+                                    </template>
+                                </q-input>
+
+                                <q-input
+                                    v-model="block.page"
+                                    dense
+                                    outlined
+                                    label="Page"
+                                />
+
+                                <q-input
+                                    v-model.number="block.blockOrder"
+                                    dense
+                                    outlined
+                                    type="number"
+                                    label="Block order"
+                                />
+
+                                <q-input
+                                    v-model="block.friendlyName"
+                                    dense
+                                    outlined
+                                    label="Friendly name"
+                                    hint="Used for URL-friendly access; must be unique"
+                                />
+
+                                <q-toggle
+                                    v-model="block.allowPublicAccess"
+                                    label="Public access"
+                                    @update:model-value="autoEnabledPublicAccess = false"
+                                />
+
+                                <StatusBanner
+                                    v-if="autoEnabledPublicAccess"
+                                    type="info"
+                                    live="assertive"
+                                >
+                                    Public system content is visible to everyone, so we turned on Public access. Switch
+                                    it off if this block should stay restricted.
+                                </StatusBanner>
+                            </template>
+
+                            <!-- Delegated editors can't change settings; show the identifying fields as text. -->
+                            <dl
                                 v-else
-                                :model-value="block.viperSectionPath"
-                                dense
-                                outlined
-                                readonly
-                                label="VIPER section path"
+                                class="settings-summary q-my-none"
                             >
-                                <template #append>
-                                    <q-icon
-                                        name="help"
-                                        size="xs"
-                                        tabindex="0"
-                                        role="img"
-                                        aria-label="The section path can't be edited after the block is created"
-                                    >
-                                        <q-tooltip>
-                                            The section path can't be edited after the block is created.
-                                        </q-tooltip>
-                                    </q-icon>
-                                </template>
-                            </q-input>
-
-                            <q-input
-                                v-model="block.page"
-                                dense
-                                outlined
-                                label="Page"
-                            />
-
-                            <q-input
-                                v-model.number="block.blockOrder"
-                                dense
-                                outlined
-                                type="number"
-                                label="Block order"
-                            />
-
-                            <q-input
-                                v-model="block.friendlyName"
-                                dense
-                                outlined
-                                label="Friendly name"
-                                hint="Used for URL-friendly access; must be unique"
-                            />
-
-                            <q-toggle
-                                v-model="block.allowPublicAccess"
-                                label="Public access"
-                                @update:model-value="autoEnabledPublicAccess = false"
-                            />
-
-                            <StatusBanner
-                                v-if="autoEnabledPublicAccess"
-                                type="info"
-                                live="assertive"
-                            >
-                                Public system content is visible to everyone, so we turned on Public access. Switch it
-                                off if this block should stay restricted.
-                            </StatusBanner>
+                                <dt>Title</dt>
+                                <dd>{{ block.title || "—" }}</dd>
+                                <dt>VIPER section path</dt>
+                                <dd>{{ block.viperSectionPath || "—" }}</dd>
+                                <dt>Page</dt>
+                                <dd>{{ block.page || "—" }}</dd>
+                            </dl>
                         </q-card-section>
                     </q-card>
 
                     <q-card
+                        v-if="canManage"
                         flat
                         bordered
                         class="q-mb-md"
@@ -227,7 +250,23 @@
                     </q-card>
 
                     <q-card
-                        v-if="canAccessFiles || block.files.length > 0"
+                        v-if="canManage"
+                        flat
+                        bordered
+                        class="q-mb-md"
+                    >
+                        <q-card-section>
+                            <h2 class="text-h6 q-my-none q-mb-sm">Edit access</h2>
+                            <PermissionSelector
+                                v-model="block.editPermissions"
+                                label="Edit access"
+                                hint="Holders of any of these permissions may edit this block's content and files (not its settings)"
+                            />
+                        </q-card-section>
+                    </q-card>
+
+                    <q-card
+                        v-if="canEditFiles || block.files.length > 0"
                         flat
                         bordered
                     >
@@ -239,6 +278,7 @@
                                 class="row items-center q-mb-xs"
                             >
                                 <a
+                                    v-if="file.url"
                                     :href="file.url"
                                     target="_blank"
                                     rel="noopener"
@@ -247,8 +287,14 @@
                                     {{ file.friendlyName }}
                                     <span class="sr-only">(opens in new window)</span>
                                 </a>
+                                <span
+                                    v-else
+                                    class="col ellipsis"
+                                >
+                                    {{ file.friendlyName }}
+                                </span>
                                 <q-btn
-                                    v-if="canAccessFiles"
+                                    v-if="canEditFiles"
                                     dense
                                     flat
                                     size="sm"
@@ -261,7 +307,7 @@
                                 </q-btn>
                             </div>
                             <q-select
-                                v-if="canAccessFiles"
+                                v-if="canEditFiles"
                                 v-model="fileToAttach"
                                 dense
                                 options-dense
@@ -277,12 +323,13 @@
                                 @update:model-value="attachFile"
                             />
                             <InlineFileUpload
-                                v-if="canAccessFiles"
+                                v-if="canEditFiles"
                                 ref="inlineUploadRef"
                                 class="q-mt-sm"
                                 :folder="block.viperSectionPath"
                                 :permissions="block.permissions"
                                 :allow-public-access="block.allowPublicAccess"
+                                :content-block-id="isNew ? null : block.contentBlockId"
                                 @staged-count="stagedCount = $event"
                             />
                         </q-card-section>
@@ -346,6 +393,7 @@ import { computed, inject, onMounted, ref } from "vue"
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router"
 import { useQuasar } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { useUserStore } from "@/store/UserStore"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { useContentDiffViewer } from "@/CMS/composables/use-content-diff-viewer"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
@@ -356,6 +404,7 @@ import RichTextEditor from "@/components/RichTextEditor.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import ContentDiffDialog from "@/CMS/components/ContentDiffDialog.vue"
 import type {
+    AttachableFile,
     CmsContentBlock,
     CmsContentBlockFile,
     CmsContentHistoryDiff,
@@ -368,15 +417,27 @@ const filesApiURL = inject("apiURL") + "cms/files/"
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
-const { get, post, put, del, createUrlSearchParams } = useFetch()
-
-// This route also admits CreateContentBlock-only users. The folder list (for the section path)
-// is served by a content-scoped endpoint they can reach; the file catalog (attach/upload) still
-// requires AllFiles, so gate only those.
-const canAccessFiles = checkHasOnePermission(["SVMSecure.CMS.AllFiles"])
+const userStore = useUserStore()
+const { get, post, put, patch, del, createUrlSearchParams } = useFetch()
 
 const blockId = computed(() => (route.params.id ? Number(route.params.id) : null))
 const isNew = computed(() => blockId.value === null)
+
+// Managers get the full editor everywhere. CreateContentBlock holders own only the create flow:
+// on an EXISTING block they are delegated editors like anyone else (the update endpoint is
+// manager-only), so the settings sidebar collapses to a read-only summary and the save switches
+// to the PATCH endpoint.
+const canManage = computed(
+    () =>
+        userStore.userInfo.permissions.includes("SVMSecure.CMS.ManageContentBlocks") ||
+        (isNew.value && userStore.userInfo.permissions.includes("SVMSecure.CMS.CreateContentBlock")),
+)
+
+// The global file catalog (search + create-mode upload) still requires AllFiles. In edit mode the
+// attach/upload controls run through the block-scoped API instead, which any editor of the block
+// (manager or delegated) may use - so gate those on being in edit mode rather than on AllFiles.
+const canAccessFiles = checkHasOnePermission(["SVMSecure.CMS.AllFiles"])
+const canEditFiles = computed(() => (isNew.value ? canAccessFiles : true))
 
 const formRef = ref()
 const saving = ref(false)
@@ -397,10 +458,15 @@ const emptyBlock = (): CmsContentBlock => ({
     modifiedBy: "",
     deletedOn: null,
     permissions: [],
+    editPermissions: [],
     files: [],
 })
 
 const block = ref<CmsContentBlock>(emptyBlock())
+
+// New files created during a save are rolled back through the same API they were uploaded to:
+// the block-scoped files route in edit mode, the global one in create mode (see InlineFileUpload).
+const fileRollbackBase = computed(() => (isNew.value ? filesApiURL : `${apiURL}/${block.value.contentBlockId}/files/`))
 
 // Files chosen in the inline uploader are staged client-side and only uploaded on Save. Fold their
 // count into the dirty state so staging alone trips the unsaved-changes guard.
@@ -421,8 +487,8 @@ const selectedHistory = ref<CmsContentHistoryItem | null>(null)
 const viewingVersion = ref(false)
 const autoEnabledPublicAccess = ref(false)
 
-const fileToAttach = ref<CmsFile | null>(null)
-const fileOptions = ref<CmsFile[]>([])
+const fileToAttach = ref<AttachableFile | null>(null)
+const fileOptions = ref<AttachableFile[]>([])
 const searchingFiles = ref(false)
 
 const editorToolbar = [
@@ -439,11 +505,16 @@ async function loadBlock() {
     if (blockId.value === null) return
     const res = await get(apiURL + "/" + blockId.value)
     if (!res.success) {
-        $q.notify({ type: "negative", message: "Content block not found" })
-        void router.push({ name: "CmsContentBlocks" })
+        // Surface the API's message when it has one: with delegated editing this route relies on
+        // server-side 403s, and "not found" would mislead a user whose edit access was revoked.
+        $q.notify({ type: "negative", message: res.errors?.[0] ?? "Content block not found" })
+        // Managers fall back to the block list; delegated editors can't reach it, so send them home.
+        void router.push({ name: canManage.value ? "CmsContentBlocks" : "CmsHome" })
         return
     }
-    block.value = res.result
+    // editPermissions is manager-only in the UI but always defaulted so the Edit access selector and
+    // the save payload never bind to undefined.
+    block.value = { ...res.result, editPermissions: res.result.editPermissions ?? [] }
     autoEnabledPublicAccess.value = false
     setInitialState()
     await loadHistory()
@@ -516,12 +587,17 @@ async function searchFiles(val: string, update: (fn: () => void) => void) {
         return
     }
     searchingFiles.value = true
-    const params = createUrlSearchParams({ search: val.trim(), status: "active", perPage: 15 })
-    const res = await get(filesApiURL + "?" + params)
+    // attachable-files returns the files the current user may attach to this block, scoped by the
+    // block id in edit mode (omitted while creating). A delegated editor can reach this endpoint.
+    const params = createUrlSearchParams({
+        search: val.trim(),
+        contentBlockId: isNew.value ? undefined : block.value.contentBlockId,
+    })
+    const res = await get(apiURL + "/attachable-files?" + params)
     searchingFiles.value = false
     update(() => {
         const attachedGuids = new Set(block.value.files.map((f) => f.fileGuid))
-        fileOptions.value = res.success ? res.result.filter((f: CmsFile) => !attachedGuids.has(f.fileGuid)) : []
+        fileOptions.value = res.success ? res.result.filter((f: AttachableFile) => !attachedGuids.has(f.fileGuid)) : []
     })
 }
 
@@ -530,7 +606,8 @@ function attachFile() {
     block.value.files.push({
         fileGuid: fileToAttach.value.fileGuid,
         friendlyName: fileToAttach.value.friendlyName,
-        url: fileToAttach.value.friendlyUrl,
+        // attachable-files omits the URL; the block's own GET repopulates it on the next reload after save.
+        url: "",
     })
     fileToAttach.value = null
 }
@@ -579,7 +656,7 @@ async function rollbackFiles(createdGuids: string[]) {
     if (createdGuids.length === 0) return
     for (const guid of createdGuids) {
         try {
-            await del(filesApiURL + guid)
+            await del(fileRollbackBase.value + guid)
         } catch {
             // Best-effort cleanup: a failed delete must not abort the remaining rollbacks or throw
             // past the caller, which would mask the real save/conflict outcome (matches InlineFileUpload.commit).
@@ -612,8 +689,19 @@ function buildSavePayload() {
         friendlyName: block.value.friendlyName || null,
         allowPublicAccess: block.value.allowPublicAccess,
         permissions: block.value.permissions,
+        editPermissions: block.value.editPermissions,
         fileGuids: block.value.files.map((f) => f.fileGuid),
         lastModifiedOn: isNew.value ? null : block.value.modifiedOn,
+    }
+}
+
+// Content-only save used by delegated editors: just the content and the current attachment set,
+// with the same concurrency stamp and 409 semantics as the full save.
+function buildContentPayload() {
+    return {
+        content: block.value.content,
+        lastModifiedOn: block.value.modifiedOn,
+        fileGuids: block.value.files.map((f) => f.fileGuid),
     }
 }
 
@@ -635,14 +723,32 @@ async function handleSaveConflict(res: { errors: string[] | null }, rollbackGuid
     })
 }
 
-function applySaveSuccess(res: { result: CmsContentBlock }) {
-    const title = res.result.title
+function applySaveSuccess(res: { result: CmsContentBlock | null }) {
+    // The manager save echoes the saved block back; the delegated content PATCH may return no body,
+    // so name the block from what is already on screen.
+    const title = res.result?.title ?? block.value.title
     $q.notify({ type: "positive", message: isNew.value ? `Created "${title}"` : `Saved "${title}"` })
-    // Adopt the saved server state and clear the dirty baseline so the unsaved-changes guard stays
-    // quiet, then return to the listing (the conventional post-save destination for this form).
-    block.value = res.result
+    viewingVersion.value = false
+    selectedHistory.value = null
+    autoEnabledPublicAccess.value = false
+    if (res.result) {
+        block.value = { ...res.result, editPermissions: res.result.editPermissions ?? [] }
+    }
+    // Clear the dirty baseline (the editor now holds exactly what was saved) so the unsaved-changes
+    // guard stays quiet on the way out, then leave for wherever this editor came from: managers get
+    // the listing, delegated editors can't reach it and go home (same split as loadBlock's fallback).
     resetDirtyState()
-    void router.push({ name: "CmsContentBlocks" })
+    void router.push({ name: canManage.value ? "CmsContentBlocks" : "CmsHome" })
+}
+
+// Managers (and creators) save the whole block; delegated editors PATCH content + files only.
+function submitBlock() {
+    if (!canManage.value) {
+        return patch(apiURL + "/" + block.value.contentBlockId + "/content", buildContentPayload())
+    }
+    return isNew.value
+        ? post(apiURL, buildSavePayload())
+        : put(apiURL + "/" + block.value.contentBlockId, buildSavePayload())
 }
 
 async function saveBlock() {
@@ -658,10 +764,7 @@ async function saveBlock() {
         return
     }
 
-    const payload = buildSavePayload()
-    const res = isNew.value
-        ? await post(apiURL, payload)
-        : await put(apiURL + "/" + block.value.contentBlockId, payload)
+    const res = await submitBlock()
     saving.value = false
 
     if (res.status === 409) {
@@ -702,5 +805,21 @@ onMounted(() => {
 .required-field :deep(.q-field__label)::after {
     content: " *";
     color: var(--q-negative);
+}
+
+/* Read-only settings summary for delegated editors: small muted labels over plain values. */
+.settings-summary dt {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--ucdavis-black-60);
+}
+
+.settings-summary dd {
+    margin: 0 0 0.5rem;
+}
+
+.settings-summary dd:last-child {
+    margin-bottom: 0;
 }
 </style>

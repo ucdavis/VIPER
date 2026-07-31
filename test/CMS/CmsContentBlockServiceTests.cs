@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
+using Viper.Models.AAUD;
+using Viper.Models.RAPS;
 using Viper.Models.VIPER;
 using Viper.Services;
 
@@ -16,24 +19,30 @@ namespace Viper.test.CMS;
 public sealed class CmsContentBlockServiceTests : IDisposable
 {
     private readonly VIPERContext _context;
+    private readonly RAPSContext _rapsContext;
     private readonly IHtmlSanitizerService _sanitizer;
+    private readonly IUserHelper _userHelper;
     private readonly CmsContentBlockService _service;
 
     public CmsContentBlockServiceTests()
     {
         _context = new VIPERContext(new DbContextOptionsBuilder<VIPERContext>()
             .UseInMemoryDatabase("VIPER_" + Guid.NewGuid()).Options);
+        _rapsContext = new RAPSContext(new DbContextOptionsBuilder<RAPSContext>()
+            .UseInMemoryDatabase("RAPS_" + Guid.NewGuid()).Options);
         _sanitizer = Substitute.For<IHtmlSanitizerService>();
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => callInfo.ArgAt<string>(0));
         // Pass-through so diff tests assert on the real htmldiff.net markers, not a sanitized copy.
         _sanitizer.SanitizeDiff(Arg.Any<string>()).Returns(callInfo => callInfo.ArgAt<string>(0));
+        _userHelper = Substitute.For<IUserHelper>();
 
-        _service = new CmsContentBlockService(_context, _sanitizer, Substitute.For<IUserHelper>());
+        _service = new CmsContentBlockService(_context, _rapsContext, _sanitizer, _userHelper);
     }
 
     public void Dispose()
     {
         _context.Dispose();
+        _rapsContext.Dispose();
     }
 
     private async Task<ContentBlock> SeedBlockAsync(Action<ContentBlock>? customize = null)
@@ -298,7 +307,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         var block = await SeedBlockAsync();
 
         var dto = await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>quick edit</p>", block.ModifiedOn,
-            TestContext.Current.CancellationToken);
+            ct: TestContext.Current.CancellationToken);
 
         Assert.Equal("<p>quick edit</p>", dto!.Content);
         Assert.Equal("Seeded Block", dto.Title);
@@ -348,8 +357,8 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task History_ListAndVersionRetrieval()
     {
         var block = await SeedBlockAsync();
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v3</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v3</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
 
         var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
         Assert.Equal(2, history.Count);
@@ -462,8 +471,8 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task GetHistoryVersionDiff_AgainstPreviousVersion_MarksChangesAndReSanitizes()
     {
         var block = await SeedBlockAsync();
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v3</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v3</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
 
         // History newest-first is [v2, original]; v2 has a predecessor (original) to diff against.
         var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
@@ -487,7 +496,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task GetHistoryVersionDiff_OriginalVersion_HasNoComparison()
     {
         var block = await SeedBlockAsync();
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
 
         var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
         var original = history[^1];
@@ -516,7 +525,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task DiffContentAgainstHistory_ComparesDraftToSelectedVersion()
     {
         var block = await SeedBlockAsync();
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
 
         var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
         var original = history[^1];
@@ -536,7 +545,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task DiffContentAgainstHistory_IdenticalContent_ReportsNoChanges()
     {
         var block = await SeedBlockAsync();
-        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, TestContext.Current.CancellationToken);
+        await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>v2</p>", block.ModifiedOn, ct: TestContext.Current.CancellationToken);
 
         var history = await _service.GetHistoryAsync(block.ContentBlockId, TestContext.Current.CancellationToken);
         var original = history[^1]; // holds "<p>original</p>"
@@ -550,6 +559,566 @@ public sealed class CmsContentBlockServiceTests : IDisposable
         Assert.False(diff.HasChanges);
         Assert.DoesNotContain("<ins", diff.Content);
         Assert.DoesNotContain("<del", diff.Content);
+    }
+
+    #endregion
+
+    #region Delegated edit authorization (CanEditAsync)
+
+    private static AaudUser DelegateUser() => new() { AaudUserId = 10, LoginId = "delegate", MothraId = "m10" };
+
+    private void SignInAs(AaudUser user, bool isManager, params string[] permissions)
+    {
+        _userHelper.GetCurrentUser().Returns(user);
+        _userHelper.HasPermission(_rapsContext, user, CmsPermissions.ManageContentBlocks).Returns(isManager);
+        _userHelper.HasPermission(_rapsContext, user, "SVMSecure")
+            .Returns(permissions.Contains("SVMSecure"));
+        // Mirrors the real UserHelper: HasPermission is derived from GetAllPermissions, so a
+        // manager's set must actually contain the permission for CanEditAsync's single-resolve
+        // HashSet check to see it.
+        var allPermissions = permissions.ToList();
+        if (isManager)
+        {
+            allPermissions.Add(CmsPermissions.ManageContentBlocks);
+        }
+        _userHelper.GetAllPermissions(_rapsContext, user)
+            .Returns(allPermissions.Select(p => new TblPermission { Permission = p }).ToList());
+    }
+
+    private async Task<Models.VIPER.File> SeedFileAsync(string friendlyName, string folder = "cats",
+        string modifiedBy = "test", Action<Models.VIPER.File>? customize = null)
+    {
+        var file = new Models.VIPER.File
+        {
+            FileGuid = Guid.NewGuid(),
+            FilePath = $@"C:\FakeRoot\{folder}\{friendlyName}",
+            Folder = folder,
+            FriendlyName = friendlyName,
+            Description = "",
+            ModifiedBy = modifiedBy,
+            ModifiedOn = DateTime.Now
+        };
+        customize?.Invoke(file);
+        _context.Files.Add(file);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return file;
+    }
+
+    [Fact]
+    public async Task CanEdit_Manager_CanEditAnyBlock()
+    {
+        // Manager holds no edit permission and the block delegates none, yet manage overrides.
+        var block = await SeedBlockAsync();
+        SignInAs(DelegateUser(), isManager: true);
+
+        Assert.True(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_HolderOfEditPermission_CanEdit()
+    {
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure.Editors");
+
+        Assert.True(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_HolderOfViewPermissionOnly_CannotEdit()
+    {
+        var block = await SeedBlockAsync(b =>
+        {
+            b.ContentBlockToPermissions.Add(new ContentBlockToPermission { Permission = "SVMSecure.Viewers" });
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" });
+        });
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure.Viewers");
+
+        Assert.False(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_Anonymous_CannotEdit()
+    {
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
+        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+
+        Assert.False(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_EmptyEditList_IsManagerOnly()
+    {
+        // Empty edit list means manager-only, NOT the view-list's empty-means-all-SVMSecure rule.
+        var block = await SeedBlockAsync();
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure.Editors");
+
+        Assert.False(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_SoftDeletedBlock_NotEditableByDelegate()
+    {
+        var block = await SeedBlockAsync(b =>
+        {
+            b.DeletedOn = DateTime.Now;
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" });
+        });
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure.Editors");
+
+        Assert.False(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_MatchIsCaseInsensitive()
+    {
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
+        SignInAs(DelegateUser(), isManager: false, "svmsecure.editors");
+
+        Assert.True(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CanEdit_MissingBlock_ReturnsFalseEvenForManager()
+    {
+        SignInAs(DelegateUser(), isManager: true);
+
+        Assert.False(await _service.CanEditAsync(999999, TestContext.Current.CancellationToken));
+    }
+
+    #endregion
+
+    #region Content-only update: file deltas + edit permissions
+
+    [Fact]
+    public async Task UpdateContentOnly_WithFileGuids_ReplacesAttachments()
+    {
+        var keep = await SeedFileAsync("keep.pdf");
+        var add = await SeedFileAsync("add.pdf");
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToFiles.Add(new ContentBlockToFile { FileGuid = keep.FileGuid }));
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var dto = await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>edit</p>", block.ModifiedOn,
+            new List<Guid> { add.FileGuid }, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(dto);
+        var file = Assert.Single(dto.Files);
+        Assert.Equal("add.pdf", file.FriendlyName);
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_WithUnknownFileGuid_Throws()
+    {
+        var block = await SeedBlockAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateContentOnlyAsync(
+            block.ContentBlockId, "<p>edit</p>", block.ModifiedOn, new List<Guid> { Guid.NewGuid() },
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_WithFileGuids_LeavesSettingsUntouched()
+    {
+        var file = await SeedFileAsync("cats-attach.pdf");
+        var block = await SeedBlockAsync(b =>
+        {
+            b.ContentBlockToPermissions.Add(new ContentBlockToPermission { Permission = "SVMSecure.Viewers" });
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" });
+        });
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var dto = await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>edit</p>", block.ModifiedOn,
+            new List<Guid> { file.FileGuid }, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(dto);
+        // The content-only path never touches title/system/permission fields.
+        Assert.Equal("Seeded Block", dto.Title);
+        Assert.Equal("Viper", dto.System);
+        Assert.Equal(new List<string> { "SVMSecure.Viewers" }, dto.Permissions);
+        Assert.Equal(new List<string> { "SVMSecure.Editors" }, dto.EditPermissions);
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_WithoutFileGuids_LeavesAttachmentsAlone()
+    {
+        var file = await SeedFileAsync("cats-attach.pdf");
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToFiles.Add(new ContentBlockToFile { FileGuid = file.FileGuid }));
+
+        var dto = await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>edit</p>", block.ModifiedOn,
+            ct: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(dto);
+        var attached = Assert.Single(dto.Files);
+        Assert.Equal("cats-attach.pdf", attached.FriendlyName);
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_RejectsAttachingFileTheUserCannotDownload()
+    {
+        // A delegate who guesses a restricted file's GUID must not be able to attach it (the
+        // attachment list would leak its name); same rules as the attachable-files search.
+        var restricted = await SeedFileAsync("restricted.pdf", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" }));
+        var block = await SeedBlockAsync();
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateContentOnlyAsync(
+            block.ContentBlockId, "<p>edit</p>", block.ModifiedOn, new List<Guid> { restricted.FileGuid },
+            TestContext.Current.CancellationToken));
+        Assert.Empty(_context.ContentBlockToFiles.Where(f => f.ContentBlockId == block.ContentBlockId));
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_AllowsAttachingFileTheDelegateUploaded()
+    {
+        // An inline upload inherits the block's VIEW permission, which a delegate need not hold; they
+        // must still be able to attach the file they just uploaded (ModifiedBy = the delegate) INTO
+        // this block's folder ("cats" for both the seeded block and file), even though its permission
+        // would otherwise fail the download-access check.
+        var uploaded = await SeedFileAsync("uploaded.pdf", folder: "cats", modifiedBy: "delegate", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" }));
+        var block = await SeedBlockAsync();
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var dto = await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>edit</p>", block.ModifiedOn,
+            new List<Guid> { uploaded.FileGuid }, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(dto);
+        var attached = Assert.Single(dto.Files);
+        Assert.Equal("uploaded.pdf", attached.FriendlyName);
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_RejectsAttachingUploadedFileFromAnotherFolder()
+    {
+        // The uploader exception is scoped to the block's own folder: a delegate cannot take a
+        // restricted file they uploaded for a different section ("faculty") and attach it to a block
+        // in another section ("cats"), which would leak the file's name/URL through the target block's
+        // attachment list. Mirrors the folder scope on the rollback-delete rule.
+        var uploaded = await SeedFileAsync("faculty-secret.pdf", folder: "faculty", modifiedBy: "delegate",
+            customize: f => f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" }));
+        var block = await SeedBlockAsync();
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateContentOnlyAsync(
+            block.ContentBlockId, "<p>edit</p>", block.ModifiedOn, new List<Guid> { uploaded.FileGuid },
+            TestContext.Current.CancellationToken));
+        Assert.Empty(_context.ContentBlockToFiles.Where(f => f.ContentBlockId == block.ContentBlockId));
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_RejectsAttachingDeletedFile()
+    {
+        // The search filters deleted files out; attaching one by a known GUID would resurrect
+        // it into an active block, so the attach guard treats deleted as not attachable.
+        var deleted = await SeedFileAsync("deleted.pdf", customize: f => f.DeletedOn = DateTime.Now);
+        var block = await SeedBlockAsync();
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateContentOnlyAsync(
+            block.ContentBlockId, "<p>edit</p>", block.ModifiedOn, new List<Guid> { deleted.FileGuid },
+            TestContext.Current.CancellationToken));
+        Assert.Empty(_context.ContentBlockToFiles.Where(f => f.ContentBlockId == block.ContentBlockId));
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_KeepsExistingRestrictedAttachment()
+    {
+        // A restricted file a manager already attached must not fail the delegate's save when
+        // the client resends the unchanged attachment set.
+        var restricted = await SeedFileAsync("restricted.pdf", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" }));
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToFiles.Add(new ContentBlockToFile { FileGuid = restricted.FileGuid }));
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var dto = await _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>edit</p>", block.ModifiedOn,
+            new List<Guid> { restricted.FileGuid }, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(dto);
+        var kept = Assert.Single(dto.Files);
+        Assert.Equal("restricted.pdf", kept.FriendlyName);
+    }
+
+    [Fact]
+    public async Task UpdateContentOnly_StaleLastModifiedOn_ThrowsConcurrency()
+    {
+        var block = await SeedBlockAsync();
+
+        await Assert.ThrowsAsync<CmsConcurrencyException>(() => _service.UpdateContentOnlyAsync(
+            block.ContentBlockId, "<p>edit</p>", block.ModifiedOn.AddMinutes(-5),
+            ct: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Update_AppliesEditPermissionDeltas()
+    {
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.OldEditors" }));
+        var request = MakeRequest(block, r => r.EditPermissions = new List<string> { "SVMSecure.NewEditors" });
+
+        var dto = await _service.UpdateContentBlockAsync(block.ContentBlockId, request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new List<string> { "SVMSecure.NewEditors" }, dto!.EditPermissions);
+    }
+
+    [Fact]
+    public async Task CreateThenGet_RoundTripsEditPermissions()
+    {
+        var request = new CMSBlockAddEdit
+        {
+            ContentBlockId = 0,
+            Content = "<p>new</p>",
+            Title = "Delegated Block",
+            System = "Viper",
+            AllowPublicAccess = false,
+            EditPermissions = new List<string> { "SVMSecure.Editors" }
+        };
+
+        var created = await _service.CreateContentBlockAsync(request, TestContext.Current.CancellationToken);
+        // Drop the tracked graph so the fetch verifies GetContentBlockAsync actually loads the
+        // edit-permission navigation from the store, not a still-tracked instance from the create.
+        _context.ChangeTracker.Clear();
+        var fetched = await _service.GetContentBlockAsync(created.ContentBlockId, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new List<string> { "SVMSecure.Editors" }, created.EditPermissions);
+        Assert.Equal(new List<string> { "SVMSecure.Editors" }, fetched!.EditPermissions);
+    }
+
+    #endregion
+
+    #region Editable listing + attachable search
+
+    [Fact]
+    public async Task GetEditableBlocks_FiltersByIntersection_AndExcludesDeleted()
+    {
+        await SeedBlockAsync(b =>
+        {
+            b.Title = "Mine";
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" });
+        });
+        await SeedBlockAsync(b =>
+        {
+            b.Title = "NotMine";
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Others" });
+        });
+        await SeedBlockAsync(b =>
+        {
+            b.Title = "DeletedMine";
+            b.DeletedOn = DateTime.Now;
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" });
+        });
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure.Editors");
+
+        var blocks = await _service.GetEditableBlocksAsync(TestContext.Current.CancellationToken);
+
+        var only = Assert.Single(blocks);
+        Assert.Equal("Mine", only.Title);
+        Assert.Equal(string.Empty, only.Content);
+    }
+
+    [Fact]
+    public async Task GetEditableBlocks_Anonymous_ReturnsEmpty()
+    {
+        await SeedBlockAsync(b =>
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
+        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+
+        var blocks = await _service.GetEditableBlocksAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(blocks);
+    }
+
+    [Fact]
+    public async Task GetEditableBlocks_Manager_ReturnsEmpty()
+    {
+        // Documented contract: delegated matches only. Managers work from the full list page,
+        // even when their own permissions happen to intersect a block's edit list.
+        await SeedBlockAsync(b =>
+            b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
+        SignInAs(DelegateUser(), isManager: true, "SVMSecure.Editors");
+
+        var blocks = await _service.GetEditableBlocksAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(blocks);
+    }
+
+    [Fact]
+    public async Task SearchAttachableFiles_ShortTerm_ReturnsEmpty()
+    {
+        await SeedFileAsync("report.pdf");
+
+        var results = await _service.SearchAttachableFilesAsync("r", TestContext.Current.CancellationToken);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SearchAttachableFiles_MatchesFriendlyName_MinimalDto()
+    {
+        var file = await SeedFileAsync("annual-report.pdf");
+        await SeedFileAsync("unrelated.pdf");
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var results = await _service.SearchAttachableFilesAsync("report", TestContext.Current.CancellationToken);
+
+        var match = Assert.Single(results);
+        Assert.Equal(file.FileGuid, match.FileGuid);
+        Assert.Equal("annual-report.pdf", match.FriendlyName);
+    }
+
+    [Fact]
+    public async Task SearchAttachableFiles_CapsAt25_AndExcludesDeleted()
+    {
+        // A deleted file that would sort first must still be excluded from the picker.
+        var deleted = await SeedFileAsync("aaa-match.pdf");
+        deleted.DeletedOn = DateTime.Now;
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        for (int i = 0; i < 30; i++)
+        {
+            await SeedFileAsync($"doc-{i:00}-match.pdf");
+        }
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var results = await _service.SearchAttachableFilesAsync("match", TestContext.Current.CancellationToken);
+
+        Assert.Equal(25, results.Count);
+        Assert.DoesNotContain(results, r => r.FriendlyName == "aaa-match.pdf");
+    }
+
+    [Fact]
+    public async Task SearchAttachableFiles_Anonymous_ReturnsEmpty()
+    {
+        await SeedFileAsync("report-match.pdf");
+        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+
+        Assert.Empty(await _service.SearchAttachableFilesAsync("match", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SearchAttachableFiles_HidesFilesTheUserCannotDownload()
+    {
+        // The picker is reachable by delegated editors, so it must not leak names/guids of
+        // files the user could not download. Same rules as downloads: public, unrestricted
+        // (any SVMSecure user), permission match (case-insensitive), or explicit person grant.
+        await SeedFileAsync("open-match.pdf");
+        await SeedFileAsync("public-match.pdf", customize: f =>
+        {
+            f.AllowPublicAccess = true;
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" });
+        });
+        await SeedFileAsync("granted-match.pdf", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "svmsecure.editors" }));
+        await SeedFileAsync("person-match.pdf", customize: f =>
+        {
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" });
+            f.FileToPeople.Add(new FileToPerson { IamId = "iam-10" });
+        });
+        await SeedFileAsync("restricted-match.pdf", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.SchoolAdmin" }));
+        var user = DelegateUser();
+        user.IamId = "iam-10";
+        SignInAs(user, isManager: false, "SVMSecure", "SVMSecure.Editors");
+
+        var results = await _service.SearchAttachableFilesAsync("match", TestContext.Current.CancellationToken);
+
+        var names = results.Select(r => r.FriendlyName).ToList();
+        Assert.Contains("open-match.pdf", names);
+        Assert.Contains("public-match.pdf", names);
+        Assert.Contains("granted-match.pdf", names);
+        Assert.Contains("person-match.pdf", names);
+        Assert.DoesNotContain("restricted-match.pdf", names);
+    }
+
+    #endregion
+
+    #region Inline-upload rollback eligibility (IsFileRollbackDeletableAsync)
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_True_WhenUploaderSameFolderNotSharedElsewhere()
+    {
+        var block = await SeedBlockAsync(); // ViperSectionPath = "cats"
+        var file = await SeedFileAsync("cats-x.pdf", folder: "cats", modifiedBy: "delegate");
+        _context.ContentBlockToFiles.Add(new ContentBlockToFile { ContentBlockId = block.ContentBlockId, FileGuid = file.FileGuid });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_False_WhenUploadedBySomeoneElse()
+    {
+        var block = await SeedBlockAsync();
+        var file = await SeedFileAsync("cats-x.pdf", folder: "cats", modifiedBy: "someoneElse");
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_False_WhenFileInAnotherFolder()
+    {
+        var block = await SeedBlockAsync(); // cats
+        var file = await SeedFileAsync("faculty-x.pdf", folder: "faculty", modifiedBy: "delegate");
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_False_WhenAttachedToAnotherBlock()
+    {
+        var block = await SeedBlockAsync();
+        var other = await SeedBlockAsync();
+        var file = await SeedFileAsync("cats-x.pdf", folder: "cats", modifiedBy: "delegate");
+        _context.ContentBlockToFiles.Add(new ContentBlockToFile { ContentBlockId = other.ContentBlockId, FileGuid = file.FileGuid });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_False_WhenAlreadyDeleted()
+    {
+        var block = await SeedBlockAsync(); // cats
+        var file = await SeedFileAsync("cats-x.pdf", folder: "cats", modifiedBy: "delegate",
+            customize: f => f.DeletedOn = DateTime.Now);
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, file.FileGuid,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task IsFileRollbackDeletable_Null_WhenFileMissing()
+    {
+        var block = await SeedBlockAsync();
+        _userHelper.GetCurrentUser().Returns(DelegateUser());
+
+        var result = await _service.IsFileRollbackDeletableAsync(block.ContentBlockId, Guid.NewGuid(),
+            TestContext.Current.CancellationToken);
+
+        Assert.Null(result);
     }
 
     #endregion

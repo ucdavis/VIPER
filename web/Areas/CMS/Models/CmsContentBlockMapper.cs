@@ -11,6 +11,7 @@ namespace Viper.Areas.CMS.Models
         {
             var dto = ToDtoBase(block);
             dto.Permissions = block.ContentBlockToPermissions.Select(p => p.Permission).OrderBy(p => p).ToList();
+            dto.EditPermissions = block.ContentBlockToEditPermissions.Select(p => p.Permission).OrderBy(p => p).ToList();
             dto.Files = block.ContentBlockToFiles
                 .Select(f => ToFileDto(f.FileGuid, f.File.FriendlyName))
                 .OrderBy(f => f.FriendlyName)
@@ -28,6 +29,7 @@ namespace Viper.Areas.CMS.Models
         };
 
         [MapperIgnoreTarget(nameof(ContentBlockDto.Permissions))]
+        [MapperIgnoreTarget(nameof(ContentBlockDto.EditPermissions))]
         [MapperIgnoreTarget(nameof(ContentBlockDto.Files))]
         private static partial ContentBlockDto ToDtoBase(ContentBlock block);
 

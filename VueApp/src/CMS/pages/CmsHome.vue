@@ -3,7 +3,7 @@
         <h1 class="q-my-none q-mb-md">Content Management System</h1>
 
         <StatusBanner
-            v-if="visibleSections.length === 0"
+            v-if="showNoAccess"
             type="info"
         >
             Your account does not have access to any CMS tools. Contact the VIPER team if you need access.
@@ -52,6 +52,38 @@
                             />
                         </q-card-actions>
                     </q-card>
+
+                    <q-card
+                        v-if="showEditableCard"
+                        flat
+                        bordered
+                    >
+                        <q-card-section>
+                            <h2 class="text-h6 text-primary q-my-none">
+                                <q-icon
+                                    name="edit_note"
+                                    size="sm"
+                                    class="q-mr-sm"
+                                />
+                                Blocks you can edit
+                            </h2>
+                            <div class="text-body2 text-grey-8 q-mt-xs">
+                                Content blocks you've been granted access to edit.
+                            </div>
+                        </q-card-section>
+                        <q-card-actions class="column items-start">
+                            <q-btn
+                                v-for="editable in editableBlocks"
+                                :key="editable.contentBlockId"
+                                flat
+                                dense
+                                no-caps
+                                color="primary"
+                                :label="editable.title || editable.friendlyName || `Block ${editable.contentBlockId}`"
+                                :to="{ name: 'CmsContentBlockEdit', params: { id: editable.contentBlockId } }"
+                            />
+                        </q-card-actions>
+                    </q-card>
                 </div>
             </div>
             <div
@@ -75,7 +107,7 @@ import { useUserStore } from "@/store/UserStore"
 import { useFetch } from "@/composables/ViperFetch"
 import StatusBanner from "@/components/StatusBanner.vue"
 import RecentActivity from "@/CMS/components/RecentActivity.vue"
-import type { CmsFile } from "@/CMS/types/"
+import type { CmsFile, EditableBlock } from "@/CMS/types/"
 
 const userStore = useUserStore()
 const apiURL = inject("apiURL")
@@ -165,6 +197,43 @@ const canManageBlocks = computed(() => userStore.userInfo.permissions.includes("
 const canManageFiles = computed(() => userStore.userInfo.permissions.includes("SVMSecure.CMS.AllFiles"))
 const canManageNav = computed(() => userStore.userInfo.permissions.includes("SVMSecure.CMS.ManageNavigation"))
 const showRecentActivity = computed(() => canManageBlocks.value || canManageFiles.value || canManageNav.value)
+
+// Delegated editors (users without ManageContentBlocks who hold a block's edit permission) get a
+// card listing the blocks they may edit. Managers use the normal Content Blocks card, so the list
+// is fetched only for non-managers (the endpoint returns empty for them anyway).
+const editableBlocks = ref<EditableBlock[]>([])
+// False until the delegated lookup has actually resolved (or is skipped for managers), so the
+// "no access" banner below never flashes while the request is pending or when it failed.
+const editableLoaded = ref(false)
+const showEditableCard = computed(() => editableBlocks.value.length > 0 && !canManageBlocks.value)
+
+watch(
+    canManageBlocks,
+    async (canManage) => {
+        if (canManage) {
+            editableBlocks.value = []
+            editableLoaded.value = true
+            return
+        }
+        editableLoaded.value = false
+        const res = await get(`${apiURL}CMS/content/editable`)
+        // Only treat the result as loaded on success: a failed lookup must not read as an empty
+        // (no-access) result.
+        if (res.success) {
+            editableBlocks.value = res.result ?? []
+            editableLoaded.value = true
+        } else {
+            editableBlocks.value = []
+        }
+    },
+    { immediate: true },
+)
+
+// The no-access banner is only for users with neither a tool card nor any block to edit; the
+// editable card must suppress it.
+const showNoAccess = computed(
+    () => editableLoaded.value && visibleSections.value.length === 0 && editableBlocks.value.length === 0,
+)
 
 // Warn file managers when trashed files approach the purge cutoff. PurgeOn comes from the API
 // (deletedOn + retention), so the warning stays correct if the retention window ever changes.
