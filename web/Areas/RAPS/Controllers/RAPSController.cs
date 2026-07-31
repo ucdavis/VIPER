@@ -1,9 +1,13 @@
+using System.DirectoryServices.Protocols;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using NLog;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -19,27 +23,31 @@ namespace Viper.Areas.RAPS.Controllers
     {
         private readonly RAPSContext _RAPSContext;
         private readonly RAPSSecurityService _securityService;
+        private readonly IServiceScopeFactory _scopeFactory;
         public IUserHelper UserHelper { get; private set; }
 
         public int Count { get; set; }
         public string? UserName { get; set; }
 
-        public RAPSController(RAPSContext context)
+        public RAPSController(RAPSContext context, IServiceScopeFactory scopeFactory)
         {
             _RAPSContext = context;
             _securityService = new RAPSSecurityService(context);
             UserHelper = new UserHelper();
+            _scopeFactory = scopeFactory;
         }
 
         /// <summary>
         /// Getting left nav for each page. This is a little complicated - alternatively, ViewData["ViperLeftNav"] = await Nav() 
         /// could be added to each action.
         /// </summary>
+#pragma warning disable S6967, S6932 // filter override, not an action: returning BadRequest is impossible and checking ModelState here would
+        // blanket-validate every RAPS action; the raw query-string values read here only feed left-nav context
+        // (never authorization), are TryParse-guarded, and model binding is not available in a filter
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
             await base.OnActionExecutionAsync(context, next);
-            await next();
             bool roleIdValid = int.TryParse(HttpContext?.Request?.Query["roleId"].FirstOrDefault(), out int roleId);
             bool permIdValid = int.TryParse(HttpContext?.Request?.Query["permissionId"].FirstOrDefault(), out int permissionId);
             string? memberId = HttpContext?.Request?.Query["memberId"].FirstOrDefault();
@@ -64,6 +72,7 @@ namespace Viper.Areas.RAPS.Controllers
                 instance,
                 page);
         }
+#pragma warning restore S6967, S6932
 
         /// <summary>
         /// RAPS home page
@@ -85,11 +94,12 @@ namespace Viper.Areas.RAPS.Controllers
             };
         }
 
+        [NonAction]
         public async Task<NavMenu> Nav(int? roleId, int? permissionId, string? memberId, string instance = "VIPER", string page = "")
         {
             TblRole? selectedRole = (roleId != null) ? await _RAPSContext.TblRoles.FindAsync(roleId) : null;
             TblPermission? selectedPermission = (permissionId != null) ? await _RAPSContext.TblPermissions.FindAsync(permissionId) : null;
-            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.SingleAsync(r => r.MothraId == memberId) : null;
+            VwAaudUser? selecteduser = (memberId != null) ? await _RAPSContext.VwAaudUser.AsNoTracking().SingleOrDefaultAsync(r => r.MothraId == memberId) : null;
 
             var nav = new List<NavMenuItem>
             {
@@ -292,6 +302,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{instance}/[action]")]
         public async Task<IActionResult> RoleMembers(string instance, int RoleId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["RoleId"] = RoleId;
             ViewData["canEditPermissions"] = _securityService.IsAllowedTo("EditMemberPermissions", instance);
 
@@ -330,6 +344,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> RolePermissions(int roleId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["roleId"] = roleId;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/Permissions.cshtml"));
         }
@@ -355,6 +373,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionMembers(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -373,6 +395,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionRoles(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -388,6 +414,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> PermissionRolesRO(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -403,6 +433,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> AllMembersWithPermission(int? permissionId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             ViewData["permissionId"] = permissionId;
 
             TblPermission? permission = await _RAPSContext.TblPermissions.FindAsync(permissionId);
@@ -506,6 +540,10 @@ namespace Viper.Areas.RAPS.Controllers
         [Route("/[area]/{Instance}/[action]")]
         public async Task<IActionResult> ExportToVMACS(string? server = null, string? loginId = null, bool? debugOnly = false)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             var vmacsExport = new VMACSExport(_RAPSContext);
             var servers = vmacsExport.GetServers();
             if (server != null && servers.Contains(server))
@@ -557,14 +595,43 @@ namespace Viper.Areas.RAPS.Controllers
         [SupportedOSPlatform("windows")]
         public async Task<IActionResult> GroupSync(int groupId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             OuGroup? group = await _RAPSContext.OuGroups.FindAsync(groupId);
             if (group != null)
             {
-                _ = new OuGroupService(_RAPSContext).Sync(groupId, group.Name);
+                _ = SyncGroupInBackground(groupId, group.Name);
             }
 
             ViewData["Group"] = group;
             return await Task.Run(() => View("~/Areas/RAPS/Views/Groups/Sync.cshtml"));
+        }
+
+        /// <summary>
+        /// Run the AD/OU group sync outside the request scope so it can keep running after the response
+        /// is returned (the sync page tells users it may take a few minutes). Resolves its own RAPSContext
+        /// from a fresh DI scope, since the request-scoped _RAPSContext is disposed once the request ends.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private async Task SyncGroupInBackground(int groupId, string groupName)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<RAPSContext>();
+                await new OuGroupService(context).Sync(groupId, groupName);
+            }
+            // Every I/O boundary Sync crosses: EF/DI, the LDAP searches behind the OU path, and the
+            // uInform HTTP calls behind the AD3 path. The task is discarded, so an escaping exception
+            // becomes an unobserved one and the sync fails with no log entry.
+            catch (Exception ex) when (ex is SqlException or DbUpdateException or InvalidOperationException
+                or LdapException or DirectoryOperationException
+                or HttpRequestException or TaskCanceledException or JsonException)
+            {
+                LogManager.GetCurrentClassLogger().Error(ex, "Group sync failed for group {GroupId}", groupId);
+            }
         }
 
         [Permission(Allow = "RAPS.Admin,RAPS.OUGroupsView")]

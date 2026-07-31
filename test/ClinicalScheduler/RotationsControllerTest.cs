@@ -109,7 +109,7 @@ namespace Viper.test.ClinicalScheduler
 
         private void SetupMockWeekService()
         {
-            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+            var baseDate = new DateTime(TestYear, 6, 1, 0, 0, 0, DateTimeKind.Local);
             var mockWeeks = new List<WeekDto>
             {
                 new WeekDto

@@ -64,7 +64,7 @@ public sealed class PercentagesControllerTests
         Modifier = null,
         Comment = null,
         PercentageValue = 50,
-        StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+        StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
         EndDate = null,
         Compensated = false,
         IsActive = true,
@@ -79,7 +79,7 @@ public sealed class PercentagesControllerTests
         Modifier = null,
         Comment = null,
         PercentageValue = 50,
-        StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+        StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
         EndDate = null,
         Compensated = false
     };
@@ -91,7 +91,7 @@ public sealed class PercentagesControllerTests
         Modifier = null,
         Comment = "Updated",
         PercentageValue = 60,
-        StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+        StartDate = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local),
         EndDate = null,
         Compensated = false
     };

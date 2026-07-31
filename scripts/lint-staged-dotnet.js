@@ -19,6 +19,7 @@ const {
     needsFormatCheck,
     markFormatChecked,
     getCachedFormatOutput,
+    stripSummaryDetail,
     clearCacheIfRequested,
 } = require("./lib/build-cache")
 
@@ -188,12 +189,14 @@ const runBuild = (projectPath) => {
 
     try {
         logger.info(`Building ${buildPath} project for code analysis...`)
-        const result = execFileSync("dotnet", buildArgs, {
+        const rawResult = execFileSync("dotnet", buildArgs, {
             encoding: "utf8",
             timeout: 60_000, // Reduce timeout to 1 minute
             stdio: ["inherit", "pipe", "pipe"], // Suppress stdout, capture for parsing
             env: { ...env, DOTNET_USE_COMPILER_SERVER: "1" },
         })
+        // MSBuild's summary repeats every diagnostic, which made each finding report twice
+        const result = stripSummaryDetail(rawResult)
 
         // Store successful build in cache
         try {
@@ -210,7 +213,7 @@ const runBuild = (projectPath) => {
     } catch (error) {
         // Handle build failures - still capture analyzer output
         if (error.stdout || error.stderr) {
-            const output = (error.stdout || "") + (error.stderr || "")
+            const output = stripSummaryDetail((error.stdout || "") + (error.stderr || ""))
 
             // Store build output even for failed builds so analyzers can process it
             try {
