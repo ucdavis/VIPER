@@ -88,7 +88,7 @@ namespace Viper.test.ClinicalScheduler.Integration
 
             // Add test data for student schedule params using TestDataBuilder
             var (week, weekGradYear) = TestDataBuilder.CreateWeekScenario(1, gradYear,
-                new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local));
             Context.Weeks.Add(week);
             Context.WeekGradYears.Add(weekGradYear);
             await Context.SaveChangesAsync();
