@@ -78,7 +78,7 @@ public sealed class RCourseServiceTests : IDisposable
     public async Task GetOrCreateGenericRCourseAsync_CreatesNewCourse_WhenNotExists()
     {
         // Act
-        var course = await _service.GetOrCreateGenericRCourseAsync(TestTermCode);
+        var course = await _service.GetOrCreateGenericRCourseAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -91,7 +91,7 @@ public sealed class RCourseServiceTests : IDisposable
         Assert.Equal(0, course.Enrollment);
 
         // Verify course was persisted
-        var persisted = await _context.Courses.FirstOrDefaultAsync(c => c.Crn == "RESID" && c.TermCode == TestTermCode);
+        var persisted = await _context.Courses.FirstOrDefaultAsync(c => c.Crn == "RESID" && c.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.NotNull(persisted);
         Assert.Equal(course.Id, persisted.Id);
 
@@ -120,10 +120,10 @@ public sealed class RCourseServiceTests : IDisposable
             CustDept = "VME"
         };
         _context.Courses.Add(existingCourse);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var course = await _service.GetOrCreateGenericRCourseAsync(TestTermCode);
+        var course = await _service.GetOrCreateGenericRCourseAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -145,11 +145,11 @@ public sealed class RCourseServiceTests : IDisposable
         var termCode1 = 202410;
         var termCode2 = 202420;
         _context.Terms.Add(new EffortTerm { TermCode = termCode2 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var course1 = await _service.GetOrCreateGenericRCourseAsync(termCode1);
-        var course2 = await _service.GetOrCreateGenericRCourseAsync(termCode2);
+        var course1 = await _service.GetOrCreateGenericRCourseAsync(termCode1, TestContext.Current.CancellationToken);
+        var course2 = await _service.GetOrCreateGenericRCourseAsync(termCode2, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course1);
@@ -167,12 +167,12 @@ public sealed class RCourseServiceTests : IDisposable
     public async Task CreateRCourseEffortRecordAsync_CreatesRecord_WhenNotExists()
     {
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert - Verify effort record was created
         var record = await _context.Records
             .Include(r => r.Course)
-            .FirstOrDefaultAsync(r => r.PersonId == TestPersonId && r.Course.Crn == "RESID");
+            .FirstOrDefaultAsync(r => r.PersonId == TestPersonId && r.Course.Crn == "RESID", TestContext.Current.CancellationToken);
 
         Assert.NotNull(record);
         Assert.Equal(TestPersonId, record.PersonId);
@@ -202,7 +202,7 @@ public sealed class RCourseServiceTests : IDisposable
             CustDept = "VME"
         };
         _context.Courses.Add(genericRCourse);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var existingRecord = new EffortRecord
         {
@@ -216,19 +216,19 @@ public sealed class RCourseServiceTests : IDisposable
             Crn = "RESID"
         };
         _context.Records.Add(existingRecord);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var countBefore = await _context.Records.CountAsync();
+        var countBefore = await _context.Records.CountAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.OnDemand);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.OnDemand, TestContext.Current.CancellationToken);
 
         // Assert - No new record created
-        var countAfter = await _context.Records.CountAsync();
+        var countAfter = await _context.Records.CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(countBefore, countAfter);
 
         // Original record unchanged
-        var record = await _context.Records.FirstAsync(r => r.Id == existingRecord.Id);
+        var record = await _context.Records.FirstAsync(r => r.Id == existingRecord.Id, TestContext.Current.CancellationToken);
         Assert.Equal(5, record.Hours);
         Assert.Null(record.Weeks);
     }
@@ -237,22 +237,22 @@ public sealed class RCourseServiceTests : IDisposable
     public async Task CreateRCourseEffortRecordAsync_DoesNotCreateRecord_WhenNoEligibleEffortType()
     {
         // Arrange - Remove all R-course allowed effort types
-        var allowedTypes = await _context.EffortTypes.Where(t => t.AllowedOnRCourses).ToListAsync();
+        var allowedTypes = await _context.EffortTypes.Where(t => t.AllowedOnRCourses).ToListAsync(TestContext.Current.CancellationToken);
         _context.EffortTypes.RemoveRange(allowedTypes);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert - No effort record created
         var record = await _context.Records
             .Include(r => r.Course)
-            .FirstOrDefaultAsync(r => r.PersonId == TestPersonId && r.Course.Crn == "RESID");
+            .FirstOrDefaultAsync(r => r.PersonId == TestPersonId && r.Course.Crn == "RESID", TestContext.Current.CancellationToken);
 
         Assert.Null(record);
 
         // Course may still be created, but no effort record
-        var course = await _context.Courses.FirstOrDefaultAsync(c => c.Crn == "RESID");
+        var course = await _context.Courses.FirstOrDefaultAsync(c => c.Crn == "RESID", TestContext.Current.CancellationToken);
         Assert.NotNull(course); // Course is created first, then effort type check happens
     }
 
@@ -263,10 +263,10 @@ public sealed class RCourseServiceTests : IDisposable
         // CLI comes first alphabetically
 
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId);
+        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(record);
         Assert.Equal("CLI", record.EffortTypeId);
     }
@@ -277,15 +277,15 @@ public sealed class RCourseServiceTests : IDisposable
         // Arrange - Remove week-based types so LEC (UsesWeeks=false) is selected
         var weekBasedTypes = await _context.EffortTypes
             .Where(t => t.AllowedOnRCourses && t.UsesWeeks)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
         _context.EffortTypes.RemoveRange(weekBasedTypes);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert - Hours set, Weeks null (XOR constraint: CK_Records_HoursOrWeeks)
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId);
+        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(record);
         Assert.Equal(0, record.Hours);
         Assert.Null(record.Weeks);
@@ -298,15 +298,15 @@ public sealed class RCourseServiceTests : IDisposable
         // Arrange - Remove hour-based types so CLI (UsesWeeks=true) is selected
         var hourBasedTypes = await _context.EffortTypes
             .Where(t => t.AllowedOnRCourses && !t.UsesWeeks)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
         _context.EffortTypes.RemoveRange(hourBasedTypes);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert - Weeks set to 1 (min valid value), Hours null (XOR constraint: CK_Records_HoursOrWeeks)
-        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId);
+        var record = await _context.Records.FirstOrDefaultAsync(r => r.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(record);
         Assert.Null(record.Hours);
         Assert.Equal(1, record.Weeks); // Weeks must be > 0 per CK_Records_Weeks constraint
@@ -317,11 +317,11 @@ public sealed class RCourseServiceTests : IDisposable
     public async Task CreateRCourseEffortRecordAsync_CreatesAuditEntry_WithHarvestContext()
     {
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert - Verify audit entry was created (checking via context, not mock)
         var auditEntry = await _context.Audits
-            .FirstOrDefaultAsync(a => a.Action == EffortAuditActions.RCourseAutoCreated);
+            .FirstOrDefaultAsync(a => a.Action == EffortAuditActions.RCourseAutoCreated, TestContext.Current.CancellationToken);
 
         Assert.NotNull(auditEntry);
         Assert.Equal(EffortAuditTables.Records, auditEntry.TableName);
@@ -334,11 +334,11 @@ public sealed class RCourseServiceTests : IDisposable
     public async Task CreateRCourseEffortRecordAsync_CreatesAuditEntry_WithOnDemandContext()
     {
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.OnDemand);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.OnDemand, TestContext.Current.CancellationToken);
 
         // Assert - Verify audit entry was created with correct context
         var auditEntry = await _context.Audits
-            .FirstOrDefaultAsync(a => a.Action == EffortAuditActions.RCourseAutoCreated);
+            .FirstOrDefaultAsync(a => a.Action == EffortAuditActions.RCourseAutoCreated, TestContext.Current.CancellationToken);
 
         Assert.NotNull(auditEntry);
         Assert.Contains("when first non-R-course added", auditEntry.Changes);
@@ -357,17 +357,17 @@ public sealed class RCourseServiceTests : IDisposable
             LastName = "Instructor",
             EffortDept = "VME"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
-        await _service.CreateRCourseEffortRecordAsync(personId2, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest);
+        await _service.CreateRCourseEffortRecordAsync(TestPersonId, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
+        await _service.CreateRCourseEffortRecordAsync(personId2, TestTermCode, TestModifiedBy, RCourseCreationContext.Harvest, TestContext.Current.CancellationToken);
 
         // Assert
         var records = await _context.Records
             .Include(r => r.Course)
             .Where(r => r.Course.Crn == "RESID" && r.TermCode == TestTermCode)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, records.Count);
         Assert.Contains(records, r => r.PersonId == TestPersonId);

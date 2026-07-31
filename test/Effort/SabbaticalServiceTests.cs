@@ -83,7 +83,7 @@ public sealed class SabbaticalServiceTests : IDisposable
     [Fact]
     public async Task GetByPersonIdAsync_ReturnsNull_WhenNotFound()
     {
-        var result = await _service.GetByPersonIdAsync(999);
+        var result = await _service.GetByPersonIdAsync(999, TestContext.Current.CancellationToken);
 
         Assert.Null(result);
     }
@@ -94,7 +94,7 @@ public sealed class SabbaticalServiceTests : IDisposable
         var modifier = await CreateViperPersonAsync(10, "Admin", "User");
         await CreateSabbaticalAsync(42, modifier.PersonId);
 
-        var result = await _service.GetByPersonIdAsync(42);
+        var result = await _service.GetByPersonIdAsync(42, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Equal(42, result.PersonId);
@@ -108,7 +108,7 @@ public sealed class SabbaticalServiceTests : IDisposable
     {
         await CreateSabbaticalAsync(42, modifiedBy: 999);
 
-        var result = await _service.GetByPersonIdAsync(42);
+        var result = await _service.GetByPersonIdAsync(42, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Null(result.ModifiedBy);
@@ -123,7 +123,7 @@ public sealed class SabbaticalServiceTests : IDisposable
     {
         var modifier = await CreateViperPersonAsync(10, "Admin", "User");
 
-        var result = await _service.SaveAsync(42, "202301", "202302", modifier.PersonId);
+        var result = await _service.SaveAsync(42, "202301", "202302", modifier.PersonId, TestContext.Current.CancellationToken);
 
         Assert.Equal(42, result.PersonId);
         Assert.Equal("202301", result.ExcludeClinicalTerms);
@@ -131,7 +131,7 @@ public sealed class SabbaticalServiceTests : IDisposable
         Assert.Equal("Admin User", result.ModifiedBy);
         Assert.NotNull(result.ModifiedDate);
 
-        var entity = await _context.Sabbaticals.FirstOrDefaultAsync(s => s.PersonId == 42);
+        var entity = await _context.Sabbaticals.FirstOrDefaultAsync(s => s.PersonId == 42, TestContext.Current.CancellationToken);
         Assert.NotNull(entity);
     }
 
@@ -140,7 +140,7 @@ public sealed class SabbaticalServiceTests : IDisposable
     {
         var modifier = await CreateViperPersonAsync(10, "Admin", "User");
 
-        var result = await _service.SaveAsync(42, null, null, modifier.PersonId);
+        var result = await _service.SaveAsync(42, null, null, modifier.PersonId, TestContext.Current.CancellationToken);
 
         Assert.Null(result.ExcludeClinicalTerms);
         Assert.Null(result.ExcludeDidacticTerms);
@@ -157,12 +157,12 @@ public sealed class SabbaticalServiceTests : IDisposable
         await CreateSabbaticalAsync(42, modifier.PersonId,
             excludeClinical: "202301", excludeDidactic: "202302");
 
-        var result = await _service.SaveAsync(42, "202401,202402", "202403", modifier.PersonId);
+        var result = await _service.SaveAsync(42, "202401,202402", "202403", modifier.PersonId, TestContext.Current.CancellationToken);
 
         Assert.Equal("202401,202402", result.ExcludeClinicalTerms);
         Assert.Equal("202403", result.ExcludeDidacticTerms);
 
-        var count = await _context.Sabbaticals.CountAsync(s => s.PersonId == 42);
+        var count = await _context.Sabbaticals.CountAsync(s => s.PersonId == 42, TestContext.Current.CancellationToken);
         Assert.Equal(1, count);
     }
 
@@ -173,9 +173,9 @@ public sealed class SabbaticalServiceTests : IDisposable
         var original = await CreateSabbaticalAsync(42, modifier.PersonId);
         var originalDate = original.ModifiedDate;
 
-        await _service.SaveAsync(42, "new", "new", modifier.PersonId);
+        await _service.SaveAsync(42, "new", "new", modifier.PersonId, TestContext.Current.CancellationToken);
 
-        var entity = await _context.Sabbaticals.FirstAsync(s => s.PersonId == 42);
+        var entity = await _context.Sabbaticals.FirstAsync(s => s.PersonId == 42, TestContext.Current.CancellationToken);
         Assert.True(entity.ModifiedDate > originalDate);
     }
 
@@ -186,7 +186,7 @@ public sealed class SabbaticalServiceTests : IDisposable
     [Fact]
     public async Task GetPersonDepartmentAsync_ReturnsNull_WhenNoPerson()
     {
-        var result = await _service.GetPersonDepartmentAsync(999);
+        var result = await _service.GetPersonDepartmentAsync(999, TestContext.Current.CancellationToken);
 
         Assert.Null(result);
     }
@@ -197,7 +197,7 @@ public sealed class SabbaticalServiceTests : IDisposable
         await CreateEffortPersonAsync(42, 202301, "VME");
         await CreateEffortPersonAsync(42, 202401, "PMI");
 
-        var result = await _service.GetPersonDepartmentAsync(42);
+        var result = await _service.GetPersonDepartmentAsync(42, TestContext.Current.CancellationToken);
 
         Assert.Equal("PMI", result);
     }

@@ -65,10 +65,10 @@ public sealed class TermServiceTests : IDisposable
             new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) },
             new EffortTerm { TermCode = 202510 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var terms = await _termService.GetTermsAsync();
+        var terms = await _termService.GetTermsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, terms.Count);
@@ -81,7 +81,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task GetTermsAsync_ReturnsEmptyList_WhenNoTermsExist()
     {
         // Act
-        var terms = await _termService.GetTermsAsync();
+        var terms = await _termService.GetTermsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(terms);
@@ -96,10 +96,10 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - OpenedDate makes status "Opened"
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.GetTermAsync(202410);
+        var term = await _termService.GetTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -111,7 +111,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task GetTermAsync_ReturnsNull_WhenTermDoesNotExist()
     {
         // Act
-        var term = await _termService.GetTermAsync(999999);
+        var term = await _termService.GetTermAsync(999999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(term);
@@ -130,10 +130,10 @@ public sealed class TermServiceTests : IDisposable
             new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) },
             new EffortTerm { TermCode = 202510 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.GetCurrentTermAsync();
+        var term = await _termService.GetCurrentTermAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -145,10 +145,10 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - ClosedDate makes status "Closed"
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.GetCurrentTermAsync();
+        var term = await _termService.GetCurrentTermAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(term);
@@ -162,14 +162,14 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_CreatesNewTerm_WithCreatedStatus()
     {
         // Act
-        var term = await _termService.CreateTermAsync(202510);
+        var term = await _termService.CreateTermAsync(202510, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Equal(202510, term.TermCode);
         Assert.Equal("Created", term.Status);
 
-        var savedTerm = await _context.Terms.FindAsync(202510);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202510 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
     }
 
@@ -178,11 +178,11 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202410)
+            () => _termService.CreateTermAsync(202410, ct: TestContext.Current.CancellationToken)
         );
     }
 
@@ -193,14 +193,14 @@ public sealed class TermServiceTests : IDisposable
         var expectedDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local);
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: expectedDate);
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: expectedDate, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Equal(202510, term.TermCode);
         Assert.Equal(expectedDate, term.ExpectedCloseDate);
 
-        var savedTerm = await _context.Terms.FindAsync(202510);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202510 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
         Assert.Equal(expectedDate, savedTerm.ExpectedCloseDate);
     }
@@ -209,13 +209,13 @@ public sealed class TermServiceTests : IDisposable
     public async Task CreateTermAsync_LeavesExpectedCloseDateNull_WhenNotProvided()
     {
         // Act
-        var term = await _termService.CreateTermAsync(202510);
+        var term = await _termService.CreateTermAsync(202510, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Null(term.ExpectedCloseDate);
 
-        var savedTerm = await _context.Terms.FindAsync(202510);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202510 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
         Assert.Null(savedTerm.ExpectedCloseDate);
     }
@@ -229,18 +229,18 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - OpenedDate makes status "Opened"
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var newDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local);
 
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(202410, newDate);
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, newDate, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Equal(newDate, term.ExpectedCloseDate);
 
-        var savedTerm = await _context.Terms.FindAsync(202410);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202410 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
         Assert.Equal(newDate, savedTerm.ExpectedCloseDate);
     }
@@ -255,11 +255,11 @@ public sealed class TermServiceTests : IDisposable
             OpenedDate = DateTime.Now.AddDays(-30),
             ClosedDate = DateTime.Now.AddDays(-1)
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local)));
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -272,16 +272,16 @@ public sealed class TermServiceTests : IDisposable
             OpenedDate = DateTime.Now.AddDays(-7),
             ExpectedCloseDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local)
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(202410, null);
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Null(term.ExpectedCloseDate);
 
-        var savedTerm = await _context.Terms.FindAsync(202410);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202410 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
         Assert.Null(savedTerm.ExpectedCloseDate);
     }
@@ -290,7 +290,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task UpdateExpectedCloseDateAsync_ReturnsNull_WhenTermNotFound()
     {
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(999999, new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local));
+        var term = await _termService.UpdateExpectedCloseDateAsync(999999, new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(term);
@@ -312,11 +312,11 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local)));
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
         Assert.Contains("after the term end date", ex.Message);
     }
 
@@ -332,11 +332,11 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local)));
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
         Assert.Contains("after the term end date", ex.Message);
     }
 
@@ -352,11 +352,11 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 16, 0, 0, 0, DateTimeKind.Local)));
+            () => _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 16, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
         Assert.Contains("more than 1 year", ex.Message);
     }
 
@@ -372,10 +372,10 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 16, 0, 0, 0, DateTimeKind.Local));
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2025, 6, 16, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -394,10 +394,10 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Local));
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -409,7 +409,7 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         _viperContext.Terms.Add(new Term
         {
             TermCode = 202410,
@@ -418,11 +418,11 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2024, 11, 1, 0, 0, 0, DateTimeKind.Local)));
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2024, 11, 1, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
         Assert.Contains("after the term end date", ex.Message);
     }
 
@@ -431,7 +431,7 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         _viperContext.Terms.Add(new Term
         {
             TermCode = 202410,
@@ -440,11 +440,11 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 12, 14, 0, 0, 0, DateTimeKind.Local)));
+            () => _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 12, 14, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
         Assert.Contains("more than 1 year", ex.Message);
     }
 
@@ -453,7 +453,7 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
         _viperContext.Terms.Add(new Term
         {
             TermCode = 202410,
@@ -462,10 +462,10 @@ public sealed class TermServiceTests : IDisposable
             EndDate = new DateTime(2024, 12, 13, 0, 0, 0, DateTimeKind.Local),
             TermType = "Q"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local));
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -482,10 +482,10 @@ public sealed class TermServiceTests : IDisposable
             OpenedDate = DateTime.Now.AddDays(-7),
             ExpectedCloseDate = new DateTime(2025, 3, 31, 0, 0, 0, DateTimeKind.Local)
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.UpdateExpectedCloseDateAsync(202410, null);
+        var term = await _termService.UpdateExpectedCloseDateAsync(202410, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -499,7 +499,7 @@ public sealed class TermServiceTests : IDisposable
         // Validation should be skipped, not throw
 
         // Act
-        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local));
+        var term = await _termService.CreateTermAsync(202510, expectedCloseDate: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local), TestContext.Current.CancellationToken);
 
         // Assert - Accepts any date when term not found in vwTerms
         Assert.NotNull(term);
@@ -515,17 +515,17 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - HarvestedDate makes status "Harvested"
         _context.Terms.Add(new EffortTerm { TermCode = 202410, HarvestedDate = DateTime.Now.AddDays(-1) });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.OpenTermAsync(202410);
+        var term = await _termService.OpenTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
         Assert.Equal("Opened", term.Status);
         Assert.NotNull(term.OpenedDate);
 
-        var savedTerm = await _context.Terms.FindAsync(202410);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202410 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
     }
 
@@ -533,7 +533,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task OpenTermAsync_ReturnsNull_WhenTermDoesNotExist()
     {
         // Act
-        var term = await _termService.OpenTermAsync(999999);
+        var term = await _termService.OpenTermAsync(999999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(term);
@@ -549,16 +549,16 @@ public sealed class TermServiceTests : IDisposable
         // Arrange - OpenedDate makes status "Opened"
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 10, Crn = "12345" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(202410);
+        var (success, errorMessage) = await _termService.CloseTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(success);
         Assert.Null(errorMessage);
 
-        var savedTerm = await _context.Terms.FindAsync(202410);
+        var savedTerm = await _context.Terms.FindAsync(new object?[] { 202410 }, TestContext.Current.CancellationToken);
         Assert.NotNull(savedTerm);
         Assert.Equal("Closed", savedTerm.Status);
         Assert.NotNull(savedTerm.ClosedDate);
@@ -571,10 +571,10 @@ public sealed class TermServiceTests : IDisposable
         _context.Terms.Add(new EffortTerm { TermCode = 202410, OpenedDate = DateTime.Now.AddDays(-7) });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 0, Crn = "12345" });
         _context.Courses.Add(new EffortCourse { Id = 2, TermCode = 202410, Enrollment = 0, Crn = "12346" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(202410);
+        var (success, errorMessage) = await _termService.CloseTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(success);
@@ -585,7 +585,7 @@ public sealed class TermServiceTests : IDisposable
     public async Task CloseTermAsync_Fails_WhenTermNotFound()
     {
         // Act
-        var (success, errorMessage) = await _termService.CloseTermAsync(999999);
+        var (success, errorMessage) = await _termService.CloseTermAsync(999999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(success);
@@ -606,10 +606,10 @@ public sealed class TermServiceTests : IDisposable
             OpenedDate = DateTime.Now.AddDays(-30),
             ClosedDate = DateTime.Now.AddDays(-1)
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.ReopenTermAsync(202410);
+        var term = await _termService.ReopenTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -631,10 +631,10 @@ public sealed class TermServiceTests : IDisposable
             HarvestedDate = DateTime.Now.AddDays(-5),
             OpenedDate = DateTime.Now
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.UnopenTermAsync(202410);
+        var term = await _termService.UnopenTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -651,10 +651,10 @@ public sealed class TermServiceTests : IDisposable
             TermCode = 202410,
             OpenedDate = DateTime.Now
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var term = await _termService.UnopenTermAsync(202410);
+        var term = await _termService.UnopenTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(term);
@@ -671,14 +671,14 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _termService.DeleteTermAsync(202410);
+        var result = await _termService.DeleteTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Null(await _context.Terms.FindAsync(202410));
+        Assert.Null(await _context.Terms.FindAsync(new object?[] { 202410 }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -687,14 +687,14 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _termService.DeleteTermAsync(202410);
+        var result = await _termService.DeleteTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
-        Assert.NotNull(await _context.Terms.FindAsync(202410));
+        Assert.NotNull(await _context.Terms.FindAsync(new object?[] { 202410 }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -703,10 +703,10 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _termService.DeleteTermAsync(202410);
+        var result = await _termService.DeleteTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -718,10 +718,10 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
         _context.Records.Add(new EffortRecord { Id = 1, TermCode = 202410, PersonId = 1, CourseId = 1 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _termService.DeleteTermAsync(202410);
+        var result = await _termService.DeleteTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -736,10 +736,10 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var canDelete = await _termService.CanDeleteTermAsync(202410);
+        var canDelete = await _termService.CanDeleteTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -751,10 +751,10 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var canDelete = await _termService.CanDeleteTermAsync(202410);
+        var canDelete = await _termService.CanDeleteTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canDelete);
@@ -770,10 +770,10 @@ public sealed class TermServiceTests : IDisposable
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 10, Crn = "12345" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(202410);
+        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canClose);
@@ -788,10 +788,10 @@ public sealed class TermServiceTests : IDisposable
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Enrollment = 0, Crn = "12345" });
         _context.Courses.Add(new EffortCourse { Id = 2, TermCode = 202410, Enrollment = 0, Crn = "12346" });
         _context.Courses.Add(new EffortCourse { Id = 3, TermCode = 202410, Enrollment = 5, Crn = "12347" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(202410);
+        var (canClose, zeroEnrollmentCount) = await _termService.CanCloseTermAsync(202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canClose);
@@ -807,7 +807,7 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - Add existing effort term
         _context.Terms.Add(new EffortTerm { TermCode = 202510 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Add terms to VIPER context (simulating vwTerms)
         _viperContext.Terms.AddRange(
@@ -815,10 +815,10 @@ public sealed class TermServiceTests : IDisposable
             new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" },
             new Term { TermCode = 202530, Description = "Spring 2026", StartDate = DateTime.Today.AddMonths(9), TermType = "Q" }
         );
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _termService.GetAvailableTermsAsync();
+        var available = await _termService.GetAvailableTermsAsync(TestContext.Current.CancellationToken);
 
         // Assert - Should exclude 202510 (already in Effort)
         Assert.Equal(2, available.Count);
@@ -835,10 +835,10 @@ public sealed class TermServiceTests : IDisposable
             new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" },
             new Term { TermCode = Term.FacilityScheduleTermCode, Description = "(DO NOT USE) Facility Schedule", StartDate = DateTime.Today.AddMonths(12), TermType = "Q" }
         );
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _termService.GetAvailableTermsAsync();
+        var available = await _termService.GetAvailableTermsAsync(TestContext.Current.CancellationToken);
 
         // Assert - Should exclude facility schedule term
         Assert.Single(available);
@@ -853,10 +853,10 @@ public sealed class TermServiceTests : IDisposable
             new Term { TermCode = 202310, Description = "Fall 2023", StartDate = DateTime.Today.AddMonths(-12), TermType = "Q" },
             new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" }
         );
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _termService.GetAvailableTermsAsync();
+        var available = await _termService.GetAvailableTermsAsync(TestContext.Current.CancellationToken);
 
         // Assert - Should exclude past term
         Assert.Single(available);
@@ -869,13 +869,13 @@ public sealed class TermServiceTests : IDisposable
     {
         // Arrange - Add all future terms to Effort
         _context.Terms.Add(new EffortTerm { TermCode = 202520 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _viperContext.Terms.Add(new Term { TermCode = 202520, Description = "Winter 2026", StartDate = DateTime.Today.AddMonths(6), TermType = "Q" });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _termService.GetAvailableTermsAsync();
+        var available = await _termService.GetAvailableTermsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(available);

@@ -121,7 +121,7 @@ public sealed class PercentageServiceTests : IDisposable
         await CreatePercentageAsync(200, type.Id, 25, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local));
 
         // Act
-        var results = await _percentageService.GetPercentagesForPersonAsync(100);
+        var results = await _percentageService.GetPercentagesForPersonAsync(100, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count);
@@ -134,7 +134,7 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task GetPercentagesForPersonAsync_ReturnsEmptyList_WhenNoPercentagesExist()
     {
         // Act
-        var results = await _percentageService.GetPercentagesForPersonAsync(999);
+        var results = await _percentageService.GetPercentagesForPersonAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -149,7 +149,7 @@ public sealed class PercentageServiceTests : IDisposable
         await CreatePercentageAsync(100, type.Id, 75, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local), null, unit.Id);
 
         // Act
-        var results = await _percentageService.GetPercentagesForPersonAsync(100);
+        var results = await _percentageService.GetPercentagesForPersonAsync(100, TestContext.Current.CancellationToken);
 
         // Assert
         var dto = Assert.Single(results);
@@ -179,12 +179,12 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.CreatePercentageAsync(request);
+        var result = await _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(100, result.PercentageValue);
 
-        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id);
+        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id, TestContext.Current.CancellationToken);
         Assert.Equal(1.0, stored.PercentageValue);
     }
 
@@ -205,12 +205,12 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.CreatePercentageAsync(request);
+        var result = await _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(50, result.PercentageValue);
 
-        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id);
+        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id, TestContext.Current.CancellationToken);
         Assert.Equal(0.5, stored.PercentageValue);
     }
 
@@ -231,7 +231,7 @@ public sealed class PercentageServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _percentageService.CreatePercentageAsync(request));
+            () => _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("Invalid percent assignment type", ex.Message);
     }
 
@@ -253,7 +253,7 @@ public sealed class PercentageServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _percentageService.CreatePercentageAsync(request));
+            () => _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("inactive", ex.Message);
     }
 
@@ -275,7 +275,7 @@ public sealed class PercentageServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _percentageService.CreatePercentageAsync(request));
+            () => _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("between 0 and 100", ex.Message);
     }
 
@@ -297,7 +297,7 @@ public sealed class PercentageServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _percentageService.CreatePercentageAsync(request));
+            () => _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("between 0 and 100", ex.Message);
     }
 
@@ -320,7 +320,7 @@ public sealed class PercentageServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _percentageService.CreatePercentageAsync(request));
+            () => _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("End date cannot be before start date", ex.Message);
     }
 
@@ -341,10 +341,10 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.CreatePercentageAsync(request);
+        var result = await _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id);
+        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id, TestContext.Current.CancellationToken);
         Assert.Equal("2024-2025", stored.AcademicYear);
     }
 
@@ -365,10 +365,10 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.CreatePercentageAsync(request);
+        var result = await _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id);
+        var stored = await _context.Percentages.FirstAsync(p => p.Id == result.Id, TestContext.Current.CancellationToken);
         Assert.Equal("2023-2024", stored.AcademicYear);
     }
 
@@ -389,7 +389,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        await _percentageService.CreatePercentageAsync(request);
+        await _percentageService.CreatePercentageAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         await _auditServiceMock.Received(1).LogPercentageChangeAsync(
@@ -423,7 +423,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.UpdatePercentageAsync(existing.Id, request);
+        var result = await _percentageService.UpdatePercentageAsync(existing.Id, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -446,7 +446,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.UpdatePercentageAsync(999, request);
+        var result = await _percentageService.UpdatePercentageAsync(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -470,7 +470,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        await _percentageService.UpdatePercentageAsync(existing.Id, request);
+        await _percentageService.UpdatePercentageAsync(existing.Id, request, TestContext.Current.CancellationToken);
 
         // Assert
         await _auditServiceMock.Received(1).LogPercentageChangeAsync(
@@ -494,11 +494,11 @@ public sealed class PercentageServiceTests : IDisposable
         var existing = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         // Act
-        var result = await _percentageService.DeletePercentageAsync(existing.Id);
+        var result = await _percentageService.DeletePercentageAsync(existing.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        var deleted = await _context.Percentages.FindAsync(existing.Id);
+        var deleted = await _context.Percentages.FindAsync(new object?[] { existing.Id }, TestContext.Current.CancellationToken);
         Assert.Null(deleted);
     }
 
@@ -506,7 +506,7 @@ public sealed class PercentageServiceTests : IDisposable
     public async Task DeletePercentageAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _percentageService.DeletePercentageAsync(999);
+        var result = await _percentageService.DeletePercentageAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -520,7 +520,7 @@ public sealed class PercentageServiceTests : IDisposable
         var existing = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Local));
 
         // Act
-        await _percentageService.DeletePercentageAsync(existing.Id);
+        await _percentageService.DeletePercentageAsync(existing.Id, TestContext.Current.CancellationToken);
 
         // Assert
         await _auditServiceMock.Received(1).LogPercentageChangeAsync(
@@ -556,7 +556,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -584,7 +584,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -611,7 +611,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -640,7 +640,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -667,7 +667,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -690,7 +690,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -715,7 +715,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request);
+        var result = await _percentageService.ValidatePercentageAsync(request, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -741,7 +741,7 @@ public sealed class PercentageServiceTests : IDisposable
         };
 
         // Act
-        var result = await _percentageService.ValidatePercentageAsync(request, excludeId: existing.Id);
+        var result = await _percentageService.ValidatePercentageAsync(request, excludeId: existing.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -760,7 +760,7 @@ public sealed class PercentageServiceTests : IDisposable
         var percentage = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local));
 
         // Act
-        var result = await _percentageService.GetPercentageAsync(percentage.Id);
+        var result = await _percentageService.GetPercentageAsync(percentage.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -775,7 +775,7 @@ public sealed class PercentageServiceTests : IDisposable
         var percentage = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local), DateTime.Today.AddYears(1));
 
         // Act
-        var result = await _percentageService.GetPercentageAsync(percentage.Id);
+        var result = await _percentageService.GetPercentageAsync(percentage.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -790,7 +790,7 @@ public sealed class PercentageServiceTests : IDisposable
         var percentage = await CreatePercentageAsync(100, type.Id, 50, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Local), DateTime.Today.AddDays(-1));
 
         // Act
-        var result = await _percentageService.GetPercentageAsync(percentage.Id);
+        var result = await _percentageService.GetPercentageAsync(percentage.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

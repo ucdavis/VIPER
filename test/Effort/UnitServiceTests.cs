@@ -89,10 +89,10 @@ public sealed class UnitServiceTests : IDisposable
             new Unit { Id = 2, Name = "Alpha Unit", IsActive = true },
             new Unit { Id = 3, Name = "Middle Unit", IsActive = false }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var units = await _unitService.GetUnitsAsync();
+        var units = await _unitService.GetUnitsAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, units.Count);
@@ -109,10 +109,10 @@ public sealed class UnitServiceTests : IDisposable
             new Unit { Id = 1, Name = "Active Unit", IsActive = true },
             new Unit { Id = 2, Name = "Inactive Unit", IsActive = false }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var units = await _unitService.GetUnitsAsync(activeOnly: true);
+        var units = await _unitService.GetUnitsAsync(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(units);
@@ -124,7 +124,7 @@ public sealed class UnitServiceTests : IDisposable
     public async Task GetUnitsAsync_ReturnsEmptyList_WhenNoUnitsExist()
     {
         // Act
-        var units = await _unitService.GetUnitsAsync();
+        var units = await _unitService.GetUnitsAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(units);
@@ -137,7 +137,7 @@ public sealed class UnitServiceTests : IDisposable
         await CreateUnitWithPercentagesAsync("Test Unit", percentageCount: 2);
 
         // Act
-        var units = await _unitService.GetUnitsAsync();
+        var units = await _unitService.GetUnitsAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(units);
@@ -150,10 +150,10 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Unused Unit", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var units = await _unitService.GetUnitsAsync();
+        var units = await _unitService.GetUnitsAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(units);
@@ -170,10 +170,10 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Test Unit", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var unit = await _unitService.GetUnitAsync(1);
+        var unit = await _unitService.GetUnitAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(unit);
@@ -186,7 +186,7 @@ public sealed class UnitServiceTests : IDisposable
     public async Task GetUnitAsync_ReturnsNull_WhenNotFound()
     {
         // Act
-        var unit = await _unitService.GetUnitAsync(999);
+        var unit = await _unitService.GetUnitAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(unit);
@@ -199,7 +199,7 @@ public sealed class UnitServiceTests : IDisposable
         var unit = await CreateUnitWithPercentagesAsync("Test Unit");
 
         // Act
-        var result = await _unitService.GetUnitAsync(unit.Id);
+        var result = await _unitService.GetUnitAsync(unit.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -218,7 +218,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new CreateUnitRequest { Name = "New Unit" };
 
         // Act
-        var result = await _unitService.CreateUnitAsync(request);
+        var result = await _unitService.CreateUnitAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -228,7 +228,7 @@ public sealed class UnitServiceTests : IDisposable
         Assert.True(result.CanDelete);
 
         // Verify persisted
-        var savedUnit = await _context.Units.FirstOrDefaultAsync(u => u.Name == "New Unit");
+        var savedUnit = await _context.Units.FirstOrDefaultAsync(u => u.Name == "New Unit", TestContext.Current.CancellationToken);
         Assert.NotNull(savedUnit);
     }
 
@@ -237,13 +237,13 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Existing Unit", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateUnitRequest { Name = "Existing Unit" };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.CreateUnitAsync(request));
+            () => _unitService.CreateUnitAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", exception.Message);
     }
 
@@ -254,7 +254,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new CreateUnitRequest { Name = "Audited Unit" };
 
         // Act
-        await _unitService.CreateUnitAsync(request);
+        await _unitService.CreateUnitAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddUnitChangeAudit(
@@ -271,11 +271,11 @@ public sealed class UnitServiceTests : IDisposable
         var request = new CreateUnitRequest { Name = "  Padded Unit  " };
 
         // Act
-        var result = await _unitService.CreateUnitAsync(request);
+        var result = await _unitService.CreateUnitAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Padded Unit", result.Name);
-        var savedUnit = await _context.Units.FirstOrDefaultAsync(u => u.Name == "Padded Unit");
+        var savedUnit = await _context.Units.FirstOrDefaultAsync(u => u.Name == "Padded Unit", TestContext.Current.CancellationToken);
         Assert.NotNull(savedUnit);
     }
 
@@ -287,7 +287,7 @@ public sealed class UnitServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.CreateUnitAsync(request));
+            () => _unitService.CreateUnitAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("required", exception.Message);
     }
 
@@ -300,12 +300,12 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Original Name", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateUnitRequest { Name = "Updated Name", IsActive = false };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(1, request);
+        var result = await _unitService.UpdateUnitAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -320,7 +320,7 @@ public sealed class UnitServiceTests : IDisposable
         var request = new UpdateUnitRequest { Name = "New Name", IsActive = true };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(999, request);
+        var result = await _unitService.UpdateUnitAsync(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -334,13 +334,13 @@ public sealed class UnitServiceTests : IDisposable
             new Unit { Id = 1, Name = "Unit One", IsActive = true },
             new Unit { Id = 2, Name = "Unit Two", IsActive = true }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateUnitRequest { Name = "Unit Two", IsActive = true };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.UpdateUnitAsync(1, request));
+            () => _unitService.UpdateUnitAsync(1, request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", exception.Message);
     }
 
@@ -349,12 +349,12 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Same Name", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateUnitRequest { Name = "Same Name", IsActive = false };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(1, request);
+        var result = await _unitService.UpdateUnitAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -367,12 +367,12 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateUnitRequest { Name = "Updated", IsActive = false };
 
         // Act
-        await _unitService.UpdateUnitAsync(1, request);
+        await _unitService.UpdateUnitAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddUnitChangeAudit(
@@ -387,12 +387,12 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateUnitRequest { Name = "  Updated Name  ", IsActive = true };
 
         // Act
-        var result = await _unitService.UpdateUnitAsync(1, request);
+        var result = await _unitService.UpdateUnitAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -404,13 +404,13 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateUnitRequest { Name = "   ", IsActive = true };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _unitService.UpdateUnitAsync(1, request));
+            () => _unitService.UpdateUnitAsync(1, request, TestContext.Current.CancellationToken));
         Assert.Contains("required", exception.Message);
     }
 
@@ -423,14 +423,14 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Deletable Unit", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _unitService.DeleteUnitAsync(1);
+        var result = await _unitService.DeleteUnitAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        var deletedUnit = await _context.Units.FindAsync(1);
+        var deletedUnit = await _context.Units.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken);
         Assert.Null(deletedUnit);
     }
 
@@ -441,11 +441,11 @@ public sealed class UnitServiceTests : IDisposable
         var unit = await CreateUnitWithPercentagesAsync("Referenced Unit");
 
         // Act
-        var result = await _unitService.DeleteUnitAsync(unit.Id);
+        var result = await _unitService.DeleteUnitAsync(unit.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
-        var stillExists = await _context.Units.FindAsync(unit.Id);
+        var stillExists = await _context.Units.FindAsync(new object?[] { unit.Id }, TestContext.Current.CancellationToken);
         Assert.NotNull(stillExists);
     }
 
@@ -453,7 +453,7 @@ public sealed class UnitServiceTests : IDisposable
     public async Task DeleteUnitAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _unitService.DeleteUnitAsync(999);
+        var result = await _unitService.DeleteUnitAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -464,10 +464,10 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "To Delete", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _unitService.DeleteUnitAsync(1);
+        await _unitService.DeleteUnitAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddUnitChangeAudit(
@@ -486,10 +486,10 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Unused Unit", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var canDelete = await _unitService.CanDeleteUnitAsync(1);
+        var canDelete = await _unitService.CanDeleteUnitAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -502,7 +502,7 @@ public sealed class UnitServiceTests : IDisposable
         var unit = await CreateUnitWithPercentagesAsync("Used Unit");
 
         // Act
-        var canDelete = await _unitService.CanDeleteUnitAsync(unit.Id);
+        var canDelete = await _unitService.CanDeleteUnitAsync(unit.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canDelete);
@@ -517,10 +517,10 @@ public sealed class UnitServiceTests : IDisposable
     {
         // Arrange
         _context.Units.Add(new Unit { Id = 1, Name = "Unused Unit", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var count = await _unitService.GetUsageCountAsync(1);
+        var count = await _unitService.GetUsageCountAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -533,7 +533,7 @@ public sealed class UnitServiceTests : IDisposable
         var unit = await CreateUnitWithPercentagesAsync("Used Unit", percentageCount: 3);
 
         // Act
-        var count = await _unitService.GetUsageCountAsync(unit.Id);
+        var count = await _unitService.GetUsageCountAsync(unit.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, count);

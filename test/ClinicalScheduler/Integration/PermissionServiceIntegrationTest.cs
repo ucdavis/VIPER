@@ -34,8 +34,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithManagePermission();
 
             // Act - Test methods that were previously in ClinicalScheduleSecurityService
-            var hasEditPermission = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
-            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId);
+            var hasEditPermission = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
+            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert - Verify consolidation maintains backward compatibility
             Assert.True(hasEditPermission);
@@ -49,15 +49,15 @@ namespace Viper.test.ClinicalScheduler.Integration
             var dynamicPermission = "SVMSecure.ClnSched.Edit.Dynamic";
             var service = TestDataBuilder.CreateService(99, "Dynamic Service", "DYN", dynamicPermission);
             Context.Services.Add(service);
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Add permission to RAPS context
             TestDataBuilder.IntegrationHelpers.AddMemberPermissions(RapsContext, TestUserMothraId, dynamicPermission);
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { dynamicPermission });
 
             // Act
-            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(99);
-            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(99);
+            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(99, TestContext.Current.CancellationToken);
+            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(99, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(dynamicPermission, requiredPermission);
@@ -71,8 +71,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { ClinicalSchedulePermissions.Manage });
 
             // Act - Check permission for service with specific permission requirement
-            var hasCardiologyPermission = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId);
-            var hasSurgeryPermission = await _permissionService.HasEditPermissionForServiceAsync(SurgeryServiceId);
+            var hasCardiologyPermission = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId, TestContext.Current.CancellationToken);
+            var hasSurgeryPermission = await _permissionService.HasEditPermissionForServiceAsync(SurgeryServiceId, TestContext.Current.CancellationToken);
 
             // Assert - Manage permission should override all service-specific permissions
             Assert.True(hasCardiologyPermission);
@@ -91,7 +91,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local));
             Context.Weeks.Add(week);
             Context.WeekGradYears.Add(weekGradYear);
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Test new async methods added during consolidation
             var studentScheduleResult = await _permissionService.CheckStudentScheduleParamsAsync(
@@ -101,7 +101,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 weekId: null,
                 startDate: null,
                 endDate: null
-            );
+            , TestContext.Current.CancellationToken);
 
             var instructorScheduleResult = await _permissionService.CheckInstructorScheduleParamsAsync(
                 mothraId: null,
@@ -110,7 +110,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 weekId: null,
                 startDate: null,
                 endDate: null
-            );
+            , TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(studentScheduleResult);
@@ -124,9 +124,9 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { CardiologyEditPermission });
 
             // Act
-            var hasCardiologyPermission = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId);
-            var hasSurgeryPermission = await _permissionService.HasEditPermissionForServiceAsync(SurgeryServiceId);
-            var hasInternalMedicinePermission = await _permissionService.HasEditPermissionForServiceAsync(InternalMedicineServiceId);
+            var hasCardiologyPermission = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId, TestContext.Current.CancellationToken);
+            var hasSurgeryPermission = await _permissionService.HasEditPermissionForServiceAsync(SurgeryServiceId, TestContext.Current.CancellationToken);
+            var hasInternalMedicinePermission = await _permissionService.HasEditPermissionForServiceAsync(InternalMedicineServiceId, TestContext.Current.CancellationToken);
 
             // Assert - Should only have permission for Cardiology
             Assert.True(hasCardiologyPermission);
@@ -141,8 +141,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupNullUser();
 
             // Act
-            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId);
-            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(CardiologyServiceId);
+            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId, TestContext.Current.CancellationToken);
+            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(CardiologyServiceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(hasPermission);
@@ -157,8 +157,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithManagePermission();
 
             // Act
-            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(nonExistentServiceId);
-            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(nonExistentServiceId);
+            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(nonExistentServiceId, TestContext.Current.CancellationToken);
+            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(nonExistentServiceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ClinicalSchedulePermissions.Manage, requiredPermission);
@@ -179,7 +179,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 weekId: null,
                 startDate: null,
                 endDate: null
-            );
+            , TestContext.Current.CancellationToken);
 
             var otherScheduleResult = await _permissionService.CheckInstructorScheduleParamsAsync(
                 mothraId: "otheruser",
@@ -188,7 +188,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 weekId: null,
                 startDate: null,
                 endDate: null
-            );
+            , TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(ownScheduleResult);
@@ -206,8 +206,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { InternalMedicineEditPermission });
 
             // Act - Full permission check flow
-            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId);
-            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var requiredPermission = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
+            var hasPermission = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Simulate checking for a rotation in this service
             Context.Rotations.Add(new Rotation
@@ -217,9 +217,9 @@ namespace Viper.test.ClinicalScheduler.Integration
                 Name = "IM Rotation",
                 Abbreviation = "IM"
             });
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            var rotationPermission = await _permissionService.HasEditPermissionForRotationAsync(99);
+            var rotationPermission = await _permissionService.HasEditPermissionForRotationAsync(99, TestContext.Current.CancellationToken);
 
             // Assert - Complete flow works correctly
             Assert.Equal(InternalMedicineEditPermission, requiredPermission);
@@ -234,13 +234,13 @@ namespace Viper.test.ClinicalScheduler.Integration
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { CardiologyEditPermission });
 
             // Act - Check permission initially
-            var firstCheck = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId);
+            var firstCheck = await _permissionService.HasEditPermissionForServiceAsync(CardiologyServiceId, TestContext.Current.CancellationToken);
 
             // Change permissions mid-test (simulating permission update)
             SetupUserWithPermissionsForIntegration(TestUserMothraId, new[] { ClinicalSchedulePermissions.Manage });
 
             // Check permission again
-            var secondCheck = await _permissionService.HasEditPermissionForServiceAsync(SurgeryServiceId);
+            var secondCheck = await _permissionService.HasEditPermissionForServiceAsync(SurgeryServiceId, TestContext.Current.CancellationToken);
 
             // Assert - Permissions should reflect current state, not cached
             Assert.True(firstCheck);
