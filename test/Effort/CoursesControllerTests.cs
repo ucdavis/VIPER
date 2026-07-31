@@ -96,7 +96,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCoursesAsync(202410, null, Arg.Any<CancellationToken>()).Returns(courses);
 
         // Act
-        var result = await _controller.GetCourses(202410);
+        var result = await _controller.GetCourses(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -117,7 +117,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCoursesAsync(202410, "DVM", Arg.Any<CancellationToken>()).Returns(courses);
 
         // Act
-        var result = await _controller.GetCourses(202410, "DVM");
+        var result = await _controller.GetCourses(202410, "DVM", TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -138,7 +138,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetCourse(1);
+        var result = await _controller.GetCourse(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -153,7 +153,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetCourse(999);
+        var result = await _controller.GetCourse(999, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -187,7 +187,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.CreateCourseAsync(request, Arg.Any<CancellationToken>()).Returns(createdCourse);
 
         // Act
-        var result = await _controller.CreateCourse(request);
+        var result = await _controller.CreateCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
@@ -216,7 +216,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.CreateCourse(request);
+        var result = await _controller.CreateCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -245,7 +245,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.CourseExistsAsync(202410, "99999", 4, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.CreateCourse(request);
+        var result = await _controller.CreateCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
@@ -272,7 +272,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.IsValidCustodialDepartment("INVALID").Returns(false);
 
         // Act
-        var result = await _controller.CreateCourse(request);
+        var result = await _controller.CreateCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -302,7 +302,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.CreateCourseAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Database constraint violation"));
 
         // Act
-        var result = await _controller.CreateCourse(request);
+        var result = await _controller.CreateCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -333,7 +333,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Returns(updatedCourse);
 
         // Act
-        var result = await _controller.UpdateCourse(1, request);
+        var result = await _controller.UpdateCourse(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -359,7 +359,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.UpdateCourse(1, request);
+        var result = await _controller.UpdateCourse(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -384,7 +384,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Returns(updatedCourse);
 
         // Act
-        var result = await _controller.UpdateCourse(1, request);
+        var result = await _controller.UpdateCourse(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -406,7 +406,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.UpdateCourse(999, request);
+        var result = await _controller.UpdateCourse(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -431,7 +431,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Throws(new ArgumentException("Invalid custodial department: INVALID"));
 
         // Act
-        var result = await _controller.UpdateCourse(1, request);
+        var result = await _controller.UpdateCourse(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -456,7 +456,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.UpdateCourseAsync(1, request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Database constraint violation"));
 
         // Act
-        var result = await _controller.UpdateCourse(1, request);
+        var result = await _controller.UpdateCourse(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -480,7 +480,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.UpdateCourseEnrollmentAsync(1, 50, Arg.Any<CancellationToken>()).Returns(updatedCourse);
 
         // Act
-        var result = await _controller.UpdateCourseEnrollment(1, request);
+        var result = await _controller.UpdateCourseEnrollment(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -497,7 +497,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.UpdateCourseEnrollment(999, request);
+        var result = await _controller.UpdateCourseEnrollment(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -515,7 +515,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.UpdateCourseEnrollmentAsync(1, 50, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Course is not an R-course"));
 
         // Act
-        var result = await _controller.UpdateCourseEnrollment(1, request);
+        var result = await _controller.UpdateCourseEnrollment(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -537,7 +537,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.DeleteCourseAsync(1, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.DeleteCourse(1);
+        var result = await _controller.DeleteCourse(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -550,7 +550,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.DeleteCourse(999);
+        var result = await _controller.DeleteCourse(999, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
@@ -572,7 +572,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.CanDeleteCourseAsync(1, Arg.Any<CancellationToken>()).Returns((true, 5));
 
         // Act
-        var result = await _controller.CanDeleteCourse(1);
+        var result = await _controller.CanDeleteCourse(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -592,7 +592,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetDepartments();
+        var result = await _controller.GetDepartments(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -623,7 +623,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.ImportCourseFromBannerAsync(request, bannerCourse, Arg.Any<CancellationToken>()).Returns(importedCourse);
 
         // Act
-        var result = await _controller.ImportCourse(request);
+        var result = await _controller.ImportCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
@@ -646,7 +646,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.ImportCourse(request);
+        var result = await _controller.ImportCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -670,7 +670,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.CheckImportConflictAsync(202410, "12345", 4, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(ImportConflict.DuplicateSameUnits);
 
         // Act
-        var result = await _controller.ImportCourse(request);
+        var result = await _controller.ImportCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
@@ -695,7 +695,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.CheckImportConflictAsync(202410, "12345", 4, true, Arg.Any<CancellationToken>()).Returns(ImportConflict.HarvestBlocked);
 
         // Act
-        var result = await _controller.ImportCourse(request);
+        var result = await _controller.ImportCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
@@ -716,7 +716,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetBannerCourseAsync(202410, "99999", Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.ImportCourse(request);
+        var result = await _controller.ImportCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -738,7 +738,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetBannerCourseAsync(202410, "12345", Arg.Any<CancellationToken>()).Returns(bannerCourse);
 
         // Act
-        var result = await _controller.ImportCourse(request);
+        var result = await _controller.ImportCourse(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -760,7 +760,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.SearchBannerCoursesAsync(202410, "DVM", null, null, null, Arg.Any<CancellationToken>()).Returns(bannerCourses);
 
         // Act
-        var result = await _controller.SearchBannerCourses(202410, "DVM");
+        var result = await _controller.SearchBannerCourses(202410, "DVM", ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -772,7 +772,7 @@ public sealed class CoursesControllerTests
     public async Task SearchBannerCourses_ReturnsBadRequest_WhenNoSearchParametersProvided()
     {
         // Act
-        var result = await _controller.SearchBannerCourses(202410);
+        var result = await _controller.SearchBannerCourses(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -799,7 +799,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetCourseEffort(TestCourseId);
+        var result = await _controller.GetCourseEffort(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -820,7 +820,7 @@ public sealed class CoursesControllerTests
 
         _courseServiceMock.GetCourseEffortAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(new List<CourseEffortRecordDto>());
         // Act
-        var result = await _controller.GetCourseEffort(TestCourseId);
+        var result = await _controller.GetCourseEffort(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -840,7 +840,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetCourseEffort(TestCourseId);
+        var result = await _controller.GetCourseEffort(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -856,7 +856,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetCourseEffort(TestCourseId);
+        var result = await _controller.GetCourseEffort(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -871,7 +871,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetCourseEffort(TestCourseId);
+        var result = await _controller.GetCourseEffort(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -897,7 +897,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanEditPersonEffortAsync(nonEditablePersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetCourseEffort(TestCourseId);
+        var result = await _controller.GetCourseEffort(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -929,7 +929,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetPossibleInstructorsForCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(instructors);
 
         // Act
-        var result = await _controller.GetPossibleInstructors(TestCourseId);
+        var result = await _controller.GetPossibleInstructors(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -944,7 +944,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetPossibleInstructors(TestCourseId);
+        var result = await _controller.GetPossibleInstructors(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -959,7 +959,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetPossibleInstructors(TestCourseId);
+        var result = await _controller.GetPossibleInstructors(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -984,7 +984,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.GetCourseEvaluationStatusAsync(TestCourseId, Arg.Any<CancellationToken>()).Returns(status);
 
         // Act
-        var result = await _controller.GetCourseEvaluations(TestCourseId);
+        var result = await _controller.GetCourseEvaluations(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -999,7 +999,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetCourseEvaluations(TestCourseId);
+        var result = await _controller.GetCourseEvaluations(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -1014,7 +1014,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(course.CustDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetCourseEvaluations(TestCourseId);
+        var result = await _controller.GetCourseEvaluations(TestCourseId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -1046,7 +1046,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.CreateAdHocEvaluationAsync(request, Arg.Any<CancellationToken>()).Returns(evalResult);
 
         // Act
-        var result = await _controller.CreateEvaluation(TestCourseId, request);
+        var result = await _controller.CreateEvaluation(TestCourseId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -1079,7 +1079,7 @@ public sealed class CoursesControllerTests
             .Returns(new AdHocEvalResultDto { Success = true, QuantId = TestQuantId });
 
         // Act
-        await _controller.CreateEvaluation(TestCourseId, request);
+        await _controller.CreateEvaluation(TestCourseId, request, TestContext.Current.CancellationToken);
 
         // Assert - verify the service was called with CourseId set to the route parameter
         await _evalHarvestServiceMock.Received(1).CreateAdHocEvaluationAsync(
@@ -1105,7 +1105,7 @@ public sealed class CoursesControllerTests
         };
 
         // Act
-        var result = await _controller.CreateEvaluation(TestCourseId, request);
+        var result = await _controller.CreateEvaluation(TestCourseId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -1131,7 +1131,7 @@ public sealed class CoursesControllerTests
         };
 
         // Act
-        var result = await _controller.CreateEvaluation(TestCourseId, request);
+        var result = await _controller.CreateEvaluation(TestCourseId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -1159,7 +1159,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.CreateAdHocEvaluationAsync(request, Arg.Any<CancellationToken>()).Returns(new AdHocEvalResultDto { Success = false, Error = "harvested eval data exists for this course" });
 
         // Act
-        var result = await _controller.CreateEvaluation(TestCourseId, request);
+        var result = await _controller.CreateEvaluation(TestCourseId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -1190,7 +1190,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.UpdateAdHocEvaluationAsync(TestCourseId, TestQuantId, request, Arg.Any<CancellationToken>()).Returns(evalResult);
 
         // Act
-        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request);
+        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -1214,7 +1214,7 @@ public sealed class CoursesControllerTests
         };
 
         // Act
-        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request);
+        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -1238,7 +1238,7 @@ public sealed class CoursesControllerTests
         };
 
         // Act
-        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request);
+        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -1264,7 +1264,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.UpdateAdHocEvaluationAsync(TestCourseId, TestQuantId, request, Arg.Any<CancellationToken>()).Returns(new AdHocEvalResultDto { Success = false, Error = "Evaluation not found" });
 
         // Act
-        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request);
+        var result = await _controller.UpdateEvaluation(TestCourseId, TestQuantId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -1285,7 +1285,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.DeleteAdHocEvaluationAsync(TestCourseId, TestQuantId, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
+        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -1298,7 +1298,7 @@ public sealed class CoursesControllerTests
         _courseServiceMock.GetCourseAsync(TestCourseId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
+        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -1313,7 +1313,7 @@ public sealed class CoursesControllerTests
         _permissionServiceMock.IsTermEditableAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
+        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
@@ -1330,7 +1330,7 @@ public sealed class CoursesControllerTests
         _evalHarvestServiceMock.DeleteAdHocEvaluationAsync(TestCourseId, TestQuantId, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId);
+        var result = await _controller.DeleteEvaluation(TestCourseId, TestQuantId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);

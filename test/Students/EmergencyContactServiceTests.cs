@@ -380,7 +380,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var result = await service.IsAppOpenAsync();
@@ -396,7 +396,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 0
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var result = await service.IsAppOpenAsync();
@@ -417,7 +417,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         Assert.True(result);
         var rp = await _rapsContext.TblRolePermissions.SingleAsync(rp =>
             rp.RoleId == _seededRoleId
-            && rp.PermissionId == _seededPermissionId);
+            && rp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken);
         Assert.Equal(1, rp.Access);
     }
 
@@ -430,7 +430,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var result = await service.ToggleAppAccessAsync();
@@ -439,7 +439,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         // Row is deleted on close so a role-level Deny cannot shadow individual grants.
         var rp = await _rapsContext.TblRolePermissions.FirstOrDefaultAsync(rp =>
             rp.RoleId == _seededRoleId
-            && rp.PermissionId == _seededPermissionId);
+            && rp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken);
         Assert.Null(rp);
     }
 
@@ -459,7 +459,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         await service.ToggleAppAccessAsync(); // close
@@ -467,12 +467,12 @@ public sealed class EmergencyContactServiceTests : IDisposable
         // No role-permission row should remain — a row with Access=0 would Deny
         // all members, overriding the individual grant's Access=1 (RAPS semantics).
         var rolePerm = await _rapsContext.TblRolePermissions.FirstOrDefaultAsync(rp =>
-            rp.RoleId == _seededRoleId && rp.PermissionId == _seededPermissionId);
+            rp.RoleId == _seededRoleId && rp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken);
         Assert.Null(rolePerm);
 
         // Individual grant is preserved
         var grant = await _rapsContext.TblMemberPermissions.SingleAsync(mp =>
-            mp.MemberId == "granted-student" && mp.PermissionId == _seededPermissionId);
+            mp.MemberId == "granted-student" && mp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken);
         Assert.Equal(1, grant.Access);
     }
 
@@ -485,7 +485,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 0
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var result = await service.ToggleAppAccessAsync();
@@ -493,7 +493,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         Assert.True(result);
         var rp = await _rapsContext.TblRolePermissions.SingleAsync(rp =>
             rp.RoleId == _seededRoleId
-            && rp.PermissionId == _seededPermissionId);
+            && rp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken);
         Assert.Equal(1, rp.Access);
     }
 
@@ -516,14 +516,14 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M100", 100, "Student", "Test", "V1", "12100", "student1@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.ToggleIndividualAccessAsync(100);
 
             Assert.True(result);
             Assert.True(await _rapsContext.TblMemberPermissions.AnyAsync(mp =>
                 mp.MemberId == "M100"
-                && mp.PermissionId == _seededPermissionId));
+                && mp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken));
         }
     }
 
@@ -534,7 +534,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M101", 101, "Student2", "Test", "V1", "12101", "student2@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
             {
@@ -542,14 +542,14 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 PermissionId = _seededPermissionId,
                 Access = 1
             });
-            await _rapsContext.SaveChangesAsync();
+            await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.ToggleIndividualAccessAsync(101);
 
             Assert.False(result);
             Assert.False(await _rapsContext.TblMemberPermissions.AnyAsync(mp =>
                 mp.MemberId == "M101"
-                && mp.PermissionId == _seededPermissionId));
+                && mp.PermissionId == _seededPermissionId, TestContext.Current.CancellationToken));
         }
     }
 
@@ -586,7 +586,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     {
         var service = CreateServiceWithPermissions(EmergencyContactPermissions.Admin);
         _aaudContext.AaudUsers.Add(CreateTestUser(200, "admin200"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(999, "admin200");
         Assert.True(result);
@@ -597,7 +597,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     {
         var service = CreateServiceWithPermissions(EmergencyContactPermissions.SISAllStudents);
         _aaudContext.AaudUsers.Add(CreateTestUser(201, "sis201"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(201, "sis201");
         Assert.False(result);
@@ -608,7 +608,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     {
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(CreateTestUser(202, "stu202"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Open the app
         _rapsContext.TblRolePermissions.Add(new TblRolePermission
@@ -617,7 +617,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(202, "stu202");
         Assert.True(result);
@@ -629,7 +629,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var user = CreateTestUser(203, "stu203");
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(user);
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // App closed, but individual grant exists
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
@@ -638,7 +638,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(203, "stu203");
         Assert.True(result);
@@ -649,7 +649,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     {
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(CreateTestUser(204, "stu204"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(204, "stu204");
         Assert.False(result);
@@ -660,7 +660,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     {
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(CreateTestUser(205, "stu205"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Open the app — but student tries to edit someone else's record
         _rapsContext.TblRolePermissions.Add(new TblRolePermission
@@ -669,7 +669,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(999, "stu205");
         Assert.False(result);
@@ -681,7 +681,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var user = CreateTestUser(206, "stu206");
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(user);
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // App closed, grant exists but ended yesterday
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
@@ -691,7 +691,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             Access = 1,
             EndDate = DateTime.Now.AddDays(-1)
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(206, "stu206");
         Assert.False(result);
@@ -703,7 +703,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var user = CreateTestUser(207, "stu207");
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(user);
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Grant doesn't start until tomorrow
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
@@ -713,7 +713,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             Access = 1,
             StartDate = DateTime.Now.AddDays(1)
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(207, "stu207");
         Assert.False(result);
@@ -725,7 +725,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var user = CreateTestUser(208, "stu208");
         var service = CreateServiceWithPermissions();
         _aaudContext.AaudUsers.Add(user);
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Member row with Access=0 should not count as a grant
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
@@ -734,7 +734,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 0
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await service.CanEditAsync(208, "stu208");
         Assert.False(result);
@@ -753,7 +753,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var status = await service.GetAccessStatusAsync();
@@ -774,7 +774,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     public async Task GetAccessStatusAsync_WithIndividualGrants_ReturnsGrantedStudents()
     {
         _aaudContext.AaudUsers.Add(CreateTestUser(300, "stu300"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
         {
@@ -782,7 +782,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var status = await service.GetAccessStatusAsync();
@@ -795,7 +795,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     public async Task GetAccessStatusAsync_ExpiredGrant_Excluded()
     {
         _aaudContext.AaudUsers.Add(CreateTestUser(301, "stu301"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
         {
@@ -804,7 +804,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             Access = 1,
             EndDate = DateTime.Now.AddDays(-1)
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var status = await service.GetAccessStatusAsync();
@@ -826,7 +826,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
     {
         // Grant survives both app open and app closed
         _aaudContext.AaudUsers.Add(CreateTestUser(302, "stu302"));
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _rapsContext.TblMemberPermissions.Add(new TblMemberPermission
         {
             MemberId = "M302",
@@ -839,7 +839,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 1
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         var statusOpen = await service.GetAccessStatusAsync();
@@ -848,7 +848,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
         // Close app (removes role-permission row); grant unchanged
         _rapsContext.TblRolePermissions.RemoveRange(_rapsContext.TblRolePermissions);
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var statusClosed = await service.GetAccessStatusAsync();
         Assert.False(statusClosed.AppOpen);
@@ -869,7 +869,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M400", 400, "First", "Student", "V1", "12400", "s400@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // 1. Open app
             Assert.True(await service.ToggleAppAccessAsync());
@@ -902,7 +902,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             PermissionId = _seededPermissionId,
             Access = 0
         });
-        await _rapsContext.SaveChangesAsync();
+        await _rapsContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = CreateService();
         Assert.True(await service.ToggleAppAccessAsync());
@@ -910,7 +910,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
         var rows = await _rapsContext.TblRolePermissions
             .Where(rp => rp.RoleId == _seededRoleId && rp.PermissionId == _seededPermissionId)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Single(rows);
         Assert.Equal(1, rows[0].Access);
     }
@@ -923,7 +923,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M401", 401, "Second", "Student", "V1", "12401", "s401@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             Assert.True(await service.ToggleIndividualAccessAsync(401));   // grant
             Assert.False(await service.ToggleIndividualAccessAsync(401));  // revoke
@@ -933,7 +933,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             // Final state: no grant for this student
             var grants = await _rapsContext.TblMemberPermissions
                 .Where(mp => mp.MemberId == "M401" && mp.PermissionId == _seededPermissionId)
-                .ToListAsync();
+                .ToListAsync(TestContext.Current.CancellationToken);
             Assert.Empty(grants);
         }
     }
@@ -946,7 +946,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         {
             // User exists in AAUD but is not seeded as a current DVM student
             aaudContext.AaudUsers.Add(CreateTestUser(403, "stu403"));
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             await Assert.ThrowsAsync<InvalidOperationException>(
                 () => service.ToggleIndividualAccessAsync(403));
@@ -973,7 +973,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M200", 200, "Student", "New", "V1", "12345", "student3@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var request = new UpdateStudentContactRequest
             {
@@ -1006,7 +1006,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
             var savedContact = await _sisContext.StudentContacts
                 .Include(c => c.EmergencyContacts)
-                .FirstOrDefaultAsync(c => c.Pidm == 12345);
+                .FirstOrDefaultAsync(c => c.Pidm == 12345, TestContext.Current.CancellationToken);
 
             Assert.NotNull(savedContact);
             Assert.Equal("One Shields Avenue", savedContact.Address);
@@ -1038,7 +1038,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M201", 201, "Student", "Existing", "V1", "12346", "student4@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Create existing contact record
             var existingContact = new StudentContact
@@ -1049,7 +1049,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 Zip = "00000"
             };
             _sisContext.StudentContacts.Add(existingContact);
-            await _sisContext.SaveChangesAsync();
+            await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var localEc = new StudentEmergencyContact
             {
@@ -1058,7 +1058,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 Name = "Old Name"
             };
             _sisContext.StudentEmergencyContacts.Add(localEc);
-            await _sisContext.SaveChangesAsync();
+            await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var request = new UpdateStudentContactRequest
             {
@@ -1082,7 +1082,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
             var savedContact = await _sisContext.StudentContacts
                 .Include(c => c.EmergencyContacts)
-                .FirstOrDefaultAsync(c => c.Pidm == 12346);
+                .FirstOrDefaultAsync(c => c.Pidm == 12346, TestContext.Current.CancellationToken);
 
             Assert.NotNull(savedContact);
             Assert.Equal("New Address", savedContact.Address);
@@ -1102,7 +1102,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M300", 300, "Test", "Phone", "V1", "12399", "student5@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var request = new UpdateStudentContactRequest
             {
@@ -1125,7 +1125,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
             // Verify nothing was persisted
             var saved = await _sisContext.StudentContacts
-                .FirstOrDefaultAsync(c => c.Pidm == 12399);
+                .FirstOrDefaultAsync(c => c.Pidm == 12399, TestContext.Current.CancellationToken);
             Assert.Null(saved);
         }
     }
@@ -1162,7 +1162,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 LastName = "Divergent",
                 FirstName = "Student"
             });
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var request = new UpdateStudentContactRequest
             {
@@ -1182,12 +1182,12 @@ public sealed class EmergencyContactServiceTests : IDisposable
 
             // Should save using the VIEW pidm (12700), not the stale AaudUser pidm (99999)
             var correctContact = await _sisContext.StudentContacts
-                .FirstOrDefaultAsync(c => c.Pidm == 12700);
+                .FirstOrDefaultAsync(c => c.Pidm == 12700, TestContext.Current.CancellationToken);
             Assert.NotNull(correctContact);
             Assert.Equal("Test Address", correctContact.Address);
 
             var staleContact = await _sisContext.StudentContacts
-                .FirstOrDefaultAsync(c => c.Pidm == 99999);
+                .FirstOrDefaultAsync(c => c.Pidm == 99999, TestContext.Current.CancellationToken);
             Assert.Null(staleContact);
         }
     }
@@ -1204,7 +1204,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         {
             SeedDvmStudent(aaudContext, "M500", 500, "LastA", "StudentA", "V1", "12500", "studenta@ucdavis.edu");
             SeedDvmStudent(aaudContext, "M501", 501, "LastB", "StudentB", "V2", "12501", "studentb@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactListAsync();
 
@@ -1226,7 +1226,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M502", 502, "LastC", "StudentC", "V3", "12502", "studentc@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactListAsync();
 
@@ -1242,7 +1242,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M503", 503, "Doe", "Jane", "V1", "12503", "jdoe@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactListAsync();
 
@@ -1258,7 +1258,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M504", 504, "Doe", "John", "V2", "12504", "jdoe2@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Seed contact data
             var contact = new StudentContact
@@ -1270,7 +1270,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 CellPhone = "5305551234"
             };
             _sisContext.StudentContacts.Add(contact);
-            await _sisContext.SaveChangesAsync();
+            await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var localEc = new StudentEmergencyContact
             {
@@ -1282,7 +1282,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 Email = "jdoe@example.com"
             };
             _sisContext.StudentEmergencyContacts.Add(localEc);
-            await _sisContext.SaveChangesAsync();
+            await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactListAsync();
 
@@ -1311,7 +1311,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 IdsMailid = "nobody@ucdavis.edu",
                 StudentsTermCode = "202610"
             });
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactListAsync();
 
@@ -1334,7 +1334,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M600", 600, "Doe", "Jane", "V1", "12600", "jdoe3@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactReportAsync();
 
@@ -1352,7 +1352,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
         using (aaudContext)
         {
             SeedDvmStudent(aaudContext, "M601", 601, "Doe", "John", "V2", "12601", "jdoe4@ucdavis.edu");
-            await aaudContext.SaveChangesAsync();
+            await aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var contact = new StudentContact
             {
@@ -1365,7 +1365,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 ContactPermanent = true
             };
             _sisContext.StudentContacts.Add(contact);
-            await _sisContext.SaveChangesAsync();
+            await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var emergencyEc = new StudentEmergencyContact
             {
@@ -1377,7 +1377,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
                 Email = "jdoe@example.com"
             };
             _sisContext.StudentEmergencyContacts.Add(emergencyEc);
-            await _sisContext.SaveChangesAsync();
+            await _sisContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             var result = await service.GetStudentContactReportAsync();
 

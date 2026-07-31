@@ -253,8 +253,8 @@ namespace Viper.test.ClinicalScheduler.Integration
         public async Task PersonService_AAUDDataFetching_ReturnsCorrectData()
         {
             // Act - Test various PersonService methods
-            var allAffiliates = await _personService.GetAllActiveEmployeeAffiliatesAsync();
-            var specificPerson = await _personService.GetClinicianFromAaudAsync("instructor1");
+            var allAffiliates = await _personService.GetAllActiveEmployeeAffiliatesAsync(TestContext.Current.CancellationToken);
+            var specificPerson = await _personService.GetClinicianFromAaudAsync("instructor1", TestContext.Current.CancellationToken);
 
             // Assert
             // Note: GetAllActiveEmployeeAffiliatesAsync queries AaudUsers which we didn't seed
@@ -285,7 +285,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 Active = true
             };
             Context.Rotations.Add(rotation);
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Use EvaluationPolicyService (now has different methods)
             // The service now has RequiresPrimaryEvaluator method with different signature
@@ -316,7 +316,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 Active = true
             };
             Context.Rotations.Add(rotation);
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Convert entity to DTO using extension method
             var rotationDto = rotation.ToDto();
@@ -398,7 +398,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 Active = false
             };
             Context.Rotations.AddRange(rotation1, rotation2);
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Test DTO structures individually since ServiceSummaryDto doesn't exist
             var rotation1Dto = rotation1.ToDto();
@@ -427,7 +427,7 @@ namespace Viper.test.ClinicalScheduler.Integration
         public async Task CrossServiceDataConsistency_MaintainedAcrossLayers()
         {
             // Arrange - Complex scenario with multiple services interacting
-            await _personService.GetClinicianFromAaudAsync("instructor1");
+            await _personService.GetClinicianFromAaudAsync("instructor1", TestContext.Current.CancellationToken);
             // Person might be null if AAUD data is not seeded
 
             AddInstructorSchedule(401, "instructor1", CardiologyRotationId, weekId: 1, evaluator: true);

@@ -64,7 +64,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorsAsync(202410, null, false, Arg.Any<CancellationToken>()).Returns(instructors);
 
         // Act
-        var result = await _controller.GetInstructors(202410);
+        var result = await _controller.GetInstructors(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -85,7 +85,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorsAsync(202410, "VME", false, Arg.Any<CancellationToken>()).Returns(instructors);
 
         // Act
-        var result = await _controller.GetInstructors(202410, "VME");
+        var result = await _controller.GetInstructors(202410, "VME", ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -100,7 +100,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetInstructors(202410, "SECRET");
+        var result = await _controller.GetInstructors(202410, "SECRET", ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -121,7 +121,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetInstructor(1, 202410);
+        var result = await _controller.GetInstructor(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -136,7 +136,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetInstructor(999, 202410);
+        var result = await _controller.GetInstructor(999, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -151,7 +151,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetInstructor(1, 202410);
+        var result = await _controller.GetInstructor(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -178,7 +178,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.CreateInstructorAsync(request, Arg.Any<CancellationToken>()).Returns(createdInstructor);
 
         // Act
-        var result = await _controller.CreateInstructor(request);
+        var result = await _controller.CreateInstructor(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
@@ -200,7 +200,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.InstructorExistsAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.CreateInstructor(request);
+        var result = await _controller.CreateInstructor(request, TestContext.Current.CancellationToken);
 
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
@@ -224,7 +224,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.CreateInstructorAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Person not found in AAUD"));
 
         // Act
-        var result = await _controller.CreateInstructor(request);
+        var result = await _controller.CreateInstructor(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -247,7 +247,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.CreateInstructorAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("Database constraint violation"));
 
         // Act
-        var result = await _controller.CreateInstructor(request);
+        var result = await _controller.CreateInstructor(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -277,7 +277,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.UpdateInstructorAsync(1, 202410, request, Arg.Any<CancellationToken>()).Returns(updatedInstructor);
 
         // Act
-        var result = await _controller.UpdateInstructor(1, 202410, request);
+        var result = await _controller.UpdateInstructor(1, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -302,7 +302,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.UpdateInstructor(1, 202410, request);
+        var result = await _controller.UpdateInstructor(1, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -322,7 +322,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.UpdateInstructor(999, 202410, request);
+        var result = await _controller.UpdateInstructor(999, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -346,7 +346,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.UpdateInstructorAsync(1, 202410, request, Arg.Any<CancellationToken>()).Throws(new ArgumentException("Invalid department: INVALID"));
 
         // Act
-        var result = await _controller.UpdateInstructor(1, 202410, request);
+        var result = await _controller.UpdateInstructor(1, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -368,7 +368,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.DeleteInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.DeleteInstructor(1, 202410);
+        var result = await _controller.DeleteInstructor(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -381,7 +381,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.DeleteInstructor(999, 202410);
+        var result = await _controller.DeleteInstructor(999, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -397,7 +397,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("SECRET", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.DeleteInstructor(1, 202410);
+        var result = await _controller.DeleteInstructor(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -418,7 +418,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.CanDeleteInstructorAsync(1, 202410, Arg.Any<CancellationToken>()).Returns((true, 5));
 
         // Act
-        var result = await _controller.CanDeleteInstructor(1, 202410);
+        var result = await _controller.CanDeleteInstructor(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -443,7 +443,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetDepartments();
+        var result = await _controller.GetDepartments(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -466,7 +466,7 @@ public sealed class InstructorsControllerTests
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string> { "VME" });
 
         // Act
-        var result = await _controller.GetDepartments();
+        var result = await _controller.GetDepartments(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -491,7 +491,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetReportUnitsAsync(Arg.Any<CancellationToken>()).Returns(reportUnits);
 
         // Act
-        var result = await _controller.GetReportUnits();
+        var result = await _controller.GetReportUnits(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -518,7 +518,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorEffortRecordsAsync(1, 202410, Arg.Any<CancellationToken>()).Returns(effortRecords);
 
         // Act
-        var result = await _controller.GetInstructorEffortRecords(1, 202410);
+        var result = await _controller.GetInstructorEffortRecords(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -533,7 +533,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetInstructorEffortRecords(999, 202410);
+        var result = await _controller.GetInstructorEffortRecords(999, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -555,7 +555,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(titleCodes);
 
         // Act
-        var result = await _controller.GetTitleCodes();
+        var result = await _controller.GetTitleCodes(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -569,7 +569,7 @@ public sealed class InstructorsControllerTests
         // Arrange
         _instructorServiceMock.GetTitleCodesAsync(Arg.Any<CancellationToken>()).Returns(new List<TitleCodeDto>());
         // Act
-        var result = await _controller.GetTitleCodes();
+        var result = await _controller.GetTitleCodes(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -593,7 +593,7 @@ public sealed class InstructorsControllerTests
         _instructorServiceMock.GetJobGroupsAsync(Arg.Any<int?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(jobGroups);
 
         // Act
-        var result = await _controller.GetJobGroups();
+        var result = await _controller.GetJobGroups(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -607,7 +607,7 @@ public sealed class InstructorsControllerTests
         // Arrange
         _instructorServiceMock.GetJobGroupsAsync(Arg.Any<int?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(new List<JobGroupDto>());
         // Act
-        var result = await _controller.GetJobGroups();
+        var result = await _controller.GetJobGroups(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

@@ -60,7 +60,7 @@ public sealed class EffortTypesControllerTests
         _effortTypeServiceMock.GetEffortTypesAsync(false, Arg.Any<CancellationToken>()).Returns(effortTypes);
 
         // Act
-        var result = await _controller.GetEffortTypes();
+        var result = await _controller.GetEffortTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -79,7 +79,7 @@ public sealed class EffortTypesControllerTests
         _effortTypeServiceMock.GetEffortTypesAsync(true, Arg.Any<CancellationToken>()).Returns(effortTypes);
 
         // Act
-        var result = await _controller.GetEffortTypes(activeOnly: true);
+        var result = await _controller.GetEffortTypes(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -481,7 +481,7 @@ public sealed class EffortTypesControllerTests
         // Arrange
         _effortTypeServiceMock.GetEffortTypesAsync(false, Arg.Any<CancellationToken>()).Returns(new List<EffortTypeDto>());
         // Act
-        var result = await _controller.GetEffortTypes();
+        var result = await _controller.GetEffortTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

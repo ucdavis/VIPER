@@ -178,3 +178,9 @@ dotnet_diagnostic.CA1505.severity = none
 # ApiPaginationAttribute.OnActionExecuting always constructs the object and overwrites the action argument
 [web/Models/ApiPagination.cs]
 dotnet_diagnostic.S6964.severity = none
+
+# xUnit1051: every call that accepts a CancellationToken now passes TestContext.Current.CancellationToken.
+# Promoted to error so the count cannot creep back up; without a token a hung test cannot be cancelled,
+# so CI burns to the job timeout instead of failing the test.
+[test/**.cs]
+dotnet_diagnostic.xUnit1051.severity = error

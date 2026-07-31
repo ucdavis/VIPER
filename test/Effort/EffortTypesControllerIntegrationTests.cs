@@ -64,7 +64,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         SetupUserWithManageEffortTypesPermission();
 
         // Act
-        var result = await _controller.GetEffortTypes();
+        var result = await _controller.GetEffortTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -86,7 +86,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         SetupUserWithManageEffortTypesPermission();
 
         // Act
-        var result = await _controller.GetEffortTypes(activeOnly: true);
+        var result = await _controller.GetEffortTypes(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -105,10 +105,10 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 
         // Add an effort record referencing LEC
         EffortContext.Records.Add(CreateTestEffortRecord(1, "LEC"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _controller.GetEffortTypes();
+        var result = await _controller.GetEffortTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -209,7 +209,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.True(effortType.CanDelete);
 
         // Verify persisted in database
-        var fromDb = await EffortContext.EffortTypes.FindAsync("TST");
+        var fromDb = await EffortContext.EffortTypes.FindAsync(new object?[] { "TST" }, TestContext.Current.CancellationToken);
         Assert.NotNull(fromDb);
         Assert.Equal("Test Session", fromDb.Description);
     }
@@ -329,7 +329,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.False(effortType.AllowedOnRCourses);
 
         // Verify persisted in database
-        var fromDb = await EffortContext.EffortTypes.FindAsync("LEC");
+        var fromDb = await EffortContext.EffortTypes.FindAsync(new object?[] { "LEC" }, TestContext.Current.CancellationToken);
         Assert.NotNull(fromDb);
         Assert.Equal("Updated Lecture", fromDb.Description);
         Assert.True(fromDb.UsesWeeks);
@@ -401,7 +401,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.DeleteEffortType("DEL", CancellationToken.None);
@@ -410,7 +410,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.IsType<NoContentResult>(result);
 
         // Verify removed from database
-        var fromDb = await EffortContext.EffortTypes.FindAsync("DEL");
+        var fromDb = await EffortContext.EffortTypes.FindAsync(new object?[] { "DEL" }, TestContext.Current.CancellationToken);
         Assert.Null(fromDb);
     }
 
@@ -435,7 +435,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 
         // Add an effort record referencing LEC
         EffortContext.Records.Add(CreateTestEffortRecord(100, "LEC"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.DeleteEffortType("LEC", CancellationToken.None);
@@ -458,7 +458,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.DeleteEffortType("del", CancellationToken.None);
@@ -496,7 +496,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 
         // Add effort records
         EffortContext.Records.Add(CreateTestEffortRecord(200, "LEC"));
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.CanDeleteEffortType("LEC", CancellationToken.None);
@@ -560,7 +560,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - The controller now uses query parameter [FromQuery] to handle "/" in IDs
         var result = await _controller.GetEffortType("D/L", CancellationToken.None);
@@ -585,7 +585,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortTypeRequest
         {
@@ -621,7 +621,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.DeleteEffortType("T/D", CancellationToken.None);
@@ -630,7 +630,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
         Assert.IsType<NoContentResult>(result);
 
         // Verify deleted
-        var fromDb = await EffortContext.EffortTypes.FindAsync("T/D");
+        var fromDb = await EffortContext.EffortTypes.FindAsync(new object?[] { "T/D" }, TestContext.Current.CancellationToken);
         Assert.Null(fromDb);
     }
 
@@ -647,7 +647,7 @@ public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
             UsesWeeks = false,
             IsActive = true
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _controller.CanDeleteEffortType("T-D", CancellationToken.None);
