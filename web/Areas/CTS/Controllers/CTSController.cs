@@ -28,13 +28,16 @@ namespace Viper.Areas.CTS.Controllers
         /// <param name="context"></param>
         /// <param name="next"></param>
         /// <returns></returns>
+#pragma warning disable S6967 // filter override, not an action: returning BadRequest is impossible and checking ModelState here would blanket-validate every CTS action
         public override async Task OnActionExecutionAsync(ActionExecutingContext context,
                                          ActionExecutionDelegate next)
         {
             await base.OnActionExecutionAsync(context, next);
             ViewData["ViperLeftNav"] = Nav();
         }
+#pragma warning restore S6967
 
+        [NonAction]
         public NavMenu Nav()
         {
             var nav = new List<NavMenuItem>

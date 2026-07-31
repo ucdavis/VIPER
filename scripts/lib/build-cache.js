@@ -282,7 +282,10 @@ function getCachedBuildOutput(projectName) {
         return null
     }
 
-    return cacheEntry.output || ""
+    // Entries are written by whichever build script ran first, and some cache MSBuild's raw
+    // output with its diagnostic-repeating summary intact. Strip on read so every consumer
+    // sees each diagnostic once regardless of who populated the entry.
+    return stripSummaryDetail(cacheEntry.output || "")
 }
 
 /**
@@ -508,6 +511,56 @@ const ZERO_ERRORS_PATTERN = /\b0\s+Error\(s\)/i
 // Matches "Build succeeded" message from MSBuild
 const BUILD_SUCCEEDED_PATTERN = /Build succeeded\./i
 
+// Matches the line that opens MSBuild's end-of-build summary
+const BUILD_RESULT_PATTERN = /^\s*Build (succeeded|FAILED)\.\s*$/i
+
+// Matches a diagnostic detail line, e.g. "Foo.cs(9,5): warning CA1502: ..." or ": error CS1234"
+const DIAGNOSTIC_DETAIL_PATTERN = /:\s*(warning|error)\s+[A-Za-z]+\d+/i
+
+/**
+ * MSBuild prints every diagnostic inline as it compiles, then repeats the entire list in its
+ * end-of-build summary, so all warnings appear twice. `-clp:NoSummary` does not suppress it on
+ * the .NET 10 SDK (verified: the switch parses, ErrorsOnly takes effect, NoSummary does not),
+ * so filter the repeat out ourselves. The summary's header, counts, and elapsed time are kept.
+ * @returns {(line: string) => boolean} - Stateful predicate: true if the line should be shown
+ */
+function createSummaryDetailFilter() {
+    let inSummary = false
+    return (line) => {
+        if (BUILD_RESULT_PATTERN.test(line)) {
+            inSummary = true
+            return true
+        }
+        return !(inSummary && DIAGNOSTIC_DETAIL_PATTERN.test(line))
+    }
+}
+
+/**
+ * Count warning diagnostics in build output. Assumes summary repeats are already stripped,
+ * which getCachedBuildOutput guarantees, so each warning counts once.
+ * @param {string} output - Build output
+ * @returns {number} - Number of warning diagnostics
+ */
+function countBuildWarnings(output) {
+    if (!output) {
+        return 0
+    }
+    return (output.match(/:\s*warning\s+[A-Za-z]+\d+/gi) || []).length
+}
+
+/**
+ * Non-streaming form of createSummaryDetailFilter, for output captured up front.
+ * @param {string} output - Full build output
+ * @returns {string} - Output with the summary's repeated diagnostic lines removed
+ */
+function stripSummaryDetail(output) {
+    if (!output || !output.trim()) {
+        return output || ""
+    }
+    const shouldEmit = createSummaryDetailFilter()
+    return output.split("\n").filter(shouldEmit).join("\n")
+}
+
 /**
  * Filter build output to show only error lines (not warnings)
  * @param {string} output - Full build output
@@ -517,7 +570,10 @@ function filterBuildErrors(output) {
     if (!output || !output.trim()) {
         return ""
     }
-    const errorLines = output
+    // Cached output still holds MSBuild's summary, so drop its repeats before filtering;
+    // otherwise every error is reported twice.
+    const deduped = stripSummaryDetail(output)
+    const errorLines = deduped
         .split("\n")
         .filter(
             (line) =>
@@ -538,7 +594,7 @@ function filterBuildErrors(output) {
         .join("\n")
         .trim()
     // Fall back to original output when no error lines matched to avoid silent failures
-    return errorLines || output
+    return errorLines || deduped
 }
 
 /**
@@ -585,6 +641,9 @@ module.exports = {
     getCachedBuildOutput,
     filterBuildErrors,
     isConfirmedWarningsOnly,
+    createSummaryDetailFilter,
+    stripSummaryDetail,
+    countBuildWarnings,
     clearBuildCache,
     buildIfNeeded,
     computeProjectHash,

@@ -216,6 +216,11 @@ VIPER is built on Quasar; the prescription is **always use Quasar components**, 
 - **Style:** Quasar `q-field` / `q-input` / `q-select`. Selects are **always `dense` + `options-dense`**.
 - **Focus:** The white+blue focus ring (see Elevation). Clear-button opacity is forced to 1 for contrast.
 
+### Rich Text Editor
+
+- Use `RichTextEditor` (`@/components/RichTextEditor.vue`), never a raw `<q-editor>`, for any HTML content editing. It wraps Quasar's QEditor and centralizes what QEditor omits: an accessible name on every icon toolbar button, a "view source" button whose tooltip/name describes the action rather than the current mode, and an accessible name on the contenteditable region.
+- Pass the area's own `toolbar` (button sets are intentionally area-specific — CMS content blocks carry headings/link/hr, CTS descriptions carry alignment) and an accessible name via `aria-label`, or `label-id` when a visible label already exists. Other QEditor props (`min-height`, `dense`, `outlined`, `class`) fall through via `$attrs`.
+
 ### Dialogs
 
 - **Every `q-dialog`** needs (1) an accessible name via `aria-labelledby` → the title `id` (or `aria-label` if there's no visible title), and (2) a visible close affordance. Persistent SPA dialogs use `@click="handleClose"` instead of `v-close-popup`. Error banners go in a separate `q-card-section` below the header. **Footer actions:** confirmation and simple action dialogs use Submit + Delete only, with no Cancel (the X and Escape dismiss). **Data-entry form dialogs may add a footer Cancel** beside the primary action: once a user has been filling in fields, an explicit Cancel reads more clearly than relying on the X to discard. When present, Cancel, the X, and Escape all route through the same `handleClose` (carrying the unsaved-changes guard on persistent dialogs). Canonical header pattern:

@@ -179,7 +179,7 @@ namespace Viper.test.ClinicalScheduler
         /// </summary>
         public static Week CreateWeek(int weekId, DateTime? startDate = null)
         {
-            var start = startDate ?? DateTime.UtcNow.AddDays(-7.0 * (10 - weekId));
+            var start = startDate ?? DateTime.Now.AddDays(-7.0 * (10 - weekId));
             return new Week
             {
                 WeekId = weekId,
@@ -371,8 +371,8 @@ namespace Viper.test.ClinicalScheduler
                 // Create weeks and grad years
                 var weeks = new[]
                 {
-                    CreateWeek(10, new DateTime(currentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-                    CreateWeek(11, new DateTime(currentYear, 1, 8, 0, 0, 0, DateTimeKind.Utc))
+                    CreateWeek(10, new DateTime(currentYear, 1, 1, 0, 0, 0, DateTimeKind.Local)),
+                    CreateWeek(11, new DateTime(currentYear, 1, 8, 0, 0, 0, DateTimeKind.Local))
                 };
                 context.Weeks.AddRange(weeks);
 

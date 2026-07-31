@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Viper.Areas.CMS.Services;
 using Viper.Classes.SQLContext;
 using Viper.Services;
 
@@ -12,15 +14,17 @@ namespace Viper.Areas.CMS.Controllers
         private readonly IHtmlSanitizerService _sanitizerService;
         private readonly ILogger<Data.CMS> _cmsLogger;
 
-        public CMSController(RAPSContext rapsContext, VIPERContext viperContext, IHtmlSanitizerService sanitizerService, ILogger<Data.CMS> cmsLogger)
+        public CMSController(RAPSContext rapsContext, VIPERContext viperContext, IHtmlSanitizerService sanitizerService, ILoggerFactory loggerFactory)
         {
             _rapsContext = rapsContext;
             _viperContext = viperContext;
             _sanitizerService = sanitizerService;
-            _cmsLogger = cmsLogger;
+            //the logger belongs to Data.CMS (which does the logging), not this controller
+            _cmsLogger = loggerFactory.CreateLogger<Data.CMS>();
         }
 
         [HttpGet]
+        [EnableRateLimiting(CmsDownloadRateLimiting.PolicyName)]
         public IActionResult Files(string id = "", string fn = "", string oldURL = "", string ids = "", string fileName = "")
         {
             Data.CMS cms = new(_viperContext, _rapsContext, _sanitizerService, _cmsLogger);

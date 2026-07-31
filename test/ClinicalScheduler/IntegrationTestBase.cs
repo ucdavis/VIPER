@@ -190,9 +190,9 @@ namespace Viper.test.ClinicalScheduler
 
             // Add Week and WeekGradYear data
             var (week1, weekGradYear1) = TestDataBuilder.CreateWeekScenario(10, currentYear + 3,
-                new DateTime(currentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                new DateTime(currentYear, 1, 1, 0, 0, 0, DateTimeKind.Local));
             var (week2, weekGradYear2) = TestDataBuilder.CreateWeekScenario(11, currentYear + 3,
-                new DateTime(currentYear, 1, 8, 0, 0, 0, DateTimeKind.Utc));
+                new DateTime(currentYear, 1, 8, 0, 0, 0, DateTimeKind.Local));
 
             Context.Weeks.AddRange(week1, week2);
             Context.WeekGradYears.AddRange(weekGradYear1, weekGradYear2);
