@@ -32,19 +32,19 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory home page
         /// </summary>
         [Route("")]
-        public async Task<ActionResult> Index(string? useExample)
+        public ActionResult Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser()));
+            return View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser());
         }
 
         /// <summary>
         /// Directory home page
         /// </summary>
         [Route("nav")]
-        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
+        public ActionResult<IEnumerable<NavMenuItem>> Nav()
         {
             var nav = new List<NavMenuItem>();
-            return await Task.Run(() => nav);
+            return nav;
         }
 
 

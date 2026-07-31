@@ -5,9 +5,9 @@ namespace Viper.Views.Shared.Components.VueCdn
     [ViewComponent(Name = "VueCdnCreate")]
     public class VueCdnCreate : ViewComponent
     {
-        public async Task<IViewComponentResult> InvokeAsync()
+        public IViewComponentResult Invoke()
         {
-            return await Task.Run(() => View("~/Views/Shared/Components/VueCdn/VueCdnCreate.cshtml"));
+            return View("~/Views/Shared/Components/VueCdn/VueCdnCreate.cshtml");
         }
     }
 }
