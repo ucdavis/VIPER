@@ -127,7 +127,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-123", "mothra-123", "testuser", employeeId: "emp-123", pidm: "pidm-123", displayFullName: "Test User"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -178,7 +178,7 @@ namespace Viper.test.Services
                     EmpAltDeptCode = "",
                     EmpCbuc = ""
                 });
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using (var coursesSetup = new CoursesContext(coursesOptions))
@@ -195,7 +195,7 @@ namespace Viper.test.Services
                     TermCurrentTerm = true,
                     TermTermType = ""
                 });
-                await coursesSetup.SaveChangesAsync();
+                await coursesSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -233,7 +233,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-cards", "mothra-cards", "carduser"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var idcardsOptions = CreateInMemoryOptions<IDCardsContext>();
@@ -266,7 +266,7 @@ namespace Viper.test.Services
                     DvtReasonVoidable = "",
                     DvtReasonDupOk = ""
                 });
-                await idcardsSetup.SaveChangesAsync();
+                await idcardsSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -307,7 +307,7 @@ namespace Viper.test.Services
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-keys", "mothra-keys"));
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-issuer", "mothra-issuer", "issuer", displayFullName: "John KeyIssuer"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var keysOptions = CreateInMemoryOptions<KeysContext>();
@@ -329,7 +329,7 @@ namespace Viper.test.Services
                     IssuedBy = "mothra-issuer",
                     Deleted = null
                 });
-                await keysSetup.SaveChangesAsync();
+                await keysSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -365,7 +365,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-loans", "mothra-loans", pidm: "pidm-loans"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var loansOptions = CreateInMemoryOptions<EquipmentLoanContext>();
@@ -399,7 +399,7 @@ namespace Viper.test.Services
                     LoanitemCheckoutPidm = "checkout-pidm"
                 });
                 
-                await loansSetup.SaveChangesAsync();
+                await loansSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -434,7 +434,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-raps", "mothra-raps"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             var rapsOptions = CreateInMemoryOptions<RAPSContext>();
@@ -486,7 +486,7 @@ namespace Viper.test.Services
                     EndDate = null
                 });
 
-                await rapsSetup.SaveChangesAsync();
+                await rapsSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             using var aaud = new AAUDContext(aaudOptions);
@@ -531,7 +531,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-caller", "mothra-caller"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             // Mock responses for SearchForPerson (iam/people/search) and GetEmployeeAssociations (iam/associations/pps/{iamId})
@@ -624,7 +624,7 @@ namespace Viper.test.Services
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
                 aaudSetup.AaudUsers.Add(CreateTestUser("iam-inst", "mothra-inst", firstName: "Jane", lastName: "Doe", middleName: "Alex"));
-                await aaudSetup.SaveChangesAsync();
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             // HTTP Mock for token request and graphql user lookup
