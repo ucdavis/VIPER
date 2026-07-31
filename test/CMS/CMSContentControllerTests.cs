@@ -36,6 +36,7 @@ public sealed class CMSContentControllerTests : IDisposable
     private readonly VIPERContext _context;
     private readonly RAPSContext _rapsContext;
     private readonly CMSContentController _controller;
+    private readonly List<MemoryStream> _formFileStreams = [];
 
     public CMSContentControllerTests()
     {
@@ -64,6 +65,10 @@ public sealed class CMSContentControllerTests : IDisposable
     {
         _context.Dispose();
         _rapsContext.Dispose();
+        foreach (var stream in _formFileStreams)
+        {
+            stream.Dispose();
+        }
     }
 
     private void SetupControllerContext()
@@ -154,7 +159,7 @@ public sealed class CMSContentControllerTests : IDisposable
         // A genuinely missing block: not editable AND no section-path row, so 404 (not 403), and the
         // full block is never loaded on this path.
         _blockService.CanEditAsync(999, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(999, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(999, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.GetContentBlock(999, TestContext.Current.CancellationToken);
 
@@ -466,7 +471,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetHistory_Returns403_WhenExistsButCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.GetHistory(5, TestContext.Current.CancellationToken);
 
@@ -478,7 +483,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetHistory_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.GetHistory(5, TestContext.Current.CancellationToken);
 
@@ -490,7 +495,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetHistoryVersion_Returns403_WhenExistsButCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.GetHistoryVersion(5, 12, TestContext.Current.CancellationToken);
 
@@ -502,7 +507,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetHistoryVersion_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.GetHistoryVersion(5, 12, TestContext.Current.CancellationToken);
 
@@ -514,7 +519,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetHistoryVersionDiff_Returns403_WhenExistsButCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.GetHistoryVersionDiff(5, 12, TestContext.Current.CancellationToken);
 
@@ -526,7 +531,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task GetHistoryVersionDiff_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.GetHistoryVersionDiff(5, 12, TestContext.Current.CancellationToken);
 
@@ -538,7 +543,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task DiffAgainstHistoryVersion_Returns403_WhenExistsButCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
         var request = new DiffAgainstHistoryRequest { Content = "<p>draft</p>" };
 
         var result = await _controller.DiffAgainstHistoryVersion(5, 12, request, TestContext.Current.CancellationToken);
@@ -551,7 +556,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task DiffAgainstHistoryVersion_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
         var request = new DiffAgainstHistoryRequest { Content = "<p>draft</p>" };
 
         var result = await _controller.DiffAgainstHistoryVersion(5, 12, request, TestContext.Current.CancellationToken);
@@ -636,10 +641,14 @@ public sealed class CMSContentControllerTests : IDisposable
 
     #region Delegated editing gates + content-scoped file ops
 
-    private static IFormFile FakeFormFile(string name, byte[]? bytes = null)
+    // FormFile does not take ownership of the stream, so the fixture holds it open for the
+    // duration of the test and disposes it in Dispose.
+    private IFormFile FakeFormFile(string name, byte[]? bytes = null)
     {
         bytes ??= new byte[] { 1, 2, 3 };
-        return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", name);
+        var content = new MemoryStream(bytes);
+        _formFileStreams.Add(content);
+        return new FormFile(content, 0, bytes.Length, "file", name);
     }
 
     [Fact]
@@ -647,7 +656,7 @@ public sealed class CMSContentControllerTests : IDisposable
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
         // Block exists (section-path row present) but the user may not edit it -> 403, not 404.
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.GetContentBlock(5, TestContext.Current.CancellationToken);
 
@@ -660,7 +669,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task UpdateContentOnly_Returns403_WhenCannotEdit()
     {
         _blockService.CanEditAsync(4, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(4, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(4, Arg.Any<CancellationToken>()).Returns((true, null));
         var update = new ContentOnlyUpdate { Content = "<p>x</p>", LastModifiedOn = DateTime.Now };
 
         var result = await _controller.UpdateContentOnly(4, update, TestContext.Current.CancellationToken);
@@ -675,7 +684,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task UpdateContentOnly_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(4, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(4, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(4, Arg.Any<CancellationToken>()).Returns((false, null));
         var update = new ContentOnlyUpdate { Content = "<p>x</p>", LastModifiedOn = DateTime.Now };
 
         var result = await _controller.UpdateContentOnly(4, update, TestContext.Current.CancellationToken);
@@ -698,7 +707,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task SearchAttachableFiles_EditMode_Returns403_WhenCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.SearchAttachableFiles("report", 5, TestContext.Current.CancellationToken);
 
@@ -711,7 +720,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task SearchAttachableFiles_EditMode_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.SearchAttachableFiles("report", 5, TestContext.Current.CancellationToken);
 
@@ -752,7 +761,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task CheckBlockFileName_ReturnsBadRequest_WhenBlockHasNoSectionPath()
     {
         // Matches UploadBlockFile: the block exists but is not configured for uploads.
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.CheckBlockFileName(5, "doc.pdf", TestContext.Current.CancellationToken);
 
@@ -762,7 +771,7 @@ public sealed class CMSContentControllerTests : IDisposable
     [Fact]
     public async Task CheckBlockFileName_ReturnsNotFound_WhenBlockMissing()
     {
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.CheckBlockFileName(5, "doc.pdf", TestContext.Current.CancellationToken);
 
@@ -773,7 +782,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task CheckBlockFileName_Returns403_WhenExistsButCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.CheckBlockFileName(5, "doc.pdf", TestContext.Current.CancellationToken);
 
@@ -808,7 +817,7 @@ public sealed class CMSContentControllerTests : IDisposable
         // Mirrors CheckBlockFileName: without a section path there is no upload folder, and the
         // request must not fall back to the storage root.
         _blockService.GetUploadSettingsAsync(5, Arg.Any<CancellationToken>())
-            .Returns((true, (string?)null, false, new List<string>()));
+            .Returns((true, null, false, new List<string>()));
 
         var result = await _controller.UploadBlockFile(5, new ContentBlockFileUpload(), FakeFormFile("doc.pdf"),
             TestContext.Current.CancellationToken);
@@ -822,7 +831,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task UploadBlockFile_Returns403_WhenCannotEdit()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.UploadBlockFile(5, new ContentBlockFileUpload(), FakeFormFile("doc.pdf"),
             TestContext.Current.CancellationToken);
@@ -837,7 +846,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task UploadBlockFile_Returns404_WhenBlockMissing()
     {
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.UploadBlockFile(5, new ContentBlockFileUpload(), FakeFormFile("doc.pdf"),
             TestContext.Current.CancellationToken);
@@ -893,7 +902,7 @@ public sealed class CMSContentControllerTests : IDisposable
     public async Task DeleteBlockFile_Returns404_WhenFileMissing()
     {
         var fileGuid = Guid.NewGuid();
-        _blockService.IsFileRollbackDeletableAsync(5, fileGuid, Arg.Any<CancellationToken>()).Returns((bool?)null);
+        _blockService.IsFileRollbackDeletableAsync(5, fileGuid, Arg.Any<CancellationToken>()).Returns(default(bool?));
 
         var result = await _controller.DeleteBlockFile(5, fileGuid, TestContext.Current.CancellationToken);
 
@@ -906,7 +915,7 @@ public sealed class CMSContentControllerTests : IDisposable
     {
         var fileGuid = Guid.NewGuid();
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((true, null));
 
         var result = await _controller.DeleteBlockFile(5, fileGuid, TestContext.Current.CancellationToken);
 
@@ -921,7 +930,7 @@ public sealed class CMSContentControllerTests : IDisposable
     {
         var fileGuid = Guid.NewGuid();
         _blockService.CanEditAsync(5, Arg.Any<CancellationToken>()).Returns(false);
-        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, (string?)null));
+        _blockService.GetSectionPathAsync(5, Arg.Any<CancellationToken>()).Returns((false, null));
 
         var result = await _controller.DeleteBlockFile(5, fileGuid, TestContext.Current.CancellationToken);
 

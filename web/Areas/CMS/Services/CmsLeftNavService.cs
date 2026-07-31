@@ -62,9 +62,9 @@ namespace Viper.Areas.CMS.Services
             }
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(m => (m.MenuHeaderText != null && m.MenuHeaderText.Contains(search))
-                    || (m.FriendlyName != null && m.FriendlyName.Contains(search))
-                    || (m.Page != null && m.Page.Contains(search)));
+                query = query.Where(m => (m.MenuHeaderText ?? "").Contains(search)
+                    || (m.FriendlyName ?? "").Contains(search)
+                    || (m.Page ?? "").Contains(search));
             }
 
             var menus = await query

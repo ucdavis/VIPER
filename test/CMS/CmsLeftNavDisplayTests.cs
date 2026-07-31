@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
@@ -86,7 +87,7 @@ public sealed class CmsLeftNavDisplayTests : IDisposable
     {
         var friendlyName = await SeedMixedMenuAsync();
         // An anonymous request has no signed-in user; GetCurrentUser returns null.
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var menus = new DataLeftNav(_context, _rapsContext, _userHelper)
             .GetLeftNavMenus(friendlyName: friendlyName);
