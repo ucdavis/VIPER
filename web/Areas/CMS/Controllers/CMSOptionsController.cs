@@ -19,11 +19,29 @@ namespace Viper.Areas.CMS.Controllers
     {
         private readonly RAPSContext _rapsContext;
         private readonly AAUDContext _aaudContext;
+        private readonly IUserHelper _userHelper;
 
-        public CMSOptionsController(RAPSContext rapsContext, AAUDContext aaudContext)
+        public CMSOptionsController(RAPSContext rapsContext, AAUDContext aaudContext, IUserHelper userHelper)
         {
             _rapsContext = rapsContext;
             _aaudContext = aaudContext;
+            _userHelper = userHelper;
+        }
+
+        /// <summary>
+        /// Per-user capabilities the CMS SPA cannot work out for itself. Its permission list is
+        /// loaded with the SVMSecure.CMS prefix (CMS/router/index.ts), so an admin-only affordance
+        /// keyed on SVMSecure.CATS.Admin is invisible to the client without an explicit flag.
+        /// The server still enforces every one of these; this only decides what the UI offers.
+        /// </summary>
+        [HttpGet("capabilities")]
+        public ActionResult<CmsCapabilities> GetCapabilities()
+        {
+            return new CmsCapabilities
+            {
+                CanPermanentlyDelete = _userHelper.HasPermission(
+                    _rapsContext, _userHelper.GetCurrentUser(), CmsPermissions.Admin)
+            };
         }
 
         /// <summary>
@@ -72,6 +90,15 @@ namespace Viper.Areas.CMS.Controllers
                 })
                 .ToListAsync(ct);
         }
+    }
+
+    public class CmsCapabilities
+    {
+        /// <summary>
+        /// Whether this user may skip the 30-day trash and delete a file outright
+        /// (the legacy CMS "delete now" option, admin-only).
+        /// </summary>
+        public bool CanPermanentlyDelete { get; set; }
     }
 
     public class CmsPersonOption

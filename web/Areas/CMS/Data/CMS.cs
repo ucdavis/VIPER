@@ -374,6 +374,32 @@ namespace Viper.Areas.CMS.Data
         }
         #endregion
 
+        #region private bool CanAccessTrashedFile(CMSFile file, AaudUser? currentUser)
+        /// <summary>
+        /// Resolves the RAPS permissions behind <see cref="Constants.CmsTrash.CanAccessTrashed"/>.
+        /// Only called for files that are actually trashed, so the extra permission lookups stay off
+        /// the normal download path.
+        /// </summary>
+        private bool CanAccessTrashedFile(CMSFile file, AaudUser? currentUser)
+        {
+            if (_rapsContext == null || currentUser == null)
+            {
+                return false;
+            }
+
+            var isAdmin = UserHelper.HasPermission(_rapsContext, currentUser, Constants.CmsPermissions.Admin);
+
+            // Only resolved when it can still change the answer: an admin is allowed regardless, and
+            // each HasPermission call rebuilds the user's permission set (union/except over the
+            // cached role and assigned lists). CanAccessTrashed ignoring hasAllFiles for admins is
+            // pinned by CanAccessTrashed_AllowsAdmin_RegardlessOfWhoDeletedIt.
+            var hasAllFiles = !isAdmin
+                && UserHelper.HasPermission(_rapsContext, currentUser, Constants.CmsPermissions.AllFiles);
+
+            return Constants.CmsTrash.CanAccessTrashed(isAdmin, hasAllFiles, file.ModifiedBy, currentUser.LoginId);
+        }
+        #endregion
+
         #region public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         public IActionResult DownloadZip(Controller controller, string[] fileGUIDs, string fileName = "FileDownload.zip")
         {
@@ -399,8 +425,22 @@ namespace Viper.Areas.CMS.Data
             {
                 CMSFile? file = GetFile(guid, null, null, null, null);
 
+                if (file == null)
+                {
+                    continue;
+                }
+
+                // Same trash rule as ProvideFile, and ahead of the disk check for the same reason,
+                // so a zip request can't be used to pull down deleted files the single-file handler
+                // refuses. Skipped like a missing file (no deny audit): to this user the record
+                // isn't visible in the first place.
+                if (file.DeletedOn != null && !CanAccessTrashedFile(file, currentUser))
+                {
+                    continue;
+                }
+
                 // only add files that exist and where the user has permission
-                if (file == null || !System.IO.File.Exists(file.FilePath))
+                if (!System.IO.File.Exists(file.FilePath))
                 {
                     continue;
                 }
@@ -504,6 +544,17 @@ namespace Viper.Areas.CMS.Data
             if (file == null)
             {
                 LogFileNotFound(controller, id, friendlyName, oldURL, reason: "no-db-match");
+                return controller.NotFound();
+            }
+
+            // Decided before the disk is touched, and before the permission check: to anyone who
+            // cannot reach the trash a deleted file simply does not exist, so this answers 404
+            // rather than the 403 a permission failure returns and does not disclose that the
+            // record is still there. Being an authorization decision it should not depend on, or
+            // pay for, a filesystem stat.
+            if (file.DeletedOn != null && !CanAccessTrashedFile(file, currentUser))
+            {
+                LogFileNotFound(controller, id, friendlyName, oldURL, reason: "deleted");
                 return controller.NotFound();
             }
 
