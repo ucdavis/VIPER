@@ -128,7 +128,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Directory results
         /// </summary>
-        /// <param name="uid">User ID</param>
+        /// <param name="mothraID">User ID</param>
         [Route("userInfo/{mothraID}")]
         public async Task<IActionResult> DirectoryResult(string mothraID)
         {
@@ -193,3 +193,4 @@ namespace Viper.Areas.Directory.Controllers
         }
     }
 }
+

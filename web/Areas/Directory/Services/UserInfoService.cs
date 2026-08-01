@@ -1535,7 +1535,7 @@ namespace Viper.Areas.Directory.Services
                     {
                         result.Loans.Add(new LoanResult
                         {
-                            AssetName = loanItem.LoanitemAsset?.AssetName,
+                            AssetName = loanItem.LoanitemAsset.AssetName,
                             LoanDate = loan.LoanDate,
                             DueDate = loan.LoanDueDate,
                             Comments = loan.LoanComments
@@ -1879,15 +1879,18 @@ namespace Viper.Areas.Directory.Services
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
                     var tokenResponse = JsonSerializer.Deserialize<InstinctTokenResponse>(responseContent);
-                    Console.WriteLine($"[INSTINCT AUTH] Deserialized Token Length: {tokenResponse?.AccessToken?.Length ?? 0}");
-
-                    if (tokenResponse?.AccessToken != null)
+                    if (tokenResponse != null)
                     {
-                        // Cache token for slightly less than expiry time (subtract 2 hours as in CF code)
-                        var cacheExpiry = TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 7200); // 2 hours buffer
-                        _memoryCache.Set(cacheKey, tokenResponse.AccessToken, cacheExpiry);
+                        Console.WriteLine($"[INSTINCT AUTH] Deserialized Token Length: {tokenResponse.AccessToken.Length}");
 
-                        return tokenResponse.AccessToken;
+                        if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
+                        {
+                            // Cache token for slightly less than expiry time (subtract 2 hours as in CF code)
+                            var cacheExpiry = TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 7200); // 2 hours buffer
+                            _memoryCache.Set(cacheKey, tokenResponse.AccessToken, cacheExpiry);
+
+                            return tokenResponse.AccessToken;
+                        }
                     }
                 }
                 else
@@ -2223,3 +2226,4 @@ namespace Viper.Areas.Directory.Services
         public string EncryptedString { get; set; } = string.Empty;
     }
 }
+

@@ -24,7 +24,7 @@ namespace Viper.Classes
 
         protected static void ConvertNavLinksForDevelopment(NavMenu menu)
         {
-            if (HttpHelper.Environment?.EnvironmentName == "Development" && menu?.MenuItems != null)
+            if (HttpHelper.Environment?.EnvironmentName == "Development" && menu.MenuItems != null)
             {
                 foreach (var item in menu.MenuItems.Where(item => item.MenuItemURL.Length > 0 && item.MenuItemURL.Substring(0, 1) == "/"))
                 {
@@ -47,3 +47,4 @@ namespace Viper.Classes
         //TODO: Handle 403 and 500 errors here? 
     }
 }
+
