@@ -2,7 +2,7 @@ namespace Viper.Areas.Directory.Models
 {
     public class InstinctResult
     {
-        public bool Valid { get; set; } = false;
+        public bool Valid { get; set; }
         public string? Id { get; set; }
         public string? Initials { get; set; }
         public string? InstinctId { get; set; }
