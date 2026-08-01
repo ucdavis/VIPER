@@ -2,7 +2,7 @@
 @model Viper.Areas.Directory.Models.DirectoryUser;
 @{
     RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
-    IUserHelper UserHelper = new UserHelper();
+    IUserHelper userHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
 <h1>Directory</h1>
@@ -45,30 +45,30 @@
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
                 </a>
-                <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" @@click="onLinkClick($event, 'Opening AAUD Check...')" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
+                <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&amp;mothraID=' + user.mothraId + '&amp;loginID=' + user.loginId" @@click="onLinkClick($event, 'Opening AAUD Check...')" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
                 </a>
-                <a v-if="ids && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" @@click="onLinkClick($event, 'Opening ID Check...')" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
+                <a v-if="ids && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&amp;LoginID=' + user.loginId" @@click="onLinkClick($event, 'Opening ID Check...')" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
                     <q-icon name="account_box" size="xs"></q-icon>
                     <q-tooltip>ID Check</q-tooltip>
                 </a>
-                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids && user.mailId" @@click="onLinkClick($event, 'Opening MSO/CAO Lookup...')" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
+                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&amp;MailID=' + user.mailId" v-if="ids && user.mailId" @@click="onLinkClick($event, 'Opening MSO/CAO Lookup...')" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
                     <q-icon name="supervisor_account" size="xs"></q-icon>
                     <q-tooltip>MSO/CAO Lookup</q-tooltip>
                 </a>
-                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
+                @if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.DirectoryUCPathInfo"))
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId" v-if="ids && user.employeeId" @@click="onLinkClick($event, 'Opening UCPath Info...')" :aria-label="'UCPath info for ' + user.name" class="UCPath_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&amp;emplid=' + user.employeeId" v-if="ids && user.employeeId" @@click="onLinkClick($event, 'Opening UCPath Info...')" :aria-label="'UCPath info for ' + user.name" class="UCPath_button top_button">
                         <q-icon name="school" size="sm"></q-icon>
                         <q-tooltip>UCPath Info</q-tooltip>
                     </a>
                 }
-                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
+                    @if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.CATS.ServiceDesk"))
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + user.iamId + '&mailID=' + user.mailId + '&empName=' + encodeURIComponent(user.name)" v-if="ids && user.iamId && user.mailId" @@click="onLinkClick($event, 'Opening Alternate Photo...')" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&amp;iamID=' + user.iamId + '&amp;mailID=' + user.mailId + '&amp;empName=' + encodeURIComponent(user.name)" v-if="ids && user.iamId && user.mailId" @@click="onLinkClick($event, 'Opening Alternate Photo...')" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
                         <q-icon name="photo_camera" size="xs"></q-icon>
                         <q-tooltip>Alt. Photo</q-tooltip>
                     </a>
@@ -77,7 +77,7 @@
             <q-card-section class="row">
                 <q-card-section class="col photo">
                     <q-img
-                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'"
+                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&amp;altphoto=1'"
                         :alt="'Photo of ' + user.name"
                         class="photo_avatar"
                         fit="cover"
@@ -111,9 +111,9 @@
             <q-card-section class="row ids" v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
                 <div v-if="user.spridenId">
                     <span>BannerID:</span>
-                    @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
+                    @if (userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
                     {
-                    @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
+                    @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&amp;Pidm=' + user.spridenId + '&amp;JumpPage=Home'">{{ user.spridenId }}</a>
                     }
                     else
                     {
