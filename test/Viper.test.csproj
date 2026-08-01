@@ -22,23 +22,23 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
-    <PackageReference Include="Microsoft.Testing.Platform" Version="2.2.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.3.2" />
     <PackageReference Include="MockQueryable.NSubstitute" Version="10.0.8" />
-    <PackageReference Include="NSubstitute" Version="5.3.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.27.0.140913">
+    <PackageReference Include="NSubstitute" Version="6.0.0" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.30.0.144632">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <!-- Pins transitive SQLitePCLRaw past GHSA-2m69-gcr7-jv3q (EF Sqlite still references vulnerable 2.1.11); remove when EF's bundle catches up -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.4" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="ClosedXML" Version="0.105.0" />
-    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="Hangfire.Core" Version="1.8.24" />
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
