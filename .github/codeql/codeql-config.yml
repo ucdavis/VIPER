@@ -3,8 +3,15 @@ name: "VIPER CodeQL config"
 queries:
   - uses: security-and-quality
 
-# Generated and build-output code. The *.g.cs / *.Designer.cs globs catch
-# source-generator output that C# autobuild extracts despite obj/ being ignored.
+# Generated and build-output code.
+#
+# These filters only reach the file-indexing extractors (they are passed on as
+# LGTM_INDEX_FILTERS), so they work for JavaScript but NOT for C#: the C# extractor
+# traces the Roslyn build and extracts every syntax tree the compiler sees, including
+# source-generator output written under obj/. Alerts in obj/**/*.g.cs therefore still
+# appear for C# and have to be dismissed in the code-scanning UI. The only config that
+# would filter them is build-mode: none, which is not worth the loss in analysis
+# fidelity for what are style-level findings in generated code.
 paths-ignore:
   - "**/obj/**"
   - "**/bin/**"

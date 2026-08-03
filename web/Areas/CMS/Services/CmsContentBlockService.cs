@@ -905,13 +905,29 @@ namespace Viper.Areas.CMS.Services
             // forged; the folder match scopes the exception to a file uploaded FOR this block, so a
             // delegate cannot move a restricted file they uploaded elsewhere onto a block with broader
             // visibility. This mirrors the uploader+folder check in IsFileRollbackDeletableAsync.
-            bool allAttachable = files.All(f => f.AllowPublicAccess
-                || (f.Permissions.Count == 0 && hasSvmSecure)
-                || f.Permissions.Any(p => userPermissions.Contains(p))
-                || (currentUser?.IamId != null && f.People.Contains(currentUser.IamId))
-                || (login != null
+            var iamId = currentUser?.IamId;
+            bool allAttachable = files.All(f =>
+            {
+                if (f.AllowPublicAccess)
+                {
+                    return true;
+                }
+                if (f.Permissions.Count == 0 && hasSvmSecure)
+                {
+                    return true;
+                }
+                if (f.Permissions.Any(p => userPermissions.Contains(p)))
+                {
+                    return true;
+                }
+                if (iamId != null && f.People.Contains(iamId))
+                {
+                    return true;
+                }
+                return login != null
                     && string.Equals(f.ModifiedBy, login, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(f.Folder, blockFolder, StringComparison.OrdinalIgnoreCase)));
+                    && string.Equals(f.Folder, blockFolder, StringComparison.OrdinalIgnoreCase);
+            });
             if (!allAttachable)
             {
                 throw new ArgumentException("One or more files cannot be attached because you do not have access to them.");
