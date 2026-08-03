@@ -125,7 +125,7 @@ namespace Viper.Classes.Utilities
         public static LdapUserContact? GetUserByMothraID(string? id)
         {
             if (id == null) return null;
-            string filter = string.Format("(ucdpersonuuid = {0})", id);
+            string filter = string.Format("(ucdpersonuuid = {0})", LdapFilter.Escape(id));
             var results = SearchLdap(filter);
             if (results.Entries.Count > 0)
             {

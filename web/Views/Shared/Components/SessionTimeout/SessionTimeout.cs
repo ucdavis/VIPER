@@ -11,7 +11,7 @@ namespace Viper.Views.Shared.Components.SessionTimeout
             string? loginId = userHelper.GetCurrentUser()?.LoginId;
             bool onDev = HttpHelper.Environment?.EnvironmentName == "Development";
             ViewData["sessionRefreshUrl"] = onDev
-                ? "/GetSessionTimeout"
+                ? Url.Content("~/GetSessionTimeout")
                 : ("https://" + HttpHelper.HttpContext?.Request.Host.Value + "/")
                     + "public/timeout/seconds_until_timeout_v2.cfm?id="
                     + (loginId ?? "")

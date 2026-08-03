@@ -352,7 +352,7 @@ namespace Viper.Controllers
             {
                 return NotFound();
             }
-            var secondsLeft = (int)(timeout.SessionTimeoutDateTime - DateTime.Now).TotalSeconds;
+            var secondsLeft = Math.Max(0, (int)(timeout.SessionTimeoutDateTime - DateTime.Now).TotalSeconds);
             return Ok(new
             {
                 sessionTimeoutDateTime = timeout.SessionTimeoutDateTime,
