@@ -1,16 +1,15 @@
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Directory.Models;
 using Viper.Models.AAUD;
 using Viper.Models.PPS;
-using Viper.Models.IAM;
 using Viper.Classes.Utilities;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Viper.Areas.RAPS.Services;
-using Viper.Areas.RAPS.Models.Uinform;
+using System.Data.Common;
 
 namespace Viper.Areas.Directory.Services
 {
@@ -28,7 +27,7 @@ namespace Viper.Areas.Directory.Services
         private readonly IMemoryCache _memoryCache;
 
         public UserInfoService(
-            AAUDContext aaudContext, 
+            AAUDContext aaudContext,
             RAPSContext rapsContext,
             CoursesContext coursesContext,
             EquipmentLoanContext equipmentLoanContext,
@@ -93,7 +92,10 @@ namespace Viper.Areas.Directory.Services
             await PopulateIDCardsAsync(result);
             await PopulateKeysAsync(result);
             await PopulateLoansAsync(result);
-            await PopulateInstinctInfoAsync(result,individual);
+            if (individual != null)
+            {
+                await PopulateInstinctInfoAsync(result, individual);
+            }
             await PopulateActiveDirectoryInfoAsync(result);
 
             return result;
@@ -108,7 +110,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Get current terms
                 var currentTerms = await GetCurrentTermsAsync();
-                
+
                 var user = await _aaudContext.AaudUsers
                     .Where(u => u.IamId == iamId)
                     .FirstOrDefaultAsync();
@@ -120,7 +122,7 @@ namespace Viper.Areas.Directory.Services
 
                 return await MapToUserInfoResultAsync(user, currentTerms);
             }
-            catch (Exception ex)
+            catch (DbException ex)
             {
                 Console.WriteLine($"Warning: GetUserByIamIdAsync failed: {ex.Message}");
                 return null;
@@ -135,7 +137,7 @@ namespace Viper.Areas.Directory.Services
             try
             {
                 var currentTerms = await GetCurrentTermsAsync();
-                
+
                 var user = await _aaudContext.AaudUsers
                     .Where(u => u.MothraId == mothraId)
                     .FirstOrDefaultAsync();
@@ -147,7 +149,7 @@ namespace Viper.Areas.Directory.Services
 
                 return await MapToUserInfoResultAsync(user, currentTerms);
             }
-            catch (Exception ex)
+            catch (DbException ex)
             {
                 Console.WriteLine($"Warning: GetUserByMothraIdAsync failed: {ex.Message}");
                 return null;
@@ -165,7 +167,7 @@ namespace Viper.Areas.Directory.Services
                     .Where(t => t.TermCurrentTermMulti == true)
                     .Select(t => t.TermCode)
                     .ToListAsync();
-                
+
                 return terms;
             }
             catch
@@ -196,10 +198,10 @@ namespace Viper.Areas.Directory.Services
             // Check if employee or student
             var hasEmployee = await _aaudContext.Employees
                 .AnyAsync(e => e.EmpPKey == user.EmployeePKey && currentTerms.Contains(e.EmpTermCode));
-            
+
             var hasStudent = await _aaudContext.Students
-                .AnyAsync(s => s.StudentsPKey == user.StudentPKey && 
-                              s.StudentsLevelCode1 == "VM" && 
+                .AnyAsync(s => s.StudentsPKey == user.StudentPKey &&
+                              s.StudentsLevelCode1 == "VM" &&
                               currentTerms.Contains(s.StudentsTermCode));
 
             result.IsEmployee = hasEmployee;
@@ -211,7 +213,8 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// get data from LDAP/VMACS
         /// </summary>
-        private async Task PopulateDirectoryInfoAsync(UserInfoResult result)
+#pragma warning disable CA1416 // Validate platform compatibility
+        private static async Task PopulateDirectoryInfoAsync(UserInfoResult result)
         {
             try
             {
@@ -229,6 +232,7 @@ namespace Viper.Areas.Directory.Services
             {
                 Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
             }
+#pragma warning restore CA1416
 
             try
             {
@@ -329,7 +333,7 @@ namespace Viper.Areas.Directory.Services
                 result.StudentPermanentPhone = await GetStudentPhoneAsync(result.Pidm, "PR");
                 result.StudentMailingPhone = await GetStudentPhoneAsync(result.Pidm, "MA");
                 result.StudentBillingPhone = await GetStudentPhoneAsync(result.Pidm, "BI");
-                
+
                 if (!string.IsNullOrEmpty(currentTerm))
                 {
                     // Get term-dependent information
@@ -361,8 +365,10 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Exceptions during student info retrieval are caught and ignored to allow other directory details to load.
+                Console.WriteLine($"Warning: PopulateStudentInfoAsync failed: {ex.Message}");
             }
         }
 
@@ -376,7 +382,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<TermResult>("EXEC AAUD.dbo.usp_get_CurrentOrFutureTermForUser @pidm = {0}, @loginID = NULL", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.TermCode;
             }
             catch
@@ -398,13 +404,17 @@ namespace Viper.Areas.Directory.Services
 
                 if (nameList.Any())
                 {
-                    var names = nameList
-                        .Where(name => !string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
-                        .Select(name => $"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})")
-                        .ToList();
+                    var names = new List<string>();
+                    foreach (var name in nameList)
+                    {
+                        if (!string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
+                        {
+                            names.Add($"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})");
+                        }
+                    }
                     return string.Join(", ", names);
                 }
-                
+
                 return null;
             }
             catch
@@ -423,7 +433,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<BannerIdResult>("EXEC usp_sis_getBannerID @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.SpridenId;
             }
             catch
@@ -442,7 +452,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<ConfidentialResult>("EXEC usp_sis_isConfidential @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return !string.IsNullOrEmpty(result?.SpbpersConfidInd);
             }
             catch
@@ -461,7 +471,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<StudentStatusResult>("EXEC usp_sis_getStudentStatus @thisTermCode = {0}, @thispidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.RegStatus;
             }
             catch
@@ -480,7 +490,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<RegistrationStatusResult>("EXEC usp_sis_getCurrentRegStatus @termCode = {0}, @pidm = {1}", termCode, pidm)
                     .ToListAsync();
-                
+
                 return result.Any() ? "Yes" : "No";
             }
             catch
@@ -499,7 +509,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<MajorResult>("EXEC usp_sis_getMajor @termCode = {0}, @pidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.SgbstdnMajrCode1;
             }
             catch
@@ -524,10 +534,10 @@ namespace Viper.Areas.Directory.Services
                     majors.Add(result.SgbstdnMajrCode1);
                 if (!string.IsNullOrEmpty(result.SgbstdnMajrCode2))
                     majors.Add(result.SgbstdnMajrCode2);
-                    
+
                 return string.Join(", ", majors);
             }
-                
+
             return null;
         }
 
@@ -541,7 +551,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<ClassLevelResult>("EXEC usp_sis_getClassLevel @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.SgvclssClasCode;
             }
             catch
@@ -560,7 +570,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<ClassOfResult>("EXEC usp_sis_getClassOf @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.ClassOf;
             }
             catch
@@ -579,7 +589,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<ConfidentialScopeResult>("EXEC usp_sis_getConfidentialScope @Pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.ZtvconfDesc;
             }
             catch
@@ -598,7 +608,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<BirthDateResult>("EXEC usp_sis_getBirthDate @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.BirthDate;
             }
             catch
@@ -617,7 +627,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<AgeResult>("EXEC usp_sis_getAge @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.Age;
             }
             catch
@@ -636,7 +646,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<TermDescResult>("EXEC usp_sis_getTermDescription @thisTermCode = {0}", termCode)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.TermDesc;
             }
             catch
@@ -663,10 +673,10 @@ namespace Viper.Areas.Directory.Services
                         degrees.Add(result.Degree1);
                     if (!string.IsNullOrEmpty(result.Degree2))
                         degrees.Add(result.Degree2);
-                    
+
                     return string.Join(", ", degrees);
                 }
-                
+
                 return null;
             }
             catch
@@ -685,7 +695,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<AcademicStandingResult>("EXEC usp_sis_getCurrentacademicStanding @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.SgvstdnAstdDesc;
             }
             catch
@@ -704,7 +714,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<GPAResult>("EXEC usp_sis_getCumulativeGPA @pidm = {0}, @termCode = {1}, @majorCode = {2}", pidm, termCode, majorCode)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.Gpa;
             }
             catch
@@ -723,7 +733,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<ClassRankResult>("EXEC usp_sis_getClassRank @Pidm = {0}, @majorCode = {1}", pidm, majorCode)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.ClassRank;
             }
             catch
@@ -742,7 +752,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<AdmitClassYearResult>("EXEC usp_sis_getAdmitClassYear @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.AdmitClassYear;
             }
             catch
@@ -761,7 +771,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<AdmitTermResult>("EXEC usp_sis_getAdmitTerm @pidm = {0}, @major = {1}", pidm, major)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.AdmitTerm;
             }
             catch
@@ -780,7 +790,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<DualDegreeResult>("EXEC usp_sis_isDualDegreeStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.IsDualDegree == "Yes";
             }
             catch
@@ -799,7 +809,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<DVMStudentResult>("EXEC usp_sis_isDVMStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.IsDVMStudent == "Yes";
             }
             catch
@@ -818,7 +828,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<MPVMStudentResult>("EXEC usp_sis_isMPVMStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.IsMPVMStudent == "Yes";
             }
             catch
@@ -837,7 +847,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<EmployedResult>("EXEC usp_sis_isEmployed @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return !string.IsNullOrEmpty(result?.WobeucePidm);
             }
             catch
@@ -856,7 +866,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<StudentEmployeeIdResult>("EXEC usp_sis_getEmployeeID @thisPidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.EmployeeId;
             }
             catch
@@ -875,7 +885,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<EmployerResult>("EXEC usp_sis_getEmployer @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.WobeuceDeptName;
             }
             catch
@@ -894,7 +904,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<GenderResult>("EXEC usp_sis_getGender @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.Gender;
             }
             catch
@@ -913,7 +923,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<EthnicityResult>("EXEC usp_sis_getEthnicity @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.Ethnicity;
             }
             catch
@@ -932,7 +942,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<NewEthnicityResult>("EXEC usp_sis_getNewEthnicity @pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.NewEthnicity;
             }
             catch
@@ -951,7 +961,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<CAResidentResult>("EXEC usp_sis_isCAResident @TermCode = {0}, @Pidm = {1}", termCode, pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.ResidentFlag == "Y";
             }
             catch
@@ -970,7 +980,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<USCitizenResult>("EXEC usp_sis_isUSCitizen @Pidm = {0}", pidm)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.CitizenFlag == "Y";
             }
             catch
@@ -989,7 +999,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<AddressResult>("EXEC usp_sis_getAddress @pidm = {0}, @type = {1}", pidm, type)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.Address;
             }
             catch
@@ -1008,7 +1018,7 @@ namespace Viper.Areas.Directory.Services
                 var result = await _aaudContext.Database
                     .SqlQueryRaw<PhoneResult>("EXEC usp_sis_getPhone @pidm = {0}, @type = {1}", pidm, type)
                     .FirstOrDefaultAsync();
-                
+
                 return result?.Phone;
             }
             catch
@@ -1095,16 +1105,21 @@ namespace Viper.Areas.Directory.Services
             foreach (var system in systems)
             {
                 // Filter roles belonging to the current system/instance
-                var filtered = roleMembers
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                var filteredRoles = roleMembers
                     .Where(rm => rm.Role != null && RAPSSecurityService.RoleBelongsToInstance(system, rm.Role))
-                    .OrderBy(rm => rm.Role.DisplayName ?? rm.Role.Role)
-                    .ToList();
+                    .Select(rm => rm.Role)
+                    .OrderBy(r => r.DisplayName ?? r.Role);
 
-                result.SystemRoles.AddRange(filtered.Select(rm => new SystemRole
+                foreach (var role in filteredRoles)
                 {
-                    System = system,
-                    DisplayName = FormatPermissionName(rm.Role.DisplayName ?? rm.Role.Role)
-                }));
+                    string displayName = role.DisplayName ?? role.Role;
+                    result.SystemRoles.Add(new SystemRole
+                    {
+                        System = system,
+                        DisplayName = FormatPermissionName(displayName)
+                    });
+                }
             }
 
             var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
@@ -1315,17 +1330,22 @@ namespace Viper.Areas.Directory.Services
                     .ThenByDescending(p => p.Effdt)
                     .ToListAsync();
 
-                result.UCPathHistory.AddRange(historyData.Select(history => new UCPathResult
+                foreach (var history in historyData)
                 {
-                    JobCode = history.Jobcode,
-                    JobCodeDescription = history.JobcodeDesc,
-                    DepartmentId = history.Deptid,
-                    DepartmentDescription = history.DeptDesc,
-                    ActionDescription = history.ActionDescr,
-                    PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
-                    ReportsTo = GetReportsToName(history),
-                    ReportsToPosition = GetReportsToPosition(history)
-                }));
+                    var ucpathResult = new UCPathResult
+                    {
+                        JobCode = history.Jobcode,
+                        JobCodeDescription = history.JobcodeDesc,
+                        DepartmentId = history.Deptid,
+                        DepartmentDescription = history.DeptDesc,
+                        ActionDescription = history.ActionDescr,
+                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                        ReportsTo = GetReportsToName(history),
+                        ReportsToPosition = GetReportsToPosition(history)
+                    };
+
+                    result.UCPathHistory.Add(ucpathResult);
+                }
             }
             catch (Exception ex)
             {
@@ -1388,6 +1408,7 @@ namespace Viper.Areas.Directory.Services
 
                 if (reportsTo != null)
                 {
+                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                     return reportsTo.JobcodeDesc ?? string.Empty;
                 }
 
@@ -1398,11 +1419,14 @@ namespace Viper.Areas.Directory.Services
 
                 if (currentReportsTo != null)
                 {
+                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
                     return currentReportsTo.JobcodeDesc ?? string.Empty;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // Fall back to returning string.Empty if DB query fails.
+                Console.WriteLine($"Warning: GetReportsToTitleAsync failed: {ex.Message}");
             }
 
             return string.Empty;
@@ -1511,7 +1535,7 @@ namespace Viper.Areas.Directory.Services
                     {
                         result.Loans.Add(new LoanResult
                         {
-                            AssetName = loanItem.LoanitemAsset?.AssetName,
+                            AssetName = loanItem.LoanitemAsset.AssetName,
                             LoanDate = loan.LoanDate,
                             DueDate = loan.LoanDueDate,
                             Comments = loan.LoanComments
@@ -1534,7 +1558,7 @@ namespace Viper.Areas.Directory.Services
             {
                 var instinctResult = await GetInstinctUserAsync(user.LastName, user.FirstName, user.MiddleName);
                 result.InstinctInfo = instinctResult;
-                
+
                 if (instinctResult.Valid)
                 {
                     result.InstinctId = instinctResult.InstinctId;
@@ -1542,9 +1566,9 @@ namespace Viper.Areas.Directory.Services
                     result.InstinctRoles = instinctResult.Roles;
                     result.InstinctStatus = instinctResult.Status;
                     result.InstinctIsActive = instinctResult.IsActive;
-                    
-                    if (!string.IsNullOrEmpty(instinctResult.PasswordExpiresAt) && 
-                        DateTime.TryParse(instinctResult.PasswordExpiresAt, out var expireDate))
+
+                    if (!string.IsNullOrEmpty(instinctResult.PasswordExpiresAt) &&
+                        DateTime.TryParse(instinctResult.PasswordExpiresAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var expireDate))
                     {
                         result.InstinctPasswordExpiresAt = expireDate;
                     }
@@ -1589,7 +1613,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Populate Active Directory information
         /// </summary>
-        private async Task PopulateActiveDirectoryInfoAsync(UserInfoResult result)
+        private static async Task PopulateActiveDirectoryInfoAsync(UserInfoResult result)
         {
             if (string.IsNullOrEmpty(result.LoginId))
             {
@@ -1600,6 +1624,7 @@ namespace Viper.Areas.Directory.Services
             {
                 var uinformService = new UinformService();
                 var adUser = await uinformService.GetUser(samAccountName: result.LoginId);
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
                 if (adUser != null && !string.IsNullOrEmpty(adUser.SamAccountName))
                 {
                     result.ADDisplayName = adUser.DisplayName;
@@ -1628,9 +1653,14 @@ namespace Viper.Areas.Directory.Services
                     var domains = isProd
                         ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
                         : new[] { "t3.ucdavis.edu" };
-                    result.ADMemberOf.AddRange(allGroups
-                        .Select(groupDn => AdFormat(groupDn, domains))
-                        .Where(formattedGroup => !string.IsNullOrEmpty(formattedGroup)));
+                    foreach (var groupDn in allGroups)
+                    {
+                        var formattedGroup = AdFormat(groupDn, domains);
+                        if (!string.IsNullOrEmpty(formattedGroup))
+                        {
+                            result.ADMemberOf.Add(formattedGroup);
+                        }
+                    }
 
                     // Sort the groups
                     result.ADMemberOf = result.ADMemberOf.OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
@@ -1645,7 +1675,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get user photo data
         /// </summary>
-        public async Task<byte[]?> GetUserPhotoAsync(string mailId, bool useAltPhoto = false)
+        public static async Task<byte[]?> GetUserPhotoAsync(string mailId, bool useAltPhoto = false)
         {
             // stubbed
             return null;
@@ -1660,7 +1690,7 @@ namespace Viper.Areas.Directory.Services
         private async Task<InstinctResult> GetInstinctUserAsync(string lastName, string firstName, string? middleName)
         {
             var result = new InstinctResult();
-            
+
             // Get access token
             var accessToken = await GetInstinctAccessTokenAsync(result);
             if (string.IsNullOrEmpty(accessToken))
@@ -1670,23 +1700,24 @@ namespace Viper.Areas.Directory.Services
 
             // Build name variations for matching
             var nameVariations = new List<string> { firstName };
-            
+
             var firstNameParts = firstName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             var first = firstNameParts.FirstOrDefault() ?? "";
-            
+
             if (firstNameParts.Length > 0 && !nameVariations.Contains(first))
             {
                 nameVariations.Add(first);
             }
-            
+
             if (firstNameParts.Length > 1)
             {
-                var accum = first;
+                var sb = new StringBuilder(first);
                 for (int i = 1; i < firstNameParts.Length; i++)
                 {
                     if (firstNameParts[i].Length > 0)
                     {
-                        accum += " " + firstNameParts[i][0];
+                        sb.Append(' ').Append(firstNameParts[i][0]);
+                        var accum = sb.ToString();
                         if (!nameVariations.Contains(accum))
                         {
                             nameVariations.Add(accum);
@@ -1694,19 +1725,22 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            
+
             var temp = nameVariations.ToList();
             if (!string.IsNullOrEmpty(middleName))
             {
                 var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var name in temp)
                 {
-                    foreach (var middlePart in middleParts.Where(middlePart => middlePart.Length > 0))
+                    foreach (var middlePart in middleParts)
                     {
-                        var variation = $"{name} {middlePart[0]}";
-                        if (!nameVariations.Contains(variation))
+                        if (middlePart.Length > 0)
                         {
-                            nameVariations.Add(variation);
+                            var variation = $"{name} {middlePart[0]}";
+                            if (!nameVariations.Contains(variation))
+                            {
+                                nameVariations.Add(variation);
+                            }
                         }
                     }
                 }
@@ -1737,21 +1771,21 @@ namespace Viper.Areas.Directory.Services
             // Execute GraphQL query
             var apiUrl = _configuration["Instinct:ApiUrl"] ?? "https://uc-davis.api.instinctvet.com/";
             var httpClient = _httpClientFactory.CreateClient();
-                
+
             var queryUrl = $"{apiUrl}?query={Uri.EscapeDataString(query)}";
             httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
-                
-            using var response = await httpClient.GetAsync(queryUrl);
+
+            var response = await httpClient.GetAsync(queryUrl);
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var graphqlResponse = JsonSerializer.Deserialize<InstinctGraphQLResponse>(responseContent);
-                    
+
                 if (graphqlResponse?.Data?.SearchUsers != null)
                 {
-                    // Find matching user by first name
-                    var matchedUser = graphqlResponse.Data.SearchUsers.FirstOrDefault(user =>
-                        nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)));
+                    bool foundMatch = false;
+                    var matchedUser = graphqlResponse.Data.SearchUsers
+                        .FirstOrDefault(user => nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)));
 
                     if (matchedUser != null)
                     {
@@ -1764,9 +1798,13 @@ namespace Viper.Areas.Directory.Services
                         result.PasswordExpiresAt = matchedUser.PasswordExpiresAt;
                         result.Status = matchedUser.Status;
                         result.Username = matchedUser.Username;
-                        result.Roles = matchedUser.Roles?.Select(r => r.Label).ToList() ?? new List<string>();
+                        result.Roles = matchedUser.Roles?
+                            .Where(r => r.Label != null)
+                            .Select(r => r.Label!)
+                            .ToList() ?? new List<string>();
+                        foundMatch = true;
                     }
-                    else
+                    if (!foundMatch)
                     {
                         result.ErrorMessage = $"User found in API but no name match. Variations tried: {string.Join(", ", nameVariations)}. API users: {string.Join(", ", graphqlResponse.Data.SearchUsers.Select(u => $"{u.NameFirst} {u.NameLast}"))}";
                     }
@@ -1797,7 +1835,7 @@ namespace Viper.Areas.Directory.Services
         private async Task<string?> GetInstinctAccessTokenAsync(InstinctResult result)
         {
             const string cacheKey = "instinct_access_token";
-            
+
             // Check cache first
             if (_memoryCache.TryGetValue(cacheKey, out string? cachedToken) && !string.IsNullOrEmpty(cachedToken))
             {
@@ -1807,14 +1845,14 @@ namespace Viper.Areas.Directory.Services
             try
             {
                 var apiUrl = _configuration["Instinct:ApiUrl"] ?? "https://uc-davis.api.instinctvet.com/";
-                if (!apiUrl.EndsWith("/"))
+                if (!apiUrl.EndsWith('/'))
                 {
                     apiUrl += "/";
                 }
                 var tokenUrl = apiUrl + "auth/token";
                 var username = "ucdavisapi";
                 var password = HttpHelper.GetSetting<string>("Credentials", "InstinctApi") ?? "";
-                
+
                 if (string.IsNullOrEmpty(password))
                 {
                     string errMsg = "Password is null or empty in configuration";
@@ -1832,24 +1870,27 @@ namespace Viper.Areas.Directory.Services
                     new("scope", "api_access")
                 };
 
-                using var formContent = new FormUrlEncodedContent(formParams);
+                var formContent = new FormUrlEncodedContent(formParams);
                 Console.WriteLine("[INSTINCT AUTH] Sending token POST request...");
-                using var response = await httpClient.PostAsync(tokenUrl, formContent);
+                var response = await httpClient.PostAsync(tokenUrl, formContent);
                 Console.WriteLine($"[INSTINCT AUTH] Response Status Code: {response.StatusCode}");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
                     var tokenResponse = JsonSerializer.Deserialize<InstinctTokenResponse>(responseContent);
-                    Console.WriteLine($"[INSTINCT AUTH] Deserialized Token Length: {tokenResponse?.AccessToken?.Length ?? 0}");
-                    
-                    if (tokenResponse?.AccessToken != null)
+                    if (tokenResponse != null)
                     {
-                        // Cache token for slightly less than expiry time (subtract 2 hours as in CF code)
-                        var cacheExpiry = TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 7200); // 2 hours buffer
-                        _memoryCache.Set(cacheKey, tokenResponse.AccessToken, cacheExpiry);
-                        
-                        return tokenResponse.AccessToken;
+                        Console.WriteLine($"[INSTINCT AUTH] Deserialized Token Length: {tokenResponse.AccessToken.Length}");
+
+                        if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
+                        {
+                            // Cache token for slightly less than expiry time (subtract 2 hours as in CF code)
+                            var cacheExpiry = TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 7200); // 2 hours buffer
+                            _memoryCache.Set(cacheKey, tokenResponse.AccessToken, cacheExpiry);
+
+                            return tokenResponse.AccessToken;
+                        }
                     }
                 }
                 else
@@ -1926,13 +1967,13 @@ namespace Viper.Areas.Directory.Services
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; set; } = string.Empty;
-        
+
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }
-        
+
         [JsonPropertyName("token_type")]
         public string TokenType { get; set; } = string.Empty;
-        
+
         [JsonPropertyName("scope")]
         public string Scope { get; set; } = string.Empty;
     }
@@ -1953,38 +1994,39 @@ namespace Viper.Areas.Directory.Services
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
-        
+
         [JsonPropertyName("initials")]
         public string? Initials { get; set; }
-        
+
         [JsonPropertyName("instinctId")]
         public string? InstinctId { get; set; }
-        
+
         [JsonPropertyName("isActive")]
         public bool IsActive { get; set; }
-        
+
         [JsonPropertyName("isProtected")]
         public bool IsProtected { get; set; }
-        
+
         [JsonPropertyName("nameFirst")]
         public string? NameFirst { get; set; }
-        
+
         [JsonPropertyName("nameMiddle")]
         public string? NameMiddle { get; set; }
-        
+
         [JsonPropertyName("nameLast")]
         public string? NameLast { get; set; }
-        
+
         [JsonPropertyName("passwordExpiresAt")]
         public string? PasswordExpiresAt { get; set; }
-        
+
         [JsonPropertyName("status")]
         public string? Status { get; set; }
-        
+
         [JsonPropertyName("username")]
         public string? Username { get; set; }
-        
+
         [JsonPropertyName("roles")]
+        // ReSharper disable once CollectionNeverUpdated.Global
         public List<InstinctRole>? Roles { get; set; }
     }
 
@@ -1992,7 +2034,7 @@ namespace Viper.Areas.Directory.Services
     {
         [JsonPropertyName("description")]
         public string? Description { get; set; }
-        
+
         [JsonPropertyName("label")]
         public string? Label { get; set; }
     }
@@ -2184,3 +2226,4 @@ namespace Viper.Areas.Directory.Services
         public string EncryptedString { get; set; } = string.Empty;
     }
 }
+

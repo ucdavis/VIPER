@@ -38,8 +38,8 @@ namespace Viper.Areas.Directory.Models
         public bool? Ross { get; set; }
         public DateTime? Added { get; set; }
         public string? Phone { get; set; }
-        public string? Nextel { get; set; } = null!;
-        public string? LDPager { get; set; } = null!;
+        public string? Nextel { get; set; }
+        public string? LDPager { get; set; }
         public string? Mobile { get; set; }
         public string? PostalAddress { get; set; }
         public string? UCDAffiliation { get; set; }
@@ -97,9 +97,9 @@ namespace Viper.Areas.Directory.Models
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
                 Email = ldapUserContact.Mail;
-                MailId = ldapUserContact.Mail?.Split("@")[0];
+                MailId = ldapUserContact.Mail.Split("@")[0];
                 UserName = ldapUserContact.Uid;
-                PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
+                PostalAddress = ldapUserContact.PostalAddress.Replace("$", '\n'.ToString());
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
@@ -139,3 +139,4 @@ namespace Viper.Areas.Directory.Models
         }
     }
 }
+

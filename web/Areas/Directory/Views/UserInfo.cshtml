@@ -14,10 +14,10 @@
         <div class="direct">
             <h2>User Information Page</h2>
             <span class="photo">
-                <img src="https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=@Model.MailId" width="87" height="111" border="0" alt="User Photo" />
+                <img src="https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=@Model.MailId" width="87" height="111" alt="User Photo" />
             </span>
             <span class="photo2">
-                <img src="https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=@Model.MailId&altphoto=1" width="87" height="111" border="0" alt="Alternative Photo" />
+                <img src="https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=@Model.MailId&amp;altphoto=1" width="87" height="111" alt="Alternative Photo" />
             </span>
             <h3>@Model.DisplayFullName</h3>
             @if (!Model.CurrentAffiliate)
@@ -396,7 +396,7 @@
                             <summary>@permission.Category (@permission.Count)</summary>
                             @if (permission.Permissions.Any())
                             {
-                                var tree = BuildPermissionTree(permission.Permissions, permission.Category);
+                                var tree = BuildPermissionTree(permission.Permissions);
                                 void RenderNode(PermissionNode node, String parent)
                                 {
                                     if (node.Children.Any())
@@ -634,7 +634,7 @@
                 <h3>Member of:</h3>
                 <ul class="tree">
                     @{
-                        var isProd = Viper.HttpHelper.Environment?.IsProduction() ?? false;
+                        var isProd = HttpHelper.Environment?.IsProduction() ?? false;
                         var domains = isProd
                             ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
                             : new[] { "t3.ucdavis.edu" };
@@ -673,21 +673,22 @@
     {
         public string Name { get; set; } = string.Empty;
         public string FullPath { get; set; } = string.Empty;
-        public bool IsPermission { get; set; } = false;
+        public bool IsPermission { get; set; }
         public List<PermissionNode> Children { get; set; } = new List<PermissionNode>();
     }
 
-    public List<PermissionNode> BuildPermissionTree(List<string> permissions, string category)
+    public List<PermissionNode> BuildPermissionTree(List<string> permissions)
     {
         var roots = new List<PermissionNode>();
-        var permissionParts = permissions
-            .Select(perm => perm.Split('.'))
-            .Where(parts => parts.Length > 1)
-            .ToList();
-
-        foreach (var parts in permissionParts)
+        foreach (var perm in permissions)
         {
+            var parts = perm.Split('.');
             var partsToProcess = parts.Skip(1).ToList();
+            if (!partsToProcess.Any())
+            {
+                continue;
+            }
+
             var currentList = roots;
             for (int i = 0; i < partsToProcess.Count; i++)
             {
@@ -715,7 +716,6 @@
 
     private void SortPermissionNodes(List<PermissionNode> nodes)
     {
-        if (nodes == null) return;
         nodes.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
         foreach (var node in nodes)
         {
@@ -723,3 +723,4 @@
         }
     }
 }
+

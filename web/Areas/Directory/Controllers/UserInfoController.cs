@@ -1,32 +1,27 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Viper.Models.AAUD;
-using Viper.Areas.RAPS.Services;
 using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
-using Viper.Areas.Directory.Models;
-using System.Runtime.Versioning;
-using System.Collections.Generic;
 using Viper.Areas.Directory.Services;
-using Viper.Classes.Utilities;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.Directory.Controllers
 {
     [Area("Directory")]
     [Permission(Allow = "SVMSecure")]
+    [Route("userinfo")]
     public class UserInfoController : AreaController
     {
-        public Classes.SQLContext.AAUDContext _aaud;
-        private UserInfoService _userInfo;
-        public IUserHelper UserHelper;
+        private readonly AAUDContext _aaud;
+        private readonly UserInfoService _userInfo;
+        private readonly IUserHelper _userHelper;
         private readonly RAPSContext _rapsContext;
 
         public UserInfoController(
-            RAPSContext rapsContext, 
-            AAUDContext aaudContext, 
+            RAPSContext rapsContext,
+            AAUDContext aaudContext,
             CoursesContext coursesContext,
             EquipmentLoanContext equipmentLoanContext,
             PPSContext ppsContext,
@@ -35,13 +30,13 @@ namespace Viper.Areas.Directory.Controllers
         {
             _aaud = aaudContext;
             _rapsContext = rapsContext;
-            UserHelper = new UserHelper();
-            
+            _userHelper = new UserHelper();
+
             // Get services from DI container
             var httpClientFactory = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IHttpClientFactory)) as IHttpClientFactory;
             var memoryCache = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IMemoryCache)) as IMemoryCache;
             var configuration = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration;
-            
+
             _userInfo = new UserInfoService(
                 aaudContext,
                 rapsContext,
@@ -59,7 +54,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Redirect if we don't have a mothraID
         /// </summary>
-        [Route("/userinfo/")]
+        [Route("")]
         public ActionResult Index()
         {
             return Redirect("/Directory");
@@ -68,9 +63,9 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// UserInfo Page
         /// </summary>
-        /// <param name="id">MothraID</param>
+        /// <param name="mothraID">MothraID</param>
         /// <returns></returns>
-        [Route("/userinfo/{mothraID}")]
+        [Route("{mothraID}")]
         public async Task<ActionResult> UserInfo(string? mothraID)
         {
             // Validate required parameters
@@ -81,8 +76,8 @@ namespace Viper.Areas.Directory.Controllers
             else
             {
                 // Check if user is viewing their own page
-                var currentUser = UserHelper.GetCurrentUser();
-                bool ownPage = mothraID == currentUser.MothraId;
+                var currentUser = _userHelper.GetCurrentUser();
+                bool ownPage = currentUser != null && mothraID == currentUser.MothraId;
                 var individual = await _aaud.AaudUsers.Where(u => (u.MothraId == mothraID)).FirstOrDefaultAsync();
                 string? iamId = null;
                 if (individual != null) iamId = individual.IamId;
@@ -95,17 +90,17 @@ namespace Viper.Areas.Directory.Controllers
                 }
 
                 // Set permissions for the view
-                userInfo.CanViewDirectoryDetail = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryDetail");
-                userInfo.CanViewStudentID = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.studentID");
-                userInfo.CanViewIAM = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.iam");
-                userInfo.CanViewRoles = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.raps");
-                userInfo.CanViewUCPath = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfo");
-                userInfo.CanViewUCPathDetail = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfoAllDetail");
-                userInfo.CanViewIDCards = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.idcards");
-                userInfo.CanViewKeys = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.keys");
-                userInfo.CanViewLoans = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.loans");
-                userInfo.CanViewInstinct = ownPage || UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
-                userInfo.CanViewADGroups = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
+                userInfo.CanViewDirectoryDetail = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryDetail");
+                userInfo.CanViewStudentID = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.studentID");
+                userInfo.CanViewIAM = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.iam");
+                userInfo.CanViewRoles = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.raps");
+                userInfo.CanViewUCPath = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfo");
+                userInfo.CanViewUCPathDetail = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfoAllDetail");
+                userInfo.CanViewIDCards = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.idcards");
+                userInfo.CanViewKeys = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.keys");
+                userInfo.CanViewLoans = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.loans");
+                userInfo.CanViewInstinct = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
+                userInfo.CanViewADGroups = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
 
                 userInfo.CanViewDirectoryDetail = true;
                 userInfo.CanViewStudentID = true;
@@ -132,6 +127,10 @@ namespace Viper.Areas.Directory.Controllers
         [Route("/userPhoto")]
         public async Task<ActionResult> UserPhoto(string mailID, bool altphoto = false)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             return NotFound();
         }
 
@@ -140,6 +139,14 @@ namespace Viper.Areas.Directory.Controllers
         {
             var nav = new List<NavMenuItem>();
             return await Task.Run(() => nav);
+        }
+
+        [NonAction]
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                                         ActionExecutionDelegate next)
+        {
+            PopulateLeftNav(context, "viper-home");
+            await base.OnActionExecutionAsync(context, next);
         }
     }
 }

@@ -132,7 +132,7 @@ namespace Viper.Classes.Utilities
                 return new LdapUserContact(results.Entries[0]);
             }
             return null;
-            }
+        }
 
 
         /// <summary>
@@ -208,9 +208,10 @@ namespace Viper.Classes.Utilities
         private static List<LdapUserContact> SortUsersContact(List<LdapUserContact> users)
         {
             users.Sort((a, b) => a.DisplayName == b.DisplayName
-                ? a.Sn.CompareTo(b.Sn)
-                : a.DisplayName.CompareTo(b.DisplayName));
+                ? string.Compare(a.Sn, b.Sn, StringComparison.OrdinalIgnoreCase)
+                : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
             return users;
         }
     }
 }
+

@@ -1,28 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.SQLContext;
-using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
 using Viper.Models.Courses;
-using Viper.Models.EquipmentLoan;
-using Viper.Models.IDCards;
-using Viper.Models.Keys;
-using Viper.Models.PPS;
-using Viper.Models.RAPS;
-using Xunit;
 
 namespace Viper.test.Services
 {
@@ -35,7 +21,7 @@ namespace Viper.test.Services
             _output = output;
         }
 
-        private DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
+        private static DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
         {
             return new DbContextOptionsBuilder<TContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -181,7 +167,7 @@ namespace Viper.test.Services
             }
             finally
             {
-                HttpHelper.Configure(null, null, null, null, null, null);
+                HttpHelper.Configure(null, null, null!, null, null, null);
             }
 
             // 5. Assert

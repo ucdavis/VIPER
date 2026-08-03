@@ -226,9 +226,12 @@ try
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
     RegisterDbContext<EvalDbContext>("Eval");
     RegisterDbContext<EquipmentLoanContext>("VIPER");
-    RegisterDbContext<PPSContext>("VIPER");
     RegisterDbContext<IDCardsContext>("VIPER");
     RegisterDbContext<KeysContext>("VIPER");
+    RegisterDbContext<PPSContext>("VIPER");
+
+    // Add HttpClient support
+    builder.Services.AddHttpClient();
 
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();

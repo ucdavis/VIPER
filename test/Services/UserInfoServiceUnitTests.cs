@@ -2,16 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
@@ -19,11 +11,8 @@ using Viper.Models.AAUD;
 using Viper.Models.EquipmentLoan;
 using Viper.Models.IDCards;
 using Viper.Models.Keys;
-using Viper.Models.PPS;
 using Viper.Models.RAPS;
 using Viper.Models.Courses;
-using Viper.Models.IAM;
-using Xunit;
 
 namespace Viper.test.Services
 {
@@ -35,7 +24,7 @@ namespace Viper.test.Services
         public UserInfoServiceUnitTests()
         {
             _memoryCache = new MemoryCache(new MemoryCacheOptions());
-            
+
             var configData = new Dictionary<string, string?>
             {
                 { "Instinct:ApiUrl", "https://uc-davis.api.instinctvet.com/" },
@@ -47,7 +36,7 @@ namespace Viper.test.Services
         }
 
         // Helper to construct DbContextOptions for InMemory providers
-        private DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
+        private static DbContextOptions<TContext> CreateInMemoryOptions<TContext>() where TContext : DbContext
         {
             return new DbContextOptionsBuilder<TContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -55,7 +44,7 @@ namespace Viper.test.Services
         }
 
         // Helper to construct a mocked IHttpClientFactory using custom handler
-        private IHttpClientFactory CreateMockHttpClientFactory(Func<HttpRequestMessage, HttpResponseMessage> handlerFunc)
+        private static IHttpClientFactory CreateMockHttpClientFactory(Func<HttpRequestMessage, HttpResponseMessage> handlerFunc)
         {
             var factory = Substitute.For<IHttpClientFactory>();
             factory.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient(new MockHttpMessageHandler(handlerFunc)));
@@ -63,15 +52,15 @@ namespace Viper.test.Services
         }
 
         private AaudUser CreateTestUser(
-            string iamId, 
-            string mothraId, 
-            string loginId = "testuser", 
-            string? employeeId = null, 
-            string? employeePKey = null, 
-            string? studentPKey = null, 
-            string? firstName = "Jane", 
-            string? lastName = "Doe", 
-            string? middleName = null, 
+            string iamId,
+            string mothraId,
+            string loginId = "testuser",
+            string? employeeId = null,
+            string? employeePKey = null,
+            string? studentPKey = null,
+            string? firstName = "Jane",
+            string? lastName = "Doe",
+            string? middleName = null,
             string? displayFullName = "Jane Doe",
             string? pidm = null)
         {
@@ -126,7 +115,7 @@ namespace Viper.test.Services
             var aaudOptions = CreateInMemoryOptions<AAUDContext>();
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
-                aaudSetup.AaudUsers.Add(CreateTestUser("iam-123", "mothra-123", "testuser", employeeId: "emp-123", pidm: "pidm-123", displayFullName: "Test User"));
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-123", "mothra-123", employeeId: "emp-123", pidm: "pidm-123", displayFullName: "Test User"));
                 await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
@@ -248,9 +237,9 @@ namespace Viper.test.Services
                     IdCardLine2 = "Line 2 Text",
                     IdCardCurrentStatus = "A",
                     IdcardDeactivatedReason = "L",
-                    IdCardAppliedDate = new DateTime(2026, 1, 1),
-                    IdCardIssueDate = new DateTime(2026, 1, 2),
-                    IdcardDeactivatedDate = new DateTime(2026, 6, 1)
+                    IdCardAppliedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
+                    IdCardIssueDate = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified),
+                    IdcardDeactivatedDate = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Unspecified)
                 });
                 idcardsSetup.DvtCardStatuses.Add(new DvtCardStatus
                 {
@@ -293,9 +282,9 @@ namespace Viper.test.Services
             Assert.Equal("Line 2 Text", card.Line2);
             Assert.Equal("Active Card Status", card.StatusDescription);
             Assert.Equal("Lost Card", card.DeactivatedReason);
-            Assert.Equal(new DateTime(2026, 1, 1), card.Applied);
-            Assert.Equal(new DateTime(2026, 1, 2), card.Issued);
-            Assert.Equal(new DateTime(2026, 6, 1), card.Deactivated);
+            Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), card.Applied);
+            Assert.Equal(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified), card.Issued);
+            Assert.Equal(new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Unspecified), card.Deactivated);
         }
 
         [Fact]
@@ -325,7 +314,7 @@ namespace Viper.test.Services
                     KeyId = 202,
                     AssignedTo = "mothra-keys",
                     CutNumber = "C1",
-                    IssuedDate = new DateTime(2026, 3, 1),
+                    IssuedDate = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Unspecified),
                     IssuedBy = "mothra-issuer",
                     Deleted = null
                 });
@@ -353,7 +342,7 @@ namespace Viper.test.Services
             Assert.Equal("Main Gate Access", assignment.AccessDescription);
             Assert.Equal("K99", assignment.KeyNumber);
             Assert.Equal("C1", assignment.CutNumber);
-            Assert.Equal(new DateTime(2026, 3, 1), assignment.IssuedDate);
+            Assert.Equal(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Unspecified), assignment.IssuedDate);
             Assert.Equal("John KeyIssuer", assignment.IssuedBy);
         }
 
@@ -376,12 +365,12 @@ namespace Viper.test.Services
                     LoanId = 505,
                     LoanPidm = "pidm-loans",
                     LoanTechPidm = "tech-pidm-loans",
-                    LoanDate = new DateTime(2026, 5, 1),
-                    LoanDueDate = new DateTime(2026, 5, 10),
+                    LoanDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Unspecified),
+                    LoanDueDate = new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Unspecified),
                     LoanComments = "Projector Loan"
                 };
                 loansSetup.Loans.Add(newLoan);
-                
+
                 var asset = new Asset
                 {
                     AssetId = 808,
@@ -398,7 +387,7 @@ namespace Viper.test.Services
                     LoanitemCheckout = DateTime.Today,
                     LoanitemCheckoutPidm = "checkout-pidm"
                 });
-                
+
                 await loansSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
@@ -421,8 +410,8 @@ namespace Viper.test.Services
             Assert.Single(result.Loans);
             var loanResult = result.Loans[0];
             Assert.Equal("Epson Projector 4K", loanResult.AssetName);
-            Assert.Equal(new DateTime(2026, 5, 1), loanResult.LoanDate);
-            Assert.Equal(new DateTime(2026, 5, 10), loanResult.DueDate);
+            Assert.Equal(new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Unspecified), loanResult.LoanDate);
+            Assert.Equal(new DateTime(2026, 5, 10, 0, 0, 0, DateTimeKind.Unspecified), loanResult.DueDate);
             Assert.Equal("Projector Loan", loanResult.Comments);
         }
 
@@ -505,7 +494,7 @@ namespace Viper.test.Services
 
             // Assert
             Assert.NotNull(result);
-            
+
             // Check formatted Roles
             Assert.Single(result.SystemRoles);
             Assert.Equal("VIPER", result.SystemRoles[0].System);
@@ -696,13 +685,13 @@ namespace Viper.test.Services
             }
             finally
             {
-                HttpHelper.Configure(null, null, null, null, null, null);
+                HttpHelper.Configure(null, null, null!, null, null, null);
             }
         }
         [Fact]
         public async Task TestGetEmployeeAssociationsDirectly()
         {
-            var httpFactory = CreateMockHttpClientFactory(request =>
+            var httpFactory = CreateMockHttpClientFactory(_ =>
             {
                 var json = @"
                 {
@@ -737,7 +726,7 @@ namespace Viper.test.Services
         [Fact]
         public async Task TestDeserializeCorePersonDirectly()
         {
-            var httpFactory = CreateMockHttpClientFactory(request =>
+            var httpFactory = CreateMockHttpClientFactory(_ =>
             {
                 var json = @"
                 {
@@ -767,6 +756,36 @@ namespace Viper.test.Services
             Assert.Null(response.ErrorMessage);
             Assert.NotNull(response.Data);
             Assert.Single(response.Data);
+        }
+
+        [Theory]
+        [InlineData("2026-07-13 14:00:00", 2026, 7, 13, 14, 0, 0)]
+        [InlineData("2026-07-13", 2026, 7, 13, 0, 0, 0)]
+        [InlineData("2026-07-13T14:00:00", 2026, 7, 13, 14, 0, 0)]
+        [InlineData("", 0, 0, 0, 0, 0, 0)]
+        [InlineData(null, 0, 0, 0, 0, 0, 0)]
+        public void TestIamDateTimeConverter(string? input, int expectedYear, int expectedMonth, int expectedDay, int expectedHour, int expectedMinute, int expectedSecond)
+        {
+            var options = new System.Text.Json.JsonSerializerOptions();
+            options.Converters.Add(new IamDateTimeConverter());
+
+            if (input == null)
+            {
+                var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>("null", options);
+                Assert.Null(result);
+            }
+            else if (string.IsNullOrEmpty(input))
+            {
+                var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>("\"\"", options);
+                Assert.Null(result);
+            }
+            else
+            {
+                var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>($"\"{input}\"", options);
+                Assert.NotNull(result);
+                var nonNullResult = result.Value;
+                Assert.Equal(new DateTime(expectedYear, expectedMonth, expectedDay, expectedHour, expectedMinute, expectedSecond, DateTimeKind.Unspecified), nonNullResult);
+            }
         }
 
         private class MockHttpMessageHandler : HttpMessageHandler

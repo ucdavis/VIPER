@@ -1,5 +1,3 @@
-using Viper.Models.AAUD;
-using Viper.Areas.RAPS.Models;
 using Viper.Models.IAM;
 
 namespace Viper.Areas.Directory.Models
@@ -11,9 +9,9 @@ namespace Viper.Areas.Directory.Models
         public string? MothraId { get; set; }
         public string? DisplayFullName { get; set; }
         public string? MailId { get; set; }
-        public bool IsValid { get; set; } = false;
-        public bool IsEmployee { get; set; } = false;
-        public bool IsStudent { get; set; } = false;
+        public bool IsValid { get; set; }
+        public bool IsEmployee { get; set; }
+        public bool IsStudent { get; set; }
 
         // Directory Information
         public string? Title { get; set; }
@@ -45,7 +43,7 @@ namespace Viper.Areas.Directory.Models
         // Student Information
         public string? StudentPriorName { get; set; }
         public string? StudentBannerId { get; set; }
-        public bool StudentConfidential { get; set; } = false;
+        public bool StudentConfidential { get; set; }
         public string? StudentConfidentialScope { get; set; }
         public string? StudentStatus { get; set; }
         public string? StudentPrimaryMajor { get; set; }
@@ -61,17 +59,17 @@ namespace Viper.Areas.Directory.Models
         public string? StudentClassRank { get; set; }
         public string? StudentAdmitClassYear { get; set; }
         public string? StudentAdmitTerm { get; set; }
-        public bool StudentIsDualDegree { get; set; } = false;
-        public bool StudentIsDVM { get; set; } = false;
-        public bool StudentIsMPVM { get; set; } = false;
-        public bool StudentIsEmployed { get; set; } = false;
+        public bool StudentIsDualDegree { get; set; }
+        public bool StudentIsDVM { get; set; }
+        public bool StudentIsMPVM { get; set; }
+        public bool StudentIsEmployed { get; set; }
         public string? StudentEmployeeId { get; set; }
         public string? StudentEmployer { get; set; }
         public string? StudentGender { get; set; }
         public string? StudentEthnicity { get; set; }
         public string? StudentNewEthnicity { get; set; }
-        public bool StudentIsCAResident { get; set; } = false;
-        public bool StudentIsUSCitizen { get; set; } = false;
+        public bool StudentIsCAResident { get; set; }
+        public bool StudentIsUSCitizen { get; set; }
         public string? StudentBirthDate { get; set; }
         public string? StudentAge { get; set; }
         public string? StudentPermanentAddress { get; set; }
@@ -84,10 +82,10 @@ namespace Viper.Areas.Directory.Models
         // IAM Information
         public string? PPSId { get; set; }
         public string? OFullName { get; set; }
-        public bool IsHSEmployee { get; set; } = false;
-        public bool IsFaculty { get; set; } = false;
-        public bool IsStaff { get; set; } = false;
-        public bool IsExternal { get; set; } = false;
+        public bool IsHSEmployee { get; set; }
+        public bool IsFaculty { get; set; }
+        public bool IsStaff { get; set; }
+        public bool IsExternal { get; set; }
 
         // IAM Associations
         public string? AssociationsTitle { get; set; }
@@ -140,8 +138,8 @@ namespace Viper.Areas.Directory.Models
         public List<string> InstinctRoles { get; set; } = new List<string>();
         public string? InstinctStatus { get; set; }
         public DateTime? InstinctPasswordExpiresAt { get; set; }
-        public bool InstinctIsActive { get; set; } = false;
-        public InstinctResult? InstinctInfo { get; set; } = null;
+        public bool InstinctIsActive { get; set; }
+        public InstinctResult? InstinctInfo { get; set; }
 
         // Active Directory Information
         public string? ADDisplayName { get; set; }
@@ -152,20 +150,20 @@ namespace Viper.Areas.Directory.Models
         public List<string> ADMemberOf { get; set; } = new List<string>();
 
         // Permission flags for view logic
-        public bool CanViewDirectoryDetail { get; set; } = false;
-        public bool CanViewStudentID { get; set; } = false;
-        public bool CanViewIAM { get; set; } = false;
-        public bool CanViewRoles { get; set; } = false;
-        public bool CanViewUCPath { get; set; } = false;
-        public bool CanViewUCPathDetail { get; set; } = false;
-        public bool CanViewIDCards { get; set; } = false;
-        public bool CanViewKeys { get; set; } = false;
-        public bool CanViewLoans { get; set; } = false;
-        public bool CanViewInstinct { get; set; } = false;
-        public bool CanViewADGroups { get; set; } = false;
-        public bool IsOwnPage { get; set; } = false;
-        public bool ShowPhoneLinks { get; set; } = false;
-        public bool HasAltPhoto { get; set; } = false;
+        public bool CanViewDirectoryDetail { get; set; }
+        public bool CanViewStudentID { get; set; }
+        public bool CanViewIAM { get; set; }
+        public bool CanViewRoles { get; set; }
+        public bool CanViewUCPath { get; set; }
+        public bool CanViewUCPathDetail { get; set; }
+        public bool CanViewIDCards { get; set; }
+        public bool CanViewKeys { get; set; }
+        public bool CanViewLoans { get; set; }
+        public bool CanViewInstinct { get; set; }
+        public bool CanViewADGroups { get; set; }
+        public bool IsOwnPage { get; set; }
+        public bool ShowPhoneLinks { get; set; }
+        public bool HasAltPhoto { get; set; }
     }
 
     public class SystemRole

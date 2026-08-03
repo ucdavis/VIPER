@@ -1,5 +1,3 @@
-﻿using System;
-
 namespace Viper.Areas.Directory.Models
 {
     public class KeyResult

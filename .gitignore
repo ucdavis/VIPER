@@ -515,3 +515,9 @@ inspect-report/
 
 # Agent folders
 .claude
+CLAUDE.md
+
+# Temp Agent Files
+DESIGN.md*
+PRODUCT.md*
+.github

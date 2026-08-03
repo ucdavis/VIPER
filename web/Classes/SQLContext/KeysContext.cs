@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.Keys;
 
@@ -9,7 +10,7 @@ public partial class KeysContext : DbContext
 {
 
     public KeysContext()
-        : base()
+
     {
     }
 

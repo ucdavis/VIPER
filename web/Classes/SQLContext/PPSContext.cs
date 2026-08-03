@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+
 using Microsoft.EntityFrameworkCore;
 using Viper.Models.PPS;
 
@@ -8,7 +9,7 @@ namespace Viper.Classes.SQLContext;
 public partial class PPSContext : DbContext
 {
     public PPSContext()
-        : base()
+
     {
     }
 

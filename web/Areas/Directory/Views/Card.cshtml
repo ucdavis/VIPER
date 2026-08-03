@@ -1,8 +1,6 @@
 @using Viper.Classes.SQLContext;
 @model Viper.Areas.Directory.Models.DirectoryUser;
 @{
-    RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
-    IUserHelper UserHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
 <h1>Directory</h1>
@@ -33,7 +31,7 @@
     <div class="row q-pa-sm q-gutter-sm" id="directoryResults">
         <q-card v-for="user in results" class="col-2 col-xs-8 col-sm-5 col-md-8 col-lg-3 col-xl-2 block directory">
             <q-card-section class="grid row card_header" :class="[user.svm ? 'SVM' : '']">
-                <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
+                <a v-if="user.svm && user.iamId && user.mothraId" :href="'@HttpHelper.GetRootURL()/UserInfo/' + user.mothraId" @@click="onLinkClick($event, 'Loading user profile...')" :aria-label="'User information for ' + user.name" class="userinfo_button top_button">
                     <q-icon name="person" size="xs"></q-icon>
                     <q-tooltip>User Information</q-tooltip>
                 </a>
@@ -41,27 +39,26 @@
                     <q-icon name="email" size="xs"></q-icon>
                     <q-tooltip>Email {{user.mailId}}@@ucdavis.edu</q-tooltip>
                 </a>
-                <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
+                <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" @@click="onLinkClick($event, 'Emulating user...')" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
                     <q-icon name="face" size="xs"></q-icon>
                     <q-tooltip>Emulate {{user.name}}</q-tooltip>
                 </a>
-                }
-                <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&mothraID=' + user.mothraId + '&loginID=' + user.loginId" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
+                <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&amp;mothraID=' + user.mothraId + '&amp;loginID=' + user.loginId" @@click="onLinkClick($event, 'Opening AAUD Check...')" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>
                 </a>
-                <a v-if="ids && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&LoginID=' + user.loginId" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
+                <a v-if="ids && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=IDCardCheck&amp;LoginID=' + user.loginId" @@click="onLinkClick($event, 'Opening ID Check...')" :aria-label="'ID check for ' + user.name" class="ID_button top_button">
                     <q-icon name="account_box" size="xs"></q-icon>
                     <q-tooltip>ID Check</q-tooltip>
                 </a>
-                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&MailID=' + user.mailId" v-if="ids && user.mailId" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
+                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&amp;MailID=' + user.mailId" v-if="ids && user.mailId" @@click="onLinkClick($event, 'Opening MSO/CAO Lookup...')" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
                     <q-icon name="supervisor_account" size="xs"></q-icon>
                     <q-tooltip>MSO/CAO Lookup</q-tooltip>
                 </a>
                 @if (Model.CanSeeUCPathInfo)
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&emplid=' + user.employeeId" v-if="ids && user.employeeId" :aria-label="'UCPath info for ' + user.name" class="UCPath_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UCPathInfo&amp;emplid=' + user.employeeId" v-if="ids && user.employeeId" @@click="onLinkClick($event, 'Opening UCPath Info...')" :aria-label="'UCPath info for ' + user.name" class="UCPath_button top_button">
                         <q-icon name="school" size="sm"></q-icon>
                         <q-tooltip>UCPath Info</q-tooltip>
                     </a>
@@ -69,7 +66,7 @@
                 @if (Model.CanSeeAltPhoto)
                 {
                     @:
-                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&iamID=' + user.iamId + '&mailID=' + user.mailId + '&empName=' + encodeURIComponent(user.name)" v-if="ids && user.iamId && user.mailId" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
+                    <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=alternatePhoto&amp;iamID=' + user.iamId + '&amp;mailID=' + user.mailId + '&amp;empName=' + encodeURIComponent(user.name)" v-if="ids && user.iamId && user.mailId" @@click="onLinkClick($event, 'Opening Alternate Photo...')" :aria-label="'Alternate photo for ' + user.name" class="photo_button top_button">
                         <q-icon name="photo_camera" size="xs"></q-icon>
                         <q-tooltip>Alt. Photo</q-tooltip>
                     </a>
@@ -78,7 +75,7 @@
             <q-card-section class="row">
                 <q-card-section class="col photo">
                     <q-img
-                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&altphoto=1'"
+                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&amp;altphoto=1'"
                         :alt="'Photo of ' + user.name"
                         class="photo_avatar"
                         fit="cover"
@@ -112,9 +109,12 @@
             <q-card-section class="row ids" v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
                 <div v-if="user.spridenId">
                     <span>BannerID:</span>
-                    @if (Model.CanSeeAllStudents) {
-                    @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&Pidm=' + user.spridenId + '&JumpPage=Home'">{{ user.spridenId }}</a>
-                    } else {
+                    @if (Model.CanSeeAllStudents)
+                    {
+                    @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&amp;Pidm=' + user.spridenId + '&amp;JumpPage=Home'">{{ user.spridenId }}</a>
+                    }
+                    else
+                    {
                     @: {{ user.spridenId }}
                     }
                 </div>
@@ -136,21 +136,45 @@
                     ucd: getItemFromStorage("directory_ucd") ?? false,
                     ids: getItemFromStorage("directory_ids") ?? false,
                     spinner: false,
-                    results: []
+                    results: [],
+                    searchId: 0
                 }
             },
             methods: {
                 findUsers: async function () {
                     this.spinner = false;
                     this.results = [];
-                    var urlBase = "@Url.Content("~/Directory/search/")" + this.userSearch;
-                    if (this.ucd) {
-                        urlBase += "/ucd"
+                    
+                    var search = this.userSearch.trim();
+                    if (search.length < 2) {
+                        return;
                     }
-                    if (this.userSearch.length >= 2) {
-                        this.spinner = true;
-                        this.results = (await viperFetch(this, urlBase))
-                        this.spinner = false;
+                    
+                    this.searchId++;
+                    var currentSearchId = this.searchId;
+                    
+                    var urlBase = "@Url.Content("~/Directory/search")" + "?search=" + encodeURIComponent(search);
+                    if (this.ucd) {
+                        urlBase += "&ucd=true";
+                    }
+                    
+                    this.spinner = true;
+                    try {
+                        var response = await viperFetch(this, urlBase);
+                        if (currentSearchId === this.searchId) {
+                            this.results = response || [];
+                        }
+                    } finally {
+                        if (currentSearchId === this.searchId) {
+                            this.spinner = false;
+                        }
+                    }
+                },
+                onLinkClick: function (e, msg) {
+                    if (e.button === 0 && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+                        this.$q.loading.show({
+                            message: msg || 'Loading...'
+                        });
                     }
                 }
             },
