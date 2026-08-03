@@ -67,10 +67,10 @@ public sealed class CourseServiceTests : IDisposable
             new EffortCourse { Id = 2, TermCode = 202410, Crn = "12346", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new EffortCourse { Id = 3, TermCode = 202410, Crn = "12347", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "002", Enrollment = 15, Units = 4, CustDept = "DVM" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var courses = await _courseService.GetCoursesAsync(202410);
+        var courses = await _courseService.GetCoursesAsync(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, courses.Count);
@@ -89,10 +89,10 @@ public sealed class CourseServiceTests : IDisposable
             new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" },
             new EffortCourse { Id = 2, TermCode = 202410, Crn = "12346", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var courses = await _courseService.GetCoursesAsync(202410, "DVM");
+        var courses = await _courseService.GetCoursesAsync(202410, "DVM", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(courses);
@@ -103,7 +103,7 @@ public sealed class CourseServiceTests : IDisposable
     public async Task GetCoursesAsync_ReturnsEmptyList_WhenNoCoursesExistForTerm()
     {
         // Act
-        var courses = await _courseService.GetCoursesAsync(999999);
+        var courses = await _courseService.GetCoursesAsync(999999, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(courses);
@@ -118,10 +118,10 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var course = await _courseService.GetCourseAsync(1);
+        var course = await _courseService.GetCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -134,7 +134,7 @@ public sealed class CourseServiceTests : IDisposable
     public async Task GetCourseAsync_ReturnsNull_WhenCourseDoesNotExist()
     {
         // Act
-        var course = await _courseService.GetCourseAsync(999);
+        var course = await _courseService.GetCourseAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(course);
@@ -149,7 +149,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRequest
         {
@@ -164,7 +164,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.CreateCourseAsync(request);
+        var course = await _courseService.CreateCourseAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -176,7 +176,7 @@ public sealed class CourseServiceTests : IDisposable
         Assert.Equal("DVM", course.CustDept);
 
         // Verify saved to database
-        var savedCourse = await _context.Courses.FirstOrDefaultAsync(c => c.Crn == "99999");
+        var savedCourse = await _context.Courses.FirstOrDefaultAsync(c => c.Crn == "99999", TestContext.Current.CancellationToken);
         Assert.NotNull(savedCourse);
     }
 
@@ -185,7 +185,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRequest
         {
@@ -200,7 +200,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.CreateCourseAsync(request);
+        var course = await _courseService.CreateCourseAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("99999", course.Crn);
@@ -230,17 +230,17 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "99999", SubjCode = "TST", CrseNumb = "101", SeqNumb = "001", Enrollment = 25, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
-        Assert.True(await _courseService.CourseExistsAsync(202410, "99999", 4));
+        Assert.True(await _courseService.CourseExistsAsync(202410, "99999", 4, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task CourseExistsAsync_ReturnsFalse_WhenCourseDoesNotExist()
     {
         // Act & Assert
-        Assert.False(await _courseService.CourseExistsAsync(202410, "99999", 4));
+        Assert.False(await _courseService.CourseExistsAsync(202410, "99999", 4, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -248,10 +248,10 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange - course exists with 4 units
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "99999", SubjCode = "TST", CrseNumb = "101", SeqNumb = "001", Enrollment = 25, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert - checking for 2 units should return false
-        Assert.False(await _courseService.CourseExistsAsync(202410, "99999", 2));
+        Assert.False(await _courseService.CourseExistsAsync(202410, "99999", 2, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Terms.Add(new EffortTerm { TermCode = 202410 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRequest
         {
@@ -274,7 +274,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        await _courseService.CreateCourseAsync(request);
+        await _courseService.CreateCourseAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddCourseChangeAudit(
@@ -294,7 +294,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateCourseRequest
         {
@@ -304,7 +304,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.UpdateCourseAsync(1, request);
+        var course = await _courseService.UpdateCourseAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -325,7 +325,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.UpdateCourseAsync(999, request);
+        var course = await _courseService.UpdateCourseAsync(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(course);
@@ -336,7 +336,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateCourseRequest
         {
@@ -347,7 +347,7 @@ public sealed class CourseServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(
-            () => _courseService.UpdateCourseAsync(1, request)
+            () => _courseService.UpdateCourseAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("Invalid custodial department", exception.Message);
     }
@@ -357,7 +357,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateCourseRequest
         {
@@ -367,7 +367,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        await _courseService.UpdateCourseAsync(1, request);
+        await _courseService.UpdateCourseAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddCourseChangeAudit(
@@ -387,10 +387,10 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange - R-course ends with 'R'
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443R", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var course = await _courseService.UpdateCourseEnrollmentAsync(1, 50);
+        var course = await _courseService.UpdateCourseEnrollmentAsync(1, 50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -402,11 +402,11 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange - Non R-course (doesn't end with 'R')
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _courseService.UpdateCourseEnrollmentAsync(1, 50)
+            () => _courseService.UpdateCourseEnrollmentAsync(1, 50, TestContext.Current.CancellationToken)
         );
         Assert.Contains("not an R-course", exception.Message);
     }
@@ -415,7 +415,7 @@ public sealed class CourseServiceTests : IDisposable
     public async Task UpdateCourseEnrollmentAsync_ReturnsNull_WhenCourseDoesNotExist()
     {
         // Act
-        var course = await _courseService.UpdateCourseEnrollmentAsync(999, 50);
+        var course = await _courseService.UpdateCourseEnrollmentAsync(999, 50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(course);
@@ -430,21 +430,21 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _courseService.DeleteCourseAsync(1);
+        var result = await _courseService.DeleteCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Null(await _context.Courses.FindAsync(1));
+        Assert.Null(await _context.Courses.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task DeleteCourseAsync_ReturnsFalse_WhenCourseDoesNotExist()
     {
         // Act
-        var result = await _courseService.DeleteCourseAsync(999);
+        var result = await _courseService.DeleteCourseAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -456,20 +456,20 @@ public sealed class CourseServiceTests : IDisposable
         // Arrange
         var course = new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" };
         _context.Courses.Add(course);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.AddRange(
             new EffortRecord { Id = 1, TermCode = 202410, CourseId = 1, PersonId = 100 },
             new EffortRecord { Id = 2, TermCode = 202410, CourseId = 1, PersonId = 101 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _courseService.DeleteCourseAsync(1);
+        var result = await _courseService.DeleteCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Empty(await _context.Records.Where(r => r.CourseId == 1).ToListAsync());
+        Assert.Empty(await _context.Records.Where(r => r.CourseId == 1).ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -477,10 +477,10 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _courseService.DeleteCourseAsync(1);
+        await _courseService.DeleteCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddCourseChangeAudit(
@@ -500,10 +500,10 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canDelete, recordCount) = await _courseService.CanDeleteCourseAsync(1);
+        var (canDelete, recordCount) = await _courseService.CanDeleteCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -520,10 +520,10 @@ public sealed class CourseServiceTests : IDisposable
             new EffortRecord { Id = 2, TermCode = 202410, CourseId = 1, PersonId = 101 },
             new EffortRecord { Id = 3, TermCode = 202410, CourseId = 1, PersonId = 102 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canDelete, recordCount) = await _courseService.CanDeleteCourseAsync(1);
+        var (canDelete, recordCount) = await _courseService.CanDeleteCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete); // Always true - deletion is allowed
@@ -566,7 +566,7 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => _courseService.SearchBannerCoursesAsync(202410));
+            () => _courseService.SearchBannerCoursesAsync(202410, ct: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -597,7 +597,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse);
+        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(course);
@@ -639,7 +639,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse);
+        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse, TestContext.Current.CancellationToken);
 
         // Assert - DeptCode 72030 maps to VME when subject code is not a valid department
         Assert.Equal("VME", course.CustDept);
@@ -670,7 +670,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse);
+        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, course.Units);
@@ -701,7 +701,7 @@ public sealed class CourseServiceTests : IDisposable
         };
 
         // Act
-        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse);
+        var course = await _courseService.ImportCourseFromBannerAsync(request, bannerCourse, TestContext.Current.CancellationToken);
 
         // Assert - should use UnitLow
         Assert.Equal(1, course.Units);
@@ -739,10 +739,10 @@ public sealed class CourseServiceTests : IDisposable
             Notes = "Test note",
             ModifiedDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Local)
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var records = await _courseService.GetCourseEffortAsync(1);
+        var records = await _courseService.GetCourseEffortAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(records);
@@ -763,10 +763,10 @@ public sealed class CourseServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var records = await _courseService.GetCourseEffortAsync(1);
+        var records = await _courseService.GetCourseEffortAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(records);
@@ -793,10 +793,10 @@ public sealed class CourseServiceTests : IDisposable
             new EffortRecord { Id = 2, CourseId = 1, PersonId = 101, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 },
             new EffortRecord { Id = 3, CourseId = 1, PersonId = 102, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var records = await _courseService.GetCourseEffortAsync(1);
+        var records = await _courseService.GetCourseEffortAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, records.Count);
@@ -822,10 +822,10 @@ public sealed class CourseServiceTests : IDisposable
 
         // Only person 100 has effort on the course
         _context.Records.Add(new EffortRecord { Id = 1, CourseId = 1, PersonId = 100, TermCode = 202410, EffortTypeId = "LEC", RoleId = 1 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _courseService.GetPossibleInstructorsForCourseAsync(1);
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.ExistingInstructors);
@@ -838,7 +838,7 @@ public sealed class CourseServiceTests : IDisposable
     public async Task GetPossibleInstructorsForCourseAsync_ReturnsEmptyDto_WhenCourseNotFound()
     {
         // Act
-        var result = await _courseService.GetPossibleInstructorsForCourseAsync(999);
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result.ExistingInstructors);
@@ -855,10 +855,10 @@ public sealed class CourseServiceTests : IDisposable
             new EffortPerson { PersonId = 100, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortTitleCode = "PROF", EffortDept = "VME" },
             new EffortPerson { PersonId = 101, TermCode = 202310, FirstName = "Bob", LastName = "Brown", EffortTitleCode = "PROF", EffortDept = "DVM" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _courseService.GetPossibleInstructorsForCourseAsync(1);
+        var result = await _courseService.GetPossibleInstructorsForCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert — person 101 is from a different term, should not appear
         Assert.Empty(result.ExistingInstructors);
@@ -900,9 +900,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_ReturnsNone_WhenCrnNotInTerm()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "99999", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: false);
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: false, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.None, result);
     }
@@ -911,9 +911,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_ReturnsDuplicateSameUnits_WhenCrnAndUnitsMatch()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: false);
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: false, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.DuplicateSameUnits, result);
     }
@@ -922,9 +922,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_ReturnsNone_WhenCrnMatchesButUnitsDiffer_NonVet4xx()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 2, isVet4xx: false);
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 2, isVet4xx: false, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.None, result);
     }
@@ -933,9 +933,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_ReturnsHarvestBlocked_WhenVet4xxAndAnyExistingRow()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 10, Units = 2, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true);
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.HarvestBlocked, result);
     }
@@ -944,9 +944,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_ReturnsHarvestBlocked_WhenVet4xxTakesPrecedenceOverDuplicateSameUnits()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true);
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.HarvestBlocked, result);
     }
@@ -955,9 +955,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_TrimsCrnBeforeMatching()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202410, Crn = "12345", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "VME" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "  12345  ", 4, isVet4xx: false);
+        var result = await _courseService.CheckImportConflictAsync(202410, "  12345  ", 4, isVet4xx: false, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.DuplicateSameUnits, result);
     }
@@ -966,9 +966,9 @@ public sealed class CourseServiceTests : IDisposable
     public async Task CheckImportConflictAsync_IgnoresOtherTerms()
     {
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = 202310, Crn = "12345", SubjCode = "VET", CrseNumb = "410", SeqNumb = "001", Enrollment = 10, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true);
+        var result = await _courseService.CheckImportConflictAsync(202410, "12345", 4, isVet4xx: true, TestContext.Current.CancellationToken);
 
         Assert.Equal(ImportConflict.None, result);
     }

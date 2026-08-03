@@ -152,7 +152,7 @@ public sealed class HarvestServiceTests : IDisposable
     public async Task GeneratePreviewAsync_WithNoData_ReturnsEmptyPreview()
     {
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -186,7 +186,7 @@ public sealed class HarvestServiceTests : IDisposable
             FirstName = "EXISTING",
             LastName = "PERSON"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Also add the person to VIPERContext so MothraId lookup works
         _viperContext.People.Add(new Person
@@ -198,10 +198,10 @@ public sealed class HarvestServiceTests : IDisposable
             LastName = "PERSON",
             FullName = "PERSON, EXISTING"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -214,7 +214,7 @@ public sealed class HarvestServiceTests : IDisposable
     public async Task GeneratePreviewAsync_CallsTermServiceForTermName()
     {
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal($"Term {TestTermCode}", result.TermName);
@@ -233,10 +233,10 @@ public sealed class HarvestServiceTests : IDisposable
         {
             TermCode = TestTermCode
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success, $"Harvest failed with error: {result.ErrorMessage}");
@@ -255,15 +255,15 @@ public sealed class HarvestServiceTests : IDisposable
         {
             TermCode = TestTermCode
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
-        var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == TestTermCode);
+        var term = await _context.Terms.FirstOrDefaultAsync(t => t.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.NotNull(term);
         Assert.Equal("Harvested", term.Status); // Status computed from HarvestedDate
         Assert.NotNull(term.HarvestedDate);
@@ -289,17 +289,17 @@ public sealed class HarvestServiceTests : IDisposable
             CrseNumb = "100",
             SeqNumb = "001"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
         // Verify old data was cleared
-        var remainingPersons = await _context.Persons.Where(p => p.TermCode == TestTermCode).ToListAsync();
-        var remainingCourses = await _context.Courses.Where(c => c.TermCode == TestTermCode).ToListAsync();
+        var remainingPersons = await _context.Persons.Where(p => p.TermCode == TestTermCode).ToListAsync(TestContext.Current.CancellationToken);
+        var remainingCourses = await _context.Courses.Where(c => c.TermCode == TestTermCode).ToListAsync(TestContext.Current.CancellationToken);
 
         // With no new data to import, should be empty
         Assert.Empty(remainingPersons);
@@ -311,10 +311,10 @@ public sealed class HarvestServiceTests : IDisposable
     {
         // Arrange - no dates = "Created" status
         _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -327,12 +327,12 @@ public sealed class HarvestServiceTests : IDisposable
     {
         // Arrange - no dates = "Created" status
         _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var beforeHarvest = DateTime.Now;
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -355,7 +355,7 @@ public sealed class HarvestServiceTests : IDisposable
             FirstName = "OLD",
             LastName = "INSTRUCTOR"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _viperContext.People.Add(new Person
         {
@@ -366,10 +366,10 @@ public sealed class HarvestServiceTests : IDisposable
             LastName = "INSTRUCTOR",
             FullName = "INSTRUCTOR, OLD"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.RemovedInstructors);
@@ -388,10 +388,10 @@ public sealed class HarvestServiceTests : IDisposable
             CrseNumb = "100",
             SeqNumb = "001"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.RemovedCourses);
@@ -405,7 +405,7 @@ public sealed class HarvestServiceTests : IDisposable
         // Arrange - No existing data
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result.RemovedInstructors);
@@ -436,7 +436,7 @@ public sealed class HarvestServiceTests : IDisposable
             SeqNumb = "01"
         };
         _context.Courses.Add(course);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -448,7 +448,7 @@ public sealed class HarvestServiceTests : IDisposable
             Hours = 40,
             Crn = "12345"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _viperContext.People.Add(new Person
         {
@@ -459,13 +459,13 @@ public sealed class HarvestServiceTests : IDisposable
             LastName = "DOE",
             FullName = "DOE, JANE"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Use a custom phase that adds a preview record matching the existing data
         var service = CreateServiceWithPhase(new TestPreviewHarvestPhase("JDOE001", "DOE, JANE", "12345", "VAR"));
 
         // Act
-        var result = await service.GeneratePreviewAsync(TestTermCode);
+        var result = await service.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         var effortRecord = Assert.Single(result.CrestEffort);
@@ -479,7 +479,7 @@ public sealed class HarvestServiceTests : IDisposable
         var service = CreateServiceWithPhase(new TestPreviewHarvestPhase("JDOE001", "DOE, JANE", "12345", "VAR"));
 
         // Act
-        var result = await service.GeneratePreviewAsync(TestTermCode);
+        var result = await service.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         var effortRecord = Assert.Single(result.CrestEffort);
@@ -506,7 +506,7 @@ public sealed class HarvestServiceTests : IDisposable
             SeqNumb = "01"
         };
         _context.Courses.Add(course);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -518,7 +518,7 @@ public sealed class HarvestServiceTests : IDisposable
             Hours = 40,
             Crn = "12345"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _viperContext.People.Add(new Person
         {
@@ -529,7 +529,7 @@ public sealed class HarvestServiceTests : IDisposable
             LastName = "DOE",
             FullName = "DOE, JANE"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Phase adds two records: one matching existing (VAR) and one new (LEC)
         var phase = new TestPreviewHarvestPhase(
@@ -541,7 +541,7 @@ public sealed class HarvestServiceTests : IDisposable
         var service = CreateServiceWithPhase(phase);
 
         // Act
-        var result = await service.GeneratePreviewAsync(TestTermCode);
+        var result = await service.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, result.CrestEffort.Count);
@@ -567,10 +567,10 @@ public sealed class HarvestServiceTests : IDisposable
             CrseNumb = "499R",
             SeqNumb = "001"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert - RESID should NOT appear in removed courses
         Assert.Empty(result.RemovedCourses);
@@ -596,10 +596,10 @@ public sealed class HarvestServiceTests : IDisposable
             CrseNumb = "100",
             SeqNumb = "001"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert - Only the non-RESID course should be in the removed list
         Assert.Single(result.RemovedCourses);
@@ -616,7 +616,7 @@ public sealed class HarvestServiceTests : IDisposable
         // Arrange - No term in database
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(999999, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(999999, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert - When term not found, harvest still runs but fails during preview generation
         Assert.False(result.Success);
@@ -628,10 +628,10 @@ public sealed class HarvestServiceTests : IDisposable
     {
         // Arrange - no dates = "Created" status
         _context.Terms.Add(new EffortTerm { TermCode = TestTermCode });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -655,7 +655,7 @@ public sealed class HarvestServiceTests : IDisposable
         _context.Courses.Add(new EffortCourse { TermCode = TestTermCode, Crn = "22222", SubjCode = "T", CrseNumb = "2", SeqNumb = "1" });
         _context.Courses.Add(new EffortCourse { TermCode = TestTermCode, Crn = "33333", SubjCode = "T", CrseNumb = "3", SeqNumb = "1" });
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Also add the persons to VIPERContext so MothraId lookup works
         _viperContext.People.Add(new Person
@@ -676,10 +676,10 @@ public sealed class HarvestServiceTests : IDisposable
             LastName = "D",
             FullName = "D, C"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _harvestService.GeneratePreviewAsync(TestTermCode);
+        var result = await _harvestService.GeneratePreviewAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.Warnings);
@@ -706,10 +706,10 @@ public sealed class HarvestServiceTests : IDisposable
             AllowedOnRCourses = true,
             IsActive = true
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - Run harvest (R-course generation happens at end)
-        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert - Harvest completes successfully even with no data
         Assert.True(result.Success);
@@ -735,7 +735,7 @@ public sealed class HarvestServiceTests : IDisposable
             AllowedOnRCourses = true,
             IsActive = true
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Create a HarvestService with a custom phase that adds test data during harvest
         // (ExecuteHarvestAsync clears existing data first, so we must add data during phase execution)
@@ -759,7 +759,7 @@ public sealed class HarvestServiceTests : IDisposable
             _loggerMock);
 
         // Act - Run harvest (R-course detection uses inline EndsWith("R") logic)
-        var result = await harvestServiceWithTestPhase.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result = await harvestServiceWithTestPhase.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert - Harvest completes successfully
         Assert.True(result.Success);
@@ -990,11 +990,11 @@ public sealed class HarvestServiceTests : IDisposable
             AllowedOnRCourses = true,
             IsActive = true
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - Run harvest twice
-        var result1 = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
-        var result2 = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123);
+        var result1 = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
+        var result2 = await _harvestService.ExecuteHarvestAsync(TestTermCode, modifiedBy: 123, TestContext.Current.CancellationToken);
 
         // Assert - Both harvests succeed
         Assert.True(result1.Success);

@@ -22,7 +22,7 @@ namespace Viper.test.ClinicalScheduler
             var serviceId = CardiologyServiceId; // Service with custom permission
 
             // Act
-            var result = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(CardiologyEditPermission, result);
@@ -35,7 +35,7 @@ namespace Viper.test.ClinicalScheduler
             var serviceId = SurgeryServiceId; // Service with null permission
 
             // Act
-            var result = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ClinicalSchedulePermissions.Manage, result);
@@ -48,7 +48,7 @@ namespace Viper.test.ClinicalScheduler
             var serviceId = EmergencyMedicineServiceId; // Service with empty string permission
 
             // Act
-            var result = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.GetRequiredPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ClinicalSchedulePermissions.Manage, result);
@@ -61,7 +61,7 @@ namespace Viper.test.ClinicalScheduler
             var nonExistentServiceId = 999;
 
             // Act
-            var result = await _permissionService.GetRequiredPermissionForServiceAsync(nonExistentServiceId);
+            var result = await _permissionService.GetRequiredPermissionForServiceAsync(nonExistentServiceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ClinicalSchedulePermissions.Manage, result);
@@ -75,7 +75,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -89,7 +89,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -103,7 +103,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -117,7 +117,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
+            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -131,7 +131,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
+            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -145,7 +145,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
+            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -159,7 +159,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithManagePermission();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId);
+            var result = await _permissionService.HasEditPermissionForRotationAsync(rotationId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -172,7 +172,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithManagePermission();
 
             // Act
-            var result = await _permissionService.GetUserEditableServicesAsync();
+            var result = await _permissionService.GetUserEditableServicesAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be returned
@@ -185,7 +185,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutManagePermission();
 
             // Act
-            var result = await _permissionService.GetUserEditableServicesAsync();
+            var result = await _permissionService.GetUserEditableServicesAsync(TestContext.Current.CancellationToken);
 
             // Assert
             // Should return only services where user has specific permissions
@@ -201,7 +201,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithManagePermission();
 
             // Act
-            var result = await _permissionService.GetUserServicePermissionsAsync();
+            var result = await _permissionService.GetUserServicePermissionsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be present
@@ -218,7 +218,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutManagePermission();
 
             // Act
-            var result = await _permissionService.GetUserServicePermissionsAsync();
+            var result = await _permissionService.GetUserServicePermissionsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be present
@@ -236,7 +236,7 @@ namespace Viper.test.ClinicalScheduler
             SetupNullUser();
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -250,7 +250,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithAdminPermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -264,7 +264,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -278,7 +278,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithServiceSpecificPermission(TestUserMothraId, CardiologyEditPermission);
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -292,7 +292,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithServiceSpecificPermission(TestUserMothraId, CardiologyEditPermission);
 
             // Act
-            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId);
+            var result = await _permissionService.HasEditPermissionForServiceAsync(serviceId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -305,7 +305,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithAdminPermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.GetUserEditableServicesAsync();
+            var result = await _permissionService.GetUserEditableServicesAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be returned
@@ -318,7 +318,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.GetUserEditableServicesAsync();
+            var result = await _permissionService.GetUserEditableServicesAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be returned
@@ -331,7 +331,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithAdminPermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.GetUserServicePermissionsAsync();
+            var result = await _permissionService.GetUserServicePermissionsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be present
@@ -345,7 +345,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithEditClnSchedulesPermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.GetUserServicePermissionsAsync();
+            var result = await _permissionService.GetUserServicePermissionsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(4, result.Count); // All services should be present
@@ -360,7 +360,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -374,7 +374,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -388,7 +388,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithoutEditOwnSchedulePermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -402,7 +402,7 @@ namespace Viper.test.ClinicalScheduler
             SetupUserWithEditOwnSchedulePermission(TestUserMothraId);
 
             // Act
-            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId);
+            var result = await _permissionService.CanEditOwnScheduleAsync(instructorScheduleId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);

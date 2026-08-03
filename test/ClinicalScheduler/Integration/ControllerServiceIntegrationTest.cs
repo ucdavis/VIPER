@@ -153,7 +153,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 Abbreviation = "TEST"
             };
             Context.Rotations.Add(rotation);
-            await Context.SaveChangesAsync();
+            await Context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act - Get rotation details
             var result = await controller.GetRotation(100);

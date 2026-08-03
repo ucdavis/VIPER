@@ -100,9 +100,9 @@ public sealed class DashboardServiceTests : IDisposable
         AddCourse(1, "445");   // regular → counted
         AddCourse(2, "456R");  // R-course → excluded
         AddCourse(3, "410");   // regular → counted
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var stats = await _service.GetDashboardStatsAsync(TermCode);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, stats.TotalCourses);
     }
@@ -115,9 +115,9 @@ public sealed class DashboardServiceTests : IDisposable
         AddCourse(3, "420");
         AddRecord(1, courseId: 1, personId: 100);  // course 1 has a record
         AddPerson(100);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var stats = await _service.GetDashboardStatsAsync(TermCode);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, stats.CoursesWithoutInstructors);
     }
@@ -128,9 +128,9 @@ public sealed class DashboardServiceTests : IDisposable
         AddCourse(1, "445");
         // Record exists but for a different term — should not count
         AddRecord(1, courseId: 1, personId: 100, termCode: OtherTermCode);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var stats = await _service.GetDashboardStatsAsync(TermCode);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         // Course 1 has no records for TermCode, so it's "without instructors"
         Assert.Equal(1, stats.CoursesWithoutInstructors);
@@ -141,9 +141,9 @@ public sealed class DashboardServiceTests : IDisposable
     {
         AddCourse(1, "445");   // regular, no records → counted
         AddCourse(2, "456R");  // R-course, no records → NOT counted
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var stats = await _service.GetDashboardStatsAsync(TermCode);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         // Only the regular course counts as "without instructors"
         Assert.Equal(1, stats.CoursesWithoutInstructors);
@@ -155,9 +155,9 @@ public sealed class DashboardServiceTests : IDisposable
         AddCourse(1, "445", custDept: "DVM");
         AddCourse(2, "410", custDept: "VME");
         AddPerson(100, dept: "DVM");
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var stats = await _service.GetDashboardStatsAsync(TermCode, ["DVM"]);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, ["DVM"], TestContext.Current.CancellationToken);
 
         Assert.Equal(1, stats.TotalCourses);
         Assert.Equal(1, stats.CoursesWithoutInstructors);
@@ -168,9 +168,9 @@ public sealed class DashboardServiceTests : IDisposable
     {
         AddCourse(1, "445");
         AddPerson(100);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var stats = await _service.GetDashboardStatsAsync(TermCode, []);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, [], TestContext.Current.CancellationToken);
 
         Assert.Equal(0, stats.TotalCourses);
         Assert.Equal(0, stats.TotalInstructors);
@@ -182,9 +182,9 @@ public sealed class DashboardServiceTests : IDisposable
     public async Task NoInstructorsAlerts_ExcludeRCourses()
     {
         AddCourse(1, "456R");  // R-course with no records → no alert
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode);
+        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain(alerts, a => a.AlertType == "NoInstructors");
     }
@@ -193,9 +193,9 @@ public sealed class DashboardServiceTests : IDisposable
     public async Task NoInstructorsAlerts_IncludeNonRCourses()
     {
         AddCourse(1, "445");  // regular course with no records → alert
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode);
+        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         var noInstructorAlerts = alerts.Where(a => a.AlertType == "NoInstructors").ToList();
         Assert.Single(noInstructorAlerts);
@@ -208,9 +208,9 @@ public sealed class DashboardServiceTests : IDisposable
         AddCourse(1, "445");
         AddRecord(1, courseId: 1, personId: 100);
         AddPerson(100);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode);
+        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain(alerts, a => a.AlertType == "NoInstructors");
     }
@@ -221,9 +221,9 @@ public sealed class DashboardServiceTests : IDisposable
         AddCourse(1, "445");
         // Record exists but for a different term
         AddRecord(1, courseId: 1, personId: 100, termCode: OtherTermCode);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode);
+        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         // Course 1 has no records for TermCode → alert should fire
         Assert.Contains(alerts, a => a.AlertType == "NoInstructors" && a.EntityId == "1");
@@ -234,9 +234,9 @@ public sealed class DashboardServiceTests : IDisposable
     {
         AddCourse(1, "445", custDept: "DVM");  // DVM course, no records
         AddCourse(2, "410", custDept: "VME");  // VME course, no records
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode, ["DVM"]);
+        var alerts = await _service.GetDataHygieneAlertsAsync(TermCode, ["DVM"], TestContext.Current.CancellationToken);
 
         var noInstructorAlerts = alerts.Where(a => a.AlertType == "NoInstructors").ToList();
         Assert.Single(noInstructorAlerts);
@@ -247,7 +247,7 @@ public sealed class DashboardServiceTests : IDisposable
     public async Task Stats_NoCourses_ReturnsZeroCounts()
     {
         // No courses seeded — empty term
-        var stats = await _service.GetDashboardStatsAsync(TermCode);
+        var stats = await _service.GetDashboardStatsAsync(TermCode, ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, stats.TotalCourses);
         Assert.Equal(0, stats.CoursesWithoutInstructors);
