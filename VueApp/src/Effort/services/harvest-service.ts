@@ -8,19 +8,6 @@ function getHarvestUrl(termCode: number) {
 }
 
 /**
- * Progress event from SSE stream.
- */
-type HarvestProgressEvent = {
-    type: "progress" | "complete" | "error"
-    phase: string
-    progress: number
-    message: string
-    detail?: string
-    result?: HarvestResultDto
-    error?: string
-}
-
-/**
  * Service for Harvest API calls.
  */
 export const harvestService = {

@@ -89,30 +89,6 @@ type PercentRolloverPreviewDto = {
     excludedByAudit: PercentRolloverItemPreview[]
 }
 
-/**
- * Progress event from SSE stream for percent rollover.
- */
-type RolloverProgressEvent = {
-    type: "progress" | "complete" | "error"
-    phase: string
-    progress: number
-    message: string
-    detail?: string
-    result?: RolloverResult
-    error?: string
-}
-
-/**
- * Result of percent rollover operation.
- */
-type RolloverResult = {
-    success: boolean
-    assignmentsCreated: number
-    errorMessage?: string
-    sourceAcademicYear: string
-    targetAcademicYear: string
-}
-
 type HarvestPreviewDto = {
     termCode: number
     termName: string
@@ -173,29 +149,6 @@ type ClinicalAssignmentPreview = {
     weeks: number
     existingWeeks: number | null
     roleName: string
-}
-
-/**
- * Progress event from SSE stream for clinical import.
- */
-type ClinicalImportProgressEvent = {
-    type: string
-    progress: number
-    message: string
-    detail?: string
-    result?: ClinicalImportResultDto
-}
-
-/**
- * Result of clinical import operation.
- */
-type ClinicalImportResultDto = {
-    success: boolean
-    recordsAdded: number
-    recordsUpdated: number
-    recordsDeleted: number
-    recordsSkipped: number
-    errorMessage?: string
 }
 
 export type {
