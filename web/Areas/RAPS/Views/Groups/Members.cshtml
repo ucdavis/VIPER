@@ -113,7 +113,7 @@
             },
             methods: {
                 loadGroup: async function () {
-                    this.group = await viperFetch(this, "Groups/" + this.groupId)
+                    this.group = (await viperFetch(this, "Groups/" + this.groupId)) ?? {}
                 },
                 fdate: function (d) {
                     return formatDate(d)

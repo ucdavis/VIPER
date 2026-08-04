@@ -162,7 +162,7 @@
             },
             methods: {
                 loadRole: async function () {
-                    this.role = await viperFetch(this, "Roles/" + this.roleId)
+                    this.role = (await viperFetch(this, "Roles/" + this.roleId)) ?? {}
                 },
                 memberSearch: function (val, update, abort) {
                     if (val.length < 3) {

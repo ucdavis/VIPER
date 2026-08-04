@@ -55,7 +55,7 @@
             },
             async mounted() {
                 this.memberId = this.urlParams.get("memberId")
-                this.member = await viperFetch(this, "members/" + this.memberId)
+                this.member = (await viperFetch(this, "members/" + this.memberId)) ?? {}
                 this.historyDates = (await viperFetch(this, "members/" + this.memberId + "/history/dates"))
                     .map(d => {
                         return {label: formatDate(d), value: d}
