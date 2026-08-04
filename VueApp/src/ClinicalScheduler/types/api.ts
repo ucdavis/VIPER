@@ -2,7 +2,17 @@
  * Shared API types for Clinical Scheduler
  */
 
-import type { ApiError } from "./api-responses"
+/**
+ * Discriminated client-side API error representation used in UI flows.
+ */
+type ApiError =
+    | { kind: "NetworkError"; message: string }
+    | { kind: "HttpError"; status: number; message: string }
+    | { kind: "ValidationError"; message: string; details?: Record<string, string[]> }
+    | { kind: "PermissionError"; message: string }
+    | { kind: "NotFoundError"; message: string }
+    | { kind: "ConflictError"; message: string }
+    | { kind: "UnknownError"; message: string }
 
 // Standard API result wrapper used throughout the clinical scheduler
 interface ApiResult<T> {
@@ -19,4 +29,4 @@ interface TypedApiResult<T> {
     errors: string[] // Keep for backward compatibility
 }
 
-export type { ApiResult, TypedApiResult }
+export type { ApiError, ApiResult, TypedApiResult }
