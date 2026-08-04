@@ -66,6 +66,7 @@ namespace Viper.Areas.Directory.Controllers
         /// <param name="mothraID">MothraID</param>
         /// <returns></returns>
         [Route("{mothraID}")]
+        [Route("/Directory/userInfo/{mothraID}")]
         public async Task<ActionResult> UserInfo(string? mothraID)
         {
             // Validate required parameters
@@ -89,30 +90,20 @@ namespace Viper.Areas.Directory.Controllers
                     return Redirect("/Directory");
                 }
 
+
+
                 // Set permissions for the view
-                userInfo.CanViewDirectoryDetail = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryDetail");
-                userInfo.CanViewStudentID = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.studentID");
-                userInfo.CanViewIAM = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.iam");
-                userInfo.CanViewRoles = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.raps");
-                userInfo.CanViewUCPath = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfo");
-                userInfo.CanViewUCPathDetail = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfoAllDetail");
-                userInfo.CanViewIDCards = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.idcards");
-                userInfo.CanViewKeys = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.keys");
-                userInfo.CanViewLoans = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.loans");
+                userInfo.CanViewDirectoryDetail = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
+                userInfo.CanViewStudentID = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryStudentID");
+                userInfo.CanViewIAM = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.IAM");
+                userInfo.CanViewRoles = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.RAPS");
+                userInfo.CanViewUCPath = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryUCPathInfo");
+                userInfo.CanViewUCPathDetail = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryUCPathInfoAllDetail");
+                userInfo.CanViewIDCards = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.IDCards");
+                userInfo.CanViewKeys = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.Keys");
+                userInfo.CanViewLoans = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.Loans");
                 userInfo.CanViewInstinct = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
                 userInfo.CanViewADGroups = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
-
-                userInfo.CanViewDirectoryDetail = true;
-                userInfo.CanViewStudentID = true;
-                userInfo.CanViewIAM = true;
-                userInfo.CanViewRoles = true;
-                userInfo.CanViewUCPath = true;
-                userInfo.CanViewUCPathDetail = true;
-                userInfo.CanViewIDCards = true;
-                userInfo.CanViewKeys = true;
-                userInfo.CanViewLoans = true;
-                userInfo.CanViewInstinct = true;
-                userInfo.CanViewADGroups = true;
 
                 return View("~/Areas/Directory/Views/UserInfo.cshtml", userInfo);
             }
@@ -134,7 +125,7 @@ namespace Viper.Areas.Directory.Controllers
             return NotFound();
         }
 
-        [Route("/[area]/nav")]
+        [Route("/userinfo/nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
             var nav = new List<NavMenuItem>();

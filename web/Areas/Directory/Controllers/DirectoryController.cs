@@ -1,5 +1,4 @@
 using System.Runtime.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Directory.Models;
@@ -123,17 +122,6 @@ namespace Viper.Areas.Directory.Controllers
             return results;
         }
 
-        /// <summary>
-        /// Directory results
-        /// </summary>
-        /// <param name="mothraID">User ID</param>
-        [Route("userInfo/{mothraID}")]
-        public async Task<IActionResult> DirectoryResult(string mothraID)
-        {
-            // pull in the user based on uid
-            return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
-        }
-
         private static void PopulateVmacsDetails(IndividualSearchResult result, VMACSQuery? vm)
         {
             if (vm?.item != null)
@@ -151,13 +139,11 @@ namespace Viper.Areas.Directory.Controllers
             PopulateLeftNav(context, "viper-home");
             await base.OnActionExecutionAsync(context, next);
         }
-        /// Current AAUD users matching the search term on name or any directory identifier,
-        /// ordered for display. Shared by Get and GetUCD.
+        /// <summary>
+        /// Current AAUD users matching the search term on name or any directory identifier, ordered for display. Shared by Get and GetUCD
         /// </summary>
         /// <remarks>
-        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The
-        /// chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the
-        /// one non-nullable identifier on AaudUser.
+        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the one non-nullable identifier on AaudUser.
         /// </remarks>
         internal static Task<List<AaudUser>> SearchCurrentAaudUsers(AAUDContext aaud, string search)
         {
