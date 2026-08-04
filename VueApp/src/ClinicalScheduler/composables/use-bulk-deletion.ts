@@ -51,20 +51,30 @@ export function useBulkDeletion() {
             // If confirmation was already handled, set isDeleting immediately
             isDeleting.value = true
         } else {
-            try {
-                await $q.dialog({
+            // $q.dialog() returns a DialogChainObject, not a Promise, so awaiting it
+            // resolves immediately and never waits for the user. Gate on the
+            // onOk/onCancel callbacks instead.
+            // oxlint-disable-next-line promise/avoid-new -- wrapping Quasar's callback-based DialogChainObject
+            const confirmed = await new Promise<boolean>((resolve) => {
+                $q.dialog({
                     title: options.confirmationTitle,
                     message: options.confirmationMessage,
                     cancel: true,
                     persistent: true,
                 })
-                // User clicked OK, now set isDeleting and proceed
-                isDeleting.value = true
-            } catch {
+                    .onOk(() => resolve(true))
+                    .onCancel(() => resolve(false))
+                    // A programmatic close fires neither onOk nor onCancel, which would leave
+                    // this await pending forever and wedge the bulk-delete flow.
+                    .onDismiss(() => resolve(false))
+            })
+            if (!confirmed) {
                 // User clicked Cancel or dismissed dialog
                 // Don't set isDeleting, just return
                 return
             }
+            // User clicked OK, now set isDeleting and proceed
+            isDeleting.value = true
         }
 
         try {
