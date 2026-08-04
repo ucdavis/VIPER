@@ -8,9 +8,9 @@ import { reportService } from "../services/report-service"
  */
 
 // Mock the ViperFetch composable
-const mockGet = vi.fn()
-const mockPostForBlob = vi.fn()
-const mockDownloadBlob = vi.fn()
+const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPostForBlob = vi.fn<(...args: unknown[]) => unknown>()
+const mockDownloadBlob = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),

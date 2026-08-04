@@ -9,10 +9,10 @@ import { setActivePinia, createPinia } from "pinia"
  */
 
 // Mock the course service
-const mockGetCourseRelationships = vi.fn()
-const mockGetAvailableChildCourses = vi.fn()
-const mockCreateCourseRelationship = vi.fn()
-const mockDeleteCourseRelationship = vi.fn()
+const mockGetCourseRelationships = vi.fn<(...args: unknown[]) => any>()
+const mockGetAvailableChildCourses = vi.fn<(...args: unknown[]) => any>()
+const mockCreateCourseRelationship = vi.fn<(...args: unknown[]) => any>()
+const mockDeleteCourseRelationship = vi.fn<(...args: unknown[]) => any>()
 
 vi.mock("../services/course-service", () => ({
     courseService: {

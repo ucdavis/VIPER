@@ -9,9 +9,9 @@ import { setActivePinia, createPinia } from "pinia"
  */
 
 // Mock the instructor service
-const mockUpdateInstructor = vi.fn()
-const mockGetDepartments = vi.fn()
-const mockGetReportUnits = vi.fn()
+const mockUpdateInstructor = vi.fn<(...args: unknown[]) => unknown>()
+const mockGetDepartments = vi.fn<(...args: unknown[]) => unknown>()
+const mockGetReportUnits = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("../services/instructor-service", () => ({
     instructorService: {
         updateInstructor: (...args: unknown[]) => mockUpdateInstructor(...args),

@@ -3,16 +3,18 @@ import { InstructorScheduleService } from "../services/instructor-schedule-servi
 
 vi.mock("../services/instructor-schedule-service")
 vi.mock("../composables/use-schedule-state-updater", () => ({
-    useScheduleStateUpdater: vi.fn(() => ({
-        addScheduleToWeek: vi.fn(),
-        removeScheduleFromWeek: vi.fn(),
-        updateSchedulePrimaryStatus: vi.fn(),
+    useScheduleStateUpdater: vi.fn<() => unknown>(() => ({
+        addScheduleToWeek: vi.fn<(...args: unknown[]) => unknown>(),
+        removeScheduleFromWeek: vi.fn<(...args: unknown[]) => unknown>(),
+        updateSchedulePrimaryStatus: vi.fn<(...args: unknown[]) => unknown>(),
     })),
 }))
 
 // Mock structuredClone to handle test data
 // eslint-disable-next-line prefer-structured-clone -- Mocking structuredClone for tests
-globalThis.structuredClone = vi.fn((obj) => JSON.parse(JSON.stringify(obj)))
+globalThis.structuredClone = vi.fn<(value: unknown) => unknown>((obj) =>
+    JSON.parse(JSON.stringify(obj)),
+) as typeof structuredClone
 
 describe("useScheduleUpdatesWithRollback - Operation Queue", () => {
     let mockScheduleData: any = null
@@ -35,7 +37,7 @@ describe("useScheduleUpdatesWithRollback - Operation Queue", () => {
 
     it("should queue concurrent add operations for sequential processing", async () => {
         const { addScheduleWithRollback } = useScheduleUpdatesWithRollback()
-        const onSuccess = vi.fn()
+        const onSuccess = vi.fn<(...args: unknown[]) => unknown>()
 
         const callOrder: number[] = []
         let callIndex = 0
@@ -183,8 +185,8 @@ describe("useScheduleUpdatesWithRollback - Error Handling", () => {
 
     it("should continue processing queue even when an operation fails", async () => {
         const { addScheduleWithRollback } = useScheduleUpdatesWithRollback()
-        const onError = vi.fn()
-        const onSuccess = vi.fn()
+        const onError = vi.fn<(...args: unknown[]) => unknown>()
+        const onSuccess = vi.fn<(...args: unknown[]) => unknown>()
 
         // First call will fail, second and third will succeed
         vi.mocked(InstructorScheduleService.addInstructor)
