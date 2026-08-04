@@ -27,8 +27,7 @@ namespace Viper.Areas.RAPS.Controllers
         private bool GroupExists(int groupId)
         {
             var group = _context.OuGroups
-                .Where(gr => gr.OugroupId == groupId)
-                .FirstOrDefault();
+                .FirstOrDefault(gr => gr.OugroupId == groupId);
             return group != null;
         }
 
