@@ -62,6 +62,22 @@
         U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* UC Davis brand tokens. _VIPERLayout.cshtml sets only the Quasar --q-* roles (via
+   js/ucdavis-colors.js), and the Vue-scoped tokens in VueApp/src/styles/colors.css are
+   not loaded on Razor pages, so --ucdavis-* has to be declared here for var() to resolve.
+   Same approach, and the same mirroring obligation, as welcome.css: these are the exact
+   canonical hexes from colors.css, so any change there should be mirrored here. */
+:root {
+    --ucdavis-blue-80: #1d4776;
+    --ucdavis-gold-40: #ffe599;
+    --ucdavis-black-60: #666666;
+
+    /* Not a UC Davis brand color: the official blue ramp bottoms out at blue-10
+       (#cdd6e0) and this sits lighter still. Named as the VIPER-local tint it is
+       rather than given a fake brand-ramp name. */
+    --viper-leftnav-active-tint: #e6ecf2;
+}
+
 html {
     font-size: 14px;
     position: relative;
@@ -102,12 +118,63 @@ html {
 }
 #mainNavPlaceholder {
     height: 50px;
-    background-color: #1d4776; /* ucdavis-blue-80 */
+    background-color: var(--ucdavis-blue-80);
 }
 
-/*Top nav/header styles*/
+/* Top nav/header styles. Proxima Nova brand chrome for the blue header bar; body
+   content and the footer inherit Roboto from Quasar (DESIGN.md sets footer text as
+   Roboto 500, and the Two-Font Rule keeps the two off each other's surfaces).
+   Medium (500) per UC Davis guidelines. The gold section nav overrides back to
+   Roboto below. */
 #mainLayoutHeader {
     background-color: #022851; /* ucdavis-blue-100 */
+    font-family:
+        "Proxima Nova",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+    font-weight: 500;
+}
+
+/* Header brand mark: gold square with the white rod of asclepius, paired
+   with the SVM name lockup. Sized to align with the q-toolbar's items-end. */
+.viper-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.viper-brand__mark {
+    width: 2.75rem;
+    height: 2.75rem;
+    background-color: #ffbf00; /* ucdavis-gold-100 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.viper-brand__mark img {
+    height: 2.5rem; /* nearly fills the 2.75rem mark, leaving a thin inset */
+    width: auto;
+    display: block;
+}
+
+.viper-brand__name {
+    height: 2.75rem;
+    width: auto;
+    display: block;
+}
+
+/* Below lt-md the toolbar can't fit the wide lockup plus the nav buttons and
+   profile, so keep only the rod mark. The splash header has room and is unaffected. */
+@media (max-width: 1023.98px) {
+    .viper-brand__name {
+        display: none;
+    }
 }
 
 /* Proxima Nova brand chrome for the blue header bar and the footer; body
@@ -202,7 +269,12 @@ html {
 }
 
 #mainLayoutHeaderSections .selectedTopNav {
-    background-color: #ffe599; /* ucdavis-gold-40 */
+    background-color: var(--ucdavis-gold-40);
+}
+
+/* Quasar's overlay-drawer glow bleeds a stray line down the left edge. */
+.q-drawer--mobile .q-layout__shadow:after {
+    box-shadow: none;
 }
 
 /* Quasar's overlay-drawer glow bleeds a stray line down the left edge. */
@@ -250,7 +322,7 @@ html {
 }
 
 #leftNavMenu .leftNavActiveSecondary {
-    background-color: #e6ecf2; /* lighter ucdavis-blue tint */
+    background-color: var(--viper-leftnav-active-tint);
     color: #022851; /* ucdavis-blue-100 */
 }
 

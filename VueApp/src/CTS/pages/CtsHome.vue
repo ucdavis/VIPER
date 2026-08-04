@@ -31,6 +31,8 @@ import { useQuasar } from "quasar"
 import { ref, inject, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
+import { buildLoginUrl } from "@/composables/RequireLogin"
+import { applicationBase } from "@/shared/application-base"
 import { useUserStore } from "@/store/UserStore"
 
 const route = useRoute()
@@ -49,10 +51,9 @@ async function initPage() {
     const { get } = useFetch()
     const r = await get(baseUrl + "loggedInUser")
     if (!r.success || !r.result.userId) {
-        window.location.href =
-            import.meta.env.VITE_VIPER_HOME +
-            "welcome?ReturnUrl=" +
-            encodeURIComponent(import.meta.env.VITE_VIPER_HOME + "CTS/" + window.location.search)
+        // Through buildLoginUrl so this shares the app-base normalization and the
+        // open-redirect validation with every other login redirect.
+        globalThis.location.href = buildLoginUrl(`${applicationBase()}/CTS/${globalThis.location.search}`)
     } else {
         userStore.loadUser(r.result)
     }

@@ -58,16 +58,9 @@ namespace Viper.Controllers
         {
             if (User.Identity?.IsAuthenticated != true)
             {
-                // Anonymous splash served in-place at "/": mirror /welcome's
-                // [ResponseCache(NoStore, Location=None)] so it isn't cached. The
-                // authenticated home response below keeps its default caching.
-                Response.Headers["Cache-Control"] = "no-store,no-cache";
-                Response.Headers["Pragma"] = "no-cache";
-
-                ViewData["ReturnUrl"] = null;
-                ViewData["Hero"] = PickRandomHeroKey();
-                ViewData["DestinationLabel"] = null;
-                return View("Welcome");
+                // Anonymous splash served in-place at "/". The authenticated home response
+                // below keeps its default caching.
+                return WelcomeSplash(returnUrl: null, destinationLabel: null);
             }
             return View();
         }
@@ -89,12 +82,11 @@ namespace Viper.Controllers
             ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
 
             // In a subpath deployment the ReturnUrl carries the PathBase (e.g. "/2/ClinicalScheduler"),
-            // so strip it once here — the loop-guard, classifier, and label resolver all need it
-            // root-relative. The full ReturnUrl is preserved for the redirect/links back.
+            // so strip it once here — the classifier and label resolver both need it root-relative.
+            // The full ReturnUrl is preserved for the redirect/links back.
             var relativeReturnUrl = StripPathBase(ReturnUrl, Request.PathBase.Value);
 
-            // Null out ReturnUrl if it is not local, or if it points back to /welcome or /login (would redirect-loop).
-            if (!Url.IsLocalUrl(ReturnUrl) || IsWelcomeOrLoginPath(relativeReturnUrl))
+            if (!IsSafeReturnUrl(ReturnUrl))
             {
                 ReturnUrl = null;
                 relativeReturnUrl = null;
@@ -115,9 +107,20 @@ namespace Viper.Controllers
                 return RedirectToAction(nameof(Login), new { ReturnUrl });
             }
 
-            ViewData["ReturnUrl"] = ReturnUrl;
+            return WelcomeSplash(ReturnUrl, WelcomePageHelper.ResolveDestinationLabel(relativeReturnUrl));
+        }
+
+        // Single owner of the splash's ViewData and cache-header contract, shared by /welcome and by
+        // the anonymous "/" landing. Welcome carries [ResponseCache(NoStore, Location=None)]; Index
+        // has no such attribute, so the headers are set here to keep the two responses identical.
+        private IActionResult WelcomeSplash(string? returnUrl, string? destinationLabel)
+        {
+            Response.Headers["Cache-Control"] = "no-store,no-cache";
+            Response.Headers["Pragma"] = "no-cache";
+
+            ViewData["ReturnUrl"] = returnUrl;
             ViewData["Hero"] = PickRandomHeroKey();
-            ViewData["DestinationLabel"] = WelcomePageHelper.ResolveDestinationLabel(relativeReturnUrl);
+            ViewData["DestinationLabel"] = destinationLabel;
 
             return View("Welcome");
         }
@@ -142,20 +145,66 @@ namespace Viper.Controllers
         private static string? NormalizeAppRelativeUrl(string? returnUrl)
             => returnUrl != null && returnUrl.StartsWith("~/") ? returnUrl[1..] : returnUrl;
 
+        // The ReturnUrl contract shared by every auth entry point (/welcome, /login, /CasLogin), so the
+        // three cannot drift apart: the URL must be local, must not point back at an auth entry point,
+        // and must not carry a dot-segment. Normalizes and strips the PathBase internally, since the
+        // path guards below all compare root-relative paths.
+        // internal (not private) so the shared guard is unit-testable via InternalsVisibleTo.
+        internal bool IsSafeReturnUrl(string? returnUrl)
+        {
+            if (!Url.IsLocalUrl(returnUrl))
+            {
+                return false;
+            }
+
+            var path = StripPathBase(NormalizeAppRelativeUrl(returnUrl), Request.PathBase.Value);
+            return !IsAuthEntryPath(path) && !ContainsDotSegment(path);
+        }
+
+        // Everything before the query or fragment: the ReturnUrl guards all classify on the path alone.
+        private static string PathWithoutQuery(string url)
+        {
+            int cut = url.IndexOfAny(['?', '#']);
+            return cut >= 0 ? url[..cut] : url;
+        }
+
+        // The auth entry points, which must never be a ReturnUrl: /welcome and /login would
+        // redirect-loop, and /caslogin would re-enter the ticket handler without a ticket and
+        // 403 a user who just signed in successfully.
+        private static readonly string[] _authEntryPaths = ["/welcome", "/login", "/caslogin"];
+
         // internal (not private) so the redirect-loop guard is unit-testable via InternalsVisibleTo.
-        internal static bool IsWelcomeOrLoginPath(string? url)
+        internal static bool IsAuthEntryPath(string? url)
         {
             if (string.IsNullOrEmpty(url))
             {
                 return false;
             }
 
-            int cut = url.IndexOfAny(['?', '#']);
-            var path = cut >= 0 ? url[..cut] : url;
-            path = path.TrimEnd('/');
+            var path = PathWithoutQuery(url).TrimEnd('/');
 
-            return path.Equals("/welcome", StringComparison.OrdinalIgnoreCase)
-                || path.Equals("/login", StringComparison.OrdinalIgnoreCase);
+            return _authEntryPaths.Contains(path, StringComparer.OrdinalIgnoreCase);
+        }
+
+        // Browsers resolve dot-segments before issuing the request, and the URL spec counts the
+        // percent-encoded spellings too: "%2e" is ".", and ".%2e"/"%2e."/"%2e%2e" are "..", all
+        // ASCII case-insensitive.
+        private static readonly string[] _dotSegments = [".", "..", "%2e", "%2e%2e", ".%2e", "%2e."];
+
+        // The Vue guard rejects "../" and any "%2e" outright (RequireLogin.ts). Match it here: a
+        // ReturnUrl like "/Effort/../api/x" passes IsLocalUrl and the root-relative /api check, but the
+        // browser resolves it to "/api/x" after the CAS round trip and dumps the user on a JSON 401.
+        // internal (not private) so it is unit-testable via InternalsVisibleTo.
+        internal static bool ContainsDotSegment(string? url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            return PathWithoutQuery(url)
+                .Split('/')
+                .Any(segment => _dotSegments.Contains(segment, StringComparer.OrdinalIgnoreCase));
         }
 
         // Controllers under web/Areas live in the "Viper.Areas.<Area>.…" namespace. Deriving the area
@@ -164,11 +213,15 @@ namespace Viper.Controllers
         // no hand-maintained list: add an area the usual way and it is picked up automatically.
         private const string AreaNamespacePrefix = "Viper.Areas.";
 
+        // Reference type (not a tuple) so the field assignment below is atomic: a multi-word struct
+        // could be read torn by a concurrent request mid-write.
+        private sealed record AreaNameCache(ActionDescriptorCollection Source, HashSet<string> Areas);
+
         // Cached per descriptor collection: the collection is immutable and replaced wholesale
         // (new instance) only when endpoints change, so the area set is derived once instead of
         // per anonymous /welcome request. Benign race: concurrent first requests may each compute
         // the set; last writer wins with an identical result.
-        private static (ActionDescriptorCollection Source, HashSet<string> Areas)? _areaNamesCache;
+        private static AreaNameCache? _areaNamesCache;
 
         // The set of top-level area names (e.g. "Effort", "ClinicalScheduler"). Used to tell an area
         // landing page ("/Effort" → splash) apart from a deep link ("/Effort/Reports" → CAS).
@@ -176,7 +229,7 @@ namespace Viper.Controllers
         {
             var descriptors = actionDescriptorProvider.ActionDescriptors;
             var cache = _areaNamesCache;
-            if (cache == null || !ReferenceEquals(cache.Value.Source, descriptors))
+            if (cache == null || !ReferenceEquals(cache.Source, descriptors))
             {
                 var areas = descriptors.Items
                     .OfType<ControllerActionDescriptor>()
@@ -184,11 +237,11 @@ namespace Viper.Controllers
                     .Where(area => area != null)
                     .Select(area => area!)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                cache = (descriptors, areas);
+                cache = new AreaNameCache(descriptors, areas);
                 _areaNamesCache = cache;
             }
 
-            return cache.Value.Areas;
+            return cache.Areas;
         }
 
         // Extracts the area segment from a controller namespace, e.g. "Viper.Areas.Effort.Controllers"
@@ -217,8 +270,7 @@ namespace Viper.Controllers
                 return true;
             }
 
-            int cut = url.IndexOfAny(['?', '#']);
-            var path = (cut >= 0 ? url[..cut] : url).Trim('/');
+            var path = PathWithoutQuery(url).Trim('/');
 
             if (path.Length == 0)
             {
@@ -307,7 +359,7 @@ namespace Viper.Controllers
             // browser URL to CAS.
             ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
 
-            if (!Url.IsLocalUrl(ReturnUrl))
+            if (!IsSafeReturnUrl(ReturnUrl))
             {
                 ReturnUrl = null;
             }
@@ -579,7 +631,10 @@ namespace Viper.Controllers
                     var user = new ClaimsPrincipal(claimsIdentity);
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, user);
 
-                    if (!Url.IsLocalUrl(returnUrl))
+                    // Same contract as /welcome and /login. This is the redirect the browser actually
+                    // follows after CAS, so a ReturnUrl that arrived via a hand-crafted service URL
+                    // (bypassing those two) is dropped here too.
+                    if (!IsSafeReturnUrl(returnUrl))
                     {
                         returnUrl = null;
                     }
