@@ -133,15 +133,9 @@ describe("PhotoGallery - Ross Checkbox Visibility", () => {
                 { label: "2026 (V4)", year: 2026, classLevel: "V4" },
             ])
 
-            if (!selectedStudentListYear.value) {
-                expect(true).toBeTruthy() // Should return false when no year selected
-                return
-            }
-
             const selectedYear = classYearOptions.value.find((cy) => cy.year === selectedStudentListYear.value)
             const showRossCheckboxInList = selectedYear?.classLevel === "V3" || selectedYear?.classLevel === "V4"
 
-            // This code won't execute due to early return
             expect(showRossCheckboxInList).toBeFalsy()
         })
 
