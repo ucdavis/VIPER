@@ -64,7 +64,7 @@ namespace Viper.Areas.Students.Services
         // and our own home-grown checker flag 3+ consecutive whitespace chars
         // ("RepeatedBlanks"); collapsing them on the way out is a safe no-op for
         // clean data and a structural improvement for messy data.
-        private static readonly Regex RepeatedWhitespaceRegex = new(@"\s{2,}", RegexOptions.Compiled);
+        private static readonly Regex RepeatedWhitespaceRegex = new(@"\s{2,}", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
         private static string CollapseWhitespace(string? text) =>
             string.IsNullOrEmpty(text) ? string.Empty : RepeatedWhitespaceRegex.Replace(text, " ").Trim();
