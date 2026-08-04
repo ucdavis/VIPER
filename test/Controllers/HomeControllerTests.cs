@@ -110,11 +110,67 @@ public sealed class HomeControllerTests
     [InlineData("/login", true)]
     [InlineData("/LOGIN?ReturnUrl=/x", true)]
     [InlineData("/welcome#frag", true)]
+    [InlineData("/caslogin", true)] // re-entering the ticket handler without a ticket would 403
+    [InlineData("/CasLogin/", true)]
     [InlineData("/RAPS/Roles", false)]
     [InlineData("/welcomepage", false)]
-    public void IsWelcomeOrLoginPath_DetectsLoopTargets(string? url, bool expected)
+    [InlineData("/caslogins", false)]
+    public void IsAuthEntryPath_DetectsLoopTargets(string? url, bool expected)
     {
-        Assert.Equal(expected, HomeController.IsWelcomeOrLoginPath(url));
+        Assert.Equal(expected, HomeController.IsAuthEntryPath(url));
+    }
+
+    // Parity with the Vue guard, which rejects "../" and any "%2e" outright. A dot-segment survives
+    // IsLocalUrl and the root-relative /api check, then resolves somewhere else once the browser
+    // follows it — including in the percent-encoded spellings the URL spec also resolves.
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("/Effort/Reports", false)]
+    [InlineData("/Effort/..api/x", false)] // ".." only counts as a whole segment
+    [InlineData("/dots../x", false)]
+    [InlineData("/Effort/%2ename/x", false)] // encoded dot only counts as a whole segment too
+    [InlineData("/Effort/../api/secret", true)]
+    [InlineData("/2/Effort/../api/secret", true)]
+    [InlineData("/./api/secret", true)]
+    [InlineData("/Effort/..", true)]
+    [InlineData("/Effort/../api?tab=1", true)]
+    [InlineData("/Effort/%2e%2e/api/secret", true)] // browsers resolve the encoded form the same way
+    [InlineData("/Effort/%2E%2E/api/secret", true)] // and the match is ASCII case-insensitive
+    [InlineData("/Effort/.%2e/api/secret", true)] // mixed encoding counts as ".." too
+    [InlineData("/Effort/%2e./api/secret", true)]
+    [InlineData("/%2e/api/secret", true)]
+    public void ContainsDotSegment_DetectsTraversal(string? url, bool expected)
+    {
+        Assert.Equal(expected, HomeController.ContainsDotSegment(url));
+    }
+
+    // The single ReturnUrl contract shared by /welcome, /login and /CasLogin, exercised under a
+    // subpath deployment so the base-prefixed and "~/" spellings are covered in one place.
+    [Theory]
+    [InlineData("/Effort", true)]
+    [InlineData("/2/Effort", true)]
+    [InlineData("~/Effort", true)]
+    [InlineData("/2/Effort/Reports?year=2026", true)]
+    [InlineData("/welcomepage", true)] // near-match on an entry point is a normal page
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("https://evil.com/phish", false)]
+    [InlineData("//evil.com", false)]
+    [InlineData("/welcome", false)] // redirect loop
+    [InlineData("/login", false)]
+    [InlineData("/caslogin", false)] // ticketless re-entry 403s a user who just signed in
+    [InlineData("/2/welcome", false)] // base-prefixed entry points must be caught too
+    [InlineData("/2/CasLogin/", false)]
+    [InlineData("~/welcome", false)] // app-relative spelling must not slip past
+    [InlineData("/Effort/../api/secret", false)]
+    [InlineData("/2/Effort/%2e%2e/api/secret", false)]
+    public void IsSafeReturnUrl_EnforcesSharedContract(string? returnUrl, bool expected)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        Assert.Equal(expected, _controller.IsSafeReturnUrl(returnUrl));
     }
 
     // Splash appears only for the front door (an empty return path or the bare site root) and for a
@@ -258,14 +314,19 @@ public sealed class HomeControllerTests
         Assert.Equal("/2/ClinicalScheduler/rotation", redirect.RouteValues?["ReturnUrl"]);
     }
 
-    // Under a subpath deployment the loop targets arrive base-prefixed ("/2/welcome", "/2/login").
-    // The base is stripped before the loop-guard so they are still caught: the splash renders with a
-    // null ReturnUrl rather than bouncing back out to CAS. Regression guard for the pre-strip loop-guard.
+    // Under a subpath deployment every unsafe ReturnUrl arrives base-prefixed, so the base has to come
+    // off before the guards run. Both classes are covered here: auth entry points that would loop (or
+    // 403 on a ticketless re-entry), and dot-segments the browser resolves elsewhere after the CAS round
+    // trip. In each case the splash renders with a null ReturnUrl rather than bouncing back out to CAS.
     [Theory]
     [InlineData("/2/welcome")]
     [InlineData("/2/login")]
     [InlineData("/2/Welcome/")]
-    public void Welcome_Anonymous_SubpathLoopTarget_DropsReturnUrl(string returnUrl)
+    [InlineData("/2/caslogin")] // would re-enter the ticket handler ticketless and 403 after a good sign-in
+    [InlineData("/Effort/../api/secret")]
+    [InlineData("/2/Effort/../api/secret")]
+    [InlineData("/2/Effort/%2e%2e/api/secret")] // browsers resolve the encoded spelling the same way
+    public void Welcome_Anonymous_SubpathUnsafeReturnUrl_DropsReturnUrl(string returnUrl)
     {
         Arrange(authenticated: false);
         _controller.HttpContext.Request.PathBase = "/2";
@@ -406,5 +467,64 @@ public sealed class HomeControllerTests
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.DoesNotContain("evil.com", redirect.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // A dot-segment ReturnUrl passes IsLocalUrl and the root-relative /api check, but the browser
+    // resolves it after the CAS round trip: "/2/Effort/../api/secret" lands on "/2/api/secret" and
+    // dumps the user on a JSON 401. Dropped up front instead, matching the Vue guard.
+    // Asserting on "Effort" rather than "api/secret": the ReturnUrl is double URL-encoded into the CAS
+    // service URL, so any assertion containing a slash would pass even with the guard removed.
+    [Theory]
+    [InlineData("/Effort/../api/secret")]
+    [InlineData("/2/Effort/../api/secret")]
+    [InlineData("~/Effort/../api/secret")]
+    [InlineData("/2/Effort/%2e%2e/api/secret")]
+    public void Login_DoesNotForwardDotSegmentReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Login(returnUrl);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.DoesNotContain("Effort", redirect.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // /login applies the same auth-entry guard as /welcome, so "/login?ReturnUrl=/welcome" cannot
+    // bounce the user back to the splash after a successful sign-in. ("/login" and "/caslogin" are
+    // covered by IsSafeReturnUrl above: both are substrings of the CAS service URL, so they can't be
+    // asserted against the redirect target here.)
+    [Theory]
+    [InlineData("/welcome")]
+    [InlineData("/2/welcome")]
+    [InlineData("~/welcome")]
+    public void Login_DoesNotForwardAuthEntryReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Login(returnUrl);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.DoesNotContain("welcome", redirect.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // The anonymous "/" splash must carry the same no-store headers as /welcome, which gets them from
+    // [ResponseCache]. Both now route through the shared WelcomeSplash helper.
+    [Fact]
+    public void Index_And_Welcome_Anonymous_EmitMatchingNoStoreHeaders()
+    {
+        Arrange(authenticated: false);
+        _controller.Index();
+        var indexCacheControl = _controller.Response.Headers["Cache-Control"].ToString();
+        var indexPragma = _controller.Response.Headers["Pragma"].ToString();
+
+        Arrange(authenticated: false);
+        _controller.Welcome();
+
+        Assert.Equal("no-store,no-cache", indexCacheControl);
+        Assert.Equal("no-cache", indexPragma);
+        Assert.Equal(indexCacheControl, _controller.Response.Headers["Cache-Control"].ToString());
+        Assert.Equal(indexPragma, _controller.Response.Headers["Pragma"].ToString());
     }
 }

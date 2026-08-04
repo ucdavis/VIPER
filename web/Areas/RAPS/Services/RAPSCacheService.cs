@@ -16,7 +16,7 @@ namespace Viper.Areas.RAPS.Services
 
         public void ClearCachedRolesAndPermissionsForUser(string mothraId)
         {
-            AaudUser? user = aaudContext.AaudUsers.Where(u => u.MothraId == mothraId).FirstOrDefault();
+            AaudUser? user = aaudContext.AaudUsers.FirstOrDefault(u => u.MothraId == mothraId);
             if (user != null)
             {
                 userHelper.ClearCachedRolesAndPermissions(user);

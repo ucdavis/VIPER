@@ -46,7 +46,7 @@
             },
             methods: {
                 loadMember: async function () {
-                    this.member = await viperFetch(this, "Members/" + this.memberId)
+                    this.member = (await viperFetch(this, "Members/" + this.memberId)) ?? {}
                 }
             },
             async mounted() {

@@ -21,7 +21,6 @@
                     </div>
                     <q-btn
                         :href="loginHref"
-                        type="a"
                         color="primary"
                         no-caps
                         label="Sign in"
