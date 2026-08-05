@@ -345,7 +345,7 @@
     @if (Model.CanViewRoles && Model.SystemRoles.Any())
     {
         <div class="roles">
-            <h2><a href="/RAPS/" target="_blank">System Roles</a></h2>
+            <h2><a href="@HttpHelper.GetRootURL()/raps/VIPER/Rolelist" target="_blank">System Roles</a></h2>
             <table>
                 <thead>
                     <tr>
@@ -387,7 +387,7 @@
     @if (Model.CanViewRoles && Model.SystemPermissions.Any())
     {
         <div class="permissions">
-            <h2>System Permissions</h2>
+            <h2><a href="@HttpHelper.GetRootURL()/raps/VIPER/Permissionlist" target="_blank">System Permissions</a></h2>
             <ul class="tree">
                 @foreach (var permission in Model.SystemPermissions.Where(p => p.Count > 0))
                 {
@@ -435,7 +435,7 @@
     @if (Model.CanViewUCPath)
     {
         <div class="ucpath">
-            <h2>UC Path</h2>
+            <h2><a href="https://ucpath.ucdavis.edu/" target="_blank">UC Path</a></h2>
             <ul>
                 <li><strong>Roles:</strong> @(Model.UCPathFlags.Any() ? string.Join(", ", Model.UCPathFlags) : "none")</li>
             </ul>
