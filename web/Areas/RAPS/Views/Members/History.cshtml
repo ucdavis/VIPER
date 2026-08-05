@@ -50,13 +50,13 @@
             },
             methods: {
                 getAuditLog: async function() {
-                    this.auditLog = await viperFetch(this, "members/" + this.memberId + "/history?startDate=" + this.startDate.value)
+                    this.auditLog = (await viperFetch(this, "members/" + this.memberId + "/history?startDate=" + this.startDate.value)) ?? []
                 }
             },
             async mounted() {
                 this.memberId = this.urlParams.get("memberId")
                 this.member = (await viperFetch(this, "members/" + this.memberId)) ?? {}
-                this.historyDates = (await viperFetch(this, "members/" + this.memberId + "/history/dates"))
+                this.historyDates = ((await viperFetch(this, "members/" + this.memberId + "/history/dates")) ?? [])
                     .map(d => {
                         return {label: formatDate(d), value: d}
                     })

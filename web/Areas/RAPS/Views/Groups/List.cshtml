@@ -136,11 +136,11 @@
             },
             async mounted() {
                 this.groupTable.load(this)
-                this.ouGroups = await viperFetch(this, "Groups/OU")
+                this.ouGroups = (await viperFetch(this, "Groups/OU")) ?? []
                 this.ouGroups = this.ouGroups
                     .map(g => ({ label: "OU: " + g.cn, value: g.distinguishedName }))
 
-                this.adGroups = await viperFetch(this, "Groups/AD")
+                this.adGroups = (await viperFetch(this, "Groups/AD")) ?? []
                 this.adGroups = this.adGroups
                     .map(g => ({ label: "AD: " + (g.displayName ?? g.samAccountName), value: g.distinguishedName }))
 

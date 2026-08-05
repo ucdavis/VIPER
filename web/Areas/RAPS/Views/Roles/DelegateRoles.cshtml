@@ -34,8 +34,8 @@
             },
             methods: {
                 loadRoles: async function() {
-                    var childRoles = await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))
-                    var allRoles = (await viperFetch(this, "Roles?Application=0"))
+                    var childRoles = (await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))) ?? []
+                    var allRoles = ((await viperFetch(this, "Roles?Application=0")) ?? [])
                         .filter(r => childRoles.find(cr => cr.roleId === r.roleId) === undefined)
                     this.selectedRoles = childRoles;//.reduce((result, cr) => { result.push(cr.roleId); return result }, [])
                     this.roles = childRoles.concat(allRoles)

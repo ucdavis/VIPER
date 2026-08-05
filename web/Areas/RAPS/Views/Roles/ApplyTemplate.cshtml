@@ -142,7 +142,8 @@
             },
             async mounted() {
                 this.roleTemplateId = this.urlParams.get("roleTemplateId")
-                this.roleTemplate = (await viperFetch(this, "RoleTemplates/" + this.roleTemplateId)) ?? {}
+                // roleTemplateRoles must be an array: the VMACS push path calls .reduce() on it.
+                this.roleTemplate = (await viperFetch(this, "RoleTemplates/" + this.roleTemplateId)) ?? { roleTemplateRoles: [] }
                 this.VMACSPush = this.urlPath.indexOf("/VMACS.") > 0
             },
             watch: {
