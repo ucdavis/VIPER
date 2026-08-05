@@ -12,7 +12,7 @@
         :pagination="{rowsPerPage:0}"
         :loading="loadingRoles">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="primary" padding="xs md" :disable="loadFailed" @@click="submitChanges()" label="Submit changes"></q-btn>
+        <q-btn dense no-caps color="primary" padding="xs md" :disable="!rolesLoaded" @@click="submitChanges()" label="Submit changes"></q-btn>
     </template>
 </q-table>
 
@@ -26,7 +26,8 @@
                     roles: [],
                     selectedRoles: [],
                     loadingRoles: false,
-                    loadFailed: false,
+                    // Starts false so the page is disabled until the initial read succeeds.
+                    rolesLoaded: false,
                     columns: [
                         { name: "role", label: "Role", field: "friendlyName", align: "left" },
                         { name: "description", label: "Description", field: "description", align: "left" }
@@ -35,20 +36,22 @@
             },
             methods: {
                 loadRoles: async function() {
+                    this.rolesLoaded = false
                     var childRoles = await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))
                     var allRoles = await viperFetch(this, "Roles?Application=0")
-                    // A failed read must not look like "nothing is selected". Submitting
-                    // that would PUT an empty list and wipe the existing delegations.
-                    this.loadFailed = childRoles === undefined || allRoles === undefined
-                    if (this.loadFailed) {
+                    // A failed or still-pending read must not look like "nothing is
+                    // selected": submitting that would PUT an empty list and wipe the
+                    // existing delegations. Stay disabled until both reads succeed.
+                    if (childRoles === undefined || allRoles === undefined) {
                         return
                     }
                     this.selectedRoles = childRoles
                     this.roles = childRoles.concat(
                         allRoles.filter(r => childRoles.find(cr => cr.roleId === r.roleId) === undefined))
+                    this.rolesLoaded = true
                 },
                 submitChanges: async function() {
-                    if (this.loadFailed) {
+                    if (!this.rolesLoaded) {
                         return
                     }
                     var roleIds = this.selectedRoles.reduce( (result, role) => {
@@ -67,7 +70,7 @@
                 }
             },
             async mounted() {
-                this.loadRoles()
+                await this.loadRoles()
                 this.role = (await viperFetch(this, "Roles/" + this.urlParams.get("roleId"))) ?? {}
                 
             }
