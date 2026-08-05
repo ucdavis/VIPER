@@ -103,7 +103,7 @@ internal static class ViteProxyHelpers
         var path = context.Request.Path;
 
         // Skip proxying built asset files with hashes - serve as static files
-        if (path.HasValue && AssetHashRegex.IsMatch(path.Value))
+        if (path.HasValue && IsMatchWithinTimeout(AssetHashRegex, path.Value))
         {
             return false;
         }
@@ -127,17 +127,34 @@ internal static class ViteProxyHelpers
             var pathValue = path.Value;
 
             // Match Vue app routes: /CTS, /Computing, /Students (exact match or with sub-paths)
-            if (_vueAppRouteRegex!.IsMatch(pathValue))
+            if (IsMatchWithinTimeout(_vueAppRouteRegex!, pathValue))
             {
                 return true;
             }
 
             // Match: /AppName/file.ext (assets in app subdirectories)
             // OR: /appname.ext (root-level entry files like /cts.ts)
-            return _vueAppAssetRegex!.IsMatch(pathValue);
+            return IsMatchWithinTimeout(_vueAppAssetRegex!, pathValue);
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Runs a match under the configured timeout. A timed-out match is treated as a
+    /// non-match so the request falls through to normal handling, which is how it
+    /// behaved before timeouts were added, rather than surfacing as a 500.
+    /// </summary>
+    private static bool IsMatchWithinTimeout(Regex regex, string input)
+    {
+        try
+        {
+            return regex.IsMatch(input);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
