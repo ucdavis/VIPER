@@ -180,6 +180,9 @@
             },
             mounted() {
                 this.findUsers();
+                window.addEventListener("pageshow", () => {
+                    this.$q.loading.hide();
+                });
             },
             watch: {
                 userSearch: function () {
