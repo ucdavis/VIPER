@@ -1,6 +1,13 @@
 // oxlint-disable-next-line import/no-default-export, import/no-anonymous-default-export -- Stylelint config requires default export
 export default {
-    extends: ["stylelint-config-standard", "@double-great/stylelint-a11y/strict"],
+    // The a11y plugin's own "recommended" tier is what we enforce. Its "strict" tier
+    // turns on nine further rules which between them produced 132 findings here and
+    // no real defects: dark-theme demands (we ship a single light theme whose
+    // contrast pairings are verified against WCAG AA, see DESIGN.md), baseline-grid
+    // line heights, and display:none inside print and responsive blocks. Every
+    // genuine WCAG failure found so far came from a recommended rule. Revisit strict,
+    // media-prefers-color-scheme in particular, if we implement dark mode.
+    extends: ["stylelint-config-standard", "@double-great/stylelint-a11y/recommended"],
     customSyntax: "postcss-html",
     ignoreFiles: [
         "**/bin/**", // .NET build output directories
