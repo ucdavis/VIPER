@@ -23,7 +23,7 @@ namespace Viper.test.CTS
                     FullName = SetupUsers.studentUser1.DisplayLastName + ", " + SetupUsers.studentUser1.DisplayFirstName,
                     MailId = "",
                 },
-                EnteredByPerson = SetupPeople.GetPeople().Where(p => p.PersonId == SetupUsers.facultyUser.AaudUserId).FirstOrDefault(),
+                EnteredByPerson = SetupPeople.GetPeople().FirstOrDefault(p => p.PersonId == SetupUsers.facultyUser.AaudUserId),
                 ServiceId = 1,
             },
             new Encounter
@@ -38,7 +38,7 @@ namespace Viper.test.CTS
                     FullName = SetupUsers.studentUser1.DisplayLastName + ", " + SetupUsers.studentUser1.DisplayFirstName,
                     MailId = "",
                 },
-                EnteredByPerson = SetupPeople.GetPeople().Where(p => p.PersonId == SetupUsers.facultyUser.AaudUserId).FirstOrDefault(),
+                EnteredByPerson = SetupPeople.GetPeople().FirstOrDefault(p => p.PersonId == SetupUsers.facultyUser.AaudUserId),
                 ServiceId = 2,
             },
             new Encounter
@@ -53,7 +53,7 @@ namespace Viper.test.CTS
                     FullName = SetupUsers.studentUser2.DisplayLastName + ", " + SetupUsers.studentUser2.DisplayFirstName,
                     MailId = "",
                 },
-                EnteredByPerson = SetupPeople.GetPeople().Where(p => p.PersonId == SetupUsers.otherFacultyUser.AaudUserId).FirstOrDefault(),
+                EnteredByPerson = SetupPeople.GetPeople().FirstOrDefault(p => p.PersonId == SetupUsers.otherFacultyUser.AaudUserId),
                 ServiceId = 3,
             },
         };

@@ -58,7 +58,7 @@
             },
             async mounted() {
                 this.loadRoles()
-                this.role = await viperFetch(this, "Roles/" + this.urlParams.get("roleId"))
+                this.role = (await viperFetch(this, "Roles/" + this.urlParams.get("roleId"))) ?? {}
                 
             }
         })
