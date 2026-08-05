@@ -381,7 +381,7 @@ defineExpose({
 }
 
 /* Mobile single column: q-gutter-md adds only a left margin, which left-pins the card */
-@media (max-width: 599.98px) {
+@media (width <= 599.98px) {
     .schedule-week-grid,
     .schedule-week-grid > * {
         margin-left: 0;
