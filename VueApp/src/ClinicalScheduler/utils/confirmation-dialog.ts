@@ -18,6 +18,9 @@ function showConfirmationDialog($q: QVueGlobals, title: string, message: string)
         })
             .onOk(() => resolve(true))
             .onCancel(() => resolve(false))
+            // A programmatic close fires neither onOk nor onCancel, which would leave
+            // callers awaiting forever.
+            .onDismiss(() => resolve(false))
     })
 }
 

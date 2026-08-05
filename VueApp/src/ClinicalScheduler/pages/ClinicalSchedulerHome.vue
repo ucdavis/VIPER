@@ -220,10 +220,6 @@ onMounted(() => initPage())
     opacity: 0.7;
 }
 
-.opacity-60 {
-    opacity: 0.6;
-}
-
 /* Reduced motion support */
 @media screen and (prefers-reduced-motion: reduce) {
     .view-card-custom {

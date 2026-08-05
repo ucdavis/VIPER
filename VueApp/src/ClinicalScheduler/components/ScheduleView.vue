@@ -376,16 +376,6 @@ defineExpose({
     width: 100%;
 }
 
-.assignment-item {
-    padding: 2px 0;
-}
-
-.assignment-item .text-body2 {
-    overflow-wrap: break-word;
-    hyphens: auto;
-    line-height: 1.2;
-}
-
 .cursor-pointer {
     cursor: pointer;
 }

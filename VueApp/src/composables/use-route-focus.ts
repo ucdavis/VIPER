@@ -20,7 +20,7 @@ export function useRouteFocus(router: Router) {
         if (to.path === from.path) {
             return
         }
-        nextTick(() => {
+        void nextTick(() => {
             const main = document.querySelector("#main-content") || document.querySelector("main")
             if (main instanceof HTMLElement) {
                 // Set tabindex temporarily so the element can receive focus

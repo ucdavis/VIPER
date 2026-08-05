@@ -54,7 +54,7 @@ describe("useEmergencyContact utilities", () => {
         vi.clearAllMocks()
     })
 
-    describe(contactCompleteness, () => {
+    describe("contactCompleteness", () => {
         it("should return 0 for empty contact", () => {
             const contact: ContactInfo = {
                 name: null,
@@ -104,7 +104,7 @@ describe("useEmergencyContact utilities", () => {
         })
     })
 
-    describe(studentInfoCompleteness, () => {
+    describe("studentInfoCompleteness", () => {
         it("should return 0 for empty info", () => {
             const info: StudentInfo = {
                 address: null,

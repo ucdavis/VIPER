@@ -18,7 +18,7 @@ function mountIcon(props: Props) {
     return {
         iconName: icon.props("name") as string,
         iconColor: icon.props("color") as string,
-        tooltipText: icon.attributes("aria-label") as string,
+        tooltipText: icon.attributes("aria-label")!,
     }
 }
 

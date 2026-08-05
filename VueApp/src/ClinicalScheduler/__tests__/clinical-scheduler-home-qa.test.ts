@@ -89,7 +89,9 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
     describe("Error Handling", () => {
         it("handles permission store initialization errors gracefully", () => {
             mockPermissionsStore.hasAnyEditPermission = true
-            mockPermissionsStore.initialize = vi.fn().mockRejectedValue(new Error("API Error"))
+            mockPermissionsStore.initialize = vi
+                .fn<(...args: unknown[]) => unknown>()
+                .mockRejectedValue(new Error("API Error"))
 
             // Should not throw error
             expect(() =>
@@ -113,8 +115,8 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
                 userPermissions: null,
                 isLoading: false,
                 editableServiceCount: 0,
-                getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-                initialize: vi.fn().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
+                getEditableServicesDisplay: vi.fn<(...args: unknown[]) => unknown>().mockReturnValue("None"),
+                initialize: vi.fn<(...args: unknown[]) => unknown>().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
             } as any)
 
             // Should not throw error
@@ -135,7 +137,7 @@ describe("ClinicalSchedulerHome - Quality Assurance", () => {
             // Mock router.push to throw an error
             const mockRouter = {
                 ...router,
-                push: vi.fn().mockRejectedValue(new Error("Navigation Error")),
+                push: vi.fn<(...args: unknown[]) => unknown>().mockRejectedValue(new Error("Navigation Error")),
             }
 
             const wrapper = createTestWrapper({

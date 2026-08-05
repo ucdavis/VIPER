@@ -110,7 +110,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
         loadPermissions: boolean | null = null,
         permissionPrefix: string | null = null,
     ): Promise<boolean> {
-        const baseUrl = inject("apiURL") as string
+        const baseUrl = inject<string>("apiURL")!
         const userStore = useUserStore()
         const route = useRoute()
         const router = useRouter()
@@ -190,7 +190,7 @@ function handleSendBackToRedirect(route: ReturnType<typeof useRoute>, router: Re
             params[key] = val
         }
     }
-    router.push({ path: redirectPath, query: params ?? null })
+    void router.push({ path: redirectPath, query: params ?? null })
 }
 
 export { buildLoginUrl, getLoginUrl, isValidInternalPath, useRequireLogin }

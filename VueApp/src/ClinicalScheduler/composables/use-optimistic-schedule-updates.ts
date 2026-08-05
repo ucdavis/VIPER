@@ -252,7 +252,7 @@ export function useScheduleUpdatesWithRollback() {
     const queueOperation = (operation: () => Promise<void>) => {
         operationQueue.push(operation)
         // Start processing if not already running
-        processQueue()
+        void processQueue()
     }
 
     return {

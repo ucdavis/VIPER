@@ -1,4 +1,4 @@
-import type { ApiError } from "../types/api-responses"
+import type { ApiError } from "../types/api"
 
 /**
  * Transforms various error types into strongly-typed ApiError objects

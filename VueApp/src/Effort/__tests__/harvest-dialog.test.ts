@@ -10,8 +10,8 @@ import type { HarvestPreviewDto, HarvestResultDto } from "../types"
  */
 
 // Mock the harvest service
-const mockGetPreview = vi.fn()
-const mockCommitHarvest = vi.fn()
+const mockGetPreview = vi.fn<(...args: unknown[]) => any>()
+const mockCommitHarvest = vi.fn<(...args: unknown[]) => any>()
 vi.mock("../services/harvest-service", () => ({
     harvestService: {
         getPreview: (...args: unknown[]) => mockGetPreview(...args),

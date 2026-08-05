@@ -6,10 +6,10 @@ import { courseService } from "../services/course-service"
  */
 
 // Mock the ViperFetch composable
-const mockGet = vi.fn()
-const mockPost = vi.fn()
-const mockPut = vi.fn()
-const mockDel = vi.fn()
+const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
+const mockPut = vi.fn<(...args: unknown[]) => unknown>()
+const mockDel = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),

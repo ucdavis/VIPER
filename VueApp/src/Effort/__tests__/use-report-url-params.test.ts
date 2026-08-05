@@ -5,7 +5,7 @@ const mockRoute = {
     params: {} as Record<string, string>,
     name: "test-route",
 }
-const mockReplace = vi.fn()
+const mockReplace = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("vue-router", () => ({
     useRoute: () => mockRoute,
     useRouter: () => ({ replace: mockReplace }),
