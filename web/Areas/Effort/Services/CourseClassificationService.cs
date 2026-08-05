@@ -34,7 +34,7 @@ public class CourseClassificationService : ICourseClassificationService
         // Match 199 or 299 followed by non-digit or end of string
         // Valid: "199", "299", "199A", "299R", "199B"
         // Invalid: "1990", "2995", "19900"
-        return Regex.IsMatch(crseNumb.Trim(), @"^(199|299)([^0-9]|$)", RegexOptions.IgnoreCase);
+        return Regex.IsMatch(crseNumb.Trim(), @"^(199|299)([^0-9]|$)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
     }
 
     /// <summary>
