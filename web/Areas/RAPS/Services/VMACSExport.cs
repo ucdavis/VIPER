@@ -214,7 +214,9 @@ namespace Viper.Areas.RAPS.Services
             //Get a single record with their ids and blank role so that an empty permissions array can be pushed.
             if (userList.Count == 0 && loginId.Length > 0)
             {
-                var user = _RAPSContext.VwAaudUser.FirstOrDefault(a => a.LoginId == loginId);
+                var user = _RAPSContext.VwAaudUser
+                    .AsNoTracking()
+                    .FirstOrDefault(a => a.LoginId == loginId);
                 if (user != null)
                 {
                     userList.Add(new UserList

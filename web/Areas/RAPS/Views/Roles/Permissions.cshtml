@@ -80,7 +80,7 @@
             },
             methods: {
                 loadRole: async function () {
-                    this.role = await viperFetch(this, "Roles/" + this.roleId)
+                    this.role = (await viperFetch(this, "Roles/" + this.roleId)) ?? {}
                 },
                 loadRolePermissions: async function() {
                     await this.rolePermissionTable.load(this)

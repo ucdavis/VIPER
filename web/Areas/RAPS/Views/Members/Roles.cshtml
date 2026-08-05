@@ -265,7 +265,7 @@
                     this.selectedRoles = []
                 }, 
                 loadMember: async function () {
-                    this.member = await viperFetch(this, "Members/" + this.memberId)
+                    this.member = (await viperFetch(this, "Members/" + this.memberId)) ?? {}
                 },
                 pushToVMACS: async function (skipToggleCheck) {
                     if (skipToggleCheck || this.updateVMACS) {
