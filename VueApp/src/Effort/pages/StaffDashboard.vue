@@ -1258,7 +1258,17 @@ watch(
 .dept-row--clickable:hover,
 .dept-row--clickable:focus {
     background-color: #e0e0e0;
-    outline: none;
+}
+
+/* A background tint alone is too weak a focus indicator for keyboard users
+   (WCAG 2.4.7), so carry the system focus ring. The transparent outline is
+   invisible normally but becomes the indicator under Windows forced-colors,
+   where box-shadow is dropped. */
+.dept-row--clickable:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem var(--focus-ring-color);
 }
 
 .dept-row--no-dept {
@@ -1318,7 +1328,15 @@ watch(
 .clickable-badge:hover,
 .clickable-badge:focus {
     filter: brightness(0.95);
-    outline: none;
+}
+
+/* A 5% brightness shift is not a visible focus indicator (WCAG 2.4.7), so carry
+   the system focus ring. See the note on .dept-row--clickable above. */
+.clickable-badge:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow:
+        0 0 0 0.1rem white,
+        0 0 0 0.25rem var(--focus-ring-color);
 }
 
 #no-instructors-alerts {
