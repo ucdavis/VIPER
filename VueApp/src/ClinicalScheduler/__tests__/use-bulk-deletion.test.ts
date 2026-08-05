@@ -57,6 +57,30 @@ describe("useBulkDeletion - confirmation gate", () => {
         vi.clearAllMocks()
     })
 
+    it("lists affected weeks in numeric order in the primary-evaluator warning", async () => {
+        expect.hasAssertions()
+        // 1, 2 and 10 expose lexicographic sorting, which would render "1, 10, 2".
+        const weeks = [
+            { scheduleId: 1, displayName: "Alex Doe", weekNumber: 2 },
+            { scheduleId: 2, displayName: "Alex Doe", weekNumber: 10 },
+            { scheduleId: 3, displayName: "Alex Doe", weekNumber: 1 },
+        ]
+        const removeScheduleWithRollback: RemoveScheduleFn = (scheduleData_, scheduleId_, callbacks) => {
+            callbacks.onSuccess(true, "Alex Doe")
+        }
+        const { executeBulkDeletion } = useBulkDeletion()
+
+        await executeBulkDeletion(scheduleData, weeks, {
+            ...buildOptions(removeScheduleWithRollback),
+            skipConfirmation: true,
+        })
+
+        const warning = mockNotify.mock.calls
+            .map((call) => call[0] as { icon?: string; message?: string })
+            .find((arg) => arg?.icon === "star_outline")
+        expect(warning?.message).toContain("Weeks 1, 2, 10")
+    })
+
     it("does not delete anything when the user cancels", async () => {
         expect.hasAssertions()
         setUserChoice("cancel")

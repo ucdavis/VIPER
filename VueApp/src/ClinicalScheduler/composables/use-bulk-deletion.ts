@@ -105,7 +105,11 @@ export function useBulkDeletion() {
 
                     // Show warning for removed primary evaluators
                     if (removedPrimaryEvaluators.length > 0) {
-                        const uniqueWeeks = [...new Set(removedPrimaryEvaluators.map((pe) => pe.weekNumber))].toSorted()
+                        // Numeric compare: the default sort is lexicographic, which orders
+                        // week numbers as 1, 10, 2 in the notification below.
+                        const uniqueWeeks = [...new Set(removedPrimaryEvaluators.map((pe) => pe.weekNumber))].toSorted(
+                            (a, b) => a - b,
+                        )
                         const uniqueInstructorNames = [...new Set(removedPrimaryEvaluators.map((pe) => pe.name))]
                         const instructorNames = uniqueInstructorNames.join(", ")
                         $q.notify({

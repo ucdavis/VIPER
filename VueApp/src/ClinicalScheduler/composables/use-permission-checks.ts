@@ -22,15 +22,15 @@ export function usePermissionChecks() {
 
     // Navigation helpers
     function goToHome() {
-        router.push("/ClinicalScheduler")
+        void router.push("/ClinicalScheduler")
     }
 
     function goToClinicianView() {
-        router.push("/ClinicalScheduler/clinician")
+        void router.push("/ClinicalScheduler/clinician")
     }
 
     function goToRotationView() {
-        router.push("/ClinicalScheduler/rotation")
+        void router.push("/ClinicalScheduler/rotation")
     }
 
     return {

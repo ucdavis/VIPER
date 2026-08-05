@@ -594,7 +594,7 @@ describe("photo-gallery-store", () => {
             expect(store.galleryView).toBe("list")
         })
 
-        it("toggleRossStudents should refetch class when class is selected", async () => {
+        it("toggleRossStudents should refetch class when class is selected", () => {
             const store = usePhotoGalleryStore()
             store.selectedClassLevel = "V4"
 
@@ -604,7 +604,7 @@ describe("photo-gallery-store", () => {
             }
             vi.mocked(photoGalleryService.getClassGallery).mockResolvedValue(mockResponse)
 
-            await store.toggleRossStudents()
+            store.toggleRossStudents()
 
             expect(photoGalleryService.getClassGallery).toHaveBeenCalled()
         })

@@ -64,7 +64,7 @@ describe("useUrlFilteredTable", () => {
     it("initializes the primary id and filters from route.query and sends them, omitting empties", async () => {
         const { table } = await mountTable({ fileGuid: "g1", search: "report" })
 
-        table.reload()
+        void table.reload()
         await flushPromises()
 
         const url = lastUrl()
@@ -80,7 +80,7 @@ describe("useUrlFilteredTable", () => {
         const { table, router } = await mountTable()
 
         table.filters.value.search = "hello"
-        table.reload()
+        void table.reload()
         await flushRouter()
 
         expect(router.currentRoute.value.query.search).toBe("hello")
@@ -90,11 +90,11 @@ describe("useUrlFilteredTable", () => {
 
     it("clearPrimaryFilter drops the deep-link id from the request and the URL, then refetches", async () => {
         const { table, router } = await mountTable({ fileGuid: "g1" })
-        table.reload()
+        void table.reload()
         await flushRouter()
         const before = mockGet.mock.calls.length
 
-        table.clearPrimaryFilter()
+        void table.clearPrimaryFilter()
         await flushRouter()
 
         expect(table.primary.value).toBeNull()
@@ -105,7 +105,7 @@ describe("useUrlFilteredTable", () => {
 
     it("re-syncs filters and refetches when external navigation changes the query", async () => {
         const { table, router } = await mountTable()
-        table.reload()
+        void table.reload()
         await flushRouter()
         const before = mockGet.mock.calls.length
 
@@ -122,7 +122,7 @@ describe("useUrlFilteredTable", () => {
         const { table } = await mountTable()
 
         table.filters.value.search = "abc"
-        table.reload()
+        void table.reload()
         await flushPromises()
         const afterReload = mockGet.mock.calls.length
 
