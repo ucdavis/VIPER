@@ -50,7 +50,11 @@
             },
             methods: {
                 getAuditLog: async function() {
-                    this.auditLog = (await viperFetch(this, "members/" + this.memberId + "/history?startDate=" + this.startDate.value)) ?? []
+                    // The date select is clearable, so startDate can be null; omit the
+                    // filter entirely in that case to show the full history.
+                    const startDate = this.startDate?.value
+                    const query = startDate ? "?startDate=" + encodeURIComponent(startDate) : ""
+                    this.auditLog = (await viperFetch(this, "members/" + this.memberId + "/history" + query)) ?? []
                 }
             },
             async mounted() {
