@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
 
@@ -16,7 +17,7 @@ namespace Viper.Areas.RAPS.Services
 
         public void ClearCachedRolesAndPermissionsForUser(string mothraId)
         {
-            AaudUser? user = aaudContext.AaudUsers.FirstOrDefault(u => u.MothraId == mothraId);
+            AaudUser? user = aaudContext.AaudUsers.AsNoTracking().FirstOrDefault(u => u.MothraId == mothraId);
             if (user != null)
             {
                 userHelper.ClearCachedRolesAndPermissions(user);
