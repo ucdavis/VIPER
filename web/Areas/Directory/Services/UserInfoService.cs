@@ -1747,9 +1747,9 @@ namespace Viper.Areas.Directory.Services
             }
 
             // Create GraphQL query
-            var query = $@"
-            query {{
-                searchUsers(name: ""{lastName}"") {{
+            var query = @"
+            query SearchUsers($name: String!) {
+                searchUsers(name: $name) {
                     id
                     initials
                     instinctId
@@ -1761,18 +1761,19 @@ namespace Viper.Areas.Directory.Services
                     passwordExpiresAt
                     status
                     username
-                    roles {{
+                    roles {
                         description
                         label
-                    }}
-                }}
-            }}";
+                    }
+                }
+            }";
 
             // Execute GraphQL query
             var apiUrl = _configuration["Instinct:ApiUrl"] ?? "https://uc-davis.api.instinctvet.com/";
             var httpClient = _httpClientFactory.CreateClient();
 
-            var queryUrl = $"{apiUrl}?query={Uri.EscapeDataString(query)}";
+            var variablesJson = JsonSerializer.Serialize(new { name = lastName });
+            var queryUrl = $"{apiUrl}?query={Uri.EscapeDataString(query)}&variables={Uri.EscapeDataString(variablesJson)}";
             httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
 
             var response = await httpClient.GetAsync(queryUrl);
