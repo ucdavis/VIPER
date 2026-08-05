@@ -12,7 +12,7 @@
         :pagination="{rowsPerPage:0}"
         :loading="loadingRoles">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="primary" padding="xs md" @@click="submitChanges()" label="Submit changes"></q-btn>
+        <q-btn dense no-caps color="primary" padding="xs md" :disable="loadFailed" @@click="submitChanges()" label="Submit changes"></q-btn>
     </template>
 </q-table>
 
@@ -26,6 +26,7 @@
                     roles: [],
                     selectedRoles: [],
                     loadingRoles: false,
+                    loadFailed: false,
                     columns: [
                         { name: "role", label: "Role", field: "friendlyName", align: "left" },
                         { name: "description", label: "Description", field: "description", align: "left" }
@@ -34,13 +35,22 @@
             },
             methods: {
                 loadRoles: async function() {
-                    var childRoles = (await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))) ?? []
-                    var allRoles = ((await viperFetch(this, "Roles?Application=0")) ?? [])
-                        .filter(r => childRoles.find(cr => cr.roleId === r.roleId) === undefined)
-                    this.selectedRoles = childRoles;//.reduce((result, cr) => { result.push(cr.roleId); return result }, [])
-                    this.roles = childRoles.concat(allRoles)
+                    var childRoles = await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))
+                    var allRoles = await viperFetch(this, "Roles?Application=0")
+                    // A failed read must not look like "nothing is selected". Submitting
+                    // that would PUT an empty list and wipe the existing delegations.
+                    this.loadFailed = childRoles === undefined || allRoles === undefined
+                    if (this.loadFailed) {
+                        return
+                    }
+                    this.selectedRoles = childRoles
+                    this.roles = childRoles.concat(
+                        allRoles.filter(r => childRoles.find(cr => cr.roleId === r.roleId) === undefined))
                 },
                 submitChanges: async function() {
+                    if (this.loadFailed) {
+                        return
+                    }
                     var roleIds = this.selectedRoles.reduce( (result, role) => {
                         result.push(role.roleId)
                         return result

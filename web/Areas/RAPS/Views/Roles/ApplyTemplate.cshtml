@@ -17,7 +17,7 @@
         <tr>
             <th class="text-left"><span class="text-h6">Review Changes</span></th>
             <th colspan="2" class="text-right">
-                <q-btn label="Apply template to user(s)" color="primary" no-caps @@click="applyTemplate(true)" class="q-px-sm q-py-xs"></q-btn>
+                <q-btn label="Apply template to user(s)" color="primary" no-caps :disable="templateLoadFailed" @@click="applyTemplate(true)" class="q-px-sm q-py-xs"></q-btn>
             </th>
         </tr>
     </thead>
@@ -50,6 +50,7 @@
                     membersFound: false, //show table if a matching user was found
                     roleTemplateId: 0,
                     roleTemplate: {},
+                    templateLoadFailed: false,
                     loginids: "",
                     userSearch: "",
                     userSearchResults: [],
@@ -143,7 +144,11 @@
             async mounted() {
                 this.roleTemplateId = this.urlParams.get("roleTemplateId")
                 // roleTemplateRoles must be an array: the VMACS push path calls .reduce() on it.
-                this.roleTemplate = (await viperFetch(this, "RoleTemplates/" + this.roleTemplateId)) ?? { roleTemplateRoles: [] }
+                // Track load failure separately so an unread template is never mistaken for
+                // an empty one, which would push an empty role list to VMACS.
+                const template = await viperFetch(this, "RoleTemplates/" + this.roleTemplateId)
+                this.templateLoadFailed = template === undefined
+                this.roleTemplate = template ?? { roleTemplateRoles: [] }
                 this.VMACSPush = this.urlPath.indexOf("/VMACS.") > 0
             },
             watch: {
