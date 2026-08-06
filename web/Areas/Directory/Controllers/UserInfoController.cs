@@ -101,19 +101,6 @@ namespace Viper.Areas.Directory.Controllers
                 userInfo.CanViewLoans = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.loans");
                 userInfo.CanViewInstinct = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
                 userInfo.CanViewADGroups = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
-
-                userInfo.CanViewDirectoryDetail = true;
-                userInfo.CanViewStudentID = true;
-                userInfo.CanViewIAM = true;
-                userInfo.CanViewRoles = true;
-                userInfo.CanViewUCPath = true;
-                userInfo.CanViewUCPathDetail = true;
-                userInfo.CanViewIDCards = true;
-                userInfo.CanViewKeys = true;
-                userInfo.CanViewLoans = true;
-                userInfo.CanViewInstinct = true;
-                userInfo.CanViewADGroups = true;
-
                 return View("~/Areas/Directory/Views/UserInfo.cshtml", userInfo);
             }
         }
