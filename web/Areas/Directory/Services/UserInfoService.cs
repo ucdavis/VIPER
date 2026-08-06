@@ -75,7 +75,7 @@ namespace Viper.Areas.Directory.Services
             }
 
             Console.WriteLine($"[INSTINCT SERVICE] mothraId: '{mothraId}', iamId: '{iamId}', result.MothraId: '{result.MothraId}'");
-            var individual = await _aaudContext.AaudUsers.Where(u => (u.MothraId == result.MothraId)).FirstOrDefaultAsync();
+            var individual = await _aaudContext.AaudUsers.FirstOrDefaultAsync(u => (u.MothraId == result.MothraId));
             Console.WriteLine($"[INSTINCT SERVICE] individual is null: {individual == null}");
             if (individual != null)
             {
@@ -112,8 +112,7 @@ namespace Viper.Areas.Directory.Services
                 var currentTerms = await GetCurrentTermsAsync();
 
                 var user = await _aaudContext.AaudUsers
-                    .Where(u => u.IamId == iamId)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(u => u.IamId == iamId);
 
                 if (user == null)
                 {
@@ -139,8 +138,7 @@ namespace Viper.Areas.Directory.Services
                 var currentTerms = await GetCurrentTermsAsync();
 
                 var user = await _aaudContext.AaudUsers
-                    .Where(u => u.MothraId == mothraId)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(u => u.MothraId == mothraId);
 
                 if (user == null)
                 {
@@ -262,14 +260,12 @@ namespace Viper.Areas.Directory.Services
             {
                 var currentTerms = await GetCurrentTermsAsync();
                 var aaudUser = await _aaudContext.AaudUsers
-                    .Where(u => u.EmployeeId == result.EmployeeId)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(u => u.EmployeeId == result.EmployeeId);
 
                 if (aaudUser?.EmployeePKey != null)
                 {
                     var employee = await _aaudContext.Employees
-                        .Where(e => e.EmpPKey == aaudUser.EmployeePKey && currentTerms.Contains(e.EmpTermCode))
-                        .FirstOrDefaultAsync();
+                        .FirstOrDefaultAsync(e => e.EmpPKey == aaudUser.EmployeePKey && currentTerms.Contains(e.EmpTermCode));
 
                     if (employee != null)
                     {
@@ -1262,8 +1258,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Get UC Path person information
                 var person = await _ppsContext.VwPeople
-                    .Where(p => p.Emplid == result.EmployeeId)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(p => p.Emplid == result.EmployeeId);
 
                 if (person != null)
                 {
@@ -1294,8 +1289,7 @@ namespace Viper.Areas.Directory.Services
                     if (!string.IsNullOrEmpty(position.ReportsTo))
                     {
                         var reportsTo = await _ppsContext.VwPersonJobPositions
-                            .Where(r => r.PositionNbr == position.ReportsTo)
-                            .FirstOrDefaultAsync();
+                            .FirstOrDefaultAsync(r => r.PositionNbr == position.ReportsTo);
 
                         if (reportsTo != null)
                         {
@@ -1365,8 +1359,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Try to find the reports to person in the same view
                 var reportsTo = _ppsContext.VwPersonJobPositionAlls
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (reportsTo != null)
                 {
@@ -1375,8 +1368,7 @@ namespace Viper.Areas.Directory.Services
 
                 // Fallback to current positions view
                 var currentReportsTo = _ppsContext.VwPersonJobPositions
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (currentReportsTo != null)
                 {
@@ -1403,8 +1395,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Try to find the reports to position in the same view
                 var reportsTo = _ppsContext.VwPersonJobPositionAlls
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (reportsTo != null)
                 {
@@ -1414,8 +1405,7 @@ namespace Viper.Areas.Directory.Services
 
                 // Fallback to current positions view
                 var currentReportsTo = _ppsContext.VwPersonJobPositions
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (currentReportsTo != null)
                 {
@@ -1496,8 +1486,7 @@ namespace Viper.Areas.Directory.Services
                 {
                     // Get issuer information from AAUD
                     var issuer = await _aaudContext.AaudUsers
-                        .Where(u => u.MothraId == item.Assignment.IssuedBy)
-                        .FirstOrDefaultAsync();
+                        .FirstOrDefaultAsync(u => u.MothraId == item.Assignment.IssuedBy);
 
                     result.Keys.Add(new KeyResult
                     {
