@@ -1,5 +1,4 @@
 using System.Runtime.Versioning;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Directory.Models;
@@ -16,7 +15,6 @@ namespace Viper.Areas.Directory.Controllers
     [Area("Directory")]
     [Route("/[area]")]
     [Permission(Allow = "SVMSecure")]
-    [Authorize(Roles = "VMDO SVM-IT")] //locking directory for now until it's complete
     public class DirectoryController : AreaController
     {
         public AAUDContext _aaud { get; private set; }
@@ -34,19 +32,19 @@ namespace Viper.Areas.Directory.Controllers
         /// Directory home page
         /// </summary>
         [Route("")]
-        public async Task<ActionResult> Index(string? useExample)
+        public ActionResult Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser()));
+            return View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser());
         }
 
         /// <summary>
         /// Directory home page
         /// </summary>
         [Route("nav")]
-        public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
+        public ActionResult<IEnumerable<NavMenuItem>> Nav()
         {
             var nav = new List<NavMenuItem>();
-            return await Task.Run(() => nav);
+            return nav;
         }
 
 
@@ -121,19 +119,7 @@ namespace Viper.Areas.Directory.Controllers
                 results.Add(result);
                 await AddVmacsContactInfoAsync(result);
             }
-
             return results;
-        }
-
-        /// <summary>
-        /// Directory results
-        /// </summary>
-        /// <param name="mothraID">User ID</param>
-        [Route("userInfo/{mothraID}")]
-        public async Task<IActionResult> DirectoryResult(string mothraID)
-        {
-            // pull in the user based on uid
-            return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
         }
 
         private static void PopulateVmacsDetails(IndividualSearchResult result, VMACSQuery? vm)
@@ -153,15 +139,11 @@ namespace Viper.Areas.Directory.Controllers
             PopulateLeftNav(context, "viper-home");
             await base.OnActionExecutionAsync(context, next);
         }
-
         /// <summary>
-        /// Current AAUD users matching the search term on name or any directory identifier,
-        /// ordered for display. Shared by Get and GetUCD.
+        /// Current AAUD users matching the search term on name or any directory identifier, ordered for display. Shared by Get and GetUCD
         /// </summary>
         /// <remarks>
-        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The
-        /// chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the
-        /// one non-nullable identifier on AaudUser.
+        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the one non-nullable identifier on AaudUser.
         /// </remarks>
         internal static Task<List<AaudUser>> SearchCurrentAaudUsers(AAUDContext aaud, string search)
         {

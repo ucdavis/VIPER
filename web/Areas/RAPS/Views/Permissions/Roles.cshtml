@@ -102,7 +102,7 @@
             },
             methods: {
                 loadPermission: async function () {
-                    this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+                    this.permission = (await viperFetch(this, "Permissions/" + this.permissionId)) ?? {}
                 },
                 updateRolePermissions: async function (allowAccess = 1) {
                     var roleIds = this.selectedPermissions.reduce( (ids, sp) => {ids.push(sp.roleId); return ids;}, [] )

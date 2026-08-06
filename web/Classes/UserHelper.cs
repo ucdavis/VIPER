@@ -210,15 +210,14 @@ namespace Viper
             {
                 var permissions = GetAllPermissions(rapsContext, user);
 
-                if (permissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
+                if (permissions.Any(p => p.Permission.ToLower() == "svmsecure.su") ||
+                    permissions.Any(p => p.Permission.ToLower() == permissionName.ToLower()))
                 {
                     return true;
                 }
-
             }
 
             return false;
-
         }
         #endregion
 

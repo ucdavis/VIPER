@@ -142,10 +142,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 40
         };
         _context.Records.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEffortRecordAsync(1);
+        var result = await _service.GetEffortRecordAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -170,10 +170,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             Notes = "Test notes"
         };
         _context.Records.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEffortRecordAsync(1);
+        var result = await _service.GetEffortRecordAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -195,10 +195,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 40
         };
         _context.Records.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEffortRecordAsync(1);
+        var result = await _service.GetEffortRecordAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -209,7 +209,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task GetEffortRecordAsync_ReturnsNull_WhenNotFound()
     {
         // Act
-        var result = await _service.GetEffortRecordAsync(999);
+        var result = await _service.GetEffortRecordAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -230,10 +230,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 40
         };
         _context.Records.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEffortRecordAsync(1);
+        var result = await _service.GetEffortRecordAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -257,10 +257,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 40
         };
         _context.Records.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEffortRecordAsync(1);
+        var result = await _service.GetEffortRecordAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -284,10 +284,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 40
         };
         _context.Records.Add(record);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEffortRecordAsync(1);
+        var result = await _service.GetEffortRecordAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -316,7 +316,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, warning) = await _service.CreateEffortRecordAsync(request);
+        var (result, warning) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -353,7 +353,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("Failed to create instructor for PersonId 9999", ex.Message);
         Assert.Contains("Person with PersonId 9999 not found", ex.Message);
     }
@@ -374,7 +374,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("Course 9999 not found", ex.Message);
     }
 
@@ -394,7 +394,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("Effort type 'OLD' not found or inactive", ex.Message);
     }
 
@@ -414,7 +414,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("Role 3 not found or inactive", ex.Message);
     }
 
@@ -431,7 +431,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -445,7 +445,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", ex.Message);
     }
 
@@ -463,7 +463,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -476,13 +476,13 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (_, warning) = await _service.CreateEffortRecordAsync(request);
+        var (_, warning) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(warning);
         Assert.Contains("Role was updated", warning);
 
-        var existingRecord = await _context.Records.FindAsync(10);
+        var existingRecord = await _context.Records.FindAsync(new object?[] { 10 }, TestContext.Current.CancellationToken);
         Assert.Equal(2, existingRecord!.RoleId);
     }
 
@@ -490,9 +490,9 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task CreateEffortRecordAsync_ClearsEffortVerified_OnPerson()
     {
         // Arrange
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         person.EffortVerified = DateTime.Now;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -505,10 +505,10 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        await _service.CreateEffortRecordAsync(request);
+        await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.Null(updatedPerson.EffortVerified);
     }
 
@@ -516,10 +516,10 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task CreateEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
     {
         // Arrange: Set up a verified instructor
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         var originalVerificationDate = DateTime.Now.AddDays(-1);
         person.EffortVerified = originalVerificationDate;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Mock the current user as the instructor themselves (self-edit)
         var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
@@ -536,10 +536,10 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        await _service.CreateEffortRecordAsync(request);
+        await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert: Verification should be preserved for self-edit
-        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(updatedPerson.EffortVerified);
         Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
     }
@@ -554,7 +554,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             ChildCourseId = TestCourseId,
             RelationshipType = "Parent"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -568,7 +568,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("Cannot add effort to a child course", ex.Message);
     }
 
@@ -584,7 +584,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             ChildCourseId = 2,
             RelationshipType = "Parent"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -597,7 +597,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - parent course should accept effort
         Assert.NotNull(result);
@@ -620,7 +620,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("not allowed on DVM courses", ex.Message);
     }
 
@@ -640,7 +640,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("not allowed on 199/299 courses", ex.Message);
     }
 
@@ -660,7 +660,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateEffortRecordAsync(request));
+            () => _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("not allowed on R courses", ex.Message);
     }
 
@@ -679,7 +679,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -717,10 +717,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             LastName = "Instructor",
             EffortDept = "VME"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - should catch the exception and continue successfully
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -747,7 +747,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortRecordRequest
         {
@@ -758,7 +758,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, warning) = await _service.UpdateEffortRecordAsync(1, request);
+        var (result, warning) = await _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -785,7 +785,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, _) = await _service.UpdateEffortRecordAsync(999, request);
+        var (result, _) = await _service.UpdateEffortRecordAsync(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -817,7 +817,7 @@ public sealed class EffortRecordServiceTests : IDisposable
                 Hours = 10
             }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortRecordRequest
         {
@@ -828,7 +828,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.UpdateEffortRecordAsync(1, request));
+            () => _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", ex.Message);
     }
 
@@ -846,7 +846,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Try to change to NDV which is not allowed on DVM
         var request = new UpdateEffortRecordRequest
@@ -858,7 +858,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.UpdateEffortRecordAsync(1, request));
+            () => _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken));
         Assert.Contains("not allowed on DVM courses", ex.Message);
     }
 
@@ -866,9 +866,9 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task UpdateEffortRecordAsync_ClearsEffortVerified_OnPerson()
     {
         // Arrange: Set up a verified instructor with an existing record
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         person.EffortVerified = DateTime.Now;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -880,7 +880,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortRecordRequest
         {
@@ -890,10 +890,10 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        await _service.UpdateEffortRecordAsync(1, request);
+        await _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
-        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.Null(updatedPerson.EffortVerified);
     }
 
@@ -901,10 +901,10 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task UpdateEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
     {
         // Arrange: Set up a verified instructor with an existing record
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         var originalVerificationDate = DateTime.Now.AddDays(-1);
         person.EffortVerified = originalVerificationDate;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -916,7 +916,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Mock the current user as the instructor themselves (self-edit)
         var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
@@ -930,10 +930,10 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        await _service.UpdateEffortRecordAsync(1, request);
+        await _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert: Verification should be preserved for self-edit
-        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(updatedPerson.EffortVerified);
         Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
     }
@@ -956,14 +956,14 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - pass null for originalModifiedDate (legacy record)
-        var result = await _service.DeleteEffortRecordAsync(1, null);
+        var result = await _service.DeleteEffortRecordAsync(1, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Null(await _context.Records.FindAsync(1));
+        Assert.Null(await _context.Records.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken));
 
         await _auditServiceMock.Received(1).LogRecordChangeAsync(
                 1, TestTermCode, EffortAuditActions.DeleteEffort,
@@ -974,7 +974,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task DeleteEffortRecordAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _service.DeleteEffortRecordAsync(999, null);
+        var result = await _service.DeleteEffortRecordAsync(999, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -984,9 +984,9 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task DeleteEffortRecordAsync_ClearsEffortVerified_OnPerson()
     {
         // Arrange
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         person.EffortVerified = DateTime.Now;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -998,13 +998,13 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - pass null for originalModifiedDate (legacy record)
-        await _service.DeleteEffortRecordAsync(1, null);
+        await _service.DeleteEffortRecordAsync(1, null, TestContext.Current.CancellationToken);
 
         // Assert
-        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.Null(updatedPerson.EffortVerified);
     }
 
@@ -1012,10 +1012,10 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task DeleteEffortRecordAsync_PreservesEffortVerified_OnSelfEdit()
     {
         // Arrange: Set up a verified instructor with an existing record
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         var originalVerificationDate = DateTime.Now.AddDays(-1);
         person.EffortVerified = originalVerificationDate;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -1027,17 +1027,17 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Mock the current user as the instructor themselves (self-edit)
         var selfUser = new AaudUser { AaudUserId = TestPersonId, MothraId = "selfinstructor" };
         _userHelperMock.GetCurrentUser().Returns(selfUser);
 
         // Act - pass null for originalModifiedDate (legacy record)
-        await _service.DeleteEffortRecordAsync(1, null);
+        await _service.DeleteEffortRecordAsync(1, null, TestContext.Current.CancellationToken);
 
         // Assert: Verification should be preserved for self-edit
-        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var updatedPerson = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(updatedPerson.EffortVerified);
         Assert.Equal(originalVerificationDate, updatedPerson.EffortVerified);
     }
@@ -1062,7 +1062,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 20,
             ModifiedDate = originalDate
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Request with a DIFFERENT ModifiedDate (simulating stale data)
         var request = new UpdateEffortRecordRequest
@@ -1075,7 +1075,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
-            () => _service.UpdateEffortRecordAsync(1, request));
+            () => _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken));
         Assert.Contains("modified by another user", ex.Message);
     }
 
@@ -1095,7 +1095,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 20,
             ModifiedDate = originalDate
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Request with the SAME ModifiedDate
         var request = new UpdateEffortRecordRequest
@@ -1107,7 +1107,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, _) = await _service.UpdateEffortRecordAsync(1, request);
+        var (result, _) = await _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -1129,7 +1129,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 20,
             ModifiedDate = null // Legacy record
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Request with NULL OriginalModifiedDate
         var request = new UpdateEffortRecordRequest
@@ -1141,7 +1141,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act
-        var (result, _) = await _service.UpdateEffortRecordAsync(1, request);
+        var (result, _) = await _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -1163,7 +1163,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 20,
             ModifiedDate = DateTime.Now // Record was updated after loading
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Request still has NULL (thinks record is legacy)
         var request = new UpdateEffortRecordRequest
@@ -1176,7 +1176,7 @@ public sealed class EffortRecordServiceTests : IDisposable
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
-            () => _service.UpdateEffortRecordAsync(1, request));
+            () => _service.UpdateEffortRecordAsync(1, request, TestContext.Current.CancellationToken));
         Assert.Contains("modified by another user", ex.Message);
     }
 
@@ -1196,15 +1196,15 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 20,
             ModifiedDate = originalDate
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert: Try to delete with stale date
         var ex = await Assert.ThrowsAsync<ConcurrencyConflictException>(
-            () => _service.DeleteEffortRecordAsync(1, new DateTime(2024, 1, 14, 10, 30, 0, DateTimeKind.Local)));
+            () => _service.DeleteEffortRecordAsync(1, new DateTime(2024, 1, 14, 10, 30, 0, DateTimeKind.Local), TestContext.Current.CancellationToken));
         Assert.Contains("modified by another user", ex.Message);
 
         // Verify record was NOT deleted
-        Assert.NotNull(await _context.Records.FindAsync(1));
+        Assert.NotNull(await _context.Records.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -1223,14 +1223,14 @@ public sealed class EffortRecordServiceTests : IDisposable
             Hours = 20,
             ModifiedDate = originalDate
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.DeleteEffortRecordAsync(1, originalDate);
+        var result = await _service.DeleteEffortRecordAsync(1, originalDate, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Null(await _context.Records.FindAsync(1));
+        Assert.Null(await _context.Records.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -1250,10 +1250,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             RoleId = 1,
             Hours = 20
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode);
+        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.ExistingCourses);
@@ -1270,10 +1270,10 @@ public sealed class EffortRecordServiceTests : IDisposable
             ChildCourseId = 2,
             RelationshipType = "Parent"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode);
+        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert: 4 courses seeded, 1 excluded as child = 3 remaining
         Assert.Equal(3, result.AllCourses.Count);
@@ -1284,7 +1284,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task GetAvailableCoursesAsync_PopulatesClassificationFlags()
     {
         // Act
-        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode);
+        var result = await _service.GetAvailableCoursesAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert: Course 1 (APC 410) - IsDvm=false (non-DVM subject code)
         var apcCourse = result.AllCourses.First(c => c.Id == TestCourseId);
@@ -1319,7 +1319,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task GetEffortTypeOptionsAsync_ReturnsActiveTypesOnly()
     {
         // Act
-        var result = await _service.GetEffortTypeOptionsAsync();
+        var result = await _service.GetEffortTypeOptionsAsync(TestContext.Current.CancellationToken);
 
         // Assert: 8 seeded, 1 inactive (OLD) = 7 active
         Assert.Equal(7, result.Count);
@@ -1334,7 +1334,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task GetRoleOptionsAsync_ReturnsActiveRolesOnly()
     {
         // Act
-        var result = await _service.GetRoleOptionsAsync();
+        var result = await _service.GetRoleOptionsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -1345,7 +1345,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task GetRoleOptionsAsync_ReturnsSortedBySortOrder()
     {
         // Act
-        var result = await _service.GetRoleOptionsAsync();
+        var result = await _service.GetRoleOptionsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Instructor of Record", result[0].Description);
@@ -1360,7 +1360,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task CanEditTermAsync_ReturnsTrue_WhenTermIsOpened()
     {
         // Act
-        var result = await _service.CanEditTermAsync(TestTermCode);
+        var result = await _service.CanEditTermAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -1370,7 +1370,7 @@ public sealed class EffortRecordServiceTests : IDisposable
     public async Task CanEditTermAsync_ReturnsFalse_WhenTermNotFound()
     {
         // Act
-        var result = await _service.CanEditTermAsync(999999);
+        var result = await _service.CanEditTermAsync(999999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -1383,14 +1383,14 @@ public sealed class EffortRecordServiceTests : IDisposable
         // ClosedDate makes status "Closed"
         var closedTerm = new EffortTerm { TermCode = 202301, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) };
         _context.Terms.Add(closedTerm);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _userHelperMock.HasPermission(
             Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), EffortPermissions.EditWhenClosed)
             .Returns(false);
 
         // Act
-        var result = await _service.CanEditTermAsync(202301);
+        var result = await _service.CanEditTermAsync(202301, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -1403,14 +1403,14 @@ public sealed class EffortRecordServiceTests : IDisposable
         // ClosedDate makes status "Closed"
         var closedTerm = new EffortTerm { TermCode = 202301, OpenedDate = DateTime.Now.AddDays(-30), ClosedDate = DateTime.Now.AddDays(-1) };
         _context.Terms.Add(closedTerm);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _userHelperMock.HasPermission(
             Arg.Any<RAPSContext>(), Arg.Any<AaudUser>(), EffortPermissions.EditWhenClosed)
             .Returns(true);
 
         // Act
-        var result = await _service.CanEditTermAsync(202301);
+        var result = await _service.CanEditTermAsync(202301, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -1463,7 +1463,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             EffortDept = "VME"
         });
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -1476,7 +1476,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act - create the first non-R-course effort record
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - verify the effort record was created
         Assert.NotNull(result);
@@ -1567,7 +1567,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             Crn = "12345"
         });
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -1580,7 +1580,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act - add a second non-R-course effort record
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - verify the effort record was created
         Assert.NotNull(result);
@@ -1609,7 +1609,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             EffortDept = "VME"
         });
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -1622,7 +1622,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act - add an R-course as the first effort record
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - verify the effort record was created
         Assert.NotNull(result);
@@ -1664,7 +1664,7 @@ public sealed class EffortRecordServiceTests : IDisposable
             CustDept = "UNK"
         };
         _context.Courses.Add(genericRCourse);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortRecordRequest
         {
@@ -1677,7 +1677,7 @@ public sealed class EffortRecordServiceTests : IDisposable
         };
 
         // Act - add the generic R-course as the first effort record
-        var (result, _) = await _service.CreateEffortRecordAsync(request);
+        var (result, _) = await _service.CreateEffortRecordAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - verify the effort record was created
         Assert.NotNull(result);

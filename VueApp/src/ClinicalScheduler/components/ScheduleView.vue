@@ -376,22 +376,12 @@ defineExpose({
     width: 100%;
 }
 
-.assignment-item {
-    padding: 2px 0;
-}
-
-.assignment-item .text-body2 {
-    overflow-wrap: break-word;
-    hyphens: auto;
-    line-height: 1.2;
-}
-
 .cursor-pointer {
     cursor: pointer;
 }
 
 /* Mobile single column: q-gutter-md adds only a left margin, which left-pins the card */
-@media (max-width: 599.98px) {
+@media (width <= 599.98px) {
     .schedule-week-grid,
     .schedule-week-grid > * {
         margin-left: 0;

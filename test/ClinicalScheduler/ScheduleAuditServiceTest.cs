@@ -37,7 +37,7 @@ namespace Viper.test.ClinicalScheduler
             var modifiedBy = "modifier456";
 
             // Act
-            var result = await _service.LogInstructorAddedAsync(mothraId, rotationId, weekId, modifiedBy);
+            var result = await _service.LogInstructorAddedAsync(mothraId, rotationId, weekId, modifiedBy, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -49,7 +49,7 @@ namespace Viper.test.ClinicalScheduler
             Assert.True(result.TimeStamp > DateTime.MinValue);
 
             // Verify entry was saved to database
-            var savedEntry = await _context.ScheduleAudits.FindAsync(result.ScheduleAuditId);
+            var savedEntry = await _context.ScheduleAudits.FindAsync(new object?[] { result.ScheduleAuditId }, TestContext.Current.CancellationToken);
             Assert.NotNull(savedEntry);
             Assert.Equal(result.Action, savedEntry.Action);
         }
@@ -64,7 +64,7 @@ namespace Viper.test.ClinicalScheduler
             var modifiedBy = "modifier456";
 
             // Act
-            var result = await _service.LogInstructorRemovedAsync(mothraId, rotationId, weekId, modifiedBy);
+            var result = await _service.LogInstructorRemovedAsync(mothraId, rotationId, weekId, modifiedBy, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -85,7 +85,7 @@ namespace Viper.test.ClinicalScheduler
             var modifiedBy = "modifier456";
 
             // Act
-            var result = await _service.LogPrimaryEvaluatorSetAsync(mothraId, rotationId, weekId, modifiedBy);
+            var result = await _service.LogPrimaryEvaluatorSetAsync(mothraId, rotationId, weekId, modifiedBy, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -106,7 +106,7 @@ namespace Viper.test.ClinicalScheduler
             var modifiedBy = "modifier456";
 
             // Act
-            var result = await _service.LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId, modifiedBy);
+            var result = await _service.LogPrimaryEvaluatorUnsetAsync(mothraId, rotationId, weekId, modifiedBy, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -131,13 +131,13 @@ namespace Viper.test.ClinicalScheduler
                 RotationId = 1,
                 WeekId = 1,
                 Evaluator = false
-            });
+            }, TestContext.Current.CancellationToken);
 
             await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act
-            var result = await _service.GetInstructorScheduleAuditHistoryAsync(1);
+            var result = await _service.GetInstructorScheduleAuditHistoryAsync(1, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(2, result.Count);
@@ -161,10 +161,10 @@ namespace Viper.test.ClinicalScheduler
             var auditEntry5 = CreateAuditEntry("student1", rotationId, weekId, "modifier", ScheduleAuditActions.InstructorAdded, ScheduleAuditAreas.Students); // Student area
 
             await _context.ScheduleAudits.AddRangeAsync(auditEntry1, auditEntry2, auditEntry3, auditEntry4, auditEntry5);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             // Act
-            var result = await _service.GetRotationWeekAuditHistoryAsync(rotationId, weekId);
+            var result = await _service.GetRotationWeekAuditHistoryAsync(rotationId, weekId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(2, result.Count);
@@ -218,7 +218,7 @@ namespace Viper.test.ClinicalScheduler
             var nonExistentScheduleId = 999;
 
             // Act
-            var result = await _service.GetInstructorScheduleAuditHistoryAsync(nonExistentScheduleId);
+            var result = await _service.GetInstructorScheduleAuditHistoryAsync(nonExistentScheduleId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Empty(result);
@@ -232,7 +232,7 @@ namespace Viper.test.ClinicalScheduler
             var nonExistentWeekId = 999;
 
             // Act
-            var result = await _service.GetRotationWeekAuditHistoryAsync(nonExistentRotationId, nonExistentWeekId);
+            var result = await _service.GetRotationWeekAuditHistoryAsync(nonExistentRotationId, nonExistentWeekId, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Empty(result);

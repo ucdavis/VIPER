@@ -25,10 +25,7 @@
 
         <!-- Report content -->
         <template v-else-if="report">
-            <StatusBanner
-                type="info"
-                class="q-mt-md"
-            >
+            <StatusBanner type="info">
                 The following data is based on the instructor schedule pulled live from the Clinical Scheduler. It does
                 not contain the verified effort entered by faculty and departments.
             </StatusBanner>

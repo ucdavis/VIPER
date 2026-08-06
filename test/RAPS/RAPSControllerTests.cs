@@ -68,7 +68,7 @@ namespace Viper.test.RAPS
             using var context = await CreateContextAsync(connection);
             var controller = CreateController(context);
 
-            var result = await controller.RolePermissions(5);
+            var result = controller.RolePermissions(5);
 
             var view = Assert.IsType<ViewResult>(result);
             Assert.Equal(5, view.ViewData["roleId"]);
@@ -213,6 +213,11 @@ namespace Viper.test.RAPS
             Assert.Same(group, view.ViewData["Group"]);
             scopeFactory.Received(1).CreateScope();
             scope.Received(1).Dispose();
+        }
+
+        private static Task AssertBadRequestForInvalidModelStateAsync(Func<RAPSController, IActionResult> action)
+        {
+            return AssertBadRequestForInvalidModelStateAsync(c => Task.FromResult(action(c)));
         }
 
         private static async Task AssertBadRequestForInvalidModelStateAsync(Func<RAPSController, Task<IActionResult>> action)

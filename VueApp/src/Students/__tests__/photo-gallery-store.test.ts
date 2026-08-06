@@ -8,16 +8,16 @@ import type { PhotoGalleryViewModel, GalleryMenu, CourseInfo } from "../services
 // Mock the photo gallery service
 vi.mock("../services/photo-gallery-service", () => ({
     photoGalleryService: {
-        getClassGallery: vi.fn(),
-        getGroupGallery: vi.fn(),
-        getGalleryMenu: vi.fn(),
-        getAvailableCourses: vi.fn(),
-        getCourseGallery: vi.fn(),
-        exportToWord: vi.fn(),
-        exportToPDF: vi.fn(),
+        getClassGallery: vi.fn<(...args: unknown[]) => unknown>(),
+        getGroupGallery: vi.fn<(...args: unknown[]) => unknown>(),
+        getGalleryMenu: vi.fn<(...args: unknown[]) => unknown>(),
+        getAvailableCourses: vi.fn<(...args: unknown[]) => unknown>(),
+        getCourseGallery: vi.fn<(...args: unknown[]) => unknown>(),
+        exportToWord: vi.fn<(...args: unknown[]) => unknown>(),
+        exportToPDF: vi.fn<(...args: unknown[]) => unknown>(),
     },
-    PhotoGalleryService: vi.fn(),
-    downloadFile: vi.fn(),
+    PhotoGalleryService: vi.fn<(...args: unknown[]) => unknown>(),
+    downloadFile: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
 // eslint-disable-next-line max-lines-per-function -- Test suite requires comprehensive coverage with multiple test cases
@@ -594,7 +594,7 @@ describe("photo-gallery-store", () => {
             expect(store.galleryView).toBe("list")
         })
 
-        it("toggleRossStudents should refetch class when class is selected", async () => {
+        it("toggleRossStudents should refetch class when class is selected", () => {
             const store = usePhotoGalleryStore()
             store.selectedClassLevel = "V4"
 
@@ -604,7 +604,7 @@ describe("photo-gallery-store", () => {
             }
             vi.mocked(photoGalleryService.getClassGallery).mockResolvedValue(mockResponse)
 
-            await store.toggleRossStudents()
+            store.toggleRossStudents()
 
             expect(photoGalleryService.getClassGallery).toHaveBeenCalled()
         })

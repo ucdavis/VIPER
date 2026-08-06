@@ -101,7 +101,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
     public async Task GetPreviewAsync_ReturnsWarning_WhenTermNotFound()
     {
         // Act
-        var result = await _service.GetPreviewAsync(999999, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(999999, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains(result.Warnings, w => w.Contains("not found"));
@@ -119,10 +119,10 @@ public sealed class ClinicalImportServiceTests : IDisposable
             OpenedDate = DateTime.Now.AddDays(-1),
             ClosedDate = DateTime.Now
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains(result.Warnings, w => w.Contains("not available"));
@@ -141,7 +141,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await SeedSourceDataAsync("INST0001", "DVM", "453", weekCount: 8);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         var updateAssignment = Assert.Single(result.Assignments, a => a.Status == "Update");
@@ -158,7 +158,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await SeedSourceDataAsync("INST0002", "DVM", "453", weekCount: 5);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         var skipAssignment = Assert.Single(result.Assignments, a => a.Status == "Skip");
@@ -174,7 +174,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await SeedSourceDataAsync("INST0003", "DVM", "453", weekCount: 3);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         var newAssignment = Assert.Single(result.Assignments, a => a.Status == "New");
@@ -191,7 +191,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         // No source data seeded
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         var deleteAssignment = Assert.Single(result.Assignments, a => a.Status == "Delete");
@@ -245,13 +245,13 @@ public sealed class ClinicalImportServiceTests : IDisposable
             Weeks = 4,
             Crn = "CRN001"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Seed source data that would match by MothraId if ViperPerson had one
         await SeedSourceDataAsync("INST0050", "DVM", "453", weekCount: 4);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert — existing record's MothraId resolved to "" so it doesn't match source
         // data keyed by "INST0050". The source appears as New and the existing as Delete.
@@ -276,7 +276,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await SeedSourceDataAsync("INST0005", "DVM", "453", weekCount: 8);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.AddNewOnly);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.AddNewOnly, TestContext.Current.CancellationToken);
 
         // Assert — existing record should be "Skip" with no ExistingWeeks
         var skipAssignment = Assert.Single(result.Assignments, a => a.Status == "Skip");
@@ -306,7 +306,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
             Units = 1,
             CustDept = "VME"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Record 1: will be updated (weeks differ)
         await SeedExistingClinicalRecordAsync("INST0010", 10, courseId: 1, weeks: 4);
@@ -319,7 +319,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
         await SeedSourceDataAsync("INST0012", "DVM", "491", weekCount: 2);
 
         // Act
-        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync);
+        var result = await _service.GetPreviewAsync(TermCode, ClinicalImportMode.Sync, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result.AddCount);
@@ -346,7 +346,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
             LastName = "Clinical",
             MothraId = "INST0020"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // VIPER People for EnsureEffortPersonAsync name lookup
         _viperContext.People.Add(new Person
@@ -358,7 +358,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
             FullName = "Clinical, New",
             MothraId = "INST0020"
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // AAUD data for title code
         _aaudContext.Ids.Add(new Id
@@ -380,15 +380,15 @@ public sealed class ClinicalImportServiceTests : IDisposable
             EmpCbuc = "VETMED",
             EmpStatus = "A"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1);
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
 
         // Assert — EffortPerson should have been created
         Assert.True(result.Success);
         Assert.True(result.RecordsAdded > 0);
-        var effortPerson = await _context.Persons.FirstOrDefaultAsync(p => p.PersonId == 20 && p.TermCode == TermCode);
+        var effortPerson = await _context.Persons.FirstOrDefaultAsync(p => p.PersonId == 20 && p.TermCode == TermCode, TestContext.Current.CancellationToken);
         Assert.NotNull(effortPerson);
         Assert.Equal("NEW", effortPerson.FirstName);
         Assert.Equal("CLINICAL", effortPerson.LastName);
@@ -401,7 +401,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
     {
         // Arrange - term, source data, person — but NO EffortCourse for the source course
         _context.Terms.Add(new EffortTerm { TermCode = TermCode });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // No course seeded — EnsureEffortCourseAsync should create it
 
@@ -423,7 +423,7 @@ public sealed class ClinicalImportServiceTests : IDisposable
             EffortDept = "VME",
             EffortTitleCode = "1234"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Banner CRN lookup
         _coursesContext.Baseinfos.Add(new Baseinfo
@@ -444,15 +444,15 @@ public sealed class ClinicalImportServiceTests : IDisposable
             BaseinfoXlistFlag = "N",
             BaseinfoXlistGroup = ""
         });
-        await _coursesContext.SaveChangesAsync();
+        await _coursesContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1);
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
 
         // Assert — EffortCourse should have been created with Banner CRN
         Assert.True(result.Success);
         Assert.True(result.RecordsAdded > 0);
-        var course = await _context.Courses.FirstOrDefaultAsync(c => c.TermCode == TermCode && c.SubjCode == "DVM" && c.CrseNumb == "491");
+        var course = await _context.Courses.FirstOrDefaultAsync(c => c.TermCode == TermCode && c.SubjCode == "DVM" && c.CrseNumb == "491", TestContext.Current.CancellationToken);
         Assert.NotNull(course);
         Assert.Equal("CRN491", course.Crn);
         Assert.Equal(EffortConstants.DefaultClinicalEnrollment, course.Enrollment);
@@ -472,12 +472,12 @@ public sealed class ClinicalImportServiceTests : IDisposable
             LastName = "Aaud",
             MothraId = "INST0022"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // No AAUD data seeded — EnsureEffortPersonAsync should return false
 
         // Act
-        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1);
+        var result = await _service.ExecuteImportAsync(TermCode, ClinicalImportMode.AddNewOnly, modifiedBy: 1, TestContext.Current.CancellationToken);
 
         // Assert — record should be skipped, not added
         Assert.True(result.Success);

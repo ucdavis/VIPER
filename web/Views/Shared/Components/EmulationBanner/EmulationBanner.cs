@@ -5,16 +5,16 @@ namespace Viper.Views.Shared.Components.EmulationBanner
     [ViewComponent(Name = "EmulationBanner")]
     public class EmulationBannerViewComponent : ViewComponent
     {
-        public async Task<IViewComponentResult> InvokeAsync()
+        public IViewComponentResult Invoke()
         {
             IUserHelper UserHelper = new UserHelper();
             if (!UserHelper.IsEmulating())
             {
-                return await Task.Run(() => (IViewComponentResult)Content(string.Empty));
+                return Content(string.Empty);
             }
 
             string? displayFullName = UserHelper.GetCurrentUser()?.DisplayFullName;
-            return await Task.Run(() => View("Default", displayFullName));
+            return View("Default", displayFullName);
         }
     }
 }

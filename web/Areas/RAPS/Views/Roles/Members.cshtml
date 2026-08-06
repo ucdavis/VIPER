@@ -162,7 +162,8 @@
             },
             methods: {
                 loadRole: async function () {
-                    this.role = await viperFetch(this, "Roles/" + this.roleId)
+                    // instance must be a string: mounted() calls role.instance.indexOf().
+                    this.role = (await viperFetch(this, "Roles/" + this.roleId)) ?? { instance: "" }
                 },
                 memberSearch: function (val, update, abort) {
                     if (val.length < 3) {

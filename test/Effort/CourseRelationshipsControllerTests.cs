@@ -91,7 +91,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.GetRelationships(1);
+        var actionResult = await _controller.GetRelationships(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -106,7 +106,7 @@ public sealed class CourseRelationshipsControllerTests
         _courseServiceMock.GetCourseAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var actionResult = await _controller.GetRelationships(999);
+        var actionResult = await _controller.GetRelationships(999, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(actionResult.Result);
@@ -122,7 +122,7 @@ public sealed class CourseRelationshipsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var actionResult = await _controller.GetRelationships(1);
+        var actionResult = await _controller.GetRelationships(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(actionResult.Result);
@@ -145,7 +145,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.GetRelationships(1);
+        var actionResult = await _controller.GetRelationships(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -181,7 +181,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.GetRelationships(1);
+        var actionResult = await _controller.GetRelationships(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -212,7 +212,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.GetRelationships(1);
+        var actionResult = await _controller.GetRelationships(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -246,7 +246,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipsForCourseAsync(1, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.GetRelationships(1);
+        var actionResult = await _controller.GetRelationships(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -275,7 +275,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetAvailableChildCoursesAsync(1, Arg.Any<CancellationToken>()).Returns(availableCourses);
 
         // Act
-        var actionResult = await _controller.GetAvailableChildren(1);
+        var actionResult = await _controller.GetAvailableChildren(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -301,7 +301,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetAvailableChildCoursesAsync(1, Arg.Any<CancellationToken>()).Returns(availableCourses);
 
         // Act
-        var actionResult = await _controller.GetAvailableChildren(1);
+        var actionResult = await _controller.GetAvailableChildren(1, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -337,7 +337,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.CreateRelationshipAsync(1, request, Arg.Any<CancellationToken>()).Returns(relationship);
 
         // Act
-        var actionResult = await _controller.CreateRelationship(1, request);
+        var actionResult = await _controller.CreateRelationship(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
@@ -357,7 +357,7 @@ public sealed class CourseRelationshipsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var actionResult = await _controller.CreateRelationship(1, request);
+        var actionResult = await _controller.CreateRelationship(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(actionResult.Result);
@@ -377,7 +377,7 @@ public sealed class CourseRelationshipsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(VmeDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var actionResult = await _controller.CreateRelationship(1, request);
+        var actionResult = await _controller.CreateRelationship(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(actionResult.Result);
@@ -397,7 +397,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.CreateRelationshipAsync(1, request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Child course is already a child of another course"));
 
         // Act
-        var actionResult = await _controller.CreateRelationship(1, request);
+        var actionResult = await _controller.CreateRelationship(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(actionResult.Result);
@@ -430,7 +430,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.DeleteRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var actionResult = await _controller.DeleteRelationship(1, 1);
+        var actionResult = await _controller.DeleteRelationship(1, 1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NoContentResult>(actionResult);
@@ -443,7 +443,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var actionResult = await _controller.DeleteRelationship(1, 999);
+        var actionResult = await _controller.DeleteRelationship(1, 999, TestContext.Current.CancellationToken);
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(actionResult);
@@ -465,7 +465,7 @@ public sealed class CourseRelationshipsControllerTests
         _relationshipServiceMock.GetRelationshipAsync(1, Arg.Any<CancellationToken>()).Returns(relationship);
 
         // Act
-        var actionResult = await _controller.DeleteRelationship(1, 1); // Trying to delete via parent 1
+        var actionResult = await _controller.DeleteRelationship(1, 1, TestContext.Current.CancellationToken); // Trying to delete via parent 1
 
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(actionResult);
@@ -490,7 +490,7 @@ public sealed class CourseRelationshipsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(DvmDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var actionResult = await _controller.DeleteRelationship(1, 1);
+        var actionResult = await _controller.DeleteRelationship(1, 1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(actionResult);
@@ -517,7 +517,7 @@ public sealed class CourseRelationshipsControllerTests
         _permissionServiceMock.CanViewDepartmentAsync(VmeDept, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var actionResult = await _controller.DeleteRelationship(1, 1);
+        var actionResult = await _controller.DeleteRelationship(1, 1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(actionResult);

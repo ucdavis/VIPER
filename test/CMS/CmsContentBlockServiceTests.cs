@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.CMS.Constants;
 using Viper.Areas.CMS.Models;
 using Viper.Areas.CMS.Services;
@@ -642,7 +643,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     {
         var block = await SeedBlockAsync(b =>
             b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         Assert.False(await _service.CanEditAsync(block.ContentBlockId, TestContext.Current.CancellationToken));
     }
@@ -926,7 +927,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     {
         await SeedBlockAsync(b =>
             b.ContentBlockToEditPermissions.Add(new ContentBlockToEditPermission { Permission = "SVMSecure.Editors" }));
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         var blocks = await _service.GetEditableBlocksAsync(TestContext.Current.CancellationToken);
 
@@ -994,7 +995,7 @@ public sealed class CmsContentBlockServiceTests : IDisposable
     public async Task SearchAttachableFiles_Anonymous_ReturnsEmpty()
     {
         await SeedFileAsync("report-match.pdf");
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
 
         Assert.Empty(await _service.SearchAttachableFilesAsync("match", TestContext.Current.CancellationToken));
     }
@@ -1119,6 +1120,176 @@ public sealed class CmsContentBlockServiceTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.Null(result);
+    }
+
+    #endregion
+
+    #region Attach authorization (AssertFilesAttachableAsync)
+
+    // Attaching a file to a block is a read-access decision: the block would surface a download
+    // link for it, so a user may only attach files they could already download. Five independent
+    // rules grant that, and each is exercised here because a regression in any one silently widens
+    // access. The deny case is the fail-closed default.
+    //
+    // The check hangs off the content-only PATCH (the delegated-editor path), which is the one
+    // route that accepts attachments from a user who may not manage the block, so every scenario
+    // drives UpdateContentOnlyAsync rather than the manager's full save.
+
+    private Task<global::Viper.Areas.CMS.Models.DTOs.ContentBlockDto?> AttachAsync(ContentBlock block,
+        Models.VIPER.File file) =>
+        _service.UpdateContentOnlyAsync(block.ContentBlockId, "<p>edit</p>", block.ModifiedOn,
+            new List<Guid> { file.FileGuid }, TestContext.Current.CancellationToken);
+
+    private async Task AssertAttachAllowedAsync(Models.VIPER.File file, string sectionPath = "cats")
+    {
+        var block = await SeedBlockAsync(b => b.ViperSectionPath = sectionPath);
+
+        var dto = await AttachAsync(block, file);
+
+        Assert.NotNull(dto);
+        Assert.Equal(file.FriendlyName, Assert.Single(dto.Files).FriendlyName);
+    }
+
+    private async Task<ArgumentException> AssertAttachRejectedAsync(Models.VIPER.File file,
+        string sectionPath = "cats")
+    {
+        var block = await SeedBlockAsync(b => b.ViperSectionPath = sectionPath);
+
+        return await Assert.ThrowsAsync<ArgumentException>(() => AttachAsync(block, file));
+    }
+
+    [Fact]
+    public async Task AttachFile_Allowed_WhenFileIsPublic()
+    {
+        var file = await SeedFileAsync("public.pdf", customize: f => f.AllowPublicAccess = true);
+        // Holds nothing at all, so only the public flag can carry this.
+        SignInAs(DelegateUser(), isManager: false);
+
+        await AssertAttachAllowedAsync(file);
+    }
+
+    [Fact]
+    public async Task AttachFile_Allowed_WhenFileUnrestrictedAndUserHasSvmSecure()
+    {
+        // No permission rows on the file means "any VIPER user", which SVMSecure represents.
+        var file = await SeedFileAsync("open.pdf");
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        await AssertAttachAllowedAsync(file);
+    }
+
+    [Fact]
+    public async Task AttachFile_Allowed_WhenUserHoldsOneOfTheFilePermissions()
+    {
+        var file = await SeedFileAsync("restricted.pdf", customize: f =>
+        {
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Other" });
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Cats" });
+        });
+        // Holding any ONE of the file's permissions is enough; the user lacks SVMSecure.Other.
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure.Cats");
+
+        await AssertAttachAllowedAsync(file);
+    }
+
+    [Fact]
+    public async Task AttachFile_Allowed_WhenGrantedToThePersonDirectly()
+    {
+        var user = new AaudUser { AaudUserId = 11, LoginId = "person", MothraId = "m11", IamId = "iam-11" };
+        var file = await SeedFileAsync("person-only.pdf", customize: f =>
+        {
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Unheld" });
+            f.FileToPeople.Add(new FileToPerson { IamId = "iam-11" });
+        });
+        // Person-level access stands alone: the user holds none of the file's permissions.
+        SignInAs(user, isManager: false);
+
+        await AssertAttachAllowedAsync(file);
+    }
+
+    [Fact]
+    public async Task AttachFile_Allowed_WhenUploaderAttachesOwnFileFromTheBlockFolder()
+    {
+        // The inline-upload path: a delegate's own upload inherits the block's VIEW permissions,
+        // which the delegate need not hold, so the uploader+folder match is what lets them attach it.
+        var file = await SeedFileAsync("mine.pdf", folder: "cats", modifiedBy: "delegate",
+            customize: f => f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Unheld" }));
+        SignInAs(DelegateUser(), isManager: false);
+
+        await AssertAttachAllowedAsync(file, sectionPath: "cats");
+    }
+
+    [Fact]
+    public async Task AttachFile_Rejected_WhenUploadedFileSitsInADifferentFolder()
+    {
+        // Scopes the uploader exception to this block: a delegate may not move a restricted file
+        // they uploaded elsewhere onto a block with broader visibility.
+        var file = await SeedFileAsync("elsewhere.pdf", folder: "admin", modifiedBy: "delegate",
+            customize: f => f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Unheld" }));
+        SignInAs(DelegateUser(), isManager: false);
+
+        var ex = await AssertAttachRejectedAsync(file, sectionPath: "cats");
+
+        Assert.Contains("do not have access", ex.Message);
+    }
+
+    [Fact]
+    public async Task AttachFile_Rejected_WhenUserMatchesNoRule()
+    {
+        var file = await SeedFileAsync("secret.pdf", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Unheld" }));
+        SignInAs(DelegateUser(), isManager: false, "SVMSecure");
+
+        var ex = await AssertAttachRejectedAsync(file);
+
+        Assert.Contains("do not have access", ex.Message);
+    }
+
+    [Fact]
+    public async Task AttachFile_Rejected_WhenAnonymous()
+    {
+        // Fail closed: an anonymous caller resolves to an empty permission set, so even the
+        // unrestricted-file rule (which keys off SVMSecure) must not let the attach through.
+        var file = await SeedFileAsync("open.pdf");
+        _userHelper.GetCurrentUser().ReturnsNull();
+
+        var ex = await AssertAttachRejectedAsync(file);
+
+        Assert.Contains("do not have access", ex.Message);
+    }
+
+    [Fact]
+    public async Task AttachFile_Rejected_WhenFileIsSoftDeleted()
+    {
+        // A deleted file comes back missing from the active-only lookup, so it reports as missing
+        // rather than as an access failure; attaching by GUID must not resurrect it.
+        var file = await SeedFileAsync("trashed.pdf", customize: f =>
+        {
+            f.AllowPublicAccess = true;
+            f.DeletedOn = DateTime.Now.AddDays(-1);
+        });
+        SignInAs(DelegateUser(), isManager: false);
+
+        var ex = await AssertAttachRejectedAsync(file);
+
+        Assert.Contains("deleted or missing", ex.Message);
+    }
+
+    [Fact]
+    public async Task AttachFile_Allowed_WhenManagerAlreadyAttachedARestrictedFile()
+    {
+        // Only NEWLY-added guids are checked: a delegate resending the block's existing
+        // attachments must not be blocked by a restricted file a manager attached earlier.
+        var file = await SeedFileAsync("manager-attached.pdf", customize: f =>
+            f.FileToPermissions.Add(new FileToPermission { Permission = "SVMSecure.Unheld" }));
+        var block = await SeedBlockAsync(b =>
+            b.ContentBlockToFiles.Add(new ContentBlockToFile { FileGuid = file.FileGuid }));
+        SignInAs(DelegateUser(), isManager: false);
+
+        var dto = await AttachAsync(block, file);
+
+        Assert.NotNull(dto);
+        Assert.Equal("manager-attached.pdf", Assert.Single(dto.Files).FriendlyName);
     }
 
     #endregion

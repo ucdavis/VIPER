@@ -89,12 +89,12 @@ namespace Viper.Controllers
                     case "cts":
                         menu = new CtsNavMenu(_context).Nav();
                         break;
-                    case "cms":
-                        menu = new CmsNavMenu(_context).Nav();
-                        break;
                     case "viper-clinical-scheduler":
                     case "clinicalscheduler":
                         menu = await new ClinicalSchedulerNavMenu(_context, _schedulePermissionService).Nav(HttpContext.RequestAborted);
+                        break;
+                    case "cms":
+                        menu = new CmsNavMenu(_context).Nav();
                         break;
                 }
                 if (menu != null)

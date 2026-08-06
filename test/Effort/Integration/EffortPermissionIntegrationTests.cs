@@ -30,7 +30,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithFullAccess();
 
         // Act
-        var hasFullAccess = await _permissionService.HasFullAccessAsync();
+        var hasFullAccess = await _permissionService.HasFullAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(hasFullAccess);
@@ -43,9 +43,9 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithFullAccess();
 
         // Act
-        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment);
-        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment);
-        var canViewApc = await _permissionService.CanViewDepartmentAsync(ApcDepartment);
+        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
+        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
+        var canViewApc = await _permissionService.CanViewDepartmentAsync(ApcDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewDvm);
@@ -60,8 +60,8 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithFullAccess();
 
         // Act
-        var canEditDvm = await _permissionService.CanEditDepartmentAsync(DvmDepartment);
-        var canEditVme = await _permissionService.CanEditDepartmentAsync(VmeDepartment);
+        var canEditDvm = await _permissionService.CanEditDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
+        var canEditVme = await _permissionService.CanEditDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
 
         // Assert - Full access bypasses department filtering
         Assert.True(canEditDvm);
@@ -75,7 +75,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithFullAccess();
 
         // Act
-        var departments = await _permissionService.GetAuthorizedDepartmentsAsync();
+        var departments = await _permissionService.GetAuthorizedDepartmentsAsync(TestContext.Current.CancellationToken);
 
         // Assert - Empty list indicates full access (all departments)
         Assert.Empty(departments);
@@ -88,9 +88,9 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithFullAccess();
 
         // Act - Can view any person regardless of department
-        var canViewDvmPerson = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode);
-        var canViewVmePerson = await _permissionService.CanViewPersonEffortAsync(1001, TestTermCode);
-        var canViewApcPerson = await _permissionService.CanViewPersonEffortAsync(1002, TestTermCode);
+        var canViewDvmPerson = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode, TestContext.Current.CancellationToken);
+        var canViewVmePerson = await _permissionService.CanViewPersonEffortAsync(1001, TestTermCode, TestContext.Current.CancellationToken);
+        var canViewApcPerson = await _permissionService.CanViewPersonEffortAsync(1002, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewDvmPerson);
@@ -109,7 +109,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act
-        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync();
+        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(hasDeptAccess);
@@ -122,9 +122,9 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act
-        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment);
-        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment);
-        var canViewApc = await _permissionService.CanViewDepartmentAsync(ApcDepartment);
+        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
+        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
+        var canViewApc = await _permissionService.CanViewDepartmentAsync(ApcDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewDvm);
@@ -139,9 +139,9 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment, VmeDepartment);
 
         // Act
-        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment);
-        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment);
-        var canViewApc = await _permissionService.CanViewDepartmentAsync(ApcDepartment);
+        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
+        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
+        var canViewApc = await _permissionService.CanViewDepartmentAsync(ApcDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewDvm);
@@ -156,7 +156,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment, VmeDepartment);
 
         // Act
-        var departments = await _permissionService.GetAuthorizedDepartmentsAsync();
+        var departments = await _permissionService.GetAuthorizedDepartmentsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, departments.Count);
@@ -171,9 +171,9 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act
-        var canViewDvmPerson = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode);
-        var canViewVmePerson = await _permissionService.CanViewPersonEffortAsync(1001, TestTermCode);
-        var canViewApcPerson = await _permissionService.CanViewPersonEffortAsync(1002, TestTermCode);
+        var canViewDvmPerson = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode, TestContext.Current.CancellationToken);
+        var canViewVmePerson = await _permissionService.CanViewPersonEffortAsync(1001, TestTermCode, TestContext.Current.CancellationToken);
+        var canViewApcPerson = await _permissionService.CanViewPersonEffortAsync(1002, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewDvmPerson);
@@ -192,8 +192,8 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithEditEffortPermission(DvmDepartment);
 
         // Act
-        var canEditDvm = await _permissionService.CanEditDepartmentAsync(DvmDepartment);
-        var canEditVme = await _permissionService.CanEditDepartmentAsync(VmeDepartment);
+        var canEditDvm = await _permissionService.CanEditDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
+        var canEditVme = await _permissionService.CanEditDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canEditDvm);
@@ -207,8 +207,8 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithEditEffortPermission(DvmDepartment);
 
         // Act
-        var canEditDvmPerson = await _permissionService.CanEditPersonEffortAsync(TestUserAaudId, TestTermCode);
-        var canEditVmePerson = await _permissionService.CanEditPersonEffortAsync(1001, TestTermCode);
+        var canEditDvmPerson = await _permissionService.CanEditPersonEffortAsync(TestUserAaudId, TestTermCode, TestContext.Current.CancellationToken);
+        var canEditVmePerson = await _permissionService.CanEditPersonEffortAsync(1001, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canEditDvmPerson);
@@ -222,7 +222,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act
-        var canEditDvm = await _permissionService.CanEditDepartmentAsync(DvmDepartment);
+        var canEditDvm = await _permissionService.CanEditDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
 
         // Assert - Cannot edit even their own department without EditEffort permission
         Assert.False(canEditDvm);
@@ -239,7 +239,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithSelfServiceAccess();
 
         // Act
-        var hasSelfService = await _permissionService.HasSelfServiceAccessAsync();
+        var hasSelfService = await _permissionService.HasSelfServiceAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(hasSelfService);
@@ -252,7 +252,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithSelfServiceAccess();
 
         // Act
-        var canViewOwn = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode);
+        var canViewOwn = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewOwn);
@@ -265,7 +265,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithSelfServiceAccess();
 
         // Act
-        var canViewOther = await _permissionService.CanViewPersonEffortAsync(1001, TestTermCode);
+        var canViewOther = await _permissionService.CanViewPersonEffortAsync(1001, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canViewOther);
@@ -308,7 +308,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithNoPermissions();
 
         // Act
-        var hasFullAccess = await _permissionService.HasFullAccessAsync();
+        var hasFullAccess = await _permissionService.HasFullAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasFullAccess);
@@ -321,7 +321,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithNoPermissions();
 
         // Act
-        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync();
+        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasDeptAccess);
@@ -334,8 +334,8 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithNoPermissions();
 
         // Act
-        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment);
-        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment);
+        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
+        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canViewDvm);
@@ -349,7 +349,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithNoPermissions();
 
         // Act
-        var canViewPerson = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode);
+        var canViewPerson = await _permissionService.CanViewPersonEffortAsync(TestUserAaudId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canViewPerson);
@@ -362,7 +362,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupNullUser();
 
         // Act
-        var hasFullAccess = await _permissionService.HasFullAccessAsync();
+        var hasFullAccess = await _permissionService.HasFullAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasFullAccess);
@@ -375,7 +375,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupNullUser();
 
         // Act
-        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment);
+        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canViewDvm);
@@ -405,7 +405,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithBasePermissionOnly();
 
         // Act
-        var hasFullAccess = await _permissionService.HasFullAccessAsync();
+        var hasFullAccess = await _permissionService.HasFullAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasFullAccess);
@@ -418,7 +418,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithBasePermissionOnly();
 
         // Act
-        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync();
+        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasDeptAccess);
@@ -431,7 +431,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithBasePermissionOnly();
 
         // Act
-        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment);
+        var canViewDvm = await _permissionService.CanViewDepartmentAsync(DvmDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canViewDvm);
@@ -448,8 +448,8 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithFullAccess();
 
         // Act - Should have access to all departments regardless of UserAccess entries
-        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync();
-        var canViewAllDepts = await _permissionService.CanViewDepartmentAsync(ApcDepartment);
+        var hasDeptAccess = await _permissionService.HasDepartmentLevelAccessAsync(TestContext.Current.CancellationToken);
+        var canViewAllDepts = await _permissionService.CanViewDepartmentAsync(ApcDepartment, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasDeptAccess); // ViewDept is not set
@@ -463,9 +463,9 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act - Test case insensitivity
-        var canViewUppercase = await _permissionService.CanViewDepartmentAsync("DVM");
-        var canViewLowercase = await _permissionService.CanViewDepartmentAsync("dvm");
-        var canViewMixed = await _permissionService.CanViewDepartmentAsync("Dvm");
+        var canViewUppercase = await _permissionService.CanViewDepartmentAsync("DVM", TestContext.Current.CancellationToken);
+        var canViewLowercase = await _permissionService.CanViewDepartmentAsync("dvm", TestContext.Current.CancellationToken);
+        var canViewMixed = await _permissionService.CanViewDepartmentAsync("Dvm", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canViewUppercase);
@@ -486,10 +486,10 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
             DepartmentCode = VmeDepartment,
             IsActive = false // Inactive!
         });
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment);
+        var canViewVme = await _permissionService.CanViewDepartmentAsync(VmeDepartment, TestContext.Current.CancellationToken);
 
         // Assert - Inactive access should be ignored
         Assert.False(canViewVme);
@@ -513,12 +513,12 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
             ReportUnit = DvmDepartment  // But ReportUnit matches
         };
         EffortContext.Persons.Add(personWithReportUnit);
-        await EffortContext.SaveChangesAsync();
+        await EffortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act
-        var canViewPerson = await _permissionService.CanViewPersonEffortAsync(2000, TestTermCode);
+        var canViewPerson = await _permissionService.CanViewPersonEffortAsync(2000, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert - Should be able to view via ReportUnit match
         Assert.True(canViewPerson);
@@ -531,7 +531,7 @@ public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
         SetupUserWithDepartmentViewAccess(DvmDepartment);
 
         // Act
-        var canViewApcPerson = await _permissionService.CanViewPersonEffortAsync(1002, TestTermCode);
+        var canViewApcPerson = await _permissionService.CanViewPersonEffortAsync(1002, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canViewApcPerson);

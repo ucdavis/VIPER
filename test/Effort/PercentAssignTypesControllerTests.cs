@@ -57,7 +57,7 @@ public sealed class PercentAssignTypesControllerTests
         _typeServiceMock.GetPercentAssignTypesAsync(false, Arg.Any<CancellationToken>()).Returns(types);
 
         // Act
-        var result = await _controller.GetPercentAssignTypes();
+        var result = await _controller.GetPercentAssignTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -76,7 +76,7 @@ public sealed class PercentAssignTypesControllerTests
         _typeServiceMock.GetPercentAssignTypesAsync(true, Arg.Any<CancellationToken>()).Returns(types);
 
         // Act
-        var result = await _controller.GetPercentAssignTypes(activeOnly: true);
+        var result = await _controller.GetPercentAssignTypes(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -91,7 +91,7 @@ public sealed class PercentAssignTypesControllerTests
         // Arrange
         _typeServiceMock.GetPercentAssignTypesAsync(false, Arg.Any<CancellationToken>()).Returns(new List<PercentAssignTypeDto>());
         // Act
-        var result = await _controller.GetPercentAssignTypes();
+        var result = await _controller.GetPercentAssignTypes(ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

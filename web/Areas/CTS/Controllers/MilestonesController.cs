@@ -4,6 +4,7 @@ using Viper.Areas.CTS.Models;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Models.CTS;
+using Viper.Services;
 using Web.Authorization;
 
 namespace Viper.Areas.CTS.Controllers
@@ -13,10 +14,12 @@ namespace Viper.Areas.CTS.Controllers
     public class MilestonesController : ApiController
     {
         private readonly VIPERContext context;
+        private readonly IHtmlSanitizerService sanitizer; //Milestone level descriptions contain HTML. Sanitize on both input and output.
 
-        public MilestonesController(VIPERContext context)
+        public MilestonesController(VIPERContext context, IHtmlSanitizerService sanitizer)
         {
             this.context = context;
+            this.sanitizer = sanitizer;
         }
 
         //NB: Milestones are defined as bundles, so add/update/delete functions are in BundlesController
@@ -51,7 +54,9 @@ namespace Viper.Areas.CTS.Controllers
                 .Where(ml => ml.BundleId == milestoneId)
                 .OrderBy(ml => ml.Level.Order)
                 .ToListAsync();
-            return CtsMapper.ToMilestoneLevelDtos(levelQuery);
+            var levelDtos = CtsMapper.ToMilestoneLevelDtos(levelQuery);
+            levelDtos.ForEach(l => l.Description = sanitizer.Sanitize(l.Description));
+            return levelDtos;
         }
 
         [HttpPut("{milestoneId}/levels")]
@@ -73,10 +78,11 @@ namespace Viper.Areas.CTS.Controllers
             foreach (var ml in milestoneLevels)
             {
                 //look for existing to determine whether to add milestoneLevel or update description
+                var sanitizedDescription = sanitizer.Sanitize(ml.Description);
                 var existingLevel = existingLevels.FirstOrDefault(el => el.LevelId == ml.LevelId);
                 if (existingLevel != null)
                 {
-                    existingLevel.Description = ml.Description;
+                    existingLevel.Description = sanitizedDescription;
                     context.MilestoneLevels.Update(existingLevel);
                 }
                 else
@@ -85,7 +91,7 @@ namespace Viper.Areas.CTS.Controllers
                     {
                         BundleId = milestoneId,
                         LevelId = ml.LevelId,
-                        Description = ml.Description,
+                        Description = sanitizedDescription,
                     });
                 }
             }

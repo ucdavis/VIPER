@@ -49,7 +49,7 @@
             },
             methods: {
                 loadPermission: async function () {
-                    this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+                    this.permission = (await viperFetch(this, "Permissions/" + this.permissionId)) ?? {}
                 },
                 loadTables: async function () {
                     await this.rolePermissionTable.load(this)

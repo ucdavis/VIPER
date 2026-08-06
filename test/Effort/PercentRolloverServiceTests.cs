@@ -159,7 +159,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsRolloverApplicable);
@@ -195,7 +195,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsRolloverApplicable);
@@ -217,7 +217,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2025, result.SourceAcademicYear);
@@ -272,7 +272,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             compensated: true);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025, TestContext.Current.CancellationToken);
 
         // Assert - Should exclude already-rolled assignment (idempotency)
         Assert.False(result.IsRolloverApplicable);
@@ -297,14 +297,14 @@ public sealed class PercentRolloverServiceTests : IDisposable
             new DateTime(2025, 6, 30, 0, 0, 0, DateTimeKind.Local),
             unit.Id);
 
-        var initialCount = await _effortContext.Percentages.CountAsync();
+        var initialCount = await _effortContext.Percentages.CountAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, created);
-        var finalCount = await _effortContext.Percentages.CountAsync();
+        var finalCount = await _effortContext.Percentages.CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(initialCount + 1, finalCount);
     }
 
@@ -326,14 +326,14 @@ public sealed class PercentRolloverServiceTests : IDisposable
             comment: "Test comment");
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, created);
 
         var newRecords = await _effortContext.Percentages
             .Where(p => p.StartDate == new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Local))
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         var newRecord = Assert.Single(newRecords);
         Assert.Equal(100, newRecord.PersonId);
@@ -365,7 +365,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, created);
@@ -388,10 +388,10 @@ public sealed class PercentRolloverServiceTests : IDisposable
             compensated: true);
 
         // Act - First rollover
-        var firstRun = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var firstRun = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Act - Second rollover (should be idempotent)
-        var secondRun = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var secondRun = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, firstRun);
@@ -399,7 +399,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
 
         var targetYearCount = await _effortContext.Percentages
             .Where(p => p.StartDate == new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Local))
-            .CountAsync();
+            .CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, targetYearCount);  // Only one record created, not two
     }
 
@@ -436,14 +436,14 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit1.Id);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, created);
 
         var newRecords = await _effortContext.Percentages
             .Where(p => p.StartDate == new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Local))
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(3, newRecords.Count);
         Assert.Contains(newRecords, r => r.PersonId == 100 && Math.Abs(r.PercentageValue - 0.5) < 0.0001);
@@ -474,7 +474,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             compensated: false);
 
         // Act
-        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        var created = await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, created);
@@ -482,7 +482,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
         var newRecords = await _effortContext.Percentages
             .Where(p => p.StartDate == new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Local))
             .OrderBy(p => p.Modifier)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, newRecords.Count);
         Assert.Equal("Primary", newRecords[0].Modifier);
@@ -507,7 +507,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025, TestContext.Current.CancellationToken);
 
         // Assert
         var assignment = Assert.Single(result.Assignments);
@@ -539,10 +539,10 @@ public sealed class PercentRolloverServiceTests : IDisposable
             ModifiedBy = TestUserId
         };
         _effortContext.Percentages.Add(percentage);
-        await _effortContext.SaveChangesAsync();
+        await _effortContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _rolloverService.GetRolloverPreviewAsync(2025);
+        var result = await _rolloverService.GetRolloverPreviewAsync(2025, TestContext.Current.CancellationToken);
 
         // Assert - ViperPerson nav property is null, so PersonName falls back to "Unknown"
         var assignment = Assert.Single(result.Assignments);
@@ -564,7 +564,7 @@ public sealed class PercentRolloverServiceTests : IDisposable
             unit.Id);
 
         // Act
-        await _rolloverService.ExecuteRolloverAsync(2025, TestUserId);
+        await _rolloverService.ExecuteRolloverAsync(2025, TestUserId, TestContext.Current.CancellationToken);
 
         // Assert - rollover audit is not tied to a term
         _auditServiceMock.Received(1).AddImportAudit(

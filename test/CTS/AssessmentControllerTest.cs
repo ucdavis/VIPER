@@ -123,10 +123,10 @@ namespace Viper.test.CTS
             var actrlAsChief = GetAssessmentController(SetupUsers.UserType.Chief);
 
             var encounterIdExists = SetupAssessments.GetEncounters().First().EncounterId;
-            var encounterIdOtherFac = SetupAssessments.GetEncounters().Where(e => e.EnteredBy != SetupUsers.facultyUser.AaudUserId).First().EncounterId;
-            var encounterIdOtherStd = SetupAssessments.GetEncounters().Where(e => e.StudentUserId != SetupUsers.studentUser1.AaudUserId).First().EncounterId;
-            var encounterIdChief = SetupAssessments.GetEncounters().Where(e => e.ServiceId == SetupServices.ServiceChiefs[0].ServiceId).First().EncounterId;
-            var encounterIdNotChief = SetupAssessments.GetEncounters().Where(e => e.ServiceId != SetupServices.ServiceChiefs[0].ServiceId).First().EncounterId;
+            var encounterIdOtherFac = SetupAssessments.GetEncounters().First(e => e.EnteredBy != SetupUsers.facultyUser.AaudUserId).EncounterId;
+            var encounterIdOtherStd = SetupAssessments.GetEncounters().First(e => e.StudentUserId != SetupUsers.studentUser1.AaudUserId).EncounterId;
+            var encounterIdChief = SetupAssessments.GetEncounters().First(e => e.ServiceId == SetupServices.ServiceChiefs[0].ServiceId).EncounterId;
+            var encounterIdNotChief = SetupAssessments.GetEncounters().First(e => e.ServiceId != SetupServices.ServiceChiefs[0].ServiceId).EncounterId;
             var encounterIdNotExists = 99999;
 
             //act

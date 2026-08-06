@@ -99,7 +99,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentAssignTypeAsync("Admin", "Associate Dean");
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync();
+        var types = await _service.GetPercentAssignTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(4, types.Count);
@@ -121,7 +121,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentAssignTypeAsync("Teaching", "Inactive Type", isActive: false);
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync(activeOnly: true);
+        var types = await _service.GetPercentAssignTypesAsync(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(types);
@@ -137,7 +137,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentAssignTypeAsync("Teaching", "Inactive Type", isActive: false);
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync(activeOnly: false);
+        var types = await _service.GetPercentAssignTypesAsync(activeOnly: false, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, types.Count);
@@ -147,7 +147,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
     public async Task GetPercentAssignTypesAsync_ReturnsEmptyList_WhenNoTypesExist()
     {
         // Act
-        var types = await _service.GetPercentAssignTypesAsync();
+        var types = await _service.GetPercentAssignTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(types);
@@ -164,7 +164,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(2, type.Id, "2024-2025");
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync();
+        var types = await _service.GetPercentAssignTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(types);
@@ -181,7 +181,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync();
+        var types = await _service.GetPercentAssignTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(types);
@@ -198,7 +198,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(1, type.Id, "2024-2025", 0.2);
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync();
+        var types = await _service.GetPercentAssignTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(types);
@@ -212,7 +212,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentAssignTypeAsync("Teaching", "Unused Type");
 
         // Act
-        var types = await _service.GetPercentAssignTypesAsync();
+        var types = await _service.GetPercentAssignTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(types);
@@ -230,7 +230,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
 
         // Act
-        var result = await _service.GetPercentAssignTypeAsync(type.Id);
+        var result = await _service.GetPercentAssignTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -244,7 +244,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
     public async Task GetPercentAssignTypeAsync_ReturnsNull_WhenNotFound()
     {
         // Act
-        var result = await _service.GetPercentAssignTypeAsync(999);
+        var result = await _service.GetPercentAssignTypeAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -257,7 +257,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture", showOnTemplate: false);
 
         // Act
-        var result = await _service.GetPercentAssignTypeAsync(type.Id);
+        var result = await _service.GetPercentAssignTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -278,7 +278,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentAssignTypeAsync("Research", "Grant");
 
         // Act
-        var classes = await _service.GetPercentAssignTypeClassesAsync();
+        var classes = await _service.GetPercentAssignTypeClassesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, classes.Count);
@@ -291,7 +291,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
     public async Task GetPercentAssignTypeClassesAsync_ReturnsEmptyList_WhenNoTypes()
     {
         // Act
-        var classes = await _service.GetPercentAssignTypeClassesAsync();
+        var classes = await _service.GetPercentAssignTypeClassesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(classes);
@@ -305,7 +305,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
     public async Task GetInstructorsByTypeAsync_ReturnsNull_WhenTypeNotFound()
     {
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(999);
+        var result = await _service.GetInstructorsByTypeAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -318,7 +318,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         var type = await CreatePercentAssignTypeAsync("Teaching", "Lecture");
 
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(type.Id);
+        var result = await _service.GetInstructorsByTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -337,7 +337,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(type.Id);
+        var result = await _service.GetInstructorsByTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -360,7 +360,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(type.Id);
+        var result = await _service.GetInstructorsByTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -382,7 +382,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(3, type.Id, "2024-2025");
 
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(type.Id);
+        var result = await _service.GetInstructorsByTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -407,7 +407,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(1, type.Id, "2024-2025");
 
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(type.Id);
+        var result = await _service.GetInstructorsByTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -426,7 +426,7 @@ public sealed class PercentAssignTypeServiceTests : IDisposable
         await CreatePercentageAsync(1, type.Id, "2024-2025", 0.2);
 
         // Act
-        var result = await _service.GetInstructorsByTypeAsync(type.Id);
+        var result = await _service.GetInstructorsByTypeAsync(type.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
