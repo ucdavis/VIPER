@@ -15,10 +15,10 @@
         <div class="direct">
             <h2>User Information Page</h2>
             <span class="photo">
-                <img src="https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=@Model.MailId" width="87" height="111" alt="User Photo" />
+                <img src="@HttpHelper.GetRootURL()/public/utilities/getbase64image.cfm?mailid=@Model.MailId" width="87" height="111" alt="User Photo" />
             </span>
             <span class="photo2">
-                <img src="https://viper.vetmed.ucdavis.edu/public/utilities/getbase64image.cfm?mailid=@Model.MailId&amp;altphoto=1" width="87" height="111" alt="Alternative Photo" />
+                <img src="@HttpHelper.GetRootURL()/public/utilities/getbase64image.cfm?mailid=@Model.MailId&amp;altphoto=1" width="87" height="111" alt="Alternative Photo" />
             </span>
             <h3>@Model.DisplayFullName</h3>
             @if (!Model.CurrentAffiliate)
