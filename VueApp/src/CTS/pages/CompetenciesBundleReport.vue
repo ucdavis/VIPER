@@ -381,7 +381,7 @@ onMounted(() => {
 .col-competency-name {
     display: block;
     white-space: normal;
-    word-break: break-word;
+    overflow-wrap: break-word;
     line-height: 1.4;
     max-width: 100%;
 }
@@ -389,13 +389,13 @@ onMounted(() => {
 /* Apply wrapping to competency name column cells */
 .competency-name-column {
     white-space: normal;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 /* Ensure name column respects its width and allows wrapping */
 :deep(.q-table td:nth-child(2)) {
     white-space: normal;
-    word-break: break-word;
+    overflow-wrap: break-word;
     vertical-align: top;
     max-width: 0; /* This forces the cell to respect table-layout: fixed */
 }
@@ -404,7 +404,7 @@ onMounted(() => {
 :deep(.q-table td:nth-child(3)),
 :deep(.q-table td:nth-child(4)) {
     white-space: normal;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 /* Bundle chips wrapper */

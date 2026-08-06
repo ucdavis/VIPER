@@ -160,23 +160,27 @@ div.levelSelection button.selectedLevel {
 }
 
 div.levelSelection button.selectedLevel.selectedLevel--1 {
-    background-color: rgba(62, 127, 238, 0.3);
+    background-color: rgb(62 127 238 / 30%);
     color: #212529;
 }
+
 div.levelSelection button.selectedLevel.selectedLevel--2 {
-    background-color: rgba(62, 127, 238, 0.7);
+    background-color: rgb(62 127 238 / 70%);
     color: #212529;
 }
+
 div.levelSelection button.selectedLevel.selectedLevel--3 {
-    background-color: rgba(62, 127, 238, 1);
+    background-color: rgb(62 127 238 / 100%);
     color: #000;
 }
+
 div.levelSelection button.selectedLevel.selectedLevel--4 {
-    background-color: rgba(0, 44, 175, 0.8);
+    background-color: rgb(0 44 175 / 80%);
     color: #fff;
 }
+
 div.levelSelection button.selectedLevel.selectedLevel--5 {
-    background-color: rgba(11, 3, 139, 1);
+    background-color: rgb(11 3 139 / 100%);
     color: #fff;
 }
 

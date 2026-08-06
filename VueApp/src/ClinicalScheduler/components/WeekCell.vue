@@ -437,10 +437,10 @@ const cardClasses = computed(() => {
     background-color: var(--ucdavis-gold-20);
     border-radius: 4px;
     padding: 2px 4px;
-    animation: fadeToBackground var(--highlight-duration) ease-out forwards; /* Duration from ANIMATIONS.HIGHLIGHT_DURATION_MS */
+    animation: fade-to-background var(--highlight-duration) ease-out forwards; /* Duration from ANIMATIONS.HIGHLIGHT_DURATION_MS */
 }
 
-@keyframes fadeToBackground {
+@keyframes fade-to-background {
     0% {
         background-color: var(--ucdavis-gold-30);
     }

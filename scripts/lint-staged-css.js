@@ -90,47 +90,73 @@ function parseTextOutput(output) {
     return issues
 }
 
+/**
+ * Block the commit, dumping whatever Stylelint emitted so the failure is diagnosable
+ * @param {string} reason - What went wrong
+ * @param {string} blockedMessage - Short summary for the COMMIT BLOCKED line
+ * @param {string} stdout - Stylelint stdout
+ * @param {string} stderr - Stylelint stderr, deprecation warnings already filtered
+ * @returns {never}
+ */
+function blockCommit(reason, blockedMessage, stdout, stderr) {
+    logger.error(reason)
+    if (stdout) {
+        logger.error(stdout)
+    }
+    if (stderr) {
+        logger.error(stderr)
+    }
+    logger.error(`🛑 COMMIT BLOCKED - ${blockedMessage}`)
+    process.exit(1)
+}
+
+// Stylelint receives each path as an argument and Windows caps a command line at
+// ~8191 chars, so a whole-tree run (200+ files) has to be split into batches.
+const MAX_BATCH_SIZE = 50
+
 try {
-    // Run Stylelint using shared command runner
-    const stylelintArgs = [...(fixFlag ? ["--fix"] : []), "--formatter", "json", "--allow-empty-input", ...files]
-
     logger.info(`Running Stylelint accessibility and style checks on ${files.length} CSS/Vue files...`)
-    const stylelintResult = runCommand("stylelint", stylelintArgs, "Stylelint", projectRoot)
 
-    // Check for fatal errors
-    if (stylelintResult.status !== 0 && stylelintResult.status !== 2) {
-        logger.error("Stylelint command failed:")
-        if (stylelintResult.stdout) {
-            logger.error(stylelintResult.stdout)
+    const issues = []
+
+    for (let index = 0; index < files.length; index += MAX_BATCH_SIZE) {
+        const batch = files.slice(index, index + MAX_BATCH_SIZE)
+        const stylelintArgs = [...(fixFlag ? ["--fix"] : []), "--formatter", "json", "--allow-empty-input", ...batch]
+
+        const stylelintResult = runCommand("stylelint", stylelintArgs, "Stylelint", projectRoot)
+
+        // Filter out deprecation warnings before parsing: stylelint writes its JSON
+        // report to stderr, so a leading DeprecationWarning line would make the whole
+        // report unparseable.
+        const cleanStderr = stylelintResult.stderr
+            ? stylelintResult.stderr
+                  .split("\n")
+                  .filter((line) => !line.includes("DeprecationWarning"))
+                  .join("\n")
+                  .trim()
+            : ""
+
+        // Check for fatal errors
+        if (stylelintResult.status !== 0 && stylelintResult.status !== 2) {
+            blockCommit("Stylelint command failed:", "Stylelint execution failed", stylelintResult.stdout, cleanStderr)
         }
-        if (stylelintResult.stderr) {
-            logger.error(stylelintResult.stderr)
+
+        // Parse and accumulate this batch's Stylelint output
+        const batchIssues = parseStylelintOutput(stylelintResult.stdout, cleanStderr)
+        issues.push(...batchIssues)
+
+        // Status 2 means "violations found", so an empty batch means the report was lost in
+        // parsing. Fail closed: passing silently here is the blind-stylelint bug this script
+        // exists to prevent.
+        if (stylelintResult.status === 2 && batchIssues.length === 0) {
+            blockCommit(
+                "Stylelint reported violations but none could be parsed:",
+                "Stylelint output could not be read",
+                stylelintResult.stdout,
+                cleanStderr,
+            )
         }
-        logger.error("🛑 COMMIT BLOCKED - Stylelint execution failed")
-        process.exit(1)
     }
-
-    // Status 2 means "violations found" - only warn if no violations were parsed
-    if (stylelintResult.status === 2) {
-        const jsonToCheck = stylelintResult.stdout.trim() || stylelintResult.stderr.trim()
-        const hasValidJson = jsonToCheck && jsonToCheck.startsWith("[")
-        if (!hasValidJson) {
-            logger.warning("STYLELINT CONFIGURATION WARNING: Status 2 with no parseable violations")
-            logger.warning("📋 Consider reviewing stylelint.config.mjs if unexpected behavior occurs")
-        }
-    }
-
-    // Filter out deprecation warnings
-    const cleanStderr = stylelintResult.stderr
-        ? stylelintResult.stderr
-              .split("\n")
-              .filter((line) => !line.includes("DeprecationWarning"))
-              .join("\n")
-              .trim()
-        : ""
-
-    // Parse and categorize Stylelint output
-    const issues = parseStylelintOutput(stylelintResult.stdout, cleanStderr)
 
     // For CSS, we need special handling of accessibility categories
     const criticalAccessibilityIssues = []

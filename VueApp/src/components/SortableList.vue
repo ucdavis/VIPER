@@ -297,8 +297,8 @@ function onMoveDown(index: number) {
 }
 
 /* "Just moved" cue: a brand-blue tint and ring that fade out. It is a colour/shadow
-   fade (no movement), so it also plays under reduced motion — where the slide is
-   skipped — keeping a clear signal that something changed. */
+   fade with no movement, but reduced motion still turns it off (see the media query
+   below); the row's new position remains the signal that something changed. */
 @keyframes sortable-row-flash {
     0% {
         background-color: var(--ucdavis-blue-10);
@@ -313,6 +313,13 @@ function onMoveDown(index: number) {
 
 .sortable-row--moved {
     animation: sortable-row-flash 1s ease-out;
+}
+
+/* Must follow the rule above: equal specificity, so the later declaration wins. */
+@media screen and (prefers-reduced-motion: reduce) {
+    .sortable-row--moved {
+        animation: none;
+    }
 }
 
 /* On phones the row becomes a stacked card: handle + controls share a top bar,
