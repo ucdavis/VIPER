@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Viper.Models.Keys;
 
 public partial class KeyAssignment

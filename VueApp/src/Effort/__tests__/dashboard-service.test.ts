@@ -8,8 +8,8 @@ import { dashboardService } from "../services/dashboard-service"
  */
 
 // Mock the ViperFetch composable
-const mockGet = vi.fn()
-const mockPost = vi.fn()
+const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),

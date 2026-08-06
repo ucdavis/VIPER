@@ -4,7 +4,7 @@
         style="max-width: 800px"
     >
         <div class="row items-center q-mb-md">
-            <h1 class="text-h4 text-primary q-my-none">Clinical Scheduler</h1>
+            <h1 class="text-primary q-my-none">Clinical Scheduler</h1>
         </div>
 
         <!-- Loading state -->
@@ -218,10 +218,6 @@ onMounted(() => initPage())
 
 .opacity-70 {
     opacity: 0.7;
-}
-
-.opacity-60 {
-    opacity: 0.6;
 }
 
 /* Reduced motion support */

@@ -251,7 +251,7 @@
                     this.selectedPermissions = []
                 },
                 loadMember: async function () {
-                    this.member = await viperFetch(this, "members/" + this.memberId)
+                    this.member = (await viperFetch(this, "members/" + this.memberId)) ?? {}
                 }
             },
             mounted() {

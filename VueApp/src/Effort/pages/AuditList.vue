@@ -884,6 +884,6 @@ onMounted(() => initPage())
 <style scoped>
 .changes-cell {
     white-space: normal !important;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 </style>

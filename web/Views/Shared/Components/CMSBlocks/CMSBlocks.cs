@@ -16,11 +16,11 @@ namespace Viper.Views.Shared.Components.ProfilePic
             CMS = new CMS(viperContext, rapsContext, sanitizerService);
         }
 
-        public async Task<IViewComponentResult> InvokeAsync(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
+        public IViewComponentResult Invoke(int? contentBlockID, string? friendlyName, string? system, string? viperSectionPath, string? page, int? blockOrder, bool? allowPublicAccess, int? status)
         {
             List<ContentBlock>? blocks = CMS.GetContentBlocksAllowed(contentBlockID, friendlyName, system, viperSectionPath, page, blockOrder, allowPublicAccess, status)?.ToList();
 
-            return await Task.Run(() => View("Default", blocks));
+            return View("Default", blocks);
         }
 
     }

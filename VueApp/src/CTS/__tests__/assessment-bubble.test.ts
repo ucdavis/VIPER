@@ -25,7 +25,7 @@ function createWrapper(props: Record<string, unknown>) {
     })
 }
 
-describe(AssessmentBubble, () => {
+describe("AssessmentBubble", () => {
     describe("aria-label privacy", () => {
         it("uses levelName on the clickable button and does not expose the numeric value", () => {
             const wrapper = createWrapper({

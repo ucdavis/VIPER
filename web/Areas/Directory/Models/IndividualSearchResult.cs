@@ -97,9 +97,9 @@ namespace Viper.Areas.Directory.Models
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
                 Email = ldapUserContact.Mail;
-                MailId = ldapUserContact.Mail?.Split("@")[0] ?? "";
+                MailId = ldapUserContact.Mail?.Split("@")[0];
                 UserName = ldapUserContact.Uid;
-                PostalAddress = ldapUserContact.PostalAddress?.Replace("$", '\n'.ToString()) ?? "";
+                PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", "\n");
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {

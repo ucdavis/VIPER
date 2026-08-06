@@ -10,8 +10,8 @@ import { shouldShowImportButton, importButtonLabel, shouldShortcutToImport } fro
  */
 
 // Mock the course service
-const mockSearchBannerCourses = vi.fn()
-const mockImportCourse = vi.fn()
+const mockSearchBannerCourses = vi.fn<(...args: unknown[]) => any>()
+const mockImportCourse = vi.fn<(...args: unknown[]) => any>()
 vi.mock("../services/course-service", () => ({
     courseService: {
         searchBannerCourses: (...args: unknown[]) => mockSearchBannerCourses(...args),

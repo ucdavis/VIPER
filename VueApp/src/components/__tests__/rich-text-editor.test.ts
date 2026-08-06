@@ -50,6 +50,7 @@ afterAll(() => {
         if (key in savedCommands && savedCommands[key] !== undefined) {
             d[key] = savedCommands[key]
         } else {
+            // oxlint-disable-next-line typescript/no-dynamic-delete -- restoring document requires removing the key, not setting it undefined
             delete d[key]
         }
     }

@@ -173,7 +173,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentPersonId().Returns(0);
 
         // Act
-        var result = await _service.GetMyEffortAsync(TestTermCode);
+        var result = await _service.GetMyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -186,7 +186,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentPersonId().Returns(9999);
 
         // Act
-        var result = await _service.GetMyEffortAsync(TestTermCode);
+        var result = await _service.GetMyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -205,7 +205,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
-        var result = await _service.GetMyEffortAsync(TestTermCode);
+        var result = await _service.GetMyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -228,7 +228,7 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 0
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
         _permissionServiceMock.HasSelfServiceAccessAsync(Arg.Any<CancellationToken>()).Returns(true);
@@ -239,7 +239,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
-        var result = await _service.GetMyEffortAsync(TestTermCode);
+        var result = await _service.GetMyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -259,7 +259,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentPersonId().Returns(0);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -273,7 +273,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentPersonId().Returns(9999);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -284,14 +284,14 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task VerifyEffortAsync_ReturnsError_WhenAlreadyVerified()
     {
         // Arrange
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         person.EffortVerified = DateTime.Now.AddDays(-1);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -313,12 +313,12 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 0
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -334,13 +334,13 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.VerifiedDate);
 
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(person.EffortVerified);
 
         await _auditServiceMock.Received(1).LogPersonChangeAsync(
@@ -362,18 +362,18 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 40
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.VerifiedDate);
 
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(person.EffortVerified);
 
         await _auditServiceMock.Received(1).LogPersonChangeAsync(
@@ -399,7 +399,7 @@ public sealed class VerificationServiceTests : IDisposable
         };
         _context.Courses.Add(genericRCourse);
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Add generic R-course effort record with 0 hours and 0 weeks
         var genericRRecord = new EffortRecord
@@ -429,34 +429,34 @@ public sealed class VerificationServiceTests : IDisposable
         };
         _context.Records.Add(regularRecord);
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentPersonId().Returns(TestPersonId);
 
         // Verify initial state - generic R-course record exists
         var recordCountBefore = await _context.Records
-            .CountAsync(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode);
+            .CountAsync(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.Equal(2, recordCountBefore);
 
         // Act
-        var result = await _service.VerifyEffortAsync(TestTermCode);
+        var result = await _service.VerifyEffortAsync(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert: Verification succeeds
         Assert.True(result.Success);
         Assert.NotNull(result.VerifiedDate);
 
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(person.EffortVerified);
 
         // Assert: Generic R-course record is deleted
         var recordCountAfter = await _context.Records
-            .CountAsync(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode);
+            .CountAsync(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode, TestContext.Current.CancellationToken);
         Assert.Equal(1, recordCountAfter);
 
         var remainingRecord = await _context.Records
             .Include(r => r.Course)
             .Where(r => r.PersonId == TestPersonId && r.TermCode == TestTermCode)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Single(remainingRecord);
         Assert.Equal(TestCourseId, remainingRecord[0].CourseId);
 
@@ -482,7 +482,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task CanVerifyAsync_ReturnsTrue_WhenNoRecords()
     {
         // Act - Instructors with no records can verify "no effort" for the term
-        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
+        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.CanVerify);
@@ -503,10 +503,10 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 0
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
+        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.CanVerify);
@@ -528,10 +528,10 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 40
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
+        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.CanVerify);
@@ -554,10 +554,10 @@ public sealed class VerificationServiceTests : IDisposable
             Hours = 40,
             Weeks = 0
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
+        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert: Should be zero effort because Weeks=0 for CLI after 201604
         Assert.False(result.CanVerify);
@@ -581,7 +581,7 @@ public sealed class VerificationServiceTests : IDisposable
             CustDept = "VME"
         };
         _context.Courses.Add(genericRCourse);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -593,13 +593,13 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 0
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Clear the change tracker so Include() must resolve from the database
         _context.ChangeTracker.Clear();
 
         // Act
-        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode);
+        var result = await _service.CanVerifyAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert: Generic R-course with zero hours should NOT prevent verification
         Assert.True(result.CanVerify);
@@ -618,7 +618,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(9999, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(9999, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -632,7 +632,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentUserEmail().ReturnsNull();
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -645,12 +645,12 @@ public sealed class VerificationServiceTests : IDisposable
         // Arrange: Current user has email, but recipient doesn't
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
-        var person = await _viperContext.People.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _viperContext.People.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         person.MailId = null;
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -691,7 +691,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
         // Act
-        var result = await serviceWithBadConfig.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await serviceWithBadConfig.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -719,7 +719,7 @@ public sealed class VerificationServiceTests : IDisposable
             RoleId = 1,
             Hours = 40
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
@@ -731,7 +731,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -765,18 +765,18 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Verify initial state - no LastEmailed data
-        var personBefore = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var personBefore = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.Null(personBefore.LastEmailed);
         Assert.Null(personBefore.LastEmailedBy);
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
         // Reload entity to verify database was updated
-        await _context.Entry(personBefore).ReloadAsync();
+        await _context.Entry(personBefore).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(personBefore.LastEmailed);
         Assert.Equal(senderPersonId, personBefore.LastEmailedBy);
     }
@@ -796,12 +796,12 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
 
-        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId);
+        var person = await _context.Persons.FirstAsync(p => p.PersonId == TestPersonId, TestContext.Current.CancellationToken);
         Assert.NotNull(person.LastEmailed);
         Assert.Null(person.LastEmailedBy); // Should be null, not 0, to avoid FK violation
     }
@@ -833,7 +833,7 @@ public sealed class VerificationServiceTests : IDisposable
             });
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -850,9 +850,9 @@ public sealed class VerificationServiceTests : IDisposable
     {
         // Arrange: Term with ExpectedCloseDate in the future
         var expectedCloseDate = DateTime.Now.AddDays(30);
-        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        var effortTerm = await _context.Terms.FindAsync(new object?[] { TestTermCode }, TestContext.Current.CancellationToken);
         effortTerm!.ExpectedCloseDate = expectedCloseDate;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
@@ -877,7 +877,7 @@ public sealed class VerificationServiceTests : IDisposable
             });
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -895,9 +895,9 @@ public sealed class VerificationServiceTests : IDisposable
         // Arrange: Term with ExpectedCloseDate in the past so due date is past
         // ExpectedCloseDate = 3 days ago => due date = 10 days ago (3 + 7), which is past
         var expectedCloseDate = DateTime.Now.AddDays(-3);
-        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        var effortTerm = await _context.Terms.FindAsync(new object?[] { TestTermCode }, TestContext.Current.CancellationToken);
         effortTerm!.ExpectedCloseDate = expectedCloseDate;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
 
@@ -922,7 +922,7 @@ public sealed class VerificationServiceTests : IDisposable
             });
 
         // Act
-        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode);
+        var result = await _service.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -945,7 +945,7 @@ public sealed class VerificationServiceTests : IDisposable
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, result.TotalInstructors);
@@ -980,7 +980,7 @@ public sealed class VerificationServiceTests : IDisposable
             EffortVerified = DateTime.Now
         };
         _context.Persons.Add(verifiedPerson);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _viperContext.People.Add(new Person
         {
@@ -993,7 +993,7 @@ public sealed class VerificationServiceTests : IDisposable
             ClientId = "SVM",
             Current = 1
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
@@ -1006,7 +1006,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert: Should only send to TestPersonId (unverified), not to person 200 (verified)
         Assert.Equal(1, result.TotalInstructors);
@@ -1021,14 +1021,14 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_ExcludesRecentlyEmailed_WhenFlagIsFalse()
     {
         // Arrange: Set LastEmailed to recent date (within 7-day reply period)
-        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        var person = await _context.Persons.FindAsync(new object?[] { TestPersonId, TestTermCode }, TestContext.Current.CancellationToken);
         person!.LastEmailed = DateTime.Now.AddDays(-3); // 3 days ago, within 7-day window
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act: Call without includeRecentlyEmailed (defaults to false)
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert: Should not include recently emailed instructor
         Assert.Equal(0, result.TotalInstructors);
@@ -1039,9 +1039,9 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_IncludesRecentlyEmailed_WhenFlagIsTrue()
     {
         // Arrange: Set LastEmailed to recent date (within 7-day reply period)
-        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        var person = await _context.Persons.FindAsync(new object?[] { TestPersonId, TestTermCode }, TestContext.Current.CancellationToken);
         person!.LastEmailed = DateTime.Now.AddDays(-3); // 3 days ago, within 7-day window
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
@@ -1054,7 +1054,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Call with includeRecentlyEmailed = true
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, includeRecentlyEmailed: true);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, includeRecentlyEmailed: true, TestContext.Current.CancellationToken);
 
         // Assert: Should include the recently emailed instructor
         Assert.Equal(1, result.TotalInstructors);
@@ -1065,9 +1065,9 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_IncludesOldEmailed_WhenFlagIsFalse()
     {
         // Arrange: Set LastEmailed to old date (outside 7-day reply period)
-        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        var person = await _context.Persons.FindAsync(new object?[] { TestPersonId, TestTermCode }, TestContext.Current.CancellationToken);
         person!.LastEmailed = DateTime.Now.AddDays(-10); // 10 days ago, outside 7-day window
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
@@ -1080,7 +1080,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Call without includeRecentlyEmailed (defaults to false)
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert: Should include instructors emailed outside the reply window
         Assert.Equal(1, result.TotalInstructors);
@@ -1102,7 +1102,7 @@ public sealed class VerificationServiceTests : IDisposable
             Hours = 10,
             Crn = "12345"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
@@ -1111,7 +1111,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.EmailedPersonIds);
@@ -1122,16 +1122,16 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_UseDueDateLogic_ExcludesEmailedBeforeDeadline()
     {
         // Arrange: Term has ExpectedCloseDate far in the future, instructor was emailed recently
-        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        var effortTerm = await _context.Terms.FindAsync(new object?[] { TestTermCode }, TestContext.Current.CancellationToken);
         effortTerm!.ExpectedCloseDate = DateTime.Now.AddDays(30);
-        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        var person = await _context.Persons.FindAsync(new object?[] { TestPersonId, TestTermCode }, TestContext.Current.CancellationToken);
         person!.LastEmailed = DateTime.Now.AddDays(-3);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act: Before deadline → all emailed instructors are "recently emailed"
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert: Should exclude the emailed instructor
         Assert.Equal(0, result.TotalInstructors);
@@ -1142,11 +1142,11 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_UseDueDateLogic_IncludesEmailedPastDeadline()
     {
         // Arrange: Term has ExpectedCloseDate in the past, instructor was emailed recently
-        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        var effortTerm = await _context.Terms.FindAsync(new object?[] { TestTermCode }, TestContext.Current.CancellationToken);
         effortTerm!.ExpectedCloseDate = DateTime.Now.AddDays(-1);
-        var person = await _context.Persons.FindAsync(TestPersonId, TestTermCode);
+        var person = await _context.Persons.FindAsync(new object?[] { TestPersonId, TestTermCode }, TestContext.Current.CancellationToken);
         person!.LastEmailed = DateTime.Now.AddDays(-3);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -1159,7 +1159,7 @@ public sealed class VerificationServiceTests : IDisposable
             Hours = 10,
             Crn = "12345"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
@@ -1168,7 +1168,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Past deadline → all instructors eligible for resend
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert: Should include the recently emailed instructor
         Assert.Equal(1, result.TotalInstructors);
@@ -1179,9 +1179,9 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task SendBulkVerificationEmailsAsync_UseDueDateLogic_IncludesNeverEmailed()
     {
         // Arrange: Term has ExpectedCloseDate far in the future, instructor was NEVER emailed
-        var effortTerm = await _context.Terms.FindAsync(TestTermCode);
+        var effortTerm = await _context.Terms.FindAsync(new object?[] { TestTermCode }, TestContext.Current.CancellationToken);
         effortTerm!.ExpectedCloseDate = DateTime.Now.AddDays(30);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.Add(new EffortRecord
         {
@@ -1194,7 +1194,7 @@ public sealed class VerificationServiceTests : IDisposable
             Hours = 10,
             Crn = "12345"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(true);
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
@@ -1203,7 +1203,7 @@ public sealed class VerificationServiceTests : IDisposable
         _termServiceMock.GetTermName(TestTermCode).Returns("Fall 2024");
 
         // Act: Before deadline but never emailed → should still be included
-        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode);
+        var result = await _service.SendBulkVerificationEmailsAsync("VME", TestTermCode, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result.TotalInstructors);
@@ -1218,7 +1218,7 @@ public sealed class VerificationServiceTests : IDisposable
     public async Task GetEmailHistoryAsync_ReturnsEmptyList_WhenNoHistory()
     {
         // Act
-        var result = await _service.GetEmailHistoryAsync(TestPersonId, TestTermCode);
+        var result = await _service.GetEmailHistoryAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -1239,10 +1239,10 @@ public sealed class VerificationServiceTests : IDisposable
             ChangedDate = DateTime.Now,
             Changes = "{\"RecipientEmail\":{\"OldValue\":null,\"NewValue\":\"test@ucdavis.edu\"},\"RecipientName\":{\"OldValue\":null,\"NewValue\":\"Test User\"}}"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEmailHistoryAsync(TestPersonId, TestTermCode);
+        var result = await _service.GetEmailHistoryAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);

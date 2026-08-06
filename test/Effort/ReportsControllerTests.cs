@@ -137,7 +137,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenTermCodeIsNegative()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(-1);
+        var result = await _controller.GetTeachingActivityGrouped(-1, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -147,7 +147,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(academicYear: "2024-2099");
+        var result = await _controller.GetTeachingActivityGrouped(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -158,7 +158,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenDepartmentTooLong()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "TOOLONG7");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -168,7 +168,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenPersonIdIsZero()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, personId: 0);
+        var result = await _controller.GetTeachingActivityGrouped(202410, personId: 0, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -178,7 +178,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenPersonIdIsNegative()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, personId: -5);
+        var result = await _controller.GetTeachingActivityGrouped(202410, personId: -5, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -188,7 +188,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenRoleTooLong()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, role: "IF");
+        var result = await _controller.GetTeachingActivityGrouped(202410, role: "IF", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -198,7 +198,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityGrouped_ReturnsBadRequest_WhenTitleTooLong()
     {
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, title: "LONG");
+        var result = await _controller.GetTeachingActivityGrouped(202410, title: "LONG", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -218,7 +218,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityIndividual_ReturnsBadRequest_WhenDepartmentTooLong()
     {
         // Act
-        var result = await _controller.GetTeachingActivityIndividual(202410, department: "TOOLONG7");
+        var result = await _controller.GetTeachingActivityIndividual(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -228,7 +228,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityIndividual_ReturnsBadRequest_WhenRoleTooLong()
     {
         // Act
-        var result = await _controller.GetTeachingActivityIndividual(202410, role: "IF");
+        var result = await _controller.GetTeachingActivityIndividual(202410, role: "IF", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -238,7 +238,7 @@ public sealed class ReportsControllerTests
     public async Task GetTeachingActivityIndividual_ReturnsBadRequest_WhenTitleTooLong()
     {
         // Act
-        var result = await _controller.GetTeachingActivityIndividual(202410, title: "LONG");
+        var result = await _controller.GetTeachingActivityIndividual(202410, title: "LONG", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -258,7 +258,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410);
+        var result = await _controller.GetTeachingActivityGrouped(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -279,7 +279,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME", ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -297,7 +297,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", "REG", Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME", personId: 123, role: "I", title: "REG");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME", personId: 123, role: "I", title: "REG", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -314,7 +314,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityIndividual(202410);
+        var result = await _controller.GetTeachingActivityIndividual(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -335,7 +335,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "APC")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "APC");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "APC", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -353,7 +353,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act - no department filter requested
-        var result = await _controller.GetTeachingActivityGrouped(202410);
+        var result = await _controller.GetTeachingActivityGrouped(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert - should auto-select the single authorized dept
         Assert.IsType<OkObjectResult>(result.Result);
@@ -371,7 +371,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act - no department filter requested
-        var result = await _controller.GetTeachingActivityGrouped(202410);
+        var result = await _controller.GetTeachingActivityGrouped(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert - should pass all authorized departments so SP filters per-dept
         Assert.IsType<OkObjectResult>(result.Result);
@@ -389,7 +389,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "VME", ct: TestContext.Current.CancellationToken);
 
         // Assert - authorized dept is allowed through
         Assert.IsType<OkObjectResult>(result.Result);
@@ -413,7 +413,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => d != null && d.Count == 0), null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         // Act - requests "PHR" but only authorized for "VME"
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "PHR");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "PHR", ct: TestContext.Current.CancellationToken);
 
         // Assert - returns empty report instead of substituting a different department
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -428,7 +428,7 @@ public sealed class ReportsControllerTests
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410);
+        var result = await _controller.GetTeachingActivityGrouped(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert - should return Forbid, not leak data
         Assert.IsType<ForbidResult>(result.Result);
@@ -456,7 +456,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME", "APC")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410);
+        var result = await _controller.GetTeachingActivityGrouped(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert - PMI should be filtered out
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -485,7 +485,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410);
+        var result = await _controller.GetTeachingActivityGrouped(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -661,7 +661,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "ABCDEF")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, department: "ABCDEF");
+        var result = await _controller.GetTeachingActivityGrouped(202410, department: "ABCDEF", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -677,7 +677,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, null, null, "I", null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, role: "I");
+        var result = await _controller.GetTeachingActivityGrouped(202410, role: "I", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -693,7 +693,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, null, null, null, "REG", Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, title: "REG");
+        var result = await _controller.GetTeachingActivityGrouped(202410, title: "REG", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -709,7 +709,7 @@ public sealed class ReportsControllerTests
             .GetTeachingActivityReportAsync(202410, null, 1, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
         // Act
-        var result = await _controller.GetTeachingActivityGrouped(202410, personId: 1);
+        var result = await _controller.GetTeachingActivityGrouped(202410, personId: 1, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -733,14 +733,14 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetDeptSummary_ReturnsBadRequest_WhenAcademicYearBadFormat()
     {
-        var result = await _controller.GetDeptSummary(academicYear: "2024");
+        var result = await _controller.GetDeptSummary(academicYear: "2024", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetDeptSummary_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetDeptSummary(academicYear: "2024-2099");
+        var result = await _controller.GetDeptSummary(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -748,14 +748,14 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetDeptSummary_ReturnsBadRequest_WhenDepartmentTooLong()
     {
-        var result = await _controller.GetDeptSummary(202410, department: "TOOLONG7");
+        var result = await _controller.GetDeptSummary(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetDeptSummary_ReturnsBadRequest_WhenTitleTooLong()
     {
-        var result = await _controller.GetDeptSummary(202410, title: "LONG");
+        var result = await _controller.GetDeptSummary(202410, title: "LONG", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -767,7 +767,7 @@ public sealed class ReportsControllerTests
         _deptSummaryServiceMock
             .GetDeptSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetDeptSummary(202410);
+        var result = await _controller.GetDeptSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<DeptSummaryReport>(okResult.Value);
@@ -783,7 +783,7 @@ public sealed class ReportsControllerTests
         _deptSummaryServiceMock
             .GetDeptSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, "REG", Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetDeptSummary(202410, department: "VME", title: "REG");
+        var result = await _controller.GetDeptSummary(202410, department: "VME", title: "REG", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _deptSummaryServiceMock.Received(1).GetDeptSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, "REG", Arg.Any<CancellationToken>());
@@ -798,7 +798,7 @@ public sealed class ReportsControllerTests
         _deptSummaryServiceMock
             .GetDeptSummaryReportByYearAsync("2024-2025", null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetDeptSummary(academicYear: "2024-2025");
+        var result = await _controller.GetDeptSummary(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<DeptSummaryReport>(okResult.Value);
@@ -810,7 +810,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetDeptSummary(202410);
+        var result = await _controller.GetDeptSummary(202410, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -831,7 +831,7 @@ public sealed class ReportsControllerTests
         _deptSummaryServiceMock
             .GetDeptSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetDeptSummary(202410);
+        var result = await _controller.GetDeptSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<DeptSummaryReport>(okResult.Value);
@@ -853,7 +853,7 @@ public sealed class ReportsControllerTests
         _deptSummaryServiceMock
             .GetDeptSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetDeptSummary(202410);
+        var result = await _controller.GetDeptSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<DeptSummaryReport>(okResult.Value);
@@ -874,14 +874,14 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSchoolSummary_ReturnsBadRequest_WhenAcademicYearBadFormat()
     {
-        var result = await _controller.GetSchoolSummary(academicYear: "2024");
+        var result = await _controller.GetSchoolSummary(academicYear: "2024", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetSchoolSummary_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetSchoolSummary(academicYear: "2024-2099");
+        var result = await _controller.GetSchoolSummary(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -894,7 +894,7 @@ public sealed class ReportsControllerTests
         _schoolSummaryServiceMock
             .GetSchoolSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetSchoolSummary(202410);
+        var result = await _controller.GetSchoolSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<SchoolSummaryReport>(okResult.Value);
@@ -911,7 +911,7 @@ public sealed class ReportsControllerTests
         _schoolSummaryServiceMock
             .GetSchoolSummaryReportByYearAsync("2024-2025", null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetSchoolSummary(academicYear: "2024-2025");
+        var result = await _controller.GetSchoolSummary(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<SchoolSummaryReport>(okResult.Value);
@@ -927,7 +927,7 @@ public sealed class ReportsControllerTests
         _schoolSummaryServiceMock
             .GetSchoolSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetSchoolSummary(202410);
+        var result = await _controller.GetSchoolSummary(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert - all departments returned, no filtering applied
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -945,7 +945,7 @@ public sealed class ReportsControllerTests
         _schoolSummaryServiceMock
             .GetSchoolSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetSchoolSummary(202410);
+        var result = await _controller.GetSchoolSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<SchoolSummaryReport>(okResult.Value);
@@ -961,7 +961,7 @@ public sealed class ReportsControllerTests
         _schoolSummaryServiceMock
             .GetSchoolSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "1", "REG", Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetSchoolSummary(202410, department: "VME", personId: 123, role: "1", title: "REG");
+        var result = await _controller.GetSchoolSummary(202410, department: "VME", personId: 123, role: "1", title: "REG", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _schoolSummaryServiceMock.Received(1).GetSchoolSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "1", "REG", Arg.Any<CancellationToken>());
@@ -986,7 +986,7 @@ public sealed class ReportsControllerTests
         _schoolSummaryServiceMock
             .GetSchoolSummaryReportAsync(202410, null, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetSchoolSummary(202410);
+        var result = await _controller.GetSchoolSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<SchoolSummaryReport>(okResult.Value);
@@ -1007,7 +1007,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetMeritDetail(academicYear: "2024-2099");
+        var result = await _controller.GetMeritDetail(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -1015,28 +1015,28 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenDepartmentTooLong()
     {
-        var result = await _controller.GetMeritDetail(202410, department: "TOOLONG7");
+        var result = await _controller.GetMeritDetail(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenPersonIdIsZero()
     {
-        var result = await _controller.GetMeritDetail(202410, personId: 0);
+        var result = await _controller.GetMeritDetail(202410, personId: 0, ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenPersonIdIsNegative()
     {
-        var result = await _controller.GetMeritDetail(202410, personId: -5);
+        var result = await _controller.GetMeritDetail(202410, personId: -5, ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetMeritDetail_ReturnsBadRequest_WhenRoleTooLong()
     {
-        var result = await _controller.GetMeritDetail(202410, role: "IF");
+        var result = await _controller.GetMeritDetail(202410, role: "IF", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1048,7 +1048,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritDetail(202410, personId: null);
+        var result = await _controller.GetMeritDetail(202410, personId: null, ct: TestContext.Current.CancellationToken);
         Assert.IsType<OkObjectResult>(result.Result);
     }
 
@@ -1060,7 +1060,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritDetailReportAsync(202410, null, 100, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritDetail(202410, personId: 100);
+        var result = await _controller.GetMeritDetail(202410, personId: 100, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritDetailReport>(okResult.Value);
@@ -1076,7 +1076,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritDetail(202410, department: "VME", personId: 123, role: "I");
+        var result = await _controller.GetMeritDetail(202410, department: "VME", personId: 123, role: "I", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _meritReportServiceMock.Received(1).GetMeritDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, "I", Arg.Any<CancellationToken>());
@@ -1091,7 +1091,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritDetailReportByYearAsync("2024-2025", null, 100, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritDetail(academicYear: "2024-2025", personId: 100);
+        var result = await _controller.GetMeritDetail(academicYear: "2024-2025", personId: 100, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritDetailReport>(okResult.Value);
@@ -1103,7 +1103,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetMeritDetail(202410, personId: 100);
+        var result = await _controller.GetMeritDetail(202410, personId: 100, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -1123,7 +1123,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 100, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritDetail(202410, personId: 100);
+        var result = await _controller.GetMeritDetail(202410, personId: 100, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritDetailReport>(okResult.Value);
@@ -1145,7 +1145,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritDetailReportAsync(202410, null, 100, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetMeritDetail(202410, personId: 100);
+        var result = await _controller.GetMeritDetail(202410, personId: 100, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritDetailReport>(okResult.Value);
@@ -1166,7 +1166,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritAverage_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetMeritAverage(academicYear: "2024-2099");
+        var result = await _controller.GetMeritAverage(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -1174,21 +1174,21 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritAverage_ReturnsBadRequest_WhenDepartmentTooLong()
     {
-        var result = await _controller.GetMeritAverage(202410, department: "TOOLONG7");
+        var result = await _controller.GetMeritAverage(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetMeritAverage_ReturnsBadRequest_WhenPersonIdIsZero()
     {
-        var result = await _controller.GetMeritAverage(202410, personId: 0);
+        var result = await _controller.GetMeritAverage(202410, personId: 0, ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetMeritAverage_ReturnsBadRequest_WhenPersonIdIsNegative()
     {
-        var result = await _controller.GetMeritAverage(202410, personId: -5);
+        var result = await _controller.GetMeritAverage(202410, personId: -5, ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1200,7 +1200,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritAverageReportAsync(202410, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritAverage(202410);
+        var result = await _controller.GetMeritAverage(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritAverageReport>(okResult.Value);
@@ -1216,7 +1216,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritAverage(202410, department: "VME", personId: 123);
+        var result = await _controller.GetMeritAverage(202410, department: "VME", personId: 123, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _meritReportServiceMock.Received(1).GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), 123, Arg.Any<CancellationToken>());
@@ -1231,7 +1231,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritAverageReportByYearAsync("2024-2025", null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritAverage(academicYear: "2024-2025");
+        var result = await _controller.GetMeritAverage(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritAverageReport>(okResult.Value);
@@ -1243,7 +1243,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetMeritAverage(202410);
+        var result = await _controller.GetMeritAverage(202410, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -1267,7 +1267,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritAverage(202410);
+        var result = await _controller.GetMeritAverage(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritAverageReport>(okResult.Value);
@@ -1302,7 +1302,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritAverageReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritAverage(202410);
+        var result = await _controller.GetMeritAverage(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritAverageReport>(okResult.Value);
@@ -1325,7 +1325,7 @@ public sealed class ReportsControllerTests
         _meritReportServiceMock
             .GetMeritAverageReportAsync(202410, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetMeritAverage(202410);
+        var result = await _controller.GetMeritAverage(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritAverageReport>(okResult.Value);
@@ -1444,14 +1444,14 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritSummary_ReturnsBadRequest_WhenAcademicYearBadFormat()
     {
-        var result = await _controller.GetMeritSummary(academicYear: "2024");
+        var result = await _controller.GetMeritSummary(academicYear: "2024", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetMeritSummary_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetMeritSummary(academicYear: "2024-2099");
+        var result = await _controller.GetMeritSummary(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -1459,7 +1459,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritSummary_ReturnsBadRequest_WhenDepartmentTooLong()
     {
-        var result = await _controller.GetMeritSummary(202410, department: "TOOLONG7");
+        var result = await _controller.GetMeritSummary(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -1471,7 +1471,7 @@ public sealed class ReportsControllerTests
         _meritSummaryServiceMock
             .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritSummary(202410);
+        var result = await _controller.GetMeritSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritSummaryReport>(okResult.Value);
@@ -1487,7 +1487,7 @@ public sealed class ReportsControllerTests
         _meritSummaryServiceMock
             .GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritSummary(202410, department: "VME");
+        var result = await _controller.GetMeritSummary(202410, department: "VME", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _meritSummaryServiceMock.Received(1).GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>());
@@ -1502,7 +1502,7 @@ public sealed class ReportsControllerTests
         _meritSummaryServiceMock
             .GetMeritSummaryReportByYearAsync("2024-2025", null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritSummary(academicYear: "2024-2025");
+        var result = await _controller.GetMeritSummary(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritSummaryReport>(okResult.Value);
@@ -1514,7 +1514,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetMeritSummary(202410);
+        var result = await _controller.GetMeritSummary(202410, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -1536,7 +1536,7 @@ public sealed class ReportsControllerTests
         _meritSummaryServiceMock
             .GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritSummary(202410);
+        var result = await _controller.GetMeritSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritSummaryReport>(okResult.Value);
@@ -1569,7 +1569,7 @@ public sealed class ReportsControllerTests
         _meritSummaryServiceMock
             .GetMeritSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritSummary(202410);
+        var result = await _controller.GetMeritSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritSummaryReport>(okResult.Value);
@@ -1591,7 +1591,7 @@ public sealed class ReportsControllerTests
         _meritSummaryServiceMock
             .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetMeritSummary(202410);
+        var result = await _controller.GetMeritSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MeritSummaryReport>(okResult.Value);
@@ -1605,21 +1605,21 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetClinicalEffort_ReturnsBadRequest_WhenAcademicYearMissing()
     {
-        var result = await _controller.GetClinicalEffort(academicYear: null, clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: null, clinicalType: 1, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetClinicalEffort_ReturnsBadRequest_WhenAcademicYearBadFormat()
     {
-        var result = await _controller.GetClinicalEffort(academicYear: "2024", clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024", clinicalType: 1, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetClinicalEffort_ReturnsBadRequest_WhenClinicalTypeInvalid()
     {
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 99);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 99, TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("clinicalType", badRequest.Value?.ToString());
     }
@@ -1632,7 +1632,7 @@ public sealed class ReportsControllerTests
         _clinicalEffortServiceMock
             .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ClinicalEffortReport>(okResult.Value);
@@ -1649,7 +1649,7 @@ public sealed class ReportsControllerTests
         _clinicalEffortServiceMock
             .GetClinicalEffortReportAsync("2024-2025", 25, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 25);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 25, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ClinicalEffortReport>(okResult.Value);
@@ -1661,7 +1661,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1, TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -1684,7 +1684,7 @@ public sealed class ReportsControllerTests
         _clinicalEffortServiceMock
             .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ClinicalEffortReport>(okResult.Value);
@@ -1718,7 +1718,7 @@ public sealed class ReportsControllerTests
         _clinicalEffortServiceMock
             .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ClinicalEffortReport>(okResult.Value);
@@ -1742,7 +1742,7 @@ public sealed class ReportsControllerTests
         _clinicalEffortServiceMock
             .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1);
+        var result = await _controller.GetClinicalEffort(academicYear: "2024-2025", clinicalType: 1, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ClinicalEffortReport>(okResult.Value);
@@ -1763,14 +1763,14 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetScheduledCliWeeks_ReturnsBadRequest_WhenAcademicYearBadFormat()
     {
-        var result = await _controller.GetScheduledCliWeeks(academicYear: "2024");
+        var result = await _controller.GetScheduledCliWeeks(academicYear: "2024", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetScheduledCliWeeks_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetScheduledCliWeeks(academicYear: "2024-2099");
+        var result = await _controller.GetScheduledCliWeeks(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -1780,7 +1780,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
 
-        var result = await _controller.GetScheduledCliWeeks(202410);
+        var result = await _controller.GetScheduledCliWeeks(202410, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -1793,7 +1793,7 @@ public sealed class ReportsControllerTests
         _clinicalScheduleServiceMock
             .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetScheduledCliWeeks(202410);
+        var result = await _controller.GetScheduledCliWeeks(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ScheduledCliWeeksReport>(okResult.Value);
@@ -1810,7 +1810,7 @@ public sealed class ReportsControllerTests
         _clinicalScheduleServiceMock
             .GetScheduledCliWeeksReportByYearAsync("2024-2025", Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetScheduledCliWeeks(academicYear: "2024-2025");
+        var result = await _controller.GetScheduledCliWeeks(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ScheduledCliWeeksReport>(okResult.Value);
@@ -1831,7 +1831,7 @@ public sealed class ReportsControllerTests
         _clinicalScheduleServiceMock
             .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetScheduledCliWeeks(202410);
+        var result = await _controller.GetScheduledCliWeeks(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<ScheduledCliWeeksReport>(okResult.Value);
@@ -1846,7 +1846,7 @@ public sealed class ReportsControllerTests
     public async Task ExportMeritSummaryPdf_ReturnsBadRequest_WhenNoTermOrYear()
     {
         var request = new ReportPdfRequest(TermCode: 0);
-        var result = await _controller.ExportMeritSummaryPdf(request);
+        var result = await _controller.ExportMeritSummaryPdf(request, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
@@ -1865,7 +1865,7 @@ public sealed class ReportsControllerTests
             .GetMeritSummaryReportAsync(202410, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportMeritSummaryPdf(request);
+        var result = await _controller.ExportMeritSummaryPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
     }
@@ -1882,7 +1882,7 @@ public sealed class ReportsControllerTests
             .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportMeritSummaryPdf(request);
+        var result = await _controller.ExportMeritSummaryPdf(request, TestContext.Current.CancellationToken);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
@@ -1893,7 +1893,7 @@ public sealed class ReportsControllerTests
     public async Task ExportClinicalEffortPdf_ReturnsBadRequest_WhenAcademicYearMissing()
     {
         var request = new ClinicalEffortPdfRequest(AcademicYear: null, ClinicalType: 1);
-        var result = await _controller.ExportClinicalEffortPdf(request);
+        var result = await _controller.ExportClinicalEffortPdf(request, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
@@ -1901,7 +1901,7 @@ public sealed class ReportsControllerTests
     public async Task ExportClinicalEffortPdf_ReturnsBadRequest_WhenClinicalTypeInvalid()
     {
         var request = new ClinicalEffortPdfRequest(AcademicYear: "2024-2025", ClinicalType: 99);
-        var result = await _controller.ExportClinicalEffortPdf(request);
+        var result = await _controller.ExportClinicalEffortPdf(request, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
@@ -1922,7 +1922,7 @@ public sealed class ReportsControllerTests
             .GetClinicalEffortReportAsync("2024-2025", 1, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ClinicalEffortPdfRequest(AcademicYear: "2024-2025", ClinicalType: 1);
-        var result = await _controller.ExportClinicalEffortPdf(request);
+        var result = await _controller.ExportClinicalEffortPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
     }
@@ -1939,7 +1939,7 @@ public sealed class ReportsControllerTests
             .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new ClinicalEffortPdfRequest(AcademicYear: "2024-2025", ClinicalType: 1);
-        var result = await _controller.ExportClinicalEffortPdf(request);
+        var result = await _controller.ExportClinicalEffortPdf(request, TestContext.Current.CancellationToken);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
@@ -1949,7 +1949,7 @@ public sealed class ReportsControllerTests
     public async Task ExportScheduledCliWeeksPdf_ReturnsBadRequest_WhenNoTermOrYear()
     {
         var request = new ReportPdfRequest(TermCode: 0);
-        var result = await _controller.ExportScheduledCliWeeksPdf(request);
+        var result = await _controller.ExportScheduledCliWeeksPdf(request, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
@@ -1959,7 +1959,7 @@ public sealed class ReportsControllerTests
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportScheduledCliWeeksPdf(request);
+        var result = await _controller.ExportScheduledCliWeeksPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result);
     }
@@ -1979,7 +1979,7 @@ public sealed class ReportsControllerTests
             .GetScheduledCliWeeksReportAsync(202410, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportScheduledCliWeeksPdf(request);
+        var result = await _controller.ExportScheduledCliWeeksPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
     }
@@ -1996,7 +1996,7 @@ public sealed class ReportsControllerTests
             .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportScheduledCliWeeksPdf(request);
+        var result = await _controller.ExportScheduledCliWeeksPdf(request, TestContext.Current.CancellationToken);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
@@ -2094,14 +2094,14 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalSummary_ReturnsBadRequest_WhenAcademicYearBadFormat()
     {
-        var result = await _controller.GetEvalSummary(academicYear: "2024");
+        var result = await _controller.GetEvalSummary(academicYear: "2024", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]
     public async Task GetEvalSummary_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetEvalSummary(academicYear: "2024-2099");
+        var result = await _controller.GetEvalSummary(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -2109,7 +2109,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalSummary_ReturnsBadRequest_WhenDepartmentTooLong()
     {
-        var result = await _controller.GetEvalSummary(202410, department: "TOOLONG7");
+        var result = await _controller.GetEvalSummary(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2121,7 +2121,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalSummary(202410);
+        var result = await _controller.GetEvalSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalSummaryReport>(okResult.Value);
@@ -2137,7 +2137,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalSummary(202410, department: "VME");
+        var result = await _controller.GetEvalSummary(202410, department: "VME", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _evaluationReportServiceMock.Received(1).GetEvalSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>());
@@ -2152,7 +2152,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportByYearAsync("2024-2025", null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalSummary(academicYear: "2024-2025");
+        var result = await _controller.GetEvalSummary(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalSummaryReport>(okResult.Value);
@@ -2164,7 +2164,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetEvalSummary(202410);
+        var result = await _controller.GetEvalSummary(202410, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -2185,7 +2185,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalSummary(202410);
+        var result = await _controller.GetEvalSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalSummaryReport>(okResult.Value);
@@ -2206,7 +2206,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetEvalSummary(202410);
+        var result = await _controller.GetEvalSummary(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalSummaryReport>(okResult.Value);
@@ -2221,7 +2221,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalSummary(202410, personId: 42);
+        var result = await _controller.GetEvalSummary(202410, personId: 42, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _evaluationReportServiceMock.Received(1).GetEvalSummaryReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>());
@@ -2235,7 +2235,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalSummaryReportAsync(202410, null, null, "1", Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalSummary(202410, role: "1");
+        var result = await _controller.GetEvalSummary(202410, role: "1", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _evaluationReportServiceMock.Received(1).GetEvalSummaryReportAsync(202410, null, null, "1", Arg.Any<CancellationToken>());
@@ -2255,7 +2255,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalDetail_ReturnsBadRequest_WhenAcademicYearNotConsecutive()
     {
-        var result = await _controller.GetEvalDetail(academicYear: "2024-2099");
+        var result = await _controller.GetEvalDetail(academicYear: "2024-2099", ct: TestContext.Current.CancellationToken);
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("consecutive", badRequest.Value?.ToString());
     }
@@ -2263,7 +2263,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetEvalDetail_ReturnsBadRequest_WhenDepartmentTooLong()
     {
-        var result = await _controller.GetEvalDetail(202410, department: "TOOLONG7");
+        var result = await _controller.GetEvalDetail(202410, department: "TOOLONG7", ct: TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
@@ -2275,7 +2275,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalDetail(202410);
+        var result = await _controller.GetEvalDetail(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalDetailReport>(okResult.Value);
@@ -2291,7 +2291,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalDetail(202410, department: "VME");
+        var result = await _controller.GetEvalDetail(202410, department: "VME", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _evaluationReportServiceMock.Received(1).GetEvalDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>());
@@ -2306,7 +2306,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportByYearAsync("2024-2025", null, null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalDetail(academicYear: "2024-2025");
+        var result = await _controller.GetEvalDetail(academicYear: "2024-2025", ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalDetailReport>(okResult.Value);
@@ -2318,7 +2318,7 @@ public sealed class ReportsControllerTests
     {
         _permissionServiceMock.HasFullAccessAsync(Arg.Any<CancellationToken>()).Returns(false);
         _permissionServiceMock.GetAuthorizedDepartmentsAsync(Arg.Any<CancellationToken>()).Returns(new List<string>());
-        var result = await _controller.GetEvalDetail(202410);
+        var result = await _controller.GetEvalDetail(202410, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -2338,7 +2338,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportAsync(202410, Arg.Is<IReadOnlyList<string>?>(d => IsDepts(d, "VME")), null, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalDetail(202410);
+        var result = await _controller.GetEvalDetail(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalDetailReport>(okResult.Value);
@@ -2359,7 +2359,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
-        var result = await _controller.GetEvalDetail(202410);
+        var result = await _controller.GetEvalDetail(202410, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<EvalDetailReport>(okResult.Value);
@@ -2374,7 +2374,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalDetail(202410, personId: 42);
+        var result = await _controller.GetEvalDetail(202410, personId: 42, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _evaluationReportServiceMock.Received(1).GetEvalDetailReportAsync(202410, null, 42, null, Arg.Any<CancellationToken>());
@@ -2388,7 +2388,7 @@ public sealed class ReportsControllerTests
         _evaluationReportServiceMock
             .GetEvalDetailReportAsync(202410, null, null, "2", Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetEvalDetail(202410, role: "2");
+        var result = await _controller.GetEvalDetail(202410, role: "2", ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
         await _evaluationReportServiceMock.Received(1).GetEvalDetailReportAsync(202410, null, null, "2", Arg.Any<CancellationToken>());
@@ -2402,7 +2402,7 @@ public sealed class ReportsControllerTests
     public async Task ExportEvalSummaryPdf_ReturnsBadRequest_WhenNoTermOrYear()
     {
         var request = new ReportPdfRequest(TermCode: 0);
-        var result = await _controller.ExportEvalSummaryPdf(request);
+        var result = await _controller.ExportEvalSummaryPdf(request, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
@@ -2420,7 +2420,7 @@ public sealed class ReportsControllerTests
             .GetEvalSummaryReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportEvalSummaryPdf(request);
+        var result = await _controller.ExportEvalSummaryPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
     }
@@ -2437,7 +2437,7 @@ public sealed class ReportsControllerTests
             .GenerateSummaryPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportEvalSummaryPdf(request);
+        var result = await _controller.ExportEvalSummaryPdf(request, TestContext.Current.CancellationToken);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
@@ -2448,7 +2448,7 @@ public sealed class ReportsControllerTests
     public async Task ExportEvalDetailPdf_ReturnsBadRequest_WhenNoTermOrYear()
     {
         var request = new ReportPdfRequest(TermCode: 0);
-        var result = await _controller.ExportEvalDetailPdf(request);
+        var result = await _controller.ExportEvalDetailPdf(request, TestContext.Current.CancellationToken);
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
@@ -2466,7 +2466,7 @@ public sealed class ReportsControllerTests
             .GetEvalDetailReportAsync(202410, null, null, null, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportEvalDetailPdf(request);
+        var result = await _controller.ExportEvalDetailPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
     }
@@ -2483,7 +2483,7 @@ public sealed class ReportsControllerTests
             .GenerateDetailPdfAsync(report).Returns(pdfBytes);
 
         var request = new ReportPdfRequest(TermCode: 202410);
-        var result = await _controller.ExportEvalDetailPdf(request);
+        var result = await _controller.ExportEvalDetailPdf(request, TestContext.Current.CancellationToken);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
@@ -2566,7 +2566,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritMultiYear_ReturnsBadRequest_WhenPersonIdIsZero()
     {
-        var result = await _controller.GetMeritMultiYear(personId: 0, startYear: 2020, endYear: 2024);
+        var result = await _controller.GetMeritMultiYear(personId: 0, startYear: 2020, endYear: 2024, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
@@ -2574,7 +2574,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritMultiYear_ReturnsBadRequest_WhenPersonIdIsNegative()
     {
-        var result = await _controller.GetMeritMultiYear(personId: -1, startYear: 2020, endYear: 2024);
+        var result = await _controller.GetMeritMultiYear(personId: -1, startYear: 2020, endYear: 2024, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
@@ -2582,7 +2582,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritMultiYear_ReturnsBadRequest_WhenYearsAreMissing()
     {
-        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 0, endYear: 0);
+        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 0, endYear: 0, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
@@ -2590,7 +2590,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritMultiYear_ReturnsBadRequest_WhenYearRangeExceeds10()
     {
-        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2010, endYear: 2025);
+        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2010, endYear: 2025, ct: TestContext.Current.CancellationToken);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Contains("10 years", badRequest.Value?.ToString());
@@ -2599,7 +2599,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetMeritMultiYear_ReturnsBadRequest_WhenEndYearBeforeStartYear()
     {
-        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2024, endYear: 2020);
+        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2024, endYear: 2020, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
@@ -2612,7 +2612,7 @@ public sealed class ReportsControllerTests
         _meritMultiYearServiceMock
             .GetMultiYearReportAsync(123, 2020, 2024, null, null, true, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024, useAcademicYear: true);
+        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024, useAcademicYear: true, ct: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedReport = Assert.IsType<MultiYearReport>(okResult.Value);
@@ -2631,7 +2631,7 @@ public sealed class ReportsControllerTests
         _meritMultiYearServiceMock
             .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024);
+        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result.Result);
     }
@@ -2645,7 +2645,7 @@ public sealed class ReportsControllerTests
         _meritMultiYearServiceMock
             .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(report);
 
-        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024);
+        var result = await _controller.GetMeritMultiYear(personId: 123, startYear: 2020, endYear: 2024, ct: TestContext.Current.CancellationToken);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -2654,7 +2654,7 @@ public sealed class ReportsControllerTests
     public async Task ExportMeritMultiYearPdf_ReturnsBadRequest_WhenPersonIdIsZero()
     {
         var request = new MultiYearPdfRequest(PersonId: 0, StartYear: 2020, EndYear: 2024);
-        var result = await _controller.ExportMeritMultiYearPdf(request);
+        var result = await _controller.ExportMeritMultiYearPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -2677,7 +2677,7 @@ public sealed class ReportsControllerTests
             .GetMultiYearReportAsync(123, 2020, 2024, null, null, false, Arg.Any<CancellationToken>()).Returns(emptyReport);
 
         var request = new MultiYearPdfRequest(PersonId: 123, StartYear: 2020, EndYear: 2024);
-        var result = await _controller.ExportMeritMultiYearPdf(request);
+        var result = await _controller.ExportMeritMultiYearPdf(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
     }
@@ -2694,7 +2694,7 @@ public sealed class ReportsControllerTests
             .GenerateReportPdfAsync(report).Returns(pdfBytes);
 
         var request = new MultiYearPdfRequest(PersonId: 123, StartYear: 2020, EndYear: 2024);
-        var result = await _controller.ExportMeritMultiYearPdf(request);
+        var result = await _controller.ExportMeritMultiYearPdf(request, TestContext.Current.CancellationToken);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", fileResult.ContentType);
@@ -2719,7 +2719,7 @@ public sealed class ReportsControllerTests
         _sabbaticalServiceMock
             .GetByPersonIdAsync(123, Arg.Any<CancellationToken>()).Returns(dto);
 
-        var result = await _controller.GetSabbatical(123);
+        var result = await _controller.GetSabbatical(123, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedDto = Assert.IsType<SabbaticalDto>(okResult.Value);
@@ -2734,7 +2734,7 @@ public sealed class ReportsControllerTests
         _sabbaticalServiceMock
             .GetByPersonIdAsync(456, Arg.Any<CancellationToken>()).ReturnsNull();
 
-        var result = await _controller.GetSabbatical(456);
+        var result = await _controller.GetSabbatical(456, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedDto = Assert.IsType<SabbaticalDto>(okResult.Value);
@@ -2745,7 +2745,7 @@ public sealed class ReportsControllerTests
     [Fact]
     public async Task GetSabbatical_InvalidPersonId_ReturnsBadRequest()
     {
-        var result = await _controller.GetSabbatical(0);
+        var result = await _controller.GetSabbatical(0, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
@@ -2765,7 +2765,7 @@ public sealed class ReportsControllerTests
             .SaveAsync(123, "202409", null, 999, Arg.Any<CancellationToken>()).Returns(savedDto);
 
         var request = new SaveSabbaticalRequest("202409");
-        var result = await _controller.SaveSabbatical(123, request);
+        var result = await _controller.SaveSabbatical(123, request, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedDto = Assert.IsType<SabbaticalDto>(okResult.Value);
@@ -2777,7 +2777,7 @@ public sealed class ReportsControllerTests
     public async Task SaveSabbatical_InvalidPersonId_ReturnsBadRequest()
     {
         var request = new SaveSabbaticalRequest("202409");
-        var result = await _controller.SaveSabbatical(-1, request);
+        var result = await _controller.SaveSabbatical(-1, request, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }

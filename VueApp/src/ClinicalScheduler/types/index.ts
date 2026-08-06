@@ -51,43 +51,6 @@ interface InstructorSchedulePermissionCheck {
     canEditOwn: boolean
 }
 
-// Instructor Schedule types for edit functionality
-interface InstructorScheduleRequest {
-    mothraId: string
-    rotationId: number
-    weekIds: number[]
-    isPrimaryEvaluator?: boolean
-}
-
-interface InstructorScheduleResponse {
-    scheduleIds: number[]
-    message?: string
-}
-
-interface ScheduleConflict {
-    weekId: number
-    weekNumber: number
-    rotationId: number
-    name: string
-    dateStart: string
-    dateEnd: string
-    isAlreadyScheduled: boolean
-}
-
-interface SetPrimaryEvaluatorRequest {
-    isPrimary: boolean
-}
-
-interface AuditEntry {
-    auditId: number
-    action: string
-    details: string
-    modifiedBy: string
-    modifiedDate: string
-    mothraId?: string
-    instructorName?: string
-}
-
 export {
     type ViewContext,
     type Rotation,

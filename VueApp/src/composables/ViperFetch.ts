@@ -143,7 +143,7 @@ async function fetchWrapper(url: string, options: any = {}) {
             }
             return r.pagination ? { result: intialResult, pagination: r.pagination } : intialResult
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
             if (error instanceof ValidationError) {
                 // Extract structured errors, falling back to message
                 let validationErrors: string[] = []
@@ -158,7 +158,8 @@ async function fetchWrapper(url: string, options: any = {}) {
                 errorHandler.handleAuthError(error?.message, error.status)
                 errors = [error?.message || "Authentication error"]
             } else {
-                errorHandler.handleError(error)
+                // String() matches what handleError's join() did with a non-string value.
+                errorHandler.handleError(String(error))
                 errors = errorHandler.errors.value
             }
         })

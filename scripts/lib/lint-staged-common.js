@@ -228,8 +228,10 @@ function parseArguments() {
 function parseJsonOutput(stdout, stderr, toolName, textFallbackParser) {
     const logger = createLogger(toolName)
 
-    // Parse JSON output (should be in stdout with --format json)
-    const jsonOutput = stdout.trim()
+    // ESLint writes its JSON report to stdout, but Stylelint writes to stderr, so
+    // fall back to stderr when stdout is empty. Without this the report is dropped
+    // and the tool silently reports no issues.
+    const jsonOutput = stdout.trim() || stderr.trim()
 
     try {
         if (jsonOutput) {

@@ -309,7 +309,9 @@ describe("ClinicalSchedulerHome Component - Accessibility & Error Handling", () 
     describe("Error Handling", () => {
         it("handles permission store initialization errors gracefully", () => {
             mockPermissionsStore.hasAnyEditPermission = true
-            mockPermissionsStore.initialize = vi.fn().mockRejectedValue(new Error("API Error"))
+            mockPermissionsStore.initialize = vi
+                .fn<(...args: unknown[]) => unknown>()
+                .mockRejectedValue(new Error("API Error"))
 
             // Should not throw error
             expect(() => createWrapper(router)).not.toThrow()
@@ -326,8 +328,8 @@ describe("ClinicalSchedulerHome Component - Accessibility & Error Handling", () 
                 userPermissions: null,
                 isLoading: false,
                 editableServiceCount: 0,
-                getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-                initialize: vi.fn().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
+                getEditableServicesDisplay: vi.fn<(...args: unknown[]) => unknown>().mockReturnValue("None"),
+                initialize: vi.fn<(...args: unknown[]) => unknown>().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
             } as any)
 
             // Should not throw error

@@ -826,7 +826,6 @@ loadCollections()
 
 .link-url {
     white-space: normal;
-    word-break: break-word;
     overflow-wrap: anywhere;
 }
 
@@ -854,7 +853,7 @@ loadCollections()
 }
 
 .link-field {
-    word-break: break-word;
+    overflow-wrap: break-word;
     min-width: 0;
 }
 

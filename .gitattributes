@@ -1,0 +1,9 @@
+# Normalize every text file to LF in the repository, on every clone, without
+# depending on each developer's core.autocrlf being set. Working-tree endings
+# still follow local git config, so Windows checkouts stay CRLF.
+* text=auto
+
+# Shell scripts must stay LF in the working tree. Jenkins runs the husky hooks
+# on Linux, where a CR on the shebang line breaks execution.
+*.sh        text eol=lf
+.husky/*    text eol=lf

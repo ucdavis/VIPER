@@ -78,7 +78,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.GetMyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns(myEffort);
 
         // Act
-        var result = await _controller.GetMyEffort(202410);
+        var result = await _controller.GetMyEffort(202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -94,7 +94,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.GetMyEffortAsync(202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetMyEffort(202410);
+        var result = await _controller.GetMyEffort(202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -116,7 +116,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.VerifyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.VerifyEffort(202410);
+        var actionResult = await _controller.VerifyEffort(202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -132,7 +132,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.VerifyEffortAsync(202410, Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var actionResult = await _controller.VerifyEffort(202410);
+        var actionResult = await _controller.VerifyEffort(202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
@@ -158,7 +158,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.SendVerificationEmailAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(emailResult);
 
         // Act
-        var result = await _controller.SendVerificationEmail(request);
+        var result = await _controller.SendVerificationEmail(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -175,7 +175,7 @@ public sealed class VerificationControllerTests
         _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.SendVerificationEmail(request);
+        var result = await _controller.SendVerificationEmail(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -192,7 +192,7 @@ public sealed class VerificationControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.SendVerificationEmail(request);
+        var result = await _controller.SendVerificationEmail(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<ForbidResult>(result.Result);
@@ -209,7 +209,7 @@ public sealed class VerificationControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("DVM", Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.SendVerificationEmail(request);
+        var result = await _controller.SendVerificationEmail(request, TestContext.Current.CancellationToken);
 
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
@@ -231,7 +231,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.SendBulkVerificationEmailsAsync("DVM", 202410, false, Arg.Any<CancellationToken>()).Returns(bulkResult);
 
         // Act
-        var result = await _controller.SendBulkVerificationEmails(request);
+        var result = await _controller.SendBulkVerificationEmails(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -249,7 +249,7 @@ public sealed class VerificationControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.SendBulkVerificationEmails(request);
+        var result = await _controller.SendBulkVerificationEmails(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<ForbidResult>(result.Result);
@@ -275,7 +275,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.GetEmailHistoryAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(history);
 
         // Act
-        var result = await _controller.GetEmailHistory(123, 202410);
+        var result = await _controller.GetEmailHistory(123, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -290,7 +290,7 @@ public sealed class VerificationControllerTests
         _instructorServiceMock.GetInstructorAsync(999, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetEmailHistory(999, 202410);
+        var result = await _controller.GetEmailHistory(999, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -306,7 +306,7 @@ public sealed class VerificationControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetEmailHistory(123, 202410);
+        var result = await _controller.GetEmailHistory(123, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<ForbidResult>(result.Result);
@@ -326,7 +326,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.CanVerifyAsync(123, 202410, Arg.Any<CancellationToken>()).Returns(canVerifyResult);
 
         // Act
-        var result = await _controller.CanVerify(123, 202410);
+        var result = await _controller.CanVerify(123, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -347,7 +347,7 @@ public sealed class VerificationControllerTests
         _verificationServiceMock.CanVerifyAsync(456, 202410, Arg.Any<CancellationToken>()).Returns(canVerifyResult);
 
         // Act
-        var result = await _controller.CanVerify(456, 202410);
+        var result = await _controller.CanVerify(456, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -364,7 +364,7 @@ public sealed class VerificationControllerTests
         _instructorServiceMock.GetInstructorAsync(456, 202410, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.CanVerify(456, 202410);
+        var result = await _controller.CanVerify(456, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -381,7 +381,7 @@ public sealed class VerificationControllerTests
         _permissionServiceMock.CanViewDepartmentAsync("VME", Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.CanVerify(456, 202410);
+        var result = await _controller.CanVerify(456, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<ForbidResult>(result.Result);

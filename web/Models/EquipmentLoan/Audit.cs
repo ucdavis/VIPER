@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Viper.Models.EquipmentLoan;
 
 public partial class Audit
