@@ -783,7 +783,7 @@ namespace Viper.test.Services
             {
                 var result = System.Text.Json.JsonSerializer.Deserialize<DateTime?>($"\"{input}\"", options);
                 Assert.NotNull(result);
-                var nonNullResult = result.Value;
+                var nonNullResult = Assert.IsType<DateTime>(result);
                 Assert.Equal(new DateTime(expectedYear, expectedMonth, expectedDay, expectedHour, expectedMinute, expectedSecond, DateTimeKind.Unspecified), nonNullResult);
             }
         }

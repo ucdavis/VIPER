@@ -75,7 +75,7 @@
             <q-card-section class="row">
                 <q-card-section class="col photo">
                     <q-img
-                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&amp;altphoto=1'"
+                        :src="'@HttpHelper.GetRootURL()/public/utilities/getImage?mailid=' + user.mailId + '&amp;altphoto=1'"
                         :alt="'Photo of ' + user.name"
                         class="photo_avatar"
                         fit="cover"
