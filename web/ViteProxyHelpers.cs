@@ -41,10 +41,15 @@ internal static class ViteProxyHelpers
     private const string VueAppRoutePattern = @"^/({0})(/.*)?$";
     private const string VueAppAssetPattern = @"^/({0})/.*\.(js|ts|css|map|vue|json)$|^/({0})\.(js|ts|css|map|vue|json)$";
 
+    // Bounds matching so a pathological request path can't pin a request thread.
+    // Must stay above the regex fields: static initialisers run in textual order.
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+
     // Regex for built asset files with Vite hashes (used to skip proxying built assets)
     private static readonly Regex AssetHashRegex = new Regex(
         $@"{Regex.Escape(ViteAssetsBasePath)}{AssetHashPattern}{SupportedAssetExtensions}$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        RegexTimeout
     );
 
     // Cached compiled regexes - initialized once at startup
@@ -76,15 +81,15 @@ internal static class ViteProxyHelpers
                 if (string.IsNullOrEmpty(vueAppsPattern))
                 {
                     // @"(?!)" is a negative lookahead that never matches any input; used here to ensure no routes/assets match when no app names are provided.
-                    _vueAppRouteRegex = new Regex(@"(?!)", RegexOptions.Compiled);
-                    _vueAppAssetRegex = new Regex(@"(?!)", RegexOptions.Compiled);
+                    _vueAppRouteRegex = new Regex(@"(?!)", RegexOptions.Compiled, RegexTimeout);
+                    _vueAppAssetRegex = new Regex(@"(?!)", RegexOptions.Compiled, RegexTimeout);
                 }
                 else
                 {
                     _vueAppRouteRegex = new Regex(string.Format(VueAppRoutePattern, vueAppsPattern),
-                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase, RegexTimeout);
                     _vueAppAssetRegex = new Regex(string.Format(VueAppAssetPattern, vueAppsPattern),
-                        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                        RegexOptions.Compiled | RegexOptions.IgnoreCase, RegexTimeout);
                 }
             }
         }
@@ -98,7 +103,7 @@ internal static class ViteProxyHelpers
         var path = context.Request.Path;
 
         // Skip proxying built asset files with hashes - serve as static files
-        if (path.HasValue && AssetHashRegex.IsMatch(path.Value))
+        if (path.HasValue && IsMatchWithinTimeout(AssetHashRegex, path.Value))
         {
             return false;
         }
@@ -122,17 +127,34 @@ internal static class ViteProxyHelpers
             var pathValue = path.Value;
 
             // Match Vue app routes: /CTS, /Computing, /Students (exact match or with sub-paths)
-            if (_vueAppRouteRegex!.IsMatch(pathValue))
+            if (IsMatchWithinTimeout(_vueAppRouteRegex!, pathValue))
             {
                 return true;
             }
 
             // Match: /AppName/file.ext (assets in app subdirectories)
             // OR: /appname.ext (root-level entry files like /cts.ts)
-            return _vueAppAssetRegex!.IsMatch(pathValue);
+            return IsMatchWithinTimeout(_vueAppAssetRegex!, pathValue);
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Runs a match under the configured timeout. A timed-out match is treated as a
+    /// non-match so the request falls through to normal handling, which is how it
+    /// behaved before timeouts were added, rather than surfacing as a 500.
+    /// </summary>
+    private static bool IsMatchWithinTimeout(Regex regex, string input)
+    {
+        try
+        {
+            return regex.IsMatch(input);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
