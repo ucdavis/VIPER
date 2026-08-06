@@ -1365,8 +1365,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Try to find the reports to person in the same view
                 var reportsTo = _ppsContext.VwPersonJobPositionAlls
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (reportsTo != null)
                 {
@@ -1375,8 +1374,7 @@ namespace Viper.Areas.Directory.Services
 
                 // Fallback to current positions view
                 var currentReportsTo = _ppsContext.VwPersonJobPositions
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (currentReportsTo != null)
                 {
@@ -1403,8 +1401,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Try to find the reports to position in the same view
                 var reportsTo = _ppsContext.VwPersonJobPositionAlls
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (reportsTo != null)
                 {
@@ -1414,8 +1411,7 @@ namespace Viper.Areas.Directory.Services
 
                 // Fallback to current positions view
                 var currentReportsTo = _ppsContext.VwPersonJobPositions
-                    .Where(r => r.PositionNbr == history.ReportsTo)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
 
                 if (currentReportsTo != null)
                 {

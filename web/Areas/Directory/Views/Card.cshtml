@@ -1,4 +1,3 @@
-@using Viper.Classes.SQLContext;
 @model Viper.Areas.Directory.Models.DirectoryUser;
 @{
     ViewData["Title"] = "Directory";
@@ -51,7 +50,7 @@
                     <q-icon name="account_box" size="xs"></q-icon>
                     <q-tooltip>ID Check</q-tooltip>
                 </a>
-                <a :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=UnitHeads&amp;MailID=' + user.mailId" v-if="ids && user.mailId" @@click="onLinkClick($event, 'Opening MSO/CAO Lookup...')" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
+                <a :href="'@HttpHelper.GetRootURL()/public/utilities/getbase64image.cfm?mailid' + user.mailId" v-if="ids && user.mailId" @@click="onLinkClick($event, 'Opening MSO/CAO Lookup...')" :aria-label="'MSO/CAO lookup for ' + user.name" class="MSO_button top_button">
                     <q-icon name="supervisor_account" size="xs"></q-icon>
                     <q-tooltip>MSO/CAO Lookup</q-tooltip>
                 </a>
@@ -74,8 +73,7 @@
         </q-card-section>
             <q-card-section class="row">
                 <q-card-section class="col photo">
-                    <q-img
-                        :src="'@HttpHelper.GetOldViperRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&amp;altphoto=1'"
+                    <q-img :src="'@HttpHelper.GetRootURL()/public/utilities/getbase64image.cfm?mailid=' + user.mailId + '&amp;altphoto=1'"
                         :alt="'Photo of ' + user.name"
                         class="photo_avatar"
                         fit="cover"
