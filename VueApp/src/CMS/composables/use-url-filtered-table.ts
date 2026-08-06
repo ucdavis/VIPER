@@ -95,7 +95,7 @@ export function useUrlFilteredTable<TRow, F extends UrlFilters>(options: UrlFilt
             }
             primary.value = nextPrimary
             filters.value = next
-            table.reloadFirstPage()
+            void table.reloadFirstPage()
         },
     )
 

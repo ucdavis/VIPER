@@ -9,7 +9,7 @@ import { setActivePinia, createPinia } from "pinia"
  */
 
 // Mock the course service
-const mockCreateCourse = vi.fn()
+const mockCreateCourse = vi.fn<(...args: unknown[]) => any>()
 vi.mock("../services/course-service", () => ({
     courseService: {
         createCourse: (...args: unknown[]) => mockCreateCourse(...args),

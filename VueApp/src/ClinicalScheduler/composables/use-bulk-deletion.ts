@@ -51,20 +51,30 @@ export function useBulkDeletion() {
             // If confirmation was already handled, set isDeleting immediately
             isDeleting.value = true
         } else {
-            try {
-                await $q.dialog({
+            // $q.dialog() returns a DialogChainObject, not a Promise, so awaiting it
+            // resolves immediately and never waits for the user. Gate on the
+            // onOk/onCancel callbacks instead.
+            // oxlint-disable-next-line promise/avoid-new -- wrapping Quasar's callback-based DialogChainObject
+            const confirmed = await new Promise<boolean>((resolve) => {
+                $q.dialog({
                     title: options.confirmationTitle,
                     message: options.confirmationMessage,
                     cancel: true,
                     persistent: true,
                 })
-                // User clicked OK, now set isDeleting and proceed
-                isDeleting.value = true
-            } catch {
+                    .onOk(() => resolve(true))
+                    .onCancel(() => resolve(false))
+                    // A programmatic close fires neither onOk nor onCancel, which would leave
+                    // this await pending forever and wedge the bulk-delete flow.
+                    .onDismiss(() => resolve(false))
+            })
+            if (!confirmed) {
                 // User clicked Cancel or dismissed dialog
                 // Don't set isDeleting, just return
                 return
             }
+            // User clicked OK, now set isDeleting and proceed
+            isDeleting.value = true
         }
 
         try {
@@ -95,7 +105,11 @@ export function useBulkDeletion() {
 
                     // Show warning for removed primary evaluators
                     if (removedPrimaryEvaluators.length > 0) {
-                        const uniqueWeeks = [...new Set(removedPrimaryEvaluators.map((pe) => pe.weekNumber))].toSorted()
+                        // Numeric compare: the default sort is lexicographic, which orders
+                        // week numbers as 1, 10, 2 in the notification below.
+                        const uniqueWeeks = [...new Set(removedPrimaryEvaluators.map((pe) => pe.weekNumber))].toSorted(
+                            (a, b) => a - b,
+                        )
                         const uniqueInstructorNames = [...new Set(removedPrimaryEvaluators.map((pe) => pe.name))]
                         const instructorNames = uniqueInstructorNames.join(", ")
                         $q.notify({

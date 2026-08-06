@@ -4,8 +4,8 @@ import { createComponentLogic } from "./rotation-selector-helpers.test"
 // Mock the RotationService
 vi.mock("../services/rotation-service", () => ({
     RotationService: {
-        getRotations: vi.fn(),
-        getRotationsWithScheduledWeeks: vi.fn(),
+        getRotations: vi.fn<(...args: unknown[]) => unknown>(),
+        getRotationsWithScheduledWeeks: vi.fn<(...args: unknown[]) => unknown>(),
     },
 }))
 

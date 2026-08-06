@@ -23,7 +23,7 @@ interface MockRecord {
  * Generates unique effort type legend items from records.
  * Extracted from EffortRecordsTable.vue uniqueEffortTypes computed.
  */
-function getUniqueEffortTypes(records: MockRecord[]): EffortTypeLegendItem[] {
+const getUniqueEffortTypes = (records: MockRecord[]): EffortTypeLegendItem[] => {
     const seen = new Map<string, string>()
     for (const record of records) {
         if (!seen.has(record.effortType)) {
@@ -39,7 +39,7 @@ function getUniqueEffortTypes(records: MockRecord[]): EffortTypeLegendItem[] {
  * Checks if a record has zero effort for styling.
  * Extracted from EffortRecordsTable.vue isZeroEffort function.
  */
-function isZeroEffort(record: MockRecord, zeroEffortRecordIds: number[]): boolean {
+const isZeroEffort = (record: MockRecord, zeroEffortRecordIds: number[]): boolean => {
     if (zeroEffortRecordIds.length > 0) {
         return zeroEffortRecordIds.includes(record.id)
     }
@@ -50,7 +50,7 @@ function isZeroEffort(record: MockRecord, zeroEffortRecordIds: number[]): boolea
  * Formats the effort display value with label.
  * Based on EffortRecordsTable.vue body-cell-effort template.
  */
-function formatEffortDisplay(effortValue: number | null, effortLabel: string): string {
+const formatEffortDisplay = (effortValue: number | null, effortLabel: string): string => {
     const value = effortValue ?? 0
     const label = effortLabel === "weeks" ? "Weeks" : "Hours"
     return `${value} ${label}`

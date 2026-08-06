@@ -14,10 +14,10 @@ import type { UserPermissions } from "../types"
 
 // Mock localStorage for tests that need it
 const mockLocalStorage = {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-    clear: vi.fn(),
+    getItem: vi.fn<(...args: unknown[]) => unknown>(),
+    setItem: vi.fn<(...args: unknown[]) => unknown>(),
+    removeItem: vi.fn<(...args: unknown[]) => unknown>(),
+    clear: vi.fn<(...args: unknown[]) => unknown>(),
 }
 
 // Setup localStorage mock
@@ -58,8 +58,8 @@ function createMockPermissionsStore() {
         userPermissions: null,
         isLoading: false,
         editableServiceCount: 0,
-        getEditableServicesDisplay: vi.fn().mockReturnValue("None"),
-        initialize: vi.fn().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
+        getEditableServicesDisplay: vi.fn<(...args: unknown[]) => unknown>().mockReturnValue("None"),
+        initialize: vi.fn<(...args: unknown[]) => unknown>().mockResolvedValue(undefined), // oxlint-disable-line unicorn/no-useless-undefined -- TS requires the argument
     }
 }
 

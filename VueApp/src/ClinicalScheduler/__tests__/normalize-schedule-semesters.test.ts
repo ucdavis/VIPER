@@ -1,7 +1,7 @@
 import { normalizeScheduleSemesters } from "../composables/use-schedule-normalization"
 import type { ScheduleSemester } from "../components/schedule-view-types"
 
-describe(normalizeScheduleSemesters, () => {
+describe("normalizeScheduleSemesters", () => {
     it("should return empty array when input is undefined", () => {
         // oxlint-disable-next-line unicorn/no-useless-undefined -- Explicitly testing undefined input
         const result = normalizeScheduleSemesters(undefined)
