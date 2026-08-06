@@ -358,6 +358,22 @@ body {
     font-weight: 700;
 }
 
+/* Stacks the sign-in buttons while campus runs CAS and Entra ID side by side. A single
+   provider leaves one child, which renders identically to the pre-Entra single button. */
+.welcome-cta-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.welcome-card__choice {
+    margin: 0 0 1.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--welcome-card-muted);
+    font-weight: 500;
+}
+
 .welcome-cta {
     display: flex;
     align-items: center;
@@ -370,7 +386,11 @@ body {
     font-size: 0.9375rem;
     font-weight: 700;
     letter-spacing: 0.02em;
-    transition: background-color 120ms ease-out;
+    /* Transparent border so the outlined variant below doesn't shift the solid one by 2px. */
+    border: 0.0625rem solid transparent;
+    transition:
+        background-color 120ms ease-out,
+        color 120ms ease-out;
 }
 
 .welcome-cta:hover,
@@ -378,9 +398,34 @@ body {
     background: var(--ucdavis-blue-90);
 }
 
+/* Secondary sign-in option, shown only when both providers are offered. Outlined rather than
+   a second solid block so the pair reads as one primary path plus an alternative. */
+.welcome-cta--secondary {
+    background: var(--welcome-card-bg);
+    color: var(--welcome-card-heading);
+    border-color: var(--welcome-bg);
+}
+
+.welcome-cta--secondary:hover,
+.welcome-cta--secondary:focus-visible {
+    background: var(--welcome-bg);
+    color: var(--welcome-text-strong);
+}
+
 .welcome-cta__arrow {
     color: var(--welcome-accent);
     font-weight: 700;
+}
+
+/* Gold on the white card is too low-contrast to read as an arrow, so inherit the button's
+   text color until hover fills the button and the gold has a dark ground again. */
+.welcome-cta--secondary .welcome-cta__arrow {
+    color: currentcolor;
+}
+
+.welcome-cta--secondary:hover .welcome-cta__arrow,
+.welcome-cta--secondary:focus-visible .welcome-cta__arrow {
+    color: var(--welcome-accent);
 }
 
 .welcome-help {

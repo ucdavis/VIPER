@@ -2,9 +2,29 @@
     Layout = null;
     // Controller has already validated ReturnUrl with Url.IsLocalUrl and nulled it if unsafe.
     var returnUrl = ViewData["ReturnUrl"] as string;
-    var loginUrl = string.IsNullOrEmpty(returnUrl)
-        ? Url.Content("~/login")
-        : $"{Url.Content("~/login")}?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+
+    // "provider" is explicit on both buttons: without it /login would send the two-provider case
+    // back to this page instead of on to CAS.
+    string SignInUrl(string provider)
+    {
+        var url = $"{Url.Content("~/login")}?provider={provider}";
+        return string.IsNullOrEmpty(returnUrl)
+            ? url
+            : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    // Which providers to offer. Defaults to CAS alone if the controller didn't say, so a
+    // misconfiguration degrades to the pre-Entra behavior rather than to no way to sign in.
+    var casEnabled = ViewData["CasEnabled"] as bool? ?? true;
+    var entraIdEnabled = ViewData["EntraIdEnabled"] as bool? ?? false;
+    var showBoth = casEnabled && entraIdEnabled;
+
+    // With one provider there is no choice to explain, so the button keeps the plain "Sign in"
+    // and the solid primary style. The outlined variant only makes sense against a primary.
+    var casLabel = showBoth ? "Sign in with CAS" : "Sign in";
+    var entraLabel = showBoth ? "Sign in with Entra ID" : "Sign in";
+    var entraClass = showBoth ? "welcome-cta welcome-cta--secondary" : "welcome-cta";
+
     var hero = ViewData["Hero"] as string ?? "ophthalmology";
     var destinationLabel = ViewData["DestinationLabel"] as string;
     var year = DateTime.Now.Year;
@@ -49,10 +69,29 @@
                             You'll be taken to <strong>@destinationLabel</strong> after signing in.
                         </p>
                     }
-                    <a class="welcome-cta" href="@loginUrl">
-                        <span>Sign in</span>
-                        <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
-                    </a>
+                    @if (showBoth)
+                    {
+                        <p class="welcome-card__choice">
+                            Campus is moving from CAS to Entra ID. Either option signs you in to the
+                            same account.
+                        </p>
+                    }
+                    <div class="welcome-cta-group">
+                        @if (casEnabled)
+                        {
+                            <a class="welcome-cta" href="@SignInUrl("Cas")">
+                                <span>@casLabel</span>
+                                <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                            </a>
+                        }
+                        @if (entraIdEnabled)
+                        {
+                            <a class="@entraClass" href="@SignInUrl("EntraId")">
+                                <span>@entraLabel</span>
+                                <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                            </a>
+                        }
+                    </div>
                     <a class="welcome-help"
                        href="https://www.vetmed.ucdavis.edu/about/svmit"
                        target="_blank"
