@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using NLog;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
@@ -231,7 +230,7 @@ namespace Viper.Areas.RAPS.Controllers
             }
 
             if (_securityService.IsAllowedTo("ViewAllRoles", instance) ||
-                !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).IsNullOrEmpty())
+                _securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).Count > 0)
             {
                 return await Task.Run(() => View("~/Areas/RAPS/Views/Roles/List.cshtml"));
             }

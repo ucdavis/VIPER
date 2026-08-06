@@ -12,6 +12,7 @@ using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Rewrite;
@@ -19,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using NLog;
 using NLog.Web;
 using Polly;
@@ -35,6 +37,7 @@ using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
 using Web;
@@ -136,8 +139,9 @@ try
         options.Cookie.Name = "VIPER.Antiforgery";
     });
 
-    // Setup CAS authentication cookie
-    builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    // Setup the shared sign-in cookie. Both CAS and Entra ID sign in to this same cookie, so a
+    // session looks identical downstream no matter which provider issued it.
+    var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
         {
             options.Cookie.Name = "VIPER.Authentication.UCD";
@@ -149,15 +153,29 @@ try
     // Add CAS settings from appSettings configuration
     builder.Services.Configure<CasSettings>(builder.Configuration.GetSection("Cas"));
 
+    // Login providers this environment offers. Campus is retiring CAS in favor of Entra ID, so
+    // TEST runs both at once to exercise the Entra path before it becomes the only option.
+    builder.Services.Configure<AuthenticationSettings>(builder.Configuration.GetSection("Authentication"));
+    builder.Services.Configure<EntraIdSettings>(builder.Configuration.GetSection("EntraId"));
+
+    // Re-register the resolved set, which may be narrower than what was configured, so the app
+    // never advertises a provider that failed to wire up.
+    var resolvedProviders = ConfigureLoginProviders(builder, authenticationBuilder, logger);
+    builder.Services.PostConfigure<AuthenticationSettings>(options => options.EnabledProviders = resolvedProviders);
+
+    // Accepted values for the authentication-method claim. Every provider that signs in to the
+    // shared cookie must appear here or its users fail the default policy on every request.
+    string[] acceptedAuthenticationMethods = ["CAS", EntraIdClaimMapper.AuthenticationMethod];
+
     // Define authorization policies
     builder.Services.AddAuthorization(options =>
     {
-        options.AddPolicy("SVMUser", policy => policy.RequireClaim(ClaimTypes.AuthenticationMethod, "CAS"));
+        options.AddPolicy("SVMUser", policy => policy.RequireClaim(ClaimTypes.AuthenticationMethod, acceptedAuthenticationMethods));
         options.AddPolicy("2faAuthentication", policy => policy.RequireAuthenticatedUser().AddRequirements(new DuoAuthenticationRequirement()));
 
         options.DefaultPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
-            .AddRequirements(new AuthorizationPolicyBuilder().RequireClaim(ClaimTypes.AuthenticationMethod, "CAS").Build().Requirements.ToArray())
+            .RequireClaim(ClaimTypes.AuthenticationMethod, acceptedAuthenticationMethods)
             .Build();
     });
 
@@ -550,6 +568,121 @@ finally
 {
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
     LogManager.Shutdown();
+}
+
+// Works out which login providers this environment can actually offer, and registers the Entra ID
+// handler when it is both enabled and fully configured. Returns the resolved set, which is narrower
+// than the configured one when Entra is switched on without the settings to back it.
+static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, AuthenticationBuilder authenticationBuilder, Logger logger)
+{
+    var settings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>()
+        ?? new AuthenticationSettings();
+    var entraIdSettings = builder.Configuration.GetSection("EntraId").Get<EntraIdSettings>()
+        ?? new EntraIdSettings();
+
+    if (settings.EntraIdEnabled)
+    {
+        if (entraIdSettings.IsConfigured)
+        {
+            AddEntraIdAuthentication(authenticationBuilder, entraIdSettings);
+        }
+        else
+        {
+            // Fail loudly at startup rather than serving a sign-in button that dead-ends.
+            logger.Fatal("Entra ID login is enabled but EntraId configuration is incomplete "
+                + "(need TenantId, ClientId and ClientSecret). The Entra sign-in option will not be offered.");
+            settings.EnabledProviders &= ~LoginProviders.EntraId;
+        }
+    }
+
+    if (settings.EnabledProviders == LoginProviders.None)
+    {
+        // Degrade to CAS rather than throw. Throwing here propagates out of the startup try/catch
+        // and kills the host, so a half-finished Entra cutover (the secret not yet in SSM, say)
+        // would take CAS down with it and lock everyone out of the site. Serving the provider that
+        // still works is strictly better than serving nothing.
+        logger.Fatal("No login provider is usable, so falling back to CAS to keep the site "
+            + "reachable. Check Authentication:EnabledProviders and the EntraId settings.");
+        return LoginProviders.Cas;
+    }
+
+    return settings.EnabledProviders;
+}
+
+// Register the Entra ID (OpenID Connect) handler alongside CAS. It signs in to the same cookie CAS
+// uses, and OnTokenValidated rewrites the principal into the claim shape the app already expects,
+// so nothing downstream has to know which provider the user picked.
+static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder, EntraIdSettings settings)
+{
+    authenticationBuilder.AddOpenIdConnect(EntraIdClaimMapper.AuthenticationScheme, options =>
+    {
+        options.Authority = settings.Authority;
+        options.ClientId = settings.ClientId;
+        options.ClientSecret = settings.ClientSecret;
+
+        // Authorization code + PKCE. The implicit and hybrid flows are not enabled on the campus
+        // app registration and should not be.
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.UsePkce = true;
+        options.ResponseMode = OpenIdConnectResponseMode.FormPost;
+
+        // Relative to PathBase, so the URI to register for TEST is "https://<host>/2/signin-entra".
+        options.CallbackPath = new PathString(settings.CallbackPath);
+        options.SignedOutCallbackPath = new PathString(settings.SignedOutCallbackPath);
+
+        // Land on the shared cookie so CAS and Entra sessions are indistinguishable afterwards.
+        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
+        // The access/id tokens are not used after sign-in, and keeping them would bloat the cookie.
+        options.SaveTokens = false;
+        options.GetClaimsFromUserInfoEndpoint = false;
+        options.MapInboundClaims = false;
+
+        options.Scope.Clear();
+        options.Scope.Add("openid");
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var loginId = EntraIdClaimMapper.ResolveLoginId(context.Principal, settings);
+
+                if (string.IsNullOrWhiteSpace(loginId))
+                {
+                    // Without a kerberos id the user cannot be resolved in AAUD, so they would sign
+                    // in with no roles at all. Reject instead, and log which claims did arrive.
+                    var received = string.Join(", ", context.Principal?.Claims.Select(c => c.Type) ?? []);
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn,
+                        "Entra ID login rejected: no login id claim. Configured claim: "
+                        + LogSanitizer.SanitizeString(settings.LoginIdClaim)
+                        + ". Claims received: " + LogSanitizer.SanitizeString(received));
+
+                    context.Fail("Entra ID token did not contain a usable campus login id.");
+                    return Task.CompletedTask;
+                }
+
+                context.Principal = EntraIdClaimMapper.BuildPrincipal(
+                    loginId,
+                    EntraIdClaimMapper.HasMultifactorAuthentication(context.Principal),
+                    DateTime.UtcNow);
+
+                return Task.CompletedTask;
+            },
+
+            OnRemoteFailure = context =>
+            {
+                HttpHelper.Logger.Log(NLog.LogLevel.Warn, context.Failure,
+                    "Entra ID remote authentication failure");
+
+                // Swallow the raw provider error page and send the user somewhere recoverable.
+                context.Response.Redirect(context.Request.PathBase + "/Error");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
+    });
 }
 
 // Try and parse the AWS credentials XML file and store it in the encrypted JSON
