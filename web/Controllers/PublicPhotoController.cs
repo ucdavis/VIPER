@@ -21,8 +21,10 @@ namespace Viper.Controllers
             _aaudContext = aaudContext;
         }
 
-        // GET /public/utilities/getBase64Image.cfm
+        // GET /public/utilities/getImage
         [HttpGet("getbase64image.cfm")]
+        [HttpGet("getbase64image")]
+        [HttpGet("getImage")]
         public async Task<IActionResult> GetBase64Image(
             [FromQuery] string? mivId,
             [FromQuery] string? loginId,
