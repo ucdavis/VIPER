@@ -38,6 +38,12 @@ updates:
     groups:
       npm-vueapp:
         patterns: ["*"]
+    ignore:
+      # @types/node majors track Node majors. Stay on the 24.x line to match
+      # engines.node / volta / CI node-version 24 and @tsconfig/node24. Drop this
+      # once the runtime moves, which is no earlier than Node 26 LTS (2026-10-28).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
