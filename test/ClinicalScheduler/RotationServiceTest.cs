@@ -108,7 +108,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationsAsync_ReturnsExpectedRotations()
         {
             // Act
-            var result = await _rotationService.GetRotationsAsync();
+            var result = await _rotationService.GetRotationsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -130,7 +130,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationsAsync_IncludesServiceData()
         {
             // Act
-            var result = await _rotationService.GetRotationsAsync();
+            var result = await _rotationService.GetRotationsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -147,7 +147,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationsAsync_SortsCorrectly()
         {
             // Act
-            var result = await _rotationService.GetRotationsAsync();
+            var result = await _rotationService.GetRotationsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -171,7 +171,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationAsync_WithValidId_ReturnsRotation()
         {
             // Act
-            var result = await _rotationService.GetRotationAsync(101);
+            var result = await _rotationService.GetRotationAsync(101, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -186,7 +186,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationAsync_WithInvalidId_ReturnsNull()
         {
             // Act
-            var result = await _rotationService.GetRotationAsync(999);
+            var result = await _rotationService.GetRotationAsync(999, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Null(result);
@@ -196,7 +196,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationsByCourseAsync_FiltersCorrectly()
         {
             // Act
-            var result = await _rotationService.GetRotationsByCourseAsync("456");
+            var result = await _rotationService.GetRotationsByCourseAsync("456", cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -211,7 +211,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationsByCourseAsync_WithSubjectCode_FiltersCorrectly()
         {
             // Act
-            var result = await _rotationService.GetRotationsByCourseAsync("456", "VM");
+            var result = await _rotationService.GetRotationsByCourseAsync("456", "VM", TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -224,7 +224,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetRotationsByServiceAsync_FiltersCorrectly()
         {
             // Act
-            var result = await _rotationService.GetRotationsByServiceAsync(1); // Anatomic Pathology service
+            var result = await _rotationService.GetRotationsByServiceAsync(1, TestContext.Current.CancellationToken); // Anatomic Pathology service
 
             // Assert
             Assert.NotNull(result);
@@ -240,7 +240,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetServicesAsync_ReturnsAllServices()
         {
             // Act
-            var result = await _rotationService.GetServicesAsync();
+            var result = await _rotationService.GetServicesAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -262,7 +262,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetServiceAsync_WithValidId_ReturnsService()
         {
             // Act
-            var result = await _rotationService.GetServiceAsync(1);
+            var result = await _rotationService.GetServiceAsync(1, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -274,7 +274,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetServiceAsync_WithInvalidId_ReturnsNull()
         {
             // Act
-            var result = await _rotationService.GetServiceAsync(999);
+            var result = await _rotationService.GetServiceAsync(999, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Null(result);
@@ -293,7 +293,7 @@ namespace Viper.test.ClinicalScheduler
             var emptyService = new RotationService(_mockLogger, emptyContext);
 
             // Act
-            var result = await emptyService.GetRotationsAsync();
+            var result = await emptyService.GetRotationsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -313,7 +313,7 @@ namespace Viper.test.ClinicalScheduler
             // This test verifies that the service handles unique RotIds correctly
 
             // Act
-            var result = await _rotationService.GetRotationsAsync();
+            var result = await _rotationService.GetRotationsAsync(TestContext.Current.CancellationToken);
 
             // Assert - Each RotId should appear exactly once
             var anatomicPathRotations = result.Where(r => r.RotId == 101).ToList();

@@ -91,15 +91,6 @@ type Assessment = {
     serviceName: string | null
 }
 
-type StudentEpaFormData = {
-    epaId: number
-    levelId: number
-    comment: string
-    studentId: number
-    serviceId: number
-    encounterDate: Date | null
-}
-
 type Level = {
     levelId: number
     levelName: string
@@ -161,12 +152,6 @@ type Bundle = {
     roles: Role[]
 }
 
-type BundleRole = {
-    bundleRoleId: number
-    bundleId: number
-    roleId: number
-}
-
 type BundleCompetency = {
     bundleCompetencyId: number
     bundleId: number
@@ -226,11 +211,6 @@ type MilestoneLevel = {
     levelId: number
     levelName: string
     levelOrder: number
-    description: string
-}
-
-type MilestoneLevelUpdate = {
-    levelId: number
     description: string
 }
 

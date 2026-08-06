@@ -219,7 +219,7 @@ namespace Viper.test.ClinicalScheduler
             // Note: Audit service is not called directly by controller in this flow
 
             // Act
-            var result = await _controller.AddInstructor(request);
+            var result = await _controller.AddInstructor(request, TestContext.Current.CancellationToken);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
@@ -260,7 +260,7 @@ namespace Viper.test.ClinicalScheduler
                 .Returns(false);
 
             // Act
-            var result = await _controller.AddInstructor(request);
+            var result = await _controller.AddInstructor(request, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.IsType<ForbidResult>(result);
@@ -290,7 +290,7 @@ namespace Viper.test.ClinicalScheduler
             };
 
             // Act
-            var result = await _controller.AddInstructor(request);
+            var result = await _controller.AddInstructor(request, TestContext.Current.CancellationToken);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);

@@ -7,11 +7,11 @@ import type { UpdateStudentContactRequest } from "../types"
  */
 
 // Mock the ViperFetch composable
-const mockGet = vi.fn()
-const mockPut = vi.fn()
-const mockPost = vi.fn()
-const mockPostForBlob = vi.fn()
-const mockDownloadBlob = vi.fn()
+const mockGet = vi.fn<(...args: unknown[]) => unknown>()
+const mockPut = vi.fn<(...args: unknown[]) => unknown>()
+const mockPost = vi.fn<(...args: unknown[]) => unknown>()
+const mockPostForBlob = vi.fn<(...args: unknown[]) => unknown>()
+const mockDownloadBlob = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock("@/composables/ViperFetch", () => ({
     useFetch: () => ({
         get: (...args: unknown[]) => mockGet(...args),

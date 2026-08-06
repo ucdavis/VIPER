@@ -2,7 +2,7 @@ import { ref } from "vue"
 import { usePhotoGalleryOptions } from "../composables/use-photo-gallery-options"
 import type { ClassYear, CourseInfo } from "../services/photo-gallery-service"
 
-describe(usePhotoGalleryOptions, () => {
+describe("usePhotoGalleryOptions", () => {
     describe("classYearOptions", () => {
         it("should generate correct class year options with year and classLevel", () => {
             const classYears = ref<ClassYear[]>([

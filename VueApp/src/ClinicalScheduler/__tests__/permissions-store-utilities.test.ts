@@ -5,11 +5,11 @@ import { PermissionService, createMockUserPermissions } from "./test-utils"
 // Mock the permission service
 vi.mock("../services/permission-service", () => ({
     PermissionService: {
-        getUserPermissions: vi.fn(),
-        getPermissionSummary: vi.fn(),
-        canEditService: vi.fn(),
-        canEditRotation: vi.fn(),
-        canEditOwnSchedule: vi.fn(),
+        getUserPermissions: vi.fn<(...args: unknown[]) => unknown>(),
+        getPermissionSummary: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditService: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditRotation: vi.fn<(...args: unknown[]) => unknown>(),
+        canEditOwnSchedule: vi.fn<(...args: unknown[]) => unknown>(),
     },
     permissionService: {},
 }))

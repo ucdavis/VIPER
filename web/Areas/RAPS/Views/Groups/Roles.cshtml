@@ -103,7 +103,9 @@
             },
             methods: {
                 loadGroup: async function () {
-                    this.group = await viperFetch(this, "Groups/" + this.groupId)
+                    // viperFetch resolves to undefined on 4xx/5xx; keep group an object
+                    // so the {{group.name}} heading renders blank instead of throwing.
+                    this.group = (await viperFetch(this, "Groups/" + this.groupId)) ?? {}
                 },
                 addGroupRole: async function (groupRole) {
                     viperFetch(this,

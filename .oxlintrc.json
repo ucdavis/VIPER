@@ -1,5 +1,8 @@
 {
-    "plugins": ["import", "promise", "unicorn"],
+    "plugins": ["import", "promise", "unicorn", "typescript"],
+    "options": {
+        "typeAware": true
+    },
     "categories": {
         "correctness": "error",
         "pedantic": "warn",
@@ -9,6 +12,50 @@
         "suspicious": "warn"
     },
     "rules": {
+        // Type-aware linting: keep the rules that catch real defects and switch off
+        // the stylistic ones, which fight Vue/vue-router idioms and drown the signal.
+        "no-void": "off", // typescript/no-floating-promises prescribes `void` as the fix
+        "typescript/no-floating-promises": "error",
+        "typescript/await-thenable": "error",
+        "typescript/no-misused-promises": "error",
+        "typescript/require-array-sort-compare": "error",
+        "typescript/no-wrapper-object-types": "error",
+        "typescript/no-redundant-type-constituents": "error",
+        "typescript/prefer-readonly-parameter-types": "off", // Unsatisfiable against vue-router callback signatures
+        "typescript/strict-boolean-expressions": "off", // Contradicts documented vue-router idioms; cannot see templates
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/no-unnecessary-type-assertion": "off", // Open upstream false-positive regression
+        "typescript/unbound-method": "off",
+        "typescript/prefer-nullish-coalescing": "off",
+        "typescript/no-confusing-void-expression": "off",
+        "typescript/return-await": "off",
+        "typescript/strict-void-return": "off",
+        "typescript/no-extraneous-class": "off",
+        "typescript/consistent-return": "off",
+        "typescript/no-unnecessary-type-conversion": "off",
+        "typescript/no-unnecessary-boolean-literal-compare": "off",
+        "typescript/ban-types": "off",
+        // Syntactic rules the typescript plugin brings along; the repo never opted
+        // into these style positions, so keep them off rather than reformat the app.
+        "typescript/explicit-function-return-type": "off",
+        "typescript/explicit-module-boundary-types": "off",
+        "typescript/explicit-member-accessibility": "off",
+        "typescript/consistent-type-definitions": "off",
+        "typescript/no-non-null-assertion": "off",
+        "typescript/promise-function-async": "off",
+        "typescript/no-explicit-any": "off",
+        "typescript/prefer-readonly": "off",
+        "typescript/no-inferrable-types": "off",
+        "typescript/consistent-type-imports": "off",
+        "typescript/array-type": "off",
+        "typescript/consistent-indexed-object-style": "off",
+        "typescript/prefer-regexp-exec": "off",
+        "typescript/dot-notation": "off",
         "import/no-cycle": "error",
         "import/no-duplicates": "error",
         "import/no-self-import": "error",

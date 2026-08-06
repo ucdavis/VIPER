@@ -129,7 +129,7 @@ namespace Viper.test.ClinicalScheduler
             // In a real scenario, these properties would be populated by SQL views/joins
 
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -145,7 +145,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_WithLimitedHistory_ExcludesOldRecords()
         {
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -157,7 +157,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_WithSpecificGradYearRange_ReturnsExpectedClinicians()
         {
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -175,7 +175,7 @@ namespace Viper.test.ClinicalScheduler
             // Properties like FullName come from database views in production
 
             // Act
-            var result = await _personService.GetPersonAsync("12345");
+            var result = await _personService.GetPersonAsync("12345", TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -187,7 +187,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetPersonAsync_WithInvalidMothraId_ReturnsNull()
         {
             // Act
-            var result = await _personService.GetPersonAsync("INVALID");
+            var result = await _personService.GetPersonAsync("INVALID", TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Null(result);
@@ -197,7 +197,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetPersonAsync_WithNullMothraId_ReturnsNull()
         {
             // Act
-            var result = await _personService.GetPersonAsync(null!);
+            var result = await _personService.GetPersonAsync(null!, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Null(result);
@@ -207,7 +207,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetPersonAsync_WithEmptyMothraId_ReturnsNull()
         {
             // Act
-            var result = await _personService.GetPersonAsync("");
+            var result = await _personService.GetPersonAsync("", TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Null(result);
@@ -217,7 +217,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansByYearAsync_WithValidYear_ReturnsClinicians()
         {
             // Act - Using year from the test data (2023)
-            var result = await _personService.GetCliniciansByYearAsync(2023);
+            var result = await _personService.GetCliniciansByYearAsync(2023, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -235,7 +235,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansByYearAsync_WithYear2022_ReturnsHistoricalClinician()
         {
             // Act - Test with 2022 where we have test data for MothraId 99999
-            var result = await _personService.GetCliniciansByYearAsync(2022);
+            var result = await _personService.GetCliniciansByYearAsync(2022, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -251,7 +251,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetAllMothraIdsAsync_ReturnsAllUniqueMothraIds()
         {
             // Act
-            var result = await _personService.GetAllMothraIdsAsync();
+            var result = await _personService.GetAllMothraIdsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -271,7 +271,7 @@ namespace Viper.test.ClinicalScheduler
             // This tests that clinicians with multiple schedule entries are properly grouped
 
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2022, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2022, 2024, TestContext.Current.CancellationToken);
 
             // Assert
             var johnSmith = result.FirstOrDefault(c => ((dynamic)c).MothraId == "12345");
@@ -286,7 +286,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_ReturnsCorrectDataStructure()
         {
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(2023, 2024, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -308,7 +308,7 @@ namespace Viper.test.ClinicalScheduler
         public async Task GetCliniciansAsync_WithDifferentGradYearRanges_ReturnsAppropriateResults(int startYear, int endYear, int expectedCount)
         {
             // Act
-            var result = await _personService.GetCliniciansByGradYearRangeAsync(startYear, endYear);
+            var result = await _personService.GetCliniciansByGradYearRangeAsync(startYear, endYear, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);

@@ -158,10 +158,10 @@ public sealed class EffortTypeServiceTests : IDisposable
             new EffortType { Id = "AAA", Description = "Alpha Type", IsActive = true },
             new EffortType { Id = "MMM", Description = "Middle Type", IsActive = false }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var effortTypes = await _effortTypeService.GetEffortTypesAsync();
+        var effortTypes = await _effortTypeService.GetEffortTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, effortTypes.Count);
@@ -178,10 +178,10 @@ public sealed class EffortTypeServiceTests : IDisposable
             new EffortType { Id = "ACT", Description = "Active Type", IsActive = true },
             new EffortType { Id = "INA", Description = "Inactive Type", IsActive = false }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var effortTypes = await _effortTypeService.GetEffortTypesAsync(activeOnly: true);
+        var effortTypes = await _effortTypeService.GetEffortTypesAsync(activeOnly: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(effortTypes);
@@ -193,7 +193,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     public async Task GetEffortTypesAsync_ReturnsEmptyList_WhenNoEffortTypesExist()
     {
         // Act
-        var effortTypes = await _effortTypeService.GetEffortTypesAsync();
+        var effortTypes = await _effortTypeService.GetEffortTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(effortTypes);
@@ -206,7 +206,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         await CreateEffortTypeWithRecordsAsync("TST", "Test Type", recordCount: 2);
 
         // Act
-        var effortTypes = await _effortTypeService.GetEffortTypesAsync();
+        var effortTypes = await _effortTypeService.GetEffortTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(effortTypes);
@@ -219,10 +219,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "NEW", Description = "Unused Type", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var effortTypes = await _effortTypeService.GetEffortTypesAsync();
+        var effortTypes = await _effortTypeService.GetEffortTypesAsync(ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(effortTypes);
@@ -239,10 +239,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var effortType = await _effortTypeService.GetEffortTypeAsync("LEC");
+        var effortType = await _effortTypeService.GetEffortTypeAsync("LEC", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(effortType);
@@ -255,7 +255,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     public async Task GetEffortTypeAsync_ReturnsNull_WhenNotFound()
     {
         // Act
-        var effortType = await _effortTypeService.GetEffortTypeAsync("XXX");
+        var effortType = await _effortTypeService.GetEffortTypeAsync("XXX", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(effortType);
@@ -268,7 +268,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         await CreateEffortTypeWithRecordsAsync("CLI", "Clinical");
 
         // Act
-        var result = await _effortTypeService.GetEffortTypeAsync("CLI");
+        var result = await _effortTypeService.GetEffortTypeAsync("CLI", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -281,10 +281,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var effortType = await _effortTypeService.GetEffortTypeAsync("lec");
+        var effortType = await _effortTypeService.GetEffortTypeAsync("lec", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(effortType);
@@ -296,10 +296,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "LEC", Description = "Lecture", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var effortType = await _effortTypeService.GetEffortTypeAsync("  LEC  ");
+        var effortType = await _effortTypeService.GetEffortTypeAsync("  LEC  ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(effortType);
@@ -326,7 +326,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.CreateEffortTypeAsync(request);
+        var result = await _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -336,7 +336,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         Assert.Equal(0, result.UsageCount);
         Assert.True(result.CanDelete);
 
-        var savedEffortType = await _context.EffortTypes.FirstOrDefaultAsync(s => s.Id == "NEW");
+        var savedEffortType = await _context.EffortTypes.FirstOrDefaultAsync(s => s.Id == "NEW", TestContext.Current.CancellationToken);
         Assert.NotNull(savedEffortType);
     }
 
@@ -345,13 +345,13 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "DUP", Description = "Existing", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateEffortTypeRequest { Id = "DUP", Description = "Duplicate" };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _effortTypeService.CreateEffortTypeAsync(request));
+            () => _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", exception.Message);
     }
 
@@ -362,11 +362,11 @@ public sealed class EffortTypeServiceTests : IDisposable
         var request = new CreateEffortTypeRequest { Id = "low", Description = "Lowercase Test" };
 
         // Act
-        var result = await _effortTypeService.CreateEffortTypeAsync(request);
+        var result = await _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("LOW", result.Id);
-        var savedEffortType = await _context.EffortTypes.FirstOrDefaultAsync(s => s.Id == "LOW");
+        var savedEffortType = await _context.EffortTypes.FirstOrDefaultAsync(s => s.Id == "LOW", TestContext.Current.CancellationToken);
         Assert.NotNull(savedEffortType);
     }
 
@@ -377,7 +377,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         var request = new CreateEffortTypeRequest { Id = "  PAD  ", Description = "  Padded Description  " };
 
         // Act
-        var result = await _effortTypeService.CreateEffortTypeAsync(request);
+        var result = await _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("PAD", result.Id);
@@ -391,7 +391,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         var request = new CreateEffortTypeRequest { Id = "AUD", Description = "Audited Type" };
 
         // Act
-        await _effortTypeService.CreateEffortTypeAsync(request);
+        await _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddEffortTypeChangeAudit(
@@ -417,7 +417,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.CreateEffortTypeAsync(request);
+        var result = await _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.UsesWeeks);
@@ -436,7 +436,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "UPD", Description = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortTypeRequest
         {
@@ -450,7 +450,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.UpdateEffortTypeAsync("UPD", request);
+        var result = await _effortTypeService.UpdateEffortTypeAsync("UPD", request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -475,7 +475,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.UpdateEffortTypeAsync("XXX", request);
+        var result = await _effortTypeService.UpdateEffortTypeAsync("XXX", request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -486,7 +486,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "UPP", Description = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortTypeRequest
         {
@@ -500,7 +500,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.UpdateEffortTypeAsync("upp", request);
+        var result = await _effortTypeService.UpdateEffortTypeAsync("upp", request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -512,7 +512,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "AUD", Description = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortTypeRequest
         {
@@ -526,7 +526,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        await _effortTypeService.UpdateEffortTypeAsync("AUD", request);
+        await _effortTypeService.UpdateEffortTypeAsync("AUD", request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddEffortTypeChangeAudit(
@@ -541,7 +541,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "TRM", Description = "Original", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortTypeRequest
         {
@@ -555,7 +555,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.UpdateEffortTypeAsync("TRM", request);
+        var result = await _effortTypeService.UpdateEffortTypeAsync("TRM", request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -577,7 +577,7 @@ public sealed class EffortTypeServiceTests : IDisposable
             AllowedOn199299 = true,
             AllowedOnRCourses = true
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateEffortTypeRequest
         {
@@ -591,7 +591,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         };
 
         // Act
-        var result = await _effortTypeService.UpdateEffortTypeAsync("FLG", request);
+        var result = await _effortTypeService.UpdateEffortTypeAsync("FLG", request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -612,14 +612,14 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "DEL", Description = "Deletable", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _effortTypeService.DeleteEffortTypeAsync("DEL");
+        var result = await _effortTypeService.DeleteEffortTypeAsync("DEL", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        var deletedEffortType = await _context.EffortTypes.FindAsync("DEL");
+        var deletedEffortType = await _context.EffortTypes.FindAsync(new object?[] { "DEL" }, TestContext.Current.CancellationToken);
         Assert.Null(deletedEffortType);
     }
 
@@ -630,11 +630,11 @@ public sealed class EffortTypeServiceTests : IDisposable
         var effortType = await CreateEffortTypeWithRecordsAsync("REF", "Referenced Type");
 
         // Act
-        var result = await _effortTypeService.DeleteEffortTypeAsync(effortType.Id);
+        var result = await _effortTypeService.DeleteEffortTypeAsync(effortType.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
-        var stillExists = await _context.EffortTypes.FindAsync(effortType.Id);
+        var stillExists = await _context.EffortTypes.FindAsync(new object?[] { effortType.Id }, TestContext.Current.CancellationToken);
         Assert.NotNull(stillExists);
     }
 
@@ -642,7 +642,7 @@ public sealed class EffortTypeServiceTests : IDisposable
     public async Task DeleteEffortTypeAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _effortTypeService.DeleteEffortTypeAsync("XXX");
+        var result = await _effortTypeService.DeleteEffortTypeAsync("XXX", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -653,10 +653,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "AUD", Description = "To Delete", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _effortTypeService.DeleteEffortTypeAsync("AUD");
+        await _effortTypeService.DeleteEffortTypeAsync("AUD", TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddEffortTypeChangeAudit(
@@ -671,14 +671,14 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "LOW", Description = "Lowercase", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _effortTypeService.DeleteEffortTypeAsync("low");
+        var result = await _effortTypeService.DeleteEffortTypeAsync("low", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        var deleted = await _context.EffortTypes.FindAsync("LOW");
+        var deleted = await _context.EffortTypes.FindAsync(new object?[] { "LOW" }, TestContext.Current.CancellationToken);
         Assert.Null(deleted);
     }
 
@@ -691,10 +691,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "CAN", Description = "Unused", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var canDelete = await _effortTypeService.CanDeleteEffortTypeAsync("CAN");
+        var canDelete = await _effortTypeService.CanDeleteEffortTypeAsync("CAN", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -707,7 +707,7 @@ public sealed class EffortTypeServiceTests : IDisposable
         var effortType = await CreateEffortTypeWithRecordsAsync("USE", "Used Type");
 
         // Act
-        var canDelete = await _effortTypeService.CanDeleteEffortTypeAsync(effortType.Id);
+        var canDelete = await _effortTypeService.CanDeleteEffortTypeAsync(effortType.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(canDelete);
@@ -718,10 +718,10 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange
         _context.EffortTypes.Add(new EffortType { Id = "UPP", Description = "Uppercase", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var canDelete = await _effortTypeService.CanDeleteEffortTypeAsync("upp");
+        var canDelete = await _effortTypeService.CanDeleteEffortTypeAsync("upp", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -736,14 +736,14 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange - create a effort type with uppercase ID
         _context.EffortTypes.Add(new EffortType { Id = "DUP", Description = "Existing", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Try to create with lowercase version of same ID
         var request = new CreateEffortTypeRequest { Id = "dup", Description = "Duplicate Lowercase" };
 
         // Act & Assert - should fail because IDs are case-insensitive
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _effortTypeService.CreateEffortTypeAsync(request));
+            () => _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", exception.Message);
     }
 
@@ -752,14 +752,14 @@ public sealed class EffortTypeServiceTests : IDisposable
     {
         // Arrange - create a effort type with lowercase ID
         _context.EffortTypes.Add(new EffortType { Id = "ABC", Description = "Existing", IsActive = true });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Try to create with mixed case version
         var request = new CreateEffortTypeRequest { Id = "AbC", Description = "Mixed Case" };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _effortTypeService.CreateEffortTypeAsync(request));
+            () => _effortTypeService.CreateEffortTypeAsync(request, TestContext.Current.CancellationToken));
         Assert.Contains("already exists", exception.Message);
     }
 

@@ -89,7 +89,7 @@ public sealed class EffortRecordsControllerTests
         _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.GetRecord(TestRecordId);
+        var result = await _controller.GetRecord(TestRecordId, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -104,7 +104,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.GetRecord(999);
+        var result = await _controller.GetRecord(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -119,7 +119,7 @@ public sealed class EffortRecordsControllerTests
         _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetRecord(TestRecordId);
+        var result = await _controller.GetRecord(TestRecordId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -149,7 +149,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Returns((record, (string?)null));
 
         // Act
-        var result = await _controller.CreateRecord(request);
+        var result = await _controller.CreateRecord(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
@@ -174,7 +174,7 @@ public sealed class EffortRecordsControllerTests
         _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.CreateRecord(request);
+        var result = await _controller.CreateRecord(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -199,7 +199,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("Duplicate record"));
 
         // Act
-        var result = await _controller.CreateRecord(request);
+        var result = await _controller.CreateRecord(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -225,7 +225,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.CreateEffortRecordAsync(request, Arg.Any<CancellationToken>()).Throws(new DbUpdateException("DB error"));
 
         // Act
-        var result = await _controller.CreateRecord(request);
+        var result = await _controller.CreateRecord(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -254,7 +254,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.UpdateEffortRecordAsync(TestRecordId, request, Arg.Any<CancellationToken>()).Returns((existingRecord, (string?)null));
 
         // Act
-        var result = await _controller.UpdateRecord(TestRecordId, request);
+        var result = await _controller.UpdateRecord(TestRecordId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<OkObjectResult>(result.Result);
@@ -274,7 +274,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.UpdateRecord(999, request);
+        var result = await _controller.UpdateRecord(999, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -296,7 +296,7 @@ public sealed class EffortRecordsControllerTests
         _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.UpdateRecord(TestRecordId, request);
+        var result = await _controller.UpdateRecord(TestRecordId, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -321,7 +321,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.UpdateEffortRecordAsync(TestRecordId, request, Arg.Any<CancellationToken>()).Throws(new ConcurrencyConflictException(TestRecordId));
 
         // Act
-        var result = await _controller.UpdateRecord(TestRecordId, request);
+        var result = await _controller.UpdateRecord(TestRecordId, request, TestContext.Current.CancellationToken);
 
         // Assert
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
@@ -344,7 +344,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.DeleteEffortRecordAsync(TestRecordId, Arg.Any<DateTime?>(), Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.DeleteRecord(TestRecordId, null);
+        var result = await _controller.DeleteRecord(TestRecordId, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
@@ -357,7 +357,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.GetEffortRecordAsync(999, Arg.Any<CancellationToken>()).ReturnsNull();
 
         // Act
-        var result = await _controller.DeleteRecord(999, null);
+        var result = await _controller.DeleteRecord(999, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -374,7 +374,7 @@ public sealed class EffortRecordsControllerTests
         _permissionServiceMock.CanEditPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.DeleteRecord(TestRecordId, null);
+        var result = await _controller.DeleteRecord(TestRecordId, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
@@ -393,7 +393,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.DeleteEffortRecordAsync(TestRecordId, staleModifiedDate, Arg.Any<CancellationToken>()).Throws(new ConcurrencyConflictException(TestRecordId));
 
         // Act
-        var result = await _controller.DeleteRecord(TestRecordId, staleModifiedDate);
+        var result = await _controller.DeleteRecord(TestRecordId, staleModifiedDate, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<ConflictObjectResult>(result);
@@ -420,7 +420,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.GetAvailableCoursesAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(courses);
 
         // Act
-        var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode);
+        var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -435,7 +435,7 @@ public sealed class EffortRecordsControllerTests
         _permissionServiceMock.CanViewPersonEffortAsync(TestPersonId, TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode);
+        var result = await _controller.GetAvailableCourses(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result.Result);
@@ -458,7 +458,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.GetEffortTypeOptionsAsync(Arg.Any<CancellationToken>()).Returns(effortTypes);
 
         // Act
-        var result = await _controller.GetEffortTypes();
+        var result = await _controller.GetEffortTypes(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -483,7 +483,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.GetRoleOptionsAsync(Arg.Any<CancellationToken>()).Returns(roles);
 
         // Act
-        var result = await _controller.GetRoles();
+        var result = await _controller.GetRoles(TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -502,7 +502,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(true);
 
         // Act
-        var result = await _controller.CanEditTerm(TestTermCode);
+        var result = await _controller.CanEditTerm(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -516,7 +516,7 @@ public sealed class EffortRecordsControllerTests
         _recordServiceMock.CanEditTermAsync(TestTermCode, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _controller.CanEditTerm(TestTermCode);
+        var result = await _controller.CanEditTerm(TestTermCode, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

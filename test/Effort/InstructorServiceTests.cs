@@ -96,10 +96,10 @@ public sealed class InstructorServiceTests : IDisposable
             new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Alice", LastName = "Smith", EffortDept = "VME", EffortTitleCode = "1234" },
             new EffortPerson { PersonId = 3, TermCode = 202410, FirstName = "Bob", LastName = "Doe", EffortDept = "APC", EffortTitleCode = "1234" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var instructors = await _instructorService.GetInstructorsAsync(202410);
+        var instructors = await _instructorService.GetInstructorsAsync(202410, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, instructors.Count);
@@ -118,10 +118,10 @@ public sealed class InstructorServiceTests : IDisposable
             new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" },
             new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortDept = "APC", EffortTitleCode = "1234" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var instructors = await _instructorService.GetInstructorsAsync(202410, "VME");
+        var instructors = await _instructorService.GetInstructorsAsync(202410, "VME", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(instructors);
@@ -132,7 +132,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task GetInstructorsAsync_ReturnsEmptyList_WhenNoInstructorsExistForTerm()
     {
         // Act
-        var instructors = await _instructorService.GetInstructorsAsync(999999);
+        var instructors = await _instructorService.GetInstructorsAsync(999999, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(instructors);
@@ -147,10 +147,10 @@ public sealed class InstructorServiceTests : IDisposable
             new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" },
             new EffortPerson { PersonId = 2, TermCode = 202310, FirstName = "Jane", LastName = "Smith", EffortDept = "APC", EffortTitleCode = "5678" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act — termCode 0 means "all terms"
-        var result = await _instructorService.GetInstructorsAsync(0);
+        var result = await _instructorService.GetInstructorsAsync(0, ct: TestContext.Current.CancellationToken);
 
         // Assert — one record per person, latest term wins
         Assert.Equal(2, result.Count);
@@ -168,10 +168,10 @@ public sealed class InstructorServiceTests : IDisposable
             new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" },
             new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortDept = "APC", EffortTitleCode = "5678" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(0, "VME");
+        var result = await _instructorService.GetInstructorsAsync(0, "VME", ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -186,10 +186,10 @@ public sealed class InstructorServiceTests : IDisposable
             new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "Merit", LastName = "Prof", EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = "010" },
             new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Other", LastName = "Prof", EffortDept = "VME", EffortTitleCode = "1234", JobGroupId = "999" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(0, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(0, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -205,10 +205,10 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var instructor = await _instructorService.GetInstructorAsync(1, 202410);
+        var instructor = await _instructorService.GetInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(instructor);
@@ -221,7 +221,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task GetInstructorAsync_ReturnsNull_WhenInstructorDoesNotExist()
     {
         // Act
-        var instructor = await _instructorService.GetInstructorAsync(999, 202410);
+        var instructor = await _instructorService.GetInstructorAsync(999, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(instructor);
@@ -232,10 +232,10 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var instructor = await _instructorService.GetInstructorAsync(1, 202320);
+        var instructor = await _instructorService.GetInstructorAsync(1, 202320, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(instructor);
@@ -250,17 +250,17 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
-        Assert.True(await _instructorService.InstructorExistsAsync(1, 202410));
+        Assert.True(await _instructorService.InstructorExistsAsync(1, 202410, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task InstructorExistsAsync_ReturnsFalse_WhenInstructorDoesNotExist()
     {
         // Act & Assert
-        Assert.False(await _instructorService.InstructorExistsAsync(999, 202410));
+        Assert.False(await _instructorService.InstructorExistsAsync(999, 202410, TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -280,13 +280,13 @@ public sealed class InstructorServiceTests : IDisposable
             EffortDept = "VME",
             EffortTitleCode = "1234"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateInstructorRequest { PersonId = 1, TermCode = 202410 };
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InstructorAlreadyExistsException>(
-            () => _instructorService.CreateInstructorAsync(request));
+            () => _instructorService.CreateInstructorAsync(request, TestContext.Current.CancellationToken));
 
         Assert.Equal(1, ex.PersonId);
         Assert.Equal(202410, ex.TermCode);
@@ -302,7 +302,7 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234", VolunteerWos = 0 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateInstructorRequest
         {
@@ -312,7 +312,7 @@ public sealed class InstructorServiceTests : IDisposable
         };
 
         // Act
-        var instructor = await _instructorService.UpdateInstructorAsync(1, 202410, request);
+        var instructor = await _instructorService.UpdateInstructorAsync(1, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(instructor);
@@ -333,7 +333,7 @@ public sealed class InstructorServiceTests : IDisposable
         };
 
         // Act
-        var instructor = await _instructorService.UpdateInstructorAsync(999, 202410, request);
+        var instructor = await _instructorService.UpdateInstructorAsync(999, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(instructor);
@@ -344,7 +344,7 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateInstructorRequest
         {
@@ -355,7 +355,7 @@ public sealed class InstructorServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(
-            () => _instructorService.UpdateInstructorAsync(1, 202410, request)
+            () => _instructorService.UpdateInstructorAsync(1, 202410, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("Invalid department", exception.Message);
     }
@@ -365,7 +365,7 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new UpdateInstructorRequest
         {
@@ -375,7 +375,7 @@ public sealed class InstructorServiceTests : IDisposable
         };
 
         // Act
-        await _instructorService.UpdateInstructorAsync(1, 202410, request);
+        await _instructorService.UpdateInstructorAsync(1, 202410, request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddPersonChangeAudit(
@@ -395,21 +395,21 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.DeleteInstructorAsync(1, 202410);
+        var result = await _instructorService.DeleteInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Null(await _context.Persons.FirstOrDefaultAsync(p => p.PersonId == 1 && p.TermCode == 202410));
+        Assert.Null(await _context.Persons.FirstOrDefaultAsync(p => p.PersonId == 1 && p.TermCode == 202410, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task DeleteInstructorAsync_ReturnsFalse_WhenInstructorDoesNotExist()
     {
         // Act
-        var result = await _instructorService.DeleteInstructorAsync(999, 202410);
+        var result = await _instructorService.DeleteInstructorAsync(999, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -421,20 +421,20 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange
         var person = new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" };
         _context.Persons.Add(person);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _context.Records.AddRange(
             new EffortRecord { Id = 1, TermCode = 202410, CourseId = 100, PersonId = 1 },
             new EffortRecord { Id = 2, TermCode = 202410, CourseId = 101, PersonId = 1 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.DeleteInstructorAsync(1, 202410);
+        var result = await _instructorService.DeleteInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Empty(await _context.Records.Where(r => r.PersonId == 1).ToListAsync());
+        Assert.Empty(await _context.Records.Where(r => r.PersonId == 1).ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -442,10 +442,10 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await _instructorService.DeleteInstructorAsync(1, 202410);
+        await _instructorService.DeleteInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddPersonChangeAudit(
@@ -465,10 +465,10 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // Arrange
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canDelete, recordCount) = await _instructorService.CanDeleteInstructorAsync(1, 202410);
+        var (canDelete, recordCount) = await _instructorService.CanDeleteInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -485,10 +485,10 @@ public sealed class InstructorServiceTests : IDisposable
             new EffortRecord { Id = 2, TermCode = 202410, CourseId = 101, PersonId = 1 },
             new EffortRecord { Id = 3, TermCode = 202410, CourseId = 102, PersonId = 1 }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var (canDelete, recordCount) = await _instructorService.CanDeleteInstructorAsync(1, 202410);
+        var (canDelete, recordCount) = await _instructorService.CanDeleteInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canDelete);
@@ -563,7 +563,7 @@ public sealed class InstructorServiceTests : IDisposable
             MothraId = overrideMothraId, // This MothraId has a department override configured
             CurrentEmployee = true
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Add VMDO job (should be ignored due to override)
         _aaudContext.Ids.Add(new Id
@@ -584,10 +584,10 @@ public sealed class InstructorServiceTests : IDisposable
             EmpCbuc = "99",
             EmpStatus = "A"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var dept = await _instructorService.ResolveInstructorDepartmentAsync(100, 202410);
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(100, 202410, TestContext.Current.CancellationToken);
 
         // Assert - Should return the configured override department
         Assert.Equal(expectedDept, dept);
@@ -607,7 +607,7 @@ public sealed class InstructorServiceTests : IDisposable
             MothraId = "12345678",
             CurrentEmployee = true
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _aaudContext.Ids.Add(new Id
         {
@@ -643,10 +643,10 @@ public sealed class InstructorServiceTests : IDisposable
             JobBargainingUnit = "99",
             JobSchoolDivision = "VM"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var dept = await _instructorService.ResolveInstructorDepartmentAsync(1, 202410);
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert - Should return VME from jobs table
         Assert.Equal("VME", dept);
@@ -666,7 +666,7 @@ public sealed class InstructorServiceTests : IDisposable
             MothraId = "87654321",
             CurrentEmployee = true
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _aaudContext.Ids.Add(new Id
         {
@@ -691,10 +691,10 @@ public sealed class InstructorServiceTests : IDisposable
         });
 
         // No jobs or only non-academic jobs
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var dept = await _instructorService.ResolveInstructorDepartmentAsync(2, 202410);
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(2, 202410, TestContext.Current.CancellationToken);
 
         // Assert - Should return APC from employee effort dept
         Assert.Equal("APC", dept);
@@ -704,7 +704,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task ResolveInstructorDepartmentAsync_ReturnsNull_WhenNoPersonFound()
     {
         // Act
-        var dept = await _instructorService.ResolveInstructorDepartmentAsync(99999, 202410);
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(99999, 202410, TestContext.Current.CancellationToken);
 
         // Assert - Returns null when person doesn't exist (distinct from "UNK" for person exists but no dept)
         Assert.Null(dept);
@@ -724,10 +724,10 @@ public sealed class InstructorServiceTests : IDisposable
             MothraId = "00000000",
             CurrentEmployee = true
         });
-        await _viperContext.SaveChangesAsync();
+        await _viperContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var dept = await _instructorService.ResolveInstructorDepartmentAsync(3, 202410);
+        var dept = await _instructorService.ResolveInstructorDepartmentAsync(3, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("UNK", dept);
@@ -743,11 +743,11 @@ public sealed class InstructorServiceTests : IDisposable
         // Arrange - VolunteerWos is byte? in entity, bool in DTO
         _context.Persons.Add(new EffortPerson { PersonId = 1, TermCode = 202410, FirstName = "John", LastName = "Doe", EffortDept = "VME", EffortTitleCode = "1234", VolunteerWos = 1 });
         _context.Persons.Add(new EffortPerson { PersonId = 2, TermCode = 202410, FirstName = "Jane", LastName = "Smith", EffortDept = "VME", EffortTitleCode = "1234", VolunteerWos = 0 });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var instructor1 = await _instructorService.GetInstructorAsync(1, 202410);
-        var instructor2 = await _instructorService.GetInstructorAsync(2, 202410);
+        var instructor1 = await _instructorService.GetInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
+        var instructor2 = await _instructorService.GetInstructorAsync(2, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(instructor1);
@@ -771,10 +771,10 @@ public sealed class InstructorServiceTests : IDisposable
             PercentAdmin = 12.5,
             PercentClinical = 33.33
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var dto = await _instructorService.GetInstructorAsync(1, 202410);
+        var dto = await _instructorService.GetInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(dto);
@@ -811,7 +811,7 @@ public sealed class InstructorServiceTests : IDisposable
             LastEmailed = null,
             LastEmailedBy = null
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Add instructor's ViperPerson (for MailId resolution via .Include(p => p.ViperPerson))
         _context.ViperPersons.Add(new ViperPerson
@@ -835,11 +835,11 @@ public sealed class InstructorServiceTests : IDisposable
             FirstName = "Admin",
             LastName = "User"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var instructor1 = await _instructorService.GetInstructorAsync(1, 202410);
-        var instructor2 = await _instructorService.GetInstructorAsync(2, 202410);
+        var instructor1 = await _instructorService.GetInstructorAsync(1, 202410, TestContext.Current.CancellationToken);
+        var instructor2 = await _instructorService.GetInstructorAsync(2, 202410, TestContext.Current.CancellationToken);
 
         // Assert - instructor with email history and ViperPerson (MailId resolved)
         Assert.NotNull(instructor1);
@@ -863,7 +863,7 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // The test setup uses empty connection strings, so the method should return empty list
         // This tests the graceful fallback behavior when the database is not available
-        var titleCodes = await _instructorService.GetTitleCodesAsync();
+        var titleCodes = await _instructorService.GetTitleCodesAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(titleCodes);
     }
@@ -877,7 +877,7 @@ public sealed class InstructorServiceTests : IDisposable
     {
         // The test setup uses empty connection strings, so the method should return empty list
         // This tests the graceful fallback behavior when the database is not available
-        var jobGroups = await _instructorService.GetJobGroupsAsync();
+        var jobGroups = await _instructorService.GetJobGroupsAsync(ct: TestContext.Current.CancellationToken);
 
         Assert.Empty(jobGroups);
     }
@@ -904,10 +904,10 @@ public sealed class InstructorServiceTests : IDisposable
                 JobGroupId = unconditionalGroups[i]
             });
         }
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert — all unconditional groups included
         Assert.Equal(unconditionalGroups.Length, result.Count);
@@ -927,10 +927,10 @@ public sealed class InstructorServiceTests : IDisposable
             EffortTitleCode = "001898",
             JobGroupId = "124"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -951,10 +951,10 @@ public sealed class InstructorServiceTests : IDisposable
             EffortTitleCode = "005555",
             JobGroupId = "124"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -974,10 +974,10 @@ public sealed class InstructorServiceTests : IDisposable
             EffortTitleCode = "001067",
             JobGroupId = "S56"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -998,10 +998,10 @@ public sealed class InstructorServiceTests : IDisposable
             EffortTitleCode = "002222",
             JobGroupId = "S56"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -1031,10 +1031,10 @@ public sealed class InstructorServiceTests : IDisposable
             EffortTitleCode = "1234",
             JobGroupId = null
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -1054,10 +1054,10 @@ public sealed class InstructorServiceTests : IDisposable
             EffortTitleCode = "1898",
             JobGroupId = "124"
         });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true);
+        var result = await _instructorService.GetInstructorsAsync(202410, meritOnly: true, ct: TestContext.Current.CancellationToken);
 
         // Assert — "1898" padded to "001898" matches
         Assert.Single(result);
@@ -1071,7 +1071,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_ReturnsEmptyDictionary_WhenNoMothraIds()
     {
         // Act
-        var result = await _instructorService.BatchResolveDepartmentsAsync([], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync([], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -1103,10 +1103,10 @@ public sealed class InstructorServiceTests : IDisposable
             EmpCbuc = "99",
             EmpStatus = "A"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.BatchResolveDepartmentsAsync([overrideMothraId], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync([overrideMothraId], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -1216,10 +1216,10 @@ public sealed class InstructorServiceTests : IDisposable
             JobBargainingUnit = "99",
             JobSchoolDivision = "VM"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.BatchResolveDepartmentsAsync(["11111111"], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["11111111"], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -1249,10 +1249,10 @@ public sealed class InstructorServiceTests : IDisposable
             EmpCbuc = "99",
             EmpStatus = "A"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _instructorService.BatchResolveDepartmentsAsync(["22222222"], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["22222222"], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -1263,7 +1263,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_ReturnsUNK_WhenNoAaudData()
     {
         // Act - no AAUD data seeded for this MothraId
-        var result = await _instructorService.BatchResolveDepartmentsAsync(["99999999"], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["99999999"], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -1326,11 +1326,11 @@ public sealed class InstructorServiceTests : IDisposable
             EmpStatus = "A"
         });
 
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _instructorService.BatchResolveDepartmentsAsync(
-            ["AAA11111", "BBB22222", "CCC33333"], 202410);
+            ["AAA11111", "BBB22222", "CCC33333"], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, result.Count);
@@ -1343,7 +1343,7 @@ public sealed class InstructorServiceTests : IDisposable
     public async Task BatchResolveDepartmentsAsync_SkipsNullAndEmptyMothraIds()
     {
         // Act
-        var result = await _instructorService.BatchResolveDepartmentsAsync(["", null!], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["", null!], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -1372,10 +1372,10 @@ public sealed class InstructorServiceTests : IDisposable
             EmpCbuc = "99",
             EmpStatus = "A"
         });
-        await _aaudContext.SaveChangesAsync();
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - query with different case
-        var result = await _instructorService.BatchResolveDepartmentsAsync(["case1234"], 202410);
+        var result = await _instructorService.BatchResolveDepartmentsAsync(["case1234"], 202410, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);

@@ -41,7 +41,7 @@ function exportTable(columns: QTableProps["columns"], rows: any[], excludeFromEx
 }
 
 //Escape double quotes (" -> "") and new lines in the content
-function wrapCsvValue(val: string, formatFn: any | null = null, row: any = null) {
+function wrapCsvValue(val: string, formatFn: any = null, row: any = null) {
     let formatted = formatFn !== null && formatFn !== undefined ? formatFn(val, row) : val
 
     formatted = formatted === undefined || formatted === null ? "" : String(formatted)

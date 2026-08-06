@@ -304,6 +304,7 @@ watch(
     max-height: 55vh;
 
     /* Height comes from the measured content (script); animate size changes between weeks */
+    /* stylelint-disable-next-line declaration-property-value-no-unknown -- Vue SFC v-bind() is resolved at compile time */
     height: v-bind("bodyHeight");
     transition: height 0.24s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: height;

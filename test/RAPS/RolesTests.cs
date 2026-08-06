@@ -140,10 +140,10 @@ namespace Viper.test.RAPS
         [Fact]
         public async Task FindRole_WithValidId()
         {
-            await _sqlLiteConnection.OpenAsync();
+            await _sqlLiteConnection.OpenAsync(TestContext.Current.CancellationToken);
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (await context.Database.EnsureCreatedAsync())
+            if (await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken))
             {
                 // arrange
                 var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
@@ -197,10 +197,10 @@ namespace Viper.test.RAPS
         [Fact]
         public async Task EditRole_WhenValid()
         {
-            await _sqlLiteConnection.OpenAsync();
+            await _sqlLiteConnection.OpenAsync(TestContext.Current.CancellationToken);
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (await context.Database.EnsureCreatedAsync())
+            if (await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken))
             {
                 // arrange
                 var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
@@ -267,10 +267,10 @@ namespace Viper.test.RAPS
         [Fact]
         public async Task AddRole_WhenValid()
         {
-            await _sqlLiteConnection.OpenAsync();
+            await _sqlLiteConnection.OpenAsync(TestContext.Current.CancellationToken);
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (await context.Database.EnsureCreatedAsync())
+            if (await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken))
             {
                 // arrange
                 var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
@@ -303,10 +303,10 @@ namespace Viper.test.RAPS
         [Fact]
         public async Task RejectAddRole_WhenDuplicateRoleId()
         {
-            await _sqlLiteConnection.OpenAsync();
+            await _sqlLiteConnection.OpenAsync(TestContext.Current.CancellationToken);
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (await context.Database.EnsureCreatedAsync())
+            if (await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken))
             {
                 // arrange
                 var mockAudit = Substitute.For<IRAPSAuditServiceWrapper>();
@@ -342,10 +342,10 @@ namespace Viper.test.RAPS
         [Fact]
         public async Task DeleteRole_WhenValid()
         {
-            await _sqlLiteConnection.OpenAsync();
+            await _sqlLiteConnection.OpenAsync(TestContext.Current.CancellationToken);
             using var context = new RAPSContext(_sqlLiteContextOptions);
 
-            if (await context.Database.EnsureCreatedAsync())
+            if (await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken))
             {
                 // arrange
                 int RoleId = 1;

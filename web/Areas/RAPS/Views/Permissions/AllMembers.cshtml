@@ -56,7 +56,7 @@
             },
             methods: {
                 loadPermission: async function () {
-                    this.permission = await viperFetch(this, "Permissions/" + this.permissionId)
+                    this.permission = (await viperFetch(this, "Permissions/" + this.permissionId)) ?? {}
                 }
             },
             async mounted() {

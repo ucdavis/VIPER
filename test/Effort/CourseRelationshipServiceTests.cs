@@ -53,7 +53,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -63,7 +63,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(999, request)
+            () => _service.CreateRelationshipAsync(999, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("999", exception.Message);
         Assert.Contains("not found", exception.Message);
@@ -74,7 +74,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -84,7 +84,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(1, request)
+            () => _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("999", exception.Message);
         Assert.Contains("not found", exception.Message);
@@ -98,7 +98,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new EffortCourse { Id = 2, TermCode = DifferentTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -108,7 +108,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(1, request)
+            () => _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("same term", exception.Message);
     }
@@ -118,7 +118,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -128,7 +128,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(1, request)
+            () => _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("itself", exception.Message);
     }
@@ -143,7 +143,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 3, TermCode = TestTermCode, Crn = "12347", SubjCode = "APC", CrseNumb = "100", SeqNumb = "001", Enrollment = 15, Units = 2, CustDept = "APC" }
         );
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 3, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -153,7 +153,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(1, request)
+            () => _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("already a child", exception.Message);
     }
@@ -169,7 +169,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -179,7 +179,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert - Will fail on "already a child" check since child is already linked
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(1, request)
+            () => _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("already a child", exception.Message);
     }
@@ -196,7 +196,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         );
         // Course 2 is already a child of course 1
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Try to make course 2 (which is a child) a parent of course 3
         var request = new CreateCourseRelationshipRequest
@@ -207,7 +207,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert - Should fail because course 2 is already a child
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(2, request)
+            () => _service.CreateRelationshipAsync(2, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("cannot be a parent", exception.Message);
         Assert.Contains("already a child", exception.Message);
@@ -225,7 +225,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         );
         // Course 2 is already a parent of course 3
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 2, ChildCourseId = 3, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Try to make course 2 (which has children) a child of course 1
         var request = new CreateCourseRelationshipRequest
@@ -236,7 +236,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
 
         // Act & Assert - Should fail because course 2 already has linked children
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateRelationshipAsync(1, request)
+            () => _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("cannot be a child", exception.Message);
         Assert.Contains("already has linked children", exception.Message);
@@ -254,7 +254,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -263,7 +263,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         };
 
         // Act
-        var result = await _service.CreateRelationshipAsync(1, request);
+        var result = await _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -273,7 +273,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         Assert.NotNull(result.ChildCourse);
         Assert.Equal("VME", result.ChildCourse.SubjCode);
 
-        var savedRelationship = await _context.CourseRelationships.FirstOrDefaultAsync();
+        var savedRelationship = await _context.CourseRelationships.FirstOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(savedRelationship);
     }
 
@@ -285,7 +285,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var request = new CreateCourseRelationshipRequest
         {
@@ -294,7 +294,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         };
 
         // Act
-        await _service.CreateRelationshipAsync(1, request);
+        await _service.CreateRelationshipAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         _auditServiceMock.Received(1).AddCourseChangeAudit(
@@ -316,13 +316,13 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         );
         // Pre-seed the first relationship to avoid tracking issues with sequential creates
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - Add second child
-        await _service.CreateRelationshipAsync(1, new CreateCourseRelationshipRequest { ChildCourseId = 3, RelationshipType = SectionType });
+        await _service.CreateRelationshipAsync(1, new CreateCourseRelationshipRequest { ChildCourseId = 3, RelationshipType = SectionType }, TestContext.Current.CancellationToken);
 
         // Assert
-        var relationships = await _context.CourseRelationships.Where(r => r.ParentCourseId == 1).ToListAsync();
+        var relationships = await _context.CourseRelationships.Where(r => r.ParentCourseId == 1).ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(2, relationships.Count);
     }
 
@@ -339,14 +339,14 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.DeleteRelationshipAsync(1);
+        var result = await _service.DeleteRelationshipAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
-        Assert.Null(await _context.CourseRelationships.FindAsync(1));
+        Assert.Null(await _context.CourseRelationships.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken));
 
         _auditServiceMock.Received(1).AddCourseChangeAudit(
                 1,
@@ -360,7 +360,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     public async Task DeleteRelationshipAsync_ReturnsFalse_WhenNotFound()
     {
         // Act
-        var result = await _service.DeleteRelationshipAsync(999);
+        var result = await _service.DeleteRelationshipAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -378,10 +378,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" },
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _service.GetAvailableChildCoursesAsync(1);
+        var available = await _service.GetAvailableChildCoursesAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(available);
@@ -399,10 +399,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 4, TermCode = TestTermCode, Crn = "12348", SubjCode = "PMI", CrseNumb = "300", SeqNumb = "001", Enrollment = 12, Units = 3, CustDept = "PMI" }
         );
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 3, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _service.GetAvailableChildCoursesAsync(1);
+        var available = await _service.GetAvailableChildCoursesAsync(1, TestContext.Current.CancellationToken);
 
         // Assert:
         // - Course 2 is already a child of course 3, should not be available
@@ -425,10 +425,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         );
         // Course 2 has a child (course 3), so course 2 cannot become a child of course 1
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 2, ChildCourseId = 3, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _service.GetAvailableChildCoursesAsync(1);
+        var available = await _service.GetAvailableChildCoursesAsync(1, TestContext.Current.CancellationToken);
 
         // Assert:
         // - Course 2 is a parent, should not be available as a child
@@ -446,10 +446,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" },
             new EffortCourse { Id = 3, TermCode = DifferentTermCode, Crn = "12347", SubjCode = "APC", CrseNumb = "100", SeqNumb = "001", Enrollment = 15, Units = 2, CustDept = "APC" }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var available = await _service.GetAvailableChildCoursesAsync(1);
+        var available = await _service.GetAvailableChildCoursesAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(available);
@@ -460,7 +460,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     public async Task GetAvailableChildCoursesAsync_ReturnsEmpty_WhenParentNotFound()
     {
         // Act
-        var available = await _service.GetAvailableChildCoursesAsync(999);
+        var available = await _service.GetAvailableChildCoursesAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(available);
@@ -481,10 +481,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
         _context.CourseRelationships.Add(
             new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - Get relationships for the child course
-        var result = await _service.GetRelationshipsForCourseAsync(2);
+        var result = await _service.GetRelationshipsForCourseAsync(2, TestContext.Current.CancellationToken);
 
         // Assert - Course 2 should show its parent relationship
         Assert.NotNull(result.ParentRelationship);
@@ -505,10 +505,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType },
             new CourseRelationship { Id = 2, ParentCourseId = 1, ChildCourseId = 3, RelationshipType = SectionType }
         );
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act - Get relationships for the parent course
-        var result = await _service.GetRelationshipsForCourseAsync(1);
+        var result = await _service.GetRelationshipsForCourseAsync(1, TestContext.Current.CancellationToken);
 
         // Assert - Course 1 should show its child relationships
         Assert.Null(result.ParentRelationship);
@@ -522,10 +522,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     {
         // Arrange
         _context.Courses.Add(new EffortCourse { Id = 1, TermCode = TestTermCode, Crn = "12345", SubjCode = "DVM", CrseNumb = "443", SeqNumb = "001", Enrollment = 20, Units = 4, CustDept = "DVM" });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetParentRelationshipAsync(1);
+        var result = await _service.GetParentRelationshipAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -544,10 +544,10 @@ public sealed class CourseRelationshipServiceTests : IDisposable
             new EffortCourse { Id = 2, TermCode = TestTermCode, Crn = "12346", SubjCode = "VME", CrseNumb = "200", SeqNumb = "001", Enrollment = 10, Units = 3, CustDept = "VME" }
         );
         _context.CourseRelationships.Add(new CourseRelationship { Id = 1, ParentCourseId = 1, ChildCourseId = 2, RelationshipType = CrossListType });
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetRelationshipAsync(1);
+        var result = await _service.GetRelationshipAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -561,7 +561,7 @@ public sealed class CourseRelationshipServiceTests : IDisposable
     public async Task GetRelationshipAsync_ReturnsNull_WhenNotFound()
     {
         // Act
-        var result = await _service.GetRelationshipAsync(999);
+        var result = await _service.GetRelationshipAsync(999, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);

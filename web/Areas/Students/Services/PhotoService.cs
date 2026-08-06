@@ -27,7 +27,7 @@ namespace Viper.Areas.Students.Services
         private const int DefaultCacheDurationHours = 24;
 
         // Compiled regex for mailId validation - compiled once for performance
-        private static readonly Regex MailIdValidationRegex = new("^[a-z0-9.-]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex MailIdValidationRegex = new("^[a-z0-9.-]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
         public PhotoService(IConfiguration configuration, IMemoryCache cache, ILogger<PhotoService> logger, IWebHostEnvironment webHostEnvironment)
         {
