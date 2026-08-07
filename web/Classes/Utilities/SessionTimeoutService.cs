@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using NLog;
 using Viper.Classes.SQLContext;
+using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
 
@@ -7,7 +9,7 @@ namespace Viper.Classes.Utilities
 {
     public static class SessionTimeoutService
     {
-        private const int SessionTimeoutSeconds = (29 * 60) + 30;
+        internal const int SessionTimeoutSeconds = (29 * 60) + 30;
 
         public static void UpdateSessionTimeout(VIPERContext context)
         {
@@ -45,19 +47,28 @@ namespace Viper.Classes.Utilities
             }
         }
 
-        public static SessionTimeout? GetSessionTimeout(VIPERContext context)
+        public static SessionTimeoutStatus GetStatus(VIPERContext context)
         {
             string loggedInUserId = GetLoggedInUserId();
             string service = GetService();
-            if (!string.IsNullOrEmpty(loggedInUserId) && context != null)
+            SessionTimeout? record = string.IsNullOrEmpty(loggedInUserId)
+                ? null
+                : context.SessionTimeouts.AsNoTracking()
+                    .FirstOrDefault(s => s.LoginId == loggedInUserId && s.Service == service);
+            return ToStatus(record, HttpHelper.HttpContext?.User.Identity?.IsAuthenticated == true);
+        }
+
+        // Only AreaController, ApiSessionUpdateFilter and RefreshSession write the row, so a page served by a
+        // plain Controller leaves a valid session with no row: grant a full window rather than report it expired.
+        internal static SessionTimeoutStatus ToStatus(SessionTimeout? record, bool authenticated)
+        {
+            if (record != null)
             {
-                SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);
-                if (record != null)
-                {
-                    return record;
-                }
+                return new(record.SessionTimeoutDateTime, (int)(record.SessionTimeoutDateTime - DateTime.Now).TotalSeconds);
             }
-            return null;
+            return authenticated
+                ? new(DateTime.Now.AddSeconds(SessionTimeoutSeconds), SessionTimeoutSeconds)
+                : new(DateTime.Now, 0);
         }
 
         private static string GetService()
