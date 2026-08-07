@@ -526,13 +526,15 @@ namespace Viper.Areas.Students.Services
             }
         }
 
-        public async Task<List<string>> GetEighthsGroupsAsync()
+        // Eighths are a fixed set with no data source behind them. Returns a completed
+        // task to satisfy the interface without allocating an async state machine.
+        public Task<List<string>> GetEighthsGroupsAsync()
         {
-            return await Task.FromResult(new List<string>
-              {
-                  "1A1", "1A2", "1B1", "1B2",
-                  "2A1", "2A2", "2B1", "2B2"
-              });
+            return Task.FromResult(new List<string>
+            {
+                "1A1", "1A2", "1B1", "1B2",
+                "2A1", "2A2", "2B1", "2B2"
+            });
         }
 
         public async Task<List<string>> GetTwentiethsGroupsAsync()
