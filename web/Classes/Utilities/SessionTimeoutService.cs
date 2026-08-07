@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using NLog;
 using Viper.Classes.SQLContext;
+using Viper.Models;
 using Viper.Models.AAUD;
 using Viper.Models.VIPER;
 
@@ -7,7 +9,7 @@ namespace Viper.Classes.Utilities
 {
     public static class SessionTimeoutService
     {
-        private const int SessionTimeoutSeconds = (29 * 60) + 30;
+        internal const int SessionTimeoutSeconds = (29 * 60) + 30;
 
         public static void UpdateSessionTimeout(VIPERContext context)
         {
@@ -45,19 +47,39 @@ namespace Viper.Classes.Utilities
             }
         }
 
-        public static SessionTimeout? GetSessionTimeout(VIPERContext context)
+        // cookieExpiry: pass it only from a request that cannot renew the cookie (the poll). RefreshSession
+        // may renew it, and the old expiry would then understate the session it just extended.
+        public static SessionTimeoutStatus GetStatus(VIPERContext context, DateTime? cookieExpiry = null)
         {
-            string loggedInUserId = GetLoggedInUserId();
+            // The cookie's login id, not GetCurrentUser(): that swallows a failed AAUD lookup and returns null,
+            // which would read as "no row" and report a full window over a live warning.
+            HttpContext? httpContext = HttpHelper.HttpContext;
+            string? loggedInUserId = httpContext?.User.Identity?.Name;
             string service = GetService();
-            if (!string.IsNullOrEmpty(loggedInUserId) && context != null)
+            SessionTimeout? record = string.IsNullOrEmpty(loggedInUserId)
+                ? null
+                : context.SessionTimeouts.AsNoTracking()
+                    .FirstOrDefault(s => s.LoginId == loggedInUserId && s.Service == service);
+            return ToStatus(record, httpContext?.User.Identity?.IsAuthenticated == true, cookieExpiry);
+        }
+
+        // Only AreaController, ApiSessionUpdateFilter and RefreshSession write the row, so a page served by a
+        // plain Controller leaves a valid session with no row: grant a full window rather than report it expired.
+        // Either way the sign-in cookie's own expiry caps it, so the warning still shows before that runs out
+        // (no row, or a row kept fresh from another browser).
+        internal static SessionTimeoutStatus ToStatus(SessionTimeout? record, bool authenticated, DateTime? cookieExpiry = null)
+        {
+            DateTime now = DateTime.Now;
+            if (record == null && !authenticated)
             {
-                SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);
-                if (record != null)
-                {
-                    return record;
-                }
+                return new(now, 0);
             }
-            return null;
+            DateTime expiry = record?.SessionTimeoutDateTime ?? now.AddSeconds(SessionTimeoutSeconds);
+            if (cookieExpiry < expiry)
+            {
+                expiry = cookieExpiry.Value;
+            }
+            return new(expiry, (int)(expiry - now).TotalSeconds);
         }
 
         private static string GetService()

@@ -30,7 +30,6 @@
     createVueApp({
         data() {
             return {
-                sessionRefreshUrl: '@Html.Raw(ViewData["sessionRefreshUrl"] ?? "")',
                 showSessionTimeoutWarning: false,
                 sessionExpireTime: 0,
                 sessionExpired: false,
@@ -55,7 +54,7 @@
                 // One live timer, and only the newest poll may act: a renewal or later poll makes this one stale.
                 clearTimeout(this.sessionTimeoutCheckEventId)
                 var pollId = ++this.sessionPollId
-                this.fetchJson(this.sessionRefreshUrl)
+                this.fetchJson('@Url.Content("~/api/sessionTimeout")')
                     .then(r => {
                         if (pollId !== this.sessionPollId) { return }
                         var s = r.secondsUntilTimeout
@@ -69,6 +68,8 @@
                                 this.sessionExpireTime = this.formatTime(r.sessionTimeoutDateTime)
                                 nextCheck = this.sessionExpired ? 0 : Math.max(s - 15, 5)
                             } else {
+                                // Extended elsewhere, in another tab or by an API call, so stand the warning down.
+                                this.hideSessionTimeoutWarning()
                                 // Aim at the five-minute mark so one poll cannot skip the warning.
                                 nextCheck = Math.min(300, Math.max(s - 300, 5))
                             }
@@ -111,6 +112,7 @@
             },
             hideSessionTimeoutWarning: function() {
                 this.showSessionTimeoutWarning = false
+                this.sessionExpired = false
                 this.sessionReloaded = false
                 this.sessionExtendFailed = false
             },
