@@ -23,17 +23,17 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
-    <PackageReference Include="Microsoft.Testing.Platform" Version="2.3.2" />
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.3.3" />
     <PackageReference Include="MockQueryable.NSubstitute" Version="10.0.8" />
     <!-- Held at 5.3.0: NSubstitute 6.0.0 makes Arg.Is<T> take Predicate<T?>, emitting CS8602/CS8604
          across the suite (upstream nsubstitute/NSubstitute#973, #976). Unpin once 6.0.1 ships. -->
     <PackageReference Include="NSubstitute" Version="5.3.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.30.0.144632">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.31.0.145097">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <!-- Pins transitive SQLitePCLRaw past GHSA-2m69-gcr7-jv3q (EF Sqlite still references vulnerable 2.1.11); remove when EF's bundle catches up -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.4" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
