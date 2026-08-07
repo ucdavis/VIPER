@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <PublishDir>bin\Release\net10.0\publish\</PublishDir>
-    <NoWarn>$(NoWarn);NU1608</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,7 +46,7 @@
     <PackageReference Include="DotNetDiag.HealthChecks.UI.Client" Version="10.0.11" />
     <PackageReference Include="DotNetDiag.HealthChecks.UI.InMemory.Storage" Version="10.0.11" />
 
-    <PackageReference Include="AWSSDK.Core" Version="4.0.100.8" />
+    <PackageReference Include="AWSSDK.Core" Version="4.0.100.9" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
@@ -56,8 +55,7 @@
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.24" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="htmldiff.net" Version="1.5.0" />
-    <PackageReference Include="HtmlSanitizer" Version="9.0.967" />
-    <PackageReference Include="AngleSharp" Version="1.6.0" />
+    <PackageReference Include="HtmlSanitizer" Version="9.1.973" />
     <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
     <PackageReference Include="Joonasw.AspNetCore.SecurityHeaders" Version="6.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.10" />
@@ -75,10 +73,10 @@
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.10" />
     <PackageReference Include="NLog.MailKit" Version="6.1.5" />
     <PackageReference Include="NLog.Web.AspNetCore" Version="6.1.4" />
-    <PackageReference Include="QuestPDF" Version="2026.7.1" />
+    <PackageReference Include="QuestPDF" Version="2026.7.2" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
     <PackageReference Include="Scrutor" Version="7.0.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.30.0.144632">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.31.0.145097">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
