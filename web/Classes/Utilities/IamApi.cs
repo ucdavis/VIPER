@@ -15,7 +15,14 @@ namespace Viper.Classes.Utilities
     {
         private const string apiBase = "https://iet-ws.ucdavis.edu/api/";
         private static readonly List<string> reservedParamKeys = new() { "key", "v" };
-        private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+        private static readonly JsonSerializerOptions _jsonOptions = GetJsonOptions();
+
+        private static JsonSerializerOptions GetJsonOptions()
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            options.Converters.Add(new IamDateTimeConverter());
+            return options;
+        }
         private const string version = "1.0";
         private readonly IHttpClientFactory _factory;
         private readonly Logger _logger = LogManager.GetLogger("IAM");
@@ -435,14 +442,14 @@ namespace Viper.Classes.Utilities
         /// https://ucdavis.jira.com/wiki/spaces/IAM/pages/688849434/IAM+Web+Services+IAM-WS#IAMWebServices(IAM-WS)-BasicResponseFormat
         /// </summary>
         /// <typeparam name="T"></typeparam>
+#pragma warning disable S1144 // Unused private types or members should be removed
         private sealed class IntermediateResponse<T> where T : IIamData
         {
             public string ResponseDetails { get; set; } = string.Empty;
-            public int ResponseStatus { get; }
-#pragma warning disable CS0649 // Assigned by JsonSerializer.Deserialize
-            public DataArray<T>? ResponseData;
-#pragma warning restore CS0649 // Field 'IamApi.IntermediateResponse<T>.ResponseData' is never assigned to, and will always have its default value null
+            public int ResponseStatus { get; set; }
+            public DataArray<T>? ResponseData { get; set; }
         }
+#pragma warning restore S1144
 
         /// <summary>
         /// Data array is an object with a single key - results - that contains an array of data (even for things that return one record)
@@ -451,6 +458,48 @@ namespace Viper.Classes.Utilities
         private sealed class DataArray<T> where T : IIamData
         {
             public IEnumerable<T> Results { get; set; } = new List<T>();
+        }
+    }
+
+    public class IamDateTimeConverter : System.Text.Json.Serialization.JsonConverter<DateTime?>
+    {
+        private readonly string[] _formats = new[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd" };
+
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var value = reader.GetString();
+            if (string.IsNullOrEmpty(value))
+            {
+                return null;
+            }
+
+            var matchedDate = _formats
+                .Select(format => DateTime.TryParseExact(value, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate) ? (DateTime?)parsedDate : null)
+                .FirstOrDefault(d => d != null);
+
+            if (matchedDate != null)
+            {
+                return matchedDate;
+            }
+
+            if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
+            {
+                return dt;
+            }
+
+            return null;
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue)
+            {
+                writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd HH:mm:ss"));
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
         }
     }
 }

@@ -218,6 +218,7 @@ function runOxfmtCheckBatch(files) {
         stdio: "pipe",
         cwd: projectRoot,
         encoding: "utf8",
+        shell: true,
     })
 
     if (result.error) {
@@ -269,6 +270,7 @@ function runOxfmtCheck(files, fix) {
             const result = spawnSync("npx", ["oxfmt", "--write", ...batch], {
                 stdio: "inherit",
                 cwd: projectRoot,
+                shell: true,
             })
             if (result.error || result.status !== 0) {
                 allPassed = false

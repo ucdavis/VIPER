@@ -37,7 +37,7 @@ namespace Viper.Classes.Utilities
         }
 
         /// <summary>
-        /// Get users for display\ searching by name, cn, or samAccountName
+        /// Get users for display: searching by name, cn, or samAccountName
         /// </summary>
         /// <param name="search">Searches all fields (phone number, SN, given name, UID, CN, mail) for this value</param>
         /// <returns>List of Users</returns>
@@ -118,6 +118,24 @@ namespace Viper.Classes.Utilities
         }
 
         /// <summary>
+        /// Look up User by its MothraID
+        /// </summary>
+        /// <param name="id">iamID for looking up user</param>
+        /// <returns>LdapUserContact</returns>
+        public static LdapUserContact? GetUserByMothraID(string? id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            var escaped = LdapFilter.Escape(id);
+            var results = SearchLdap($"(ucdpersonuuid = {escaped})");
+            if (results.Entries.Count > 0)
+            {
+                return new LdapUserContact(results.Entries[0]);
+            }
+            return null;
+        }
+
+
+        /// <summary>
         /// Get dictionary of Users from a list of MothraIDs
         /// </summary>
         /// <param name="ids">List of MothraIDs for looking up users</param>
@@ -190,9 +208,10 @@ namespace Viper.Classes.Utilities
         private static List<LdapUserContact> SortUsersContact(List<LdapUserContact> users)
         {
             users.Sort((a, b) => a.DisplayName == b.DisplayName
-                ? a.Sn.CompareTo(b.Sn)
-                : a.DisplayName.CompareTo(b.DisplayName));
+                ? string.Compare(a.Sn, b.Sn, StringComparison.OrdinalIgnoreCase)
+                : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
             return users;
         }
     }
 }
+

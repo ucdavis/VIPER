@@ -9,6 +9,7 @@ using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
 using Web.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -35,7 +36,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("")]
         public async Task<ActionResult> Index(string? useExample)
         {
-            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml"));
+            return await Task.Run(() => View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser()));
         }
 
         /// <summary>
@@ -48,6 +49,28 @@ namespace Viper.Areas.Directory.Controllers
             return await Task.Run(() => nav);
         }
 
+
+        /// <summary>
+        /// Directory search via query parameters (handles special characters and avoids race conditions)
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetFromQuery([FromQuery] string search, [FromQuery] bool ucd = false)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return Ok(new List<IndividualSearchResult>());
+            }
+            if (ucd)
+            {
+                return await GetUCD(search);
+            }
+            return await Get(search);
+        }
 
         /// <summary>
         /// Directory list
@@ -105,12 +128,30 @@ namespace Viper.Areas.Directory.Controllers
         /// <summary>
         /// Directory results
         /// </summary>
-        /// <param name="uid">User ID</param>
+        /// <param name="mothraID">User ID</param>
         [Route("userInfo/{mothraID}")]
         public async Task<IActionResult> DirectoryResult(string mothraID)
         {
             // pull in the user based on uid
             return await Task.Run(() => View("~/Areas/Directory/Views/UserInfo.cshtml"));
+        }
+
+        private static void PopulateVmacsDetails(IndividualSearchResult result, VMACSQuery? vm)
+        {
+            if (vm?.item != null)
+            {
+                if (vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
+                if (vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
+                if (vm.item.Unit != null) result.Department = vm.item.Unit[0];
+            }
+        }
+
+        [NonAction]
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                                         ActionExecutionDelegate next)
+        {
+            PopulateLeftNav(context, "viper-home");
+            await base.OnActionExecutionAsync(context, next);
         }
 
         /// <summary>
@@ -147,14 +188,9 @@ namespace Viper.Areas.Directory.Controllers
             {
                 return;
             }
-            var item = (await VMACSService.Search(result.LoginId))?.item;
-            if (item == null)
-            {
-                return;
-            }
-            if (item.Nextel is { Length: > 0 }) result.Nextel = item.Nextel[0];
-            if (item.LDPager is { Length: > 0 }) result.LDPager = item.LDPager[0];
-            if (item.Unit is { Length: > 0 }) result.Department = item.Unit[0];
+            var vm = await VMACSService.Search(result.LoginId);
+            PopulateVmacsDetails(result, vm);
         }
     }
 }
+
