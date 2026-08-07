@@ -30,7 +30,7 @@
         "chart.js": "^4.5.1",
         "inflection": "^3.0.2",
         "pinia": "^4.0.2",
-        "quasar": "^2.23.3",
+        "quasar": "^2.23.4",
         "vue": "^3.5.40",
         "vue-chartjs": "^5.3.4",
         "vue-draggable-plus": "^0.6.1",
@@ -63,10 +63,10 @@
         "npm-run-all2": "^9.0.3",
         "tree-kill": "^1.2.2",
         "typescript": "^6.0.3",
-        "vite": "^8.1.5",
+        "vite": "^8.2.0",
         "vite-plugin-vue-inspector": "^7.0.0",
         "vitest": "^4.1.7",
-        "vue-tsc": "^3.3.8"
+        "vue-tsc": "^3.3.9"
     },
     "overrides": {
         "@codecov/vite-plugin": {
