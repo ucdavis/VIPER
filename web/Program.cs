@@ -45,6 +45,7 @@ using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
+using Viper.Controllers;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
 using Web;
@@ -165,6 +166,8 @@ try
 
             options.Events = new CookieAuthenticationEvents
             {
+                OnCheckSlidingExpiration = SessionTimeoutController.DoNotSlideCookie,
+
                 // Front-channel logout cannot clear this cookie itself: Entra frames the logout URL
                 // on its own origin, and a SameSite=Lax cookie is neither sent nor accepted in that
                 // context. So the sign-out is recorded server side and enforced here instead, on
