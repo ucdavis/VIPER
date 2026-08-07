@@ -30,7 +30,6 @@
     createVueApp({
         data() {
             return {
-                sessionRefreshUrl: '@Html.Raw(ViewData["sessionRefreshUrl"] ?? "")',
                 showSessionTimeoutWarning: false,
                 sessionExpireTime: 0,
                 sessionExpired: false,
@@ -41,18 +40,20 @@
         },
         methods: {
             checkSessionTimeout: async function () {
-                fetch(this.sessionRefreshUrl)
+                fetch('@Url.Content("~/api/sessionTimeout")')
                     .then(r => r.ok ? r.json() : Promise.reject(new Error('Session check returned ' + r.status)))
                     .then(r => {
                         var nextCheck = 300
-                        if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout < 300) {
+                        // "<=" so an exact 300 still warns: otherwise the next poll lands at expiry.
+                        if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout <= 300) {
                             this.showSessionTimeoutWarning = true
                             this.sessionExpired = r.secondsUntilTimeout < 15
-                            var d = new Date(r.sessionTimeoutDateTime)
-                            this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
-                                + ("0" + d.getMinutes()).slice(-2)
-                                + (d.getHours() >= 12 ? " PM" : " AM")
+                            this.sessionExpireTime = this.formatExpireTime(r.sessionTimeoutDateTime)
                             nextCheck = this.sessionExpired ? 0 : Math.max(r.secondsUntilTimeout - 15, 5)
+                        }
+                        else if (r.secondsUntilTimeout !== undefined) {
+                            // Extended elsewhere, in another tab or by an API call, so stand the warning down.
+                            this.hideSessionTimeoutWarning()
                         }
                         if(nextCheck > 0) {
                             this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, nextCheck * 1000)
@@ -74,10 +75,7 @@
                         }
                         catch(e) { void e }
 
-                        var d = new Date(r.sessionTimeoutDateTime)
-                        this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
-                            + ("0" + d.getMinutes()).slice(-2)
-                            + (d.getHours() >= 12 ? " PM" : " AM")
+                        this.sessionExpireTime = this.formatExpireTime(r.sessionTimeoutDateTime)
                         this.sessionReloaded = true
                         this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, 5000)
 
@@ -88,8 +86,16 @@
             },
             hideSessionTimeoutWarning: function() {
                 this.showSessionTimeoutWarning = false
+                this.sessionExpired = false
                 this.sessionReloaded = false
                 this.sessionExtendFailed = false
+            },
+            // Hour 0 is 12 AM, not 0 AM.
+            formatExpireTime: function(sessionTimeoutDateTime) {
+                var d = new Date(sessionTimeoutDateTime)
+                return (d.getHours() % 12 || 12) + ":"
+                    + ("0" + d.getMinutes()).slice(-2)
+                    + (d.getHours() >= 12 ? " PM" : " AM")
             },
             login: function() {
                 var returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
