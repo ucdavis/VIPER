@@ -128,8 +128,8 @@ public class ClinicalImportService : IClinicalImportService
         // (emeritus/recall appointments are excluded from harvest).
         var titleCodeByMothraId = aaudImportInfo
             .Where(a => !string.IsNullOrEmpty(a.TitleCode?.Trim())
-                && _titleLookup.ContainsKey(a.TitleCode!.Trim())
-                && !excludedTitleCodes.Contains(a.TitleCode!.Trim()))
+                && _titleLookup.ContainsKey(a.TitleCode.Trim())
+                && !excludedTitleCodes.Contains(a.TitleCode.Trim()))
             .GroupBy(a => a.MothraId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().TitleCode!.Trim(), StringComparer.OrdinalIgnoreCase);
 
@@ -265,9 +265,11 @@ public class ClinicalImportService : IClinicalImportService
 
         await _context.SaveChangesAsync(ct);
 
-        if (ownsTransaction)
+        // Null-check the transaction rather than ownsTransaction: identical by construction
+        // above, but this is the form the compiler can actually prove.
+        if (transaction != null)
         {
-            await transaction!.CommitAsync(ct);
+            await transaction.CommitAsync(ct);
         }
 
         return result;
@@ -341,9 +343,11 @@ public class ClinicalImportService : IClinicalImportService
 
             await _context.SaveChangesAsync(ct);
 
-            if (ownsTransaction)
+            // Null-check the transaction rather than ownsTransaction: identical by construction
+            // above, but this is the form the compiler can actually prove.
+            if (transaction != null)
             {
-                await transaction!.CommitAsync(ct);
+                await transaction.CommitAsync(ct);
             }
 
             _logger.LogInformation(

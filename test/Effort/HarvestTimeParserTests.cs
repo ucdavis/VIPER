@@ -37,8 +37,7 @@ public sealed class HarvestTimeParserTests
     {
         var result = HarvestTimeParser.ParseTimeString(input);
 
-        Assert.NotNull(result);
-        var value = result!.Value;
+        var value = Assert.IsType<TimeSpan>(result);
         Assert.Equal(expectedHour, value.Hours);
         Assert.Equal(expectedMinute, value.Minutes);
     }

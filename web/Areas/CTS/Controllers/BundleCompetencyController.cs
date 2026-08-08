@@ -22,12 +22,12 @@ namespace Viper.Areas.CTS.Controllers
 
         private bool BundleExists(int bundleId)
         {
-            return context.Bundles.Any(b => b.BundleId == bundleId);
+            return context.Bundles.AsNoTracking().Any(b => b.BundleId == bundleId);
         }
 
         private bool CompetencyExists(int competencyId)
         {
-            return context.Competencies.Any(b => b.CompetencyId == competencyId);
+            return context.Competencies.AsNoTracking().Any(b => b.CompetencyId == competencyId);
         }
 
         [HttpGet]

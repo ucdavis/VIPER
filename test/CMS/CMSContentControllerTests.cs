@@ -150,7 +150,7 @@ public sealed class CMSContentControllerTests : IDisposable
         var result = await _controller.GetContentBlock(5, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Equal(5, result.Value!.ContentBlockId);
+        Assert.Equal(5, result.Value.ContentBlockId);
     }
 
     [Fact]
@@ -273,7 +273,7 @@ public sealed class CMSContentControllerTests : IDisposable
         var result = await _controller.CreateContentBlock(request, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Equal(7, result.Value!.ContentBlockId);
+        Assert.Equal(7, result.Value.ContentBlockId);
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class CMSContentControllerTests : IDisposable
         var result = await _controller.CreateContentBlock(request, TestContext.Current.CancellationToken);
 
         Assert.IsType<ObjectResult>(result.Result);
-        var problem = (ObjectResult)result.Result!;
+        var problem = (ObjectResult)result.Result;
         Assert.IsType<ValidationProblemDetails>(problem.Value);
     }
 
@@ -313,7 +313,7 @@ public sealed class CMSContentControllerTests : IDisposable
         var result = await _controller.UpdateContentBlock(3, request, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Equal(3, result.Value!.ContentBlockId);
+        Assert.Equal(3, result.Value.ContentBlockId);
     }
 
     [Fact]

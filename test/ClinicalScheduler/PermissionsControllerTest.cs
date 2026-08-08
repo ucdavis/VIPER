@@ -128,10 +128,10 @@ namespace Viper.test.ClinicalScheduler
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             dynamic? response = okResult.Value;
             Assert.Equal(TestUserMothraId, response!.user.mothraId);
-            Assert.Equal(TestUserDisplayName, response!.user.displayName);
-            Assert.False(response!.permissions.hasManagePermission);
-            Assert.Equal(1, response!.permissions.editableServiceCount);
-            Assert.Single(response!.editableServices);
+            Assert.Equal(TestUserDisplayName, response.user.displayName);
+            Assert.False(response.permissions.hasManagePermission);
+            Assert.Equal(1, response.permissions.editableServiceCount);
+            Assert.Single(response.editableServices);
         }
 
         [Fact]
