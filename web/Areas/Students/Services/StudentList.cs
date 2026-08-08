@@ -59,8 +59,7 @@ namespace Viper.Areas.Students.Services
             {
                 //get all students that have a class year entry in this year
                 q = q.Where(q => q.Student != null && _context.StudentClassYears
-                        .Where(anyClassYear => anyClassYear.ClassYear == classYear && anyClassYear.PersonId == q.Student.PersonId)
-                        .Any()
+                        .Any(anyClassYear => anyClassYear.ClassYear == classYear && anyClassYear.PersonId == q.Student.PersonId)
                     );
             }
 
