@@ -70,7 +70,7 @@ public sealed class CMSOptionsControllerTests : IDisposable
         var result = await _controller.SearchPeople(search!, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Empty(result.Value!);
+        Assert.Empty(result.Value);
     }
 
     [Fact]

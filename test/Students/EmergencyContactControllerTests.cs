@@ -214,7 +214,7 @@ public class EmergencyContactControllerTests
         var result = await _controller.GetStudentContactDetail(999);
 
         Assert.IsType<ObjectResult>(result.Result);
-        var objectResult = (ObjectResult)result.Result!;
+        var objectResult = (ObjectResult)result.Result;
         Assert.Equal(403, objectResult.StatusCode);
     }
 
@@ -662,7 +662,7 @@ public class EmergencyContactControllerTests
         var method = typeof(EmergencyContactController).GetMethod(nameof(EmergencyContactController.GetStudentContactDetail));
         Assert.NotNull(method);
 
-        var permissionAttrs = method!.GetCustomAttributes(typeof(PermissionAttribute), false);
+        var permissionAttrs = method.GetCustomAttributes(typeof(PermissionAttribute), false);
         Assert.Empty(permissionAttrs);
 
         var authorizeAttrs = method.GetCustomAttributes(typeof(AuthorizeAttribute), false);
@@ -676,7 +676,7 @@ public class EmergencyContactControllerTests
         var method = typeof(EmergencyContactController).GetMethod(nameof(EmergencyContactController.CanEdit));
         Assert.NotNull(method);
 
-        var permissionAttrs = method!.GetCustomAttributes(typeof(PermissionAttribute), false);
+        var permissionAttrs = method.GetCustomAttributes(typeof(PermissionAttribute), false);
         Assert.Empty(permissionAttrs);
 
         var authorizeAttrs = method.GetCustomAttributes(typeof(AuthorizeAttribute), false);

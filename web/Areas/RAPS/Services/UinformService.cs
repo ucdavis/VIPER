@@ -250,9 +250,9 @@ namespace Viper.Areas.RAPS.Services
             {
                 string toSign = method.Method.ToUpper() + ":" + epochTime + ":" + publicKey;
                 // Legacy API requires HMACSHA1 - third-party system constraint
-#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+#pragma warning disable CA5350, S4790 // Do Not Use Weak Cryptographic Algorithms
                 using var sha1 = new HMACSHA1(Encoding.ASCII.GetBytes(privateKey));
-#pragma warning restore CA5350
+#pragma warning restore CA5350, S4790
                 byte[] hashed = sha1.ComputeHash(Encoding.ASCII.GetBytes(toSign));
                 return Convert.ToBase64String(hashed);
             }

@@ -80,10 +80,17 @@ namespace Viper.Classes
                     using (var memoryStream = new MemoryStream())
                     {
                         var bytes = Encoding.UTF8.GetBytes(sitemapContent.ToString());
-                        await memoryStream.WriteAsync(bytes.AsMemory());
+                        await memoryStream.WriteAsync(bytes.AsMemory(), context.RequestAborted);
                         memoryStream.Seek(0, SeekOrigin.Begin);
-                        await memoryStream.CopyToAsync(stream, bytes.Length);
+                        await memoryStream.CopyToAsync(stream, bytes.Length, context.RequestAborted);
                     }
+                }
+                // A disconnected client is not a generation failure. The response has
+                // already started by this point, so end the request instead of running
+                // the rest of the pipeline against it.
+                catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+                {
+                    // Intentionally no fall-through to _next: the request is over.
                 }
                 // Middleware boundary: any sitemap-generation failure (DB, IO,
                 // reflection, etc.) must fall through to the pipeline rather than

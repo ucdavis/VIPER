@@ -57,11 +57,16 @@ namespace Viper.Areas.Students.Services
             //include all class years, as long as at least one of them is the given year
             else if (classYear != null)
             {
-                //get all students that have a class year entry in this year
-                q = q.Where(q => q.Student != null && _context.StudentClassYears
-                        .Where(anyClassYear => anyClassYear.ClassYear == classYear && anyClassYear.PersonId == q.Student.PersonId)
-                        .Any()
-                    );
+                //get all students that have a class year entry in this year. Pre-loading the ids
+                //keeps this a single IN list instead of a subquery correlated to every outer row.
+                var personIdsInClassYear = await _context.StudentClassYears
+                    .AsNoTracking()
+                    .Where(cy => cy.ClassYear == classYear)
+                    .Select(cy => cy.PersonId)
+                    .Distinct()
+                    .ToListAsync();
+                q = q.Where(studentClassYear => studentClassYear.Student != null
+                    && EF.Parameter(personIdsInClassYear).Contains(studentClassYear.Student.PersonId));
             }
 
             if (personId != null)

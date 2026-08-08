@@ -236,7 +236,7 @@ public sealed class ClinicalHarvestPhase : HarvestPhaseBase
     {
         // Only build previews for importable instructors (those with valid AAUD data + title code)
         var clinicalMothraIds = clinicalPersonData
-            .Where(c => !string.IsNullOrEmpty(c.MothraId) && importableMothraIds.Contains(c.MothraId!))
+            .Where(c => !string.IsNullOrEmpty(c.MothraId) && importableMothraIds.Contains(c.MothraId))
             .Select(c => c.MothraId!)
             .Distinct()
             .ToList();
