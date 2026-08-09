@@ -160,7 +160,7 @@ public sealed class CMSFilesControllerTests : IDisposable
         var result = await _controller.GetFile(guid, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Equal(guid, result.Value!.FileGuid);
+        Assert.Equal(guid, result.Value.FileGuid);
     }
 
     [Fact]

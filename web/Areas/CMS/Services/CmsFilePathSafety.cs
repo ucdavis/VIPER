@@ -30,7 +30,9 @@ namespace Viper.Areas.CMS.Services
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
         };
 
-        private static readonly Regex DisallowedFileNameChars = new(@"[^a-zA-Z0-9._\- ]", RegexOptions.Compiled);
+        // Bounds matching so a pathological filename cannot pin a request thread.
+        private static readonly Regex DisallowedFileNameChars =
+            new(@"[^a-zA-Z0-9._\- ]", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
         /// <summary>
         /// Returns a filename safe to use in a Content-Disposition response header.
@@ -46,7 +48,17 @@ namespace Viper.Areas.CMS.Services
             }
 
             var fileNamePart = StripPathComponents(userInput);
-            var filtered = DisallowedFileNameChars.Replace(fileNamePart, string.Empty).Trim();
+
+            string filtered;
+            try
+            {
+                filtered = DisallowedFileNameChars.Replace(fileNamePart, string.Empty).Trim();
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                // Fail safe: an unfiltered name must never reach the response header.
+                return DefaultDownloadName;
+            }
 
             // Reject names that collapse to only dots/spaces: ".", ".." etc. would
             // become "..zip" after the suffix step, which is traversal-shaped.

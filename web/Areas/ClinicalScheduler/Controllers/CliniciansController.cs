@@ -289,7 +289,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                                 isPrimaryEvaluator = schedule.Evaluator
                             };
                         })
-                          .OrderBy(r => r!.name) // Sort rotations alphabetically
+                          .OrderBy(r => r.name) // Sort rotations alphabetically
                           .Cast<dynamic>()
                           .ToArray()
                         : Array.Empty<dynamic>();

@@ -251,7 +251,7 @@ namespace Viper.Areas.RAPS.Services
             //Create a lookup of loginids of members that should be in the group
             Dictionary<string, bool> membersInRoles = members
                 .Where(m => m.LoginId != null)
-                .Select(m => m.LoginId!)
+                .Select(m => m.LoginId)
                 .Distinct()
                 .ToDictionary(id => id, _ => true);
 

@@ -60,7 +60,7 @@ namespace Viper.test.Areas.Directory
 
             Assert.NotNull(query);
             Assert.NotNull(query.item);
-            Assert.Equal("Doe, John", query.item!.Name?.Single());
+            Assert.Equal("Doe, John", query.item.Name?.Single());
         }
 
         [Fact]

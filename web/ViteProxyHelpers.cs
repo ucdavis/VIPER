@@ -319,7 +319,17 @@ internal static class ViteProxyHelpers
             }
         }
 
-        await response.Content.CopyToAsync(context.Response.Body);
+        try
+        {
+            await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The client disconnected mid-stream. Swallow rather than rethrow: the caller
+            // catches TaskCanceledException as "Vite dev server unavailable" and falls
+            // through to the static-file branch, which would both log the wrong cause and
+            // write to a response that has already started.
+        }
     }
 
     /// <summary>
@@ -392,7 +402,7 @@ internal static class ViteProxyHelpers
                     var contentType = GetContentType(Path.GetExtension(resolvedPhysical));
                     // Set content type if not already started
                     context.Response.ContentType = contentType ?? "application/octet-stream";
-                    await context.Response.SendFileAsync(resolvedPhysical);
+                    await context.Response.SendFileAsync(resolvedPhysical, context.RequestAborted);
                     return;
                 }
             }
@@ -403,7 +413,7 @@ internal static class ViteProxyHelpers
             }
 
             context.Response.StatusCode = 502;
-            await context.Response.WriteAsync("Vite dev server not running. Please start the frontend development server or build static files as appropriate.");
+            await context.Response.WriteAsync("Vite dev server not running. Please start the frontend development server or build static files as appropriate.", context.RequestAborted);
         }
     }
 
