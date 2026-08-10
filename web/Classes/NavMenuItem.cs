@@ -9,6 +9,12 @@ namespace Viper.Classes
         public bool IsHeader { get; set; }
         public int DisplayOrder { get; set; }
         public int IndentLevel { get; set; } = 0;
+        /// <summary>
+        /// URLs of pages that belong to this menu item but have no nav entry of their own,
+        /// e.g. the Role Templates item covers the pages for editing and applying a template.
+        /// Visiting one of these highlights this item. Resolved like <see cref="MenuItemURL"/>.
+        /// </summary>
+        public List<string> ChildPageURLs { get; set; } = new();
 
         public NavMenuItem()
         {

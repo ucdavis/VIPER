@@ -21,6 +21,43 @@ function showStatusNotification(message) {
     }, STATUS_NOTIFICATION_DISPLAY_MS)
 }
 
+const STATUS_NOTIFICATION_STORAGE_KEY = "viperQueuedStatusNotification"
+
+/*
+ * Queue a status message to be shown on the next page load, for saves that redirect
+ * (e.g. an edit page that sends the user back to its listing page on success).
+ */
+function queueStatusNotification(message) {
+    // Best effort. sessionStorage throws when site data is blocked or the quota is
+    // full, and losing the message must not stop the caller from redirecting.
+    try {
+        putItemInStorage(STATUS_NOTIFICATION_STORAGE_KEY, message)
+    } catch {
+        // Nothing to do; the save still succeeded and the redirect still matters.
+    }
+}
+
+/*
+ * Show and clear the message queued by queueStatusNotification, if there is one.
+ * Call from the destination page so a queued message is shown once and only once.
+ */
+function showQueuedStatusNotification() {
+    let message = null
+    // Callers run this on mount, ahead of loading their data, so an unreadable
+    // store must not throw and take the rest of the page down with it.
+    try {
+        message = getItemFromStorage(STATUS_NOTIFICATION_STORAGE_KEY)
+        if (message) {
+            removeItemFromStorage(STATUS_NOTIFICATION_STORAGE_KEY)
+        }
+    } catch {
+        // Storage unavailable, so there is nothing queued to show.
+    }
+    if (message) {
+        showStatusNotification(message)
+    }
+}
+
 /*
  * QuasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
