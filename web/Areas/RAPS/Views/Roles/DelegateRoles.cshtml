@@ -37,28 +37,29 @@
             methods: {
                 loadRoles: async function() {
                     this.rolesLoaded = false
-                    var childRoles = await viperFetch(this, "Roles/ControlledBy/" + + this.urlParams.get("roleId"))
-                    var allRoles = await viperFetch(this, "Roles?Application=0")
+                    this.loadingRoles = true
+                    const [childRoles, allRoles] = await Promise.all([
+                        viperFetch(this, "Roles/ControlledBy/" + this.urlParams.get("roleId")),
+                        viperFetch(this, "Roles?Application=0")
+                    ])
+                    this.loadingRoles = false
                     // A failed or still-pending read must not look like "nothing is
                     // selected": submitting that would PUT an empty list and wipe the
                     // existing delegations. Stay disabled until both reads succeed.
                     if (childRoles === undefined || allRoles === undefined) {
                         return
                     }
+                    const childRoleIds = new Set(childRoles.map(cr => cr.roleId))
                     this.selectedRoles = childRoles
-                    this.roles = childRoles.concat(
-                        allRoles.filter(r => childRoles.find(cr => cr.roleId === r.roleId) === undefined))
+                    this.roles = childRoles.concat(allRoles.filter(r => !childRoleIds.has(r.roleId)))
                     this.rolesLoaded = true
                 },
                 submitChanges: async function() {
                     if (!this.rolesLoaded) {
                         return
                     }
-                    var roleIds = this.selectedRoles.reduce( (result, role) => {
-                        result.push(role.roleId)
-                        return result
-                    }, [])
-                    viperFetch(this,
+                    const roleIds = this.selectedRoles.map(role => role.roleId)
+                    const result = await viperFetch(this,
                         "Roles/ControlledBy/" + this.urlParams.get("roleId"),
                         {
                             method: "PUT",
@@ -67,12 +68,14 @@
                         },
                         [this.loadRoles]
                     )
+                    if (result !== undefined) {
+                        showStatusNotification("Delegated roles updated")
+                    }
                 }
             },
             async mounted() {
                 await this.loadRoles()
                 this.role = (await viperFetch(this, "Roles/" + this.urlParams.get("roleId"))) ?? {}
-                
             }
         })
     </script>
