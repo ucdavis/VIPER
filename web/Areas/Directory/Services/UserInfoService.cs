@@ -1333,22 +1333,19 @@ namespace Viper.Areas.Directory.Services
                     .ThenByDescending(p => p.Effdt)
                     .ToListAsync();
 
-                foreach (var history in historyData)
+                var ucPathResults = historyData.Select(history => new UCPathResult
                 {
-                    var ucpathResult = new UCPathResult
-                    {
-                        JobCode = history.Jobcode,
-                        JobCodeDescription = history.JobcodeDesc,
-                        DepartmentId = history.Deptid,
-                        DepartmentDescription = history.DeptDesc,
-                        ActionDescription = history.ActionDescr,
-                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
-                        ReportsTo = GetReportsToName(history),
-                        ReportsToPosition = GetReportsToPosition(history)
-                    };
+                    JobCode = history.Jobcode,
+                    JobCodeDescription = history.JobcodeDesc,
+                    DepartmentId = history.Deptid,
+                    DepartmentDescription = history.DeptDesc,
+                    ActionDescription = history.ActionDescr,
+                    PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                    ReportsTo = GetReportsToName(history),
+                    ReportsToPosition = GetReportsToPosition(history)
+                });
 
-                    result.UCPathHistory.Add(ucpathResult);
-                }
+                result.UCPathHistory.AddRange(ucPathResults);
             }
             catch (Exception ex)
             {
