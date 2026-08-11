@@ -1724,15 +1724,12 @@ namespace Viper.Areas.Directory.Services
                 var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var name in temp)
                 {
-                    foreach (var middlePart in middleParts)
+                    foreach (var middlePart in middleParts.Where(middlePart => middlePart.Length > 0))
                     {
-                        if (middlePart.Length > 0)
+                        var variation = $"{name} {middlePart[0]}";
+                        if (!nameVariations.Contains(variation))
                         {
-                            var variation = $"{name} {middlePart[0]}";
-                            if (!nameVariations.Contains(variation))
-                            {
-                                nameVariations.Add(variation);
-                            }
+                            nameVariations.Add(variation);
                         }
                     }
                 }
