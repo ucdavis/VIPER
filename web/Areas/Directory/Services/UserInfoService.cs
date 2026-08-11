@@ -1116,15 +1116,15 @@ namespace Viper.Areas.Directory.Services
                     .Select(rm => rm.Role)
                     .OrderBy(r => r.DisplayName ?? r.Role);
 
-                foreach (var role in filteredRoles)
+                result.SystemRoles.AddRange(filteredRoles.Select(role =>
                 {
                     string displayName = role.DisplayName ?? role.Role;
-                    result.SystemRoles.Add(new SystemRole
+                    return new SystemRole
                     {
                         System = system,
                         DisplayName = FormatPermissionName(displayName)
-                    });
-                }
+                    };
+                }));
             }
 
             var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
