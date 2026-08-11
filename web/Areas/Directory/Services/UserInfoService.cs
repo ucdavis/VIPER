@@ -1651,14 +1651,11 @@ namespace Viper.Areas.Directory.Services
                     var domains = isProd
                         ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
                         : new[] { "t3.ucdavis.edu" };
-                    foreach (var groupDn in allGroups)
-                    {
-                        var formattedGroup = AdFormat(groupDn, domains);
-                        if (!string.IsNullOrEmpty(formattedGroup))
-                        {
-                            result.ADMemberOf.Add(formattedGroup);
-                        }
-                    }
+                    result.ADMemberOf.AddRange(
+                        allGroups
+                            .Select(groupDn => AdFormat(groupDn, domains))
+                            .Where(formattedGroup => !string.IsNullOrEmpty(formattedGroup))
+                    );
 
                     // Sort the groups
                     result.ADMemberOf = result.ADMemberOf.OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
