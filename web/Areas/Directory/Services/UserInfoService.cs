@@ -242,7 +242,7 @@ namespace Viper.Areas.Directory.Services
                     if (vmacs.item.Unit?.Length > 0) result.Department = vmacs.item.Unit[0];
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
                 Console.WriteLine($"Warning: PopulateDirectoryInfoAsync VMACS failed: {ex.Message}");
             }
