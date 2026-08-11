@@ -226,7 +226,15 @@ namespace Viper.Areas.Directory.Services
                     result.PostalAddress = ldapUser.PostalAddress.Replace("$", @"<br>");
                 }
             }
-            catch (Exception ex)
+            catch (NullReferenceException ex)
+            {
+                Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
+            }
+            catch (System.DirectoryServices.DirectoryServicesCOMException ex)
             {
                 Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
             }
