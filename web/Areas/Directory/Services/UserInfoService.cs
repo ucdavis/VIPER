@@ -223,7 +223,7 @@ namespace Viper.Areas.Directory.Services
                     result.Email = ldapUser.Mail;
                     result.Phone = ldapUser.TelephoneNumber;
                     result.Mobile = ldapUser.Mobile;
-                    result.PostalAddress = ldapUser.PostalAddress;
+                    result.PostalAddress = ldapUser.PostalAddress.Replace("$", @"<br>");
                 }
             }
             catch (Exception ex)

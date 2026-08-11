@@ -78,7 +78,7 @@ namespace Viper.Areas.Directory.Controllers
                 // Check if user is viewing their own page
                 var currentUser = _userHelper.GetCurrentUser();
                 bool ownPage = currentUser != null && mothraID == currentUser.MothraId;
-                var individual = await _aaud.AaudUsers.Where(u => (u.MothraId == mothraID)).FirstOrDefaultAsync();
+                var individual = await _aaud.AaudUsers.FirstOrDefaultAsync(u => (u.MothraId == mothraID));
                 string? iamId = null;
                 if (individual != null) iamId = individual.IamId;
 
@@ -105,23 +105,7 @@ namespace Viper.Areas.Directory.Controllers
             }
         }
 
-        /// <summary>
-        /// Get user photo, stubbed for now
-        /// </summary>
-        /// <param name="mailID">Mail ID</param>
-        /// <param name="altphoto">Use alternative photo</param>
-        /// <returns></returns>
-        [Route("/userPhoto")]
-        public async Task<ActionResult> UserPhoto(string mailID, bool altphoto = false)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-            return NotFound();
-        }
-
-        [Route("/[area]/nav")]
+        [Route("nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
             var nav = new List<NavMenuItem>();

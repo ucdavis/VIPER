@@ -63,7 +63,7 @@
                 }
                 @if (!string.IsNullOrEmpty(Model.PostalAddress))
                 {
-                    <li><strong>Address:</strong> @Model.PostalAddress</li>
+                    <li><strong>Address:</strong> @Html.Raw(Model.PostalAddress)</li>
                 }
                 @if (Model.CanViewStudentID && !string.IsNullOrEmpty(Model.StudentId))
                 {
