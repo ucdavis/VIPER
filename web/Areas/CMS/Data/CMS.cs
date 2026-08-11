@@ -421,10 +421,8 @@ namespace Viper.Areas.CMS.Data
                 LogSuspiciousDownloadName(controller, fileName, safeDownloadName, currentUser);
             }
 
-            foreach (var guid in guids)
+            foreach (CMSFile? file in guids.Select(guid => GetFile(guid, null, null, null, null)))
             {
-                CMSFile? file = GetFile(guid, null, null, null, null);
-
                 if (file == null)
                 {
                     continue;

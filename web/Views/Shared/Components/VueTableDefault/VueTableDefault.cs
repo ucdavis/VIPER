@@ -8,7 +8,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
 
     public class VueTableDefaultViewComponent : ViewComponent
     {
-        public async Task<IViewComponentResult> InvokeAsync(IEnumerable<Object>? data, string keyColumnName,
+        public IViewComponentResult Invoke(IEnumerable<Object>? data, string keyColumnName,
              IEnumerable<string>? skipColumns = null, IEnumerable<Tuple<string, string>>? altColumnNames = null,
              IEnumerable<string>? skipColumnsVisible = null
              )
@@ -25,7 +25,7 @@ namespace Viper.Views.Shared.Components.VueTableDefault
             ViewData["Rows"] = GetDefaultRows(dataList, skipList);
             ViewData["VisibleColumns"] = GetDefaultVisibleColumns(dataList, skipVisibleList);
 
-            return await Task.Run(() => View("Default"));
+            return View("Default");
         }
 
         #region public static string GetDefaultColumnNames(IEnumerable<Object>? data, IEnumerable<string>? skipColumns = null, IEnumerable<Tuple<string,string>>? altColumnNames = null)
