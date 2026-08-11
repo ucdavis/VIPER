@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Viper.Areas.RAPS.Services;
 using System.Data.Common;
+using System.Linq;
 
 namespace Viper.Areas.Directory.Services
 {
@@ -409,14 +410,11 @@ namespace Viper.Areas.Directory.Services
 
                 if (nameList.Any())
                 {
-                    var names = new List<string>();
-                    foreach (var name in nameList)
-                    {
-                        if (!string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
-                        {
-                            names.Add($"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})");
-                        }
-                    }
+                    var names = nameList
+                        .Where(name => !string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
+                        .Select(name => $"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})")
+                        .ToList();
+
                     return string.Join(", ", names);
                 }
 
