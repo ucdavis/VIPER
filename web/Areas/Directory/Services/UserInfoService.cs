@@ -168,8 +168,9 @@ namespace Viper.Areas.Directory.Services
 
                 return terms;
             }
-            catch
+            catch (DbException ex)
             {
+                Console.WriteLine($"Warning: GetCurrentTermsAsync failed: {ex.Message}");
                 return new List<string>();
             }
         }
