@@ -1858,9 +1858,9 @@ namespace Viper.Areas.Directory.Services
                     new("scope", "api_access")
                 };
 
-                var formContent = new FormUrlEncodedContent(formParams);
+                using var formContent = new FormUrlEncodedContent(formParams);
                 Console.WriteLine("[INSTINCT AUTH] Sending token POST request...");
-                var response = await httpClient.PostAsync(tokenUrl, formContent);
+                using var response = await httpClient.PostAsync(tokenUrl, formContent);
                 Console.WriteLine($"[INSTINCT AUTH] Response Status Code: {response.StatusCode}");
 
                 if (response.IsSuccessStatusCode)
