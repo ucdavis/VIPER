@@ -10,7 +10,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Viper.Areas.RAPS.Services;
 using System.Data.Common;
-using System.Linq;
 
 namespace Viper.Areas.Directory.Services
 {
@@ -225,18 +224,10 @@ namespace Viper.Areas.Directory.Services
                     result.Email = ldapUser.Mail;
                     result.Phone = ldapUser.TelephoneNumber;
                     result.Mobile = ldapUser.Mobile;
-                    result.PostalAddress = ldapUser.PostalAddress.Replace("$", @"<br>");
+                    result.PostalAddress = ldapUser.PostalAddress?.Replace("$", @"<br>");
                 }
             }
-            catch (NullReferenceException ex)
-            {
-                Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
-            }
-            catch (PlatformNotSupportedException ex)
-            {
-                Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
-            }
-            catch (System.DirectoryServices.DirectoryServicesCOMException ex)
+            catch (Exception ex) when (ex is NullReferenceException || ex is PlatformNotSupportedException || ex is System.DirectoryServices.DirectoryServicesCOMException || ex is System.DirectoryServices.Protocols.DirectoryException)
             {
                 Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
             }

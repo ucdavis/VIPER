@@ -36,7 +36,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("")]
         public ActionResult Index(string? useExample)
         {
-            return View("~/Areas/Directory/Views/Card.cshtml");
+            return View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser());
         }
 
         /// <summary>
