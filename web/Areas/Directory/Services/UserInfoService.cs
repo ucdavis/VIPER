@@ -1527,7 +1527,15 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch (DbUpdateException ex)
+            {
+                Console.WriteLine($"Warning: PopulateLoansAsync failed: {ex.Message}");
+            }
+            catch (DbException ex)
+            {
+                Console.WriteLine($"Warning: PopulateLoansAsync failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"Warning: PopulateLoansAsync failed: {ex.Message}");
             }
