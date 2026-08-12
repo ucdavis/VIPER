@@ -56,7 +56,7 @@ public sealed class CMSLeftNavControllerTests
         var result = await _controller.GetMenu(5, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Equal(5, result.Value!.LeftNavMenuId);
+        Assert.Equal(5, result.Value.LeftNavMenuId);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class CMSLeftNavControllerTests
         var result = await _controller.UpdateMenu(5, request, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result.Value);
-        Assert.Equal(5, result.Value!.LeftNavMenuId);
+        Assert.Equal(5, result.Value.LeftNavMenuId);
     }
 
     [Fact]

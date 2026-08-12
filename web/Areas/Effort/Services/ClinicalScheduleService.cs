@@ -150,7 +150,11 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
             paramNames.Add(paramName);
             command.Parameters.AddWithValue(paramName, clinicalJobCodes[i]);
         }
+        // The interpolation injects only the "@jc0, @jc1, ..." placeholder names generated
+        // above; every job code value is bound through AddWithValue, never concatenated.
+#pragma warning disable S2077 // Formatting SQL queries is security-sensitive
         command.CommandText = $"SELECT DISTINCT emplid FROM pps.dbo.vw_personJobPosition WHERE jobcode IN ({string.Join(", ", paramNames)})";
+#pragma warning restore S2077
 
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

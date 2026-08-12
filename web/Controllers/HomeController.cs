@@ -29,7 +29,11 @@ namespace Viper.Controllers
         private readonly AAUDContext _aAUDContext;
         private readonly RAPSContext _rapsContext;
         private readonly VIPERContext _viperContext;
+        // An XML namespace identifier, not a network endpoint. The scheme is part of the
+        // literal CAS responses are namespaced with; changing it stops the elements matching.
+#pragma warning disable S5332 // Using http protocol is insecure
         private readonly XNamespace _ns = "http://www.yale.edu/tp/cas";
+#pragma warning restore S5332
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
@@ -210,7 +214,12 @@ namespace Viper.Controllers
         [Route("/[action]")]
         [Route("/[action]/{statusCode:int}")]
         [AllowAnonymous]
+        // Anti-forgery is irrelevant here: the error page is anonymous, binds one int? route
+        // value, and mutates no state. Requiring a token would break the 404/500 handler,
+        // which is re-executed on requests that never carried one.
+#pragma warning disable S4502 // Disabling CSRF protections is security-sensitive
         [IgnoreAntiforgeryToken]
+#pragma warning restore S4502
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         [SearchExclude]
 #pragma warning disable S6967 // Error handler uses simple route parameter, not form data requiring validation

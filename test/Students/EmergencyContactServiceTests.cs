@@ -1387,7 +1387,7 @@ public sealed class EmergencyContactServiceTests : IDisposable
             Assert.Equal("95616", student.Zip);
             Assert.True(student.ContactPermanent);
             Assert.NotNull(student.EmergencyContact);
-            Assert.Equal("Jane Doe", student.EmergencyContact!.Name);
+            Assert.Equal("Jane Doe", student.EmergencyContact.Name);
         }
     }
 

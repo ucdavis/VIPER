@@ -76,24 +76,36 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         correlationId));
                 }
 
+                // ValidateRequestAsync above already guarantees both are present. Capturing them
+                // as non-null locals makes every later use provable rather than asserted.
+                if (request.RotationId is not { } rotationId || request.GradYear is not { } gradYear)
+                {
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        "Please check your input and try again.",
+                        correlationId));
+                }
+
                 // Step 2: Check permissions - include own schedule check
-                if (!await CheckPermissionsForAddAsync(request.RotationId!.Value, request.MothraId!, correlationId, cancellationToken))
+                if (!await CheckPermissionsForAddAsync(rotationId, request.MothraId, correlationId, cancellationToken))
                 {
                     return Forbid();
                 }
 
                 // Step 3: Check for conflicts and build warning message
                 var warningMessage = await BuildConflictWarningAsync(
-                    request.MothraId!,
+                    request.MothraId,
                     request.WeekIds,
-                    request.GradYear!.Value,
-                    request.RotationId!.Value,
+                    gradYear,
+                    rotationId,
                     correlationId,
                     cancellationToken);
 
                 // Step 4: Add instructor through service layer
                 var response = await ProcessAddInstructorAsync(
                     request,
+                    rotationId,
+                    gradYear,
                     warningMessage,
                     correlationId,
                     cancellationToken);
@@ -176,16 +188,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
 
         private async Task<AddInstructorResponse> ProcessAddInstructorAsync(
             AddInstructorRequest request,
+            int rotationId,
+            int gradYear,
             string? warningMessage,
             string correlationId,
             CancellationToken cancellationToken)
         {
             // Add instructor to schedule
             var createdSchedules = await _scheduleEditService.AddInstructorAsync(
-                request.MothraId!,
-                request.RotationId!.Value,
+                request.MothraId,
+                rotationId,
                 request.WeekIds,
-                request.GradYear!.Value,
+                gradYear,
                 request.IsPrimaryEvaluator,
                 cancellationToken);
 
@@ -198,7 +212,7 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
             }
 
             _logger.LogInformation("Successfully added instructor to rotation {RotationId} for {WeekCount} weeks (CorrelationId: {CorrelationId})",
-                request.RotationId!.Value, request.WeekIds.Length, correlationId);
+                rotationId, request.WeekIds.Length, correlationId);
 
             return new AddInstructorResponse
             {
@@ -388,8 +402,18 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         correlationId));
                 }
 
+                // [Required] plus the ModelState check above already guarantee this. Capturing it
+                // as a non-null local makes every later use provable rather than asserted.
+                if (request.IsPrimary is not { } isPrimary)
+                {
+                    return BadRequest(new ErrorResponse(
+                        ErrorCodes.ValidationError,
+                        "Please check your input and try again.",
+                        correlationId));
+                }
+
                 var (success, previousPrimaryName) = await _scheduleEditService.SetPrimaryEvaluatorAsync(
-                    instructorScheduleId, request.IsPrimary!.Value, cancellationToken, request.RequiresPrimaryEvaluator);
+                    instructorScheduleId, isPrimary, cancellationToken, request.RequiresPrimaryEvaluator);
 
                 if (!success)
                 {
@@ -399,14 +423,14 @@ namespace Viper.Areas.ClinicalScheduler.Controllers
                         correlationId));
                 }
 
-                var action = request.IsPrimary!.Value ? "set as" : "removed as";
+                var action = isPrimary ? "set as" : "removed as";
                 _logger.LogInformation("Successfully {Action} primary evaluator for instructor schedule {ScheduleId} (CorrelationId: {CorrelationId})",
                     action, instructorScheduleId, correlationId);
 
                 return Ok(new
                 {
                     message = $"Instructor successfully {action} primary evaluator",
-                    isPrimaryEvaluator = request.IsPrimary!.Value,
+                    isPrimaryEvaluator = isPrimary,
                     previousPrimaryName
                 });
             }
