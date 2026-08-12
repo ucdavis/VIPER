@@ -11,6 +11,9 @@
     @await RenderSectionAsync("Metatags", required: false)
 
     <title>@ViewData["Title"] - VIPER(2.0)</title>
+    @* Proxima Nova comes from the campus font server (see site.css); warm the
+       connection before the stylesheet asks for it. *@
+    <link rel="preconnect" href="https://campusfont.ucdavis.edu" crossorigin />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @if (HttpHelper.HttpContext != null && (HttpHelper.HttpContext.Request.Path.ToString().ToLower().Contains("/directory") || HttpHelper.HttpContext.Request.Path.ToString().ToLower().Contains("/userinfo")))
         {

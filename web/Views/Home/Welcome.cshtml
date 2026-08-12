@@ -19,6 +19,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sign in - VIPER 2.0</title>
+    @* Proxima Nova comes from the campus font server (see welcome.css), so warm
+       the connection early: the splash headline is display-scale and the
+       handshake would otherwise land in the middle of the font-display swap. *@
+    <link rel="preconnect" href="https://campusfont.ucdavis.edu" crossorigin />
     <link rel="preload" as="image" href="@heroImageUrl" type="image/avif" fetchpriority="high" />
     <link rel="stylesheet" href="~/css/welcome.css" asp-append-version="true" />
 </head>

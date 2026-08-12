@@ -12,18 +12,19 @@
    canonical Aggie Blue (#022851); we honor VIPER's value.
    ============================================================================ */
 
-/* Proxima Nova — UC Davis campus brand font. Self-hosted from /fonts/ so the
-   files are served same-origin with long-lived immutable cache headers (see
-   web/Program.cs UseStaticFiles config). 900 must be downshifted to 800 since
-   the family caps there. Mirror this block in site.css so authenticated
-   chrome matches. The ?v= query string busts that immutable cache: bump it
-   here (and in site.css) whenever a .woff2 file is replaced. */
+/* Proxima Nova, the UC Davis campus brand font, loaded from the campus font server
+   per IET guidance rather than self-hosted, because the license does not cover
+   redistributing the files. site.css carries the full rationale and the CSP and
+   CORS caveats that come with it; mirror this block there and in
+   VueApp/src/styles/base.css so authenticated chrome matches the splash. 900
+   must be downshifted to 800 since the family caps there. */
 @font-face {
     font-family: "Proxima Nova";
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url("../fonts/proxima-nova/proximanova-regular.woff2?v=1") format("woff2");
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_regular_macroman/proximanova-regular-webfont.woff2")
+        format("woff2");
 }
 
 @font-face {
@@ -31,7 +32,8 @@
     font-style: normal;
     font-weight: 500;
     font-display: swap;
-    src: url("../fonts/proxima-nova/proximanova-medium.woff2?v=1") format("woff2");
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_medium_macroman/proximanova-medium-webfont.woff2")
+        format("woff2");
 }
 
 @font-face {
@@ -39,7 +41,8 @@
     font-style: normal;
     font-weight: 700;
     font-display: swap;
-    src: url("../fonts/proxima-nova/proximanova-bold.woff2?v=1") format("woff2");
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_bold_macroman/proximanova-bold-webfont.woff2")
+        format("woff2");
 }
 
 @font-face {
@@ -47,7 +50,8 @@
     font-style: normal;
     font-weight: 800;
     font-display: swap;
-    src: url("../fonts/proxima-nova/proximanova-extrabold.woff2?v=1") format("woff2");
+    src: url("https://campusfont.ucdavis.edu/proxima-nova/proximanova_extrabold_macroman/proximanova-extrabold-webfont.woff2")
+        format("woff2");
 }
 
 :root {
