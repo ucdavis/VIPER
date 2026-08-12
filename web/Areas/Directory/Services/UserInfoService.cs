@@ -1713,9 +1713,11 @@ namespace Viper.Areas.Directory.Services
                 var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var name in temp)
                 {
-                    foreach (var middlePart in middleParts.Where(middlePart => middlePart.Length > 0))
+                    foreach (var middleInitial in middleParts
+                        .Where(middlePart => middlePart.Length > 0)
+                        .Select(middlePart => middlePart[0]))
                     {
-                        var variation = $"{name} {middlePart[0]}";
+                        var variation = $"{name} {middleInitial}";
                         if (!nameVariations.Contains(variation))
                         {
                             nameVariations.Add(variation);
