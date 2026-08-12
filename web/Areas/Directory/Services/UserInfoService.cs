@@ -382,7 +382,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.TermCode;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -411,7 +411,7 @@ namespace Viper.Areas.Directory.Services
 
                 return null;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -430,7 +430,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.SpridenId;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -449,7 +449,7 @@ namespace Viper.Areas.Directory.Services
 
                 return !string.IsNullOrEmpty(result?.SpbpersConfidInd);
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -468,7 +468,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.RegStatus;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -487,7 +487,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result.Any() ? "Yes" : "No";
             }
-            catch
+            catch (DbException)
             {
                 return "No";
             }
@@ -506,7 +506,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.SgbstdnMajrCode1;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -548,7 +548,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.SgvclssClasCode;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -567,7 +567,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.ClassOf;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -586,7 +586,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.ZtvconfDesc;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -605,7 +605,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.BirthDate;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -624,7 +624,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.Age;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -643,7 +643,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.TermDesc;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -673,7 +673,7 @@ namespace Viper.Areas.Directory.Services
 
                 return null;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -692,7 +692,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.SgvstdnAstdDesc;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -711,7 +711,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.Gpa;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -730,7 +730,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.ClassRank;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -749,7 +749,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.AdmitClassYear;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -768,7 +768,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.AdmitTerm;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -787,7 +787,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.IsDualDegree == "Yes";
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -806,7 +806,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.IsDVMStudent == "Yes";
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -825,7 +825,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.IsMPVMStudent == "Yes";
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -844,7 +844,7 @@ namespace Viper.Areas.Directory.Services
 
                 return !string.IsNullOrEmpty(result?.WobeucePidm);
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -863,7 +863,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.EmployeeId;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -882,7 +882,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.WobeuceDeptName;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -901,7 +901,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.Gender;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -920,7 +920,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.Ethnicity;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -939,7 +939,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.NewEthnicity;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -958,7 +958,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.ResidentFlag == "Y";
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -977,7 +977,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.CitizenFlag == "Y";
             }
-            catch
+            catch (DbException)
             {
                 return false;
             }
@@ -996,7 +996,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.Address;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
@@ -1015,7 +1015,7 @@ namespace Viper.Areas.Directory.Services
 
                 return result?.Phone;
             }
-            catch
+            catch (DbException)
             {
                 return null;
             }
