@@ -243,11 +243,6 @@ html {
     box-shadow: none;
 }
 
-/* Quasar's overlay-drawer glow bleeds a stray line down the left edge. */
-.q-drawer--mobile .q-layout__shadow:after {
-    box-shadow: none;
-}
-
 /*Left Nav styles*/
 #leftNavMenu {
     overflow-x: hidden;
