@@ -57,6 +57,10 @@ of the following.
 
 ## Vue / Quasar
 
+UI rules beyond this list (color roles, typography, spacing, motion, component
+choice) live in `DESIGN.md`, which is authoritative. Consult it before building
+or changing UI; the rules below are the subset worth flagging in review.
+
 - Use Quasar components (`q-btn`, `q-dialog`, `q-banner`, etc.). Selects need
   `dense` + `options-dense`.
 - **Dialogs (`q-dialog`)**: must have an accessible name (`aria-labelledby`
@@ -69,7 +73,13 @@ of the following.
   `role="alert"`; warning/info default to `role="status"`. Use
   `live="assertive"` only for direct user-action responses, not persistent
   state indicators. Razor pages use `q-banner` with accessible classes
-  (`bg-warning text-dark`, `role="status"` or `role="alert"`).
+  (`bg-warning text-dark`, `role="status"` or `role="alert"`) for these
+  in-flow banners.
+- **Status messages, toast vs banner**: a banner is a persistent, in-flow
+  message tied to page state. Transient confirmation that an action completed
+  is a toast instead, in Razor and Vue alike: `showStatusNotification()`, or
+  `queueStatusNotification()` when the action redirects. Do not swap these for
+  `q-banner` or Quasar `Notify`, neither works here; see `DESIGN.md`.
 - **Button colors**: `primary` (Aggie Blue), `positive` (create), `negative`
   (delete), `info text-color="dark"` (tertiary), `warning text-color="dark"`
   (caution), `secondary`.
