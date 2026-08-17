@@ -33,12 +33,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { useErrorStore } from "@/store/ErrorStore"
+import { getLoginUrl } from "@/composables/RequireLogin"
 import { storeToRefs } from "pinia"
 
 const errorStore = useErrorStore()
 const { errorMessage, status } = storeToRefs(errorStore)
 const showErrorMessage = computed(() => errorMessage.value !== null && errorMessage.value.length > 0)
-const loginUrl = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + window.location.pathname
+const loginUrl = getLoginUrl()
 
 const showError = ref(false)
 const showLogin = ref(false)
