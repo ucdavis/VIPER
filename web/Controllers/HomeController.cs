@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
@@ -36,13 +35,15 @@ namespace Viper.Controllers
 #pragma warning restore S5332
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
+        private readonly IPublicUrlService _publicUrl;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         private readonly IUserHelper _userHelper;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, IPublicUrlService publicUrl, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
+            this._publicUrl = publicUrl;
             this._aAUDContext = aAUDContext;
             this._rapsContext = rapsContext;
             this._viperContext = viperContext;
@@ -94,16 +95,15 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login([FromQuery] string? ReturnUrl = null)
         {
-            Uri url = new(Request.GetDisplayUrl());
-            string baseURl = url.GetLeftPart(UriPartial.Authority);
-            string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
+            // Default to the application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
+            string returnURL = Request.PathBase.Value ?? string.Empty;
 
             if (!string.IsNullOrEmpty(ReturnUrl))
             {
                 returnURL = ReturnUrl;
             }
 
-            if (returnURL.StartsWith("/api"))
+            if (IsApiPath(returnURL))
             {
                 return Unauthorized();
             }
@@ -111,6 +111,24 @@ namespace Viper.Controllers
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
 
             return new RedirectResult(authorizationEndpoint);
+        }
+
+        /// <summary>
+        /// The SPAs send ReturnUrl already prefixed with the deployed PathBase ("/2/api/..."),
+        /// so the base has to come off before testing for an API path or the guard never fires
+        /// on TEST/PROD and an API caller gets a CAS HTML redirect instead of a 401.
+        /// </summary>
+        private bool IsApiPath(string returnUrl)
+        {
+            string path = returnUrl;
+            string? basePath = Request.PathBase.Value;
+
+            if (!string.IsNullOrEmpty(basePath) && path.StartsWith(basePath, StringComparison.OrdinalIgnoreCase))
+            {
+                path = path[basePath.Length..];
+            }
+
+            return path.StartsWith("/api", StringComparison.OrdinalIgnoreCase);
         }
 
         [Route("/[action]")]
@@ -260,7 +278,7 @@ namespace Viper.Controllers
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
             // Send homepage link after CAS logout
-            var returnUrl = WebUtility.UrlEncode(HttpHelper.GetRootURL());
+            var returnUrl = WebUtility.UrlEncode(_publicUrl.BaseUrl);
             return new RedirectResult(_settings.CasBaseUrl + "logout?service=" + returnUrl);
         }
 
@@ -287,13 +305,14 @@ namespace Viper.Controllers
 
 
         /// <summary>
-        /// Utility function for creating redirect URLs
+        /// Utility function for creating redirect URLs. Built from the configured canonical
+        /// origin, never the request Host, so a forged Host cannot poison a CAS callback.
         /// </summary>
         /// <param name="targetPath"></param>
         /// <returns>Compiled URL</returns>
-        private static string BuildRedirectUri(string targetPath)
+        private string BuildRedirectUri(string targetPath)
         {
-            return HttpHelper.GetRootURL() + targetPath;
+            return _publicUrl.BuildUrl(targetPath);
         }
 
         /// <summary>

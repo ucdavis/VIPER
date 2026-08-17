@@ -10,6 +10,7 @@ using Viper.Areas.Effort.EmailTemplates.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Models.VIPER;
@@ -66,11 +67,8 @@ public sealed class VerificationServiceTests : IDisposable
         };
 
         var settingsOptions = Options.Create(_settings);
-        var emailSettings = new EmailSettings
-        {
-            BaseUrl = "https://test.example.com"
-        };
-        var emailSettingsOptions = Options.Create(emailSettings);
+        var publicUrl = Substitute.For<IPublicUrlService>();
+        publicUrl.BaseUrl.Returns("https://test.example.com");
 
         _emailTemplateRendererMock = Substitute.For<IEmailTemplateRenderer>();
         _emailTemplateRendererMock
@@ -102,7 +100,7 @@ public sealed class VerificationServiceTests : IDisposable
             _classificationServiceMock,
             _loggerMock,
             settingsOptions,
-            emailSettingsOptions,
+            publicUrl,
             _emailTemplateRendererMock);
 
         SeedTestData();
@@ -670,10 +668,9 @@ public sealed class VerificationServiceTests : IDisposable
             VerificationEmailSubject = "Please Verify Your Effort",
             VerificationReplyDays = 7
         };
-        var badEmailSettings = new EmailSettings
-        {
-            BaseUrl = ""  // Missing/empty BaseUrl
-        };
+        // Missing canonical origin: Application:PublicBaseUrl unset
+        var badPublicUrl = Substitute.For<IPublicUrlService>();
+        badPublicUrl.BaseUrl.Returns(string.Empty);
 
         var serviceWithBadConfig = new VerificationService(
             _context,
@@ -685,7 +682,7 @@ public sealed class VerificationServiceTests : IDisposable
             _classificationServiceMock,
             _loggerMock,
             Options.Create(badSettings),
-            Options.Create(badEmailSettings),
+            badPublicUrl,
             _emailTemplateRendererMock);
 
         _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");

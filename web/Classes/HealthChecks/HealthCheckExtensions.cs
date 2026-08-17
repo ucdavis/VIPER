@@ -232,8 +232,8 @@ namespace Viper.Classes.HealthChecks
             // UseApiEndpointDelegatingHandler below) so the endpoint filter
             // can recognize the self-call without widening the IP allowlist
             // to cover whatever NAT'd source IP the loop-out produces.
-            // Dev has no BaseUrl configured, so fall back to a relative URL.
-            var baseUrl = configuration["EmailSettings:BaseUrl"]?.TrimEnd('/');
+            // Dev leaves the canonical origin unset, so fall back to a relative URL.
+            var baseUrl = configuration["Application:PublicBaseUrl"]?.TrimEnd('/');
             var healthEndpointUrl = string.IsNullOrWhiteSpace(baseUrl)
                 ? "/health/detail"
                 : $"{baseUrl}/health/detail";

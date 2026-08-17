@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.EmailTemplates.Services;
@@ -21,7 +22,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly ILogger<ScheduleEditService> _logger;
         private readonly IEmailService _emailService;
         private readonly EmailNotificationSettings _emailNotificationSettings;
-        private readonly EmailSettings _emailSettings;
+        private readonly IPublicUrlService _publicUrl;
         private readonly IGradYearService _gradYearService;
         private readonly IPermissionValidator _permissionValidator;
         private readonly IEmailTemplateRenderer _emailTemplateRenderer;
@@ -32,7 +33,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
-            IOptions<EmailSettings> emailSettingsOptions,
+            IPublicUrlService publicUrl,
             IGradYearService gradYearService,
             IPermissionValidator permissionValidator,
             IEmailTemplateRenderer emailTemplateRenderer)
@@ -42,7 +43,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             _logger = logger;
             _emailService = emailService;
             _emailNotificationSettings = emailNotificationOptions.Value;
-            _emailSettings = emailSettingsOptions.Value;
+            _publicUrl = publicUrl;
             _gradYearService = gradYearService;
             _permissionValidator = permissionValidator;
             _emailTemplateRenderer = emailTemplateRenderer;
@@ -656,7 +657,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
                     return;
                 }
                 // Get base URL for links
-                var baseUrl = string.IsNullOrWhiteSpace(_emailSettings.BaseUrl) ? null : _emailSettings.BaseUrl;
+                var baseUrl = string.IsNullOrWhiteSpace(_publicUrl.BaseUrl) ? null : _publicUrl.BaseUrl;
 
                 // Get instructor information
                 var instructorName = "Unknown Instructor";
