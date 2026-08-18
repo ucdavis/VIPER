@@ -123,11 +123,11 @@
                 }
                 @if (!string.IsNullOrEmpty(Model.EmployeeHomeDepartment))
                 {
-                    <li><strong>Home Department:</strong> @Model.EmployeeHomeDepartment</li>
+                    <li><strong>Home Department:</strong> @(!string.IsNullOrEmpty(Model.EmployeeHomeDepartmentName) ? $"{Model.EmployeeHomeDepartmentName} ({Model.EmployeeHomeDepartment})" : Model.EmployeeHomeDepartment)</li>
                 }
                 @if (!string.IsNullOrEmpty(Model.EmployeeEffortHomeDepartment))
                 {
-                    <li><strong>Effort Home Department:</strong> @Model.EmployeeEffortHomeDepartment</li>
+                    <li><strong>Effort Home Department:</strong> @(!string.IsNullOrEmpty(Model.EmployeeEffortHomeDepartmentName) ? $"{Model.EmployeeEffortHomeDepartmentName} ({Model.EmployeeEffortHomeDepartment})" : Model.EmployeeEffortHomeDepartment)</li>
                 }
                 @if (!string.IsNullOrEmpty(Model.EmployeeTeachingHomeDepartment))
                 {

@@ -4,7 +4,6 @@ using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Directory.Services;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.Directory.Controllers
@@ -22,33 +21,12 @@ namespace Viper.Areas.Directory.Controllers
         public UserInfoController(
             RAPSContext rapsContext,
             AAUDContext aaudContext,
-            CoursesContext coursesContext,
-            EquipmentLoanContext equipmentLoanContext,
-            PPSContext ppsContext,
-            IDCardsContext idCardsContext,
-            KeysContext keysContext)
+            UserInfoService userInfo)
         {
             _aaud = aaudContext;
             _rapsContext = rapsContext;
             _userHelper = new UserHelper();
-
-            // Get services from DI container
-            var httpClientFactory = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IHttpClientFactory)) as IHttpClientFactory;
-            var memoryCache = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IMemoryCache)) as IMemoryCache;
-            var configuration = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration;
-
-            _userInfo = new UserInfoService(
-                aaudContext,
-                rapsContext,
-                coursesContext,
-                equipmentLoanContext,
-                ppsContext,
-                idCardsContext,
-                keysContext,
-                configuration!,
-                httpClientFactory!,
-                memoryCache!
-            );
+            _userInfo = userInfo;
         }
 
         /// <summary>

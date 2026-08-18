@@ -36,7 +36,9 @@ namespace Viper.Areas.Directory.Models
         public string? EmployeeStatus { get; set; }
         public string? EmployeeTerm { get; set; }
         public string? EmployeeHomeDepartment { get; set; }
+        public string? EmployeeHomeDepartmentName { get; set; }
         public string? EmployeeEffortHomeDepartment { get; set; }
+        public string? EmployeeEffortHomeDepartmentName { get; set; }
         public string? EmployeeTeachingHomeDepartment { get; set; }
         public string? EmployeeTeachingPercentFulltime { get; set; }
 

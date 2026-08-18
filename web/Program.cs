@@ -233,6 +233,7 @@ try
 
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
+    builder.Services.AddScoped<Viper.Areas.Directory.Services.UserInfoService>();
 
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
