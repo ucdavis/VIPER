@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Net;
 using System.Text;
@@ -99,7 +100,7 @@ namespace Viper.test.Services
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("non-existent-iam", "non-existent-mothra");
@@ -129,7 +130,7 @@ namespace Viper.test.Services
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-123", null);
@@ -196,7 +197,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-emp", null);
@@ -267,7 +268,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-cards", null);
@@ -330,7 +331,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(keysOptions);
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-keys", null);
@@ -400,7 +401,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-loans", null);
@@ -487,7 +488,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-raps", null);
@@ -586,7 +587,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-caller", null);
@@ -665,7 +666,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache);
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act & Assert with temporary HttpHelper configuration
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
