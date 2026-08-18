@@ -1,0 +1,29 @@
+# Codecov config for VIPER 2. Coverage is uploaded by .github/workflows/tests.yml
+# under the "frontend" and "backend" flags.
+
+coverage:
+  status:
+    # Informational: report movement, never fail a build on the number.
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        target: 70%
+        threshold: 0%
+        informational: true
+
+comment:
+  layout: "condensed_header, diff, flags, files"
+  behavior: default
+
+# Generated code and tests. web/Models is not listed on purpose: it is DB-first
+# scaffolding with hand-written members mixed in, so it cannot be excluded
+# wholesale without dropping real logic.
+ignore:
+  - "web/Classes/SQLContext/**" # scaffolded DbContexts
+  - "web/Program.cs" # composition root
+  - "test/**"
+  - "VueApp/src/**/__tests__/**"

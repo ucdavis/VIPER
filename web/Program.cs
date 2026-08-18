@@ -365,7 +365,8 @@ try
 
         // Allow fonts to be downloaded from:
         csp.AllowFonts
-            .FromSelf(); // Self-hosted under /fonts - no external font CDN
+            .FromSelf() // Roboto and Material Icons, self-hosted under /fonts
+            .From("https://campusfont.ucdavis.edu"); // Proxima Nova - campus license forbids self-hosting
 
         // Allow other sites to put this in an iframe?
         csp.AllowFraming
@@ -443,7 +444,9 @@ try
         RedirectToAppendTrailingSlash = true
     });
 
-    // Login screen fonts, served with long-lived cache headers.
+    // Self-hosted fonts (Roboto, Material Icons), served with long-lived cache
+    // headers. Proxima Nova is not here: it loads from campusfont.ucdavis.edu,
+    // since the campus license does not allow us to host the files ourselves.
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(

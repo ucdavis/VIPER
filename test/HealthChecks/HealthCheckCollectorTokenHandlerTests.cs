@@ -16,7 +16,7 @@ namespace Viper.test.HealthChecks
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.NotNull(recorder.LastRequest);
-            var values = recorder.LastRequest!.Headers.GetValues(HealthCheckCollectorAuth.HeaderName).ToList();
+            var values = recorder.LastRequest.Headers.GetValues(HealthCheckCollectorAuth.HeaderName).ToList();
             Assert.Single(values);
             Assert.Equal(HealthCheckCollectorAuth.Token, values[0]);
         }

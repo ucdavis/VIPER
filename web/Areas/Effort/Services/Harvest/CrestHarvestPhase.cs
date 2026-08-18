@@ -272,7 +272,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
             .Select(i => new { i.IdsMothraid, i.IdsPKey })
             .ToListAsync(ct);
 
-        var pKeys = aaudIds.Where(i => !string.IsNullOrEmpty(i.IdsPKey)).Select(i => i.IdsPKey!).Distinct().ToList();
+        var pKeys = aaudIds.Where(i => !string.IsNullOrEmpty(i.IdsPKey)).Select(i => i.IdsPKey).Distinct().ToList();
 
         var employees = await context.AaudContext.Employees
             .AsNoTracking()
@@ -311,7 +311,7 @@ public sealed class CrestHarvestPhase : HarvestPhaseBase
         var mothraIdToPKey = aaudIds
             .Where(i => !string.IsNullOrEmpty(i.IdsMothraid) && !string.IsNullOrEmpty(i.IdsPKey))
             .GroupBy(i => i.IdsMothraid!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Select(i => i.IdsPKey!).ToList(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => g.Select(i => i.IdsPKey).ToList(), StringComparer.OrdinalIgnoreCase);
 
         // Step 4: Build instructor details
         var instructorDetails = new List<CrestInstructorDto>();

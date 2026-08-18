@@ -22,16 +22,16 @@ namespace Viper.Areas.CTS.Controllers
 
         private bool BundleExists(int bundleId)
         {
-            return context.Bundles.Where(b => b.BundleId == bundleId).Any();
+            return context.Bundles.AsNoTracking().Any(b => b.BundleId == bundleId);
         }
 
         private bool SameNameExists(int bundleId, string name, int? bundleCompetencyGroupId = null)
         {
             return context.BundleCompetencyGroups
-                .Where(g => g.BundleId == bundleId
+                .AsNoTracking()
+                .Any(g => g.BundleId == bundleId
                     && g.Name == name
-                    && (bundleCompetencyGroupId == null || bundleCompetencyGroupId != g.BundleCompetencyGroupId))
-                .Any();
+                    && (bundleCompetencyGroupId == null || bundleCompetencyGroupId != g.BundleCompetencyGroupId));
         }
 
         [HttpGet]

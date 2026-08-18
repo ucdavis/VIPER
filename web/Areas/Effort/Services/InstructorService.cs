@@ -802,7 +802,7 @@ public class InstructorService : IInstructorService
         var mothraIdToPKey = idsRecords
             .Where(i => !string.IsNullOrEmpty(i.IdsMothraid) && !string.IsNullOrEmpty(i.IdsPKey))
             .GroupBy(i => i.IdsMothraid!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().IdsPKey!, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => g.First().IdsPKey, StringComparer.OrdinalIgnoreCase);
 
         var pKeys = mothraIdToPKey.Values.Distinct().ToList();
 
@@ -1357,7 +1357,7 @@ public class InstructorService : IInstructorService
                     .Where(cr => cr.ChildCourse != null)
                     .Select(cr => new ChildCourseDto
                     {
-                        Id = cr.ChildCourse!.Id,
+                        Id = cr.ChildCourse.Id,
                         SubjCode = cr.ChildCourse.SubjCode,
                         CrseNumb = cr.ChildCourse.CrseNumb,
                         SeqNumb = cr.ChildCourse.SeqNumb,
