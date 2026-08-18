@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, inject, watch } from "vue"
+import { ref, inject, watch, computed } from "vue"
 import { useRoute } from "vue-router"
 import type { Ref } from "vue"
 import type { QTableProps } from "quasar"
 import { useFetch } from "@/composables/ViperFetch"
+import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import StatusBadge from "@/components/StatusBadge.vue"
 import type {
     StudentClassYear as StudentClassYearType,
@@ -16,6 +17,10 @@ const route = useRoute()
 const { get, put, del } = useFetch()
 const apiUrl = inject("apiURL")
 const viperUrl = inject("viperOneUrl")
+
+// Every class-year mutation requires SVMSecure.SIS.AllStudents on the server, so the page stays
+// readable without it but hides the controls that would 403 rather than reject them on click.
+const canManageClassYears = computed(() => checkHasOnePermission(["SVMSecure.SIS.AllStudents"]))
 
 //class year selection
 const classYear = ref({ label: "", value: 0 })
@@ -184,7 +189,10 @@ load()
                         v-close-popup
                     />
                 </q-card-section>
-                <q-card-section class="q-pt-sm">
+                <q-card-section
+                    class="q-pt-sm"
+                    v-if="canManageClassYears"
+                >
                     If you change the class year from the current class year, a new record will be created and the
                     current class year will be marked as inactive with the reasons and term below.
                 </q-card-section>
@@ -192,13 +200,15 @@ load()
                     <q-checkbox
                         v-model="studentClassYear.active"
                         label="Current class year"
+                        :disable="!canManageClassYears"
                     ></q-checkbox>
                     <br />
                     <q-checkbox
                         v-model="studentClassYear.ross"
                         label="Ross Student"
+                        :disable="!canManageClassYears"
                     ></q-checkbox>
-                    <div>If changing class year, please fill out below.</div>
+                    <div v-if="canManageClassYears">If changing class year, please fill out below.</div>
                     <q-select
                         outlined
                         dense
@@ -207,6 +217,7 @@ load()
                         v-model="studentClassYear.classYear"
                         emit-value
                         :options="classYearOptions"
+                        :readonly="!canManageClassYears"
                     ></q-select>
                     <q-select
                         outlined
@@ -218,6 +229,7 @@ load()
                         emit-value
                         map-options
                         :options="reasons"
+                        :readonly="!canManageClassYears"
                     ></q-select>
                     <q-select
                         outlined
@@ -229,6 +241,7 @@ load()
                         emit-value
                         map-options
                         :options="terms"
+                        :readonly="!canManageClassYears"
                     ></q-select>
                     <q-input
                         type="textarea"
@@ -236,9 +249,13 @@ load()
                         dense
                         label="Comment"
                         v-model="studentClassYear.comment"
+                        :readonly="!canManageClassYears"
                     ></q-input>
                 </q-card-section>
-                <q-card-actions align="evenly">
+                <q-card-actions
+                    align="evenly"
+                    v-if="canManageClassYears"
+                >
                     <q-btn
                         no-caps
                         label="Save"
@@ -293,7 +310,7 @@ load()
             <!-- eslint-disable harlanzw/vue-no-ref-access-in-templates -- classYear is { label, value }, not a ref .value access -->
             <div class="col col-md-2 col-lg-2 offset-md-3">
                 <q-btn
-                    v-if="classYear.value"
+                    v-if="classYear.value && canManageClassYears"
                     :label="'Import students into ' + classYear?.label"
                     dense
                     no-caps
