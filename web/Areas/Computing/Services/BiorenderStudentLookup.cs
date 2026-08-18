@@ -56,8 +56,10 @@ namespace Viper.Areas.Computing.Services
                 );
             }
 
+            // GetSingleStudent returns a constructed BiorenderStudent on every path, so there is
+            // nothing to filter out here.
             var taskResults = await Task.WhenAll(resultList);
-            return taskResults.Where(t => t != null).ToList()!;
+            return taskResults.ToList();
         }
 
         /// <summary>

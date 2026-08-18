@@ -91,8 +91,10 @@ public class PercentRolloverController : BaseEffortController
         // Create a channel for progress events
         var channel = Channel.CreateUnbounded<RolloverProgressEvent>();
 
-        // Start the rollover in a background task.
-        // Don't pass ct to Task.Run — cancellation is handled cooperatively inside the lambda.
+        // Start the rollover in a background task. CancellationToken.None is deliberate: a token
+        // here only stops the task ever starting, which would skip the lambda's own catch and
+        // leave the channel un-completed, hanging the SSE reader below. Cancellation is handled
+        // cooperatively via ct inside the lambda instead.
         var rolloverTask = Task.Run(async () =>
         {
             try
@@ -120,7 +122,7 @@ public class PercentRolloverController : BaseEffortController
             {
                 channel.Writer.TryComplete();
             }
-        });
+        }, CancellationToken.None);
 
         try
         {

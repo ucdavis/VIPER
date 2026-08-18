@@ -48,7 +48,7 @@ namespace Viper.test.Scheduler
 
             Assert.True(capturing.Ran);
             Assert.NotNull(capturing.CapturedContext);
-            Assert.Equal(ScheduledJobContext.SchedulerActor, capturing.CapturedContext!.ModBy);
+            Assert.Equal(ScheduledJobContext.SchedulerActor, capturing.CapturedContext.ModBy);
         }
 
         [Fact]

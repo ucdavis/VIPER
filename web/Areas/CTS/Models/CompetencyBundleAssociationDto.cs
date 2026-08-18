@@ -49,7 +49,7 @@ namespace Viper.Areas.CTS.Models
                     .Where(bc => bc.Bundle != null)
                     .Select(bc => new BundleInfoDto
                     {
-                        BundleId = bc.Bundle!.BundleId,
+                        BundleId = bc.Bundle.BundleId,
                         Name = bc.Bundle.Name,
                         Clinical = bc.Bundle.Clinical,
                         Assessment = bc.Bundle.Assessment,
