@@ -84,10 +84,10 @@ function parseOxlintOutput(stdout, stderr) {
                     file: currentFile || "unknown", // Use captured file context
                     line: Number.parseInt(line, 10),
                     col: Number.parseInt(col, 10),
-                    severity: severity,
+                    severity,
                     message: message.trim(),
                     rule: ruleName,
-                    position: position,
+                    position,
                 })
             }
         }
@@ -245,6 +245,6 @@ try {
     // Use shared commit decision handler
     handleCommitDecisionForCategorizedIssues(categorizedIssues, {}, "TypeScript/JavaScript")
 } catch (error) {
-    logger.plainError(`Unexpected error: ${error}`)
+    logger.plainError(`Unexpected error: ${String(error)}`)
     process.exit(1)
 }

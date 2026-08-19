@@ -66,7 +66,9 @@ async function getDotnetParentPid(pid) {
             return null
         }
         // Only return if parent is a dotnet process (e.g. dotnet watch)
-        if (!/^\d+$/.test(parentPid)) return null
+        if (!/^\d+$/.test(parentPid)) {
+            return null
+        }
         const { stdout: parentInfo } = await execAsync(`wmic process where "ProcessId=${parentPid}" get Name /value`)
         return parentInfo.includes("dotnet.exe") ? parentPid : null
     } catch {
@@ -262,7 +264,7 @@ process.on("SIGTERM", () => {
 
 // Run the script
 if (require.main === module) {
-    ;(async () => {
+    void (async () => {
         try {
             await stopDevServices()
         } catch (error) {

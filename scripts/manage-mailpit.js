@@ -20,6 +20,7 @@ const MAILPIT_EXE = path.join(INSTALL_DIR, "mailpit.exe")
 
 // Get environment variables with defaults
 const { getDevServerEnv, openBrowser, createLogger } = require("./lib/script-utils")
+
 const env = getDevServerEnv()
 const SMTP_PORT = env.MAILPIT_SMTP_PORT
 const WEB_PORT = env.MAILPIT_WEB_PORT
@@ -256,10 +257,10 @@ function extractZip(zipPath, extractPath) {
                             }
                             try {
                                 fs.renameSync(partialPath, filePath)
-                            } catch (renameErr) {
+                            } catch (error) {
                                 zipfile.close()
-                                logError(`Error finalizing ${filePath}: ${renameErr.message}`)
-                                reject(renameErr)
+                                logError(`Error finalizing ${filePath}: ${error.message}`)
+                                reject(error)
                                 return
                             }
                             extractedFiles.push(entry.fileName)
@@ -277,7 +278,7 @@ function extractZip(zipPath, extractPath) {
 
                         writeStream.on("error", (writeErr) => {
                             failed = true
-                            // pipe does not tear down the source on a destination error;
+                            // Pipe does not tear down the source on a destination error;
                             // stop reading and release the zip fd so the process can exit
                             readStream.destroy()
                             zipfile.close()
@@ -754,7 +755,7 @@ process.on("SIGTERM", () => {
 
 // Run the script
 if (require.main === module) {
-    ;(async () => {
+    void (async () => {
         try {
             await main()
         } catch (error) {

@@ -231,6 +231,6 @@ try {
     // Use shared commit decision handler
     handleCommitDecisionForCategorizedIssues(categorizedIssues, {}, "Vue")
 } catch (error) {
-    logger.plainError(`Unexpected error: ${error}`)
+    logger.plainError(`Unexpected error: ${String(error)}`)
     process.exit(1)
 }
