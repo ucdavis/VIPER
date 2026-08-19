@@ -12,7 +12,7 @@
          :pagination="{rowsPerPage:0}"
          :loading="loadingRoles">
     <template v-slot:top-left>
-        <q-btn dense no-caps color="primary" padding="xs md" @@click="submitChanges()" label="Submit changes"></q-btn>
+        <q-btn dense no-caps color="primary" padding="xs md" :disable="!rolesLoaded" @@click="submitChanges()" label="Submit changes"></q-btn>
     </template>
     <template v-slot:top-right>
         <q-input class="q-ml-xs q-mr-xs" v-model="filter" dense outlined debounce="300" placeholder="Filter Results">
@@ -32,6 +32,8 @@
                     roles: [],
                     selectedRoles: [],
                     loadingRoles: false,
+                    // Starts false so the page is disabled until the initial read succeeds.
+                    rolesLoaded: false,
                     filter: "",
                     columns: [
                         { name: "role", label: "Role", field: "friendlyName", align: "left" },
@@ -41,27 +43,42 @@
             },
             methods: {
                 loadRoles: async function () {
-                    var templateRoles = await viperFetch(this, "RoleTemplates/" + + this.urlParams.get("roleTemplateId") + "/Roles")
-                    var allRoles = (await viperFetch(this, "Roles?Application=0"))
-                        .filter(r => templateRoles.find(tr => tr.roleId === r.roleId) === undefined)
-                    this.selectedRoles = templateRoles;
-                    this.roles = templateRoles.concat(allRoles)
+                    this.rolesLoaded = false
+                    this.loadingRoles = true
+                    const [templateRoles, allRoles] = await Promise.all([
+                        viperFetch(this, "RoleTemplates/" + this.urlParams.get("roleTemplateId") + "/Roles"),
+                        viperFetch(this, "Roles?Application=0")
+                    ])
+                    this.loadingRoles = false
+                    // A failed or still-pending read must not look like "nothing is
+                    // selected": submitting that would PUT an empty list and wipe the
+                    // template's roles. Stay disabled until both reads succeed.
+                    if (templateRoles === undefined || allRoles === undefined) {
+                        return
+                    }
+                    const templateRoleIds = new Set(templateRoles.map(tr => tr.roleId))
+                    this.selectedRoles = templateRoles
+                    this.roles = templateRoles.concat(allRoles.filter(r => !templateRoleIds.has(r.roleId)))
                     this.filter = ""
+                    this.rolesLoaded = true
                 },
                 submitChanges: async function () {
-                    var roleIds = this.selectedRoles.reduce((result, role) => {
-                        result.push(role.roleId)
-                        return result
-                    }, [])
-                    viperFetch(this,
+                    if (!this.rolesLoaded) {
+                        return
+                    }
+                    const roleIds = this.selectedRoles.map(role => role.roleId)
+                    const result = await viperFetch(this,
                         "RoleTemplates/" + this.urlParams.get("roleTemplateId") + "/Roles",
                         {
                             method: "PUT",
                             body: JSON.stringify(roleIds),
                             headers: { "Content-Type": "application/json" }
-                        },
-                        [this.loadRoles]
+                        }
                     )
+                    if (result !== undefined) {
+                        queueStatusNotification("Template roles updated")
+                        location.href = "RoleTemplateList"
+                    }
                 }
             },
             async mounted() {
