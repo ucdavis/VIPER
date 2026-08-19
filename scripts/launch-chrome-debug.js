@@ -58,4 +58,4 @@ async function main() {
     process.exit(success ? 0 : 1)
 }
 
-main()
+void main()
