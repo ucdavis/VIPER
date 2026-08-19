@@ -143,6 +143,7 @@
                 "no-void": "off",
                 "no-implicit-globals": "off",
                 "import/no-commonjs": "off",
+                "typescript/no-require-imports": "off", // Same intent as import/no-commonjs; these scripts are CommonJS
                 "import/no-nodejs-modules": "off",
                 "import/unambiguous": "off",
                 "import/no-default-export": "off",
