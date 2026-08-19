@@ -28,7 +28,7 @@ namespace Viper.test.Classes
         [Fact]
         public void FindActive_ChildPage_HighlightsParentItem()
         {
-            // VPR-158: RoleTemplateRoles has no nav entry, so the Role Templates item stays lit.
+            // RoleTemplateRoles has no nav entry, so the Role Templates item stays lit.
             var items = new List<NavMenuItem>
             {
                 Link("Rolelist"),
