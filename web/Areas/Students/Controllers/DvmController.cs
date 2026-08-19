@@ -153,14 +153,21 @@ namespace Viper.Areas.Students.Controllers
                 return BadRequest();
             }
 
-            //deactivate active record if setting this to active
+            //deactivate this student's active records if setting this one to active
             if (studentClassYear.Active && !record.Active)
             {
-                var activeRecord = await context.StudentClassYears.Where(s => s.Active).FirstOrDefaultAsync();
-                if (activeRecord != null)
+                var activeRecords = await context.StudentClassYears
+                    .Where(s => s.PersonId == personId && s.Active)
+                    .ToListAsync();
+                foreach (var activeRecord in activeRecords)
                 {
                     activeRecord.Active = false;
+                    activeRecord.Updated = DateTime.Now;
+                    activeRecord.UpdatedBy = user?.AaudUserId;
                     context.Entry(activeRecord).State = EntityState.Modified;
+                }
+                if (activeRecords.Count > 0)
+                {
                     await context.SaveChangesAsync();
                 }
             }
