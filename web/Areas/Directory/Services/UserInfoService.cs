@@ -22,9 +22,39 @@ namespace Viper.Areas.Directory.Services
         private readonly PPSContext _ppsContext;
         private readonly IDCardsContext _idCardsContext;
         private readonly KeysContext _keysContext;
+        private readonly SISContext _sisContext;
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMemoryCache _memoryCache;
+        private readonly ILogger<UserInfoService> _logger;
+
+        public UserInfoService(
+            AAUDContext aaudContext,
+            RAPSContext rapsContext,
+            CoursesContext coursesContext,
+            EquipmentLoanContext equipmentLoanContext,
+            PPSContext ppsContext,
+            IDCardsContext idCardsContext,
+            KeysContext keysContext,
+            SISContext sisContext,
+            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory,
+            IMemoryCache memoryCache,
+            ILogger<UserInfoService> logger)
+        {
+            _aaudContext = aaudContext;
+            _rapsContext = rapsContext;
+            _coursesContext = coursesContext;
+            _equipmentLoanContext = equipmentLoanContext;
+            _ppsContext = ppsContext;
+            _idCardsContext = idCardsContext;
+            _keysContext = keysContext;
+            _sisContext = sisContext;
+            _configuration = configuration;
+            _httpClientFactory = httpClientFactory;
+            _memoryCache = memoryCache;
+            _logger = logger;
+        }
 
         public UserInfoService(
             AAUDContext aaudContext,
@@ -36,18 +66,22 @@ namespace Viper.Areas.Directory.Services
             KeysContext keysContext,
             IConfiguration configuration,
             IHttpClientFactory httpClientFactory,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            ILogger<UserInfoService> logger)
+            : this(
+                  aaudContext,
+                  rapsContext,
+                  coursesContext,
+                  equipmentLoanContext,
+                  ppsContext,
+                  idCardsContext,
+                  keysContext,
+                  null!,
+                  configuration,
+                  httpClientFactory,
+                  memoryCache,
+                  logger)
         {
-            _aaudContext = aaudContext;
-            _rapsContext = rapsContext;
-            _coursesContext = coursesContext;
-            _equipmentLoanContext = equipmentLoanContext;
-            _ppsContext = ppsContext;
-            _idCardsContext = idCardsContext;
-            _keysContext = keysContext;
-            _configuration = configuration;
-            _httpClientFactory = httpClientFactory;
-            _memoryCache = memoryCache;
         }
 
         /// <summary>
@@ -74,13 +108,7 @@ namespace Viper.Areas.Directory.Services
                 return null;
             }
 
-            Console.WriteLine($"[INSTINCT SERVICE] mothraId: '{mothraId}', iamId: '{iamId}', result.MothraId: '{result.MothraId}'");
             var individual = await _aaudContext.AaudUsers.FirstOrDefaultAsync(u => (u.MothraId == result.MothraId));
-            Console.WriteLine($"[INSTINCT SERVICE] individual is null: {individual == null}");
-            if (individual != null)
-            {
-                Console.WriteLine($"[INSTINCT SERVICE] individual: '{individual.DisplayFullName}', LastName: '{individual.LastName}', FirstName: '{individual.FirstName}'");
-            }
 
             // Populate additional information
             await PopulateDirectoryInfoAsync(result);
@@ -123,7 +151,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (DbException ex)
             {
-                Console.WriteLine($"Warning: GetUserByIamIdAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "GetUserByIamIdAsync failed");
                 return null;
             }
         }
@@ -149,7 +177,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (DbException ex)
             {
-                Console.WriteLine($"Warning: GetUserByMothraIdAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "GetUserByMothraIdAsync failed");
                 return null;
             }
         }
@@ -168,8 +196,9 @@ namespace Viper.Areas.Directory.Services
 
                 return terms;
             }
-            catch
+            catch (DbException ex)
             {
+                _logger.LogWarning(ex, "GetCurrentTermsAsync failed");
                 return new List<string>();
             }
         }
@@ -197,10 +226,22 @@ namespace Viper.Areas.Directory.Services
             var hasEmployee = await _aaudContext.Employees
                 .AnyAsync(e => e.EmpPKey == user.EmployeePKey && currentTerms.Contains(e.EmpTermCode));
 
+            if (!hasEmployee && (!string.IsNullOrEmpty(user.EmployeePKey) || !string.IsNullOrEmpty(user.StudentPKey)))
+            {
+                hasEmployee = await _aaudContext.Flags
+                    .AnyAsync(f => (f.FlagsPKey == user.EmployeePKey || f.FlagsPKey == user.StudentPKey) && (f.FlagsStaff || f.FlagsTeachingFaculty));
+            }
+
             var hasStudent = await _aaudContext.Students
                 .AnyAsync(s => s.StudentsPKey == user.StudentPKey &&
                               s.StudentsLevelCode1 == "VM" &&
                               currentTerms.Contains(s.StudentsTermCode));
+
+            if (!hasStudent && (!string.IsNullOrEmpty(user.EmployeePKey) || !string.IsNullOrEmpty(user.StudentPKey)))
+            {
+                hasStudent = await _aaudContext.Flags
+                    .AnyAsync(f => (f.FlagsPKey == user.EmployeePKey || f.FlagsPKey == user.StudentPKey) && f.FlagsStudent);
+            }
 
             result.IsEmployee = hasEmployee;
             result.IsStudent = hasStudent;
@@ -212,7 +253,7 @@ namespace Viper.Areas.Directory.Services
         /// get data from LDAP/VMACS
         /// </summary>
 #pragma warning disable CA1416 // Validate platform compatibility
-        private static async Task PopulateDirectoryInfoAsync(UserInfoResult result)
+        private async Task PopulateDirectoryInfoAsync(UserInfoResult result)
         {
             try
             {
@@ -223,12 +264,12 @@ namespace Viper.Areas.Directory.Services
                     result.Email = ldapUser.Mail;
                     result.Phone = ldapUser.TelephoneNumber;
                     result.Mobile = ldapUser.Mobile;
-                    result.PostalAddress = ldapUser.PostalAddress;
+                    result.PostalAddress = ldapUser.PostalAddress?.Replace("$", @"<br>");
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is NullReferenceException || ex is PlatformNotSupportedException || ex is System.DirectoryServices.DirectoryServicesCOMException || ex is System.DirectoryServices.Protocols.DirectoryException)
             {
-                Console.WriteLine($"Warning: PopulateDirectoryInfoAsync LDAP failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateDirectoryInfoAsync LDAP failed");
             }
 #pragma warning restore CA1416
 
@@ -242,9 +283,9 @@ namespace Viper.Areas.Directory.Services
                     if (vmacs.item.Unit?.Length > 0) result.Department = vmacs.item.Unit[0];
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Warning: PopulateDirectoryInfoAsync VMACS failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateDirectoryInfoAsync VMACS failed");
             }
         }
 
@@ -277,12 +318,33 @@ namespace Viper.Areas.Directory.Services
                         result.EmployeeEffortHomeDepartment = employee.EmpEffortHomeDept;
                         result.EmployeeTeachingHomeDepartment = employee.EmpTeachingHomeDept;
                         result.EmployeeTeachingPercentFulltime = employee.EmpTeachingPercentFulltime?.ToString();
+
+                        var deptCodes = new[] { employee.EmpHomeDept, employee.EmpEffortHomeDept }
+                            .Where(c => !string.IsNullOrEmpty(c))
+                            .Distinct()
+                            .ToList();
+
+                        if (deptCodes.Count > 0)
+                        {
+                            var deptRows = await _aaudContext.LdapDepartments
+                                .Where(d => d.LdapDeptCode != null && deptCodes.Contains(d.LdapDeptCode))
+                                .ToListAsync();
+
+                            var deptNames = deptRows
+                                .GroupBy(d => d.LdapDeptCode!)
+                                .ToDictionary(g => g.Key, g => (g.FirstOrDefault(d => d.LdapDeptInUse == true) ?? g.First()).LdapDeptName);
+
+                            result.EmployeeHomeDepartmentName = deptNames.TryGetValue(employee.EmpHomeDept, out var homeDeptName)
+                                ? homeDeptName : null;
+                            result.EmployeeEffortHomeDepartmentName = employee.EmpEffortHomeDept != null && deptNames.TryGetValue(employee.EmpEffortHomeDept, out var effortDeptName)
+                                ? effortDeptName : null;
+                        }
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Warning: PopulateEmployeeInfoAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateEmployeeInfoAsync failed");
             }
         }
 
@@ -361,10 +423,10 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
                 // Exceptions during student info retrieval are caught and ignored to allow other directory details to load.
-                Console.WriteLine($"Warning: PopulateStudentInfoAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateStudentInfoAsync failed");
             }
         }
 
@@ -375,14 +437,24 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
-                    .SqlQueryRaw<TermResult>("EXEC AAUD.dbo.usp_get_CurrentOrFutureTermForUser @pidm = {0}, @loginID = NULL", pidm)
-                    .FirstOrDefaultAsync();
+                var termCodeParam = new Microsoft.Data.SqlClient.SqlParameter
+                {
+                    ParameterName = "@termCode",
+                    SqlDbType = System.Data.SqlDbType.Int,
+                    Direction = System.Data.ParameterDirection.Output
+                };
 
-                return result?.TermCode;
+                await _aaudContext.Database.ExecuteSqlRawAsync(
+                    "EXEC AAUD.dbo.usp_get_CurrentOrFutureTermForUser @pidm = @pidm, @loginID = NULL, @termCode = @termCode OUTPUT",
+                    new Microsoft.Data.SqlClient.SqlParameter("@pidm", pidm),
+                    termCodeParam);
+
+                var value = termCodeParam.Value;
+                return value == null || value == DBNull.Value ? null : value.ToString();
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetCurrentOrFutureTermForStudentAsync failed");
                 return null;
             }
         }
@@ -394,27 +466,25 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var nameList = await _aaudContext.Database
+                var nameList = await _sisContext.Database
                     .SqlQueryRaw<PriorNameResult>("EXEC usp_sis_getPriorName @thisPidm = {0}", pidm)
                     .ToListAsync();
 
-                if (nameList.Any())
+                if (nameList?.Count > 0)
                 {
-                    var names = new List<string>();
-                    foreach (var name in nameList)
-                    {
-                        if (!string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
-                        {
-                            names.Add($"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})");
-                        }
-                    }
+                    var names = nameList
+                        .Where(name => !string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
+                        .Select(name => $"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})")
+                        .ToList();
+
                     return string.Join(", ", names);
                 }
 
                 return null;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentPriorNamesAsync failed");
                 return null;
             }
         }
@@ -426,14 +496,16 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<BannerIdResult>("EXEC usp_sis_getBannerID @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
+                var result = rows.FirstOrDefault();
                 return result?.SpridenId;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentBannerIdAsync failed");
                 return null;
             }
         }
@@ -445,14 +517,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<ConfidentialResult>("EXEC usp_sis_isConfidential @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return !string.IsNullOrEmpty(result?.SpbpersConfidInd);
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentConfidentialAsync failed");
                 return false;
             }
         }
@@ -464,14 +539,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<StudentStatusResult>("EXEC usp_sis_getStudentStatus @thisTermCode = {0}, @thispidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.RegStatus;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentStatusAsync failed");
                 return null;
             }
         }
@@ -483,14 +561,15 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var result = await _sisContext.Database
                     .SqlQueryRaw<RegistrationStatusResult>("EXEC usp_sis_getCurrentRegStatus @termCode = {0}, @pidm = {1}", termCode, pidm)
                     .ToListAsync();
 
                 return result.Any() ? "Yes" : "No";
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentRegistrationStatusAsync failed");
                 return "No";
             }
         }
@@ -502,14 +581,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<MajorResult>("EXEC usp_sis_getMajor @termCode = {0}, @pidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
-                return result?.SgbstdnMajrCode1;
+                var result = rows.FirstOrDefault();
+
+                return result?.SGBSTDN_MAJR_CODE_1;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentMajorAsync failed");
                 return null;
             }
         }
@@ -519,22 +601,32 @@ namespace Viper.Areas.Directory.Services
         /// </summary>
         private async Task<string?> GetStudentAllMajorsAsync(string termCode, string pidm)
         {
-            var result = await _aaudContext.Database
-                .SqlQueryRaw<AllMajorsResult>("EXEC usp_sis_getAllMajors @termCode = {0}, @pidm = {1}", termCode, pidm)
-                .FirstOrDefaultAsync();
-
-            if (result != null)
+            try
             {
-                var majors = new List<string>();
-                if (!string.IsNullOrEmpty(result.SgbstdnMajrCode1))
-                    majors.Add(result.SgbstdnMajrCode1);
-                if (!string.IsNullOrEmpty(result.SgbstdnMajrCode2))
-                    majors.Add(result.SgbstdnMajrCode2);
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<AllMajorsResult>("EXEC usp_sis_getAllMajors @termCode = {0}, @pidm = {1}", termCode, pidm)
+                    .ToListAsync();
 
-                return string.Join(", ", majors);
+                var result = rows.FirstOrDefault();
+
+                if (result != null)
+                {
+                    var majors = new List<string>();
+                    if (!string.IsNullOrEmpty(result.SGBSTDN_MAJR_CODE_1))
+                        majors.Add(result.SGBSTDN_MAJR_CODE_1);
+                    if (!string.IsNullOrEmpty(result.SGBSTDN_MAJR_CODE_2))
+                        majors.Add(result.SGBSTDN_MAJR_CODE_2);
+
+                    return string.Join(", ", majors);
+                }
+
+                return null;
             }
-
-            return null;
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                _logger.LogWarning(ex, "GetStudentAllMajorsAsync failed");
+                return null;
+            }
         }
 
         /// <summary>
@@ -544,14 +636,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<ClassLevelResult>("EXEC usp_sis_getClassLevel @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.SgvclssClasCode;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentClassLevelAsync failed");
                 return null;
             }
         }
@@ -563,14 +658,26 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
-                    .SqlQueryRaw<ClassOfResult>("EXEC usp_sis_getClassOf @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                var classOfParam = new Microsoft.Data.SqlClient.SqlParameter
+                {
+                    ParameterName = "@thisClassOf",
+                    SqlDbType = System.Data.SqlDbType.VarChar,
+                    Size = 4,
+                    Direction = System.Data.ParameterDirection.Output
+                };
 
-                return result?.ClassOf;
+                await _sisContext.Database.ExecuteSqlRawAsync(
+                    "EXEC usp_sis_getClassOf @thisTermCode = @thisTermCode, @thisPidm = @thisPidm, @thisClassOf = @thisClassOf OUTPUT",
+                    new Microsoft.Data.SqlClient.SqlParameter("@thisTermCode", termCode),
+                    new Microsoft.Data.SqlClient.SqlParameter("@thisPidm", pidm),
+                    classOfParam);
+
+                var value = classOfParam.Value;
+                return value == null || value == DBNull.Value ? null : value.ToString();
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentClassOfAsync failed");
                 return null;
             }
         }
@@ -582,14 +689,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<ConfidentialScopeResult>("EXEC usp_sis_getConfidentialScope @Pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.ZtvconfDesc;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentConfidentialScopeAsync failed");
                 return null;
             }
         }
@@ -601,14 +711,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<BirthDateResult>("EXEC usp_sis_getBirthDate @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.BirthDate;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentBirthDateAsync failed");
                 return null;
             }
         }
@@ -620,14 +733,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<AgeResult>("EXEC usp_sis_getAge @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.Age;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentAgeAsync failed");
                 return null;
             }
         }
@@ -639,14 +755,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<TermDescResult>("EXEC usp_sis_getTermDescription @thisTermCode = {0}", termCode)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.TermDesc;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentTermDescriptionAsync failed");
                 return null;
             }
         }
@@ -658,9 +777,11 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<DegreeSoughtResult>("EXEC usp_sis_getDegreeSought @termCode = {0}, @pidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 if (result != null)
                 {
@@ -675,8 +796,9 @@ namespace Viper.Areas.Directory.Services
 
                 return null;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentDegreeSoughtAsync failed");
                 return null;
             }
         }
@@ -688,14 +810,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<AcademicStandingResult>("EXEC usp_sis_getCurrentacademicStanding @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.SgvstdnAstdDesc;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentAcademicStandingAsync failed");
                 return null;
             }
         }
@@ -707,14 +832,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<GPAResult>("EXEC usp_sis_getCumulativeGPA @pidm = {0}, @termCode = {1}, @majorCode = {2}", pidm, termCode, majorCode)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.Gpa;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentCumulativeGPAAsync failed");
                 return null;
             }
         }
@@ -726,14 +854,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<ClassRankResult>("EXEC usp_sis_getClassRank @Pidm = {0}, @majorCode = {1}", pidm, majorCode)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.ClassRank;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentClassRankAsync failed");
                 return null;
             }
         }
@@ -745,14 +876,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<AdmitClassYearResult>("EXEC usp_sis_getAdmitClassYear @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.AdmitClassYear;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentAdmitClassYearAsync failed");
                 return null;
             }
         }
@@ -764,14 +898,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<AdmitTermResult>("EXEC usp_sis_getAdmitTerm @pidm = {0}, @major = {1}", pidm, major)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.AdmitTerm;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentAdmitTermAsync failed");
                 return null;
             }
         }
@@ -783,14 +920,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<DualDegreeResult>("EXEC usp_sis_isDualDegreeStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.IsDualDegree == "Yes";
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentDualDegreeAsync failed");
                 return false;
             }
         }
@@ -802,14 +942,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<DVMStudentResult>("EXEC usp_sis_isDVMStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.IsDVMStudent == "Yes";
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentDVMAsync failed");
                 return false;
             }
         }
@@ -821,14 +964,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<MPVMStudentResult>("EXEC usp_sis_isMPVMStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.IsMPVMStudent == "Yes";
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentMPVMAsync failed");
                 return false;
             }
         }
@@ -840,14 +986,15 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var list = await _sisContext.Database
                     .SqlQueryRaw<EmployedResult>("EXEC usp_sis_isEmployed @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
-                return !string.IsNullOrEmpty(result?.WobeucePidm);
+                return list.Any();
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentEmployedAsync failed");
                 return false;
             }
         }
@@ -859,14 +1006,25 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
-                    .SqlQueryRaw<StudentEmployeeIdResult>("EXEC usp_sis_getEmployeeID @thisPidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                var employeeIdParam = new Microsoft.Data.SqlClient.SqlParameter
+                {
+                    ParameterName = "@thisEmployeeID",
+                    SqlDbType = System.Data.SqlDbType.VarChar,
+                    Size = 9,
+                    Direction = System.Data.ParameterDirection.Output
+                };
 
-                return result?.EmployeeId;
+                await _sisContext.Database.ExecuteSqlRawAsync(
+                    "EXEC usp_sis_getEmployeeID @thisPidm = @pidm, @thisEmployeeID = @thisEmployeeID OUTPUT",
+                    new Microsoft.Data.SqlClient.SqlParameter("@pidm", pidm),
+                    employeeIdParam);
+
+                var value = employeeIdParam.Value;
+                return value == null || value == DBNull.Value ? null : value.ToString();
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentEmployeeIdAsync failed");
                 return null;
             }
         }
@@ -878,14 +1036,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<EmployerResult>("EXEC usp_sis_getEmployer @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
-                return result?.WobeuceDeptName;
+                var result = rows.FirstOrDefault();
+
+                return result?.WOBEUCD_DEPT_NAME;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentEmployerAsync failed");
                 return null;
             }
         }
@@ -897,14 +1058,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<GenderResult>("EXEC usp_sis_getGender @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.Gender;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentGenderAsync failed");
                 return null;
             }
         }
@@ -916,14 +1080,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<EthnicityResult>("EXEC usp_sis_getEthnicity @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.Ethnicity;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentEthnicityAsync failed");
                 return null;
             }
         }
@@ -935,14 +1102,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<NewEthnicityResult>("EXEC usp_sis_getNewEthnicity @pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.NewEthnicity;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentNewEthnicityAsync failed");
                 return null;
             }
         }
@@ -954,14 +1124,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<CAResidentResult>("EXEC usp_sis_isCAResident @TermCode = {0}, @Pidm = {1}", termCode, pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.ResidentFlag == "Y";
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentCAResidentAsync failed");
                 return false;
             }
         }
@@ -973,14 +1146,17 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<USCitizenResult>("EXEC usp_sis_isUSCitizen @Pidm = {0}", pidm)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
+
+                var result = rows.FirstOrDefault();
 
                 return result?.CitizenFlag == "Y";
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "IsStudentUSCitizenAsync failed");
                 return false;
             }
         }
@@ -992,14 +1168,16 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<AddressResult>("EXEC usp_sis_getAddress @pidm = {0}, @type = {1}", pidm, type)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
+                var result = rows.FirstOrDefault();
                 return result?.Address;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentAddressAsync failed");
                 return null;
             }
         }
@@ -1011,14 +1189,16 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var result = await _aaudContext.Database
+                var rows = await _sisContext.Database
                     .SqlQueryRaw<PhoneResult>("EXEC usp_sis_getPhone @pidm = {0}, @type = {1}", pidm, type)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
+                var result = rows.FirstOrDefault();
                 return result?.Phone;
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
+                _logger.LogWarning(ex, "GetStudentPhoneAsync failed");
                 return null;
             }
         }
@@ -1030,18 +1210,19 @@ namespace Viper.Areas.Directory.Services
         {
             if (string.IsNullOrEmpty(result.IamId))
             {
-                Console.WriteLine("IAM API: result.IamId is null or empty");
+                _logger.LogDebug("IAM API: result.IamId is null or empty");
                 return;
             }
 
             try
             {
-                Console.WriteLine($"IAM API Request for IamId: {result.IamId}");
+                _logger.LogDebug("IAM API request for IamId {IamId}", LogSanitizer.SanitizeId(result.IamId));
                 var iamApi = new IamApi(_httpClientFactory);
 
                 // Get people information - equivalent to iamPeople.getById() in ColdFusion
                 var peopleResponse = await iamApi.SearchForPerson(iamId: result.IamId);
-                Console.WriteLine($"IAM People Response Data: {(peopleResponse.Data != null ? peopleResponse.Data.Count() : "null")}, Error: {peopleResponse.ErrorMessage ?? "none"}");
+                _logger.LogDebug("IAM people response data count {Count}, error {Error}",
+                    peopleResponse.Data?.Count(), peopleResponse.ErrorMessage ?? "none");
                 if (peopleResponse.Data?.Any() == true)
                 {
                     result.IamPeople = peopleResponse.Data.ToList();
@@ -1056,7 +1237,8 @@ namespace Viper.Areas.Directory.Services
 
                 // Get employee associations - equivalent to iamAssociations.getEmployeeAssociations() in ColdFusion
                 var associationsResponse = await iamApi.GetEmployeeAssociations(result.IamId);
-                Console.WriteLine($"IAM Associations Response Data: {(associationsResponse.Data != null ? associationsResponse.Data.Count() : "null")}, Error: {associationsResponse.ErrorMessage ?? "none"}");
+                _logger.LogDebug("IAM associations response data count {Count}, error {Error}",
+                    associationsResponse.Data?.Count(), associationsResponse.ErrorMessage ?? "none");
                 if (associationsResponse.Data?.Any() == true)
                 {
                     result.IamAssociations = associationsResponse.Data.ToList();
@@ -1078,10 +1260,10 @@ namespace Viper.Areas.Directory.Services
                     result.AssociationsEndDate = association.AssocEndDate;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"IAM API EXCEPTION: {ex}");
                 // Log exception but don't fail the entire request
+                _logger.LogWarning(ex, "IAM API request failed");
             }
         }
 
@@ -1107,15 +1289,15 @@ namespace Viper.Areas.Directory.Services
                     .Select(rm => rm.Role)
                     .OrderBy(r => r.DisplayName ?? r.Role);
 
-                foreach (var role in filteredRoles)
+                result.SystemRoles.AddRange(filteredRoles.Select(role =>
                 {
                     string displayName = role.DisplayName ?? role.Role;
-                    result.SystemRoles.Add(new SystemRole
+                    return new SystemRole
                     {
                         System = system,
                         DisplayName = FormatPermissionName(displayName)
-                    });
-                }
+                    };
+                }));
             }
 
             var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
@@ -1299,9 +1481,9 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Warning: PopulateUCPathInfoAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateUCPathInfoAsync failed");
             }
 
             // Get UC Path History from the VwPersonJobPositionAll view
@@ -1324,26 +1506,23 @@ namespace Viper.Areas.Directory.Services
                     .ThenByDescending(p => p.Effdt)
                     .ToListAsync();
 
-                foreach (var history in historyData)
+                var ucPathResults = historyData.Select(history => new UCPathResult
                 {
-                    var ucpathResult = new UCPathResult
-                    {
-                        JobCode = history.Jobcode,
-                        JobCodeDescription = history.JobcodeDesc,
-                        DepartmentId = history.Deptid,
-                        DepartmentDescription = history.DeptDesc,
-                        ActionDescription = history.ActionDescr,
-                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
-                        ReportsTo = GetReportsToName(history),
-                        ReportsToPosition = GetReportsToPosition(history)
-                    };
+                    JobCode = history.Jobcode,
+                    JobCodeDescription = history.JobcodeDesc,
+                    DepartmentId = history.Deptid,
+                    DepartmentDescription = history.DeptDesc,
+                    ActionDescription = history.ActionDescr,
+                    PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                    ReportsTo = GetReportsToName(history),
+                    ReportsToPosition = GetReportsToPosition(history)
+                });
 
-                    result.UCPathHistory.Add(ucpathResult);
-                }
+                result.UCPathHistory.AddRange(ucPathResults);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Warning: PopulateUCPathHistoryAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateUCPathHistoryAsync failed");
             }
         }
 
@@ -1375,9 +1554,9 @@ namespace Viper.Areas.Directory.Services
                     return $"{currentReportsTo.FirstName} {currentReportsTo.LastName}".Trim();
                 }
             }
-            catch
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                // Return empty string on any error
+                _logger.LogWarning(ex, "GetReportsToName failed");
             }
 
             return string.Empty;
@@ -1413,10 +1592,10 @@ namespace Viper.Areas.Directory.Services
                     return currentReportsTo.JobcodeDesc ?? string.Empty;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
                 // Fall back to returning string.Empty if DB query fails.
-                Console.WriteLine($"Warning: GetReportsToTitleAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "GetReportsToPosition failed");
             }
 
             return string.Empty;
@@ -1462,9 +1641,9 @@ namespace Viper.Areas.Directory.Services
                     });
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Warning: PopulateIDCardsAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateIDCardsAsync failed");
             }
         }
 
@@ -1498,9 +1677,9 @@ namespace Viper.Areas.Directory.Services
                     });
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Warning: PopulateKeysAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateKeysAsync failed");
             }
         }
 
@@ -1532,9 +1711,17 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch (DbUpdateException ex)
             {
-                Console.WriteLine($"Warning: PopulateLoansAsync failed: {ex.Message}");
+                _logger.LogWarning(ex, "PopulateLoansAsync failed");
+            }
+            catch (DbException ex)
+            {
+                _logger.LogWarning(ex, "PopulateLoansAsync failed");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "PopulateLoansAsync failed");
             }
         }
 
@@ -1563,7 +1750,7 @@ namespace Viper.Areas.Directory.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
                 result.InstinctInfo = new InstinctResult { ErrorMessage = $"Populate Exception: {ex.Message}" };
             }
@@ -1602,7 +1789,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Populate Active Directory information
         /// </summary>
-        private static async Task PopulateActiveDirectoryInfoAsync(UserInfoResult result)
+        private async Task PopulateActiveDirectoryInfoAsync(UserInfoResult result)
         {
             if (string.IsNullOrEmpty(result.LoginId))
             {
@@ -1642,22 +1829,19 @@ namespace Viper.Areas.Directory.Services
                     var domains = isProd
                         ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
                         : new[] { "t3.ucdavis.edu" };
-                    foreach (var groupDn in allGroups)
-                    {
-                        var formattedGroup = AdFormat(groupDn, domains);
-                        if (!string.IsNullOrEmpty(formattedGroup))
-                        {
-                            result.ADMemberOf.Add(formattedGroup);
-                        }
-                    }
+                    result.ADMemberOf.AddRange(
+                        allGroups
+                            .Select(groupDn => AdFormat(groupDn, domains))
+                            .Where(formattedGroup => !string.IsNullOrEmpty(formattedGroup))
+                    );
 
                     // Sort the groups
                     result.ADMemberOf = result.ADMemberOf.OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
-                Console.WriteLine($"Error populating AD info: {ex.Message}");
+                _logger.LogWarning(ex, "Error populating AD info");
             }
         }
 
@@ -1721,15 +1905,14 @@ namespace Viper.Areas.Directory.Services
                 var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var name in temp)
                 {
-                    foreach (var middlePart in middleParts)
+                    foreach (var middleInitial in middleParts
+                        .Where(middlePart => middlePart.Length > 0)
+                        .Select(middlePart => middlePart[0]))
                     {
-                        if (middlePart.Length > 0)
+                        var variation = $"{name} {middleInitial}";
+                        if (!nameVariations.Contains(variation))
                         {
-                            var variation = $"{name} {middlePart[0]}";
-                            if (!nameVariations.Contains(variation))
-                            {
-                                nameVariations.Add(variation);
-                            }
+                            nameVariations.Add(variation);
                         }
                     }
                 }
@@ -1846,7 +2029,7 @@ namespace Viper.Areas.Directory.Services
                 if (string.IsNullOrEmpty(password))
                 {
                     string errMsg = "Password is null or empty in configuration";
-                    Console.WriteLine($"[INSTINCT AUTH] {errMsg}");
+                    _logger.LogWarning("Instinct auth: {ErrorMessage}", errMsg);
                     AppendError(result, errMsg);
                     return null;
                 }
@@ -1860,10 +2043,10 @@ namespace Viper.Areas.Directory.Services
                     new("scope", "api_access")
                 };
 
-                var formContent = new FormUrlEncodedContent(formParams);
-                Console.WriteLine("[INSTINCT AUTH] Sending token POST request...");
-                var response = await httpClient.PostAsync(tokenUrl, formContent);
-                Console.WriteLine($"[INSTINCT AUTH] Response Status Code: {response.StatusCode}");
+                using var formContent = new FormUrlEncodedContent(formParams);
+                _logger.LogDebug("Instinct auth: sending token POST request");
+                using var response = await httpClient.PostAsync(tokenUrl, formContent);
+                _logger.LogDebug("Instinct auth: response status code {StatusCode}", response.StatusCode);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -1871,7 +2054,7 @@ namespace Viper.Areas.Directory.Services
                     var tokenResponse = JsonSerializer.Deserialize<InstinctTokenResponse>(responseContent);
                     if (tokenResponse != null)
                     {
-                        Console.WriteLine($"[INSTINCT AUTH] Deserialized Token Length: {tokenResponse.AccessToken.Length}");
+                        _logger.LogDebug("Instinct auth: deserialized token length {Length}", tokenResponse.AccessToken.Length);
 
                         if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
                         {
@@ -1887,14 +2070,14 @@ namespace Viper.Areas.Directory.Services
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
                     string errMsg = $"Token POST request failed (Status: {response.StatusCode}): {responseContent}";
-                    Console.WriteLine($"[INSTINCT AUTH] {errMsg}");
+                    _logger.LogWarning("Instinct auth: {ErrorMessage}", errMsg);
                     AppendError(result, errMsg);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
                 string errMsg = $"Token request exception: {ex.Message}";
-                Console.WriteLine($"[INSTINCT AUTH] {errMsg}");
+                _logger.LogWarning(ex, "Instinct auth token request failed");
                 AppendError(result, errMsg);
             }
 
@@ -2040,11 +2223,6 @@ namespace Viper.Areas.Directory.Services
     }
 
     // Result classes for student stored procedures
-    public class TermResult
-    {
-        public string? TermCode { get; set; }
-    }
-
     public class PriorNameResult
     {
         public string? StudentName { get; set; }
@@ -2073,23 +2251,18 @@ namespace Viper.Areas.Directory.Services
 
     public class MajorResult
     {
-        public string? SgbstdnMajrCode1 { get; set; }
+        public string? SGBSTDN_MAJR_CODE_1 { get; set; }
     }
 
     public class AllMajorsResult
     {
-        public string? SgbstdnMajrCode1 { get; set; }
-        public string? SgbstdnMajrCode2 { get; set; }
+        public string? SGBSTDN_MAJR_CODE_1 { get; set; }
+        public string? SGBSTDN_MAJR_CODE_2 { get; set; }
     }
 
     public class ClassLevelResult
     {
         public string? SgvclssClasCode { get; set; }
-    }
-
-    public class ClassOfResult
-    {
-        public string? ClassOf { get; set; }
     }
 
     // Additional result classes for comprehensive student information
@@ -2161,7 +2334,7 @@ namespace Viper.Areas.Directory.Services
 
     public class EmployedResult
     {
-        public string? WobeucePidm { get; set; }
+        public decimal? WOBEUCD_PIDM { get; set; }
     }
 
     public class StudentEmployeeIdResult
@@ -2171,7 +2344,7 @@ namespace Viper.Areas.Directory.Services
 
     public class EmployerResult
     {
-        public string? WobeuceDeptName { get; set; }
+        public string? WOBEUCD_DEPT_NAME { get; set; }
     }
 
     public class GenderResult

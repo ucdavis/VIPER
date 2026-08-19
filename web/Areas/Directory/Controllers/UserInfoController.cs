@@ -4,7 +4,6 @@ using Web.Authorization;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Directory.Services;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.Directory.Controllers
@@ -22,33 +21,12 @@ namespace Viper.Areas.Directory.Controllers
         public UserInfoController(
             RAPSContext rapsContext,
             AAUDContext aaudContext,
-            CoursesContext coursesContext,
-            EquipmentLoanContext equipmentLoanContext,
-            PPSContext ppsContext,
-            IDCardsContext idCardsContext,
-            KeysContext keysContext)
+            UserInfoService userInfo)
         {
             _aaud = aaudContext;
             _rapsContext = rapsContext;
             _userHelper = new UserHelper();
-
-            // Get services from DI container
-            var httpClientFactory = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IHttpClientFactory)) as IHttpClientFactory;
-            var memoryCache = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IMemoryCache)) as IMemoryCache;
-            var configuration = HttpHelper.HttpContext?.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration;
-
-            _userInfo = new UserInfoService(
-                aaudContext,
-                rapsContext,
-                coursesContext,
-                equipmentLoanContext,
-                ppsContext,
-                idCardsContext,
-                keysContext,
-                configuration!,
-                httpClientFactory!,
-                memoryCache!
-            );
+            _userInfo = userInfo;
         }
 
         /// <summary>
@@ -79,7 +57,7 @@ namespace Viper.Areas.Directory.Controllers
                 // Check if user is viewing their own page
                 var currentUser = _userHelper.GetCurrentUser();
                 bool ownPage = currentUser != null && mothraID == currentUser.MothraId;
-                var individual = await _aaud.AaudUsers.Where(u => (u.MothraId == mothraID)).FirstOrDefaultAsync();
+                var individual = await _aaud.AaudUsers.FirstOrDefaultAsync(u => (u.MothraId == mothraID));
                 string? iamId = null;
                 if (individual != null) iamId = individual.IamId;
 
@@ -104,28 +82,11 @@ namespace Viper.Areas.Directory.Controllers
                 userInfo.CanViewLoans = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.Loans");
                 userInfo.CanViewInstinct = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.instinct");
                 userInfo.CanViewADGroups = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.UserInfo.ADGroups");
-
                 return View("~/Areas/Directory/Views/UserInfo.cshtml", userInfo);
             }
         }
 
-        /// <summary>
-        /// Get user photo, stubbed for now
-        /// </summary>
-        /// <param name="mailID">Mail ID</param>
-        /// <param name="altphoto">Use alternative photo</param>
-        /// <returns></returns>
-        [Route("/userPhoto")]
-        public async Task<ActionResult> UserPhoto(string mailID, bool altphoto = false)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-            return NotFound();
-        }
-
-        [Route("/userinfo/nav")]
+        [Route("nav")]
         public async Task<ActionResult<IEnumerable<NavMenuItem>>> Nav()
         {
             var nav = new List<NavMenuItem>();

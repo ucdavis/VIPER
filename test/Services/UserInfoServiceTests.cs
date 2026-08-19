@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Net;
 using System.Text;
@@ -152,8 +153,9 @@ namespace Viper.test.Services
             using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+            using var sis = new SISContext(CreateInMemoryOptions<SISContext>());
 
-            var userInfoService = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, config, httpClientFactory, memoryCache);
+            var userInfoService = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, sis, config, httpClientFactory, memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // 4. Act
             // Temporary HttpHelper configuration inside the test context

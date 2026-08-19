@@ -15,10 +15,10 @@
         <div class="direct">
             <h2>User Information Page</h2>
             <span class="photo">
-                <img src="@HttpHelper.GetRootURL()/public/utilities/getImage?mailid=@Model.MailId" width="87" height="111" alt="User Photo" />
+                <img src="@HttpHelper.GetRootURL()/api/cms/photos/by-mail/@Model.MailId" width="87" height="111" alt="User Photo" />
             </span>
             <span class="photo2">
-                <img src="@HttpHelper.GetRootURL()/public/utilities/getImage?mailid=@Model.MailId&amp;altphoto=1" width="87" height="111" alt="Alternative Photo" />
+                <img src="@HttpHelper.GetRootURL()/api/cms/photos/by-mail/@Model.MailId?altPhoto=true" width="87" height="111" alt="Alternative Photo" />
             </span>
             <h3>@Model.DisplayFullName</h3>
             @if (!Model.CurrentAffiliate)
@@ -64,7 +64,7 @@
                 }
                 @if (!string.IsNullOrEmpty(Model.PostalAddress))
                 {
-                    <li><strong>Address:</strong> @Model.PostalAddress</li>
+                    <li><strong>Address:</strong> @Html.Raw(Model.PostalAddress)</li>
                 }
                 @if (Model.CanViewStudentID && !string.IsNullOrEmpty(Model.StudentId))
                 {
@@ -124,11 +124,11 @@
                 }
                 @if (!string.IsNullOrEmpty(Model.EmployeeHomeDepartment))
                 {
-                    <li><strong>Home Department:</strong> @Model.EmployeeHomeDepartment</li>
+                    <li><strong>Home Department:</strong> @(!string.IsNullOrEmpty(Model.EmployeeHomeDepartmentName) ? $"{Model.EmployeeHomeDepartmentName} ({Model.EmployeeHomeDepartment})" : Model.EmployeeHomeDepartment)</li>
                 }
                 @if (!string.IsNullOrEmpty(Model.EmployeeEffortHomeDepartment))
                 {
-                    <li><strong>Effort Home Department:</strong> @Model.EmployeeEffortHomeDepartment</li>
+                    <li><strong>Effort Home Department:</strong> @(!string.IsNullOrEmpty(Model.EmployeeEffortHomeDepartmentName) ? $"{Model.EmployeeEffortHomeDepartmentName} ({Model.EmployeeEffortHomeDepartment})" : Model.EmployeeEffortHomeDepartment)</li>
                 }
                 @if (!string.IsNullOrEmpty(Model.EmployeeTeachingHomeDepartment))
                 {
@@ -145,11 +145,11 @@
     @if (Model.IsStudent && Model.CanViewDirectoryDetail)
     {
         <div class="student">
-            <h2>Student Information</h2>
+            <h2><a href="/students/sis/default.cfm?Page=SelectStudent&amp;pidm=@Model.Pidm" target="u">Student Information</a></h2>
             <ul>
                 @if (!string.IsNullOrEmpty(Model.StudentPriorName))
                 {
-                    <li><strong>Prior Name:</strong> @Model.StudentPriorName</li>
+                    <li><strong>Prior Name:</strong> @Html.Raw(Model.StudentPriorName)</li>
                 }
                 @if (!string.IsNullOrEmpty(Model.StudentBannerId))
                 {
@@ -179,81 +179,6 @@
                 @if (!string.IsNullOrEmpty(Model.StudentClassOf))
                 {
                     <li><strong>Class Of:</strong> @Model.StudentClassOf</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.StudentTermDescription))
-                {
-                    <li><strong>Term:</strong> @Model.StudentTermDescription</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.StudentDegreeSought))
-                {
-                    <li><strong>Degree Sought:</strong> @Model.StudentDegreeSought</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.StudentAdmitTerm))
-                {
-                    <li><strong>Admit Term:</strong> @Model.StudentAdmitTerm</li>
-                }
-                @if (!string.IsNullOrEmpty(Model.StudentAdmitClassYear))
-                {
-                    <li><strong>Admit Class Year:</strong> @Model.StudentAdmitClassYear</li>
-                }
-                <li><strong>Dual Degree?:</strong> @(Model.StudentIsDualDegree ? "Yes" : "No")</li>
-
-                @if (Model.CanViewStudentID)
-                {
-                    @if (!string.IsNullOrEmpty(Model.StudentAcademicStanding))
-                    {
-                        <li><strong>Academic Standing:</strong> @Model.StudentAcademicStanding</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentCumulativeGPA))
-                    {
-                        <li><strong>GPA:</strong> @Model.StudentCumulativeGPA</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentClassRank))
-                    {
-                        <li><strong>Class Rank:</strong> @Model.StudentClassRank</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentBirthDate))
-                    {
-                        <li><strong>Birth Date:</strong> @Model.StudentBirthDate</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentAge))
-                    {
-                        <li><strong>Age:</strong> @Model.StudentAge</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentGender))
-                    {
-                        <li><strong>Gender:</strong> @Model.StudentGender</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentNewEthnicity) || !string.IsNullOrEmpty(Model.StudentEthnicity))
-                    {
-                        <li><strong>Ethnicity:</strong> @(Model.StudentNewEthnicity ?? Model.StudentEthnicity)</li>
-                    }
-                    <li><strong>CA Resident?:</strong> @(Model.StudentIsCAResident ? "Yes" : "No")</li>
-                    <li><strong>US Citizen?:</strong> @(Model.StudentIsUSCitizen ? "Yes" : "No")</li>
-                    <li><strong>Employed?:</strong> @(Model.StudentIsEmployed ? "Yes" : "No")</li>
-                    @if (Model.StudentIsEmployed)
-                    {
-                        @if (!string.IsNullOrEmpty(Model.StudentEmployeeId))
-                        {
-                            <li><strong>Student Employee ID:</strong> @Model.StudentEmployeeId</li>
-                        }
-                        @if (!string.IsNullOrEmpty(Model.StudentEmployer))
-                        {
-                            <li><strong>Student Employer:</strong> @Model.StudentEmployer</li>
-                        }
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentPermanentAddress))
-                    {
-                        <li><strong>Permanent Address:</strong> @Model.StudentPermanentAddress @(!string.IsNullOrEmpty(Model.StudentPermanentPhone) ? $"(Phone: {Model.StudentPermanentPhone})" : "")</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentMailingAddress))
-                    {
-                        <li><strong>Mailing Address:</strong> @Model.StudentMailingAddress @(!string.IsNullOrEmpty(Model.StudentMailingPhone) ? $"(Phone: {Model.StudentMailingPhone})" : "")</li>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.StudentBillingAddress))
-                    {
-                        <li><strong>Billing Address:</strong> @Model.StudentBillingAddress @(!string.IsNullOrEmpty(Model.StudentBillingPhone) ? $"(Phone: {Model.StudentBillingPhone})" : "")</li>
-                    }
                 }
             </ul>
         </div>
@@ -680,9 +605,8 @@
     public List<PermissionNode> BuildPermissionTree(List<string> permissions)
     {
         var roots = new List<PermissionNode>();
-        foreach (var perm in permissions)
+        foreach (var parts in permissions.Select(perm => perm.Split('.')))
         {
-            var parts = perm.Split('.');
             var partsToProcess = parts.Skip(1).ToList();
             if (!partsToProcess.Any())
             {

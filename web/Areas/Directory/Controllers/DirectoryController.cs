@@ -126,9 +126,9 @@ namespace Viper.Areas.Directory.Controllers
         {
             if (vm?.item != null)
             {
-                if (vm.item.Nextel != null) result.Nextel = vm.item.Nextel[0];
-                if (vm.item.LDPager != null) result.LDPager = vm.item.LDPager[0];
-                if (vm.item.Unit != null) result.Department = vm.item.Unit[0];
+                if (vm.item.Nextel?.Length > 0) result.Nextel = vm.item.Nextel[0];
+                if (vm.item.LDPager?.Length > 0) result.LDPager = vm.item.LDPager[0];
+                if (vm.item.Unit?.Length > 0) result.Department = vm.item.Unit[0];
             }
         }
 
