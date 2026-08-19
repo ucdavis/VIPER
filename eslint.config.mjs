@@ -83,6 +83,8 @@ export default [
                 getItemFromStorage: "readonly",
                 putItemInStorage: "readonly",
                 showStatusNotification: "readonly",
+                queueStatusNotification: "readonly",
+                showQueuedStatusNotification: "readonly",
                 Quasar: "readonly",
             },
         },
