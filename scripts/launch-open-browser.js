@@ -1,6 +1,7 @@
-const { spawn } = require("node:child_process")
-const fs = require("node:fs")
-const { getDevServerEnv, openBrowser, DEFAULT_ENV_VARS } = require("./lib/script-utils")
+import { spawn } from "node:child_process"
+import fs from "node:fs"
+import net from "node:net"
+import { getDevServerEnv, openBrowser, DEFAULT_ENV_VARS } from "./lib/script-utils.js"
 
 // Cross-platform script for launching browser with debugging
 
@@ -30,8 +31,6 @@ async function waitForBackendAndOpenBrowser() {
     for (let retries = 0; retries < maxRetries; retries += 1) {
         try {
             // Use a simple TCP connection check instead of HTTP request
-            const net = require("node:net")
-
             // Sequential await is intentional here - retry logic requires waiting for each attempt
             // eslint-disable-next-line no-await-in-loop
             const isConnected = await new Promise((resolve) => {

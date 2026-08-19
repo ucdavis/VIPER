@@ -6,15 +6,15 @@
 // Only builds test/ project - it references web/ so dotnet builds both.
 // Caches both success and failure - if code hasn't changed, result won't change.
 
-const { execFileSync } = require("node:child_process")
-const { createLogger } = require("./lib/script-utils")
-const {
+import { execFileSync } from "node:child_process"
+import { createLogger } from "./lib/script-utils.js"
+import {
     needsBuild,
     markAsBuilt,
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
-} = require("./lib/build-cache")
+} from "./lib/build-cache.js"
 
 const { env } = process
 const logger = createLogger("BUILD")

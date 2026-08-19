@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
-const { execFileSync } = require("node:child_process")
-const path = require("node:path")
-const fs = require("node:fs")
-const { createLogger } = require("./lib/script-utils")
-const {
+import { execFileSync } from "node:child_process"
+import path from "node:path"
+import fs from "node:fs"
+import { createLogger } from "./lib/script-utils.js"
+import {
     needsBuild,
     markAsBuilt,
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
-} = require("./lib/build-cache")
+} from "./lib/build-cache.js"
 
 const { env } = process
 const logger = createLogger("TEST")

@@ -3,7 +3,8 @@
 // A catch-all script in case there are zombie processes running.
 // Cross-platform support via shared utilities.
 
-const {
+import { pathToFileURL } from "node:url"
+import {
     killProcess,
     killProcessOnPort,
     getDevServerEnv,
@@ -11,7 +12,7 @@ const {
     execAsync,
     checkProcessExists,
     DEFAULT_ENV_VARS,
-} = require("./lib/script-utils")
+} from "./lib/script-utils.js"
 
 // Create logger with prefix
 const logger = createLogger("Dev Stop")
@@ -262,8 +263,8 @@ process.on("SIGTERM", () => {
     process.exit(0)
 })
 
-// Run the script
-if (require.main === module) {
+// Run the script (ESM equivalent of require.main === module)
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     void (async () => {
         try {
             await stopDevServices()
@@ -274,4 +275,4 @@ if (require.main === module) {
     })()
 }
 
-module.exports = { stopDevServices }
+export { stopDevServices }

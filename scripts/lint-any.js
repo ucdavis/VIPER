@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-const fs = require("node:fs")
-const os = require("node:os")
-const path = require("node:path")
-const { spawn, spawnSync } = require("node:child_process")
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { spawn, spawnSync } from "node:child_process"
 
 const { env } = process
 
@@ -359,7 +359,7 @@ function runLinter(script, files, description, fix, clearCache) {
 
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
-    const scriptPath = path.join(__dirname, script)
+    const scriptPath = path.join(import.meta.dirname, script)
     const { scriptArgs, cleanup } = buildScriptArgs(files, fix, clearCache)
 
     const result = spawnSync("node", [scriptPath, ...scriptArgs], {
@@ -393,7 +393,7 @@ function runLinterAsync(script, files, description, fix, clearCache) {
 
     console.log(`\n🔍 ${description} (${files.length} files)`)
 
-    const scriptPath = path.join(__dirname, script)
+    const scriptPath = path.join(import.meta.dirname, script)
     const { scriptArgs, cleanup } = buildScriptArgs(files, fix, clearCache)
 
     return new Promise((resolve) => {
