@@ -132,7 +132,7 @@ namespace Viper.Areas.RAPS.Controllers
                 {
                     MenuItemText = "Role Templates",
                     MenuItemURL = "RoleTemplateList",
-                    //these pages are reached from the template listing and have no nav entry of their own
+                    // These pages are reached from the template listing and have no nav entry of their own
                     ChildPageURLs = { "RoleTemplateRoles", "RoleTemplateApply" }
                 });
             }

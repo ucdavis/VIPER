@@ -78,12 +78,8 @@ or changing UI; the rules below are the subset worth flagging in review.
 - **Status messages, toast vs banner**: a banner is a persistent, in-flow
   message tied to page state. Transient confirmation that an action completed
   is a toast instead, in Razor and Vue alike: `showStatusNotification()`, or
-  `queueStatusNotification()` when the action redirects and the message has to
-  survive the navigation. Do not convert these to `q-banner`. Quasar's `Notify`
-  is unusable here because the app mounts on `<body>`, so Notify's teleport
-  container falls outside Vue's reactive scope and messages are dropped
-  silently; the toast is a plain DOM element carrying `role="status"` and
-  `aria-live="polite"`.
+  `queueStatusNotification()` when the action redirects. Do not swap these for
+  `q-banner` or Quasar `Notify`, neither works here; see `DESIGN.md`.
 - **Button colors**: `primary` (Aggie Blue), `positive` (create), `negative`
   (delete), `info text-color="dark"` (tertiary), `warning text-color="dark"`
   (caution), `secondary`.
