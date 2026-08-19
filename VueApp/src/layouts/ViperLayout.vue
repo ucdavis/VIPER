@@ -157,12 +157,7 @@
                             align="center"
                             class="q-pb-md"
                         >
-                            <q-btn
-                                color="primary"
-                                label="Log In"
-                                :href="loginHref"
-                                no-caps
-                            />
+                            <LoginButton />
                         </q-card-actions>
                     </q-card>
                 </div>
@@ -196,7 +191,7 @@ import rodMarkAvif from "@/assets/rod-of-asclepius-white.avif"
 import schoolLockup from "@/assets/logo-vetmed-stacked-lockup.png"
 import schoolLockupAvif from "@/assets/logo-vetmed-stacked-lockup.avif"
 import { useUserStore } from "@/store/UserStore"
-import { getLoginUrl } from "@/composables/RequireLogin"
+import LoginButton from "@/components/LoginButton.vue"
 import LeftNav from "@/layouts/LeftNav.vue"
 import MainNav from "@/layouts/MainNav.vue"
 import MiniNav from "@/layouts/MiniNav.vue"
@@ -223,7 +218,6 @@ const userStore = useUserStore()
 const mainLeftDrawer = ref(false)
 const environment = import.meta.env.VITE_ENVIRONMENT
 const viperHome = import.meta.env.VITE_VIPER_HOME
-const loginHref = getLoginUrl()
 const currentYear = new Date().getFullYear()
 
 function handleDrawerChange(newDrawerValue: boolean): void {

@@ -1,4 +1,4 @@
-import { buildLoginUrl, isValidInternalPath } from "@/composables/RequireLogin"
+import { buildLoginUrl, isValidInternalPath, resolveSendBackTo } from "@/composables/RequireLogin"
 
 // The app base is read from import.meta.env at call time, so each test stubs the base it needs.
 function withBase(base: string, run: () => void): void {
@@ -99,7 +99,7 @@ describe("buildLoginUrl return paths carrying a query string", () => {
 
 describe("isValidInternalPath open-redirect guard", () => {
     // Encoded characters in a query value, and an encoded dot inside a larger segment, are ordinary.
-    // These mirror HomeController.ContainsDotSegment's accepted cases so the two guards agree.
+    // A dot-segment only counts as traversal when it is the whole segment.
     it.each([
         ["a plain internal path", "/Effort"],
         ["a base-prefixed path", "/2/Effort"],
@@ -128,5 +128,103 @@ describe("isValidInternalPath open-redirect guard", () => {
         ["an empty path", ""],
     ])("rejects %s", (_label, path) => {
         expect(isValidInternalPath(path)).toBeFalsy()
+    })
+})
+
+type Route = Parameters<typeof resolveSendBackTo>[0]
+
+function routeWith(sendBackTo?: string | string[]): Route {
+    return { query: sendBackTo === undefined ? {} : { sendBackTo } } as unknown as Route
+}
+
+describe("resolveSendBackTo - routing", () => {
+    it("returns nothing when the query has no sendBackTo", () => {
+        expect(resolveSendBackTo(routeWith())).toBeNull()
+    })
+
+    it("resolves an internal path", () => {
+        expect(resolveSendBackTo(routeWith("/CTS/MyAssessments"))).toStrictEqual({
+            path: "/CTS/MyAssessments",
+            query: {},
+            hash: "",
+        })
+    })
+
+    it("parses the query string of the deep link into route query params", () => {
+        expect(resolveSendBackTo(routeWith("/CTS/StudentAssessments?studentId=42&term=202601"))).toStrictEqual({
+            path: "/CTS/StudentAssessments",
+            query: { studentId: "42", term: "202601" },
+            hash: "",
+        })
+    })
+
+    it("keeps a second question mark inside the query value", () => {
+        expect(resolveSendBackTo(routeWith("/CTS/Home?q=a?b"))?.query).toStrictEqual({ q: "a?b" })
+    })
+})
+
+describe("resolveSendBackTo - fragments and the app base", () => {
+    it("keeps a fragment out of the query and returns it as the hash", () => {
+        expect(resolveSendBackTo(routeWith("/CTS/Home?tab=details#history"))).toStrictEqual({
+            path: "/CTS/Home",
+            query: { tab: "details" },
+            hash: "#history",
+        })
+    })
+
+    it("returns a fragment with no query string", () => {
+        expect(resolveSendBackTo(routeWith("/CTS/Home#history"))).toStrictEqual({
+            path: "/CTS/Home",
+            query: {},
+            hash: "#history",
+        })
+    })
+
+    it("sheds the application base so the history layer does not double it", () => {
+        // Routes are declared without the base; "/2/CTS/Home" under a "/2" base would resolve to
+        // "/2/2/CTS/Home" and match no route.
+        withBase("/2/", () => {
+            expect(resolveSendBackTo(routeWith("/2/CTS/Home?tab=details"))?.path).toBe("/CTS/Home")
+        })
+    })
+
+    it("leaves a path alone when it does not carry the base", () => {
+        withBase("/2/", () => {
+            expect(resolveSendBackTo(routeWith("/CTS/Home"))?.path).toBe("/CTS/Home")
+        })
+    })
+})
+
+describe("resolveSendBackTo - repeated parameter", () => {
+    it("uses the first value instead of splicing repeats into one comma-joined path", () => {
+        expect(resolveSendBackTo(routeWith(["/CTS/Home", "/CTS/MyAssessments"]))?.path).toBe("/CTS/Home")
+    })
+
+    it("rejects a repeat whose first value is not an internal path", () => {
+        expect(resolveSendBackTo(routeWith(["https://evil.example", "/CTS/Home"]))).toBeNull()
+    })
+})
+
+describe("resolveSendBackTo - rejected targets", () => {
+    it.each([
+        ["an absolute URL", "https://evil.example/steal"],
+        ["a protocol-relative URL", "//evil.example/steal"],
+        ["path traversal", "/CTS/../../evil"],
+        ["an encoded slash", "%2fevil.example"],
+        ["an encoded dot", "/CTS/%2e%2e/evil"],
+        ["a relative path outside the allow list", "CTS/Home"],
+        ["an empty value", ""],
+    ])("refuses to resolve %s", (_label, sendBackTo) => {
+        expect(resolveSendBackTo(routeWith(sendBackTo))).toBeNull()
+    })
+})
+
+describe("resolveSendBackTo - prototype safety", () => {
+    it("keeps a __proto__ param as plain data instead of mutating the prototype chain", () => {
+        const query = resolveSendBackTo(routeWith("/CTS/Home?__proto__=polluted"))?.query ?? {}
+
+        expect(Object.hasOwn(query, "__proto__")).toBeTruthy()
+        expect(Object.getPrototypeOf(query)).toBe(Object.prototype)
+        expect(({} as Record<string, unknown>).polluted).toBeUndefined()
     })
 })
