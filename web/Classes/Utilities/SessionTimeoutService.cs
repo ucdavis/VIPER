@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using NLog;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
@@ -7,7 +8,7 @@ namespace Viper.Classes.Utilities
 {
     public static class SessionTimeoutService
     {
-        private const int SessionTimeoutSeconds = (29 * 60) + 30;
+        internal const int SessionTimeoutSeconds = (29 * 60) + 30;
 
         public static void UpdateSessionTimeout(VIPERContext context)
         {
@@ -51,7 +52,8 @@ namespace Viper.Classes.Utilities
             string service = GetService();
             if (!string.IsNullOrEmpty(loggedInUserId) && context != null)
             {
-                SessionTimeout? record = context.SessionTimeouts.Find(loggedInUserId, service);
+                SessionTimeout? record = context.SessionTimeouts.AsNoTracking()
+                    .FirstOrDefault(s => s.LoginId == loggedInUserId && s.Service == service);
                 if (record != null)
                 {
                     return record;
