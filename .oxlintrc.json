@@ -142,19 +142,15 @@
                 "no-console": "off",
                 "no-void": "off",
                 "no-implicit-globals": "off",
-                "import/no-commonjs": "off",
-                "typescript/no-require-imports": "off", // Same intent as import/no-commonjs; these scripts are CommonJS
                 "import/no-nodejs-modules": "off",
-                "import/unambiguous": "off",
                 "import/no-default-export": "off",
-                "unicorn/prefer-module": "off",
-                "unicorn/prefer-top-level-await": "off",
+                "import/no-named-export": "off", // lib/ modules export helper sets by name
+                "unicorn/prefer-top-level-await": "off", // Entry-point guards use an async IIFE
                 "unicorn/no-process-exit": "off",
                 "max-lines": "off",
                 "max-params": "off",
                 "promise/avoid-new": "off",
                 "promise/prefer-await-to-callbacks": "off",
-                "no-implicit-globals": "off", // CommonJS module-scope functions are not implicit globals
                 "node/no-sync": "off" // Synchronous fs/child_process is intentional in one-shot build scripts
             }
         },

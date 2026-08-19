@@ -1,7 +1,7 @@
-const { spawnSync } = require("node:child_process")
-const path = require("node:path")
-const fs = require("node:fs")
-const { createLogger } = require("./script-utils")
+import { spawnSync } from "node:child_process"
+import path from "node:path"
+import fs from "node:fs"
+import { createLogger } from "./script-utils.js"
 
 const { env } = process
 
@@ -446,7 +446,7 @@ function filterTypeScriptErrors(tscOutput, targetFiles, projectRoot) {
     return filteredLines.join("\n")
 }
 
-module.exports = {
+export {
     IS_WINDOWS,
     categorizeIssuesBySeverity,
     createSummaryReporter,

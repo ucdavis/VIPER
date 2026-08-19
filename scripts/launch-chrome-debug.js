@@ -1,5 +1,5 @@
-const { spawn, execSync } = require("node:child_process")
-const path = require("node:path")
+import { spawn, execSync } from "node:child_process"
+import path from "node:path"
 
 // Windows-only script for Chrome debugging support
 
@@ -25,7 +25,7 @@ async function ensureChromeDebugging() {
 
     // Launch Chrome with debugging using the launch-open-browser script
     try {
-        const browserScript = path.join(__dirname, "launch-open-browser.js")
+        const browserScript = path.join(import.meta.dirname, "launch-open-browser.js")
         const child = spawn("node", [browserScript], {
             detached: true,
             stdio: "inherit",

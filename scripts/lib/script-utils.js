@@ -4,9 +4,9 @@
 // Shared utilities for Node.js scripts (cross-platform)
 // Environment variables loaded via --env-file-if-exists=.env.local in package.json
 
-const { exec, execFileSync } = require("node:child_process")
-const { promisify } = require("node:util")
-const os = require("node:os")
+import { exec, execFileSync } from "node:child_process"
+import { promisify } from "node:util"
+import os from "node:os"
 
 const execAsync = promisify(exec)
 
@@ -262,7 +262,7 @@ async function killProcessOnPort(port) {
     }
 }
 
-module.exports = {
+export {
     checkPartiallyStaged,
     checkProcessExists,
     createLogger,

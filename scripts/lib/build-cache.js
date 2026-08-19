@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-const fs = require("node:fs")
-const path = require("node:path")
-const crypto = require("node:crypto")
-const { execFileSync } = require("node:child_process")
-const { createLogger } = require("./script-utils")
+import fs from "node:fs"
+import path from "node:path"
+import crypto from "node:crypto"
+import { execFileSync } from "node:child_process"
+import { createLogger } from "./script-utils.js"
 
 const { env } = process
 const logger = createLogger("Cache")
@@ -24,7 +24,7 @@ const useStagedContent = env.USE_STAGED_CONTENT === "1" || env.npm_lifecycle_eve
  */
 
 // Cache directory
-const CACHE_DIR = path.join(__dirname, "..", "..", ".build-cache")
+const CACHE_DIR = path.join(import.meta.dirname, "..", "..", ".build-cache")
 const CACHE_FILE = path.join(CACHE_DIR, "build-hashes.json")
 
 // Hash display length for log messages
@@ -637,7 +637,7 @@ function clearCacheIfRequested() {
     return false
 }
 
-module.exports = {
+export {
     needsBuild,
     markAsBuilt,
     wasBuildSuccessful,

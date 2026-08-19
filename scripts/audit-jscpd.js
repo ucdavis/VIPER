@@ -4,11 +4,11 @@
 // Reports to ./jscpd-report/ (html + json). For CI regression detection see
 // .github/workflows/code-quality.yml.
 
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
-const { resolveJscpdEntry } = require("./lib/jscpd-entry")
+import path from "node:path"
+import { spawnSync } from "node:child_process"
+import { resolveJscpdEntry } from "./lib/jscpd-entry.js"
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 const OUT_DIR = path.join(PROJECT_ROOT, "jscpd-report")
 
 // Normalize Windows backslashes to forward slashes (jscpd's glob layer misreads backslash paths).
