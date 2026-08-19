@@ -172,3 +172,7 @@ function getItemFromStorage(key) {
 function putItemInStorage(key, val) {
     globalThis.sessionStorage.setItem(key, JSON.stringify(val))
 }
+
+function removeItemFromStorage(key) {
+    globalThis.sessionStorage.removeItem(key)
+}

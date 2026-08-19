@@ -16,17 +16,14 @@
                 />
             </template>
             {{ errorMessage }}
-            <span v-if="showLogin">
-                Your session may have expired.
-                <a
-                    :href="loginUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Click to log in, and then try your action again.
-                    <q-icon name="launch"></q-icon>
-                </a>
-            </span>
+            <span v-if="showLogin">Your session may have expired. Log in and try your action again.</span>
+            <template #action>
+                <LoginButton
+                    v-if="showLogin"
+                    dense
+                    class="q-px-md"
+                />
+            </template>
         </q-banner>
     </q-dialog>
 </template>
@@ -34,13 +31,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { useErrorStore } from "@/store/ErrorStore"
+import LoginButton from "@/components/LoginButton.vue"
 import { storeToRefs } from "pinia"
-import { getLoginUrl } from "@/composables/RequireLogin"
 
 const errorStore = useErrorStore()
 const { errorMessage, status } = storeToRefs(errorStore)
 const showErrorMessage = computed(() => errorMessage.value !== null && errorMessage.value.length > 0)
-const loginUrl = getLoginUrl()
 
 const showError = ref(false)
 const showLogin = ref(false)
