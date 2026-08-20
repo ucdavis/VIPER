@@ -9,7 +9,7 @@ import type { RouteLocationNormalized } from "vue-router"
 
 // Module-level constants to avoid recreation on each function call
 const ABSOLUTE_URL_REGEX = /^(?:https?:)?\/\//u
-const ENCODED_SLASH_REGEX = /%2f/iu
+const ENCODED_SEPARATOR_REGEX = /%(?:2f|5c)/iu
 const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
 
 // Browsers resolve dot-segments before issuing the request, and the URL spec counts the
@@ -55,9 +55,10 @@ function isValidInternalPath(path: string): boolean {
     }
 
     // Only the path resolves, so screen it alone: percent-encoding inside a query value is ordinary
-    // ("?sendBackTo=%2Fcts%2Fepa") and must not disqualify an otherwise-valid ReturnUrl.
+    // ("?sendBackTo=%2Fcts%2Fepa") and must not disqualify an otherwise-valid ReturnUrl. Both
+    // separators are screened encoded, since a decoded "%5c" reopens the backslash bypass above.
     const urlPath = path.split(/[?#]/u)[0] ?? ""
-    if (ENCODED_SLASH_REGEX.test(urlPath)) {
+    if (ENCODED_SEPARATOR_REGEX.test(urlPath)) {
         return false
     }
 
