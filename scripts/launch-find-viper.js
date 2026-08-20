@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process"
+import fs from "node:fs"
+import path from "node:path"
 import { getDevServerEnv } from "./lib/script-utils.js"
 
 // Cross-platform script for finding Viper.exe process by port
