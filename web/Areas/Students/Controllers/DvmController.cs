@@ -34,7 +34,6 @@ namespace Viper.Areas.Students.Controllers
         /// Note that including all class years is restricted
         /// </summary>
         [HttpGet]
-        [Permission(Allow = "SVMSecure.Students")]
         public async Task<ActionResult<IEnumerable<Student>>> GetDvmStudents(int? classYear, string? classLevel, bool includeAllClassYears = false)
         {
             if (!userHelper.HasPermission(rapsContext, userHelper.GetCurrentUser(), "SVMSecure.SIS.AllStudents"))
@@ -49,7 +48,6 @@ namespace Viper.Areas.Students.Controllers
         /// Get a single student
         /// </summary>
         [HttpGet("{personId}")]
-        [Permission(Allow = "SVMSecure.Students")]
         public async Task<ActionResult<Student>> GetDvmStudent(int personId)
         {
             var student = await studentList.GetStudent(personId);
@@ -155,14 +153,21 @@ namespace Viper.Areas.Students.Controllers
                 return BadRequest();
             }
 
-            //deactivate active record if setting this to active
+            //deactivate this student's active records if setting this one to active
             if (studentClassYear.Active && !record.Active)
             {
-                var activeRecord = await context.StudentClassYears.Where(s => s.Active).FirstOrDefaultAsync();
-                if (activeRecord != null)
+                var activeRecords = await context.StudentClassYears
+                    .Where(s => s.PersonId == personId && s.Active)
+                    .ToListAsync();
+                foreach (var activeRecord in activeRecords)
                 {
                     activeRecord.Active = false;
+                    activeRecord.Updated = DateTime.Now;
+                    activeRecord.UpdatedBy = user?.AaudUserId;
                     context.Entry(activeRecord).State = EntityState.Modified;
+                }
+                if (activeRecords.Count > 0)
+                {
                     await context.SaveChangesAsync();
                 }
             }
@@ -210,6 +215,7 @@ namespace Viper.Areas.Students.Controllers
         /// Delete a student class year record (i.e. they were never in this class)
         /// </summary>
         [HttpDelete("studentClassYears/{studentClassYearId}")]
+        [Permission(Allow = "SVMSecure.SIS.AllStudents")]
         public async Task<ActionResult> DeleteStudentClassYear(int studentClassYearId)
         {
             var record = await context.StudentClassYears.FindAsync(studentClassYearId);

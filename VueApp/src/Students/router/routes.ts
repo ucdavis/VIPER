@@ -50,11 +50,19 @@ const routes = [
     {
         path: "/Students/StudentClassYear",
         meta: { layout: ViperLayout },
+        // The Razor action served the import UI off this path via ?import, so keep old
+        // links and bookmarks working. Redirecting re-runs the guard, which applies the
+        // import route's SIS permission check.
+        beforeEnter: (to: RouteLocationNormalized) =>
+            to.query.import === undefined
+                ? true
+                : { path: "/Students/StudentClassYearImport", query: { classYear: to.query.classYear } },
         component: () => import("@/Students/pages/StudentClassYear.vue"),
     },
     {
+        // Importing is an SIS mutation end to end, so there is nothing here without the permission.
         path: "/Students/StudentClassYearImport",
-        meta: { layout: ViperLayout },
+        meta: { layout: ViperLayout, permissions: ["SVMSecure.SIS.AllStudents"] },
         component: () => import("@/Students/pages/StudentClassYearImport.vue"),
     },
     {
@@ -109,6 +117,11 @@ const routes = [
                 component: () => import("@/Students/EmergencyContact/pages/EmergencyContactReport.vue"),
             },
         ],
+    },
+    {
+        path: "/:catchAll(.*)*",
+        meta: { layout: ViperLayout },
+        component: () => import("@/pages/Error404.vue"),
     },
 ]
 
