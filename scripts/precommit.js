@@ -5,8 +5,8 @@
  * Invokes .husky/pre-commit using Git's bash (works on Windows)
  */
 
-const { spawnSync } = require("node:child_process")
-const path = require("node:path")
+import { spawnSync } from "node:child_process"
+import path from "node:path"
 
 const { env } = process
 const hookPath = path.join(process.cwd(), ".husky", "pre-commit")

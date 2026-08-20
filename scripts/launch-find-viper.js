@@ -1,5 +1,5 @@
-const { spawnSync } = require("node:child_process")
-const { getDevServerEnv } = require("./lib/script-utils")
+import { spawnSync } from "node:child_process"
+import { getDevServerEnv } from "./lib/script-utils.js"
 
 // Cross-platform script for finding Viper.exe process by port
 
@@ -57,7 +57,7 @@ function main() {
 
     if (pid) {
         // Ensure .vscode directory exists
-        const vscDir = path.join(__dirname, "..", ".vscode")
+        const vscDir = path.join(import.meta.dirname, "..", ".vscode")
         if (!fs.existsSync(vscDir)) {
             fs.mkdirSync(vscDir, { recursive: true })
         }

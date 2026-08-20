@@ -3,11 +3,11 @@
 // Whole-project fallow audit: dead code + duplicates + health (human-readable).
 // For CI regression detection, see .github/workflows/code-quality.yml.
 
-const fs = require("node:fs")
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
+import fs from "node:fs"
+import path from "node:path"
+import { spawnSync } from "node:child_process"
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 const VUEAPP_DIR = path.join(PROJECT_ROOT, "VueApp")
 
 const JS_ENTRY = path.join(PROJECT_ROOT, "node_modules", "fallow", "bin", "fallow")

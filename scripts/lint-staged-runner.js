@@ -3,8 +3,8 @@
 // Lint staged files only - runs lint-any.js on files staged for commit
 // Usage: npm run lint:staged [--clear-cache]
 
-const { execFileSync } = require("node:child_process")
-const { checkPartiallyStaged, createLogger } = require("./lib/script-utils")
+import { execFileSync } from "node:child_process"
+import { checkPartiallyStaged, createLogger } from "./lib/script-utils.js"
 
 const { env } = process
 const logger = createLogger("LINT:STAGED")

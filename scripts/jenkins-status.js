@@ -11,9 +11,9 @@
 //   node scripts/jenkins-status.js           # one-shot status
 //   node scripts/jenkins-status.js --watch    # poll until the active build ends
 
-const fs = require("node:fs")
-const path = require("node:path")
-const https = require("node:https")
+import fs from "node:fs"
+import path from "node:path"
+import https from "node:https"
 
 const POLL_INTERVAL_MS = 10_000
 const MS_PER_SEC = 1000
@@ -25,7 +25,7 @@ const HTTP_REDIRECT_MAX = 400
 const MAX_REDIRECTS = 5
 const REQUEST_TIMEOUT_MS = 15_000
 
-const ENV_FILE = path.join(__dirname, "..", ".env.local")
+const ENV_FILE = path.join(import.meta.dirname, "..", ".env.local")
 const BUILD_FIELDS = "number,building,result,timestamp,estimatedDuration,duration"
 const TREE = `inQueue,queueItem[why],lastBuild[${BUILD_FIELDS}]`
 
@@ -155,7 +155,9 @@ async function main() {
 }
 
 // oxlint-disable-next-line promise/prefer-await-to-then -- Top-level entry point
-main().catch((error) => {
-    console.error(`❌ ${error.message}`)
-    process.exit(1)
-})
+main().catch(
+    /** @param {unknown} error */ (error) => {
+        console.error(`❌ ${error.message}`)
+        process.exit(1)
+    },
+)

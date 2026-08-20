@@ -2,7 +2,7 @@
 
 // Script to run the backend with proper environment variable defaults
 // Environment variables loaded via --env-file-if-exists=.env.local in package.json
-const { spawn } = require("node:child_process")
+import { spawn } from "node:child_process"
 
 const { env } = process
 

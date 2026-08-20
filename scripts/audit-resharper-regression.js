@@ -27,11 +27,11 @@
 // public surface looks unused to static analysis but is wired up at runtime
 // (JSON serialization, MVC model binding, Razor views, EF projections).
 
-const fs = require("node:fs")
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
+import fs from "node:fs"
+import path from "node:path"
+import { spawnSync } from "node:child_process"
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 const DEFAULT_SARIF = path.join(PROJECT_ROOT, "inspect-report", "inspect.sarif")
 
 // `git diff` output for a large solution can exceed Node's 1 MB default.
@@ -134,11 +134,15 @@ function getChangedLines(diffSelector) {
 function runScan() {
     console.log("Running inspectcode (this takes a few minutes on a full solution)...")
     // Skip HTML; the gate only consumes SARIF, and inspectcode runs are expensive.
-    const result = spawnSync(process.execPath, [path.join(__dirname, "audit-resharper.js"), "--format=sarif"], {
-        cwd: PROJECT_ROOT,
-        stdio: "inherit",
-        windowsHide: true,
-    })
+    const result = spawnSync(
+        process.execPath,
+        [path.join(import.meta.dirname, "audit-resharper.js"), "--format=sarif"],
+        {
+            cwd: PROJECT_ROOT,
+            stdio: "inherit",
+            windowsHide: true,
+        },
+    )
     if (result.error || result.status !== 0) {
         const reason = result.error?.message ?? `exit ${result.status}`
         console.error(`❌ inspectcode scan failed: ${reason}`)

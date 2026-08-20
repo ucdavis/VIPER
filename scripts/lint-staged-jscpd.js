@@ -10,18 +10,18 @@
 //   node scripts/lint-staged-jscpd.js <file> [<file>...]
 //   node scripts/lint-staged-jscpd.js --files-from=<path>
 
-const fs = require("node:fs")
-const os = require("node:os")
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
-const { parseArguments, shouldBlockOnWarnings } = require("./lib/lint-staged-common")
-const { createLogger } = require("./lib/script-utils")
-const { resolveJscpdEntry } = require("./lib/jscpd-entry")
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { spawnSync } from "node:child_process"
+import { parseArguments, shouldBlockOnWarnings } from "./lib/lint-staged-common.js"
+import { createLogger } from "./lib/script-utils.js"
+import { resolveJscpdEntry } from "./lib/jscpd-entry.js"
 
 const { rawFiles } = parseArguments()
 const logger = createLogger("JSCPD")
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 const VUEAPP_SRC = path.join(PROJECT_ROOT, "VueApp", "src")
 const WEB_AREAS = path.join(PROJECT_ROOT, "web", "Areas")
 

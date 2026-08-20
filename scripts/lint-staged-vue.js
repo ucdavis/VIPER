@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const path = require("node:path")
-const {
+import path from "node:path"
+import {
     parseArguments,
     sanitizeFilePath,
     runCommand,
@@ -10,9 +10,9 @@ const {
     displayCategorizedIssues,
     handleCommitDecisionForCategorizedIssues,
     filterTypeScriptErrors,
-} = require("./lib/lint-staged-common")
-const { categorizeRule } = require("./lib/critical-rules")
-const { createLogger } = require("./lib/script-utils")
+} from "./lib/lint-staged-common.js"
+import { categorizeRule } from "./lib/critical-rules.js"
+import { createLogger } from "./lib/script-utils.js"
 
 // Parse command line arguments
 const { fixFlag, rawFiles } = parseArguments()
@@ -25,8 +25,8 @@ if (rawFiles.length === 0) {
 }
 
 // Base directories for different contexts
-const projectRoot = path.join(__dirname, "..")
-const vueAppDir = path.join(__dirname, "..", "VueApp")
+const projectRoot = path.join(import.meta.dirname, "..")
+const vueAppDir = path.join(import.meta.dirname, "..", "VueApp")
 
 // Sanitize file paths - primarily expecting .vue files
 const files = rawFiles
@@ -231,6 +231,6 @@ try {
     // Use shared commit decision handler
     handleCommitDecisionForCategorizedIssues(categorizedIssues, {}, "Vue")
 } catch (error) {
-    logger.plainError(`Unexpected error: ${error}`)
+    logger.plainError(`Unexpected error: ${String(error)}`)
     process.exit(1)
 }

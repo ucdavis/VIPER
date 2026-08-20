@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 // Environment variables loaded via --env-file-if-exists=.env.local in package.json
 
+import { spawn, execFileSync } from "node:child_process"
+import fs from "node:fs"
+import path from "node:path"
+import http from "node:http"
+import https from "node:https"
+import net from "node:net"
+import crypto from "node:crypto"
+import { pathToFileURL } from "node:url"
+import yauzl from "yauzl"
+import { killProcess, getDevServerEnv, openBrowser, createLogger } from "./lib/script-utils.js"
+
 const { env: processEnv } = process
-const { spawn, execFileSync } = require("node:child_process")
-const fs = require("node:fs")
-const path = require("node:path")
-const http = require("node:http")
-const https = require("node:https")
-const net = require("node:net")
-const crypto = require("node:crypto")
-const yauzl = require("yauzl")
-const { killProcess } = require("./lib/script-utils")
 
 // Configuration constants
 const GITHUB_API_LATEST = "https://api.github.com/repos/axllent/mailpit/releases/latest"
@@ -19,7 +21,6 @@ const INSTALL_DIR = processEnv.MAILPIT_INSTALL_DIR || String.raw`C:\Tools\mailpi
 const MAILPIT_EXE = path.join(INSTALL_DIR, "mailpit.exe")
 
 // Get environment variables with defaults
-const { getDevServerEnv, openBrowser, createLogger } = require("./lib/script-utils")
 const env = getDevServerEnv()
 const SMTP_PORT = env.MAILPIT_SMTP_PORT
 const WEB_PORT = env.MAILPIT_WEB_PORT
@@ -256,10 +257,10 @@ function extractZip(zipPath, extractPath) {
                             }
                             try {
                                 fs.renameSync(partialPath, filePath)
-                            } catch (renameErr) {
+                            } catch (error) {
                                 zipfile.close()
-                                logError(`Error finalizing ${filePath}: ${renameErr.message}`)
-                                reject(renameErr)
+                                logError(`Error finalizing ${filePath}: ${error.message}`)
+                                reject(error)
                                 return
                             }
                             extractedFiles.push(entry.fileName)
@@ -277,7 +278,7 @@ function extractZip(zipPath, extractPath) {
 
                         writeStream.on("error", (writeErr) => {
                             failed = true
-                            // pipe does not tear down the source on a destination error;
+                            // Pipe does not tear down the source on a destination error;
                             // stop reading and release the zip fd so the process can exit
                             readStream.destroy()
                             zipfile.close()
@@ -752,9 +753,9 @@ process.on("SIGTERM", () => {
     process.exit(0)
 })
 
-// Run the script
-if (require.main === module) {
-    ;(async () => {
+// Run the script (ESM equivalent of require.main === module)
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+    void (async () => {
         try {
             await main()
         } catch (error) {
@@ -764,4 +765,4 @@ if (require.main === module) {
     })()
 }
 
-module.exports = { manageMailpit, isMailpitInstalled, isMailpitRunning }
+export { manageMailpit, isMailpitInstalled, isMailpitRunning }

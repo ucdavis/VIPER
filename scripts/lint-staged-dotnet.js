@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 
-const { execFileSync } = require("node:child_process")
-const path = require("node:path")
-const fs = require("node:fs")
-const {
+import { execFileSync } from "node:child_process"
+import path from "node:path"
+import fs from "node:fs"
+import {
     handleCommitDecisionForCategorizedIssues,
     displayCategorizedIssues,
     categorizeIssuesBySeverity,
-} = require("./lib/lint-staged-common")
-const { createLogger } = require("./lib/script-utils")
-const { categorizeRule } = require("./lib/critical-rules")
+} from "./lib/lint-staged-common.js"
+import { createLogger } from "./lib/script-utils.js"
+import { categorizeRule } from "./lib/critical-rules.js"
 
-const { env } = process
-const {
+import {
     needsBuild,
     markAsBuilt,
     getCachedBuildOutput,
@@ -21,7 +20,9 @@ const {
     getCachedFormatOutput,
     stripSummaryDetail,
     clearCacheIfRequested,
-} = require("./lib/build-cache")
+} from "./lib/build-cache.js"
+
+const { env } = process
 
 // Platform-specific path patterns
 // Regex patterns for robust path classification (handle both "web" and "web/file.cs")
