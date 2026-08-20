@@ -106,6 +106,7 @@ describe("isValidInternalPath open-redirect guard", () => {
         ["a vue path", "/vue/app"],
         ["encoded slashes in the query", "/Effort/Reports?sendBackTo=%2Fcts%2Fepa"],
         ["encoded dots in the query", "/Effort/Reports?q=%2e%2e"],
+        ["an encoded backslash in the query", "/Effort/Reports?path=a%5cb"],
         ["an encoded dot inside a longer segment", "/Effort/%2ename/x"],
         ["a literal dot inside a longer segment", "/Effort/..name/x"],
     ])("accepts %s", (_label, path) => {
@@ -119,6 +120,8 @@ describe("isValidInternalPath open-redirect guard", () => {
         ["a trailing traversal segment", "/Effort/.."],
         ["a single-dot segment", "/./api/secret"],
         ["an encoded slash", "/Effort%2f..%2fapi"],
+        ["an encoded backslash", "/%5c%5cevil.example"],
+        ["an uppercase encoded backslash", "/%5C%5Cevil.example"],
         ["an encoded dot", "/Effort/%2e%2e/api"],
         ["a mixed-encoding traversal", "/Effort/.%2e/api/secret"],
         ["an uppercase encoded traversal", "/Effort/%2E%2E/api/secret"],

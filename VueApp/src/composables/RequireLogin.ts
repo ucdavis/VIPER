@@ -9,8 +9,7 @@ import type { RouteLocationNormalized } from "vue-router"
 
 // Module-level constants to avoid recreation on each function call
 const ABSOLUTE_URL_REGEX = /^(?:https?:)?\/\//u
-const ENCODED_SLASH_REGEX = /%2f/iu
-const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
+const ENCODED_SEPARATOR_REGEX = /%(?:2f|5c)/iu
 
 // Browsers resolve dot-segments before issuing the request, and the URL spec counts the
 // percent-encoded spellings too ("%2e" is ".", ".%2e"/"%2e."/"%2e%2e" are "..").
@@ -60,9 +59,10 @@ function isValidInternalPath(path: string): boolean {
     }
 
     // Only the path resolves, so screen it alone: percent-encoding inside a query value is ordinary
-    // ("?sendBackTo=%2Fcts%2Fepa") and must not disqualify an otherwise-valid ReturnUrl.
+    // ("?sendBackTo=%2Fcts%2Fepa") and must not disqualify an otherwise-valid ReturnUrl. Both
+    // separators are screened encoded, since a decoded "%5c" reopens the backslash bypass above.
     const urlPath = path.split(/[?#]/u)[0] ?? ""
-    if (ENCODED_SLASH_REGEX.test(urlPath)) {
+    if (ENCODED_SEPARATOR_REGEX.test(urlPath)) {
         return false
     }
 
@@ -71,11 +71,9 @@ function isValidInternalPath(path: string): boolean {
         return false
     }
 
-    // SECURITY NOTE: This approach mitigates open redirect attacks by restricting
-    // Redirects to known internal paths.
-    // Ensure all valid internal routes used by your app are included in ALLOWED_INTERNAL_PREFIXES.
-    // Update this array if new internal route prefixes are added to the application.
-    return ALLOWED_INTERNAL_PREFIXES.some((prefix) => path.startsWith(prefix))
+    // Everything that can leave this origin is rejected above, so what remains only has to be
+    // root-relative. An area allow list would just be a step to forget when adding an area.
+    return path.startsWith("/")
 }
 
 function useRequireLogin(to: RouteLocationNormalized) {
@@ -107,7 +105,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
             })
         }
 
-        //If no logged in user, redirect to cas
+        //If no logged in user, hand off to the sign-in endpoint
         if (!r.success || !r.result.userId) {
             // Hide loading spinner before redirect to prevent flash
             if ($q !== null) {
