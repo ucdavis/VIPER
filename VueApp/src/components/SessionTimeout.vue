@@ -119,6 +119,15 @@ sessionTimeoutCheckEventId = window.setTimeout(checkSessionTimeout, 60000)
                     v-if="!sessionExpired && !sessionReloaded"
                     @click="extendSession"
                 ></q-btn>
+                <q-btn
+                    flat
+                    round
+                    dense
+                    icon="close"
+                    aria-label="Close"
+                    class="q-ml-sm"
+                    @click="hideSessionTimeoutWarning"
+                ></q-btn>
             </q-card-section>
         </q-card>
     </q-dialog>
