@@ -10,7 +10,6 @@ import type { RouteLocationNormalized } from "vue-router"
 // Module-level constants to avoid recreation on each function call
 const ABSOLUTE_URL_REGEX = /^(?:https?:)?\/\//u
 const ENCODED_SEPARATOR_REGEX = /%(?:2f|5c)/iu
-const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
 
 // Browsers resolve dot-segments before issuing the request, and the URL spec counts the
 // percent-encoded spellings too ("%2e" is ".", ".%2e"/"%2e."/"%2e%2e" are "..").
@@ -67,11 +66,9 @@ function isValidInternalPath(path: string): boolean {
         return false
     }
 
-    // SECURITY NOTE: This approach mitigates open redirect attacks by restricting
-    // Redirects to known internal paths.
-    // Ensure all valid internal routes used by your app are included in ALLOWED_INTERNAL_PREFIXES.
-    // Update this array if new internal route prefixes are added to the application.
-    return ALLOWED_INTERNAL_PREFIXES.some((prefix) => path.startsWith(prefix))
+    // Everything that can leave this origin is rejected above, so what remains only has to be
+    // root-relative. An area allow list would just be a step to forget when adding an area.
+    return path.startsWith("/")
 }
 
 function useRequireLogin(to: RouteLocationNormalized) {
@@ -103,7 +100,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
             })
         }
 
-        //If no logged in user, redirect to cas
+        //If no logged in user, hand off to the sign-in endpoint
         if (!r.success || !r.result.userId) {
             // Hide loading spinner before redirect to prevent flash
             if ($q !== null) {
