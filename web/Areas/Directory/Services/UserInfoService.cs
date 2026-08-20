@@ -965,12 +965,9 @@ namespace Viper.Areas.Directory.Services
                 .Where(r => r.PositionNbr != null && EF.Parameter(positionNbrs).Contains(r.PositionNbr))
                 .ToListAsync();
 
-            foreach (var row in historyRows)
+            foreach (var row in historyRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
             {
-                if (row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr))
-                {
-                    lookup[row.PositionNbr] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
-                }
+                lookup[row.PositionNbr!] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
             }
 
             var missingIds = positionNbrs.Where(id => !lookup.ContainsKey(id)).ToList();
@@ -980,12 +977,9 @@ namespace Viper.Areas.Directory.Services
                     .Where(r => r.PositionNbr != null && EF.Parameter(missingIds).Contains(r.PositionNbr))
                     .ToListAsync();
 
-                foreach (var row in currentRows)
+                foreach (var row in currentRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
                 {
-                    if (row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr))
-                    {
-                        lookup[row.PositionNbr] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
-                    }
+                    lookup[row.PositionNbr!] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
                 }
             }
 
