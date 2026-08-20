@@ -7,6 +7,7 @@ using Viper.Areas.Effort.EmailTemplates.Models;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.EmailTemplates.Services;
@@ -29,7 +30,7 @@ public class VerificationService : IVerificationService
     private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<VerificationService> _logger;
     private readonly EffortSettings _settings;
-    private readonly EmailSettings _emailSettings;
+    private readonly IPublicUrlService _publicUrl;
     private readonly IEmailTemplateRenderer _emailTemplateRenderer;
 
     public VerificationService(
@@ -42,7 +43,7 @@ public class VerificationService : IVerificationService
         ICourseClassificationService classificationService,
         ILogger<VerificationService> logger,
         IOptions<EffortSettings> settings,
-        IOptions<EmailSettings> emailSettings,
+        IPublicUrlService publicUrl,
         IEmailTemplateRenderer emailTemplateRenderer)
     {
         _context = context;
@@ -54,7 +55,7 @@ public class VerificationService : IVerificationService
         _classificationService = classificationService;
         _logger = logger;
         _settings = settings.Value;
-        _emailSettings = emailSettings.Value;
+        _publicUrl = publicUrl;
         _emailTemplateRenderer = emailTemplateRenderer;
     }
 
@@ -719,15 +720,15 @@ public class VerificationService : IVerificationService
     private string BuildVerificationUrl(int termCode)
     {
         // Require configured base URL to avoid Host header injection
-        if (string.IsNullOrWhiteSpace(_emailSettings.BaseUrl))
+        if (string.IsNullOrWhiteSpace(_publicUrl.BaseUrl))
         {
-            throw new InvalidOperationException("EmailSettings:BaseUrl must be configured for verification emails.");
+            throw new InvalidOperationException("Application:PublicBaseUrl must be configured for verification emails.");
         }
 
-        var baseUrlNormalized = _emailSettings.BaseUrl.TrimEnd('/') + "/";
+        var baseUrlNormalized = _publicUrl.BaseUrl.TrimEnd('/') + "/";
         if (!Uri.TryCreate(baseUrlNormalized, UriKind.Absolute, out var baseUri))
         {
-            throw new InvalidOperationException($"EmailSettings:BaseUrl value '{_emailSettings.BaseUrl}' is not a valid absolute URL.");
+            throw new InvalidOperationException($"Configured public base URL '{_publicUrl.BaseUrl}' is not a valid absolute URL.");
         }
 
         return new Uri(baseUri, $"Effort/{termCode}/my-effort").ToString();
@@ -846,7 +847,7 @@ public class VerificationService : IVerificationService
 
         return new VerificationReminderViewModel
         {
-            BaseUrl = _emailSettings.BaseUrl ?? "",
+            BaseUrl = _publicUrl.BaseUrl,
             TermDescription = termDescription,
             TermStartDate = termStartDate,
             TermEndDate = termEndDate,
