@@ -23,6 +23,14 @@
                     dense
                     class="q-px-md"
                 />
+                <q-btn
+                    v-close-popup
+                    flat
+                    round
+                    dense
+                    icon="close"
+                    aria-label="Close"
+                />
             </template>
         </q-banner>
     </q-dialog>
