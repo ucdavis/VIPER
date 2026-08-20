@@ -754,7 +754,7 @@ process.on("SIGTERM", () => {
 })
 
 // Run the script (ESM equivalent of require.main === module)
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     void (async () => {
         try {
             await main()
