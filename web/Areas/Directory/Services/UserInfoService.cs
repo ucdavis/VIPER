@@ -3,7 +3,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Viper.Classes.SQLContext;
 using Viper.Areas.Directory.Models;
 using Viper.Models.AAUD;
-using Viper.Models.PPS;
 using Viper.Classes.Utilities;
 using System.Text;
 using System.Text.Json;
@@ -264,7 +263,7 @@ namespace Viper.Areas.Directory.Services
                     result.Email = ldapUser.Mail;
                     result.Phone = ldapUser.TelephoneNumber;
                     result.Mobile = ldapUser.Mobile;
-                    result.PostalAddress = ldapUser.PostalAddress?.Replace("$", @"<br>");
+                    result.PostalAddress = ldapUser.PostalAddress;
                 }
             }
             catch (Exception ex) when (ex is NullReferenceException || ex is PlatformNotSupportedException || ex is System.DirectoryServices.DirectoryServicesCOMException || ex is System.DirectoryServices.Protocols.DirectoryException)
@@ -360,67 +359,20 @@ namespace Viper.Areas.Directory.Services
             {
                 // Get current term for the student
                 var currentTerm = await GetCurrentOrFutureTermForStudentAsync(result.Pidm);
-                result.StudentTerm = currentTerm;
 
                 // Get basic student information (non-term dependent)
                 result.StudentPriorName = await GetStudentPriorNamesAsync(result.Pidm);
                 result.StudentBannerId = await GetStudentBannerIdAsync(result.Pidm);
-                result.StudentConfidential = await IsStudentConfidentialAsync(result.Pidm);
-                result.StudentConfidentialScope = await GetStudentConfidentialScopeAsync(result.Pidm);
-                result.StudentBirthDate = await GetStudentBirthDateAsync(result.Pidm);
-                result.StudentAge = await GetStudentAgeAsync(result.Pidm);
-                result.StudentAcademicStanding = await GetStudentAcademicStandingAsync(result.Pidm);
-                result.StudentAdmitClassYear = await GetStudentAdmitClassYearAsync(result.Pidm);
-                result.StudentGender = await GetStudentGenderAsync(result.Pidm);
-                result.StudentEthnicity = await GetStudentEthnicityAsync(result.Pidm);
-                result.StudentNewEthnicity = await GetStudentNewEthnicityAsync(result.Pidm);
-                result.StudentIsEmployed = await IsStudentEmployedAsync(result.Pidm);
-
-                if (result.StudentIsEmployed)
-                {
-                    result.StudentEmployeeId = await GetStudentEmployeeIdAsync(result.Pidm);
-                    result.StudentEmployer = await GetStudentEmployerAsync(result.Pidm);
-                }
-
-                // Get address information
-                result.StudentPermanentAddress = await GetStudentAddressAsync(result.Pidm, "PR");
-                result.StudentMailingAddress = await GetStudentAddressAsync(result.Pidm, "MA");
-                result.StudentBillingAddress = await GetStudentAddressAsync(result.Pidm, "BI");
-
-                // Get phone information
-                result.StudentPermanentPhone = await GetStudentPhoneAsync(result.Pidm, "PR");
-                result.StudentMailingPhone = await GetStudentPhoneAsync(result.Pidm, "MA");
-                result.StudentBillingPhone = await GetStudentPhoneAsync(result.Pidm, "BI");
 
                 if (!string.IsNullOrEmpty(currentTerm))
                 {
                     // Get term-dependent information
-                    result.StudentTermDescription = await GetStudentTermDescriptionAsync(currentTerm);
                     result.StudentStatus = await GetStudentStatusAsync(currentTerm, result.Pidm);
                     result.StudentRegistrationStatus = await GetStudentRegistrationStatusAsync(currentTerm, result.Pidm);
                     result.StudentPrimaryMajor = await GetStudentMajorAsync(currentTerm, result.Pidm);
                     result.StudentAllMajors = await GetStudentAllMajorsAsync(currentTerm, result.Pidm);
                     result.StudentClassLevel = await GetStudentClassLevelAsync(currentTerm, result.Pidm);
                     result.StudentClassOf = await GetStudentClassOfAsync(currentTerm, result.Pidm);
-                    result.StudentDegreeSought = await GetStudentDegreeSoughtAsync(currentTerm, result.Pidm);
-                    result.StudentIsDualDegree = await IsStudentDualDegreeAsync(currentTerm, result.Pidm);
-                    result.StudentIsDVM = await IsStudentDVMAsync(currentTerm, result.Pidm);
-                    result.StudentIsMPVM = await IsStudentMPVMAsync(currentTerm, result.Pidm);
-                    result.StudentIsCAResident = await IsStudentCAResidentAsync(currentTerm, result.Pidm);
-                    result.StudentIsUSCitizen = await IsStudentUSCitizenAsync(result.Pidm);
-
-                    // Get admit term for the primary major
-                    if (!string.IsNullOrEmpty(result.StudentPrimaryMajor))
-                    {
-                        result.StudentAdmitTerm = await GetStudentAdmitTermAsync(result.Pidm, result.StudentPrimaryMajor);
-                    }
-
-                    // Get GPA and class rank for the primary major
-                    if (!string.IsNullOrEmpty(result.StudentPrimaryMajor))
-                    {
-                        result.StudentCumulativeGPA = await GetStudentCumulativeGPAAsync(result.Pidm, currentTerm, result.StudentPrimaryMajor);
-                        result.StudentClassRank = await GetStudentClassRankAsync(result.Pidm, result.StudentPrimaryMajor);
-                    }
                 }
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
@@ -507,28 +459,6 @@ namespace Viper.Areas.Directory.Services
             {
                 _logger.LogWarning(ex, "GetStudentBannerIdAsync failed");
                 return null;
-            }
-        }
-
-        /// <summary>
-        /// Check if student is confidential - equivalent to isConfidential in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentConfidentialAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<ConfidentialResult>("EXEC usp_sis_isConfidential @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return !string.IsNullOrEmpty(result?.SpbpersConfidInd);
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentConfidentialAsync failed");
-                return false;
             }
         }
 
@@ -678,527 +608,6 @@ namespace Viper.Areas.Directory.Services
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
                 _logger.LogWarning(ex, "GetStudentClassOfAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student confidential scope - equivalent to getConfidentialScope in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentConfidentialScopeAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<ConfidentialScopeResult>("EXEC usp_sis_getConfidentialScope @Pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.ZtvconfDesc;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentConfidentialScopeAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student birth date - equivalent to getBirthDate in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentBirthDateAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<BirthDateResult>("EXEC usp_sis_getBirthDate @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.BirthDate;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentBirthDateAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student age - equivalent to getAge in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentAgeAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<AgeResult>("EXEC usp_sis_getAge @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.Age;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentAgeAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get term description - equivalent to getTermDesc in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentTermDescriptionAsync(string termCode)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<TermDescResult>("EXEC usp_sis_getTermDescription @thisTermCode = {0}", termCode)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.TermDesc;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentTermDescriptionAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get degree sought - equivalent to getDegreeSought in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentDegreeSoughtAsync(string termCode, string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<DegreeSoughtResult>("EXEC usp_sis_getDegreeSought @termCode = {0}, @pidm = {1}", termCode, pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                if (result != null)
-                {
-                    var degrees = new List<string>();
-                    if (!string.IsNullOrEmpty(result.Degree1))
-                        degrees.Add(result.Degree1);
-                    if (!string.IsNullOrEmpty(result.Degree2))
-                        degrees.Add(result.Degree2);
-
-                    return string.Join(", ", degrees);
-                }
-
-                return null;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentDegreeSoughtAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get academic standing - equivalent to getAcademicStanding in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentAcademicStandingAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<AcademicStandingResult>("EXEC usp_sis_getCurrentacademicStanding @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.SgvstdnAstdDesc;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentAcademicStandingAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get cumulative GPA - equivalent to getCumulativeGPA in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentCumulativeGPAAsync(string pidm, string termCode, string majorCode)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<GPAResult>("EXEC usp_sis_getCumulativeGPA @pidm = {0}, @termCode = {1}, @majorCode = {2}", pidm, termCode, majorCode)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.Gpa;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentCumulativeGPAAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get class rank - equivalent to getClassRank in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentClassRankAsync(string pidm, string majorCode)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<ClassRankResult>("EXEC usp_sis_getClassRank @Pidm = {0}, @majorCode = {1}", pidm, majorCode)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.ClassRank;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentClassRankAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get admit class year - equivalent to getAdmitClassYear in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentAdmitClassYearAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<AdmitClassYearResult>("EXEC usp_sis_getAdmitClassYear @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.AdmitClassYear;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentAdmitClassYearAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get admit term - equivalent to getAdmitTerm in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentAdmitTermAsync(string pidm, string major)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<AdmitTermResult>("EXEC usp_sis_getAdmitTerm @pidm = {0}, @major = {1}", pidm, major)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.AdmitTerm;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentAdmitTermAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Check if dual degree student - equivalent to isDualDegreeStudent in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentDualDegreeAsync(string termCode, string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<DualDegreeResult>("EXEC usp_sis_isDualDegreeStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.IsDualDegree == "Yes";
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentDualDegreeAsync failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Check if DVM student - equivalent to isDVMStudent in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentDVMAsync(string termCode, string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<DVMStudentResult>("EXEC usp_sis_isDVMStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.IsDVMStudent == "Yes";
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentDVMAsync failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Check if MPVM student - equivalent to isMPVMStudent in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentMPVMAsync(string termCode, string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<MPVMStudentResult>("EXEC usp_sis_isMPVMStudent @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.IsMPVMStudent == "Yes";
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentMPVMAsync failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Check if student is employed - equivalent to isEmployed in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentEmployedAsync(string pidm)
-        {
-            try
-            {
-                var list = await _sisContext.Database
-                    .SqlQueryRaw<EmployedResult>("EXEC usp_sis_isEmployed @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                return list.Any();
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentEmployedAsync failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Get student employee ID - equivalent to getEmployeeID in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentEmployeeIdAsync(string pidm)
-        {
-            try
-            {
-                var employeeIdParam = new Microsoft.Data.SqlClient.SqlParameter
-                {
-                    ParameterName = "@thisEmployeeID",
-                    SqlDbType = System.Data.SqlDbType.VarChar,
-                    Size = 9,
-                    Direction = System.Data.ParameterDirection.Output
-                };
-
-                await _sisContext.Database.ExecuteSqlRawAsync(
-                    "EXEC usp_sis_getEmployeeID @thisPidm = @pidm, @thisEmployeeID = @thisEmployeeID OUTPUT",
-                    new Microsoft.Data.SqlClient.SqlParameter("@pidm", pidm),
-                    employeeIdParam);
-
-                var value = employeeIdParam.Value;
-                return value == null || value == DBNull.Value ? null : value.ToString();
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentEmployeeIdAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student employer - equivalent to getEmployer in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentEmployerAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<EmployerResult>("EXEC usp_sis_getEmployer @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.WOBEUCD_DEPT_NAME;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentEmployerAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student gender - equivalent to getGender in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentGenderAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<GenderResult>("EXEC usp_sis_getGender @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.Gender;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentGenderAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student ethnicity - equivalent to getEthnicity in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentEthnicityAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<EthnicityResult>("EXEC usp_sis_getEthnicity @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.Ethnicity;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentEthnicityAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student new ethnicity - equivalent to getNewEthnicity in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentNewEthnicityAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<NewEthnicityResult>("EXEC usp_sis_getNewEthnicity @pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.NewEthnicity;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentNewEthnicityAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Check if CA resident - equivalent to isCAResident in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentCAResidentAsync(string termCode, string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<CAResidentResult>("EXEC usp_sis_isCAResident @TermCode = {0}, @Pidm = {1}", termCode, pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.ResidentFlag == "Y";
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentCAResidentAsync failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Check if US citizen - equivalent to isUSCitizen in SIS.cfc
-        /// </summary>
-        private async Task<bool> IsStudentUSCitizenAsync(string pidm)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<USCitizenResult>("EXEC usp_sis_isUSCitizen @Pidm = {0}", pidm)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-
-                return result?.CitizenFlag == "Y";
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "IsStudentUSCitizenAsync failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Get student address - equivalent to getAddress in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentAddressAsync(string pidm, string type)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<AddressResult>("EXEC usp_sis_getAddress @pidm = {0}, @type = {1}", pidm, type)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-                return result?.Address;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentAddressAsync failed");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Get student phone - equivalent to getPhone in SIS.cfc
-        /// </summary>
-        private async Task<string?> GetStudentPhoneAsync(string pidm, string type)
-        {
-            try
-            {
-                var rows = await _sisContext.Database
-                    .SqlQueryRaw<PhoneResult>("EXEC usp_sis_getPhone @pidm = {0}, @type = {1}", pidm, type)
-                    .ToListAsync();
-
-                var result = rows.FirstOrDefault();
-                return result?.Phone;
-            }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "GetStudentPhoneAsync failed");
                 return null;
             }
         }
@@ -1506,16 +915,32 @@ namespace Viper.Areas.Directory.Services
                     .ThenByDescending(p => p.Effdt)
                     .ToListAsync();
 
-                var ucPathResults = historyData.Select(history => new UCPathResult
+                var reportsToIds = historyData
+                    .Select(h => h.ReportsTo)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!)
+                    .Distinct()
+                    .ToList();
+
+                var reportsToLookup = await BuildReportsToLookupAsync(reportsToIds);
+
+                var ucPathResults = historyData.Select(history =>
                 {
-                    JobCode = history.Jobcode,
-                    JobCodeDescription = history.JobcodeDesc,
-                    DepartmentId = history.Deptid,
-                    DepartmentDescription = history.DeptDesc,
-                    ActionDescription = history.ActionDescr,
-                    PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
-                    ReportsTo = GetReportsToName(history),
-                    ReportsToPosition = GetReportsToPosition(history)
+                    var reportsTo = !string.IsNullOrEmpty(history.ReportsTo) && reportsToLookup.TryGetValue(history.ReportsTo, out var match)
+                        ? match
+                        : (Name: string.Empty, Position: string.Empty);
+
+                    return new UCPathResult
+                    {
+                        JobCode = history.Jobcode,
+                        JobCodeDescription = history.JobcodeDesc,
+                        DepartmentId = history.Deptid,
+                        DepartmentDescription = history.DeptDesc,
+                        ActionDescription = history.ActionDescr,
+                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                        ReportsTo = reportsTo.Name,
+                        ReportsToPosition = reportsTo.Position
+                    };
                 });
 
                 result.UCPathHistory.AddRange(ucPathResults);
@@ -1527,78 +952,44 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
-        /// Get reports to name from UC Path history record
+        /// Batch-resolve reports-to name/job title for a set of position numbers in at most two
+        /// queries, instead of looking each one up individually per history row.
         /// </summary>
-        private string GetReportsToName(VwPersonJobPositionAll history)
+        private async Task<Dictionary<string, (string Name, string Position)>> BuildReportsToLookupAsync(List<string> positionNbrs)
         {
-            if (string.IsNullOrEmpty(history.ReportsTo))
-                return string.Empty;
+            var lookup = new Dictionary<string, (string Name, string Position)>();
+            if (positionNbrs.Count == 0)
+                return lookup;
 
-            try
+            var historyRows = await _ppsContext.VwPersonJobPositionAlls
+                .Where(r => r.PositionNbr != null && EF.Parameter(positionNbrs).Contains(r.PositionNbr))
+                .ToListAsync();
+
+            foreach (var row in historyRows)
             {
-                // Try to find the reports to person in the same view
-                var reportsTo = _ppsContext.VwPersonJobPositionAlls
-                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
-
-                if (reportsTo != null)
+                if (row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr))
                 {
-                    return $"{reportsTo.FirstName} {reportsTo.LastName}".Trim();
-                }
-
-                // Fallback to current positions view
-                var currentReportsTo = _ppsContext.VwPersonJobPositions
-                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
-
-                if (currentReportsTo != null)
-                {
-                    return $"{currentReportsTo.FirstName} {currentReportsTo.LastName}".Trim();
+                    lookup[row.PositionNbr] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
                 }
             }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+
+            var missingIds = positionNbrs.Where(id => !lookup.ContainsKey(id)).ToList();
+            if (missingIds.Count > 0)
             {
-                _logger.LogWarning(ex, "GetReportsToName failed");
-            }
+                var currentRows = await _ppsContext.VwPersonJobPositions
+                    .Where(r => r.PositionNbr != null && EF.Parameter(missingIds).Contains(r.PositionNbr))
+                    .ToListAsync();
 
-            return string.Empty;
-        }
-
-        /// <summary>
-        /// Get reports to position from UC Path history record
-        /// </summary>
-        private string GetReportsToPosition(VwPersonJobPositionAll history)
-        {
-            if (string.IsNullOrEmpty(history.ReportsTo))
-                return string.Empty;
-
-            try
-            {
-                // Try to find the reports to position in the same view
-                var reportsTo = _ppsContext.VwPersonJobPositionAlls
-                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
-
-                if (reportsTo != null)
+                foreach (var row in currentRows)
                 {
-                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
-                    return reportsTo.JobcodeDesc ?? string.Empty;
-                }
-
-                // Fallback to current positions view
-                var currentReportsTo = _ppsContext.VwPersonJobPositions
-                    .FirstOrDefault(r => r.PositionNbr == history.ReportsTo);
-
-                if (currentReportsTo != null)
-                {
-                    // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
-                    return currentReportsTo.JobcodeDesc ?? string.Empty;
+                    if (row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr))
+                    {
+                        lookup[row.PositionNbr] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
+                    }
                 }
             }
-            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
-            {
-                // Fall back to returning string.Empty if DB query fails.
-                _logger.LogWarning(ex, "GetReportsToPosition failed");
-            }
 
-            return string.Empty;
+            return lookup;
         }
 
         /// <summary>
@@ -1905,16 +1296,10 @@ namespace Viper.Areas.Directory.Services
                 var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var name in temp)
                 {
-                    foreach (var middleInitial in middleParts
+                    nameVariations.AddRange(middleParts
                         .Where(middlePart => middlePart.Length > 0)
-                        .Select(middlePart => middlePart[0]))
-                    {
-                        var variation = $"{name} {middleInitial}";
-                        if (!nameVariations.Contains(variation))
-                        {
-                            nameVariations.Add(variation);
-                        }
-                    }
+                        .Select(middlePart => $"{name} {middlePart[0]}")
+                        .Where(variation => !nameVariations.Contains(variation)));
                 }
             }
 
@@ -1963,11 +1348,8 @@ namespace Viper.Areas.Directory.Services
                     if (matchedUser != null)
                     {
                         result.Valid = true;
-                        result.Id = matchedUser.Id;
-                        result.Initials = matchedUser.Initials;
                         result.InstinctId = matchedUser.InstinctId;
                         result.IsActive = matchedUser.IsActive;
-                        result.IsProtected = matchedUser.IsProtected;
                         result.PasswordExpiresAt = matchedUser.PasswordExpiresAt;
                         result.Status = matchedUser.Status;
                         result.Username = matchedUser.Username;
@@ -1979,7 +1361,9 @@ namespace Viper.Areas.Directory.Services
                     }
                     if (!foundMatch)
                     {
-                        result.ErrorMessage = $"User found in API but no name match. Variations tried: {string.Join(", ", nameVariations)}. API users: {string.Join(", ", graphqlResponse.Data.SearchUsers.Select(u => $"{u.NameFirst} {u.NameLast}"))}";
+                        // Do not include other candidates' names from the search results here -
+                        // they belong to unrelated people and would leak into this user's directory page.
+                        result.ErrorMessage = $"User found in API but no name match. Variations tried: {string.Join(", ", nameVariations)}.";
                     }
                 }
                 else
@@ -2234,11 +1618,6 @@ namespace Viper.Areas.Directory.Services
         public string? SpridenId { get; set; }
     }
 
-    public class ConfidentialResult
-    {
-        public string? SpbpersConfidInd { get; set; }
-    }
-
     public class StudentStatusResult
     {
         public string? RegStatus { get; set; }
@@ -2263,123 +1642,6 @@ namespace Viper.Areas.Directory.Services
     public class ClassLevelResult
     {
         public string? SgvclssClasCode { get; set; }
-    }
-
-    // Additional result classes for comprehensive student information
-    public class ConfidentialScopeResult
-    {
-        public string? ZtvconfDesc { get; set; }
-    }
-
-    public class BirthDateResult
-    {
-        public string? BirthDate { get; set; }
-    }
-
-    public class AgeResult
-    {
-        public string? Age { get; set; }
-    }
-
-    public class TermDescResult
-    {
-        public string? TermDesc { get; set; }
-    }
-
-    public class DegreeSoughtResult
-    {
-        public string? Degree1 { get; set; }
-        public string? Degree2 { get; set; }
-    }
-
-    public class AcademicStandingResult
-    {
-        public string? SgvstdnAstdDesc { get; set; }
-    }
-
-    public class GPAResult
-    {
-        public string? Gpa { get; set; }
-    }
-
-    public class ClassRankResult
-    {
-        public string? ClassRank { get; set; }
-    }
-
-    public class AdmitClassYearResult
-    {
-        public string? AdmitClassYear { get; set; }
-    }
-
-    public class AdmitTermResult
-    {
-        public string? AdmitTerm { get; set; }
-    }
-
-    public class DualDegreeResult
-    {
-        public string? IsDualDegree { get; set; }
-    }
-
-    public class DVMStudentResult
-    {
-        public string? IsDVMStudent { get; set; }
-    }
-
-    public class MPVMStudentResult
-    {
-        public string? IsMPVMStudent { get; set; }
-    }
-
-    public class EmployedResult
-    {
-        public decimal? WOBEUCD_PIDM { get; set; }
-    }
-
-    public class StudentEmployeeIdResult
-    {
-        public string? EmployeeId { get; set; }
-    }
-
-    public class EmployerResult
-    {
-        public string? WOBEUCD_DEPT_NAME { get; set; }
-    }
-
-    public class GenderResult
-    {
-        public string? Gender { get; set; }
-    }
-
-    public class EthnicityResult
-    {
-        public string? Ethnicity { get; set; }
-    }
-
-    public class NewEthnicityResult
-    {
-        public string? NewEthnicity { get; set; }
-    }
-
-    public class CAResidentResult
-    {
-        public string? ResidentFlag { get; set; }
-    }
-
-    public class USCitizenResult
-    {
-        public string? CitizenFlag { get; set; }
-    }
-
-    public class AddressResult
-    {
-        public string? Address { get; set; }
-    }
-
-    public class PhoneResult
-    {
-        public string? Phone { get; set; }
     }
 
     public class AuthDbRecord

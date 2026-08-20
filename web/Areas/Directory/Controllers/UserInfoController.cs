@@ -35,7 +35,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("")]
         public ActionResult Index()
         {
-            return Redirect("/Directory");
+            return Redirect("~/Directory");
         }
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace Viper.Areas.Directory.Controllers
             // Validate required parameters
             if (string.IsNullOrWhiteSpace(mothraID))
             {
-                return Redirect("/Directory");
+                return Redirect("~/Directory");
             }
             else
             {
@@ -65,7 +65,7 @@ namespace Viper.Areas.Directory.Controllers
                 var userInfo = await _userInfo.GetUserInfoAsync(iamId, mothraID);
                 if (userInfo == null)
                 {
-                    return Redirect("/Directory");
+                    return Redirect("~/Directory");
                 }
 
 

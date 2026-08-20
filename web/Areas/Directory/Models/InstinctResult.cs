@@ -3,11 +3,8 @@ namespace Viper.Areas.Directory.Models
     public class InstinctResult
     {
         public bool Valid { get; set; }
-        public string? Id { get; set; }
-        public string? Initials { get; set; }
         public string? InstinctId { get; set; }
         public bool IsActive { get; set; }
-        public bool IsProtected { get; set; }
         public string? PasswordExpiresAt { get; set; }
         public string? Status { get; set; }
         public string? Username { get; set; }

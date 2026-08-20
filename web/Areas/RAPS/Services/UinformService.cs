@@ -8,6 +8,12 @@ namespace Viper.Areas.RAPS.Services
 {
     public class UinformService
     {
+        private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
+
+        // A request runs per call site, so unconfigured credentials would log
+        // once per call; guard so it's recorded at most once.
+        private static int _missingCredentialsLogged;
+
         private static readonly HttpClient _httpClient = new();
         private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
         private readonly string _apiBase;
@@ -199,8 +205,25 @@ namespace Viper.Areas.RAPS.Services
                 throw new ArgumentException($"Invalid HTTP method: {method.Method}", nameof(method));
             }
 
-            int epochTime = (int)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
             string publicKey = HttpHelper.GetSetting<string>("Credentials", "uInformPublicKey") ?? "";
+            string privateKey = HttpHelper.GetSetting<string>("Credentials", "uInformPrivateKey") ?? "";
+            if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
+            {
+                // Every request would fail auth without credentials; skip the doomed
+                // call so unit tests and unconfigured environments don't hit the live
+                // uInform host (Dev/test have no key pair configured).
+                if (Interlocked.Exchange(ref _missingCredentialsLogged, 1) == 0)
+                {
+                    _logger.Warn("uInform request skipped: Credentials:uInformPublicKey/uInformPrivateKey are not configured.");
+                }
+                return new UinformResponse<T>
+                {
+                    Success = false,
+                    Error = new() { Message = "uInform credentials are not configured." }
+                };
+            }
+
+            int epochTime = (int)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
             string sig = GetAuthSignature(method, publicKey, epochTime);
             string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(publicKey + ":" + sig));
 
