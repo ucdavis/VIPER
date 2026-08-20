@@ -31,6 +31,8 @@ import { useQuasar } from "quasar"
 import { ref, inject, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useFetch } from "@/composables/ViperFetch"
+import { buildLoginUrl, resolveSendBackTo } from "@/composables/RequireLogin"
+import { applicationBase } from "@/shared/application-base"
 import { useUserStore } from "@/store/UserStore"
 
 const route = useRoute()
@@ -49,29 +51,27 @@ async function initPage() {
     const { get } = useFetch()
     const r = await get(baseUrl + "loggedInUser")
     if (!r.success || !r.result.userId) {
-        window.location.href =
-            import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + import.meta.env.VITE_VIPER_HOME + "CTS/"
-    } else {
-        userStore.loadUser(r.result)
+        // The query rides along so a sendBackTo deep link survives the sign-in round trip.
+        globalThis.location.href = buildLoginUrl(`${applicationBase()}/CTS/${globalThis.location.search}`)
+        $q.loading.hide()
+        return
     }
+
+    userStore.loadUser(r.result)
     $q.loading.hide()
 
-    if (userStore.isLoggedIn) {
-        if (route.query.sendBackTo !== undefined && route.query.sendBackTo !== null) {
-            const redirect = route.query.sendBackTo.toString()
-            let paramString = redirect.split("?")[1]
-            let params = {} as Record<string, string>
-            if (paramString) {
-                let queryString = new URLSearchParams(paramString)
-                queryString.forEach((val: string, key: string) => {
-                    params[key] = val
-                })
-            }
-            router.push({ path: redirect.split("?")[0], query: params })
-        } else {
-            loadHome.value = true
-        }
+    if (!userStore.isLoggedIn) {
+        return
     }
+    const sendBackTo = resolveSendBackTo(route)
+    if (sendBackTo) {
+        await router.push(sendBackTo)
+    }
+
+    // Both /CTS/ and /CTS/Home render this component and router-view carries no key, so a target on
+    // either one reuses this instance instead of remounting it. Waiting for the navigation and then
+    // showing the page covers that, rather than relying on onMounted firing a second time.
+    loadHome.value = true
 }
 
 onMounted(() => initPage())

@@ -16,16 +16,22 @@
                 />
             </template>
             {{ errorMessage }}
-            <span v-if="showLogin">
-                Your session may have expired.
-                <a
-                    :href="loginUrl"
-                    target="_blank"
-                >
-                    Click to log in, and then try your action again.
-                    <q-icon name="launch"></q-icon>
-                </a>
-            </span>
+            <span v-if="showLogin">Your session may have expired. Log in and try your action again.</span>
+            <template #action>
+                <LoginButton
+                    v-if="showLogin"
+                    dense
+                    class="q-px-md"
+                />
+                <q-btn
+                    v-close-popup
+                    flat
+                    round
+                    dense
+                    icon="close"
+                    aria-label="Close"
+                />
+            </template>
         </q-banner>
     </q-dialog>
 </template>
@@ -33,12 +39,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { useErrorStore } from "@/store/ErrorStore"
+import LoginButton from "@/components/LoginButton.vue"
 import { storeToRefs } from "pinia"
 
 const errorStore = useErrorStore()
 const { errorMessage, status } = storeToRefs(errorStore)
 const showErrorMessage = computed(() => errorMessage.value !== null && errorMessage.value.length > 0)
-const loginUrl = import.meta.env.VITE_VIPER_HOME + "login?ReturnUrl=" + window.location.pathname
 
 const showError = ref(false)
 const showLogin = ref(false)

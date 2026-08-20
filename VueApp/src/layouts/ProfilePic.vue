@@ -60,7 +60,7 @@
         icon="person"
         :href="loginHref"
     >
-        <q-tooltip>Login</q-tooltip>
+        <q-tooltip>Log In</q-tooltip>
     </q-btn>
 </template>
 

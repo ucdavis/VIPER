@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import { useUserStore } from "@/store/UserStore"
-import { getLoginUrl } from "@/composables/RequireLogin"
+import LoginButton from "@/components/LoginButton.vue"
 
 const userStore = useUserStore()
 //https://" + HttpHelper.HttpContext?.Request.Host.Value
 const onDev = import.meta.env.VITE_ENVIRONMENT === "DEVELOPMENT"
 const viperHome = import.meta.env.VITE_VIPER_HOME
-const loginHref = getLoginUrl()
 const sessionRefreshUrl =
     (onDev ? "http://localhost/" : "/") +
     "public/timeout/seconds_until_timeout_v2.cfm?id=" +
@@ -106,21 +105,28 @@ sessionTimeoutCheckEventId = window.setTimeout(checkSessionTimeout, 60000)
                 </div>
                 <div v-else-if="!sessionExpired">Your session has been extended to {{ sessionExpireTime }}.</div>
                 <q-space></q-space>
-                <q-btn
-                    dense
-                    color="secondary"
-                    class="q-px-md"
-                    label="Log in"
+                <LoginButton
                     v-if="sessionExpired"
-                    :href="loginHref"
-                ></q-btn>
+                    dense
+                    class="q-px-md"
+                />
                 <q-btn
                     dense
+                    no-caps
                     color="secondary"
                     class="q-px-md"
                     label="Refresh Session"
                     v-if="!sessionExpired && !sessionReloaded"
                     @click="extendSession"
+                ></q-btn>
+                <q-btn
+                    flat
+                    round
+                    dense
+                    icon="close"
+                    aria-label="Close"
+                    class="q-ml-sm"
+                    @click="hideSessionTimeoutWarning"
                 ></q-btn>
             </q-card-section>
         </q-card>
