@@ -65,10 +65,13 @@ async function initPage() {
     }
     const sendBackTo = resolveSendBackTo(route)
     if (sendBackTo) {
-        void router.push(sendBackTo)
-    } else {
-        loadHome.value = true
+        await router.push(sendBackTo)
     }
+
+    // Both /CTS/ and /CTS/Home render this component and router-view carries no key, so a target on
+    // either one reuses this instance instead of remounting it. Waiting for the navigation and then
+    // showing the page covers that, rather than relying on onMounted firing a second time.
+    loadHome.value = true
 }
 
 onMounted(() => initPage())
