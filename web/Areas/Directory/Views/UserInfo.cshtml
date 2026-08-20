@@ -63,7 +63,7 @@
                 }
                 @if (!string.IsNullOrEmpty(Model.PostalAddress))
                 {
-                    <li><strong>Address:</strong> @Html.Raw(Model.PostalAddress)</li>
+                    <li><strong>Address:</strong> @Html.Raw(Html.Encode(Model.PostalAddress).Replace("$", "<br>"))</li>
                 }
                 @if (Model.CanViewStudentID && !string.IsNullOrEmpty(Model.StudentId))
                 {
@@ -148,13 +148,12 @@
             <ul>
                 @if (!string.IsNullOrEmpty(Model.StudentPriorName))
                 {
-                    <li><strong>Prior Name:</strong> @Html.Raw(Model.StudentPriorName)</li>
+                    <li><strong>Prior Name:</strong> @Model.StudentPriorName</li>
                 }
                 @if (!string.IsNullOrEmpty(Model.StudentBannerId))
                 {
                     <li><strong>Banner ID:</strong> @Model.StudentBannerId</li>
                 }
-                <li><strong>Confidential?:</strong> @(Model.StudentConfidential ? "Yes" : "No")</li>
                 @if (!string.IsNullOrEmpty(Model.StudentStatus))
                 {
                     <li><strong>Student Status:</strong> @Model.StudentStatus</li>
@@ -588,10 +587,6 @@
     }
 
 </article>
-
-@section Scripts {
-    <script src="~/js/userinfo.js"></script>
-}
 
 @functions {
     public class PermissionNode

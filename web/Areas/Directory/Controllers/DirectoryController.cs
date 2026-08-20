@@ -125,17 +125,6 @@ namespace Viper.Areas.Directory.Controllers
             return results;
         }
 
-        /// <summary>
-        /// Directory results
-        /// </summary>
-        /// <param name="mothraID">Mothra ID</param>
-        [Route("userInfo/{mothraID}")]
-        public IActionResult DirectoryResult(string mothraID)
-        {
-            // pull in the user based on uid
-            return View("~/Areas/Directory/Views/UserInfo.cshtml");
-        }
-
         private static void PopulateVmacsDetails(IndividualSearchResult result, VMACSQuery? vm)
         {
             if (vm?.item != null)
