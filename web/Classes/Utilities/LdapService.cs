@@ -8,6 +8,12 @@ namespace Viper.Classes.Utilities
     [SupportedOSPlatform("windows")]
     public static class LdapService
     {
+        private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
+
+        // A search runs per call site, so an unconfigured credential would log
+        // once per lookup; guard so it's recorded at most once.
+        private static int _missingCredentialLogged;
+
         private const string _ldapUsername = "UID=vetmed,OU=Special Users,DC=ucdavis,DC=edu";
         private const string _ldapServer = "ldap.ucdavis.edu";
         private const string _ldapStart = "OU=People,DC=ucdavis,DC=edu";
@@ -20,10 +26,22 @@ namespace Viper.Classes.Utilities
             "ucdStudentSID","ucdPersonUUID","eduPersonNickname","ucdPersonAffiliation","displayname"
         };
 
-        private static SearchResponse SearchLdap(string searchFilter)
+        private static SearchResponse? SearchLdap(string searchFilter)
         {
+            var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP");
+            if (string.IsNullOrWhiteSpace(cred))
+            {
+                // The bind would fail without a service account password; skip the
+                // doomed connection so unit tests and unconfigured environments don't
+                // reach the live LDAP host (Dev/test have no credential configured).
+                if (Interlocked.Exchange(ref _missingCredentialLogged, 1) == 0)
+                {
+                    _logger.Warn("LDAP lookup skipped: Credentials:UCDavisDirectoryLDAP is not configured.");
+                }
+                return null;
+            }
+
             var ldapIdentifier = new LdapDirectoryIdentifier(_ldapServer, _ldapSSLPort);
-            var cred = HttpHelper.GetSetting<string>("Credentials", "UCDavisDirectoryLDAP") ?? "";
             using var lc = new LdapConnection(ldapIdentifier,
                     new NetworkCredential(_ldapUsername, cred),
                     AuthType.Basic);
@@ -37,7 +55,7 @@ namespace Viper.Classes.Utilities
         }
 
         /// <summary>
-        /// Get users for display\ searching by name, cn, or samAccountName
+        /// Get users for display: searching by name, cn, or samAccountName
         /// </summary>
         /// <param name="search">Searches all fields (phone number, SN, given name, UID, CN, mail) for this value</param>
         /// <returns>List of Users</returns>
@@ -47,6 +65,7 @@ namespace Viper.Classes.Utilities
             string? filter = BuildUsersContactFilter(search);
             if (filter == null) return users;
             var results = SearchLdap(filter);
+            if (results == null) return users;
 
             foreach (SearchResultEntry entry in results.Entries)
             {
@@ -70,6 +89,7 @@ namespace Viper.Classes.Utilities
             string? filter = BuildUsersContactFilter(search);
             if (filter == null) return users;
             var results = SearchLdap(filter);
+            if (results == null) return users;
             foreach (SearchResultEntry entry in results.Entries)
             {
                 var user = new LdapUserContact(entry);
@@ -91,6 +111,7 @@ namespace Viper.Classes.Utilities
             string? filter = BuildUsersContactFilter(search);
             if (filter == null) return null;
             var results = SearchLdap(filter);
+            if (results == null) return null;
 
             if (results.Entries.Count > 0)
             {
@@ -110,12 +131,32 @@ namespace Viper.Classes.Utilities
             string? filter = BuildUserByIDFilter(id);
             if (filter == null) return null;
             var results = SearchLdap(filter);
+            if (results == null) return null;
             if (results.Entries.Count > 0)
             {
                 return new LdapUserContact(results.Entries[0]);
             }
             return null;
         }
+
+        /// <summary>
+        /// Look up User by its MothraID
+        /// </summary>
+        /// <param name="id">iamID for looking up user</param>
+        /// <returns>LdapUserContact</returns>
+        public static LdapUserContact? GetUserByMothraID(string? id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            var escaped = LdapFilter.Escape(id);
+            var results = SearchLdap($"(ucdpersonuuid = {escaped})");
+            if (results == null) return null;
+            if (results.Entries.Count > 0)
+            {
+                return new LdapUserContact(results.Entries[0]);
+            }
+            return null;
+        }
+
 
         /// <summary>
         /// Get dictionary of Users from a list of MothraIDs
@@ -128,6 +169,7 @@ namespace Viper.Classes.Utilities
             if (filter == null) return new Dictionary<string, LdapUserContact>();
             var results = SearchLdap(filter);
             var users = new Dictionary<string, LdapUserContact>();
+            if (results == null) return users;
             foreach (SearchResultEntry entry in results.Entries)
             {
                 var user = new LdapUserContact(entry);
@@ -148,6 +190,7 @@ namespace Viper.Classes.Utilities
             string? filter = BuildUserBySamAccountNameFilter(samAccountName);
             if (filter == null) return null;
             var results = SearchLdap(filter);
+            if (results == null) return null;
             if (results.Entries.Count > 0)
             {
                 return new LdapUserContact(results.Entries[0]);
@@ -190,9 +233,10 @@ namespace Viper.Classes.Utilities
         private static List<LdapUserContact> SortUsersContact(List<LdapUserContact> users)
         {
             users.Sort((a, b) => a.DisplayName == b.DisplayName
-                ? a.Sn.CompareTo(b.Sn)
-                : a.DisplayName.CompareTo(b.DisplayName));
+                ? string.Compare(a.Sn, b.Sn, StringComparison.OrdinalIgnoreCase)
+                : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
             return users;
         }
     }
 }
+
