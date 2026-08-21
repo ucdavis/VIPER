@@ -64,7 +64,7 @@ namespace Viper.Areas.RAPS.Controllers
             return roleTemplate;
         }
 
-        // GET: RoleTemplates/5
+        // GET: RoleTemplates/5/Apply/12345678
         [HttpGet("{roleTemplateId}/Apply/{memberId}")]
         [Permission(Allow = "RAPS.Admin,RAPS.EditRoleMembership")]
         public async Task<ActionResult<RoleTemplateApplyPreview>> PreviewRoleTemplateApply(string instance, int roleTemplateId, string memberId)
@@ -79,12 +79,10 @@ namespace Viper.Areas.RAPS.Controllers
                 return NotFound();
             }
 
-            var preview = await GetRoleTemplateApplyPreview(roleTemplate, memberId);
-            if (preview == null)
-            {
-                return NotFound();
-            }
-            return preview;
+            // A member id matching nobody is a normal answer to a search, so this returns 200
+            // with a null result rather than 404. That lets the page tell "no such user" apart
+            // from a read that actually failed. The POST below still 404s on an unknown member.
+            return Ok(await GetRoleTemplateApplyPreview(roleTemplate, memberId));
         }
 
         // Post: RoleTemplates/5/Apply/12345678

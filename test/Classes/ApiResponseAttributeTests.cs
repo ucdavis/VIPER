@@ -64,6 +64,27 @@ namespace Test.Classes
             Assert.Contains("ExtraData", json);
         }
 
+        [Fact]
+        public void OnResultExecuting_OkWithNullValue_IsSuccessAndKeepsResultInJson()
+        {
+            // Arrange - an endpoint answering "no match" with Ok(null) rather than a 404
+            var objectResult = new OkObjectResult(null);
+            var context = CreateContext(objectResult);
+
+            // Act
+            _attribute.OnResultExecuting(context);
+
+            // Assert
+            var apiResponse = Assert.IsType<ApiResponse>(objectResult.Value);
+            Assert.True(apiResponse.Success);
+            Assert.Null(apiResponse.Result);
+
+            // viperFetch treats a missing "result" as an error, so the null must stay on the
+            // wire as an explicit null. Serialize the way the MVC pipeline does.
+            var json = JsonSerializer.Serialize(apiResponse, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            Assert.Contains("\"result\":null", json);
+        }
+
         // Test types to simulate JsonDerivedType behavior (like StudentAssessment/StudentEpaAssessment)
         [JsonDerivedType(typeof(BaseClass), typeDiscriminator: "base")]
         [JsonDerivedType(typeof(DerivedClass), typeDiscriminator: "derived")]

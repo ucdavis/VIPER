@@ -200,6 +200,13 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 return BadRequest();
             }
+            // An empty list reaches VMACSExport as "no role filter", exporting every user in the
+            // instance and skipping the per-role CheckAccess below. Full exports are admin-only,
+            // via RAPSController.ExportToVMACS.
+            if (roleIds.Count == 0)
+            {
+                return BadRequest();
+            }
             foreach (int roleId in roleIds)
             {
                 var result = CheckAccess(instance, roleId, null);

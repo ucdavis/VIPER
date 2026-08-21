@@ -17,7 +17,7 @@
         <tr>
             <th class="text-left"><span class="text-h6">Review Changes</span></th>
             <th colspan="2" class="text-right">
-                <q-btn label="Apply template to user(s)" color="primary" no-caps :disable="!templateLoaded" @@click="applyTemplate(true)" class="q-px-sm q-py-xs"></q-btn>
+                <q-btn label="Apply template to user(s)" color="primary" no-caps :disable="!templateLoaded || isPreviewLoading || isApplying" @@click="applyTemplate" class="q-px-sm q-py-xs"></q-btn>
             </th>
         </tr>
     </thead>
@@ -42,6 +42,7 @@
     <span v-else></span>
 </div>
 @section Scripts{
+    <script src="~/js/qtable.js"></script>
     <script asp-add-nonce="true">
         createVueApp({
             data() {
@@ -52,6 +53,13 @@
                     roleTemplate: {},
                     // Starts false so applying is disabled until the template is read.
                     templateLoaded: false,
+                    // Applying is also blocked while a preview is in flight, so the button can
+                    // never act on a set of users the table has not finished showing.
+                    isPreviewLoading: false,
+                    // And while a run is in flight, so a second click cannot start a parallel
+                    // run over the same users.
+                    isApplying: false,
+                    previewRequestId: 0,
                     loginids: "",
                     userSearch: "",
                     userSearchResults: [],
@@ -59,72 +67,156 @@
                 }
             },
             methods: {
-                send: async function(url, data) {
-                    return await fetch(url, data)
-                        .then(r => r.ok && r.status !== 204 ? r.json() : r)
-                        .then(r => r.success !== undefined ? r.result : null)
+                getApplyUrl: function(target) {
+                    // Both ids land in the url path, so encode them: a login id is free text
+                    // and a stray ? or # would silently truncate the id the server sees.
+                    return target.memberId
+                        ? `RoleTemplates/${this.roleTemplateId}/Apply/${encodeURIComponent(target.memberId)}`
+                        : `RoleTemplates/${this.roleTemplateId}/Apply/loginid:${encodeURIComponent(target.loginId)}`
                 },
-                getApplyUrl: function(memberId, loginId) {
-                    return memberId !== null && memberId !== undefined
-                        ? `RoleTemplates/${this.roleTemplateId}/Apply/${memberId}`
-                        : `RoleTemplates/${this.roleTemplateId}/Apply/loginid:${loginId}`
+                // q-select clears to null and models the selection as an option object,
+                // so the value has to be dug out rather than tested directly.
+                hasSelectedUser: function() {
+                    return (this.userSearch?.value?.length ?? 0) > 0
+                },
+                // The two inputs are mutually exclusive: a picked user wins over the pasted list.
+                // Preview and apply share this so both always act on the same set.
+                applyTargets: function() {
+                    if (this.hasSelectedUser()) {
+                        return [{ memberId: this.userSearch.value }]
+                    }
+                    // Pasted lists carry spaces and a trailing comma; neither is a login id.
+                    return (this.loginids ?? "")
+                        .split(",")
+                        .map(loginId => loginId.trim())
+                        .filter(loginId => loginId.length > 0)
+                        .map(loginId => ({ loginId: loginId }))
                 },
                 userSearchUpdate: async function() {
                     this.previewApplyTemplate()
                 },
                 loginidsUpdate: async function() {
-                    if ((this.userSearch?.value?.length ?? 0) === 0) {
+                    if (!this.hasSelectedUser()) {
                         this.previewApplyTemplate()
                     }
                 },
                 applyTemplate: async function () {
-                    var options = {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" }
+                    const targets = this.applyTargets()
+                    if (targets.length === 0) {
+                        return
                     }
-                    //use the single user search box
-                    if ((this.userSearch?.value?.length ?? 0) > 0) {
-                        await this.send(this.getApplyUrl(this.userSearch.value), options)
-                    }
-                    //use the loginids text box
-                    else if (this.loginids !== null && this.loginids.length > 0) {
-                        for (const loginId of this.loginids.split(",")) {
-                            await this.send(this.getApplyUrl(null, loginId), options)
+                    this.isApplying = true
+                    try {
+                        // viperFetch resolves to undefined on a failed write and has already told
+                        // the user why, so only a run where every write landed may report success.
+                        let applied = 0
+                        for (const target of targets) {
+                            const result = await viperFetch(this, this.getApplyUrl(target), {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" }
+                            })
+                            if (result !== undefined) {
+                                applied++
+                            }
                         }
-                    }
-                    if(this.VMACSPush) {
-                        var roleIds = this.roleTemplate.roleTemplateRoles.reduce( (ids, rtr) => {ids.push(rtr.roleTemplateRoleRoleId); return ids;}, [])
-                        Quasar.Loading.show({ message: "Updating VMACS" })
-                        await viperFetch(this, "Roles/Members/VMACSExport", 
-                            { method: "POST", body: JSON.stringify(roleIds), headers: { "Content-Type": "application/json" } 
-                        })
-                        Quasar.Loading.hide()
+                        // A failed VMACS push leaves the error dialog up, so it must not be
+                        // contradicted by a success toast either.
+                        let succeeded = applied === targets.length
+                        if (applied > 0 && this.VMACSPush) {
+                            succeeded = await this.pushRolesToVMACS() && succeeded
+                        }
+                        if (succeeded) {
+                            showStatusNotification("Role template applied")
+                        }
+                    } finally {
+                        this.isApplying = false
                     }
                     this.previewApplyTemplate()
                 },
-                previewApplyTemplate: async function() {
-                    this.members = null
-                    //use the single user search box
-                    if ((this.userSearch?.value?.length ?? 0) > 0) {
-                        this.loginids = ""
-                        this.members = []
-                        var result = await this.send(this.getApplyUrl(this.userSearch.value))
-                        if (result !== null) {
-                            this.members.push(result)
-                        }
+                pushRolesToVMACS: async function() {
+                    const roleIds = this.roleTemplate.roleTemplateRoles.map(rtr => rtr.roleTemplateRoleRoleId)
+                    if (roleIds.length === 0) {
+                        // VMACSExport drops its role filter on an empty list, so [] would export
+                        // every user in the instance instead of none.
+                        return true
                     }
-                    //use the loginids text box
-                    else if (this.loginids !== null && this.loginids.length > 0) {
-                        this.members = []
-                        for (const loginId of this.loginids.split(",")) {
-                            const result = await this.send(this.getApplyUrl(null, loginId))
-                            if (result !== null) {
-                                this.members.push(result)
+                    Quasar.Loading.show({ message: "Updating VMACS" })
+                    const result = await viperFetch(this, "Roles/Members/VMACSExport", {
+                        method: "POST",
+                        body: JSON.stringify(roleIds),
+                        headers: { "Content-Type": "application/json" }
+                    })
+                    Quasar.Loading.hide()
+                    if (result === undefined) {
+                        // The request itself failed and viperFetch has already reported it.
+                        return false
+                    }
+                    // The wrapper's success flag only reflects the status code, so a push that
+                    // failed at VMACS arrives as a 200 carrying success: false. The endpoint's
+                    // result is nullable, so check before reading the flag off it.
+                    if (result !== null && result.success === false) {
+                        this.showViperError = true
+                        this.viperErrorMessage = result.errorMessage?.length > 0
+                            ? result.errorMessage
+                            : "The VMACS update did not complete."
+                        return false
+                    }
+                    return true
+                },
+                previewApplyTemplate: async function() {
+                    // Previews overlap, so stamp each run. A slow earlier one must not land on top
+                    // of a newer one and leave the table showing a different user than Apply writes to.
+                    const requestId = ++this.previewRequestId
+                    this.isPreviewLoading = true
+                    try {
+                        const targets = this.applyTargets()
+                        // The search box wins, so empty the pasted list to match what is being previewed
+                        if (this.hasSelectedUser()) {
+                            this.loginids = ""
+                        }
+                        if (targets.length === 0) {
+                            if (requestId === this.previewRequestId) {
+                                this.members = null
+                                this.membersFound = false
+                            }
+                            return
+                        }
+                        const previews = []
+                        let previewFailed = false
+                        for (const target of targets) {
+                            // null means no user matched, which the API reports as a normal result.
+                            // undefined means the read failed and viperFetch has already reported it.
+                            const preview = await viperFetch(this, this.getApplyUrl(target))
+                            if (preview === undefined) {
+                                // The whole preview is discarded below, so there is nothing to
+                                // learn from reading the rest.
+                                previewFailed = true
+                                break
+                            }
+                            if (preview !== null) {
+                                previews.push(preview)
                             }
                         }
-                        this.members = this.members.filter(m => m !== undefined && m.memberId.length)
+                        if (requestId !== this.previewRequestId) {
+                            return
+                        }
+                        // Apply writes to every target, not only the ones the table lists, so a
+                        // preview that did not complete must not leave a table to act on. Leaving
+                        // members null keeps "No matching users found" off a read that failed.
+                        if (previewFailed) {
+                            this.members = null
+                            this.membersFound = false
+                            return
+                        }
+                        this.members = previews
+                        this.membersFound = previews.length > 0
+                    } finally {
+                        // Only the newest run may clear the flag. An older one finishing late must
+                        // not re-enable Apply while a newer preview is still running.
+                        if (requestId === this.previewRequestId) {
+                            this.isPreviewLoading = false
+                        }
                     }
-                    this.membersFound = this.members && this.members.length && this.members[0].memberId.length
                 },
                 findUsers: function (val, update, abort) {
                     if (val.length < 3) {
@@ -132,9 +224,10 @@
                         return
                     }
                     update(() => {
-                        viperFetch(this, "Members?active=recent&search=" + val)
+                        viperFetch(this, "Members?active=recent&search=" + encodeURIComponent(val))
                             .then(data => {
-                                this.userSearchResults = data.map(m => ({
+                                // A failed search resolves to undefined; leave the list empty rather than throwing
+                                this.userSearchResults = (data ?? []).map(m => ({
                                     label: (!m.current ? "[Inactive]" : "") + m.displayLastName + ", " + m.displayFirstName,
                                     value: m.memberId
                                 }))
@@ -144,7 +237,7 @@
             },
             async mounted() {
                 this.roleTemplateId = this.urlParams.get("roleTemplateId")
-                // roleTemplateRoles must be an array: the VMACS push path calls .reduce() on it.
+                // roleTemplateRoles must be an array: the VMACS push path maps over it.
                 // Track load failure separately so an unread template is never mistaken for
                 // an empty one, which would push an empty role list to VMACS.
                 const template = await viperFetch(this, "RoleTemplates/" + this.roleTemplateId)
@@ -154,10 +247,10 @@
             },
             watch: {
                 userSearch: function () {
-                    this.userSearchUpdate() 
+                    this.userSearchUpdate()
                 },
                 loginids: function () {
-                    this.loginidsUpdate() 
+                    this.loginidsUpdate()
                 }
             }
         })
