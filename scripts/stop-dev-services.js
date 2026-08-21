@@ -3,7 +3,8 @@
 // A catch-all script in case there are zombie processes running.
 // Cross-platform support via shared utilities.
 
-const {
+import { pathToFileURL } from "node:url"
+import {
     killProcess,
     killProcessOnPort,
     getDevServerEnv,
@@ -11,7 +12,7 @@ const {
     execAsync,
     checkProcessExists,
     DEFAULT_ENV_VARS,
-} = require("./lib/script-utils")
+} from "./lib/script-utils.js"
 
 // Create logger with prefix
 const logger = createLogger("Dev Stop")
@@ -66,7 +67,9 @@ async function getDotnetParentPid(pid) {
             return null
         }
         // Only return if parent is a dotnet process (e.g. dotnet watch)
-        if (!/^\d+$/.test(parentPid)) return null
+        if (!/^\d+$/.test(parentPid)) {
+            return null
+        }
         const { stdout: parentInfo } = await execAsync(`wmic process where "ProcessId=${parentPid}" get Name /value`)
         return parentInfo.includes("dotnet.exe") ? parentPid : null
     } catch {
@@ -260,9 +263,9 @@ process.on("SIGTERM", () => {
     process.exit(0)
 })
 
-// Run the script
-if (require.main === module) {
-    ;(async () => {
+// Run the script (ESM equivalent of require.main === module)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    void (async () => {
         try {
             await stopDevServices()
         } catch (error) {
@@ -272,4 +275,4 @@ if (require.main === module) {
     })()
 }
 
-module.exports = { stopDevServices }
+export { stopDevServices }

@@ -162,7 +162,7 @@ function categorizeRule(ruleId) {
     return "quality"
 }
 
-module.exports = {
+export {
     CRITICAL_ACCESSIBILITY_RULES,
     CRITICAL_SECURITY_RULES,
     SONAR_SECURITY_PATTERNS,

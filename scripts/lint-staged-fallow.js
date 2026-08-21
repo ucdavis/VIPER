@@ -11,16 +11,16 @@
 //   node scripts/lint-staged-fallow.js <file> [<file>...]
 //   node scripts/lint-staged-fallow.js --files-from=<path>
 
-const fs = require("node:fs")
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
-const { parseArguments, shouldBlockOnWarnings } = require("./lib/lint-staged-common")
-const { createLogger } = require("./lib/script-utils")
+import fs from "node:fs"
+import path from "node:path"
+import { spawnSync } from "node:child_process"
+import { parseArguments, shouldBlockOnWarnings } from "./lib/lint-staged-common.js"
+import { createLogger } from "./lib/script-utils.js"
 
 const { rawFiles } = parseArguments()
 const logger = createLogger("Fallow")
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 const VUEAPP_DIR = path.join(PROJECT_ROOT, "VueApp")
 
 // Running fallow/jscpd can exceed Node's 1MB default (256 MB).

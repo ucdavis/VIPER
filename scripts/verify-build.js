@@ -3,10 +3,10 @@
 // Build verification script for pre-commit hooks
 // Runs compilation checks with caching to avoid redundant builds
 
-const { spawn } = require("node:child_process")
-const path = require("node:path")
-const { createLogger } = require("./lib/script-utils")
-const {
+import { spawn } from "node:child_process"
+import path from "node:path"
+import { createLogger } from "./lib/script-utils.js"
+import {
     needsBuild,
     markAsBuilt,
     wasBuildSuccessful,
@@ -16,7 +16,7 @@ const {
     createSummaryDetailFilter,
     countBuildWarnings,
     clearCacheIfRequested,
-} = require("./lib/build-cache")
+} from "./lib/build-cache.js"
 
 const logger = createLogger("Build Verify")
 
