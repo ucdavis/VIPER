@@ -14,14 +14,19 @@
                 Your session has been extended to {{sessionExpireTime}}.
             </div>
             <q-space></q-space>
-            <q-btn dense color="secondary" class="q-px-md" label="Log in" v-if="sessionExpired" @@click="login"></q-btn>
+            <q-btn dense color="secondary" class="q-px-md" label="Log in" v-if="sessionExpired || sessionExtendFailed" @@click="login"></q-btn>
             <q-btn dense color="secondary" class="q-px-md" label="Refresh Session" v-if="!sessionExpired && !sessionReloaded" @@click="extendSession"></q-btn>
+        </q-card-section>
+        <q-card-section v-if="sessionExtendFailed && !sessionExpired" class="q-pt-none">
+            <q-banner dense rounded role="alert" class="error-surface">
+                Could not extend your session. Please try again.
+            </q-banner>
         </q-card-section>
     </q-card>
 </q-dialog>
 
 <script asp-add-nonce="true">
-    /* global clearTimeout */
+    /* global clearTimeout, AbortSignal */
     createVueApp({
         data() {
             return {
@@ -30,35 +35,43 @@
                 sessionExpireTime: 0,
                 sessionExpired: false,
                 sessionTimeoutCheckEventId: 0,
-                sessionReloaded: false
+                sessionReloaded: false,
+                sessionExtendFailed: false
             }
         },
         methods: {
             checkSessionTimeout: async function () {
-                try {
-                    fetch(this.sessionRefreshUrl)
-                        .then(r => r.status === 200 ? r.json() : r)
-                        .then(r => {
-                            var nextCheck = 300
-                            if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout < 300) {
-                                this.showSessionTimeoutWarning = true
-                                this.sessionExpired = r.secondsUntilTimeout < 15
-                                var d = new Date(r.sessionTimeoutDateTime)
-                                this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
-                                    + ("0" + d.getMinutes()).slice(-2)
-                                    + (d.getHours() >= 12 ? " PM" : " AM")
-                                nextCheck = this.sessionExpired ? 0 : Math.max(r.secondsUntilTimeout - 15, 5)
-                            }
-                            if(nextCheck > 0) {
-                                this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, nextCheck * 1000)
-                            }
-                        })
-                }
-                catch (e) { void e }
+                // Timeout so a request that hangs rather than fails still reaches the catch below.
+                fetch(this.sessionRefreshUrl, { signal: AbortSignal.timeout(10000) })
+                    .then(r => r.ok ? r.json() : Promise.reject(new Error('Session check returned ' + r.status)))
+                    .then(r => {
+                        var nextCheck = 300
+                        // "<=" so an exact 300 still warns: otherwise the next poll lands at expiry.
+                        if (r.secondsUntilTimeout !== undefined && r.secondsUntilTimeout <= 300) {
+                            this.showSessionTimeoutWarning = true
+                            this.sessionExpired = r.secondsUntilTimeout < 15
+                            var d = new Date(r.sessionTimeoutDateTime)
+                            this.sessionExpireTime = (d.getHours() > 12 ? d.getHours() - 12 : d.getHours()) + ":"
+                                + ("0" + d.getMinutes()).slice(-2)
+                                + (d.getHours() >= 12 ? " PM" : " AM")
+                            nextCheck = this.sessionExpired ? 0 : Math.max(r.secondsUntilTimeout - 15, 5)
+                        }
+                        if(nextCheck > 0) {
+                            this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, nextCheck * 1000)
+                        }
+                    })
+                    // Silent, but reschedule: one failed poll must not stop the checks for the life of
+                    // the page. Retry quickly once the warning is up, since expiry is minutes away.
+                    .catch(() => {
+                        var retry = this.showSessionTimeoutWarning ? 15000 : 300000
+                        this.sessionTimeoutCheckEventId = window.setTimeout(this.checkSessionTimeout, retry)
+                    })
             },
             extendSession: async function() {
-                fetch("/RefreshSession")
-                    .then(r => r.status === 200 ? r.json() : r)
+                this.sessionExtendFailed = false
+                // "~/" keeps the app's PathBase. A bare "/" resolves to the domain root, outside this app.
+                fetch('@Url.Content("~/RefreshSession")', { signal: AbortSignal.timeout(10000) })
+                    .then(r => r.ok ? r.json() : Promise.reject(new Error('RefreshSession returned ' + r.status)))
                     .then(r => {
                         try {
                             clearTimeout(this.sessionTimeoutCheckEventId)
@@ -74,10 +87,13 @@
 
                         window.setTimeout(this.hideSessionTimeoutWarning, 1000)
                     })
+                    // Leave the dialog up so the user can retry or log in, and say so: the session was not extended.
+                    .catch(() => { this.sessionExtendFailed = true })
             },
             hideSessionTimeoutWarning: function() {
                 this.showSessionTimeoutWarning = false
                 this.sessionReloaded = false
+                this.sessionExtendFailed = false
             },
             login: function() {
                 var returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
