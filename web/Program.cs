@@ -336,8 +336,7 @@ try
         ctx => !HealthCheckExtensions.IsUIPath(ctx.Request.Path),
         branch => branch.UseCsp(csp =>
     {
-        // AllowUnsafeEval is for the legacy Razor pages only, and removing it renders every
-        // page under _VIPERLayout blank. The /2/vue branch below drops it. See CspPolicy.
+        // Legacy Razor pages need 'unsafe-eval'; the /2/vue branch below drops it. See CspPolicy.
         // Allow JavaScript from:
         csp.AllowScripts
             .FromSelf() // This domain
@@ -512,15 +511,13 @@ try
             // Prod (and dev fallback): rewrite SPA routes to the built SPA shell,
             // then serve the static file from wwwroot/vue.
             branch.UseRewriter(rewriteOptions);
+            // Only the SPA shell reaches here; under /2, assets are served above and keep the
+            // permissive header, which is harmless since CSP on a subresource governs nothing.
             branch.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(
                     Path.Join(builder.Environment.WebRootPath, "vue")),
                 RequestPath = "/2/vue",
-                // Tightens the policy the CSP middleware set earlier in the pipeline. Under the
-                // /2 PathBase the SPA's own asset URLs arrive as /vue/... and are served by the
-                // general static-file branch above, which keeps the permissive header; moot,
-                // since CSP on a subresource response governs nothing.
                 OnPrepareResponse = CspPolicy.TightenForBuiltSpa
             });
         });

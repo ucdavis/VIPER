@@ -4,19 +4,14 @@ using Microsoft.Net.Http.Headers;
 namespace Viper.Classes
 {
     /// <summary>
-    /// Content-Security-Policy helpers.
-    /// The application-wide policy still carries 'unsafe-eval' because the legacy Razor pages load
-    /// Vue's full build (wwwroot/lib/vue/dist/vue.global.prod.js) and mount it on &lt;body&gt; with
-    /// an in-DOM template, so Vue compiles that template at runtime through Function(code)().
-    /// Removing the allowance blanks every page rendered by Views/Shared/_VIPERLayout.cshtml.
+    /// The app-wide policy keeps 'unsafe-eval': _VIPERLayout Razor pages mount Vue's full build on
+    /// the document body, compiling that in-DOM template via Function(code)(). Dropping it blanks them.
     /// </summary>
     public static class CspPolicy
     {
         private const string UnsafeEval = "'unsafe-eval'";
 
-        /// <summary>
-        /// Drops the allowance from a built Vue SPA response, whose templates Vite precompiled.
-        /// </summary>
+        /// <summary>Drops the allowance from a built SPA response with precompiled templates.</summary>
         public static void TightenForBuiltSpa(StaticFileResponseContext ctx)
         {
             var headers = ctx.Context.Response.Headers;
@@ -36,6 +31,7 @@ namespace Viper.Classes
 
         private static string StripUnsafeEval(string directive)
         {
+            // Without this, a valueless directive like upgrade-insecure-requests would gain 'none'.
             if (!directive.Contains(UnsafeEval, StringComparison.Ordinal))
             {
                 return directive;
@@ -46,8 +42,7 @@ namespace Viper.Classes
                 .Where(token => !string.Equals(token, UnsafeEval, StringComparison.Ordinal))
                 .ToArray();
 
-            // Dropping the only source expression would leave a bare directive name. An empty
-            // source list already matches nothing, but 'none' states that explicitly.
+            // A bare directive name already matches nothing; 'none' states that explicitly.
             return kept.Length == 1
                 ? kept[0] + " 'none'"
                 : string.Join(' ', kept);
