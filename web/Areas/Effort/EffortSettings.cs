@@ -18,7 +18,7 @@ public class EffortSettings
     /// <summary>
     /// When true, the harvest and on-demand effort entry auto-create the generic
     /// "RES 000R-001" resident-teaching course (CRN "RESID") and its effort records.
-    /// Defaults to false — the placeholder course is not currently in use.
+    /// Defaults to false in PROD; Dev and Test enable it to exercise the path.
     /// </summary>
     public bool AutoCreateGenericRCourse { get; set; }
 }
