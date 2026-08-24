@@ -160,6 +160,10 @@
                     this.selectedPermissions = []
                 },
                 pushToVMACS: async function(roleIds) {
+                    // The export reads an empty list as "no filter" and the endpoint rejects it.
+                    if (roleIds.length === 0) {
+                        return
+                    }
                     Quasar.Loading.show({ message: "Updating VMACS" })
                     await viperFetch(this, "Roles/Members/VMACSExport", 
                         { method: "POST", body: JSON.stringify(roleIds), headers: { "Content-Type": "application/json" } 
