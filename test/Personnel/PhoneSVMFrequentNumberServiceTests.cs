@@ -46,6 +46,21 @@ public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
 
     public void Dispose() => _context.Dispose();
 
+    private void SeedNumber(string label, string phone, bool isActive = true)
+    {
+        _context.SVMFrequentNumber.Add(new SVMFrequentNumber
+        {
+            NumberId = 1,
+            Label = label,
+            Phone = phone,
+            IsActive = isActive,
+        });
+        _context.SaveChanges();
+    }
+
+    private async Task<SVMFrequentNumber?> FindNumber(int numberId) =>
+        await _context.SVMFrequentNumber.FindAsync(new object?[] { numberId }, TestContext.Current.CancellationToken);
+
     [Fact]
     public async Task AddFrequentNumber_SetsIsActiveTrue_AndModifiedMetadata()
     {
@@ -97,6 +112,76 @@ public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.DeleteFrequentNumber(1, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateFrequentNumber_OverwritesFields_AndModifiedMetadata()
+    {
+        SeedNumber(label: "Front Desk", phone: "530-555-1000");
+        var request = new SVMFrequentNumberRequest { Label = "Reception", Phone = "530-555-4000" };
+
+        await _service.UpdateFrequentNumber(1, request, TestContext.Current.CancellationToken);
+
+        var saved = await FindNumber(1);
+        Assert.NotNull(saved);
+        Assert.Equal("Reception", saved.Label);
+        Assert.Equal("530-555-4000", saved.Phone);
+        Assert.Equal(CallerIam, saved.ModifiedBy);
+        Assert.NotNull(saved.ModifiedDate);
+        Assert.True(saved.IsActive);
+    }
+
+    [Fact]
+    public async Task UpdateFrequentNumber_TrimsWhitespace()
+    {
+        SeedNumber(label: "Front Desk", phone: "530-555-1000");
+        var request = new SVMFrequentNumberRequest { Label = "  Reception  ", Phone = "  530-555-4000  " };
+
+        await _service.UpdateFrequentNumber(1, request, TestContext.Current.CancellationToken);
+
+        var saved = await FindNumber(1);
+        Assert.NotNull(saved);
+        Assert.Equal("Reception", saved.Label);
+        Assert.Equal("530-555-4000", saved.Phone);
+    }
+
+    [Theory]
+    [InlineData("", "530-555-4000", "Location must not be empty.")]
+    // Whitespace-only rather than empty: the guard is IsNullOrWhiteSpace, and a bare "" would
+    // still pass if it were ever weakened to IsNullOrEmpty.
+    [InlineData("   ", "530-555-4000", "Location must not be empty.")]
+    [InlineData("Reception", "", "Phone Number must not be empty.")]
+    [InlineData("Reception", "   ", "Phone Number must not be empty.")]
+    public async Task UpdateFrequentNumber_Throws_ForBlankFields(string label, string phone, string expectedMessage)
+    {
+        SeedNumber(label: "Front Desk", phone: "530-555-1000");
+        var request = new SVMFrequentNumberRequest { Label = label, Phone = phone };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.UpdateFrequentNumber(1, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal(expectedMessage, ex.Message);
+        var unchanged = await FindNumber(1);
+        Assert.NotNull(unchanged);
+        Assert.Equal("Front Desk", unchanged.Label);
+    }
+
+    [Fact]
+    public async Task UpdateFrequentNumber_Throws_WhenTheRowWasAlreadyDeleted()
+    {
+        // A maintainer whose page predates someone else's delete. Editing must not resurrect the
+        // row, which the IsActive half of the guard is what prevents - an id-only lookup would
+        // find the soft-deleted record and happily write to it.
+        SeedNumber(label: "Retired Line", phone: "530-555-3000", isActive: false);
+        var request = new SVMFrequentNumberRequest { Label = "Reception", Phone = "530-555-4000" };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.UpdateFrequentNumber(1, request, TestContext.Current.CancellationToken));
+
+        var stillDeleted = await FindNumber(1);
+        Assert.NotNull(stillDeleted);
+        Assert.False(stillDeleted.IsActive);
+        Assert.Equal("Retired Line", stillDeleted.Label);
     }
 
     [Fact]

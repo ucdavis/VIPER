@@ -45,7 +45,7 @@ public sealed class PhonePersonLookupServiceTests : IDisposable
         });
 
         var rapsContext = Substitute.For<RAPSContext>();
-        var permissionsService = new PhonesPermissionsService(rapsContext, _userHelper);
+        var permissionsService = new PhonePermissionsService(rapsContext, _userHelper);
         _service = new PhonePersonLookupService(_context, permissionsService);
 
         _context.PhoneList.Add(new PhoneList { PhoneListId = 1, Code = "VMDO", Name = "Dean's Office", MaintainRole = MaintainRole });

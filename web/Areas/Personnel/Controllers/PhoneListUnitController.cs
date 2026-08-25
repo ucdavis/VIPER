@@ -16,11 +16,11 @@ namespace Viper.Areas.Personnel.Controllers
     public class PhoneListUnitController(
         PhoneListService phoneListService,
         PhoneListUnitService phoneListUnitService,
-        PhonesPermissionsService phonesPermissionsService) : ApiController
+        PhonePermissionsService phonePermissionsService) : ApiController
     {
         private readonly PhoneListService _phoneListService = phoneListService;
         private readonly PhoneListUnitService _phoneListUnitService = phoneListUnitService;
-        private readonly PhonesPermissionsService _phonesPermissionsService = phonesPermissionsService;
+        private readonly PhonePermissionsService _phonePermissionsService = phonePermissionsService;
 
         /// <summary>
         /// Resolves the list named in the route and confirms the caller may edit it. Returns the
@@ -37,7 +37,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return (0, NotFound(ex.Message));
             }
-            if (!_phonesPermissionsService.CanMaintainList(list))
+            if (!_phonePermissionsService.CanMaintainList(list))
             {
                 return (0, Forbid());
             }

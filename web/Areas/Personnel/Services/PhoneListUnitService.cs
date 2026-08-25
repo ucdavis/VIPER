@@ -7,16 +7,16 @@ namespace Viper.Areas.Personnel.Services
     {
         private readonly PhonesDbContext _context;
         private readonly IUserHelper _userHelper;
-        private readonly PhonesPermissionsService _phonesPermissionsService;
+        private readonly PhonePermissionsService _phonePermissionsService;
         public PhoneListUnitService(
             PhonesDbContext context,
             IUserHelper userHelper,
-            PhonesPermissionsService phonesPermissionsService
+            PhonePermissionsService phonePermissionsService
         )
         {
             _context = context;
             _userHelper = userHelper;
-            _phonesPermissionsService = phonesPermissionsService;
+            _phonePermissionsService = phonePermissionsService;
         }
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace Viper.Areas.Personnel.Services
             {
                 return false;
             }
-            if (_phonesPermissionsService.CanMaintainList(list))
+            if (_phonePermissionsService.CanMaintainList(list))
             {
                 return true;
             }

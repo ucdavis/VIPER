@@ -49,7 +49,7 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         });
 
         var rapsContext = Substitute.For<RAPSContext>();
-        var permissionsService = new PhonesPermissionsService(rapsContext, _userHelper);
+        var permissionsService = new PhonePermissionsService(rapsContext, _userHelper);
         var phoneListService = new PhoneListService(_context);
         var unitService = new PhoneListUnitService(_context, _userHelper, permissionsService);
 

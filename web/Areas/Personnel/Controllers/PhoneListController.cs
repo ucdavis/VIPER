@@ -11,11 +11,11 @@ namespace Viper.Areas.Personnel.Controllers
     public class PhoneListController(
         PhoneListService phoneListService,
         PhoneListUnitService phoneListUnitService,
-        PhonesPermissionsService phonesPermissionsService) : ApiController
+        PhonePermissionsService phonePermissionsService) : ApiController
     {
         private readonly PhoneListService _phoneListService = phoneListService;
         private readonly PhoneListUnitService _phoneListUnitService = phoneListUnitService;
-        private readonly PhonesPermissionsService _phonesPermissionsService = phonesPermissionsService;
+        private readonly PhonePermissionsService _phonePermissionsService = phonePermissionsService;
 
         /// <summary>
         /// Everything a client needs before it fetches rows:
@@ -35,7 +35,7 @@ namespace Viper.Areas.Personnel.Controllers
                     PhoneListId = list.PhoneListId,
                     Code = list.Code,
                     Name = list.Name,
-                    CanMaintain = _phonesPermissionsService.CanMaintainList(list),
+                    CanMaintain = _phonePermissionsService.CanMaintainList(list),
                     CanViewDirectPhone = await _phoneListUnitService.CanViewDirectPhone(list, ct),
                 });
             }

@@ -47,7 +47,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         // rapsContext is unused when IUserHelper.HasPermission is mocked directly,
         // so a bare substitute (no seeded roles) is sufficient here.
         var rapsContext = Substitute.For<RAPSContext>();
-        var permissionsService = new PhonesPermissionsService(rapsContext, _userHelper);
+        var permissionsService = new PhonePermissionsService(rapsContext, _userHelper);
 
         _service = new PhoneListUnitService(_context, _userHelper, permissionsService);
 
@@ -59,6 +59,30 @@ public sealed class PhoneListUnitServiceTests : IDisposable
     /// <summary>The seeded list, as the controller would hand it to the service.</summary>
     private PhoneList TestList() =>
         _context.PhoneList.Single(l => l.PhoneListId == 1);
+
+    private void AddUnit(int unitId, string name)
+    {
+        _context.PhoneListUnit.Add(new PhoneListUnit { PhoneListUnitId = unitId, PhoneListId = 1, Name = name });
+        _context.SaveChanges();
+    }
+
+    /// <summary>Puts a person on a unit, with the phone row the read paths expect them to have.</summary>
+    private void AddMember(int unitPersonId, int unitId, string personIam, bool listFirst)
+    {
+        _context.PhonePerson.Add(new PhonePerson { PersonIam = personIam, Phone = "530-555-0000" });
+        _context.PhoneListUnitPerson.Add(new PhoneListUnitPerson
+        {
+            PhoneListUnitPersonId = unitPersonId,
+            PhoneListUnitId = unitId,
+            PersonIam = personIam,
+            ListFirst = listFirst,
+            IsActive = true,
+        });
+        _context.SaveChanges();
+    }
+
+    private async Task<PhoneListUnitPerson?> FindMember(int unitPersonId) =>
+        await _context.PhoneListUnitPerson.FindAsync(new object?[] { unitPersonId }, TestContext.Current.CancellationToken);
 
     private void SeedList()
     {
@@ -256,6 +280,82 @@ public sealed class PhoneListUnitServiceTests : IDisposable
             .ToListAsync(TestContext.Current.CancellationToken));
         Assert.True(association.IsActive);
         Assert.Equal("paddedtwice", association.PersonIam);
+    }
+
+    [Fact]
+    public async Task UpdateUnitPersonData_UpdatesThePhonePerson_AndModifiedMetadata()
+    {
+        var unitPerson = Assert.Single(_context.PhoneListUnitPerson);
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 1,
+            EmployeeIam = "listedperson",
+            Phone = "  530-555-7000  ",
+            DirectPhone = "  530-555-7001  ",
+            Office = "  Room 700  ",
+        };
+
+        await _service.UpdateUnitPersonData(
+            1, unitPerson.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken);
+
+        var phonePerson = await _context.PhonePerson
+            .FindAsync(new object?[] { "listedperson" }, TestContext.Current.CancellationToken);
+        Assert.NotNull(phonePerson);
+        Assert.Equal("530-555-7000", phonePerson.Phone);
+        Assert.Equal("530-555-7001", phonePerson.DirectPhone);
+        Assert.Equal("Room 700", phonePerson.Office);
+        Assert.Equal(CallerIam, unitPerson.ModifiedBy);
+        Assert.NotNull(unitPerson.ModifiedDate);
+    }
+
+    [Fact]
+    public async Task UpdateUnitPersonData_ClearsListFirstOnTheRecordsOwnUnit_NotTheRequestedOne()
+    {
+        // The request carries a UnitId, but the record already knows which unit it lives in. Only
+        // the record's own unit may be cleared: taking the caller's word for it would let a
+        // mismatched UnitId unset the first-listed entry of an unrelated unit.
+        AddUnit(unitId: 2, name: "Other Office");
+        AddMember(unitPersonId: 10, unitId: 1, personIam: "sameunitfirst", listFirst: true);
+        AddMember(unitPersonId: 20, unitId: 2, personIam: "otherunitfirst", listFirst: true);
+        var target = await _context.PhoneListUnitPerson
+            .SingleAsync(p => p.PersonIam == "listedperson", TestContext.Current.CancellationToken);
+
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 2,
+            EmployeeIam = "listedperson",
+            Phone = "530-555-7000",
+            ListFirst = true,
+        };
+
+        await _service.UpdateUnitPersonData(
+            1, target.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken);
+
+        Assert.True(target.ListFirst);
+        Assert.False((await FindMember(10))!.ListFirst);
+        Assert.True((await FindMember(20))!.ListFirst);
+    }
+
+    [Fact]
+    public async Task UpdateUnitPersonData_LeavesTheExistingFirstEntry_WhenListFirstIsNotSet()
+    {
+        AddMember(unitPersonId: 10, unitId: 1, personIam: "sameunitfirst", listFirst: true);
+        var target = await _context.PhoneListUnitPerson
+            .SingleAsync(p => p.PersonIam == "listedperson", TestContext.Current.CancellationToken);
+
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 1,
+            EmployeeIam = "listedperson",
+            Phone = "530-555-7000",
+            ListFirst = false,
+        };
+
+        await _service.UpdateUnitPersonData(
+            1, target.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken);
+
+        Assert.False(target.ListFirst);
+        Assert.True((await FindMember(10))!.ListFirst);
     }
 
     [Fact]

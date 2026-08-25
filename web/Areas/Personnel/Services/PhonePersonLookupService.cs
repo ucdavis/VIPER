@@ -4,10 +4,10 @@ using Viper.Classes.Utilities;
 
 namespace Viper.Areas.Personnel.Services
 {
-    public class PhonePersonLookupService(PhonesDbContext context, PhonesPermissionsService phonesPermissionsService)
+    public class PhonePersonLookupService(PhonesDbContext context, PhonePermissionsService phonePermissionsService)
     {
         private readonly PhonesDbContext _context = context;
-        private readonly PhonesPermissionsService _phonePermissionsService = phonesPermissionsService;
+        private readonly PhonePermissionsService _phonePermissionsService = phonePermissionsService;
 
         /// <summary>
         /// Retrieves the PhonePerson records associated with a list of iam IDs.

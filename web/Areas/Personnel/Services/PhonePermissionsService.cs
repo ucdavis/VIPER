@@ -3,7 +3,7 @@ using Viper.Areas.Personnel.Models;
 
 namespace Viper.Areas.Personnel.Services
 {
-    public class PhonesPermissionsService(
+    public class PhonePermissionsService(
         RAPSContext rapsContext,
         IUserHelper userHelper
     )
