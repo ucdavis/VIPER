@@ -19,7 +19,7 @@ namespace Viper.Areas.Personnel.Controllers
         public async Task<ActionResult<List<SVMSection>>> GetSections(CancellationToken ct = default)
         {
             var results = await _phoneSVMSectionService.GetSVMSections(ct);
-            if (results == null || results.Count == 0)
+            if (results.Count == 0)
             {
                 return NotFound("No sections for the SVM Phone List were found.");
             }

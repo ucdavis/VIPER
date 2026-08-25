@@ -11,7 +11,7 @@ namespace Viper.Areas.Personnel.Models
         public string LastName { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public required string IamId { get; set; }
-        public required bool CurrentEmployee { get; set; } = false;
+        public required bool CurrentEmployee { get; set; }
         public string MailId { get; set; } = string.Empty;
     }
 }

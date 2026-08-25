@@ -162,6 +162,79 @@ function unitAdminStaffEntries(
     ]
 }
 
+/**
+ * Splits a unit's people into the leaders, each of which becomes a row of its own, and the one
+ * admin staff member the unit shares across every one of those rows. Anyone carrying no PosType
+ * is neither and is left out.
+ */
+function partitionUnitPeople(unitPersons: SVMUnitPerson[]): {
+    leaders: SVMUnitPerson[]
+    staff: SVMUnitPerson | null
+} {
+    const leaders: SVMUnitPerson[] = []
+    let staff: SVMUnitPerson | null = null
+    for (const unitPerson of unitPersons) {
+        if (unitPerson.posType === "Staff") {
+            staff = unitPerson
+        } else if (unitPerson?.posType) {
+            leaders.push(unitPerson)
+        }
+    }
+    return { leaders, staff }
+}
+
+/**
+ * The row key the list renders and the delete endpoint takes. The placeholder standing in for a
+ * departed director has no record of its own, so it falls back to the staff row; a unit with
+ * neither has nothing to show and returns null.
+ */
+function resolveEntryId(leader: SVMUnitPerson, staff: SVMUnitPerson | null): number | null {
+    const entryId = leader.unitPersonId === -1 ? staff?.unitPersonId : leader.unitPersonId
+    return entryId === undefined || entryId === -1 ? null : entryId
+}
+
+/**
+ * The leader half of a display row. The caller has already run populateEmptyPerson, so person
+ * and viperPerson are both present.
+ */
+function buildLeaderRow({
+    section,
+    unit,
+    leader,
+    isOnlyRowForUnit,
+}: {
+    section: SVMPhoneSection
+    unit: SVMUnitAPIResponse
+    leader: SVMUnitPerson
+    isOnlyRowForUnit: boolean
+}) {
+    const person = leader.person!
+    const viperPerson = person.viperPerson!
+    let displayName = viperPerson.fullName
+    if (leader.interim) {
+        displayName += ` (${leader.interim})`
+    }
+    return {
+        sectionName: section.title,
+        unitName: unit.name,
+        unitId: unit.unitId,
+        unitAbbrv: unit.abbrv,
+        officeLocation: leader.office,
+        officeFax: unit.fax,
+        deanDirectorFullName: viperPerson.fullName,
+        deanDirectorDisplayName: displayName,
+        deanDirectorInterim: leader.interim ?? "",
+        deanDirectorIam: person.personIam,
+        deanDirectorUnitPersonId: leader.unitPersonId,
+        deanDirectorPhone: person.phone ?? "",
+        deanDirectorModifiedBy: person.viperModPerson?.fullName ?? null,
+        deanDirectorModifiedDate: person.modifiedDate,
+        // The admin staff belongs to the unit, so the API keeps them until no leader row is
+        // left. Recording that here lets the delete confirmation name everyone it removes.
+        isOnlyRowForUnit,
+    }
+}
+
 // Populates and returns the data used to populate the SVM phone list and
 // to autocomplete fields when adding or editing rows.
 // Autopopulated data includes a unit's fax number and admin staff.
@@ -187,61 +260,35 @@ async function getSVMData(isEdit: boolean) {
         r.forEach((result: SVMUnitAPIResponse) => {
             units.push({ label: result.name ?? "", value: result.unitId.toString() })
             unitFaxNumbers.push({ unitId: result.unitId, fax: result.fax ?? "" })
-            if (result.unitPersons !== null) {
-                const leaders: SVMUnitPerson[] = []
-                let staff: SVMUnitPerson | null = null
-                for (const unitPerson of result.unitPersons) {
-                    if (unitPerson.posType === "Staff") {
-                        staff = unitPerson
-                    } else if (unitPerson?.posType) {
-                        leaders.push(unitPerson)
-                    }
-                }
-                const adminStaffPartialRow = getAdminStaffData(staff)
-                // Lets the add dialog auto-populate the admin staff fields when adding another
-                // leader to a unit that already has one.
-                unitAdminStaff.push(...unitAdminStaffEntries(result.unitId, staff, adminStaffPartialRow))
-                // The front end prevents new units from having a director but no admin staff,
-                // but if the listed director is no longer a current employee,
-                // we still want to display the admin staff and show that there is no active director.
-                if (leaders.length === 0 && staff !== null) {
-                    leaders.push(getEmptySVMUnitPerson(result.unitId))
-                }
-                for (let leader of leaders) {
-                    // Ensures leader.person.viperPerson is not null.
-                    leader = populateEmptyPerson(leader)
-                    let leaderDisplayName = leader.person!.viperPerson!.fullName
-                    if (leader.interim) {
-                        leaderDisplayName += ` (${leader.interim})`
-                    }
-                    const partialRow = {
-                        sectionName: section.title,
-                        unitName: result.name,
-                        unitId: result.unitId,
-                        unitAbbrv: result.abbrv,
-                        officeLocation: leader.office,
-                        officeFax: result.fax,
-                        deanDirectorFullName: leader.person!.viperPerson!.fullName,
-                        deanDirectorDisplayName: leaderDisplayName,
-                        deanDirectorInterim: leader.interim ?? "",
-                        deanDirectorIam: leader.person!.personIam,
-                        deanDirectorUnitPersonId: leader.unitPersonId,
-                        deanDirectorPhone: leader.person!.phone ?? "",
-                        deanDirectorModifiedBy: leader.person!.viperModPerson?.fullName ?? null,
-                        deanDirectorModifiedDate: leader.person!.modifiedDate,
-                        // The admin staff belongs to the unit, so the API keeps them until no
-                        // leader row is left. Recording that here lets the delete confirmation
-                        // name everyone it is about to remove.
-                        isOnlyRowForUnit: leaders.length === 1,
-                    }
-                    // Ensure that row-key is unique by using leader's unitPersonId if it exists,
-                    // or staff's if not. At least one should exist. If not, there are no
-                    // people for this row, so hide it.
-                    const entryId = leader.unitPersonId === -1 ? staff?.unitPersonId : leader.unitPersonId
-                    if (entryId !== undefined && entryId !== -1) {
-                        const entryIdObj = { entryId }
-                        rows.push({ ...partialRow, ...adminStaffPartialRow, ...entryIdObj })
-                    }
+            if (result.unitPersons === null) {
+                return
+            }
+            const { leaders, staff } = partitionUnitPeople(result.unitPersons)
+            const adminStaffPartialRow = getAdminStaffData(staff)
+            // Lets the add dialog auto-populate the admin staff fields when adding another
+            // leader to a unit that already has one.
+            unitAdminStaff.push(...unitAdminStaffEntries(result.unitId, staff, adminStaffPartialRow))
+            // The front end prevents new units from having a director but no admin staff,
+            // but if the listed director is no longer a current employee,
+            // we still want to display the admin staff and show that there is no active director.
+            if (leaders.length === 0 && staff !== null) {
+                leaders.push(getEmptySVMUnitPerson(result.unitId))
+            }
+            for (const leader of leaders) {
+                // Ensures leader.person.viperPerson is not null.
+                const populatedLeader = populateEmptyPerson(leader)
+                const entryId = resolveEntryId(populatedLeader, staff)
+                if (entryId !== null) {
+                    rows.push({
+                        ...buildLeaderRow({
+                            section,
+                            unit: result,
+                            leader: populatedLeader,
+                            isOnlyRowForUnit: leaders.length === 1,
+                        }),
+                        ...adminStaffPartialRow,
+                        entryId,
+                    })
                 }
             }
         })

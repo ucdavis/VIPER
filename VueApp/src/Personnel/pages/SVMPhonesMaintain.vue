@@ -127,16 +127,25 @@ async function deleteRecord(row: SVMPhoneDisplayRecord) {
     const removedPeopleString = removedPeople.length > 0 ? ` - ${removedPeople.join(" and ")}` : ""
     const rowLabel = `${row.unitName}${removedPeopleString}`
 
+    await confirmAndDelete(rowLabel, "The record", () => svmUnitService.deleteRow(row.entryId))
+}
+
+/**
+ * Confirms a permanent delete, runs it, reports the outcome, and reloads the page data.
+ * Both maintained tables delete the same way and differ only in what is being removed, so the
+ * caller supplies the label, the noun for the confirmation text, and the service call.
+ */
+async function confirmAndDelete(label: string, subject: string, remove: () => Promise<{ errors: string[] }>) {
     const confirmed = await confirmAction({
         title: "Delete Phone Record",
         message:
-            `Permanently delete record for "${rowLabel}"? The record will be removed ` +
+            `Permanently delete record for "${label}"? ${subject} will be removed ` +
             `immediately and this cannot be undone.`,
         okLabel: "Delete Permanently",
         okColor: "negative",
     })
     if (!confirmed) return
-    const r = await svmUnitService.deleteRow(row.entryId)
+    const r = await remove()
     if (r.errors.length > 0) {
         $q.notify({ type: "negative", message: r.errors[0] })
     } else {
@@ -156,22 +165,9 @@ function editFrequentNumber(row: SVMFrequentNumberRecord) {
 }
 
 async function deleteFrequentNumber(row: SVMFrequentNumberRecord) {
-    const confirmed = await confirmAction({
-        title: "Delete Phone Record",
-        message:
-            `Permanently delete record for "${row.label}"? The record for this number will be removed ` +
-            `immediately and this cannot be undone.`,
-        okLabel: "Delete Permanently",
-        okColor: "negative",
-    })
-    if (!confirmed) return
-    const r = await svmFrequentNumberService.deleteFrequentNumber(row.entryId)
-    if (r.errors.length > 0) {
-        $q.notify({ type: "negative", message: r.errors[0] })
-    } else {
-        $q.notify({ type: "positive", message: "Record deleted" })
-    }
-    await loadPhoneData()
+    await confirmAndDelete(row.label, "The record for this number", () =>
+        svmFrequentNumberService.deleteFrequentNumber(row.entryId),
+    )
 }
 
 function clearEditData() {

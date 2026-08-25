@@ -3,6 +3,54 @@ import { getSparseAugmentedViperPerson } from "./use-person-helper"
 import type { QTableProps } from "quasar"
 import type { PhoneListUnit, PhoneListDisplayRecord } from "../types/phone-list-phone-types"
 
+/**
+ * The columns a phone-list table shows. Direct numbers are for maintainers and for the people on
+ * the list itself; the row controls are for maintainers alone. The backend enforces both
+ * independently, so this only decides what is rendered.
+ */
+function buildColumns(isEdit: boolean, isInternal: boolean): QTableProps["columns"] {
+    const cols: QTableProps["columns"] = [
+        { name: "name", label: "Name", field: "name", align: "left", sortable: true },
+        { name: "phone", label: "Phone", field: "phone", align: "left", sortable: false },
+    ]
+    if (isInternal || isEdit) {
+        cols.push({
+            name: "directPhone",
+            label: "Direct Phone",
+            field: "directPhone",
+            align: "left",
+            sortable: false,
+        })
+    }
+    cols.push({ name: "office", label: "Office", field: "office", align: "left", sortable: false })
+    if (isEdit) {
+        cols.push(
+            {
+                name: "listFirst",
+                label: "List First",
+                field: "listFirst",
+                align: "center",
+                sortable: false,
+            },
+            {
+                name: "edit",
+                label: "Edit",
+                field: "edit",
+                align: "left",
+                sortable: false,
+            },
+            {
+                name: "delete",
+                label: "Delete",
+                field: "delete",
+                align: "left",
+                sortable: false,
+            },
+        )
+    }
+    return cols
+}
+
 // Retrieve all units and associated people for the given list code (e.g., VDMO).
 // The data included depends on whether this is for editing or displaying the list.
 // isInternal also affects displayed columns, but the backend independently
@@ -12,45 +60,7 @@ async function getPhoneListData(code: string, isEdit: boolean, isInternal: boole
     const r = await phoneListUnitService.getUnitsByList(code)
     for (const unit of r) {
         const rows: PhoneListDisplayRecord[] = []
-        const cols: QTableProps["columns"] = [
-            { name: "name", label: "Name", field: "name", align: "left", sortable: true },
-            { name: "phone", label: "Phone", field: "phone", align: "left", sortable: false },
-        ]
-        if (isInternal || isEdit) {
-            cols.push({
-                name: "directPhone",
-                label: "Direct Phone",
-                field: "directPhone",
-                align: "left",
-                sortable: false,
-            })
-        }
-        cols.push({ name: "office", label: "Office", field: "office", align: "left", sortable: false })
-        if (isEdit) {
-            cols.push(
-                {
-                    name: "listFirst",
-                    label: "List First",
-                    field: "listFirst",
-                    align: "center",
-                    sortable: false,
-                },
-                {
-                    name: "edit",
-                    label: "Edit",
-                    field: "edit",
-                    align: "left",
-                    sortable: false,
-                },
-                {
-                    name: "delete",
-                    label: "Delete",
-                    field: "delete",
-                    align: "left",
-                    sortable: false,
-                },
-            )
-        }
+        const cols = buildColumns(isEdit, isInternal)
         for (const unitPerson of unit.phoneListUnitPersons) {
             // If a person is no longer an active employee,
             // person or viperPerson may be null.

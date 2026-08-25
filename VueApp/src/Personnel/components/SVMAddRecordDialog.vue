@@ -2,7 +2,7 @@
     <RecordFormDialog
         :model-value="modelValue"
         title-id="svm-add-record-dialog-title"
-        :title="isEdit ? 'Edit Phone Record' : 'Add Phone Record'"
+        :title="dialogTitle"
         :is-edit="isEdit"
         :saving="saving"
         :form-error="formError"
@@ -22,7 +22,7 @@
             outlined
             label="Unit"
             :options="activeUnits"
-            :rules="[(v: QSelectOption<any> | null) => !!v?.value || 'Please select a unit']"
+            :rules="unitRules"
             @update:model-value="onUpdatedUnit"
             hint="The unit this record belongs in"
         />
@@ -49,7 +49,7 @@
             v-model="form.deanDirector"
             label="Dean/Director"
             list-code=""
-            @update:model-value="($event) => (form.deanDirectorPhone = $event?.phoneData?.phone ?? '')"
+            @update:model-value="onDeanDirectorPicked"
         ></PersonSelector>
 
         <q-input
@@ -72,7 +72,7 @@
             v-model="form.staff"
             label="Admin Staff"
             list-code=""
-            @update:model-value="($event) => (form.staffPhone = $event?.phoneData?.phone ?? '')"
+            @update:model-value="onStaffPicked"
         ></PersonSelector>
 
         <q-input
@@ -92,16 +92,16 @@
         />
 
         <template v-if="isEdit">
-            <div>
-                Dean/Director Modified
-                {{ formatDate(editData?.deanDirectorModifiedDate?.toString() ?? "") || "Never" }}
-                <span v-if="editData?.deanDirectorModifiedBy">by {{ editData?.deanDirectorModifiedBy }}</span>
-            </div>
-            <div>
-                Admin Staff Modified
-                {{ formatDate(editData?.adminStaffModifiedDate?.toString() ?? "") || "Never" }}
-                <span v-if="editData?.adminStaffModifiedBy">by {{ editData?.adminStaffModifiedBy }}</span>
-            </div>
+            <ModifiedSummary
+                label="Dean/Director"
+                :date="editData?.deanDirectorModifiedDate"
+                :by="editData?.deanDirectorModifiedBy"
+            />
+            <ModifiedSummary
+                label="Admin Staff"
+                :date="editData?.adminStaffModifiedDate"
+                :by="editData?.adminStaffModifiedBy"
+            />
         </template>
     </RecordFormDialog>
 </template>
@@ -110,10 +110,10 @@
 import { computed } from "vue"
 import { svmUnitService } from "../services/svm-unit-service.ts"
 import { useAddRecordDialog } from "../composables/use-add-record-dialog.ts"
-import { useDateFunctions } from "@/composables/DateFunctions.ts"
 import { getSparseAugmentedViperPerson } from "../composables/use-person-helper.ts"
 import RecordFormDialog from "@/components/RecordFormDialog.vue"
 import PersonSelector from "./PersonSelector.vue"
+import ModifiedSummary from "./ModifiedSummary.vue"
 import type { QSelectOption } from "quasar"
 import type {
     SVMPhoneDisplayRecord,
@@ -138,7 +138,22 @@ const emit = defineEmits<{
     saved: [value: boolean]
 }>()
 
-const { formatDate } = useDateFunctions()
+const dialogTitle = computed(() => (isEdit.value ? "Edit Phone Record" : "Add Phone Record"))
+
+const unitRules = [(v: QSelectOption<any> | null) => !!v?.value || "Please select a unit"]
+
+/** A picked person brings their phone number with them; an unset one clears the field. */
+function phoneFor(person: AugmentedViperPerson | null): string {
+    return person?.phoneData?.phone ?? ""
+}
+
+function onDeanDirectorPicked(person: AugmentedViperPerson | null) {
+    form.value.deanDirectorPhone = phoneFor(person)
+}
+
+function onStaffPicked(person: AugmentedViperPerson | null) {
+    form.value.staffPhone = phoneFor(person)
+}
 
 type SVMPhoneForm = {
     section: QSelectOption<any>
@@ -172,35 +187,42 @@ function emptyForm(): SVMPhoneForm {
     }
 }
 
+/** A field the record does not carry shows as blank on the form. */
+function text(value: string | null | undefined): string {
+    return value ?? ""
+}
+
+/** No existing UnitPerson row is spelled -1, which is what the save endpoint reads as "add". */
+function unitPersonId(value: number | null | undefined): number {
+    return value ?? -1
+}
+
+/** The interim select shows the stored word in parentheses, and nothing at all when unset. */
+function interimOption(value: string | null | undefined): QSelectOption<any> {
+    return { label: value ? `(${value})` : "", value: text(value) }
+}
+
 function formFromEditData(): SVMPhoneForm {
+    // The dialog re-derives its form whenever editData changes, including when it is cleared on
+    // close, so treat "nothing to edit" as a record with no fields set rather than repeating a
+    // null check against every one of them.
+    const record: Partial<SVMPhoneDisplayRecord> = props.editData ?? {}
     return {
-        section: { label: props.editData?.sectionName ?? "", value: null },
+        section: { label: text(record.sectionName), value: null },
         unit: {
-            label: props.editData?.unitName ?? "",
-            value: props.editData?.unitId ?? null,
+            label: text(record.unitName),
+            value: record.unitId ?? null,
         },
-        fax: props.editData?.officeFax ?? "",
-        location: props.editData?.officeLocation ?? "",
-        deanDirector: getSparseAugmentedViperPerson(
-            props.editData?.deanDirectorFullName ?? "",
-            props.editData?.deanDirectorIam ?? "",
-        ),
-        deanDirectorPhone: props.editData?.deanDirectorPhone ?? "",
-        deanDirectorInterim: {
-            label: props.editData?.deanDirectorInterim ? `(${props.editData?.deanDirectorInterim})` : "",
-            value: props.editData?.deanDirectorInterim ?? "",
-        },
-        deanDirectorUnitPersonId: props.editData?.deanDirectorUnitPersonId ?? -1,
-        staff: getSparseAugmentedViperPerson(
-            props.editData?.adminStaffFullName ?? "",
-            props.editData?.adminStaffIam ?? "",
-        ),
-        staffPhone: props.editData?.adminStaffPhone ?? "",
-        staffInterim: {
-            label: props.editData?.adminStaffInterim ? `(${props.editData?.adminStaffInterim})` : "",
-            value: props.editData?.adminStaffInterim ?? "",
-        },
-        staffUnitPersonId: props.editData?.adminStaffUnitPersonId ?? -1,
+        fax: text(record.officeFax),
+        location: text(record.officeLocation),
+        deanDirector: getSparseAugmentedViperPerson(text(record.deanDirectorFullName), text(record.deanDirectorIam)),
+        deanDirectorPhone: text(record.deanDirectorPhone),
+        deanDirectorInterim: interimOption(record.deanDirectorInterim),
+        deanDirectorUnitPersonId: unitPersonId(record.deanDirectorUnitPersonId),
+        staff: getSparseAugmentedViperPerson(text(record.adminStaffFullName), text(record.adminStaffIam)),
+        staffPhone: text(record.adminStaffPhone),
+        staffInterim: interimOption(record.adminStaffInterim),
+        staffUnitPersonId: unitPersonId(record.adminStaffUnitPersonId),
     }
 }
 

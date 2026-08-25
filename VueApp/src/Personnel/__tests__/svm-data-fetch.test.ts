@@ -307,6 +307,54 @@ describe("getSVMData()", () => {
     })
 })
 
+describe("getSVMData() - row shaping edge cases", () => {
+    it("ignores a unit person carrying no PosType, who is neither a leader nor the staff", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
+        vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
+            makeUnit({
+                unitPersons: [makeUnitPerson(), makeUnitPerson({ unitPersonId: 2, posType: null })],
+            }),
+        ])
+
+        const { newSections } = await getSVMData(false)
+
+        // Only the Dean row: the PosType-less record is not a leader, so it gets no row of its
+        // own, and it is not the staff either, so it does not fill the admin staff fields.
+        expect(newSections[0]!.rows).toHaveLength(1)
+        expect(newSections[0]!.rows[0]!.adminStaffUnitPersonId).toBe(-1)
+    })
+
+    it("hides a row whose leader and staff both lack a record to key it on", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
+        vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
+            makeUnit({ unitPersons: [makeUnitPerson({ unitPersonId: -1 })] }),
+        ])
+
+        const { newSections } = await getSVMData(false)
+
+        // The row key doubles as the delete target, so a row that cannot supply one is not
+        // rendered at all rather than shown with a key that deletes nothing.
+        expect(newSections[0]!.rows).toStrictEqual([])
+    })
+
+    it("blanks a leader's phone when their record carries none", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
+        const leader = makeUnitPerson()
+        leader.person!.phone = null
+        vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([makeUnit({ unitPersons: [leader] })])
+
+        const { newSections } = await getSVMData(false)
+
+        expect(newSections[0]!.rows[0]!.deanDirectorPhone).toBe("")
+    })
+})
+
 describe("getSVMData() - section grouping", () => {
     it("fetches units once and groups them onto their own sections", async () => {
         expect.hasAssertions()

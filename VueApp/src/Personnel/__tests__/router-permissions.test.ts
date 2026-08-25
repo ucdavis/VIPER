@@ -4,18 +4,15 @@ import { router } from "../router"
 
 // The real beforeEach guard calls requireLogin, which hits the network and needs a Quasar/inject
 // context. Stub it (Vitest hoists this above the imports) so the test exercises only the
-// permission-driven redirect, not the auth plumbing.
-vi.mock("@/composables/RequireLogin", () => ({
-    useRequireLogin: () => ({ requireLogin: () => Promise.resolve(true) }),
-    getLoginUrl: () => ({ value: "" }),
+// permission-driven redirect, not the auth plumbing. The spy is kept so the tests below can
+// assert which permission prefix the guard asks for — that single call is the only thing that
+// populates the permission set the route gate then reads.
+const { mockRequireLogin } = vi.hoisted(() => ({
+    mockRequireLogin: vi.fn<(...args: unknown[]) => unknown>(),
 }))
-
-// The guard also fetches SVMSecure.PhoneLists.* permissions on every non-internal navigation;
-// stub it to resolve with no extra permissions so the test controls the permission set directly
-// via the user store.
-const mockGet = vi.fn<(...args: unknown[]) => unknown>()
-vi.mock("@/composables/ViperFetch", () => ({
-    useFetch: () => ({ get: (...args: unknown[]) => mockGet(...args) }),
+vi.mock("@/composables/RequireLogin", () => ({
+    useRequireLogin: () => ({ requireLogin: (...args: unknown[]) => mockRequireLogin(...args) }),
+    getLoginUrl: () => ({ value: "" }),
 }))
 
 // Park on a neutral route first so the push to the target route is never a redundant
@@ -25,12 +22,82 @@ async function goTo(path: string): Promise<void> {
     await router.push(path)
 }
 
+/**
+ * Signs the caller in as far as the guard is concerned. isLoggedIn reads loginId, so that is the
+ * field that has to be set - a user object without it leaves the store logged out.
+ */
+function signIn() {
+    useUserStore().loadUser({
+        firstName: "Test",
+        lastName: "Caller",
+        mailId: "caller",
+        loginId: "caller",
+        mothraId: "caller01",
+        userId: 1,
+        token: "",
+        emulating: false,
+        permissions: [],
+    })
+}
+
 function withPermissions(permissions: string[]) {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    mockGet.mockResolvedValue({ success: true, result: [] })
+    mockRequireLogin.mockResolvedValue(true)
     useUserStore().setPermissions(permissions)
 }
+
+describe("personnel router - permission loading", () => {
+    it("asks for the phone-list permissions the routes actually gate on", async () => {
+        expect.hasAssertions()
+        // SVMSecure.PhoneLists.* is the only permission set anything in this SPA reads, so the
+        // guard requests it directly. Asking for the area's own SVMSecure.Personnel prefix
+        // instead would leave the route gate below with nothing to match and need a second
+        // request to repair it.
+        withPermissions([])
+
+        await goTo("/Personnel/PhoneList/VMDO")
+
+        expect(mockRequireLogin).toHaveBeenCalledWith(true, "SVMSecure.PhoneLists")
+    })
+
+    it("loads permissions in a single request per external navigation", async () => {
+        expect.hasAssertions()
+        // Only requireLogin populates permissions now. A second call here would mean the guard
+        // had gone back to topping the set up with its own extra fetch.
+        withPermissions([])
+        await router.push("/__reset__")
+        mockRequireLogin.mockClear()
+
+        await router.push("/Personnel/PhoneList/VMDO")
+
+        expect(mockRequireLogin).toHaveBeenCalledExactlyOnceWith(true, "SVMSecure.PhoneLists")
+    })
+
+    it("skips re-authentication once the user is already logged in and navigating in-app", async () => {
+        expect.hasAssertions()
+        // Re-calling requireLogin on a tab switch would overwrite the permission array and
+        // flash the page, so an in-app navigation must not reach it again.
+        withPermissions(["SVMSecure.PhoneLists.SVMMaintain"])
+        await goTo("/Personnel/PhoneList/VMDO")
+        signIn()
+        mockRequireLogin.mockClear()
+
+        await router.push("/Personnel/SVMPhonesMaintain")
+
+        expect(mockRequireLogin).not.toHaveBeenCalled()
+    })
+
+    it("abandons the navigation when login fails", async () => {
+        expect.hasAssertions()
+        withPermissions([])
+        mockRequireLogin.mockResolvedValue(false)
+
+        await goTo("/Personnel/PhoneList/VMDO")
+
+        expect(router.currentRoute.value.path).not.toBe("/Personnel/PhoneList/VMDO")
+    })
+})
 
 describe("personnel router - permission gating", () => {
     it("redirects a caller without SVMMaintain away from SVMPhonesMaintain", async () => {

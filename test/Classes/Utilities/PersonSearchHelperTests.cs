@@ -98,7 +98,7 @@ public class PersonSearchHelperTests
             new Person { LastName = "Jones", FirstName = "Bob", LoginId = "bjones" },
         }.AsQueryable();
         var namePredicate = PersonSearchHelper.NameMatches<Person>(p => p.LastName, p => p.FirstName, "Smith");
-        var combined = namePredicate.Or<Person>(p => p.LoginId == "bjones");
+        var combined = namePredicate.Or(p => p.LoginId == "bjones");
 
         var results = people.Where(combined).ToList();
 

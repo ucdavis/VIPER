@@ -155,4 +155,45 @@ describe("phoneListAddRecordDialog.vue - add vs edit mode", () => {
         expect(wrapper.emitted("saved")).toBeTruthy()
         expect(wrapper.emitted("update:modelValue")).toContainEqual([false])
     })
+
+    it("empties the form when the record being edited is cleared", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        const wrapper = mountDialog({
+            modelValue: true,
+            unit: { name: "Dean's Office", id: 10 },
+            listCode: "VMDO",
+            editData: editRecord(),
+        })
+        await flushPromises()
+
+        // The dialog re-derives its form whenever editData changes, and closing an edit clears
+        // it. Nothing to edit has to read as every field blank, not as the previous record
+        // lingering in the inputs the next time the dialog opens to add.
+        await wrapper.setProps({ editData: null })
+        await flushPromises()
+
+        expect(bodyText()).not.toContain("Room 100")
+        expect(bodyText()).not.toContain("530-555-2000")
+    })
+
+    it("keeps the ListFirst flag off when the record being edited is cleared", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        vi.mocked(phoneListUnitService.addUnitPersonData).mockResolvedValue(apiResult({ result: true }))
+        const wrapper = mountDialog({
+            modelValue: true,
+            unit: { name: "Dean's Office", id: 10 },
+            listCode: "VMDO",
+            editData: editRecord({ listFirst: true }),
+        })
+        await flushPromises()
+
+        await wrapper.setProps({ editData: null })
+        await flushPromises()
+
+        // ListFirst is the one non-string field, so a cleared record has to fall back to false
+        // rather than carrying the previous row's flag into the next add.
+        expect(wrapper.findComponent({ name: "QCheckbox" }).props("modelValue")).toBeFalsy()
+    })
 })

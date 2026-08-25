@@ -48,7 +48,7 @@ public class PhonesDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.PersonIam)
                 .HasPrincipalKey(e => e.IamId)
-                .IsRequired(true);
+                .IsRequired();
 
             entity.HasOne(e => e.ViperModPerson)
                 .WithMany()

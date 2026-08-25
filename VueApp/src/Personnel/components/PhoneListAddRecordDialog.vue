@@ -120,18 +120,27 @@ function emptyForm(): PhoneListAddForm {
     }
 }
 
+/** A field the record does not carry shows as blank on the form. */
+function text(value: string | null | undefined): string {
+    return value ?? ""
+}
+
 function formFromEditData(): PhoneListAddForm {
+    // The dialog re-derives its form whenever editData changes, including when it is cleared on
+    // close, so treat "nothing to edit" as a record with no fields set rather than repeating a
+    // null check against every one of them.
+    const record: Partial<PhoneListDisplayRecord> = props.editData ?? {}
     return {
         unit: {
-            name: props.editData?.unitName ?? "",
-            id: props.editData?.unitId ?? -1,
+            name: text(record.unitName),
+            id: record.unitId ?? -1,
         },
-        office: props.editData?.office ?? "",
-        employee: getSparseAugmentedViperPerson(props.editData?.name ?? "", props.editData?.employeeIam ?? ""),
-        phone: props.editData?.phone ?? "",
-        directPhone: props.editData?.directPhone ?? "",
-        listFirst: props.editData?.listFirst ?? false,
-        employeeUnitPersonId: props.editData?.unitPersonId ?? -1,
+        office: text(record.office),
+        employee: getSparseAugmentedViperPerson(text(record.name), text(record.employeeIam)),
+        phone: text(record.phone),
+        directPhone: text(record.directPhone),
+        listFirst: record.listFirst ?? false,
+        employeeUnitPersonId: record.unitPersonId ?? -1,
     }
 }
 

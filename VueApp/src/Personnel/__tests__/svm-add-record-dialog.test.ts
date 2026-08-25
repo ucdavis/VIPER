@@ -346,4 +346,128 @@ describe("sVMAddRecordDialog.vue - edit mode", () => {
         expect(wrapper.emitted("saved")).toBeTruthy()
         expect(wrapper.emitted("update:modelValue")).toContainEqual([false])
     })
+
+    it("carries the interim wording through to the update payload when the record has one", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        vi.mocked(svmUnitService.updateUnitData).mockResolvedValue(apiResult({ result: true }))
+        const wrapper = mountDialog({
+            modelValue: true,
+            section: { label: "VMDO", value: "1" },
+            units: [],
+            unitFaxNumbers: [],
+            editData: editRecord({ deanDirectorInterim: "Interim", adminStaffInterim: "Vice" }),
+        })
+
+        await submitDialogForm(wrapper)
+
+        expect(svmUnitService.updateUnitData).toHaveBeenCalledWith(
+            10,
+            expect.objectContaining({ deanInterim: "Interim", staffInterim: "Vice" }),
+        )
+    })
+
+    it("submits blank interim values when the record carries none", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        vi.mocked(svmUnitService.updateUnitData).mockResolvedValue(apiResult({ result: true }))
+        const wrapper = mountDialog({
+            modelValue: true,
+            section: { label: "VMDO", value: "1" },
+            units: [],
+            unitFaxNumbers: [],
+            editData: editRecord(),
+        })
+
+        await submitDialogForm(wrapper)
+
+        expect(svmUnitService.updateUnitData).toHaveBeenCalledWith(
+            10,
+            expect.objectContaining({ deanInterim: "", staffInterim: "" }),
+        )
+    })
+})
+
+describe("sVMAddRecordDialog.vue - form field wiring", () => {
+    it("autofills each phone field from the person picked for that role", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        const wrapper = mountDialog({
+            modelValue: true,
+            section: { label: "VMDO", value: "1" },
+            units: [],
+            unitFaxNumbers: [],
+        })
+        await flushPromises()
+        const [deanSelector, staffSelector] = wrapper.findAllComponents(selectorStub)
+
+        await deanSelector!.vm.$emit("update:modelValue", { phoneData: { phone: "530-555-1111" } })
+        await staffSelector!.vm.$emit("update:modelValue", { phoneData: { phone: "530-555-2222" } })
+        await flushPromises()
+
+        // Each picker fills only its own phone field; crossing them would quietly file one
+        // person's number under the other. QInput order in add mode is location, fax,
+        // dean/director phone, admin staff phone.
+        const inputs = wrapper.findAllComponents({ name: "QInput" })
+        expect(inputs[2]!.props("modelValue")).toBe("530-555-1111")
+        expect(inputs[3]!.props("modelValue")).toBe("530-555-2222")
+    })
+
+    it("clears the phone field when the person for that role is unset", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        const wrapper = mountDialog({
+            modelValue: true,
+            section: { label: "VMDO", value: "1" },
+            units: [],
+            unitFaxNumbers: [],
+        })
+        await flushPromises()
+        const [deanSelector] = wrapper.findAllComponents(selectorStub)
+        await deanSelector!.vm.$emit("update:modelValue", { phoneData: { phone: "530-555-1111" } })
+        await flushPromises()
+
+        await deanSelector!.vm.$emit("update:modelValue", null)
+        await flushPromises()
+
+        expect(wrapper.findAllComponents({ name: "QInput" })[2]!.props("modelValue")).toBe("")
+    })
+
+    it("requires a unit before an add can be submitted", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        const wrapper = mountDialog({
+            modelValue: true,
+            section: { label: "VMDO", value: "1" },
+            units: [{ section: 1, units: [{ label: "Dean's Office", value: "10" }] }],
+            unitFaxNumbers: [],
+        })
+
+        await submitDialogForm(wrapper)
+
+        expect(bodyText()).toContain("Please select a unit")
+        expect(svmUnitService.addUnitData).not.toHaveBeenCalled()
+    })
+
+    it("empties the form when the record being edited is cleared", async () => {
+        expect.hasAssertions()
+        resetTestState()
+        const wrapper = mountDialog({
+            modelValue: true,
+            section: { label: "VMDO", value: "1" },
+            units: [],
+            unitFaxNumbers: [],
+            editData: editRecord(),
+        })
+        await flushPromises()
+
+        // The dialog re-derives its form whenever editData changes, and closing an edit clears
+        // it. Nothing to edit has to read as every field blank, not as the previous record
+        // lingering in the inputs the next time the dialog opens to add.
+        await wrapper.setProps({ editData: null })
+        await flushPromises()
+
+        expect(bodyText()).not.toContain("Room 100")
+        expect(bodyText()).not.toContain("530-555-9999")
+    })
 })
