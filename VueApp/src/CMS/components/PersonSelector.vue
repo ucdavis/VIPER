@@ -43,8 +43,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
 import { searchPeopleOptions } from "@/CMS/services/cms-options-service"
+import { usePersonSearch } from "@/composables/use-person-search"
 import type { CmsPersonOption } from "@/CMS/types/"
 
 // Selected people keep { iamId, name } so chips can show names for people
@@ -57,29 +57,5 @@ defineProps<{
 
 const emit = defineEmits<{ "update:modelValue": [value: { iamId: string; name: string | null }[]] }>()
 
-const options = ref<CmsPersonOption[]>([])
-const loading = ref(false)
-// Guards against out-of-order responses: only the latest search may update options
-let searchSeq = 0
-
-async function searchPeople(val: string, update: (fn: () => void) => void) {
-    if (val.trim().length < 2) {
-        // Invalidate any in-flight search too, or its late response would repopulate
-        // the options we just cleared.
-        searchSeq += 1
-        loading.value = false
-        update(() => {
-            options.value = []
-        })
-        return
-    }
-    const seq = ++searchSeq
-    loading.value = true
-    const result = await searchPeopleOptions(val.trim())
-    if (seq !== searchSeq) return
-    loading.value = false
-    update(() => {
-        options.value = result ?? []
-    })
-}
+const { options, loading, searchPeople } = usePersonSearch<CmsPersonOption>(searchPeopleOptions)
 </script>

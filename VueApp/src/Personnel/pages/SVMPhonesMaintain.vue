@@ -1,0 +1,188 @@
+<template>
+    <h1>School of Veterinary Medicine Phone List Maintenance</h1>
+    <div v-if="!loading">
+        <q-input
+            class="q-ml-xs q-mr-xs"
+            v-model="search"
+            dense
+            outlined
+            debounce="300"
+            placeholder="Filter Results"
+        >
+            <template #append>
+                <q-icon name="filter_alt" />
+            </template>
+        </q-input>
+    </div>
+
+    <SVMPhoneSectionTable
+        v-for="section in sections"
+        :key="section.id"
+        :section="section"
+        :search="search"
+        :is-modify="true"
+        :loading="loading"
+        @add-record="addRecord"
+        @edit-record="editRecord"
+        @delete-record="deleteRecord"
+    ></SVMPhoneSectionTable>
+
+    <SVMFrequentNumberTable
+        :frequent-numbers="frequentNumbers"
+        :loading="loading"
+        :search="search"
+        :edit-records="true"
+        @add-frequent-number="addFrequentNumber"
+        @edit-frequent-number="editFrequentNumber"
+        @delete-frequent-number="deleteFrequentNumber"
+    ></SVMFrequentNumberTable>
+
+    <SVMAddRecordDialog
+        v-model="showDialog"
+        :section="sectionQSelectOption"
+        :units="unitOptions"
+        :unit-fax-numbers="unitFaxNumbers"
+        :unit-admin-staff="unitAdminStaff"
+        :edit-data="editData"
+        @saved="loadPhoneData"
+        @update:model-value="clearEditData"
+    />
+
+    <SVMAddFrequentNumberDialog
+        v-model="showFrequentDialog"
+        :edit-frequent-data="editFrequentData"
+        @saved="loadPhoneData"
+        @update:model-value="clearFrequentEditData"
+    />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from "vue"
+import { useQuasar } from "quasar"
+import { svmUnitService } from "../services/svm-unit-service"
+import SVMAddRecordDialog from "../components/SVMAddRecordDialog.vue"
+import SVMAddFrequentNumberDialog from "../components/SVMAddFrequentNumberDialog.vue"
+import SVMFrequentNumberTable from "../components/SVMFrequentNumberTable.vue"
+import SVMPhoneSectionTable from "../components/SVMPhoneSectionTable.vue"
+import { svmFrequentNumberService } from "../services/svm-frequent-number-service.ts"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
+import { getFrequentlyCalledNumbers, getSVMData } from "../composables/svm-data-fetch.ts"
+import type { Ref } from "vue"
+import type { QSelectOption } from "quasar"
+import type {
+    SVMPhoneDisplayRecord,
+    SVMPhoneSection,
+    UnitOptions,
+    SVMFrequentNumberRecord,
+    UnitFaxNumber,
+    UnitAdminStaff,
+} from "../types/svm-phone-types"
+
+const sections = ref([]) as Ref<SVMPhoneSection[]>
+const unitOptions = ref([]) as Ref<UnitOptions[]>
+const unitFaxNumbers = ref([]) as Ref<UnitFaxNumber[]>
+const unitAdminStaff = ref([]) as Ref<UnitAdminStaff[]>
+const search = ref("")
+const loading = ref(false)
+const showDialog = ref(false)
+const showFrequentDialog = ref(false)
+const sectionQSelectOption = ref({ label: "", value: "" }) as Ref<QSelectOption>
+const editData = ref() as Ref<SVMPhoneDisplayRecord | null>
+const editFrequentData = ref() as Ref<SVMFrequentNumberRecord | null>
+const frequentNumbers = ref([]) as Ref<SVMFrequentNumberRecord[]>
+const { confirmAction } = useConfirmDialog()
+const $q = useQuasar()
+
+async function loadPhoneData() {
+    loading.value = true
+    const { newSections, newUnitOptions, newUnitFaxNumbers, newUnitAdminStaff } = await getSVMData(true)
+    frequentNumbers.value = await getFrequentlyCalledNumbers()
+    sections.value = newSections
+    unitOptions.value = newUnitOptions
+    unitFaxNumbers.value = newUnitFaxNumbers
+    unitAdminStaff.value = newUnitAdminStaff ?? []
+    loading.value = false
+}
+
+function addRecord(sectionName: string, sectionId: number) {
+    sectionQSelectOption.value = { label: sectionName, value: sectionId.toString() }
+    showDialog.value = true
+}
+
+function editRecord(row: SVMPhoneDisplayRecord) {
+    editData.value = row
+    showDialog.value = true
+}
+
+async function deleteRecord(row: SVMPhoneDisplayRecord) {
+    // Name exactly the people this delete removes. The admin staff belongs to the unit rather
+    // than to this row, so they are removed only when this is the unit's last row.
+    const removedPeople = []
+    if (row.deanDirectorFullName) {
+        removedPeople.push(row.deanDirectorFullName)
+    }
+    if (row.adminStaffFullName && row.isOnlyRowForUnit) {
+        removedPeople.push(row.adminStaffFullName)
+    }
+    const removedPeopleString = removedPeople.length > 0 ? ` - ${removedPeople.join(" and ")}` : ""
+    const rowLabel = `${row.unitName}${removedPeopleString}`
+
+    const confirmed = await confirmAction({
+        title: "Delete Phone Record",
+        message:
+            `Permanently delete record for "${rowLabel}"? The record will be removed ` +
+            `immediately and this cannot be undone.`,
+        okLabel: "Delete Permanently",
+        okColor: "negative",
+    })
+    if (!confirmed) return
+    const r = await svmUnitService.deleteRow(row.entryId)
+    if (r.errors.length > 0) {
+        $q.notify({ type: "negative", message: r.errors[0] })
+    } else {
+        $q.notify({ type: "positive", message: "Record deleted" })
+    }
+    await loadPhoneData()
+}
+
+function addFrequentNumber() {
+    editFrequentData.value = null
+    showFrequentDialog.value = true
+}
+
+function editFrequentNumber(row: SVMFrequentNumberRecord) {
+    editFrequentData.value = row
+    showFrequentDialog.value = true
+}
+
+async function deleteFrequentNumber(row: SVMFrequentNumberRecord) {
+    const confirmed = await confirmAction({
+        title: "Delete Phone Record",
+        message:
+            `Permanently delete record for "${row.label}"? The record for this number will be removed ` +
+            `immediately and this cannot be undone.`,
+        okLabel: "Delete Permanently",
+        okColor: "negative",
+    })
+    if (!confirmed) return
+    const r = await svmFrequentNumberService.deleteFrequentNumber(row.entryId)
+    if (r.errors.length > 0) {
+        $q.notify({ type: "negative", message: r.errors[0] })
+    } else {
+        $q.notify({ type: "positive", message: "Record deleted" })
+    }
+    await loadPhoneData()
+}
+
+function clearEditData() {
+    editData.value = null
+}
+
+function clearFrequentEditData() {
+    editFrequentData.value = null
+}
+
+onMounted(() => {
+    loadPhoneData()
+})
+</script>
