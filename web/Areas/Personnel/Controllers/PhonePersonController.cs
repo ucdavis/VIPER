@@ -36,11 +36,7 @@ namespace Viper.Areas.Personnel.Controllers
             }
 
             List<ViperPerson> viperResults = await _phonePersonService.GetViperCurrentEmployees(search, ct);
-            List<string> iamIds = [];
-            foreach (ViperPerson result in viperResults)
-            {
-                iamIds.Add(result.IamId);
-            }
+            List<string> iamIds = [.. viperResults.Select(result => result.IamId)];
             List<PhonePerson> phoneResults = await _phonePersonService.GetPhonePeople(iamIds, list, ct);
             Dictionary<string, AugmentedViperPerson> mergedResultsDict = [];
             foreach (ViperPerson result in viperResults)

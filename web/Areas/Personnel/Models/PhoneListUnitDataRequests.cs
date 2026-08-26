@@ -10,6 +10,6 @@ namespace Viper.Areas.Personnel.Models
         public required string EmployeeIam { get; set; }
         public string Phone { get; set; } = "";
         public string DirectPhone { get; set; } = "";
-        public bool ListFirst { get; set; }
+        public required bool ListFirst { get; set; }
     }
 }

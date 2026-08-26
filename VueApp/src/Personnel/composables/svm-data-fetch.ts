@@ -95,7 +95,7 @@ async function getSections(isEdit: boolean): Promise<SVMPhoneSection[]> {
     return sections
 }
 
-// Helper function to full in empty/default values for the person
+// Helper function to fill in empty/default values for the person
 // associated with an SVMUnitPerson, if needed.
 function populateEmptyPerson(unitPerson: SVMUnitPerson): SVMUnitPerson {
     if (unitPerson.person === null) {
@@ -140,7 +140,7 @@ function getAdminStaffData(staff: SVMUnitPerson | null) {
     }
 }
 
-// Helper function to return the staff data data to populate into an add dialog box,
+// Helper function to return the staff data to populate into an add dialog box,
 // or an empty array if no data should be populated.
 function unitAdminStaffEntries(
     unitId: number,

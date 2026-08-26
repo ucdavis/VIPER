@@ -15,7 +15,7 @@ namespace Viper.Areas.Personnel.Controllers
         private readonly PhoneSVMUnitService _phoneSVMUnitService = phoneSVMUnitService;
 
         /// <summary>
-        /// Identfies when frequent numbers were last modified.
+        /// Identifies when frequent numbers were last modified.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<DateTime?>> GetLastModifiedDate(CancellationToken ct = default)

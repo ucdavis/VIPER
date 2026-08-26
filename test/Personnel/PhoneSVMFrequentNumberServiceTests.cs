@@ -16,7 +16,6 @@ namespace Viper.test.Personnel;
 public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
 {
     private readonly PhonesDbContext _context;
-    private readonly IUserHelper _userHelper;
     private readonly PhoneSVMFrequentNumberService _service;
 
     private const string CallerIam = "caller01";
@@ -28,7 +27,7 @@ public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
             .Options;
         _context = new PhonesDbContext(options);
 
-        _userHelper = Substitute.For<IUserHelper>();
+        IUserHelper _userHelper = Substitute.For<IUserHelper>();
         _userHelper.GetCurrentUser().Returns(new AaudUser
         {
             ClientId = "ucd.edu",
