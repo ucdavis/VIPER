@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,8 +8,10 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Controllers;
+using Viper.test.TestSupport;
 using Web.Authorization;
 
 namespace Viper.test.Controllers;
@@ -48,6 +50,7 @@ public sealed class HomeControllerTests
         _controller = new HomeController(
             Substitute.For<IHttpClientFactory>(),
             Options.Create(new CasSettings { CasBaseUrl = "https://cas.example.edu/" }),
+            Substitute.For<IPublicUrlService>(),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
             Substitute.For<VIPERContext>(),
@@ -77,28 +80,7 @@ public sealed class HomeControllerTests
         // View() resolves ITempDataDictionaryFactory from DI unless TempData is already set.
         _controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
 
-        var url = Substitute.For<IUrlHelper>();
-        url.IsLocalUrl(Arg.Any<string?>()).Returns(ci =>
-        {
-            var candidate = ci.Arg<string?>();
-            if (string.IsNullOrEmpty(candidate))
-            {
-                return false;
-            }
-
-            // Mirror framework semantics: rooted "/..." and app-relative "~/..." are
-            // local, but protocol-relative ("//"), backslash ("/\") and their "~/"
-            // variants are not.
-            if (candidate.StartsWith('/'))
-            {
-                return !candidate.StartsWith("//") && !candidate.StartsWith("/\\");
-            }
-
-            return candidate.StartsWith("~/")
-                && !candidate.StartsWith("~//")
-                && !candidate.StartsWith("~/\\");
-        });
-        _controller.Url = url;
+        _controller.Url = UrlHelperStub.Create();
     }
 
     [Theory]

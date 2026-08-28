@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
@@ -56,8 +57,9 @@ namespace Viper.test.ClinicalScheduler
 
             var emailNotificationOptions = Substitute.For<IOptions<EmailNotificationSettings>>();
             emailNotificationOptions.Value.Returns(new EmailNotificationSettings());
-            var emailSettingsOptions = Substitute.For<IOptions<EmailSettings>>();
-            emailSettingsOptions.Value.Returns(new EmailSettings());
+            var publicUrl = Substitute.For<IPublicUrlService>();
+            publicUrl.BaseUrl.Returns("https://test.example.com");
+            publicUrl.BuildUrl(Arg.Any<string>()).Returns(ci => "https://test.example.com" + ci.Arg<string>());
 
             _service = new ScheduleEditService(
                 _context,
@@ -65,7 +67,7 @@ namespace Viper.test.ClinicalScheduler
                 Substitute.For<ILogger<ScheduleEditService>>(),
                 Substitute.For<IEmailService>(),
                 emailNotificationOptions,
-                emailSettingsOptions,
+                publicUrl,
                 gradYearService,
                 permissionValidator,
                 Substitute.For<IEmailTemplateRenderer>());

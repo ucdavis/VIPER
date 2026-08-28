@@ -10,6 +10,7 @@ using Viper.Areas.Effort.EmailTemplates.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
 using Viper.Areas.Effort.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Models.VIPER;
@@ -66,11 +67,9 @@ public sealed class VerificationServiceTests : IDisposable
         };
 
         var settingsOptions = Options.Create(_settings);
-        var emailSettings = new EmailSettings
-        {
-            BaseUrl = "https://test.example.com"
-        };
-        var emailSettingsOptions = Options.Create(emailSettings);
+        var publicUrl = Substitute.For<IPublicUrlService>();
+        publicUrl.BaseUrl.Returns("https://test.example.com");
+        publicUrl.BuildUrl(Arg.Any<string>()).Returns(ci => "https://test.example.com" + ci.Arg<string>());
 
         _emailTemplateRendererMock = Substitute.For<IEmailTemplateRenderer>();
         _emailTemplateRendererMock
@@ -102,7 +101,7 @@ public sealed class VerificationServiceTests : IDisposable
             _classificationServiceMock,
             _loggerMock,
             settingsOptions,
-            emailSettingsOptions,
+            publicUrl,
             _emailTemplateRendererMock);
 
         SeedTestData();
@@ -659,50 +658,6 @@ public sealed class VerificationServiceTests : IDisposable
         await _auditServiceMock.Received(1).LogPersonChangeAsync(
                 TestPersonId, TestTermCode, EffortAuditActions.VerifyEmail,
                 Arg.Is<object?>(x => x == null), Arg.Is<object>(o => o.ToString()!.Contains("Failed")), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task SendVerificationEmailAsync_ReturnsError_WhenBaseUrlNotConfigured()
-    {
-        // Arrange: Create service with missing BaseUrl configuration
-        var badSettings = new EffortSettings
-        {
-            VerificationEmailSubject = "Please Verify Your Effort",
-            VerificationReplyDays = 7
-        };
-        var badEmailSettings = new EmailSettings
-        {
-            BaseUrl = ""  // Missing/empty BaseUrl
-        };
-
-        var serviceWithBadConfig = new VerificationService(
-            _context,
-            _viperContext,
-            _auditServiceMock,
-            _permissionServiceMock,
-            _termServiceMock,
-            _emailServiceMock,
-            _classificationServiceMock,
-            _loggerMock,
-            Options.Create(badSettings),
-            Options.Create(badEmailSettings),
-            _emailTemplateRendererMock);
-
-        _permissionServiceMock.GetCurrentUserEmail().Returns("sender@ucdavis.edu");
-
-        // Act
-        var result = await serviceWithBadConfig.SendVerificationEmailAsync(TestPersonId, TestTermCode, TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Equal("Email system configuration error. Please contact support.", result.Error);
-
-        // Verify audit was logged for the configuration failure
-        await _auditServiceMock.Received(1).LogPersonChangeAsync(
-                TestPersonId, TestTermCode, EffortAuditActions.VerifyEmail,
-                Arg.Is<object?>(x => x == null), Arg.Is<object>(o => o.ToString()!.Contains("Configuration error")), Arg.Any<CancellationToken>());
-        // Verify no email was attempted
-        await _emailServiceMock.DidNotReceive().SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>());
     }
 
     [Fact]

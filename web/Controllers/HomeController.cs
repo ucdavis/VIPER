@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -38,14 +37,16 @@ namespace Viper.Controllers
 #pragma warning restore S5332
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
+        private readonly IPublicUrlService _publicUrl;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         private readonly IUserHelper _userHelper;
         private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext, IActionDescriptorCollectionProvider actionDescriptorProvider)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, IPublicUrlService publicUrl, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext, IActionDescriptorCollectionProvider actionDescriptorProvider)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
+            this._publicUrl = publicUrl;
             this._aAUDContext = aAUDContext;
             this._rapsContext = rapsContext;
             this._viperContext = viperContext;
@@ -358,9 +359,8 @@ namespace Viper.Controllers
         [SearchExclude]
         public IActionResult Login([FromQuery] string? ReturnUrl = null)
         {
-            // Normalize app-relative "~/..." to "/..." before validating, so the
-            // /api guard below cannot be bypassed and we never forward an invalid
-            // browser URL to CAS.
+            // Browsers and CAS don't understand "~", and leaving it on would also let a
+            // "~/api/..." ReturnUrl slip past the guard below.
             ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
 
             if (!IsSafeReturnUrl(ReturnUrl))
@@ -368,9 +368,8 @@ namespace Viper.Controllers
                 ReturnUrl = null;
             }
 
-            Uri url = new(Request.GetDisplayUrl());
-            string baseURl = url.GetLeftPart(UriPartial.Authority);
-            string returnURL = HttpHelper.GetRootURL().Replace(baseURl, "");
+            // Default to the application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
+            string returnURL = Request.PathBase.Value ?? string.Empty;
 
             if (!string.IsNullOrEmpty(ReturnUrl))
             {
@@ -556,7 +555,7 @@ namespace Viper.Controllers
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
             // Send homepage link after CAS logout
-            var returnUrl = WebUtility.UrlEncode(HttpHelper.GetRootURL());
+            var returnUrl = WebUtility.UrlEncode(_publicUrl.BaseUrl);
             return new RedirectResult(_settings.CasBaseUrl + "logout?service=" + returnUrl);
         }
 
@@ -583,13 +582,14 @@ namespace Viper.Controllers
 
 
         /// <summary>
-        /// Utility function for creating redirect URLs
+        /// Utility function for creating redirect URLs. Built from the configured canonical
+        /// origin, never the request Host, so a forged Host cannot poison a CAS callback.
         /// </summary>
         /// <param name="targetPath"></param>
         /// <returns>Compiled URL</returns>
-        private static string BuildRedirectUri(string targetPath)
+        private string BuildRedirectUri(string targetPath)
         {
-            return HttpHelper.GetRootURL() + targetPath;
+            return _publicUrl.BuildUrl(targetPath);
         }
 
         /// <summary>

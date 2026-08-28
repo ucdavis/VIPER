@@ -160,7 +160,7 @@ namespace Viper.test.Services
             // 4. Act
             // Temporary HttpHelper configuration inside the test context
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
-            HttpHelper.Configure(memoryCache, config, mockEnv, null, null, null);
+            HttpHelper.Configure(memoryCache, config, mockEnv, null, null, null, null);
 
             UserInfoResult? result;
             try
@@ -169,7 +169,7 @@ namespace Viper.test.Services
             }
             finally
             {
-                HttpHelper.Configure(null, null, null!, null, null, null);
+                HttpHelper.Configure(null, null, null!, null, null, null, null);
             }
 
             // 5. Assert
