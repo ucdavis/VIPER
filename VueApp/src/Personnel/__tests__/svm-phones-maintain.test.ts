@@ -107,14 +107,24 @@ const personSelectorStub = {
  * Mounts the page with the data the test cares about, waiting out the onMounted load.
  * Anything not named here loads empty.
  */
-async function mountPage(data: { sections?: SVMPhoneSection[]; frequentNumbers?: SVMFrequentNumberRecord[] } = {}) {
+async function mountPage(
+    data: {
+        sections?: SVMPhoneSection[]
+        frequentNumbers?: SVMFrequentNumberRecord[]
+        loadError?: string | null
+    } = {},
+) {
     vi.mocked(getSVMData).mockResolvedValue({
         newSections: data.sections ?? [],
         newUnitOptions: [],
         newUnitFaxNumbers: [],
         newUnitAdminStaff: [],
+        error: data.loadError ?? null,
     })
-    vi.mocked(getFrequentlyCalledNumbers).mockResolvedValue(data.frequentNumbers ?? [])
+    vi.mocked(getFrequentlyCalledNumbers).mockResolvedValue({
+        rows: data.frequentNumbers ?? [],
+        error: null,
+    })
 
     const wrapper = mount(SVMPhonesMaintain, {
         global: {
@@ -152,6 +162,44 @@ function resetMocks(confirmed = true) {
     // previous test's dialog would still be there when asserting on document.body.textContent.
     document.body.innerHTML = ""
 }
+
+describe("sVMPhonesMaintain.vue - load failures", () => {
+    it("shows no banner when the data loaded", async () => {
+        expect.hasAssertions()
+
+        const wrapper = await mountPage()
+
+        expect(wrapper.findComponent({ name: "StatusBanner" }).exists()).toBeFalsy()
+    })
+
+    it("banners a failed load, rather than rendering empty tables as if the list were empty", async () => {
+        expect.hasAssertions()
+
+        const wrapper = await mountPage({ loadError: "The phone list could not be loaded." })
+
+        const banner = wrapper.findComponent({ name: "StatusBanner" })
+        expect(banner.exists()).toBeTruthy()
+        expect(banner.text()).toContain("could not be loaded")
+    })
+
+    it("clears the banner once a later load succeeds", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountPage({ loadError: "The phone list could not be loaded." })
+        vi.mocked(getSVMData).mockResolvedValue({
+            newSections: [],
+            newUnitOptions: [],
+            newUnitFaxNumbers: [],
+            newUnitAdminStaff: [],
+            error: null,
+        })
+
+        // A save triggers the same reload path the page uses everywhere else.
+        wrapper.findComponent({ name: "SVMAddRecordDialog" }).vm.$emit("saved")
+        await flushPromises()
+
+        expect(wrapper.findComponent({ name: "StatusBanner" }).exists()).toBeFalsy()
+    })
+})
 
 describe("sVMPhonesMaintain.vue - delete outcomes", () => {
     it("raises no toast on a normal load", async () => {
@@ -380,5 +428,20 @@ describe("sVMPhonesMaintain.vue - frequently called numbers", () => {
         await flushPromises()
 
         expect(vi.mocked(getFrequentlyCalledNumbers).mock.calls.length).toBeGreaterThan(callsBeforeSave)
+    })
+
+    /**
+     * A sticky element can only travel within its own parent. The filter was briefly wrapped in a
+     * div holding nothing else, which pinned it to a box its own height, so it scrolled away with
+     * the page and never appeared to stick at all.
+     */
+    it("leaves the filter among the lists it filters, so it has room to stick to", async () => {
+        expect.hasAssertions()
+        resetMocks()
+        const wrapper = await mountPage({ sections: [sectionWithDeletableRow()] })
+
+        const filterParent = wrapper.find(".phone-list-filter").element.parentElement
+
+        expect(filterParent?.childElementCount).toBeGreaterThan(1)
     })
 })

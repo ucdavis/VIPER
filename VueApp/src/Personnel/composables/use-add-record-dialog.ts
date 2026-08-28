@@ -18,7 +18,7 @@ interface UseAddRecordDialogOptions<TForm, TEditData> {
     sendSave: (form: TForm, isEdit: boolean) => Promise<SaveOutcome>
     onSaved: (result: any) => void
     onClose: () => void
-    /** Used in the default save-failure message: "Failed to save/upload {recordLabel}". */
+    /** Used in the default save-failure message: "Failed to save/add {recordLabel}". */
     recordLabel?: string
 }
 
@@ -64,7 +64,8 @@ export function useAddRecordDialog<TForm, TEditData>({
     }
 
     function reportSaveError(res: { errors: string[] | null }) {
-        formError.value = res.errors?.[0] ?? `Failed to ${isEdit.value ? "save" : "upload"} ${recordLabel}`
+        // Retrieve the final error, since the first one may be the general EF wrapper message.
+        formError.value = res.errors?.at(-1) ?? `Failed to ${isEdit.value ? "save" : "add"} ${recordLabel}`
     }
 
     async function save() {

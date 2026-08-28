@@ -9,14 +9,17 @@ const { get } = useFetch()
 class SVMSectionService {
     private baseUrl = `${import.meta.env.VITE_API_URL}phones/svm/sections`
 
-    async getSections(): Promise<SVMSectionAPIResponse[]> {
+    /**
+     * Every section of the SVM list. Returns null when the request fails, which an empty array
+     * cannot say: a list with no sections yet and a list that could not be loaded would otherwise
+     * render identically, and only one of them should raise an error.
+     */
+    async getSections(): Promise<SVMSectionAPIResponse[] | null> {
         const r = await get(this.baseUrl)
-
-        const results = r.result
-        if (!results || results.length === 0) {
-            return []
+        if (!r.success || !r.result) {
+            return null
         }
-        return results as SVMSectionAPIResponse[]
+        return r.result as SVMSectionAPIResponse[]
     }
 }
 

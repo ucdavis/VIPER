@@ -43,14 +43,14 @@ function resetTestState(): void {
 }
 
 describe("sVMAddFrequentNumberDialog.vue - add vs edit mode", () => {
-    it("shows the Add Frequent Number title and an Upload button in add mode", async () => {
+    it("shows the Add Frequent Number title and an Add Record button in add mode", async () => {
         expect.hasAssertions()
         resetTestState()
         mountDialog({ modelValue: true })
         await flushPromises()
 
         expect(bodyText()).toContain("Add Frequent Number")
-        expect(bodyText()).toContain("Upload")
+        expect(bodyText()).toContain("Add Record")
     })
 
     it("shows the Edit Frequent Number title, pre-filled fields, and a Save Changes button in edit mode", async () => {

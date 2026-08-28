@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -95,6 +96,26 @@ namespace Viper.Areas.Personnel.Scripts
         }
 
         /// <summary>
+        /// The configuration the script can always read: the appsettings files next to it and the
+        /// environment. Built fresh on each call because a builder that has had Parameter Store
+        /// registered on it cannot be reused as the fallback.
+        /// </summary>
+        private static IConfigurationBuilder LocalConfiguration(string appRoot, string environment)
+        {
+            return new ConfigurationBuilder()
+                .SetBasePath(appRoot)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false)
+                .AddEnvironmentVariables();
+        }
+
+        private static void WarnParameterStoreUnavailable(string reason)
+        {
+            Console.WriteLine($"Warning: {reason}");
+            Console.WriteLine("Continuing with appsettings.json configuration only.");
+        }
+
+        /// <summary>
         /// Loads configuration from appsettings.json files and AWS Parameter Store.
         /// Falls back gracefully to appsettings.json only if AWS is unavailable.
         /// </summary>
@@ -106,12 +127,6 @@ namespace Viper.Areas.Personnel.Scripts
             Console.WriteLine($"Loading configuration for environment: {environment}");
             Console.WriteLine($"Configuration root: {appRoot}");
 
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(appRoot)
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false)
-                .AddEnvironmentVariables();
-
             try
             {
                 AWSOptions awsOptions = new()
@@ -119,28 +134,43 @@ namespace Viper.Areas.Personnel.Scripts
                     Region = RegionEndpoint.USWest1
                 };
 
-                builder.AddSystemsManager("/" + environment, awsOptions)
-                       .AddSystemsManager("/Shared", awsOptions);
+                // Build() has to be inside the try. AddSystemsManager only appends a source; the
+                // Parameter Store call happens when Build() creates the providers and loads them.
+                // With Build() after the try, none of these catches could fire and an unreachable
+                // Parameter Store took the script down instead of falling back.
+                var configuration = LocalConfiguration(appRoot, environment)
+                    .AddSystemsManager("/" + environment, awsOptions)
+                    .AddSystemsManager("/Shared", awsOptions)
+                    .Build();
 
                 Console.WriteLine($"Successfully connected to AWS Parameter Store for environment: {environment}");
+                return configuration;
             }
             catch (Amazon.Runtime.AmazonServiceException ex)
             {
-                Console.WriteLine($"Warning: Could not connect to AWS Parameter Store: {ex.Message}");
-                Console.WriteLine("Continuing with appsettings.json configuration only.");
+                WarnParameterStoreUnavailable($"Could not connect to AWS Parameter Store: {ex.Message}");
             }
             catch (Amazon.Runtime.AmazonClientException ex)
             {
-                Console.WriteLine($"Warning: Could not connect to AWS Parameter Store: {ex.Message}");
-                Console.WriteLine("Continuing with appsettings.json configuration only.");
+                WarnParameterStoreUnavailable($"Could not connect to AWS Parameter Store: {ex.Message}");
+            }
+            // Running off the network is the case this fallback exists for, and it does not arrive
+            // as an Amazon exception: an unreachable host surfaces as a timeout and an unresolvable
+            // one as a failed HTTP request.
+            catch (TimeoutException ex)
+            {
+                WarnParameterStoreUnavailable($"Timed out reaching AWS Parameter Store: {ex.Message}");
+            }
+            catch (HttpRequestException ex)
+            {
+                WarnParameterStoreUnavailable($"Could not reach AWS Parameter Store: {ex.Message}");
             }
             catch (ArgumentException ex)
             {
-                Console.WriteLine($"Warning: AWS configuration error: {ex.Message}");
-                Console.WriteLine("Continuing with appsettings.json configuration only.");
+                WarnParameterStoreUnavailable($"AWS configuration error: {ex.Message}");
             }
 
-            return builder.Build();
+            return LocalConfiguration(appRoot, environment).Build();
         }
 
         public static string ValidateOutputPath(string? outputPath, string defaultSubfolder)

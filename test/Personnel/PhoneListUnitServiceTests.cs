@@ -91,7 +91,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         _context.ViperPerson.Add(new ViperPerson
         {
             PersonId = 1,
-            IamId = "listedperson",
+            IamId = "listed01",
             FirstName = "Listed",
             LastName = "Person",
             FullName = "Listed Person",
@@ -99,7 +99,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         });
         _context.PhonePerson.Add(new PhonePerson
         {
-            PersonIam = "listedperson",
+            PersonIam = "listed01",
             Phone = "530-555-1000",
             DirectPhone = "530-555-2000",
             Office = "Room 100",
@@ -107,7 +107,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         _context.PhoneListUnitPerson.Add(new PhoneListUnitPerson
         {
             PhoneListUnitId = 1,
-            PersonIam = "listedperson",
+            PersonIam = "listed01",
             ListFirst = false,
             IsActive = true,
         });
@@ -145,7 +145,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
 
         var units = await _service.GetPhoneListUnits(TestList(), TestContext.Current.CancellationToken);
 
-        var person = Assert.Single(units.Single().PhoneListUnitPersons, p => p.PersonIam == "listedperson");
+        var person = Assert.Single(units.Single().PhoneListUnitPersons, p => p.PersonIam == "listed01");
         Assert.Equal("530-555-2000", person.Person.DirectPhone);
     }
 
@@ -185,13 +185,65 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         Assert.True(newPerson.ListFirst);
     }
 
+    /// <summary>
+    /// PhonePerson requires its users.Person row, so every read projection inner joins to it.
+    /// A record written against an unknown IAM ID would be invisible to the list and could not
+    /// be edited or removed through it, so the write is refused instead.
+    /// </summary>
+    [Fact]
+    public async Task AddUnitPersonData_Throws_AndWritesNothing_WhenTheEmployeeIsNotAViperPerson()
+    {
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 1,
+            EmployeeIam = "ghost01",
+            Phone = "530-555-7000",
+            DirectPhone = "530-555-7001",
+            Office = "Room 700",
+            ListFirst = false,
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.AddUnitPersonData(1, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("The selected employee could not be found.", ex.Message);
+        Assert.Null(await _context.PhonePerson
+            .FirstOrDefaultAsync(p => p.PersonIam == "ghost01", TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.PhoneListUnitPerson
+            .Where(p => p.PersonIam == "ghost01")
+            .ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateUnitPersonData_Throws_WhenTheEmployeeIsNotAViperPerson()
+    {
+        var unitPerson = await _context.PhoneListUnitPerson
+            .SingleAsync(p => p.PersonIam == "listed01" && p.PhoneListUnitId == 1, TestContext.Current.CancellationToken);
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 1,
+            EmployeeIam = "ghost01",
+            Phone = "530-555-7000",
+            DirectPhone = "530-555-7001",
+            Office = "Room 700",
+            ListFirst = false,
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.UpdateUnitPersonData(1, unitPerson.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("The selected employee could not be found.", ex.Message);
+        Assert.Null(await _context.PhonePerson
+            .FirstOrDefaultAsync(p => p.PersonIam == "ghost01", TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task AddUnitPersonData_CalledTwiceForSamePerson_UpsertsInsteadOfDuplicating()
     {
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 1,
-            EmployeeIam = "listedperson",
+            EmployeeIam = "listed01",
             Phone = "530-555-9000",
             DirectPhone = "530-555-9001",
             Office = "Room 900",
@@ -202,12 +254,12 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         await _service.AddUnitPersonData(1, request, TestContext.Current.CancellationToken);
 
         var associations = await _context.PhoneListUnitPerson
-            .Where(p => p.PersonIam == "listedperson" && p.PhoneListUnitId == 1)
+            .Where(p => p.PersonIam == "listed01" && p.PhoneListUnitId == 1)
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Single(associations);
 
         var phonePerson = await _context.PhonePerson
-            .SingleAsync(p => p.PersonIam == "listedperson", TestContext.Current.CancellationToken);
+            .SingleAsync(p => p.PersonIam == "listed01", TestContext.Current.CancellationToken);
         Assert.Equal("530-555-9000", phonePerson.Phone);
         Assert.Equal("530-555-9001", phonePerson.DirectPhone);
         Assert.Equal("Room 900", phonePerson.Office);
@@ -219,7 +271,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         _context.ViperPerson.Add(new ViperPerson
         {
             PersonId = 3,
-            IamId = "paddedperson",
+            IamId = "padded01",
             FirstName = "Padded",
             LastName = "Person",
             FullName = "Padded Person",
@@ -230,7 +282,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 1,
-            EmployeeIam = " paddedperson ",
+            EmployeeIam = " padded01 ",
             Phone = " 530-555-9500 ",
             DirectPhone = " 530-555-9501 ",
             Office = " Room 950 ",
@@ -240,7 +292,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         await _service.AddUnitPersonData(1, request, TestContext.Current.CancellationToken);
 
         var phonePerson = await _context.PhonePerson
-            .SingleAsync(p => p.PersonIam == "paddedperson", TestContext.Current.CancellationToken);
+            .SingleAsync(p => p.PersonIam == "padded01", TestContext.Current.CancellationToken);
         Assert.Equal("530-555-9500", phonePerson.Phone);
         Assert.Equal("Room 950", phonePerson.Office);
     }
@@ -251,7 +303,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         _context.ViperPerson.Add(new ViperPerson
         {
             PersonId = 4,
-            IamId = "paddedtwice",
+            IamId = "padded02",
             FirstName = "Padded",
             LastName = "Twice",
             FullName = "Padded Twice",
@@ -265,7 +317,7 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 1,
-            EmployeeIam = " paddedtwice ",
+            EmployeeIam = " padded02 ",
             Phone = " 530-555-9600 ",
             DirectPhone = " 530-555-9601 ",
             Office = " Room 960 ",
@@ -276,10 +328,10 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         await _service.AddUnitPersonData(1, request, TestContext.Current.CancellationToken);
 
         var association = Assert.Single(await _context.PhoneListUnitPerson
-            .Where(p => p.PersonIam == "paddedtwice" && p.PhoneListUnitId == 1)
+            .Where(p => p.PersonIam == "padded02" && p.PhoneListUnitId == 1)
             .ToListAsync(TestContext.Current.CancellationToken));
         Assert.True(association.IsActive);
-        Assert.Equal("paddedtwice", association.PersonIam);
+        Assert.Equal("padded02", association.PersonIam);
     }
 
     [Fact]
@@ -289,17 +341,18 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 1,
-            EmployeeIam = "listedperson",
+            EmployeeIam = "listed01",
             Phone = "  530-555-7000  ",
             DirectPhone = "  530-555-7001  ",
             Office = "  Room 700  ",
+            ListFirst = false,
         };
 
         await _service.UpdateUnitPersonData(
             1, unitPerson.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken);
 
         var phonePerson = await _context.PhonePerson
-            .FindAsync(new object?[] { "listedperson" }, TestContext.Current.CancellationToken);
+            .FindAsync(new object?[] { "listed01" }, TestContext.Current.CancellationToken);
         Assert.NotNull(phonePerson);
         Assert.Equal("530-555-7000", phonePerson.Phone);
         Assert.Equal("530-555-7001", phonePerson.DirectPhone);
@@ -318,12 +371,12 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         AddMember(unitPersonId: 10, unitId: 1, personIam: "sameunitfirst", listFirst: true);
         AddMember(unitPersonId: 20, unitId: 2, personIam: "otherunitfirst", listFirst: true);
         var target = await _context.PhoneListUnitPerson
-            .SingleAsync(p => p.PersonIam == "listedperson", TestContext.Current.CancellationToken);
+            .SingleAsync(p => p.PersonIam == "listed01", TestContext.Current.CancellationToken);
 
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 2,
-            EmployeeIam = "listedperson",
+            EmployeeIam = "listed01",
             Phone = "530-555-7000",
             ListFirst = true,
         };
@@ -341,12 +394,12 @@ public sealed class PhoneListUnitServiceTests : IDisposable
     {
         AddMember(unitPersonId: 10, unitId: 1, personIam: "sameunitfirst", listFirst: true);
         var target = await _context.PhoneListUnitPerson
-            .SingleAsync(p => p.PersonIam == "listedperson", TestContext.Current.CancellationToken);
+            .SingleAsync(p => p.PersonIam == "listed01", TestContext.Current.CancellationToken);
 
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 1,
-            EmployeeIam = "listedperson",
+            EmployeeIam = "listed01",
             Phone = "530-555-7000",
             ListFirst = false,
         };
@@ -387,8 +440,9 @@ public sealed class PhoneListUnitServiceTests : IDisposable
         var request = new PhoneListUnitDataRequest
         {
             UnitId = 1,
-            EmployeeIam = "listedperson",
+            EmployeeIam = "listed01",
             Phone = "530-555-9000",
+            ListFirst = false,
         };
 
         // A maintainer whose page predates someone else's delete. Saving must not bring the row

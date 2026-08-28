@@ -55,6 +55,23 @@ namespace Viper.Areas.Personnel.Services
         }
 
         /// <summary>
+        /// Confirms the person exists in users.Person. PhonePerson requires that relationship, so
+        /// every read projection inner joins to it: a row stored against an unknown IAM ID is
+        /// invisible to the list and cannot be edited or removed through it. The person pickers
+        /// only offer real people, so this guards against a request that did not come from them.
+        /// </summary>
+        private async Task VerifyPersonExists(string iamId, CancellationToken ct)
+        {
+            var personExists = await _context.ViperPerson
+                .AsNoTracking()
+                .AnyAsync(t => t.IamId == iamId, ct);
+            if (!personExists)
+            {
+                throw new InvalidOperationException("The selected employee could not be found.");
+            }
+        }
+
+        /// <summary>
         /// Loads an active unit-person row, confirming it belongs to the list the request was
         /// routed through. Returns the row so callers avoid a second lookup.
         /// </summary>
@@ -122,7 +139,9 @@ namespace Viper.Areas.Personnel.Services
                 .ThenBy(t => t.Name)
                 .ToListAsync(ct);
 
-            // Need to deduplicate rows caused by multiple records for the same person
+            // A small number of current employees have multiple rows in users.Person,
+            // so the joins fan out the results in a way that results in multiple rows for
+            // these users. Therefore, we need to deduplicate these rows
             // in the Users table. Due to nested selects, this must be done client-side
             // instead of server-side.
             foreach (var unit in allUnits)
@@ -148,6 +167,10 @@ namespace Viper.Areas.Personnel.Services
 
         /// <summary>
         /// Updates a PhonePerson if they exist, or adds them otherwise.
+        /// This data is shared across other lists, and so changes here will impact those
+        /// indirectly. Phone lists maintainers change office (not shared with SVM),
+        /// (office) phone (shared with SVM), and direct phone (not shared with SVM)
+        /// in this table.
         /// </summary>
         private async Task AddOrUpdatePhonePerson(
             PhoneListUnitDataRequest request,
@@ -205,6 +228,7 @@ namespace Viper.Areas.Personnel.Services
         public async Task AddUnitPersonData(int listId, PhoneListUnitDataRequest request, CancellationToken ct = default)
         {
             await VerifyUnitInList(listId, request.UnitId, ct);
+            await VerifyPersonExists(request.EmployeeIam.Trim(), ct);
             using var transaction = await _context.Database.BeginTransactionAsync(ct);
             var userIam = _userHelper.GetCurrentUser()?.IamId;
             var updateTimestamp = DateTime.Now;
@@ -247,6 +271,7 @@ namespace Viper.Areas.Personnel.Services
         public async Task UpdateUnitPersonData(int listId, int unitPersonId, PhoneListUnitDataRequest request, CancellationToken ct = default)
         {
             var modifiedPhoneListPerson = await GetUnitPersonInList(listId, unitPersonId, ct);
+            await VerifyPersonExists(request.EmployeeIam.Trim(), ct);
             using var transaction = await _context.Database.BeginTransactionAsync(ct);
             var userIam = _userHelper.GetCurrentUser()?.IamId;
             var updateTimestamp = DateTime.Now;

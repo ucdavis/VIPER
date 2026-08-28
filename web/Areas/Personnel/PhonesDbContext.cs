@@ -36,7 +36,7 @@ public class PhonesDbContext : DbContext
             entity.HasKey(e => e.PersonIam);
             entity.ToTable("Person", schema: "phones");
 
-            entity.Property(e => e.PersonIam).HasColumnName("PersonIam");
+            entity.Property(e => e.PersonIam).HasColumnName("PersonIam").HasMaxLength(10);
             entity.Property(e => e.Phone).HasColumnName("Phone").HasMaxLength(25);
             entity.Property(e => e.DirectPhone).HasColumnName("DirectPhone").HasMaxLength(25);
             entity.Property(e => e.Office).HasColumnName("Office").HasMaxLength(100);
@@ -179,7 +179,7 @@ public class PhonesDbContext : DbContext
             entity.ToTable("PhoneListUnitPerson", schema: "phones");
 
             entity.Property(e => e.PhoneListUnitId).HasColumnName("PhoneListUnitId");
-            entity.Property(e => e.PersonIam).HasColumnName("PersonIam");
+            entity.Property(e => e.PersonIam).HasColumnName("PersonIam").HasMaxLength(10);
             entity.Property(e => e.ListFirst).HasColumnName("ListFirst");
             entity.Property(e => e.IsActive).HasColumnName("IsActive");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy").HasMaxLength(10);

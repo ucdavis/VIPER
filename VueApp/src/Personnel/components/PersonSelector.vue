@@ -1,48 +1,21 @@
 <template>
-    <q-select
+    <PersonSearchSelect
         :model-value="modelValue"
-        use-input
-        use-chips
-        input-debounce="300"
-        dense
-        options-dense
         :label="label"
-        :options="options"
-        :loading="loading"
-        option-value="iamId"
-        option-label="fullName"
-        hint="Type at least 2 characters to search people"
-        @update:model-value="emit('update:modelValue', $event ?? getSparseAugmentedViperPerson())"
-        @filter="searchPeople"
+        :search="searchThisList"
+        :option-label="(person) => person.fullName"
+        outlined
+        @update:model-value="emitSelection"
     >
-        <template #option="{ itemProps, opt }">
-            <q-item v-bind="itemProps">
-                <q-item-section>
-                    <q-item-label>{{ opt.fullName }}</q-item-label>
-                </q-item-section>
-            </q-item>
-        </template>
-        <template #selected-item="scope">
-            <q-chip
-                removable
-                dense
-                :tabindex="scope.tabindex"
-                @remove="scope.removeAtIndex(scope.index)"
-            >
-                {{ scope.opt.fullName ?? scope.opt.iamId }}
-            </q-chip>
-        </template>
-        <template #no-option>
-            <q-item>
-                <q-item-section class="text-grey">No matching people</q-item-section>
-            </q-item>
-        </template>
-    </q-select>
+        <!-- The address tells alike-sounding names apart, and is always set for a current
+             employee, which is all this search returns. -->
+        <template #option-caption="{ opt }">{{ opt.mailId }}@ucdavis.edu</template>
+    </PersonSearchSelect>
 </template>
 
 <script setup lang="ts">
+import PersonSearchSelect from "@/components/PersonSearchSelect.vue"
 import { searchPeopleOptions } from "../services/phone-person-options-service"
-import { usePersonSearch } from "@/composables/use-person-search"
 import { getSparseAugmentedViperPerson } from "../composables/use-person-helper"
 import type { AugmentedViperPerson } from "../types/phone-types"
 
@@ -57,7 +30,16 @@ const props = defineProps<{
 
 const emit = defineEmits<{ "update:modelValue": [value: AugmentedViperPerson] }>()
 
-const { options, loading, searchPeople } = usePersonSearch<AugmentedViperPerson>((val) =>
-    searchPeopleOptions(val, props.listCode),
-)
+function searchThisList(value: string) {
+    return searchPeopleOptions(value, props.listCode)
+}
+
+/**
+ * Single-select, so QSelect emits one person or null. Clearing the field emits the sparse
+ * placeholder both dialogs seed a pristine form with, rather than null, so the form's shape
+ * never changes underneath them.
+ */
+function emitSelection(value: AugmentedViperPerson | AugmentedViperPerson[] | null) {
+    emit("update:modelValue", (value as AugmentedViperPerson | null) ?? getSparseAugmentedViperPerson())
+}
 </script>

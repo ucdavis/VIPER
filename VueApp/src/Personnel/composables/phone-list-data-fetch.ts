@@ -31,6 +31,11 @@ function buildColumns(isEdit: boolean, isInternal: boolean): QTableProps["column
                 field: "listFirst",
                 align: "center",
                 sortable: false,
+                // The table draws a tick through its own cell slot, but a card list has no slot to
+                // draw into and would otherwise print the raw boolean. Formatting here rather than
+                // in the card keeps one answer for what this column says, and an unset flag reads
+                // as nothing at all rather than as "No".
+                format: (listFirst: boolean) => (listFirst ? "Yes" : ""),
             },
             {
                 name: "edit",

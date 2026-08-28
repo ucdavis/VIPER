@@ -27,7 +27,6 @@ type PhoneListUnitPerson = {
     phoneListUnitId: number
     personIam: string
     listFirst: boolean
-    phoneListUnit: null
     person: PhonePerson | null
     modifiedBy: string | null
     modifiedDate: Date | null
@@ -39,8 +38,6 @@ type PhoneListUnitAPIResponse = {
     phoneListId: number
     name: string
     sortOrder: number | null
-    // Key returned by API but always null for this use case.
-    phoneList: null
     phoneListUnitPersons: PhoneListUnitPerson[]
 }
 

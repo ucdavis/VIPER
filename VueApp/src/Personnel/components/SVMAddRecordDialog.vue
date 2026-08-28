@@ -6,7 +6,7 @@
         :is-edit="isEdit"
         :saving="saving"
         :form-error="formError"
-        submit-label="Upload"
+        submit-label="Add Record"
         @update:model-value="emit('update:modelValue', $event)"
         @submit="save"
         @validation-error="onValidationError"
@@ -33,7 +33,7 @@
             dense
             outlined
             label="Location"
-            maxlength="100"
+            maxlength="50"
             hint="The dean/director's office"
         />
 

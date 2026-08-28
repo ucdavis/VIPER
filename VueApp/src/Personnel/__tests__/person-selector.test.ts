@@ -15,9 +15,26 @@ vi.mock("../services/phone-person-options-service", () => ({
     searchPeopleOptions: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
-function mountSelector(listCode = "") {
+function makePerson(overrides: Partial<AugmentedViperPerson> = {}): AugmentedViperPerson {
+    return {
+        personId: 1,
+        firstName: "Amy",
+        lastName: "Smith",
+        fullName: "Amy Smith",
+        iamId: "asmith",
+        currentEmployee: true,
+        mailId: "asmith",
+        phoneData: null,
+        ...overrides,
+    }
+}
+
+/** The sparse placeholder both dialogs seed a pristine form with. */
+const noPersonSelected = { iamId: "", fullName: "" }
+
+function mountSelector(listCode = "", modelValue: { iamId: string; fullName: string | null } = noPersonSelected) {
     return mount(PersonSelector, {
-        props: { modelValue: { iamId: "", fullName: "" }, label: "Employee", listCode },
+        props: { modelValue, label: "Employee", listCode },
         global: { plugins: [Quasar] },
     })
 }
@@ -95,5 +112,51 @@ describe("personSelector.vue", () => {
         const emitted = wrapper.emitted("update:modelValue")
         expect(emitted).toHaveLength(1)
         expect((emitted![0]![0] as AugmentedViperPerson).iamId).toBe("")
+    })
+
+    /**
+     * An unset person is a sparse record rather than null, and QSelect wraps any non-null model
+     * value into a single selected item, so the chip has to be suppressed explicitly.
+     */
+    it("shows no chip on a pristine form, where the person is a sparse placeholder", () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+
+        const wrapper = mountSelector()
+
+        expect(wrapper.findAllComponents({ name: "QChip" })).toHaveLength(0)
+    })
+
+    it("shows a chip once a person is actually selected", () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+
+        const wrapper = mountSelector("", { iamId: "asmith", fullName: "Amy Smith" })
+
+        const chip = wrapper.findComponent({ name: "QChip" })
+
+        expect(chip.exists()).toBeTruthy()
+        expect(chip.text()).toContain("Amy Smith")
+    })
+
+    it("captions each option with the person's email, so alike names can be told apart", () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        const wrapper = mountSelector()
+
+        // Rendered straight from the slot rather than by opening the select: QSelect puts its
+        // options in a QMenu portal, which needs layout measurement jsdom does not do.
+        const optionSlot = wrapper.findComponent({ name: "QSelect" }).vm.$slots.option!
+        const option = mount(
+            {
+                render: () =>
+                    optionSlot({ itemProps: {}, opt: makePerson({ fullName: "Amy Smith", mailId: "asmith" }) }),
+            },
+            // The slot renders Quasar components, which need $q even in a bare harness.
+            { global: { plugins: [Quasar] } },
+        )
+
+        expect(option.text()).toContain("Amy Smith")
+        expect(option.text()).toContain("asmith@ucdavis.edu")
     })
 })

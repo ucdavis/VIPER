@@ -11,15 +11,15 @@ class SVMUnitService {
 
     /**
      * Every unit on the list. The page renders all sections together, so these come back in one
-     * request and are grouped by sectionId client-side.
+     * request and are grouped by sectionId client-side. Returns null when the request fails, so a
+     * caller can tell that apart from a list that genuinely has no units.
      */
-    async getAllUnits(): Promise<SVMUnitAPIResponse[]> {
+    async getAllUnits(): Promise<SVMUnitAPIResponse[] | null> {
         const r = await get(`${this.baseUrl}/units`)
-        const results = r.result
-        if (!results || results.length === 0) {
-            return []
+        if (!r.success || !r.result) {
+            return null
         }
-        return results as SVMUnitAPIResponse[]
+        return r.result as SVMUnitAPIResponse[]
     }
 
     async addUnitData(unitId: number, formData: SVMUnitNumberDTO) {

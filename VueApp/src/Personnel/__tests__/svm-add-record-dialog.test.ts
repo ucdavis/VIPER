@@ -104,7 +104,7 @@ function resetTestState(): void {
 }
 
 describe("sVMAddRecordDialog.vue - add vs edit mode", () => {
-    it("shows the Add Phone Record title, Upload button, and the Unit q-select in add mode", async () => {
+    it("shows the Add Phone Record title, Add Record button, and the Unit q-select in add mode", async () => {
         expect.hasAssertions()
         resetTestState()
         const wrapper = mountDialog({
@@ -116,7 +116,7 @@ describe("sVMAddRecordDialog.vue - add vs edit mode", () => {
         await flushPromises()
 
         expect(bodyText()).toContain("Add Phone Record")
-        expect(bodyText()).toContain("Upload")
+        expect(bodyText()).toContain("Add Record")
         // The Unit q-select is add-mode-only; deanDirectorInterim/staffInterim selects are always
         // present, so 3 selects (vs. 2 in edit mode) confirms it rendered.
         expect(wrapper.findAllComponents({ name: "QSelect" })).toHaveLength(3)

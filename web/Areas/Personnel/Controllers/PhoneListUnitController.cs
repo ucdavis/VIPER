@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Personnel.Models;
 using Viper.Areas.Personnel.Services;
 using Viper.Classes;
+using Viper.Classes.Utilities;
 using Web.Authorization;
 
 namespace Viper.Areas.Personnel.Controllers
@@ -16,11 +18,13 @@ namespace Viper.Areas.Personnel.Controllers
     public class PhoneListUnitController(
         PhoneListService phoneListService,
         PhoneListUnitService phoneListUnitService,
-        PhonePermissionsService phonePermissionsService) : ApiController
+        PhonePermissionsService phonePermissionsService,
+        ILogger<PhoneListUnitController> logger) : ApiController
     {
         private readonly PhoneListService _phoneListService = phoneListService;
         private readonly PhoneListUnitService _phoneListUnitService = phoneListUnitService;
         private readonly PhonePermissionsService _phonePermissionsService = phonePermissionsService;
+        private readonly ILogger<PhoneListUnitController> _logger = logger;
 
         /// <summary>
         /// Resolves the list named in the route and confirms the caller may edit it. Returns the
@@ -49,13 +53,13 @@ namespace Viper.Areas.Personnel.Controllers
         /// in that unit.
         /// </summary>
         [HttpGet("units")]
-        public async Task<ActionResult<List<PhoneListUnit>>> GetUnits(string code, CancellationToken ct = default)
+        public async Task<ActionResult<List<PhoneListUnitDto>>> GetUnits(string code, CancellationToken ct = default)
         {
             try
             {
                 var list = await _phoneListService.GetListByCode(code, ct);
                 var results = await _phoneListUnitService.GetPhoneListUnits(list, ct);
-                return Ok(results);
+                return Ok(PersonnelMapper.ToPhoneListUnitDtos(results));
             }
             catch (InvalidOperationException ex)
             {
@@ -83,6 +87,12 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogWarning(ex, "Database error adding a unit person to list {Code}: {Message}",
+                    LogSanitizer.SanitizeString(code), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
+                return BadRequest("Failed to add the record. Please check all field values are valid.");
+            }
         }
 
         /// <summary>
@@ -105,6 +115,12 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogWarning(ex, "Database error updating unit person {UnitPersonId} in list {Code}: {Message}",
+                    unitPersonId, LogSanitizer.SanitizeString(code), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
+                return BadRequest("Failed to update the record. Please check all field values are valid.");
+            }
         }
 
         /// <summary>
@@ -126,6 +142,12 @@ namespace Viper.Areas.Personnel.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(ex.Message);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogWarning(ex, "Database error deleting unit person {UnitPersonId} from list {Code}: {Message}",
+                    unitPersonId, LogSanitizer.SanitizeString(code), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
+                return BadRequest("Failed to delete the record. Please try again.");
             }
         }
     }

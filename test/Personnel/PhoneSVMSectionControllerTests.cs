@@ -29,11 +29,11 @@ public sealed class PhoneSVMSectionControllerTests : IDisposable
 
     public void Dispose() => _context.Dispose();
 
-    private async Task<List<SVMSection>> GetSections()
+    private async Task<List<SVMSectionDto>> GetSections()
     {
         var result = await _controller.GetSections(TestContext.Current.CancellationToken);
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        return Assert.IsAssignableFrom<List<SVMSection>>(okResult.Value);
+        return Assert.IsAssignableFrom<List<SVMSectionDto>>(okResult.Value);
     }
 
     [Fact]
@@ -52,10 +52,14 @@ public sealed class PhoneSVMSectionControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task GetSections_ReturnsNotFound_WhenThereAreNoSections()
+    public async Task GetSections_ReturnsEmptyList_WhenThereAreNoSections()
     {
+        // A list nobody has added sections to yet is a successful empty answer, not a 404. The
+        // client raises its global error banner on any unsuccessful status, so returning one here
+        // would put an error over a page that is merely new.
         var result = await _controller.GetSections(TestContext.Current.CancellationToken);
 
-        Assert.IsType<NotFoundObjectResult>(result.Result);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Empty(Assert.IsType<List<SVMSectionDto>>(ok.Value));
     }
 }

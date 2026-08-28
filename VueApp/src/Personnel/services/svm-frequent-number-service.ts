@@ -9,14 +9,16 @@ const { get, post, put, del } = useFetch()
 class SVMFrequentNumberService {
     private baseUrl = `${import.meta.env.VITE_API_URL}phones/svm/frequentnumbers`
 
-    async getFrequentNumbers(): Promise<SVMFrequentNumberAPIResponse[]> {
+    /**
+     * The frequently called numbers. Returns null when the request fails, so a caller can tell
+     * that apart from a list that genuinely has none.
+     */
+    async getFrequentNumbers(): Promise<SVMFrequentNumberAPIResponse[] | null> {
         const r = await get(this.baseUrl)
-
-        const results = r.result
-        if (!results || results.length === 0) {
-            return []
+        if (!r.success || !r.result) {
+            return null
         }
-        return results as SVMFrequentNumberAPIResponse[]
+        return r.result as SVMFrequentNumberAPIResponse[]
     }
 
     async addFrequentNumber(formData: SVMFrequentNumberRecord) {

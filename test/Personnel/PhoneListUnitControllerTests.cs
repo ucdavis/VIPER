@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Controllers;
@@ -53,7 +54,7 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         var phoneListService = new PhoneListService(_context);
         var unitService = new PhoneListUnitService(_context, _userHelper, permissionsService);
 
-        _controller = new PhoneListUnitController(phoneListService, unitService, permissionsService);
+        _controller = new PhoneListUnitController(phoneListService, unitService, permissionsService, Substitute.For<ILogger<PhoneListUnitController>>());
 
         // Two lists, each with its own unit and its own maintain role.
         _context.PhoneList.Add(new PhoneList
@@ -73,6 +74,16 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         _context.PhoneListUnit.Add(new PhoneListUnit { PhoneListUnitId = 1, PhoneListId = 1, Name = "Front Office" });
         _context.PhoneListUnit.Add(new PhoneListUnit { PhoneListUnitId = 2, PhoneListId = 2, Name = "Other Office" });
         _context.PhonePerson.Add(new PhonePerson { PersonIam = "person01", Phone = "530-555-1000" });
+        // The service rejects an IAM ID with no users.Person row, so writes need one seeded.
+        _context.ViperPerson.Add(new ViperPerson
+        {
+            PersonId = 1,
+            IamId = "person01",
+            FirstName = "Test",
+            LastName = "Person",
+            FullName = "Test Person",
+            CurrentEmployee = true,
+        });
         _context.SaveChanges();
     }
 
@@ -104,6 +115,7 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         Phone = "530-555-1000",
         DirectPhone = "530-555-2000",
         Office = "Room 100",
+        ListFirst = false,
     };
 
     [Fact]
@@ -112,8 +124,35 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         var result = await _controller.GetUnits("VMDO", TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var units = Assert.IsAssignableFrom<List<PhoneListUnit>>(okResult.Value);
+        var units = Assert.IsAssignableFrom<List<PhoneListUnitDto>>(okResult.Value);
         Assert.Equal("Front Office", Assert.Single(units).Name);
+    }
+
+    [Fact]
+    public async Task GetUnits_SerializesWithoutTheEntityNavigationProperties()
+    {
+        // The endpoint used to return the EF entity, so the payload carried navigation properties
+        // the query never populated - phoneList and phoneListUnit, always null. They are gone from
+        // the DTO, and asserting on the serialized JSON is what actually pins the wire contract:
+        // the DTO type alone would not catch a nav property being reintroduced on it.
+        var result = await _controller.GetUnits("VMDO", TestContext.Current.CancellationToken);
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+
+        // camelCase to match what ASP.NET Core actually puts on the wire, so the property names
+        // asserted on below are the ones the TypeScript types are written against.
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            okResult.Value,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            });
+
+        Assert.DoesNotContain("phoneList\"", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("phoneListUnit\"", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("isActive", json, StringComparison.OrdinalIgnoreCase);
+        // The data the client does read still arrives.
+        Assert.Contains("phoneListUnitPersons", json, StringComparison.Ordinal);
+        Assert.Contains("Front Office", json, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,19 +1,22 @@
 <template>
     <h1>School of Veterinary Medicine Phone List Maintenance</h1>
-    <div v-if="!loading">
-        <q-input
-            class="q-ml-xs q-mr-xs"
+
+    <StatusBanner
+        v-if="errorMessage"
+        type="error"
+    >
+        {{ errorMessage }}
+    </StatusBanner>
+
+    <template v-if="!loading && !errorMessage">
+        <!-- Not wrapped in a div: a sticky element can only travel within its own parent, so a
+         wrapper holding nothing but the filter would pin it to a box its own height and it would
+         scroll away immediately. Its siblings are the lists it filters. -->
+        <PhoneListFilter
+            v-if="!loading"
             v-model="search"
-            dense
-            outlined
-            debounce="300"
-            placeholder="Filter Results"
-        >
-            <template #append>
-                <q-icon name="filter_alt" />
-            </template>
-        </q-input>
-    </div>
+        />
+    </template>
 
     <SVMPhoneSectionTable
         v-for="section in sections"
@@ -63,7 +66,9 @@ import { svmUnitService } from "../services/svm-unit-service"
 import SVMAddRecordDialog from "../components/SVMAddRecordDialog.vue"
 import SVMAddFrequentNumberDialog from "../components/SVMAddFrequentNumberDialog.vue"
 import SVMFrequentNumberTable from "../components/SVMFrequentNumberTable.vue"
+import PhoneListFilter from "../components/PhoneListFilter.vue"
 import SVMPhoneSectionTable from "../components/SVMPhoneSectionTable.vue"
+import StatusBanner from "@/components/StatusBanner.vue"
 import { svmFrequentNumberService } from "../services/svm-frequent-number-service.ts"
 import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { getFrequentlyCalledNumbers, getSVMData } from "../composables/svm-data-fetch.ts"
@@ -84,6 +89,7 @@ const unitFaxNumbers = ref([]) as Ref<UnitFaxNumber[]>
 const unitAdminStaff = ref([]) as Ref<UnitAdminStaff[]>
 const search = ref("")
 const loading = ref(false)
+const errorMessage = ref("")
 const showDialog = ref(false)
 const showFrequentDialog = ref(false)
 const sectionQSelectOption = ref({ label: "", value: "" }) as Ref<QSelectOption>
@@ -95,12 +101,17 @@ const $q = useQuasar()
 
 async function loadPhoneData() {
     loading.value = true
-    const { newSections, newUnitOptions, newUnitFaxNumbers, newUnitAdminStaff } = await getSVMData(true)
-    frequentNumbers.value = await getFrequentlyCalledNumbers()
+    errorMessage.value = ""
+    // The two reads are independent, so they go out together rather than one after the other.
+    const [svmData, frequent] = await Promise.all([getSVMData(true), getFrequentlyCalledNumbers()])
+    const { newSections, newUnitOptions, newUnitFaxNumbers, newUnitAdminStaff } = svmData
+    frequentNumbers.value = frequent.rows
     sections.value = newSections
     unitOptions.value = newUnitOptions
     unitFaxNumbers.value = newUnitFaxNumbers
     unitAdminStaff.value = newUnitAdminStaff ?? []
+    // One banner however many of the reads failed - see LOAD_ERROR_MESSAGE.
+    errorMessage.value = svmData.error ?? frequent.error ?? ""
     loading.value = false
 }
 

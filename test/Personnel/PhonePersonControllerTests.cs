@@ -86,11 +86,11 @@ public sealed class PhonePersonControllerTests : IDisposable
         _userHelper.HasPermission(Arg.Any<RAPSContext?>(), Arg.Any<AaudUser?>(), role).Returns(true);
     }
 
-    private async Task<List<AugmentedViperPerson>> Search(string search, string? listCode = null)
+    private async Task<List<AugmentedViperPersonDto>> Search(string search, string? listCode = null)
     {
         var result = await _controller.GetCurrentEmployees(search, listCode, TestContext.Current.CancellationToken);
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        return Assert.IsAssignableFrom<List<AugmentedViperPerson>>(okResult.Value);
+        return Assert.IsAssignableFrom<List<AugmentedViperPersonDto>>(okResult.Value);
     }
 
     [Fact]

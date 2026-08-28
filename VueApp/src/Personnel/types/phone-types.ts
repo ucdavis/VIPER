@@ -19,9 +19,6 @@ type PhonePerson = {
     office: string | null
     modifiedDate: Date | null
     modifiedBy: string | null
-    // Returned by the API but not populated for this use case.
-    unitPersons: null
-    phoneListUnitPersons: null
     viperPerson: ViperPerson | null
     viperModPerson: ViperPerson | null
 }

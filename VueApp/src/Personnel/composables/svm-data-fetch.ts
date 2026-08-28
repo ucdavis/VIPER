@@ -16,23 +16,35 @@ import type {
     UnitOptions,
 } from "../types/svm-phone-types"
 
+/**
+ * What a page shows when the list could not be loaded. One message for every read on the page:
+ * which request failed is not something the reader can act on differently, and naming them
+ * separately would only make a page that lost two of them say so twice.
+ */
+const LOAD_ERROR_MESSAGE = "The phone list could not be loaded. Please refresh to try again."
+
 // Creates a framework for the sections in the SVM list, accounting for different
-// columns in edit mode.
-async function getSections(isEdit: boolean): Promise<SVMPhoneSection[]> {
+// columns in edit mode. Null, not an empty list, when the sections could not be fetched.
+async function getSections(isEdit: boolean): Promise<SVMPhoneSection[] | null> {
     const sections: SVMPhoneSection[] = []
-    const r: SVMSectionAPIResponse[] = await svmSectionService.getSections()
+    const r = await svmSectionService.getSections()
+    if (r === null) {
+        return null
+    }
     r.forEach((result: SVMSectionAPIResponse) => {
         const cols: QTableProps["columns"] = []
         let { unitName } = result
         if (!unitName) {
             unitName = ""
         }
+        // Both of these name a column and are nullable on the section record.
+        const directorTitle = result.directorTitle ?? ""
         if (isEdit) {
             cols.push(
                 { name: "unitName", label: unitName, field: "unitName", align: "left", sortable: true },
                 {
                     name: "deanDirector",
-                    label: result.directorTitle,
+                    label: directorTitle,
                     field: "deanDirectorDisplayName",
                     align: "left",
                     sortable: true,
@@ -68,7 +80,7 @@ async function getSections(isEdit: boolean): Promise<SVMPhoneSection[]> {
                 { name: "location", label: "Location", field: "officeLocation", align: "left", sortable: true },
                 {
                     name: "deanDirector",
-                    label: result.directorTitle,
+                    label: directorTitle,
                     field: "deanDirectorDisplayName",
                     align: "left",
                     sortable: true,
@@ -242,7 +254,12 @@ async function getSVMData(isEdit: boolean) {
     const unitOptions: UnitOptions[] = []
     const unitFaxNumbers: UnitFaxNumber[] = []
     const unitAdminStaff: UnitAdminStaff[] = []
-    const [sections, allUnits] = await Promise.all([getSections(isEdit), svmUnitService.getAllUnits()])
+    const [loadedSections, loadedUnits] = await Promise.all([getSections(isEdit), svmUnitService.getAllUnits()])
+    // Renders whatever did arrive and reports the failure alongside it, rather than blanking the
+    // page: losing the units still leaves the section headings worth showing.
+    const error = loadedSections === null || loadedUnits === null ? LOAD_ERROR_MESSAGE : null
+    const sections = loadedSections ?? []
+    const allUnits = loadedUnits ?? []
     const unitsBySection = new Map<number, SVMUnitAPIResponse[]>()
     for (const unit of allUnits) {
         const sectionUnits = unitsBySection.get(unit.sectionId)
@@ -300,15 +317,19 @@ async function getSVMData(isEdit: boolean) {
         newUnitOptions: unitOptions,
         newUnitFaxNumbers: unitFaxNumbers,
         newUnitAdminStaff: unitAdminStaff,
+        error,
     }
 }
 
 // Queries and returns the frequently called numbers displayed at the bottom
 // of SVM phone list pages.
-async function getFrequentlyCalledNumbers(): Promise<SVMFrequentNumberRecord[]> {
+async function getFrequentlyCalledNumbers(): Promise<{ rows: SVMFrequentNumberRecord[]; error: string | null }> {
     const rows: SVMFrequentNumberRecord[] = []
 
     const r = await svmFrequentNumberService.getFrequentNumbers()
+    if (r === null) {
+        return { rows, error: LOAD_ERROR_MESSAGE }
+    }
     r.forEach((result: SVMFrequentNumberAPIResponse) => {
         rows.push({
             label: result.label,
@@ -317,7 +338,7 @@ async function getFrequentlyCalledNumbers(): Promise<SVMFrequentNumberRecord[]> 
         })
     })
 
-    return rows
+    return { rows, error: null }
 }
 
 export { getSVMData, getFrequentlyCalledNumbers }

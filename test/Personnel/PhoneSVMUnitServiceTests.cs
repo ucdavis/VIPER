@@ -56,7 +56,27 @@ public sealed class PhoneSVMUnitServiceTests : IDisposable
         _context.SVMUnit.Add(new SVMUnit { UnitId = 1, SectionId = 1, Name = "Dean's Office" });
         _context.PhonePerson.Add(new PhonePerson { PersonIam = "dean01", Phone = "530-555-1000" });
         _context.PhonePerson.Add(new PhonePerson { PersonIam = "staff01", Phone = "530-555-2000" });
+        // The service rejects an IAM ID with no users.Person row, so every id these tests
+        // write has to exist here, not only the two that start out on the unit.
+        SeedViperPerson(1, "dean01", "Dinah", "Deanly");
+        SeedViperPerson(2, "staff01", "Sam", "Staffly");
+        SeedViperPerson(3, "dean02", "Dana", "Deanly");
+        SeedViperPerson(4, "dean03", "Drew", "Deanly");
+        SeedViperPerson(5, "staff02", "Sasha", "Staffly");
         _context.SaveChanges();
+    }
+
+    private void SeedViperPerson(int personId, string iamId, string firstName, string lastName)
+    {
+        _context.ViperPerson.Add(new ViperPerson
+        {
+            PersonId = personId,
+            IamId = iamId,
+            FirstName = firstName,
+            LastName = lastName,
+            FullName = $"{firstName} {lastName}",
+            CurrentEmployee = true,
+        });
     }
 
 
@@ -199,10 +219,77 @@ public sealed class PhoneSVMUnitServiceTests : IDisposable
     [Fact]
     public async Task AddOrUpdateUnitData_Throws_WhenUnitNotFound()
     {
+        // Seeded so the person guard passes and the unit lookup is what actually fails.
+        SeedUnit();
         var request = new SVMUnitDataRequest { DeanIam = "dean01", DeanPhone = "530-555-1000" };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.AddOrUpdateUnitData(999, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("Unit not found", ex.Message);
+    }
+
+    /// <summary>
+    /// PhonePerson requires its users.Person row, so every read projection inner joins to it.
+    /// A record written against an unknown IAM ID would be invisible to the list and could not
+    /// be edited or removed through it, so the write is refused instead. The two roles report
+    /// separately because the dialog has a picker for each.
+    /// </summary>
+    [Fact]
+    public async Task AddOrUpdateUnitData_Throws_AndWritesNothing_WhenTheDeanIsNotAViperPerson()
+    {
+        SeedUnit();
+        var request = new SVMUnitDataRequest
+        {
+            DeanIam = "ghost01",
+            DeanPhone = "530-555-7000",
+            StaffIam = "staff01",
+            StaffPhone = "530-555-2000",
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.AddOrUpdateUnitData(1, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("The selected dean/director could not be found.", ex.Message);
+        Assert.Null(await _context.PhonePerson
+            .FirstOrDefaultAsync(p => p.PersonIam == "ghost01", TestContext.Current.CancellationToken));
+        Assert.Empty(await _context.SVMUnitPerson.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AddOrUpdateUnitData_Throws_WhenTheStaffIsNotAViperPerson()
+    {
+        SeedUnit();
+        var request = new SVMUnitDataRequest
+        {
+            DeanIam = "dean01",
+            DeanPhone = "530-555-1000",
+            StaffIam = "ghost02",
+            StaffPhone = "530-555-7000",
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.AddOrUpdateUnitData(1, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("The selected admin staff member could not be found.", ex.Message);
+        Assert.Null(await _context.PhonePerson
+            .FirstOrDefaultAsync(p => p.PersonIam == "ghost02", TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Either role may be left blank, so the guard has to skip a blank id rather than treat
+    /// it as a person who could not be found.
+    /// </summary>
+    [Fact]
+    public async Task AddOrUpdateUnitData_UpdatesTheUnit_WhenNeitherRoleIsNamed()
+    {
+        SeedUnit();
+        var request = new SVMUnitDataRequest { Fax = "530-555-9999" };
+
+        await _service.AddOrUpdateUnitData(1, request, TestContext.Current.CancellationToken);
+
+        var unit = await _context.SVMUnit.FindAsync(new object?[] { 1 }, TestContext.Current.CancellationToken);
+        Assert.Equal("530-555-9999", unit!.Fax);
     }
 
     [Fact]
@@ -249,15 +336,6 @@ public sealed class PhoneSVMUnitServiceTests : IDisposable
         var phonePerson = await _context.PhonePerson
             .SingleAsync(p => p.PersonIam == "dean01", TestContext.Current.CancellationToken);
         phonePerson.DirectPhone = "530-555-4000";
-        _context.ViperPerson.Add(new ViperPerson
-        {
-            PersonId = 1,
-            IamId = "dean01",
-            FirstName = "Dean",
-            LastName = "Person",
-            FullName = "Dean Person",
-            CurrentEmployee = true,
-        });
         _context.SVMUnitPerson.Add(new SVMUnitPerson
         {
             UnitPersonId = 1,

@@ -17,6 +17,9 @@ namespace Viper.Areas.Personnel.Services
             // Avoid returning direct numbers except to users with permissions to access them.
             // This data should only be returned for queries tied to a list for which the user
             // has maintain permissions.
+            // In practice, since any list maintainer can add any user to their list,
+            // this means they can access the direct numbers of all users, but limit this
+            // access to when making queries about a list they can maintain.
             bool canAccessDirectNumber = list != null && _phonePermissionsService.CanMaintainList(list);
 
             List<string> cleanedIamIds = [.. iamIds.Where(x => !string.IsNullOrWhiteSpace(x))];

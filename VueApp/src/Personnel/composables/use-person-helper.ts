@@ -13,7 +13,6 @@ function getEmptySVMUnitPerson(unitId: number): SVMUnitPerson {
         interim: "",
         modifiedDate: null,
         modifiedBy: "",
-        unit: null,
         person: getEmptyPhonePerson(),
         viperModPerson: null,
     }
@@ -27,8 +26,6 @@ function getEmptyPhonePerson(): PhonePerson {
         office: "",
         modifiedDate: null,
         modifiedBy: "",
-        unitPersons: null,
-        phoneListUnitPersons: null,
         viperPerson: getSparseAugmentedViperPerson(),
         viperModPerson: getSparseAugmentedViperPerson(),
     }

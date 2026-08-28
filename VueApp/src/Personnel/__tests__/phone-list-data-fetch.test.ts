@@ -14,7 +14,6 @@ function makeUnitPerson(overrides: Partial<PhoneListUnitPerson> = {}): PhoneList
         phoneListUnitId: 10,
         personIam: "person01",
         listFirst: false,
-        phoneListUnit: null,
         person: {
             personIam: "person01",
             phone: "530-555-1000",
@@ -22,8 +21,6 @@ function makeUnitPerson(overrides: Partial<PhoneListUnitPerson> = {}): PhoneList
             office: "Room 100",
             modifiedDate: null,
             modifiedBy: null,
-            unitPersons: null,
-            phoneListUnitPersons: null,
             viperPerson: {
                 personId: 1,
                 firstName: "Ada",
@@ -48,7 +45,6 @@ function makeUnit(persons: PhoneListUnitPerson[]): PhoneListUnitAPIResponse {
         phoneListId: 1,
         name: "Dean's Office",
         sortOrder: null,
-        phoneList: null,
         phoneListUnitPersons: persons,
     }
 }
@@ -110,8 +106,6 @@ describe("getPhoneListData()", () => {
                         office: "Room 200",
                         modifiedDate: null,
                         modifiedBy: null,
-                        unitPersons: null,
-                        phoneListUnitPersons: null,
                         viperPerson: null,
                         viperModPerson: null,
                     },
@@ -124,5 +118,24 @@ describe("getPhoneListData()", () => {
         expect(units[0]!.rows).toHaveLength(1)
         expect(units[0]!.rows[0]!.name).toBe(", ")
         expect(units[0]!.rows[0]!.fullName).toBe("")
+    })
+
+    /**
+     * The desktop table draws this column as a tick through its own cell slot. The card list has
+     * no slot to draw into and would print the raw boolean, so the column formats itself and both
+     * views read the same answer from one place.
+     */
+    it("formats listFirst as text, so a view without cell slots does not print a raw boolean", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        vi.mocked(phoneListUnitService.getUnitsByList).mockResolvedValue([makeUnit([makeUnitPerson()])])
+
+        const units = await getPhoneListData("VMDO", true, false)
+
+        const listFirst = units[0]!.cols!.find((col) => col.name === "listFirst")!
+
+        expect(listFirst.format!(true, {})).toBe("Yes")
+        // Blank rather than "No", so an unset flag drops out of the card entirely.
+        expect(listFirst.format!(false, {})).toBe("")
     })
 })

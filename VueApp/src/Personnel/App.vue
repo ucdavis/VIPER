@@ -1,7 +1,7 @@
 <template>
     <component
         :is="$route.meta.layout || 'div'"
-        nav="viper-home"
+        nav="viper-personnel"
         :navarea="true"
         highlighted-top-nav="Personnel"
     >

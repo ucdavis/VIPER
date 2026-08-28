@@ -19,13 +19,24 @@ describe("svmSectionService()", () => {
         expect(result).toStrictEqual(sections)
     })
 
-    it("normalizes a failed request to an empty array", async () => {
+    it("returns null for a failed request, which an empty array could not distinguish", async () => {
         expect.hasAssertions()
         vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await svmSectionService.getSections()
 
+        expect(result).toBeNull()
+    })
+
+    it("returns an empty array for a list that genuinely has no sections", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        mockGet.mockResolvedValue({ success: true, result: [] })
+
+        const result = await svmSectionService.getSections()
+
+        // Not null: the page renders no sections rather than raising an error banner.
         expect(result).toStrictEqual([])
     })
 })

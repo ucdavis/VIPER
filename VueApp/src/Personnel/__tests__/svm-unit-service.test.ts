@@ -25,7 +25,6 @@ describe("svmUnitService()", () => {
                 abbrv: "DO",
                 sortOrder: null,
                 fax: null,
-                section: null,
                 unitPersons: null,
             },
         ]
@@ -37,10 +36,20 @@ describe("svmUnitService()", () => {
         expect(result).toStrictEqual(units)
     })
 
-    it("normalizes a failed request to an empty array", async () => {
+    it("returns null for a failed request, which an empty array could not distinguish", async () => {
         expect.hasAssertions()
         vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
+
+        const result = await svmUnitService.getAllUnits()
+
+        expect(result).toBeNull()
+    })
+
+    it("returns an empty array for a list that genuinely has no units", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        mockGet.mockResolvedValue({ success: true, result: [] })
 
         const result = await svmUnitService.getAllUnits()
 

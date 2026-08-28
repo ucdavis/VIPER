@@ -54,7 +54,7 @@ type SVMSectionAPIResponse = {
     name: string
     includeAbbrv: boolean
     unitName: string | null
-    directorTitle: string
+    directorTitle: string | null
     sortOrder: number
 }
 
@@ -67,7 +67,6 @@ type SVMUnitPerson = {
     interim: string | null
     modifiedDate: Date | null
     modifiedBy: string | null
-    unit: null
     person: PhonePerson | null
     viperModPerson: ViperPerson | null
 }
@@ -79,7 +78,6 @@ type SVMUnitAPIResponse = {
     abbrv: string | null
     sortOrder: number | null
     fax: string | null
-    section: null
     unitPersons: SVMUnitPerson[] | null
 }
 

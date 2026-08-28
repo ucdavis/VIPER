@@ -23,10 +23,20 @@ describe("svmFrequentNumberService()", () => {
         expect(result).toStrictEqual(numbers)
     })
 
-    it("normalizes a failed request to an empty array", async () => {
+    it("returns null for a failed request, which an empty array could not distinguish", async () => {
         expect.hasAssertions()
         vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
+
+        const result = await svmFrequentNumberService.getFrequentNumbers()
+
+        expect(result).toBeNull()
+    })
+
+    it("returns an empty array when there are genuinely no frequent numbers", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        mockGet.mockResolvedValue({ success: true, result: [] })
 
         const result = await svmFrequentNumberService.getFrequentNumbers()
 

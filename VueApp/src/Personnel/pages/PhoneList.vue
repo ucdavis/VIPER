@@ -22,20 +22,8 @@
             <span>Updated {{ formatDate(updatedDate?.toString() ?? "") || "Never" }}</span>
         </div>
         <div>Click on a name to send an email</div>
+        <PhoneListFilter v-model="search" />
     </template>
-
-    <q-input
-        v-model="search"
-        class="q-ml-xs q-mr-xs"
-        dense
-        outlined
-        debounce="300"
-        placeholder="Filter Results"
-    >
-        <template #append>
-            <q-icon name="filter_alt" />
-        </template>
-    </q-input>
 
     <PhoneListUnitTable
         v-for="unit in units"
@@ -54,6 +42,7 @@ import { phoneListModifiedDateService } from "../services/phone-list-modified-da
 import { useDateFunctions } from "@/composables/DateFunctions.ts"
 import { phoneListService } from "../services/phone-list-service.ts"
 import { getPhoneListData } from "../composables/phone-list-data-fetch"
+import PhoneListFilter from "../components/PhoneListFilter.vue"
 import PhoneListUnitTable from "../components/PhoneListUnitTable.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import type { Ref } from "vue"

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Controllers;
@@ -46,7 +47,7 @@ public sealed class PhoneSVMUnitControllerTests : IDisposable
             IamId = CallerIam,
         });
 
-        _controller = new PhoneSVMUnitController(new PhoneSVMUnitService(_context, userHelper));
+        _controller = new PhoneSVMUnitController(new PhoneSVMUnitService(_context, userHelper), Substitute.For<ILogger<PhoneSVMUnitController>>());
 
         _context.SVMUnit.Add(new SVMUnit { UnitId = 1, SectionId = 1, Name = "Dean's Office" });
         // The read projection joins phones.Person to users.Person on a required relationship, so
@@ -105,7 +106,7 @@ public sealed class PhoneSVMUnitControllerTests : IDisposable
         var result = await _controller.GetUnits(TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var units = Assert.IsAssignableFrom<List<SVMUnit>>(okResult.Value);
+        var units = Assert.IsAssignableFrom<List<SVMUnitDto>>(okResult.Value);
         var unit = Assert.Single(units);
         Assert.Equal("dean01", Assert.Single(unit.UnitPersons).PersonIam);
     }
@@ -120,7 +121,7 @@ public sealed class PhoneSVMUnitControllerTests : IDisposable
         var result = await _controller.GetUnits(TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Empty(Assert.IsAssignableFrom<List<SVMUnit>>(okResult.Value));
+        Assert.Empty(Assert.IsAssignableFrom<List<SVMUnitDto>>(okResult.Value));
     }
 
     [Fact]

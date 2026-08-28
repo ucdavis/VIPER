@@ -6,7 +6,7 @@
         :is-edit="isEdit"
         :saving="saving"
         :form-error="formError"
-        submit-label="Upload"
+        submit-label="Add Record"
         @update:model-value="emit('update:modelValue', $event)"
         @submit="save"
         @validation-error="onValidationError"

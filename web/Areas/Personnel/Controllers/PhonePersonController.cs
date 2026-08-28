@@ -20,7 +20,7 @@ namespace Viper.Areas.Personnel.Controllers
         /// can edit the current list (and so has access to the data).
         /// </summary>
         [HttpGet]
-        public async Task<ActionResult<List<AugmentedViperPerson>>> GetCurrentEmployees(string search, string? listCode = null, CancellationToken ct = default)
+        public async Task<ActionResult<List<AugmentedViperPersonDto>>> GetCurrentEmployees(string search, string? listCode = null, CancellationToken ct = default)
         {
             PhoneList? list = null;
             if (!string.IsNullOrWhiteSpace(listCode))
@@ -49,7 +49,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 mergedResultsDict[result.PersonIam].AddPhoneData(result);
             }
-            return Ok(mergedResultsDict.Values.ToList());
+            return Ok(PersonnelMapper.ToAugmentedViperPersonDtos([.. mergedResultsDict.Values]));
         }
     }
 }

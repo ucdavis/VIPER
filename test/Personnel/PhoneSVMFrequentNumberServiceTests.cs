@@ -109,8 +109,39 @@ public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
         });
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.DeleteFrequentNumber(1, TestContext.Current.CancellationToken));
+
+        Assert.Equal("Frequent number is already deleted.", ex.Message);
+    }
+
+    // The three ways a lookup by id can fail carry three different messages. They were once all
+    // "already deleted", which is only true of the last of them: a maintainer given a bad id, or
+    // one for a row that never existed, was told a row had been removed that never was there.
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-999)]
+    public async Task DeleteFrequentNumber_Throws_ForAnIdThatCouldNeverBeValid(int entryId)
+    {
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.DeleteFrequentNumber(entryId, TestContext.Current.CancellationToken));
+
+        Assert.Equal("Frequent number id is not valid.", ex.Message);
+    }
+
+    // Zero sits on the near side of that guard and is looked up like any other id. NumberId is an
+    // identity column starting at 1, so the lookup misses and it reports as the missing row it is.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(999)]
+    public async Task DeleteFrequentNumber_Throws_WhenNoSuchRowExists(int entryId)
+    {
+        SeedNumber(label: "Front Desk", phone: "530-555-1000");
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.DeleteFrequentNumber(entryId, TestContext.Current.CancellationToken));
+
+        Assert.Equal("Frequent number not found.", ex.Message);
     }
 
     [Fact]
@@ -144,6 +175,25 @@ public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
         Assert.Equal("530-555-4000", saved.Phone);
     }
 
+    // Add and update share one ValidateRequest, but each has to call it. Both paths are exercised
+    // so that dropping the call from either is caught: a shared helper is only as good as the
+    // call sites, and nothing else in these tests reaches the add path with a blank field.
+    [Theory]
+    [InlineData("", "530-555-4000", "Location must not be empty.")]
+    [InlineData("   ", "530-555-4000", "Location must not be empty.")]
+    [InlineData("Reception", "", "Phone Number must not be empty.")]
+    [InlineData("Reception", "   ", "Phone Number must not be empty.")]
+    public async Task AddFrequentNumber_Throws_ForBlankFields(string label, string phone, string expectedMessage)
+    {
+        var request = new SVMFrequentNumberRequest { Label = label, Phone = phone };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.AddFrequentNumber(request, TestContext.Current.CancellationToken));
+
+        Assert.Equal(expectedMessage, ex.Message);
+        Assert.Empty(await _service.GetSVMFrequentNumbers(TestContext.Current.CancellationToken));
+    }
+
     [Theory]
     [InlineData("", "530-555-4000", "Location must not be empty.")]
     // Whitespace-only rather than empty: the guard is IsNullOrWhiteSpace, and a bare "" would
@@ -174,13 +224,27 @@ public sealed class PhoneSVMFrequentNumberServiceTests : IDisposable
         SeedNumber(label: "Retired Line", phone: "530-555-3000", isActive: false);
         var request = new SVMFrequentNumberRequest { Label = "Reception", Phone = "530-555-4000" };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.UpdateFrequentNumber(1, request, TestContext.Current.CancellationToken));
 
+        // Not "not found", which is what this used to say of a row the maintainer can still see.
+        Assert.Equal("Frequent number is already deleted.", ex.Message);
         var stillDeleted = await FindNumber(1);
         Assert.NotNull(stillDeleted);
         Assert.False(stillDeleted.IsActive);
         Assert.Equal("Retired Line", stillDeleted.Label);
+    }
+
+    [Fact]
+    public async Task UpdateFrequentNumber_Throws_WhenNoSuchRowExists()
+    {
+        SeedNumber(label: "Front Desk", phone: "530-555-1000");
+        var request = new SVMFrequentNumberRequest { Label = "Reception", Phone = "530-555-4000" };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.UpdateFrequentNumber(999, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("Frequent number not found.", ex.Message);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Controllers;
@@ -39,7 +40,7 @@ public sealed class PhoneSVMFrequentNumberControllerTests : IDisposable
             IamId = "caller01",
         });
 
-        _controller = new PhoneSVMFrequentNumberController(new PhoneSVMFrequentNumberService(_context, userHelper));
+        _controller = new PhoneSVMFrequentNumberController(new PhoneSVMFrequentNumberService(_context, userHelper), Substitute.For<ILogger<PhoneSVMFrequentNumberController>>());
     }
 
     public void Dispose() => _context.Dispose();
@@ -95,7 +96,7 @@ public sealed class PhoneSVMFrequentNumberControllerTests : IDisposable
         var result = await _controller.GetFrequentNumbers(TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var numbers = Assert.IsAssignableFrom<List<SVMFrequentNumber>>(okResult.Value);
+        var numbers = Assert.IsAssignableFrom<List<SVMFrequentNumberDto>>(okResult.Value);
         Assert.Equal(["Active Line"], numbers.Select(n => n.Label));
     }
 }

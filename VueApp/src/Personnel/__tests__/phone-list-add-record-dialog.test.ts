@@ -99,7 +99,7 @@ describe("phoneListAddRecordDialog.vue - add vs edit mode", () => {
         await flushPromises()
 
         expect(bodyText()).toContain("Add Phone Record")
-        expect(bodyText()).toContain("Upload")
+        expect(bodyText()).toContain("Add Record")
         expect(personSelectorExists()).toBeTruthy()
         expect(bodyText()).not.toContain("Employee:")
         expect(bodyText()).not.toContain("Modified By:")

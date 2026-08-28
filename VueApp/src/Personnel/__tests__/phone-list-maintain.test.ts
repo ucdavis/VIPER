@@ -6,7 +6,7 @@ import { getPhoneListData } from "../composables/phone-list-data-fetch.ts"
 import { phoneListService } from "../services/phone-list-service.ts"
 import { phoneListUnitService } from "../services/phone-list-unit-service.ts"
 import type { PhoneListUnit } from "../types/phone-list-phone-types"
-import { apiError } from "./test-utils"
+import { apiError, apiResult } from "./test-utils"
 
 /**
  * PhoneListMaintain shows a StatusBanner only when a delete/save action reports an error
@@ -144,6 +144,31 @@ describe("phoneListMaintain.vue - error banner", () => {
         expect(mockNotify).toHaveBeenCalledWith(
             expect.objectContaining({ type: "negative", message: "Failed to delete record" }),
         )
+    })
+
+    it("confirms a successful delete with a toast, and reloads the list", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        stubListInfo()
+        document.body.innerHTML = ""
+        vi.mocked(getPhoneListData).mockResolvedValue([unitWithDeletableRow()])
+        vi.mocked(phoneListUnitService.deleteUnitPersonData).mockResolvedValue(apiResult())
+        const wrapper = mountPage()
+        await flushPromises()
+        const loadsBeforeDelete = vi.mocked(getPhoneListData).mock.calls.length
+
+        const deleteButton = wrapper
+            .findAllComponents({ name: "RecordActionButton" })
+            .find((btn) => btn.props("action") === "delete")
+        await deleteButton!.vm.$emit("action")
+        await flushPromises()
+
+        // The success half of the same branch the failure test covers. Exactly once, so that a
+        // success cannot also raise the negative toast the other branch owns.
+        expect(mockNotify).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ type: "positive", message: "Record deleted" }),
+        )
+        expect(vi.mocked(getPhoneListData).mock.calls.length).toBeGreaterThan(loadsBeforeDelete)
     })
 
     it("opens the add dialog scoped to the clicked unit", async () => {

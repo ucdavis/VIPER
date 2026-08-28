@@ -72,7 +72,9 @@ namespace Viper.Areas.Personnel.Services
                 .ThenBy(t => t.Name)
                 .ToListAsync(ct);
 
-            // Need to deduplicate rows caused by multiple records for the same person
+            // A small number of current employees have multiple rows in users.Person,
+            // so the joins fan out the results in a way that results in multiple rows for
+            // these users. Therefore, we need to deduplicate these rows
             // in the Users table. Due to nested selects, this must be done client-side
             // instead of server-side.
             foreach (var unit in sectionUnits)
@@ -97,7 +99,43 @@ namespace Viper.Areas.Personnel.Services
         }
 
         /// <summary>
+        /// Confirms both named people exist in users.Person. PhonePerson requires that
+        /// relationship, so every read projection inner joins to it: a row stored against an
+        /// unknown IAM ID is invisible to the list and cannot be edited or removed through it.
+        /// The person pickers only offer real people, so this guards against a request that did
+        /// not come from them.
+        /// </summary>
+        private async Task VerifyPeopleExist(SVMUnitDataRequest request, CancellationToken ct)
+        {
+            var deanIam = request.DeanIam.Trim();
+            var staffIam = request.StaffIam.Trim();
+            List<string> requestedIams = [.. new[] { deanIam, staffIam }.Where(iam => !string.IsNullOrWhiteSpace(iam))];
+            if (requestedIams.Count == 0)
+            {
+                return;
+            }
+
+            // At most two ids, so a single query covers both roles without EF.Parameter.
+            var foundIams = await _context.ViperPerson
+                .AsNoTracking()
+                .Where(t => requestedIams.Contains(t.IamId))
+                .Select(t => t.IamId)
+                .ToListAsync(ct);
+
+            if (!string.IsNullOrWhiteSpace(deanIam) && !foundIams.Contains(deanIam))
+            {
+                throw new InvalidOperationException("The selected dean/director could not be found.");
+            }
+            if (!string.IsNullOrWhiteSpace(staffIam) && !foundIams.Contains(staffIam))
+            {
+                throw new InvalidOperationException("The selected admin staff member could not be found.");
+            }
+        }
+
+        /// <summary>
         /// Creates a PhonePerson if it doesn't exist, or updates if it does.
+        /// This data is shared across other lists, and so changes here will impact those
+        /// indirectly. SVM maintainers change only the (office) phone number in this table.
         /// </summary>
         private async Task AddOrUpdatePhonePerson(
             string? userIam,
@@ -241,6 +279,7 @@ namespace Viper.Areas.Personnel.Services
         /// </summary>
         public async Task AddOrUpdateUnitData(int unitId, SVMUnitDataRequest request, CancellationToken ct = default)
         {
+            await VerifyPeopleExist(request, ct);
             using var transaction = await _context.Database.BeginTransactionAsync(ct);
             var userIam = _userHelper.GetCurrentUser()?.IamId;
             var updateTimestamp = DateTime.Now;

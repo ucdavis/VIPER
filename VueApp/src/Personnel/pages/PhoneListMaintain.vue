@@ -14,18 +14,9 @@
         {{ errorMessage }}
     </StatusBanner>
 
-    <q-input
-        v-model="search"
-        class="q-ml-xs q-mr-xs"
-        dense
-        outlined
-        debounce="300"
-        placeholder="Filter Results"
-    >
-        <template #append>
-            <q-icon name="filter_alt" />
-        </template>
-    </q-input>
+    <template v-if="!loading && !errorMessage">
+        <PhoneListFilter v-model="search" />
+    </template>
 
     <PhoneListUnitTable
         v-for="unit in units"
@@ -59,6 +50,7 @@ import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { phoneListService } from "../services/phone-list-service.ts"
 import StatusBanner from "@/components/StatusBanner.vue"
 import PhoneListAddRecordDialog from "../components/PhoneListAddRecordDialog.vue"
+import PhoneListFilter from "../components/PhoneListFilter.vue"
 import PhoneListUnitTable from "../components/PhoneListUnitTable.vue"
 import type { Ref } from "vue"
 import type { PhoneListDisplayRecord, PhoneListUnit } from "../types/phone-list-phone-types.ts"
@@ -123,13 +115,10 @@ async function deleteRecord(row: PhoneListDisplayRecord) {
         okColor: "negative",
     })
     if (!confirmed) return
-    let isError: boolean = false
-    let r = await phoneListUnitService.deleteUnitPersonData(listCode.value, row.unitPersonId)
+    const r = await phoneListUnitService.deleteUnitPersonData(listCode.value, row.unitPersonId)
     if (r.errors.length > 0) {
         $q.notify({ type: "negative", message: r.errors[0] })
-        isError = true
-    }
-    if (!isError) {
+    } else {
         $q.notify({ type: "positive", message: "Record deleted" })
     }
     await loadPhoneData()

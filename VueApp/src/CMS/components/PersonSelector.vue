@@ -1,61 +1,35 @@
 <template>
-    <q-select
+    <PersonSearchSelect
         :model-value="modelValue"
-        multiple
-        use-chips
-        use-input
-        input-debounce="300"
-        dense
-        options-dense
         :label="label"
-        :options="options"
-        :loading="loading"
-        option-value="iamId"
-        option-label="name"
-        hint="Type at least 2 characters to search people"
-        @update:model-value="emit('update:modelValue', $event ?? [])"
-        @filter="searchPeople"
+        :search="searchPeopleOptions"
+        :option-label="(person) => person.name"
+        multiple
+        @update:model-value="emitSelection"
     >
-        <template #option="{ itemProps, opt }">
-            <q-item v-bind="itemProps">
-                <q-item-section>
-                    <q-item-label>{{ opt.name }}</q-item-label>
-                    <q-item-label caption>{{ opt.loginId ?? opt.iamId }}</q-item-label>
-                </q-item-section>
-            </q-item>
-        </template>
-        <template #selected-item="scope">
-            <q-chip
-                removable
-                dense
-                :tabindex="scope.tabindex"
-                @remove="scope.removeAtIndex(scope.index)"
-            >
-                {{ scope.opt.name ?? scope.opt.iamId }}
-            </q-chip>
-        </template>
-        <template #no-option>
-            <q-item>
-                <q-item-section class="text-grey">No matching people</q-item-section>
-            </q-item>
-        </template>
-    </q-select>
+        <template #option-caption="{ opt }">{{ opt.loginId ?? opt.iamId }}</template>
+    </PersonSearchSelect>
 </template>
 
 <script setup lang="ts">
+import PersonSearchSelect from "@/components/PersonSearchSelect.vue"
 import { searchPeopleOptions } from "@/CMS/services/cms-options-service"
-import { usePersonSearch } from "@/composables/use-person-search"
 import type { CmsPersonOption } from "@/CMS/types/"
+
+type SelectedPerson = { iamId: string; name: string | null }
 
 // Selected people keep { iamId, name } so chips can show names for people
 // loaded from an existing file (where only iamId + name are known).
 defineProps<{
-    modelValue: { iamId: string; name: string | null }[]
+    modelValue: SelectedPerson[]
     // Required so the combobox always has an accessible name.
     label: string
 }>()
 
-const emit = defineEmits<{ "update:modelValue": [value: { iamId: string; name: string | null }[]] }>()
+const emit = defineEmits<{ "update:modelValue": [value: SelectedPerson[]] }>()
 
-const { options, loading, searchPeople } = usePersonSearch<CmsPersonOption>(searchPeopleOptions)
+/** Multi-select, so QSelect emits an array; clearing the last chip emits null. */
+function emitSelection(value: CmsPersonOption | CmsPersonOption[] | null) {
+    emit("update:modelValue", (value as SelectedPerson[] | null) ?? [])
+}
 </script>

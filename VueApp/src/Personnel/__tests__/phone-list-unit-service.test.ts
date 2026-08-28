@@ -38,7 +38,6 @@ describe("phoneListUnitService()", () => {
                 phoneListId: 1,
                 name: "Dean's Office",
                 sortOrder: null,
-                phoneList: null,
                 phoneListUnitPersons: [],
             },
         ]
