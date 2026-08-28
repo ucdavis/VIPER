@@ -17,6 +17,7 @@ namespace Viper.test.ClinicalScheduler
     /// Tests for email notification functionality when primary evaluators are changed.
     /// Covers email sending, content validation, and error handling scenarios.
     /// </summary>
+    [Collection(HttpHelperCacheCollection.Name)]
     public class EmailNotificationTest : IDisposable
     {
         private readonly IScheduleAuditService _mockAuditService;

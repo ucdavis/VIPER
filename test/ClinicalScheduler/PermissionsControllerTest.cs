@@ -8,6 +8,7 @@ using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
+    [Collection(HttpHelperCacheCollection.Name)]
     public class PermissionsControllerTest : ClinicalSchedulerTestBase
     {
         private readonly ISchedulePermissionService _mockPermissionService;

@@ -13,6 +13,7 @@ using Viper.Services;
 
 namespace Viper.test.ClinicalScheduler
 {
+    [Collection(HttpHelperCacheCollection.Name)]
     public class ScheduleEditServiceTest : IDisposable
     {
         private readonly ISchedulePermissionService _mockPermissionService;
