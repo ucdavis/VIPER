@@ -10,6 +10,7 @@ namespace Viper.Areas.RAPS.Services
     {
         private readonly IUserHelper _userHelper;
         private readonly RAPSContext _context;
+        private readonly Dictionary<string, List<TblRole>> _appRolesForUser = new();
 
         public RAPSSecurityService(RAPSContext context, IUserHelper? userHelper = null)
         {
@@ -212,13 +213,23 @@ namespace Viper.Areas.RAPS.Services
         /// <returns>A list of delegate roles the user is assigned to</returns>
         public List<TblRole> GetAppRolesForUser(string? userId)
         {
+            // Nav() asks once per instance on every page load, so memoize for the life of the
+            // service, which is one request.
+            string key = userId ?? string.Empty;
+            if (_appRolesForUser.TryGetValue(key, out List<TblRole>? cached))
+            {
+                return cached;
+            }
+
             List<TblRole> roles = _context.TblRoles
-                    .Include(r => r.TblRoleMembers)
+                    .AsNoTracking()
                     .Include(r => r.ChildRoles)
                         .ThenInclude(cr => cr.Role)
                     .Where(r => r.Application == 1)
                     .Where(r => r.TblRoleMembers.Any(rm => rm.MemberId == userId))
                     .ToList();
+
+            _appRolesForUser[key] = roles;
             return roles;
         }
 
@@ -229,16 +240,41 @@ namespace Viper.Areas.RAPS.Services
         /// <returns>List of roleIds the user controls</returns>
         public List<int> GetControlledRoleIds(string? userId)
         {
-            List<TblRole> controlledRoles = GetAppRolesForUser(userId);
-            List<int> controlledRoleIds = new();
-            foreach (TblRole controlledRole in controlledRoles)
-            {
-                foreach (TblAppRole childRole in controlledRole.ChildRoles)
-                {
-                    controlledRoleIds.Add(childRole.Role.RoleId);
-                }
-            }
-            return controlledRoleIds;
+            return ControlledRoles(userId).Select(r => r.RoleId).ToList();
+        }
+
+        /// <summary>
+        /// The role ids a user controls through delegate roles, limited to one instance.
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <param name="userId">User mothra id</param>
+        /// <returns>List of roleIds the user controls in that instance</returns>
+        public List<int> GetControlledRoleIdsInInstance(string instance, string? userId)
+        {
+            return ControlledRoles(userId)
+                .Where(r => RoleBelongsToInstance(instance, r))
+                .Select(r => r.RoleId)
+                .Distinct()
+                .ToList();
+        }
+
+        private IEnumerable<TblRole> ControlledRoles(string? userId)
+        {
+            return GetAppRolesForUser(userId).SelectMany(r => r.ChildRoles).Select(cr => cr.Role);
+        }
+
+        /// <summary>
+        /// Check if the user can see the role list for an instance. Admins see every role, others see
+        /// all roles only in VMACS instances, or just the roles delegated to them.
+        /// </summary>
+        /// <param name="instance">The instance</param>
+        /// <returns>true if the user can view the role list, false otherwise</returns>
+        public bool CanViewRoleList(string instance)
+        {
+            // Instance-scoped because the role list is: an unscoped count would offer a delegate a
+            // nav link to a list filtered down to nothing.
+            return IsAllowedTo("ViewAllRoles", instance)
+                || GetControlledRoleIdsInInstance(instance, _userHelper.GetCurrentUser()?.MothraId).Count > 0;
         }
 
         /// <summary>
