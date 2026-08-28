@@ -43,7 +43,10 @@ public class PhonesDbContext : DbContext
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
 
-            // Cross-schema FK to users.Person
+            // Cross-schema reference to users.Person.
+            // For current employees, largely 1-to-1 but a few duplicate
+            // records cause this to fan out.
+            // Mapping largely fails for former employees.
             entity.HasOne(e => e.ViperPerson)
                 .WithMany()
                 .HasForeignKey(e => e.PersonIam)
