@@ -18,14 +18,12 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
-        private readonly RAPSCacheService _rapsCacheService;
 
-        public MembersController(RAPSContext context, AAUDContext aaudContext)
+        public MembersController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
-            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
         // GET: <Members>
         // The union of what the three pages using this typeahead require. Without it, any RAPS Users
@@ -223,7 +221,6 @@ namespace Viper.Areas.RAPS.Controllers
             }
             await new CloneService(_context).Clone(instance, sourceMemberId, targetMemberId, objectsToClone);
 
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(targetMemberId);
             return NoContent();
         }
 
