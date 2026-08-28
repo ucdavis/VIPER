@@ -6,6 +6,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Models.ClinicalScheduler;
@@ -79,8 +80,9 @@ namespace Viper.test.ClinicalScheduler
                 .Returns(currentYear);
 
             // Setup email settings
-            var mockEmailSettingsOptions = Substitute.For<IOptions<EmailSettings>>();
-            mockEmailSettingsOptions.Value.Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+            var mockPublicUrl = Substitute.For<IPublicUrlService>();
+            mockPublicUrl.BaseUrl.Returns("https://test.example.com");
+            mockPublicUrl.BuildUrl(Arg.Any<string>()).Returns(ci => "https://test.example.com" + ci.Arg<string>());
 
             // Setup audit service
             _mockAuditService.LogInstructorRemovedAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -92,7 +94,7 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger,
                 _mockEmailService,
                 _mockEmailNotificationOptions,
-                mockEmailSettingsOptions,
+                mockPublicUrl,
                 _mockGradYearService,
                 _mockPermissionValidator,
                 _mockEmailTemplateRenderer);
@@ -560,8 +562,9 @@ namespace Viper.test.ClinicalScheduler
                 }
             };
             _mockEmailNotificationOptions.Value.Returns(emailNotificationSettings);
-            var mockEmailSettingsOptions = Substitute.For<IOptions<EmailSettings>>();
-            mockEmailSettingsOptions.Value.Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+            var mockPublicUrl = Substitute.For<IPublicUrlService>();
+            mockPublicUrl.BaseUrl.Returns("https://test.example.com");
+            mockPublicUrl.BuildUrl(Arg.Any<string>()).Returns(ci => "https://test.example.com" + ci.Arg<string>());
 
             // Create a new service instance with the updated configuration
             var serviceWithMultipleRecipients = new TestableScheduleEditService(
@@ -570,7 +573,7 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger,
                 _mockEmailService,
                 _mockEmailNotificationOptions,
-                mockEmailSettingsOptions,
+                mockPublicUrl,
                 _mockGradYearService,
                 _mockPermissionValidator,
                 _mockEmailTemplateRenderer);

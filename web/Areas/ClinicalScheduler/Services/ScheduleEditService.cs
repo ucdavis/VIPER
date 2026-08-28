@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.EmailTemplates.Services;
@@ -21,7 +22,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
         private readonly ILogger<ScheduleEditService> _logger;
         private readonly IEmailService _emailService;
         private readonly EmailNotificationSettings _emailNotificationSettings;
-        private readonly EmailSettings _emailSettings;
+        private readonly IPublicUrlService _publicUrl;
         private readonly IGradYearService _gradYearService;
         private readonly IPermissionValidator _permissionValidator;
         private readonly IEmailTemplateRenderer _emailTemplateRenderer;
@@ -32,7 +33,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             ILogger<ScheduleEditService> logger,
             IEmailService emailService,
             IOptions<EmailNotificationSettings> emailNotificationOptions,
-            IOptions<EmailSettings> emailSettingsOptions,
+            IPublicUrlService publicUrl,
             IGradYearService gradYearService,
             IPermissionValidator permissionValidator,
             IEmailTemplateRenderer emailTemplateRenderer)
@@ -42,7 +43,7 @@ namespace Viper.Areas.ClinicalScheduler.Services
             _logger = logger;
             _emailService = emailService;
             _emailNotificationSettings = emailNotificationOptions.Value;
-            _emailSettings = emailSettingsOptions.Value;
+            _publicUrl = publicUrl;
             _gradYearService = gradYearService;
             _permissionValidator = permissionValidator;
             _emailTemplateRenderer = emailTemplateRenderer;
@@ -655,8 +656,6 @@ namespace Viper.Areas.ClinicalScheduler.Services
                         LogSanitizer.SanitizeId(schedule.MothraId), LogSanitizer.SanitizeId(newPrimaryMothraId), schedule.RotationId, schedule.WeekId);
                     return;
                 }
-                // Get base URL for links
-                var baseUrl = string.IsNullOrWhiteSpace(_emailSettings.BaseUrl) ? null : _emailSettings.BaseUrl;
 
                 // Get instructor information
                 var instructorName = "Unknown Instructor";
@@ -744,15 +743,13 @@ namespace Viper.Areas.ClinicalScheduler.Services
                 // Use the passed requiresPrimaryEvaluator parameter (determined by frontend)
 
                 // Build rotation link
-                var rotationLink = baseUrl is null
-                    ? $"/ClinicalScheduler/rotation/{schedule.RotationId}"
-                    : $"{baseUrl}/ClinicalScheduler/rotation/{schedule.RotationId}";
+                var rotationLink = _publicUrl.BuildUrl($"/ClinicalScheduler/rotation/{schedule.RotationId}");
 
                 // Build email subject and body using Razor template
                 var emailSubject = $"Primary Evaluator Removed - {rotationName} - Week {weekNumber}";
                 var viewModel = new PrimaryEvaluatorRemovedViewModel
                 {
-                    BaseUrl = baseUrl ?? "",
+                    BaseUrl = _publicUrl.BaseUrl,
                     InstructorName = instructorName,
                     RotationName = rotationName,
                     RotationLink = rotationLink,

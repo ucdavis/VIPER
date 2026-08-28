@@ -7,6 +7,7 @@ using Viper.Areas.Effort.EmailTemplates.Models;
 using Viper.Areas.Effort.Models;
 using Viper.Areas.Effort.Models.DTOs.Responses;
 using Viper.Areas.Effort.Models.Entities;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.EmailTemplates.Services;
@@ -29,7 +30,7 @@ public class VerificationService : IVerificationService
     private readonly ICourseClassificationService _classificationService;
     private readonly ILogger<VerificationService> _logger;
     private readonly EffortSettings _settings;
-    private readonly EmailSettings _emailSettings;
+    private readonly IPublicUrlService _publicUrl;
     private readonly IEmailTemplateRenderer _emailTemplateRenderer;
 
     public VerificationService(
@@ -42,7 +43,7 @@ public class VerificationService : IVerificationService
         ICourseClassificationService classificationService,
         ILogger<VerificationService> logger,
         IOptions<EffortSettings> settings,
-        IOptions<EmailSettings> emailSettings,
+        IPublicUrlService publicUrl,
         IEmailTemplateRenderer emailTemplateRenderer)
     {
         _context = context;
@@ -54,7 +55,7 @@ public class VerificationService : IVerificationService
         _classificationService = classificationService;
         _logger = logger;
         _settings = settings.Value;
-        _emailSettings = emailSettings.Value;
+        _publicUrl = publicUrl;
         _emailTemplateRenderer = emailTemplateRenderer;
     }
 
@@ -374,27 +375,7 @@ public class VerificationService : IVerificationService
             return new EmailSendResult { Success = false, Error = "Invalid email address" };
         }
 
-        string verificationUrl;
-        try
-        {
-            verificationUrl = BuildVerificationUrl(termCode);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogError(ex, "Configuration error building verification URL for term {TermCode}", termCode);
-
-            var configErrorAuditData = new
-            {
-                RecipientPersonId = personId,
-                RecipientName = $"{instructor.LastName}, {instructor.FirstName}",
-                SendResult = "Failed: Configuration error"
-            };
-
-            await _auditService.LogPersonChangeAsync(
-                personId, termCode, EffortAuditActions.VerifyEmail, null, configErrorAuditData, ct);
-
-            return new EmailSendResult { Success = false, Error = "Email system configuration error. Please contact support." };
-        }
+        string verificationUrl = BuildVerificationUrl(termCode);
 
         try
         {
@@ -716,22 +697,10 @@ public class VerificationService : IVerificationService
             .ToListAsync(ct);
     }
 
+    // Built from the canonical origin, never the request Host. PublicUrlOptionsValidator
+    // already proved that origin is an absolute https URL at startup.
     private string BuildVerificationUrl(int termCode)
-    {
-        // Require configured base URL to avoid Host header injection
-        if (string.IsNullOrWhiteSpace(_emailSettings.BaseUrl))
-        {
-            throw new InvalidOperationException("EmailSettings:BaseUrl must be configured for verification emails.");
-        }
-
-        var baseUrlNormalized = _emailSettings.BaseUrl.TrimEnd('/') + "/";
-        if (!Uri.TryCreate(baseUrlNormalized, UriKind.Absolute, out var baseUri))
-        {
-            throw new InvalidOperationException($"EmailSettings:BaseUrl value '{_emailSettings.BaseUrl}' is not a valid absolute URL.");
-        }
-
-        return new Uri(baseUri, $"Effort/{termCode}/my-effort").ToString();
-    }
+        => _publicUrl.BuildUrl($"/Effort/{termCode}/my-effort");
 
     /// <summary>
     /// Determines if an effort record has zero effort value.
@@ -846,7 +815,7 @@ public class VerificationService : IVerificationService
 
         return new VerificationReminderViewModel
         {
-            BaseUrl = _emailSettings.BaseUrl ?? "",
+            BaseUrl = _publicUrl.BaseUrl,
             TermDescription = termDescription,
             TermStartDate = termStartDate,
             TermEndDate = termEndDate,

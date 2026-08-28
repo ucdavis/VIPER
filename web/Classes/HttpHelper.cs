@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using NLog;
+using Viper.Classes;
 
 namespace Viper
 {
@@ -16,18 +16,20 @@ namespace Viper
         private static IHttpContextAccessor? httpContextAccessor;
         private static IAuthorizationService? authorizationService;
         private static IDataProtectionProvider? dataProtectionProvider;
+        private static IPublicUrlService? publicUrlService;
 
         /// <summary>
-        /// Configures the helper with system-wide services (memory cache, configuration, environment, context accessor, authorization, data protection)
+        /// Configures the helper with system-wide services (memory cache, configuration, environment, context accessor, authorization, data protection, public URL)
         /// </summary>
-        public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? httpContextAccessor, IAuthorizationService? authorizationService, IDataProtectionProvider? dataProtectionProvider)
+        public static void Configure(IMemoryCache? memoryCache, IConfiguration? configurationSettings, IWebHostEnvironment env, IHttpContextAccessor? contextAccessor, IAuthorizationService? authService, IDataProtectionProvider? dataProtection, IPublicUrlService? publicUrl)
         {
             Cache = memoryCache;
             Settings = configurationSettings;
             Environment = env;
-            HttpHelper.httpContextAccessor = httpContextAccessor;
-            HttpHelper.authorizationService = authorizationService;
-            HttpHelper.dataProtectionProvider = dataProtectionProvider;
+            httpContextAccessor = contextAccessor;
+            authorizationService = authService;
+            dataProtectionProvider = dataProtection;
+            publicUrlService = publicUrl;
         }
 
         /// <summary>
@@ -77,27 +79,13 @@ namespace Viper
         public static IDataProtectionProvider? DataProtectionProvider { get { return dataProtectionProvider; } }
 
         /// <summary>
-        /// Gets the root URL including protocol and port for Viper.Net
+        /// Gets the root URL including protocol and port for Viper.Net. Deployed environments
+        /// return the configured canonical origin (Application:PublicBaseUrl); Development
+        /// derives it from the request. See <see cref="IPublicUrlService"/>.
         /// </summary>
         public static string GetRootURL()
         {
-            string rootURL = String.Empty;
-
-            HttpRequest? thisRequest = httpContextAccessor?.HttpContext?.Request;
-
-            if (thisRequest != null)
-            {
-                Uri url = new(thisRequest.GetDisplayUrl());
-                rootURL = url.GetLeftPart(UriPartial.Authority);
-
-                if (url.AbsolutePath.StartsWith("/2/"))
-                {
-                    rootURL += "/2";
-                }
-
-            }
-
-            return rootURL ?? String.Empty;
+            return publicUrlService?.BaseUrl ?? string.Empty;
         }
         /// <summary>
         /// Gets the root URL for ColdFusion Viper based off the enviroment
