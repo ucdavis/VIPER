@@ -11,9 +11,11 @@ namespace Viper.Classes
     public class SitemapMiddleware
     {
         private readonly RequestDelegate _next;
-        public SitemapMiddleware(RequestDelegate next)
+        private readonly ILogger<SitemapMiddleware> _logger;
+        public SitemapMiddleware(RequestDelegate next, ILogger<SitemapMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
 
         public async Task Invoke(HttpContext context)
@@ -42,20 +44,18 @@ namespace Viper.Classes
 
                         foreach (var method in methods)
                         {
-                            Attribute? anonAttribute = method.GetCustomAttribute(typeof(AllowAnonymousAttribute));
-                            Attribute? anonAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(AllowAnonymousAttribute));
-                            Attribute? authAttribute = method.GetCustomAttribute(typeof(AuthorizeAttribute));
-                            Attribute? permAttribute = method.GetCustomAttribute(typeof(PermissionAttribute));
-                            Attribute? excludeAttribute = method.GetCustomAttribute(typeof(SearchExcludeAttribute));
-                            Attribute? excludeAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(SearchExcludeAttribute));
+                            // Testing [Permission] alone covers [Authorize] too, because
+                            // PermissionAttribute derives from it. That inheritance is also why these
+                            // are plural lookups: a method carrying both (HomeController.EmulateUser)
+                            // matches AuthorizeAttribute twice, and the singular GetCustomAttribute
+                            // throws AmbiguousMatchException, which turned the sitemap into a 404.
+                            bool isAnonymous = method.GetCustomAttributes(typeof(AllowAnonymousAttribute), inherit: true).Length > 0
+                                || method.DeclaringType?.GetCustomAttributes(typeof(AllowAnonymousAttribute), inherit: true).Length > 0;
+                            bool isPermissionGated = method.GetCustomAttributes(typeof(PermissionAttribute), inherit: true).Length > 0;
+                            bool isSearchExcluded = method.GetCustomAttributes(typeof(SearchExcludeAttribute), inherit: true).Length > 0
+                                || method.DeclaringType?.GetCustomAttributes(typeof(SearchExcludeAttribute), inherit: true).Length > 0;
 
-                            if (((anonAttribute != null  // method is anonymous
-                                    || anonAttributeClass != null  // or class is anonymous
-                                )
-                                && (authAttribute == null // and method does not have authorize arrtribute 
-                                    || permAttribute == null // or method does not have permission arrtribute
-                                ))
-                                && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
+                            if (isAnonymous && !isPermissionGated && !isSearchExcluded)
                             {
                                 string url = string.Format("{0}/{1}/{2}", rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
                                 string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd");
@@ -94,11 +94,13 @@ namespace Viper.Classes
                 }
                 // Middleware boundary: any sitemap-generation failure (DB, IO,
                 // reflection, etc.) must fall through to the pipeline rather than
-                // break the request.
+                // break the request. Log it: swallowing silently is what let an
+                // AmbiguousMatchException turn the sitemap into a blanket 404 unnoticed.
 #pragma warning disable CA1031
-                catch (Exception)
+                catch (Exception ex)
 #pragma warning restore CA1031
                 {
+                    _logger.LogError(ex, "Sitemap generation failed; falling through to the pipeline.");
                     await _next(context);
                 }
             }
