@@ -28,7 +28,8 @@ Because migration is incremental, every new surface has to be legible next to a 
 
 ## Operating Context
 
-- **Access is never anonymous.** Every working surface is behind campus CAS single sign-on, gated by RAPS roles through `[Permission(Allow = "SVMSecure.{Area}")]`. The only unauthenticated surface in the product is the login and welcome page.
+- **Access is never anonymous.** Every working surface is behind campus single sign-on, gated by RAPS roles through `[Permission(Allow = "SVMSecure.{Area}")]`. The only unauthenticated surface in the product is the login and welcome page.
+- **Two sign-on providers, mid-migration.** Campus is retiring CAS in favor of Microsoft Entra ID. Both are supported and both sign in to the same cookie, so a session is identical downstream whichever the user picked. `Authentication:EnabledProviders` (`Cas`, `EntraId`, or `Both`) decides what the welcome page offers; TEST runs both, PROD stays CAS until Entra is proven, and the cutover is that one config value.
 - **Two sites, one perceived system.** TEST and PROD run VIPER 2 as an IIS sub-application under `/2`, beside legacy VIPER 1 at `/`. Local development has no base path, so subpath bugs surface only on TEST and PROD.
 - **Areas in the suite today.** Backend areas: CMS, CTS, ClinicalScheduler, Computing, Curriculum, Directory, Effort, RAPS, Scheduler, Students. Vue SPAs: CAHFS, CMS, CTS, ClinicalScheduler, Computing, Effort, Students.
 - **Release path.** Feature branch off `main`, merged to `Development` to deploy to TEST, then to `main` after approval on TEST. Jenkins runs the deploys.
