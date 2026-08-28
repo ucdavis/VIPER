@@ -128,7 +128,13 @@ namespace Viper.Areas.RAPS.Controllers
             }
             if (_securityService.IsAllowedTo("ViewRoles", instance))
             {
-                nav.Add(new NavMenuItem { MenuItemText = "Role Templates", MenuItemURL = "RoleTemplateList" });
+                nav.Add(new NavMenuItem
+                {
+                    MenuItemText = "Role Templates",
+                    MenuItemURL = "RoleTemplateList",
+                    // These pages are reached from the template listing and have no nav entry of their own
+                    ChildPageURLs = { "RoleTemplateRoles", "RoleTemplateApply" }
+                });
             }
             if (selectedRole != null && RAPSSecurityService.RoleBelongsToInstance(instance, selectedRole))
             {

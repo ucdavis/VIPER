@@ -4,9 +4,9 @@
 // Expects STAGED_FILES environment variable with newline-separated file list
 // Delegates to lint-any.js for actual linting (DRY)
 
-const { spawnSync } = require("node:child_process")
-const path = require("node:path")
-const { checkPartiallyStaged, createLogger } = require("./lib/script-utils")
+import { spawnSync } from "node:child_process"
+import path from "node:path"
+import { checkPartiallyStaged, createLogger } from "./lib/script-utils.js"
 
 const { env } = process
 const logger = createLogger("LINT")
@@ -23,7 +23,7 @@ checkPartiallyStaged(stagedFiles, logger)
 logger.info(`Linting ${stagedFiles.length} staged files...`)
 
 // Delegate to lint-any.js which handles all file categorization and routing
-const lintAnyPath = path.join(__dirname, "lint-any.js")
+const lintAnyPath = path.join(import.meta.dirname, "lint-any.js")
 const result = spawnSync("node", [lintAnyPath, ...stagedFiles], {
     stdio: "inherit",
     cwd: process.cwd(),

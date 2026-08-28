@@ -7,13 +7,13 @@
 //   --save <baseline.json> <scanDir> [extra jscpd args]
 //   --check <baseline.json> <scanDir> [extra jscpd args]
 
-const fs = require("node:fs")
-const os = require("node:os")
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
-const { resolveJscpdEntry } = require("./lib/jscpd-entry")
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { spawnSync } from "node:child_process"
+import { resolveJscpdEntry } from "./lib/jscpd-entry.js"
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 
 // Running fallow/jscpd can exceed Node's 1MB default (256 MB).
 const MAX_BUFFER_BYTES = 268_435_456

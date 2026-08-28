@@ -330,11 +330,12 @@ try
         ctx => !HealthCheckExtensions.IsUIPath(ctx.Request.Path),
         branch => branch.UseCsp(csp =>
     {
+        // Legacy Razor pages need 'unsafe-eval'; the /2/vue branch below drops it. See CspPolicy.
         // Allow JavaScript from:
         csp.AllowScripts
             .FromSelf() // This domain
             .AddNonce() // Inline scripts only with Nonce
-            .AllowUnsafeEval(); // allow JS eval command (must also fit within other restrictions)
+            .AllowUnsafeEval();
 
         // Allow connections for WebSocket HMR and legacy systems in development
         if (app.Environment.IsDevelopment())
@@ -491,11 +492,14 @@ try
             // Prod (and dev fallback): rewrite SPA routes to the built SPA shell,
             // then serve the static file from wwwroot/vue.
             branch.UseRewriter(rewriteOptions);
+            // Only the SPA shell reaches here; under /2, assets are served above and keep the
+            // permissive header, which is harmless since CSP on a subresource governs nothing.
             branch.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(
                     Path.Join(builder.Environment.WebRootPath, "vue")),
-                RequestPath = "/2/vue"
+                RequestPath = "/2/vue",
+                OnPrepareResponse = CspPolicy.TightenForBuiltSpa
             });
         });
 

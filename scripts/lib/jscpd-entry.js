@@ -6,8 +6,9 @@
 // bumps. Callers invoke it via `node <entry>` (see spawnSync usage), which also
 // sidesteps Windows .cmd-shim argument-escaping bugs on backslash paths.
 
-const fs = require("node:fs")
-const path = require("node:path")
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 /**
  * Resolve the absolute path to the jscpd CLI entry script.
@@ -16,7 +17,8 @@ const path = require("node:path")
  */
 function resolveJscpdEntry() {
     try {
-        const manifestPath = require.resolve("jscpd/package.json")
+        // Unlike require.resolve, import.meta.resolve returns a file:// URL, not a path
+        const manifestPath = fileURLToPath(import.meta.resolve("jscpd/package.json"))
         const { bin } = JSON.parse(fs.readFileSync(manifestPath, "utf8"))
         const binRelative = typeof bin === "string" ? bin : bin?.jscpd
         if (!binRelative) {
@@ -29,4 +31,4 @@ function resolveJscpdEntry() {
     }
 }
 
-module.exports = { resolveJscpdEntry }
+export { resolveJscpdEntry }

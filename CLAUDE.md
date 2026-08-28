@@ -39,6 +39,7 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 - **Paths**: `Path.Join()` not `Path.Combine()` (`Combine` silently discards everything before a rooted segment) | **DateTime**: prefer `DateTimeKind.Local`
 - **Mapperly**: Prefer over manual property mapping. Static partial mapper class per area with `[Mapper(RequiredMappingStrategy = RequiredMappingStrategy.None)]`. Use `[MapperIgnoreTarget]` for computed properties, manual wrappers for transforms. Align entity/DTO names: use EF `HasColumnName()` to decouple from DB columns.
 - **Scrutor**: Convention-based DI auto-registers `*Service`/`*Validator` from configured namespaces, prefer over manual `AddScoped`. Follow `IFooService`/`FooService` naming. Explicit `AddScoped` before Scrutor takes precedence (`RegistrationStrategy.Skip`).
+- **`required` on bound models**: never on a server-generated primary key. A create body has no id yet, so System.Text.Json 400s it before the action runs. Use `int?` (a client sending `0` only masks it).
 - **Bug fixes**: Check for duplicate/parallel implementations of the affected logic and fix consistently, or DRY into a shared method.
 - **Log injection**: Sanitize user input before logging via `LogSanitizer` (`SanitizeId()`, `SanitizeString()`, `SanitizeYear()`). Skip hard-coded strings, enums, DB values.
 

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
-const { execFileSync } = require("node:child_process")
-const path = require("node:path")
-const fs = require("node:fs")
-const { createLogger } = require("./lib/script-utils")
-const {
+import { execFileSync } from "node:child_process"
+import path from "node:path"
+import fs from "node:fs"
+import { createLogger } from "./lib/script-utils.js"
+import {
     needsBuild,
     markAsBuilt,
     wasBuildSuccessful,
     getCachedBuildOutput,
     filterBuildErrors,
-} = require("./lib/build-cache")
+} from "./lib/build-cache.js"
 
 const { env } = process
 const logger = createLogger("TEST")
@@ -18,8 +18,14 @@ const logger = createLogger("TEST")
 // Uses --artifacts-path for full isolation from dev server (avoids file lock conflicts)
 const MAX_BUILD_BUFFER = 20_971_520 // 20 MB for .NET build output
 const artifactsPath = ".artifacts-precommit"
-const projectPath = "test"
-const projectName = "Viper.test.csproj"
+const buildPath = "test"
+// Building test/ compiles web/ too, via the ProjectReference in Viper.test.csproj, so the
+// cache has to hash both projects. Hashing test/ alone let a web-only change reuse a stale
+// assembly and report a false pass. Mirrors the pair build-dotnet.js tracks.
+const cachedProjects = [
+    { dir: "web", name: "Viper.csproj" },
+    { dir: "test", name: "Viper.test.csproj" },
+]
 const precommitDll = path.join(artifactsPath, "bin", "Viper.test", "debug", "Viper.test.dll")
 
 /**
@@ -34,12 +40,16 @@ function precommitBuildExists() {
  * @returns {boolean} - Success status
  */
 function ensureBuild() {
+    // Use filter, not some, so every project logs its cache decision instead of short-circuiting
+    const staleProjects = cachedProjects.filter(({ dir, name }) => needsBuild(dir, name))
+
     // Check if precommit build exists and cache says no rebuild needed
-    if (precommitBuildExists() && !needsBuild(projectPath, projectName)) {
+    if (precommitBuildExists() && staleProjects.length === 0) {
         // Check if cached build was successful
-        if (wasBuildSuccessful(projectName) === false) {
+        const failed = cachedProjects.find(({ name }) => wasBuildSuccessful(name) === false)
+        if (failed) {
             logger.error("Build failed (cached) - fix the error below and try again:")
-            console.error(filterBuildErrors(getCachedBuildOutput(projectName)))
+            console.error(filterBuildErrors(getCachedBuildOutput(failed.name)))
             return false
         }
         logger.success("Using existing precommit build")
@@ -53,7 +63,7 @@ function ensureBuild() {
             "dotnet",
             [
                 "build",
-                `${projectPath}/`,
+                `${buildPath}/`,
                 "--artifacts-path",
                 artifactsPath,
                 "--verbosity",
@@ -70,13 +80,17 @@ function ensureBuild() {
             },
         )
 
-        markAsBuilt(projectPath, projectName, result, true)
+        for (const { dir, name } of cachedProjects) {
+            markAsBuilt(dir, name, result, true)
+        }
         logger.success("Build completed")
         return true
     } catch (error) {
         const output = (error.stdout || "") + (error.stderr || "")
         // Cache failure to avoid redundant rebuild attempts
-        markAsBuilt(projectPath, projectName, output, false)
+        for (const { dir, name } of cachedProjects) {
+            markAsBuilt(dir, name, output, false)
+        }
         logger.error("Build failed!")
         console.error(output)
         return false

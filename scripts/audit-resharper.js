@@ -6,13 +6,13 @@
 // locked Viper.exe doesn't collide with inspectcode's build step.
 // For CI regression detection see scripts/audit-resharper-regression.js.
 
-const fs = require("node:fs")
-const path = require("node:path")
-const { spawnSync } = require("node:child_process")
+import fs from "node:fs"
+import path from "node:path"
+import { spawnSync } from "node:child_process"
 
 const { env } = process
 
-const PROJECT_ROOT = path.join(__dirname, "..")
+const PROJECT_ROOT = path.join(import.meta.dirname, "..")
 const OUT_DIR = path.join(PROJECT_ROOT, "inspect-report")
 const ARTIFACTS_DIR = path.join(PROJECT_ROOT, ".artifacts-resharper")
 const SLN = path.join(PROJECT_ROOT, "Viper.sln")

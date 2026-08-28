@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-const fs = require("node:fs")
-const path = require("node:path")
-const crypto = require("node:crypto")
-const { execFileSync } = require("node:child_process")
-const { createLogger } = require("./script-utils")
+import fs from "node:fs"
+import path from "node:path"
+import crypto from "node:crypto"
+import { execFileSync } from "node:child_process"
+import { createLogger } from "./script-utils.js"
 
 const { env } = process
 const logger = createLogger("Cache")
@@ -24,7 +24,7 @@ const useStagedContent = env.USE_STAGED_CONTENT === "1" || env.npm_lifecycle_eve
  */
 
 // Cache directory
-const CACHE_DIR = path.join(__dirname, "..", "..", ".build-cache")
+const CACHE_DIR = path.join(import.meta.dirname, "..", "..", ".build-cache")
 const CACHE_FILE = path.join(CACHE_DIR, "build-hashes.json")
 
 // Hash display length for log messages
@@ -295,14 +295,20 @@ function getCachedBuildOutput(projectName) {
  * @param {string} objRoot - Path to a project's obj/ directory
  */
 function clearStaticWebAssetCache(objRoot) {
-    if (!fs.existsSync(objRoot)) return
+    if (!fs.existsSync(objRoot)) {
+        return
+    }
     for (const config of fs.readdirSync(objRoot)) {
         // Walk Debug/ and Release/ (skip files like project.assets.json at the root)
         const configDir = path.join(objRoot, config)
-        if (!fs.statSync(configDir).isDirectory()) continue
+        if (!fs.statSync(configDir).isDirectory()) {
+            continue
+        }
         for (const tfm of fs.readdirSync(configDir)) {
             const tfmDir = path.join(configDir, tfm)
-            if (!fs.statSync(tfmDir).isDirectory()) continue
+            if (!fs.statSync(tfmDir).isDirectory()) {
+                continue
+            }
             for (const entry of fs.readdirSync(tfmDir)) {
                 if (entry.startsWith("staticwebassets") || entry.endsWith(".dswa.cache.json")) {
                     fs.rmSync(path.join(tfmDir, entry), { recursive: true, force: true })
@@ -319,7 +325,7 @@ function clearStaticWebAssetCache(objRoot) {
 function clearBuildCache(projectName) {
     if (projectName) {
         const cache = loadBuildCache()
-        delete cache[projectName]
+        Reflect.deleteProperty(cache, projectName)
         saveBuildCache(cache)
         logger.info(`🧹 Cleared build cache for ${projectName}`)
     } else {
@@ -372,12 +378,9 @@ function buildIfNeeded(projectPath, projectName, buildArgs = ["build"], options 
 
     try {
         logger.info(`🔨 Building ${projectName}...`)
-        const result = execFileSync("dotnet", buildArgs, {
-            cwd: projectPath,
-            encoding: "utf8",
-            timeout: 180_000,
-            ...options,
-        })
+        // oxlint-disable-next-line prefer-object-spread -- spreading `options` here trips no-misused-spread, which is an error
+        const execOptions = Object.assign({ cwd: projectPath, encoding: "utf8", timeout: 180_000 }, options)
+        const result = execFileSync("dotnet", buildArgs, execOptions)
 
         markAsBuilt(projectPath, projectName, result)
         logger.success(`✅ Build completed for ${projectName}`)
@@ -634,7 +637,7 @@ function clearCacheIfRequested() {
     return false
 }
 
-module.exports = {
+export {
     needsBuild,
     markAsBuilt,
     wasBuildSuccessful,

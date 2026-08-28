@@ -11,7 +11,7 @@
  * - Handles push conflicts with automatic rebase
  */
 
-const { execFileSync } = require("node:child_process")
+import { execFileSync } from "node:child_process"
 
 const PROTECTED_BRANCHES = new Set(["main", "Development"])
 

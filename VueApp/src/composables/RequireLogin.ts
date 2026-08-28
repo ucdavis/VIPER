@@ -2,27 +2,27 @@ import { useQuasar } from "quasar"
 import { computed, inject } from "vue"
 import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
-import { useRouter, useRoute } from "vue-router"
-import { stripTrailingSlashes } from "@/shared/strip-trailing-slashes"
+import { useRoute } from "vue-router"
+import { applicationBase, stripApplicationBase } from "@/shared/application-base"
 import type { ComputedRef } from "vue"
 import type { RouteLocationNormalized } from "vue-router"
 
-// Module-level regex constants to avoid recreation on each function call
-const ABSOLUTE_URL_REGEX = /^(https?:)?\/\//
-const ENCODED_SLASH_REGEX = /%2f/i
-const ENCODED_DOT_REGEX = /%2e/i
-const ALLOWED_INTERNAL_PREFIXES = ["/", "/2/", "/vue/"]
+// Module-level constants to avoid recreation on each function call
+const ABSOLUTE_URL_REGEX = /^(?:https?:)?\/\//u
+const ENCODED_SEPARATOR_REGEX = /%(?:2f|5c)/iu
+
+// Browsers resolve dot-segments before issuing the request, and the URL spec counts the
+// percent-encoded spellings too ("%2e" is ".", ".%2e"/"%2e."/"%2e%2e" are "..").
+const DOT_SEGMENTS = new Set([".", "..", "%2e", "%2e%2e", ".%2e", "%2e."])
 
 /**
  * Builds a login URL with a validated return path.
  * Falls back to home if the path fails validation.
  */
 function buildLoginUrl(returnPath: string): string {
-    // Build both paths from the normalized base so VITE_VIPER_HOME="/2" gives "/2/login" (not the
-    // slash-less "/2login") and "/2///" collapses its duplicate slashes.
-    const applicationBase = stripTrailingSlashes(import.meta.env.VITE_VIPER_HOME ?? "/")
-    const loginPath = `${applicationBase}/login`
-    const fallbackPath = `${applicationBase}/`
+    const base = applicationBase()
+    const loginPath = `${base}/login`
+    const fallbackPath = `${base}/`
 
     if (isValidInternalPath(returnPath)) {
         return `${loginPath}?ReturnUrl=${encodeURIComponent(returnPath)}`
@@ -31,26 +31,15 @@ function buildLoginUrl(returnPath: string): string {
 }
 
 /**
- * Returns the current browser path including query string and hash.
- * Safe to use directly since it comes from globalThis.location (not user input).
- */
-function getCurrentPath(): string {
-    return `${globalThis.location.pathname}${globalThis.location.search}${globalThis.location.hash}`
-}
-
-/**
  * Returns a reactive login URL that updates when the route changes.
  * Uses buildLoginUrl for consistent URL generation with validation.
  */
 function getLoginUrl(): ComputedRef<string> {
     const route = useRoute()
-    return computed(() => {
-        // Use route.fullPath length check to create reactive dependency while using the value
-        if (route.fullPath.length >= 0) {
-            return buildLoginUrl(getCurrentPath())
-        }
-        return buildLoginUrl(getCurrentPath())
-    })
+    const base = applicationBase()
+    // Reading route.fullPath makes this recompute after navigation; fullPath omits the app base the
+    // router was created with, so prefix it back.
+    return computed(() => buildLoginUrl(`${base}${route.fullPath}`))
 }
 
 // Helper function to validate internal redirect paths (prevent open redirect attacks)
@@ -59,21 +48,27 @@ function isValidInternalPath(path: string): boolean {
         return false
     }
 
-    // Reject absolute URLs, path traversal, and encoded bypasses
-    if (
-        ABSOLUTE_URL_REGEX.test(path) ||
-        path.includes("../") ||
-        ENCODED_SLASH_REGEX.test(path) ||
-        ENCODED_DOT_REGEX.test(path)
-    ) {
+    // Some browsers treat a backslash ("/\" or "/\\") as a protocol-relative, i.e. external, redirect.
+    if (ABSOLUTE_URL_REGEX.test(path) || path.includes("\\")) {
         return false
     }
 
-    // SECURITY NOTE: This approach mitigates open redirect attacks by restricting
-    // Redirects to known internal paths.
-    // Ensure all valid internal routes used by your app are included in ALLOWED_INTERNAL_PREFIXES.
-    // Update this array if new internal route prefixes are added to the application.
-    return ALLOWED_INTERNAL_PREFIXES.some((prefix) => path.startsWith(prefix))
+    // Only the path resolves, so screen it alone: percent-encoding inside a query value is ordinary
+    // ("?sendBackTo=%2Fcts%2Fepa") and must not disqualify an otherwise-valid ReturnUrl. Both
+    // separators are screened encoded, since a decoded "%5c" reopens the backslash bypass above.
+    const urlPath = path.split(/[?#]/u)[0] ?? ""
+    if (ENCODED_SEPARATOR_REGEX.test(urlPath)) {
+        return false
+    }
+
+    // Whole-segment match, so "/Effort/.." is caught while a legitimate "/Effort/%2ename" is not.
+    if (urlPath.split("/").some((segment) => DOT_SEGMENTS.has(segment.toLowerCase()))) {
+        return false
+    }
+
+    // Everything that can leave this origin is rejected above, so what remains only has to be
+    // root-relative. An area allow list would just be a step to forget when adding an area.
+    return path.startsWith("/")
 }
 
 function useRequireLogin(to: RouteLocationNormalized) {
@@ -86,8 +81,6 @@ function useRequireLogin(to: RouteLocationNormalized) {
     ): Promise<boolean> {
         const baseUrl = inject<string>("apiURL")!
         const userStore = useUserStore()
-        const route = useRoute()
-        const router = useRouter()
         const allowUnAuth = to.matched.some((record) => record.meta.allowUnAuth)
 
         //Get logged in user info
@@ -107,7 +100,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
             })
         }
 
-        //If no logged in user, redirect to cas
+        //If no logged in user, hand off to the sign-in endpoint
         if (!r.success || !r.result.userId) {
             // Hide loading spinner before redirect to prevent flash
             if ($q !== null) {
@@ -115,10 +108,7 @@ function useRequireLogin(to: RouteLocationNormalized) {
             }
 
             // Build return path with application base prefix for test/prod
-            const viperHome = import.meta.env.VITE_VIPER_HOME ?? "/"
-            const applicationBase = stripTrailingSlashes(viperHome)
-            const fullReturnPath = `${applicationBase}${to.fullPath}`
-            globalThis.location.href = buildLoginUrl(fullReturnPath)
+            globalThis.location.href = buildLoginUrl(`${applicationBase()}${to.fullPath}`)
             return false
         }
         //Store the logged in user info
@@ -135,39 +125,45 @@ function useRequireLogin(to: RouteLocationNormalized) {
             $q.loading.hide()
         }
 
-        if (userStore.isLoggedIn && route.query.sendBackTo !== null) {
-            handleSendBackToRedirect(route, router)
-        }
         return true
     }
 
     return { requireLogin }
 }
 
-/**
- * Handles the sendBackTo redirect logic after successful login.
- * Extracted to reduce nesting depth in requireLogin.
- */
-function handleSendBackToRedirect(route: ReturnType<typeof useRoute>, router: ReturnType<typeof useRouter>): void {
-    const redirect = route.query.sendBackTo?.toString()
-    if (!redirect) {
-        return
-    }
-
-    const redirectPath = redirect.split("?")[0] ?? ""
-    if (!redirectPath || !isValidInternalPath(redirectPath)) {
-        return
-    }
-
-    const paramString = redirect.split("?")[1] ?? ""
-    const params: Record<string, string> = {}
-    if (paramString) {
-        const queryString = new URLSearchParams(paramString)
-        for (const [key, val] of queryString.entries()) {
-            params[key] = val
-        }
-    }
-    void router.push({ path: redirectPath, query: params ?? null })
+// Everything before the separator, and everything after it.
+function splitFirst(value: string, separator: string): [string, string] {
+    const at = value.indexOf(separator)
+    return at === -1 ? [value, ""] : [value.slice(0, at), value.slice(at + 1)]
 }
 
-export { getLoginUrl, useRequireLogin }
+type SendBackToLocation = { path: string; query: Record<string, string>; hash: string }
+
+/**
+ * Resolves the sendBackTo deep link (set by VIPER 1) into the location the user asked for, or null
+ * when there isn't a usable one. Returning the location rather than navigating lets a router guard
+ * hand it back as a redirect instead of racing the navigation it is already in.
+ */
+function resolveSendBackTo(route: ReturnType<typeof useRoute>): SendBackToLocation | null {
+    // A repeat arrives as an array, and toString() would comma-join the values into one path that
+    // still looks internal.
+    const target = route.query.sendBackTo
+    const redirect = (Array.isArray(target) ? target[0] : target)?.toString()
+    if (!redirect) {
+        return null
+    }
+
+    // The fragment trails the query, so it has to come off before the query is parsed.
+    const [locator, fragment] = splitFirst(redirect, "#")
+    const [rawPath, search] = splitFirst(locator, "?")
+    if (!rawPath || !isValidInternalPath(rawPath)) {
+        return null
+    }
+
+    // Parameter names are attacker-controlled; fromEntries defines own properties, so a "__proto__"
+    // key stays plain data.
+    const query = Object.fromEntries(new URLSearchParams(search))
+    return { path: stripApplicationBase(rawPath), query, hash: fragment ? `#${fragment}` : "" }
+}
+
+export { buildLoginUrl, getLoginUrl, isValidInternalPath, resolveSendBackTo, useRequireLogin }

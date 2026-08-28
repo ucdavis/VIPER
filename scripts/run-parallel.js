@@ -7,8 +7,8 @@
  * Usage: node run-parallel.js "name1:cmd1" "name2:cmd2" ...
  */
 
-const { spawn } = require("node:child_process")
-const { createLogger } = require("./lib/script-utils")
+import { spawn } from "node:child_process"
+import { createLogger } from "./lib/script-utils.js"
 
 const { env } = process
 const logger = createLogger("PARALLEL")
@@ -139,4 +139,4 @@ async function main() {
     process.exit(0)
 }
 
-main()
+void main()
