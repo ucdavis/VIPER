@@ -6,6 +6,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Viper.Areas.ClinicalScheduler.EmailTemplates.Models;
 using Viper.Areas.ClinicalScheduler.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Viper.EmailTemplates.Services;
 using Viper.Models.ClinicalScheduler;
@@ -96,8 +97,9 @@ namespace Viper.test.ClinicalScheduler
             SeedTestData();
 
             // Setup email settings
-            var mockEmailSettingsOptions = Substitute.For<IOptions<EmailSettings>>();
-            mockEmailSettingsOptions.Value.Returns(new EmailSettings { BaseUrl = "https://test.example.com" });
+            var mockPublicUrl = Substitute.For<IPublicUrlService>();
+            mockPublicUrl.BaseUrl.Returns("https://test.example.com");
+            mockPublicUrl.BuildUrl(Arg.Any<string>()).Returns(ci => "https://test.example.com" + ci.Arg<string>());
 
             _service = new TestableScheduleEditService(
                 _context,
@@ -105,7 +107,7 @@ namespace Viper.test.ClinicalScheduler
                 _mockLogger,
                 _mockEmailService,
                 _mockEmailNotificationOptions,
-                mockEmailSettingsOptions,
+                mockPublicUrl,
                 _mockGradYearService,
                 _mockPermissionValidator,
                 _mockEmailTemplateRenderer);
