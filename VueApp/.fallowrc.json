@@ -16,6 +16,7 @@
         "src/ClinicalScheduler/index.html",
         "src/Computing/index.html",
         "src/Effort/index.html",
+        "src/Personnel/index.html",
         "src/Students/index.html"
     ],
     "ignorePatterns": [

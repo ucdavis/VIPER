@@ -228,9 +228,11 @@ async function postForBlob(
     if (contentDisposition) {
         // Try to extract filename from Content-Disposition header
         // Format: attachment; filename="filename.ext" or attachment; filename=filename.ext
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-        if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1].replaceAll(/['"]/g, "")
+        const filenameMatch = contentDisposition.match(
+            /filename[^;=\n]*=(?<filename>(?<quote>['"]).*?\k<quote>|[^;\n]*)/u,
+        )
+        if (filenameMatch?.groups?.filename) {
+            filename = filenameMatch.groups.filename.replaceAll(/['"]/gu, "")
         }
     }
 
@@ -303,3 +305,4 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export { useFetch, postForBlob, downloadBlob, HTTP_STATUS }
+export type { Result, Pagination }

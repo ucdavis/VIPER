@@ -764,3 +764,15 @@ header .q-avatar {
     white-space: nowrap;
     border: 0;
 }
+
+/* Clears the fixed app header and the sticky filter bar on the phone list mobile views. A focus
+   target the browser scrolls into view would otherwise land underneath them, hiding the focus
+   ring. Both heights are measured and published by the components that own them - ViperLayout for
+   the header, PhoneListFilter for the bar - because neither is a constant across the range this
+   applies to. Paired with PhoneListFilter.vue's own query, so the two must stay on the same
+   breakpoint. */
+@media (width <= 1023.98px) and (height >= 480px) {
+    .sticky-filter-offset {
+        scroll-margin-top: calc(var(--viper-header-height, 86px) + var(--phone-list-filter-height, 56px));
+    }
+}
