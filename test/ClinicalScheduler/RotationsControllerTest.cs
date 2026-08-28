@@ -9,6 +9,7 @@ using Viper.Models.ClinicalScheduler;
 
 namespace Viper.test.ClinicalScheduler
 {
+    [Collection(HttpHelperCacheCollection.Name)]
     public class RotationsControllerTest : ClinicalSchedulerTestBase
     {
         private readonly ILogger<RotationsController> _mockLogger;
