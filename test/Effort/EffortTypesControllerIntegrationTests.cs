@@ -13,6 +13,7 @@ namespace Viper.test.Effort;
 /// Integration tests for EffortTypesController.
 /// Tests the full stack: Controller -> Service -> DbContext.
 /// </summary>
+[Collection("HttpHelper static state")]
 public class EffortTypesControllerIntegrationTests : EffortIntegrationTestBase
 {
     private readonly EffortTypesController _controller;

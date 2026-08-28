@@ -75,6 +75,13 @@
     top: 10.5rem;
     left: 25rem;
 }
+.userinfo span.photo b,
+.userinfo span.photo2 b {
+    display: block;
+}
+.userinfo span.photo2 b {
+    padding-top: 1.5rem;
+}
 .direct ul {
     width: 23rem;
 }

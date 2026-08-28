@@ -121,24 +121,6 @@ namespace Viper.Controllers
             return Ok(SessionTimeoutService.GetSessionTimeout(_viperContext));
         }
 
-        [Route("/GetSessionTimeout")]
-        [SearchExclude]
-        public IActionResult GetSessionTimeout()
-        {
-            var timeout = SessionTimeoutService.GetSessionTimeout(_viperContext);
-            if (timeout == null)
-            {
-                return NotFound();
-            }
-            var secondsLeft = (int)(timeout.SessionTimeoutDateTime - DateTime.Now).TotalSeconds;
-            return Ok(new
-            {
-                sessionTimeoutDateTime = timeout.SessionTimeoutDateTime,
-                secondsUntilTimeout = secondsLeft,
-                loginId = timeout.LoginId
-            });
-        }
-
         /// <summary>
         /// CAS Login function -- redirects to original page, no VIEW
         /// </summary>

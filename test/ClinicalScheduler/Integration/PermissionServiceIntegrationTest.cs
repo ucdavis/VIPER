@@ -10,6 +10,7 @@ namespace Viper.test.ClinicalScheduler.Integration
     /// Tests the complete flow of permission checks after consolidating
     /// ClinicalScheduleSecurityService into SchedulePermissionService.
     /// </summary>
+    [Collection("HttpHelper static state")]
     public class PermissionServiceIntegrationTest : IntegrationTestBase
     {
         private readonly ILogger<SchedulePermissionService> _mockLogger;

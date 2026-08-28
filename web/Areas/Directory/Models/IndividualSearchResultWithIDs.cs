@@ -46,7 +46,7 @@ namespace Viper.Areas.Directory.Models
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
                 UserName = ldapUserContact.Uid;
-                PostalAddress = ldapUserContact.PostalAddress.Replace("$", '\n'.ToString());
+                PostalAddress = ldapUserContact.PostalAddress?.Replace("$", '\n'.ToString()) ?? "";
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
                 MothraId = ldapUserContact.MothraId;
                 IamId = ldapUserContact.IamId;

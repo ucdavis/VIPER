@@ -463,6 +463,7 @@ namespace Viper.Classes.Utilities
 
     public class IamDateTimeConverter : System.Text.Json.Serialization.JsonConverter<DateTime?>
     {
+        private static readonly Logger _logger = LogManager.GetLogger("IAM");
         private readonly string[] _formats = new[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd" };
 
         public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -487,6 +488,9 @@ namespace Viper.Classes.Utilities
                 return dt;
             }
 
+            // Every attempted format failed - the value is dropped from the deserialized
+            // object, so log it or it disappears without a trace.
+            _logger.Warn("IamDateTimeConverter: could not parse date value '{0}'.", LogSanitizer.SanitizeString(value));
             return null;
         }
 

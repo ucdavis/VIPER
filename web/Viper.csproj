@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <PublishDir>bin\Release\net10.0\publish\</PublishDir>
-    <NoWarn>$(NoWarn);NU1902;NU1608</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

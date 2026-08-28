@@ -8,15 +8,18 @@
 }
 <article class="userinfo">
 
+
     @* Directory Information *@
     @if (Model.CanViewDirectoryDetail || Model.IsOwnPage)
     {
         <div class="direct">
             <h2>User Information Page</h2>
             <span class="photo">
+                <b>User Photo</b>
                 <img src="@HttpHelper.GetRootURL()/api/cms/photos/by-mail/@Model.MailId" width="87" height="111" alt="User Photo" />
             </span>
             <span class="photo2">
+                <b>Alternative Photo</b>
                 <img src="@HttpHelper.GetRootURL()/api/cms/photos/by-mail/@Model.MailId?altPhoto=true" width="87" height="111" alt="Alternative Photo" />
             </span>
             <h3>@Model.DisplayFullName</h3>
@@ -143,14 +146,17 @@
     @* Student Information *@
     @if (Model.IsStudent && Model.CanViewDirectoryDetail)
     {
+        // A non-empty confidentiality scope is a FERPA hold: hide directory-identifying
+        // student fields from everyone except the student viewing their own page.
+        bool showConfidentialStudentFields = string.IsNullOrEmpty(Model.StudentConfidentialScope) || Model.IsOwnPage;
         <div class="student">
             <h2><a href="/students/sis/default.cfm?Page=SelectStudent&amp;pidm=@Model.Pidm" target="u">Student Information</a></h2>
             <ul>
-                @if (!string.IsNullOrEmpty(Model.StudentPriorName))
+                @if (showConfidentialStudentFields && !string.IsNullOrEmpty(Model.StudentPriorName))
                 {
                     <li><strong>Prior Name:</strong> @Model.StudentPriorName</li>
                 }
-                @if (!string.IsNullOrEmpty(Model.StudentBannerId))
+                @if (showConfidentialStudentFields && !string.IsNullOrEmpty(Model.StudentBannerId))
                 {
                     <li><strong>Banner ID:</strong> @Model.StudentBannerId</li>
                 }
@@ -158,11 +164,11 @@
                 {
                     <li><strong>Student Status:</strong> @Model.StudentStatus</li>
                 }
-                @if (!string.IsNullOrEmpty(Model.StudentPrimaryMajor))
+                @if (showConfidentialStudentFields && !string.IsNullOrEmpty(Model.StudentPrimaryMajor))
                 {
                     <li><strong>Primary Major:</strong> @Model.StudentPrimaryMajor</li>
                 }
-                @if (!string.IsNullOrEmpty(Model.StudentAllMajors))
+                @if (showConfidentialStudentFields && !string.IsNullOrEmpty(Model.StudentAllMajors))
                 {
                     <li><strong>All Majors:</strong> @Model.StudentAllMajors</li>
                 }
@@ -363,15 +369,15 @@
             <ul>
                 <li><strong>Roles:</strong> @(Model.UCPathFlags.Any() ? string.Join(", ", Model.UCPathFlags) : "none")</li>
             </ul>
-            @if (!string.IsNullOrEmpty(Model.UCPathJobCode))
+            @foreach (var position in Model.UCPathPositions)
             {
                 <ul>
-                    <li><strong>Position:</strong> @Model.UCPathJobCode @Model.UCPathJobDescription — @Model.UCPathDepartmentId @Model.UCPathDepartmentDescription</li>
-                    <li><strong>Status:</strong> @Model.UCPathJobStatus (@Model.UCPathEmployeeStatus: @Model.UCPathJobStatusDescription)</li>
-                    <li><strong>Effective:</strong> @Model.UCPathPositionEffectiveDate?.ToString("M/d/yyyy") – @(Model.UCPathExpectedEndDate?.ToString("M/d/yyyy") ?? "present")</li>
-                    <li><strong>FTE:</strong> @(Model.UCPathFTE.HasValue ? $"{Model.UCPathFTE.Value * 100:F0}%" : "")</li>
-                    <li><strong>Union:</strong> @Model.UCPathUnion</li>
-                    <li><strong>Reports to:</strong> @Model.UCPathReportsToName@(!string.IsNullOrEmpty(Model.UCPathReportsToName) && !string.IsNullOrEmpty(Model.UCPathReportsToPosition) ? ", " : "")@Model.UCPathReportsToPosition</li>
+                    <li><strong>Position:</strong> @position.JobCode @position.JobDescription — @position.DepartmentId @position.DepartmentDescription</li>
+                    <li><strong>Status:</strong> @position.JobStatus (@position.EmployeeStatus: @position.JobStatusDescription)</li>
+                    <li><strong>Effective:</strong> @position.PositionEffectiveDate?.ToString("M/d/yyyy") – @(position.ExpectedEndDate?.ToString("M/d/yyyy") ?? "present")</li>
+                    <li><strong>FTE:</strong> @(position.FTE.HasValue ? $"{position.FTE.Value * 100:F0}%" : "")</li>
+                    <li><strong>Union:</strong> @position.Union</li>
+                    <li><strong>Reports to:</strong> @position.ReportsToName@(!string.IsNullOrEmpty(position.ReportsToName) && !string.IsNullOrEmpty(position.ReportsToPosition) ? ", " : "")@position.ReportsToPosition</li>
                 </ul>
             }
         </div>
