@@ -16,14 +16,12 @@ namespace Viper.Areas.RAPS.Controllers
     public class RoleTemplatesController : ApiController
     {
         private readonly RAPSContext _context;
-        private readonly RAPSCacheService _rapsCacheService;
         public IUserHelper UserHelper { get; private set; }
 
-        public RoleTemplatesController(RAPSContext context, AAUDContext aaudContext)
+        public RoleTemplatesController(RAPSContext context)
         {
             _context = context;
             UserHelper = new UserHelper();
-            _rapsCacheService = new RAPSCacheService(context, aaudContext, UserHelper);
         }
 
         // GET: RoleTemplates
@@ -124,8 +122,6 @@ namespace Viper.Areas.RAPS.Controllers
             {
                 await roleMemberService.AddMemberToRole(role.RoleId, memberId, null, null, string.Format("Added via role template {0}", roleTemplate.TemplateName));
             }
-
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             return NoContent();
         }

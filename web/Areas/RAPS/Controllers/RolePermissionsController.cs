@@ -18,14 +18,12 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
-        private readonly RAPSCacheService _rapsCacheService;
 
-        public RolePermissionsController(RAPSContext context, AAUDContext aaudContext)
+        public RolePermissionsController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
-            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
 
         private ActionResult? CheckRoleAndPermissionParams(string instance, int? roleId, int? permissionId)
@@ -174,8 +172,6 @@ namespace Viper.Areas.RAPS.Controllers
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            await ClearCacheForAllRoleMembers(rolePermission.RoleId);
-
             return CreatedAtAction("GetTblRole", new { roleId, permissionId, tblRolePermission.Access }, tblRolePermission);
         }
 
@@ -206,8 +202,6 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService.AuditRolePermissionChange(tblRolePermission, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
 
-            await ClearCacheForAllRoleMembers(roleId);
-
             return NoContent();
         }
 
@@ -218,15 +212,6 @@ namespace Viper.Areas.RAPS.Controllers
             tblRolePermission.Access = rolePermissionCreateUpdate.Access;
             tblRolePermission.ModTime = DateTime.Now;
             tblRolePermission.ModBy = new UserHelper().GetCurrentUser()?.LoginId;
-        }
-
-        private async Task ClearCacheForAllRoleMembers(int roleId)
-        {
-            var roleMembers = await _context.TblRoleMembers.Where(rm => rm.RoleId == roleId).ToListAsync();
-            foreach (var member in roleMembers)
-            {
-                _rapsCacheService.ClearCachedRolesAndPermissionsForUser(member.MemberId);
-            }
         }
     }
 }
