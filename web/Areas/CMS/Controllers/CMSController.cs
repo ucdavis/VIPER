@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Viper.Areas.CMS.Services;
@@ -7,6 +8,9 @@ using Viper.Services;
 namespace Viper.Areas.CMS.Controllers
 {
     [Route("/CMS/[action]")]
+    // Serves public files and enforces per-file permissions itself, so it opts out of the
+    // fallback policy rather than sitting behind a blanket authenticated-user check.
+    [AllowAnonymous]
     public class CMSController : Controller
     {
         private readonly VIPERContext _viperContext;
