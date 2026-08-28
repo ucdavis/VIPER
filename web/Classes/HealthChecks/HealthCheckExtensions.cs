@@ -262,7 +262,7 @@ namespace Viper.Classes.HealthChecks
             app.MapHealthChecks("/health", new HealthCheckOptions
             {
                 Predicate = _ => false,
-            });
+            }).AllowAnonymous();
 
             // /health/detail - per-check JSON (UI format), IP-allowlisted to SVM
             // infra via InternalAllowlist. Intentionally not CAS-gated so the
@@ -285,7 +285,7 @@ namespace Viper.Classes.HealthChecks
                     return null;
                 }
                 return await next(ctx);
-            });
+            }).AllowAnonymous();
 
             // IP-gate every UI sub-path (HTML page, API, resource files, webhook config).
             app.UseWhen(
@@ -357,7 +357,7 @@ namespace Viper.Classes.HealthChecks
                 options.AddCustomStylesheet(Path.Join(
                     app.Environment.ContentRootPath,
                     "wwwroot", "css", "healthchecks-ui-branding.css"));
-            });
+            }).AllowAnonymous();
 
             return app;
         }

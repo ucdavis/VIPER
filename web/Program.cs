@@ -160,6 +160,12 @@ try
             .RequireAuthenticatedUser()
             .AddRequirements(new AuthorizationPolicyBuilder().RequireClaim(ClaimTypes.AuthenticationMethod, "CAS").Build().Requirements.ToArray())
             .Build();
+
+        // Attribute-routed controllers are not covered by RequireAuthorization() on the conventional
+        // routes, so a controller that forgets [Authorize] is public. Deny by default instead. The
+        // handful that answer anonymously opt out explicitly: [AllowAnonymous] on controllers,
+        // .AllowAnonymous() on endpoint mappings such as the health checks.
+        options.FallbackPolicy = options.DefaultPolicy;
     });
 
     // Add services necessary for nonces in CSP, 32-byte nonces
