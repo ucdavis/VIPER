@@ -10,7 +10,9 @@ namespace Viper.test.Classes
 {
     /// <summary>
     /// Pins the deliberate Development bypass, since no Duo credential can be issued for a localhost
-    /// callback, and pins that the failure message is set only when the requirement fails.
+    /// callback, and pins that the failure message is set only when the requirement fails. Also pins
+    /// the set of credential types the "2faAuthentication" policy accepts: too narrow locks out Entra
+    /// users who did complete MFA, too wide lets a password-only sign-in through.
     /// </summary>
     public class DuoAuthenticationRequirementTests
     {
@@ -29,6 +31,9 @@ namespace Viper.test.Classes
 
         private static ClaimsPrincipal UserWithDuo() =>
             new(new ClaimsIdentity(new[] { new Claim("credentialType", "DuoCredential") }, "test"));
+
+        private static ClaimsPrincipal PrincipalWith(params (string Type, string Value)[] claims)
+            => new(new ClaimsIdentity(claims.Select(c => new Claim(c.Type, c.Value)), "TestAuth"));
 
         private static async Task<(bool Succeeded, object? Error)> EvaluateAsync(ClaimsPrincipal user, string environmentName)
         {
@@ -70,6 +75,60 @@ namespace Viper.test.Classes
 
             Assert.False(succeeded);
             Assert.Equal("DUO two-factor authentication is required", error);
+        }
+
+        [Theory]
+        [InlineData("DuoCredential")]
+        [InlineData("DuoSecurityUniversalPromptCredential")]
+        [InlineData("DuoSecurityCredential")]
+        public void HasDuoAuthentication_CasDuoCredentialTypes_ReturnTrue(string credentialType)
+        {
+            var user = PrincipalWith(("credentialType", credentialType));
+
+            Assert.True(DuoAuthenticationRequirement.HasDuoAuthentication(user));
+        }
+
+        // Entra has no Duo attribute; EntraIdClaimMapper translates an "amr" multifactor into this
+        // credential type, and the policy has to accept it or every Entra user fails 2FA.
+        [Fact]
+        public void HasDuoAuthentication_EntraIdMultifactorCredentialType_ReturnsTrue()
+        {
+            var user = PrincipalWith(("credentialType", EntraIdClaimMapper.MultifactorCredentialType));
+
+            Assert.True(DuoAuthenticationRequirement.HasDuoAuthentication(user));
+        }
+
+        // End-to-end with the mapper, so a rename on either side of the translation fails here.
+        [Fact]
+        public void HasDuoAuthentication_PrincipalBuiltByMapperWithMultifactor_ReturnsTrue()
+        {
+            var user = EntraIdClaimMapper.BuildPrincipal("jdoe", hasMultifactor: true, DateTime.Now);
+
+            Assert.True(DuoAuthenticationRequirement.HasDuoAuthentication(user));
+        }
+
+        [Fact]
+        public void HasDuoAuthentication_PrincipalBuiltByMapperWithoutMultifactor_ReturnsFalse()
+        {
+            var user = EntraIdClaimMapper.BuildPrincipal("jdoe", hasMultifactor: false, DateTime.Now);
+
+            Assert.False(DuoAuthenticationRequirement.HasDuoAuthentication(user));
+        }
+
+        [Fact]
+        public void HasDuoAuthentication_SingleFactorCredentialType_ReturnsFalse()
+        {
+            var user = PrincipalWith(("credentialType", "UsernamePasswordCredential"));
+
+            Assert.False(DuoAuthenticationRequirement.HasDuoAuthentication(user));
+        }
+
+        [Fact]
+        public void HasDuoAuthentication_NoCredentialTypeClaim_ReturnsFalse()
+        {
+            var user = PrincipalWith((ClaimTypes.Name, "jdoe"));
+
+            Assert.False(DuoAuthenticationRequirement.HasDuoAuthentication(user));
         }
     }
 }
