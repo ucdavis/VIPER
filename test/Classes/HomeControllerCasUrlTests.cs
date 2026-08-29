@@ -177,6 +177,7 @@ public class HomeControllerCasUrlTests
             Substitute.For<IHttpClientFactory>(),
             Options.Create(new CasSettings { CasBaseUrl = CasBaseUrl }),
             publicUrl,
+            Options.Create(new AuthenticationSettings()),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
             Substitute.For<VIPERContext>());
