@@ -58,6 +58,7 @@
     <PackageReference Include="HtmlSanitizer" Version="9.1.973" />
     <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
     <PackageReference Include="Joonasw.AspNetCore.SecurityHeaders" Version="6.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.JsonPatch" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
