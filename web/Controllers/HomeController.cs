@@ -36,14 +36,16 @@ namespace Viper.Controllers
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
         private readonly IPublicUrlService _publicUrl;
+        private readonly AuthenticationSettings _authSettings;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         private readonly IUserHelper _userHelper;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, IPublicUrlService publicUrl, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, IPublicUrlService publicUrl, IOptions<AuthenticationSettings> authSettingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
             this._publicUrl = publicUrl;
+            this._authSettings = authSettingsOptions.Value;
             this._aAUDContext = aAUDContext;
             this._rapsContext = rapsContext;
             this._viperContext = viperContext;
@@ -88,44 +90,104 @@ namespace Viper.Controllers
         }
 
         /// <summary>
-        /// Login function -- redirects to CAS, no VIEW
+        /// Login function -- sends the user to the enabled sign-in provider, no VIEW
         /// </summary>
+        /// <remarks>
+        /// Provider-aware so every existing "Log in" link keeps working across the CAS to Entra ID
+        /// cutover, which is a config switch rather than a code change.
+        /// </remarks>
         [Route("/[action]")]
         [AllowAnonymous]
         [SearchExclude]
         public IActionResult Login([FromQuery] string? ReturnUrl = null)
         {
-            // Browsers and CAS don't understand "~", and leaving it on would also let a
-            // "~/api/..." ReturnUrl slip past the guard below.
-            ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
-
-            // Default to the application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
-            string returnURL = Request.PathBase.Value ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(ReturnUrl))
-            {
-                returnURL = ReturnUrl;
-            }
-
-            // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
-            // "/2/api/..." ReturnUrl can't slip past this root-relative check and get
-            // forwarded to CAS.
-            var apiCheckUrl = StripPathBase(returnURL, Request.PathBase.Value);
-            if (apiCheckUrl != null && IsApiPath(apiCheckUrl))
+            // Resolved before dispatching so the /api 401 contract holds for either provider.
+            if (!TryResolveLoginReturnUrl(ReturnUrl, out var returnUrl))
             {
                 return Unauthorized();
             }
 
-            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
+            if (_authSettings.EntraIdEnabled)
+            {
+                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl });
+            }
+
+            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
 
             return new RedirectResult(authorizationEndpoint);
         }
 
+        /// <summary>
+        /// Entra ID login -- challenges the OpenID Connect handler, no VIEW
+        /// </summary>
+        [Route("/[action]")]
+        [AllowAnonymous]
+        [SearchExclude]
+        public IActionResult EntraLogin([FromQuery] string? ReturnUrl = null)
+        {
+            if (!_authSettings.EntraIdEnabled)
+            {
+                return NotFound();
+            }
+
+            if (!TryResolveLoginReturnUrl(ReturnUrl, out var returnUrl))
+            {
+                return Unauthorized();
+            }
+
+            // No /CasLogin counterpart is needed: the OIDC handler owns its callback path, carries
+            // RedirectUri through the OAuth state, and redirects there itself once the shared
+            // cookie is issued.
+            return Challenge(
+                new AuthenticationProperties
+                {
+                    RedirectUri = string.IsNullOrEmpty(returnUrl) ? Url.Content("~/") : returnUrl
+                },
+                EntraIdClaimMapper.AuthenticationScheme);
+        }
+
+        // Resolves where to send the user after a successful sign-in, shared by every provider so
+        // the ReturnUrl rules cannot drift between them. Returns false when the target is an /api
+        // path, which must get a 401 rather than be bounced through an interactive login.
+        private bool TryResolveLoginReturnUrl(string? requestedReturnUrl, out string returnUrl)
+        {
+            // Resolve app-relative "~/..." before validating, so the /api guard below cannot be
+            // bypassed and we never forward an invalid browser URL to a provider.
+            requestedReturnUrl = NormalizeAppRelativeUrl(requestedReturnUrl);
+
+            // Off-site targets fall back to the app root: the OIDC handler would follow one as an
+            // open redirect, and CasLogin's LocalRedirect would throw on it after a good sign-in.
+            if (!Url.IsLocalUrl(requestedReturnUrl))
+            {
+                requestedReturnUrl = null;
+            }
+
+            // Default to the application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
+            var appRoot = Request.PathBase.Value ?? string.Empty;
+            returnUrl = string.IsNullOrEmpty(requestedReturnUrl) ? appRoot : requestedReturnUrl;
+
+            // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
+            // "/2/api/..." ReturnUrl can't slip past this root-relative check.
+            var apiCheckUrl = StripPathBase(returnUrl, Request.PathBase.Value);
+            if (apiCheckUrl != null && IsApiPath(apiCheckUrl))
+            {
+                return false;
+            }
+
+            // A local URL outside the PathBase would land in VIPER 1 on TEST/PROD.
+            if (!IsUnderPathBase(returnUrl))
+            {
+                returnUrl = appRoot;
+            }
+
+            return true;
+        }
+
         // Url.IsLocalUrl accepts app-relative "~/..." URLs, but browsers and CAS don't
-        // understand the "~", so normalize "~/..." to "/..." before validating or
+        // understand the "~", so resolve "~/..." to "{PathBase}/..." before validating or
         // redirecting. Leaves all other values (including null) unchanged.
-        private static string? NormalizeAppRelativeUrl(string? returnUrl)
-            => returnUrl != null && returnUrl.StartsWith("~/") ? returnUrl[1..] : returnUrl;
+        private string? NormalizeAppRelativeUrl(string? returnUrl)
+            => returnUrl != null && returnUrl.StartsWith("~/") ? Request.PathBase.Value + returnUrl[1..] : returnUrl;
 
         // Routing is case-insensitive, so the /api guard must be too; matching on a segment
         // boundary keeps non-API paths that merely start with "api" (e.g. "/apiary") out of
@@ -138,6 +200,14 @@ namespace Viper.Controllers
             }
 
             return url.Length == 4 || url[4] is '/' or '?' or '#';
+        }
+
+        // True when a local URL stays inside this app: always locally (no PathBase), and on TEST/PROD
+        // only under "/2". Uses StripPathBase's segment-boundary match, so "/22/..." is outside.
+        private bool IsUnderPathBase(string? url)
+        {
+            var pathBase = Request.PathBase.Value;
+            return string.IsNullOrEmpty(pathBase) || StripPathBase(url, pathBase) != url;
         }
 
         // Removes the application's PathBase prefix (e.g. "/2" in a subpath deployment) from a return
@@ -177,6 +247,11 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> CasLogin([FromQuery] string? ticket = null, [FromQuery] string? ReturnUrl = null)
         {
+            if (!_authSettings.CasEnabled)
+            {
+                return NotFound();
+            }
+
             return await AuthenticateCasLogin(ticket, ReturnUrl);
         }
 
@@ -297,15 +372,52 @@ namespace Viper.Controllers
         }
 
         /// <summary>
-        /// Logout function -- redirects to CAS logout, no VIEW
+        /// Logout function -- clears the local session then signs out of the provider, no VIEW
         /// </summary>
-        /// <returns></returns>
+        /// <remarks>
+        /// POST only, so a third-party page cannot sign a user out with an &lt;img&gt; tag. Callers
+        /// post a form rather than fetch, because the response is a redirect the browser has to
+        /// follow to reach the provider's sign-out.
+        /// </remarks>
+        [HttpPost]
         [Route("/[action]")]
         [SearchExclude]
         public async Task<IActionResult> Logout()
         {
             _userHelper.ClearCachedRolesAndPermissions(_userHelper.GetCurrentUser());
+
+            // Read the provider off the principal before signing out, while the claims still exist.
+            var signedInWithEntraId = string.Equals(
+                User.FindFirst(ClaimTypes.AuthenticationMethod)?.Value,
+                EntraIdClaimMapper.AuthenticationMethod,
+                StringComparison.Ordinal);
+
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            if (signedInWithEntraId)
+            {
+                if (_authSettings.EntraIdEnabled)
+                {
+                    // Federated sign-out. Without it the Entra session outlives the VIPER cookie
+                    // and the next sign-in silently reuses it, which looks like logout did nothing.
+                    return SignOut(
+                        new AuthenticationProperties { RedirectUri = Url.Content("~/") },
+                        EntraIdClaimMapper.AuthenticationScheme);
+                }
+
+                // Entra was switched off while this cookie was still valid, so its handler is no
+                // longer registered and the end_session endpoint is unreachable; the upstream Entra
+                // session has to age out on its own. Falling through to CAS logout would be wrong:
+                // this user never had a CAS session to end.
+                return LocalRedirect("~/");
+            }
+
+            if (!_authSettings.CasEnabled)
+            {
+                // CAS has been switched off, so there is no CAS session left to end. This also
+                // covers a stale CAS cookie still in flight after the cutover.
+                return LocalRedirect("~/");
+            }
 
             // Send homepage link after CAS logout
             var returnUrl = WebUtility.UrlEncode(_publicUrl.BaseUrl);

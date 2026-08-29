@@ -119,7 +119,6 @@ public class HomeControllerCasUrlTests
 
     [Theory]
     [InlineData("~/api/students/dvm")]
-    [InlineData("~/2/api/students/dvm")]
     [InlineData("~/API/students/dvm")]
     public void Login_AppRelativeApiReturnUrl_ReturnsUnauthorized(string returnUrl)
     {
@@ -137,9 +136,25 @@ public class HomeControllerCasUrlTests
 
         var result = Assert.IsType<RedirectResult>(controller.Login("~/apiary/hives"));
 
-        // The "~" is normalized off before the URL is handed to CAS, which does not understand it.
+        // The "~" resolves to the PathBase before the URL is handed to CAS, which does not understand it.
         Assert.Equal(
-            $"{PublicBaseUrl}/CasLogin?ReturnUrl={WebUtility.UrlEncode("/apiary/hives")}",
+            $"{PublicBaseUrl}/CasLogin?ReturnUrl={WebUtility.UrlEncode("/2/apiary/hives")}",
+            ServiceParameter(result.Url));
+    }
+
+    // Outside the "/2" PathBase is VIPER 1 on TEST/PROD, so the sign-in must return to this app.
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/Effort")]
+    [InlineData("/22/Effort")]
+    public void Login_ReturnUrlOutsidePathBase_FallsBackToAppRoot(string returnUrl)
+    {
+        var controller = CreateController("secure-test.vetmed.ucdavis.edu", pathBase: "/2");
+
+        var result = Assert.IsType<RedirectResult>(controller.Login(returnUrl));
+
+        Assert.Equal(
+            $"{PublicBaseUrl}/CasLogin?ReturnUrl={WebUtility.UrlEncode("/2")}",
             ServiceParameter(result.Url));
     }
 
@@ -177,6 +192,7 @@ public class HomeControllerCasUrlTests
             Substitute.For<IHttpClientFactory>(),
             Options.Create(new CasSettings { CasBaseUrl = CasBaseUrl }),
             publicUrl,
+            Options.Create(new AuthenticationSettings()),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
             Substitute.For<VIPERContext>());
@@ -191,6 +207,16 @@ public class HomeControllerCasUrlTests
         httpContext.Request.Path = new PathString("/Login");
 
         controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        // Login validates ReturnUrl through Url.IsLocalUrl, which DI cannot resolve here.
+        var url = Substitute.For<IUrlHelper>();
+        url.IsLocalUrl(Arg.Any<string?>()).Returns(ci =>
+            ci.Arg<string?>() is { } candidate
+            && candidate.StartsWith('/')
+            && !candidate.StartsWith("//")
+            && !candidate.StartsWith("/\\"));
+        controller.Url = url;
+
         return controller;
     }
 
