@@ -19,6 +19,7 @@ namespace Viper.test.ClinicalScheduler
     /// prove a failed audit write rolls the schedule change back, not just that the
     /// exception surfaces.
     /// </summary>
+    [Collection(HttpHelperCacheCollection.Name)]
     public class ScheduleEditServiceRollbackTest : IDisposable
     {
         private readonly SqliteConnection _connection;

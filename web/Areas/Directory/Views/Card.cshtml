@@ -1,5 +1,8 @@
+@using Viper.Classes.SQLContext;
 @model Viper.Areas.Directory.Models.DirectoryUser;
 @{
+    RAPSContext? rapsContext = (RAPSContext?)Context.RequestServices.GetService(typeof(RAPSContext));
+    IUserHelper UserHelper = new UserHelper();
     ViewData["Title"] = "Directory";
 }
 <h1>Directory</h1>
@@ -38,10 +41,13 @@
                     <q-icon name="email" size="xs"></q-icon>
                     <q-tooltip>Email {{user.mailId}}@@ucdavis.edu</q-tooltip>
                 </a>
-                <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" @@click="onLinkClick($event, 'Emulating user...')" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
-                    <q-icon name="face" size="xs"></q-icon>
-                    <q-tooltip>Emulate {{user.name}}</q-tooltip>
-                </a>
+                @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SU"))
+                {
+                    <a v-if="user.svm" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + user.loginId" @@click="onLinkClick($event, 'Emulating user...')" :aria-label="'Emulate ' + user.name" class="emulate_button top_button">
+                        <q-icon name="face" size="xs"></q-icon>
+                        <q-tooltip>Emulate {{user.name}}</q-tooltip>
+                    </a>
+                }
                 <a v-if="ids && user.mothraId && user.loginId" :href="'@HttpHelper.GetOldViperRootURL()' + '/default.cfm?Page=AAUDCheck&amp;mothraID=' + user.mothraId + '&amp;loginID=' + user.loginId" @@click="onLinkClick($event, 'Opening AAUD Check...')" :aria-label="'AAUD check for ' + user.name" class="AAUD_button top_button">
                     <q-icon name="account_circle" size="xs"></q-icon>
                     <q-tooltip>AAUD Check</q-tooltip>

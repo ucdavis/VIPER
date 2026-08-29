@@ -17,6 +17,33 @@ namespace Viper
     {
         private readonly AAUDContext? _aaudContext;
 
+        // Keyed by MothraId, not the nullable LoginId, which collided across every user without one.
+        // Entries do not expire; RapsCacheInvalidationInterceptor evicts them.
+        private static string RolesCacheKey(string mothraId) => "Roles-" + mothraId;
+
+        private static string AssignedPermissionsCacheKey(string mothraId, bool deny) => "PermissionsAssigned-" + mothraId + "-" + deny;
+
+        private static string InheritedPermissionsCacheKey(string mothraId, bool deny) => "PermissionsInherited-" + mothraId + "-" + deny;
+
+        /// <summary>
+        /// Evict one user's cached roles and permissions. Takes a MothraId so callers holding only the
+        /// RAPS-side identifier need no AaudUser lookup.
+        /// </summary>
+        public static void ClearCachedRolesAndPermissions(string mothraId)
+        {
+            if (HttpHelper.Cache == null || string.IsNullOrEmpty(mothraId))
+            {
+                return;
+            }
+
+            HttpHelper.Cache.Remove(RolesCacheKey(mothraId));
+            foreach (bool deny in new[] { true, false })
+            {
+                HttpHelper.Cache.Remove(AssignedPermissionsCacheKey(mothraId, deny));
+                HttpHelper.Cache.Remove(InheritedPermissionsCacheKey(mothraId, deny));
+            }
+        }
+
         public UserHelper() { }
 
         public UserHelper(AAUDContext aaudContext)
@@ -56,7 +83,7 @@ namespace Viper
             if (HttpHelper.Cache != null && rapsContext != null)
             {
 
-                result = HttpHelper.Cache.GetOrCreate("Roles-" + user.LoginId, entry =>
+                result = HttpHelper.Cache.GetOrCreate(RolesCacheKey(user.MothraId), _ =>
                 {
                     return (from role in rapsContext.TblRoles
                             join memberRoles in rapsContext.TblRoleMembers
@@ -117,7 +144,7 @@ namespace Viper
 
             if (HttpHelper.Cache != null && rapsContext != null)
             {
-                result = HttpHelper.Cache.GetOrCreate("PermissionsAssigned-" + user.LoginId + "-" + deny, entry =>
+                result = HttpHelper.Cache.GetOrCreate(AssignedPermissionsCacheKey(user.MothraId, deny), _ =>
                 {
                     return (from permission in rapsContext.TblPermissions
                             join memberPermissions in rapsContext.TblMemberPermissions
@@ -157,7 +184,7 @@ namespace Viper
 
             if (HttpHelper.Cache != null && rapsContext != null)
             {
-                result = HttpHelper.Cache.GetOrCreate("PermissionsInherited-" + user.LoginId + "-" + deny, entry =>
+                result = HttpHelper.Cache.GetOrCreate(InheritedPermissionsCacheKey(user.MothraId, deny), _ =>
                 {
                     return (from permission in rapsContext.TblPermissions
                             join rolePermissions in rapsContext.TblRolePermissions
@@ -345,13 +372,9 @@ namespace Viper
 
         public void ClearCachedRolesAndPermissions(AaudUser? user)
         {
-            if (user != null && HttpHelper.Cache != null)
+            if (user != null)
             {
-                HttpHelper.Cache.Remove("Roles-" + user.LoginId);
-                HttpHelper.Cache.Remove("PermissionsAssigned-" + user.LoginId + "-" + true);
-                HttpHelper.Cache.Remove("PermissionsAssigned-" + user.LoginId + "-" + false);
-                HttpHelper.Cache.Remove("PermissionsInherited-" + user.LoginId + "-" + false);
-                HttpHelper.Cache.Remove("PermissionsInherited-" + user.LoginId + "-" + false);
+                ClearCachedRolesAndPermissions(user.MothraId);
             }
 
         }

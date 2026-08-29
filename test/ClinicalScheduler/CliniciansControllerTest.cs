@@ -12,6 +12,7 @@ using Viper.Models.AAUD;
 
 namespace Viper.test.ClinicalScheduler
 {
+    [Collection(HttpHelperCacheCollection.Name)]
     public class CliniciansControllerTest : ClinicalSchedulerTestBase
     {
         private readonly AAUDContext _aaudContext;
