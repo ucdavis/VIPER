@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
@@ -38,15 +38,17 @@ namespace Viper.Controllers
         private readonly IHttpClientFactory _clientFactory;
         private readonly CasSettings _settings;
         private readonly IPublicUrlService _publicUrl;
+        private readonly AuthenticationSettings _authSettings;
         private readonly List<string> _casAttributesToCapture = new() { "authenticationDate", "credentialType" };
         private readonly IUserHelper _userHelper;
         private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
 
-        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, IPublicUrlService publicUrl, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext, IActionDescriptorCollectionProvider actionDescriptorProvider)
+        public HomeController(IHttpClientFactory clientFactory, IOptions<CasSettings> settingsOptions, IPublicUrlService publicUrl, IOptions<AuthenticationSettings> authSettingsOptions, AAUDContext aAUDContext, RAPSContext rapsContext, VIPERContext viperContext, IActionDescriptorCollectionProvider actionDescriptorProvider)
         {
             this._clientFactory = clientFactory;
             this._settings = settingsOptions.Value;
             this._publicUrl = publicUrl;
+            this._authSettings = authSettingsOptions.Value;
             this._aAUDContext = aAUDContext;
             this._rapsContext = rapsContext;
             this._viperContext = viperContext;
@@ -104,10 +106,25 @@ namespace Viper.Controllers
                 return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "~/" : ReturnUrl);
             }
 
+            // An /api ReturnUrl gets a 401 rather than a sign-in page. With one provider the
+            // deep-link branch below enforces this by way of /login, but when both are offered that
+            // branch is skipped, so the guard has to be stated here or the two modes disagree.
+            if (relativeReturnUrl != null && IsApiPath(relativeReturnUrl))
+            {
+                return Unauthorized();
+            }
+
             // Only passive arrivals get the splash: the bare site root or a top-level area
             // landing page (e.g. "/ClinicalScheduler"). A deep link (e.g. "/ClinicalScheduler/rotation")
-            // skips the interstitial and goes straight to CAS so we don't interrupt a targeted workflow.
-            if (!IsSplashTarget(relativeReturnUrl, GetAreaNames(_actionDescriptorProvider)))
+            // skips the interstitial and goes straight to the provider so we don't interrupt a
+            // targeted workflow.
+            //
+            // When both providers are offered there is nothing to skip to: the splash is the only
+            // place the user can pick one, so every anonymous arrival gets it. This is also what
+            // keeps /welcome and /login from bouncing off each other, since /login sends the
+            // two-provider case back here.
+            if (!_authSettings.HasProviderChoice
+                && !IsSplashTarget(relativeReturnUrl, GetAreaNames(_actionDescriptorProvider)))
             {
                 return RedirectToAction(nameof(Login), new { ReturnUrl });
             }
@@ -126,6 +143,8 @@ namespace Viper.Controllers
             ViewData["ReturnUrl"] = returnUrl;
             ViewData["Hero"] = PickRandomHeroKey();
             ViewData["DestinationLabel"] = destinationLabel;
+            ViewData["CasEnabled"] = _authSettings.CasEnabled;
+            ViewData["EntraIdEnabled"] = _authSettings.EntraIdEnabled;
 
             return View("Welcome");
         }
@@ -173,10 +192,12 @@ namespace Viper.Controllers
             return cut >= 0 ? url[..cut] : url;
         }
 
-        // The auth entry points, which must never be a ReturnUrl: /welcome and /login would
-        // redirect-loop, and /caslogin would re-enter the ticket handler without a ticket and
-        // 403 a user who just signed in successfully.
-        private static readonly string[] _authEntryPaths = ["/welcome", "/login", "/caslogin"];
+        // The auth entry points, which must never be a ReturnUrl: /welcome, /login and /entralogin
+        // would redirect-loop, and the provider callbacks (/caslogin, /signin-entra) would re-enter
+        // a ticket/code handler with no ticket or code and reject a user who just signed in
+        // successfully.
+        private static readonly string[] _authEntryPaths =
+            ["/welcome", "/login", "/entralogin", "/caslogin", "/signin-entra", "/signout-entra"];
 
         // internal (not private) so the redirect-loop guard is unit-testable via InternalsVisibleTo.
         internal static bool IsAuthEntryPath(string? url)
@@ -352,42 +373,109 @@ namespace Viper.Controllers
         }
 
         /// <summary>
-        /// Login function -- redirects to CAS, no VIEW
+        /// Login function -- sends the user to a sign-in provider, no VIEW
         /// </summary>
+        /// <remarks>
+        /// Provider-aware so every existing "Log in" link keeps working while campus migrates off
+        /// CAS. With a single provider enabled this goes straight to it; with both enabled there is
+        /// nothing sensible to pick, so it hands off to the welcome splash, which is the chooser.
+        /// </remarks>
         [Route("/[action]")]
         [AllowAnonymous]
         [SearchExclude]
-        public IActionResult Login([FromQuery] string? ReturnUrl = null)
+#pragma warning disable S6967 // Action only reads ReturnUrl and provider, no model binding required
+        public IActionResult Login([FromQuery] string? ReturnUrl = null, [FromQuery] LoginProviders? provider = null)
+#pragma warning restore S6967
         {
-            // Browsers and CAS don't understand "~", and leaving it on would also let a
-            // "~/api/..." ReturnUrl slip past the guard below.
-            ReturnUrl = NormalizeAppRelativeUrl(ReturnUrl);
+            // An explicit provider (the welcome screen's buttons) always wins, and must, or the
+            // chooser's own CAS button would bounce straight back to the chooser.
+            var forcedProvider = provider is LoginProviders.Cas or LoginProviders.EntraId ? provider : null;
 
-            if (!IsSafeReturnUrl(ReturnUrl))
+            if (forcedProvider != null && !_authSettings.EnabledProviders.HasFlag(forcedProvider.Value))
             {
-                ReturnUrl = null;
+                return NotFound();
             }
 
-            // Default to the application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
-            string returnURL = Request.PathBase.Value ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(ReturnUrl))
-            {
-                returnURL = ReturnUrl;
-            }
-
-            // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
-            // "/2/api/..." ReturnUrl can't slip past this root-relative check and get
-            // forwarded to CAS.
-            var apiCheckUrl = StripPathBase(returnURL, Request.PathBase.Value);
-            if (apiCheckUrl != null && IsApiPath(apiCheckUrl))
+            // Resolved before dispatching so the /api 401 contract holds identically no matter
+            // which provider this request ends up at, including the hand-off to the chooser.
+            if (!TryResolveLoginReturnUrl(ReturnUrl, out var returnUrl))
             {
                 return Unauthorized();
             }
 
-            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnURL));
+            if (forcedProvider == LoginProviders.EntraId
+                || (forcedProvider == null && !_authSettings.CasEnabled))
+            {
+                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl });
+            }
+
+            if (forcedProvider == null && _authSettings.HasProviderChoice)
+            {
+                return RedirectToAction(nameof(Welcome), new { ReturnUrl });
+            }
+
+            var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
 
             return new RedirectResult(authorizationEndpoint);
+        }
+
+        /// <summary>
+        /// Entra ID login -- challenges the OpenID Connect handler, no VIEW
+        /// </summary>
+        [Route("/[action]")]
+        [AllowAnonymous]
+        [SearchExclude]
+        public IActionResult EntraLogin([FromQuery] string? ReturnUrl = null)
+        {
+            if (!_authSettings.EntraIdEnabled)
+            {
+                return NotFound();
+            }
+
+            if (!TryResolveLoginReturnUrl(ReturnUrl, out var returnUrl))
+            {
+                return Unauthorized();
+            }
+
+            // No /CasLogin counterpart is needed: the OIDC handler owns its callback path, carries
+            // RedirectUri through the OAuth state, and redirects there itself once the shared
+            // cookie is issued.
+            return Challenge(
+                new AuthenticationProperties
+                {
+                    RedirectUri = string.IsNullOrEmpty(returnUrl) ? Url.Content("~/") : returnUrl
+                },
+                EntraIdClaimMapper.AuthenticationScheme);
+        }
+
+        // Resolves where to send the user after a successful sign-in, shared by every provider so
+        // the ReturnUrl rules cannot drift between them. Returns false when the target is an /api
+        // path, which must get a 401 rather than be bounced through an interactive login.
+        private bool TryResolveLoginReturnUrl(string? requestedReturnUrl, out string returnUrl)
+        {
+            // Normalize app-relative "~/..." to "/..." before validating, so the /api guard below
+            // cannot be bypassed and we never forward an invalid browser URL to a provider.
+            requestedReturnUrl = NormalizeAppRelativeUrl(requestedReturnUrl);
+
+            if (!IsSafeReturnUrl(requestedReturnUrl))
+            {
+                requestedReturnUrl = null;
+            }
+
+            // The application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
+            // Read from the request rather than derived from GetRootURL(), which now returns the
+            // configured canonical origin and so no longer cancels against the request authority.
+            returnUrl = Request.PathBase.Value ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(requestedReturnUrl))
+            {
+                returnUrl = requestedReturnUrl;
+            }
+
+            // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
+            // "/2/api/..." ReturnUrl can't slip past this root-relative check.
+            var apiCheckUrl = StripPathBase(returnUrl, Request.PathBase.Value);
+            return apiCheckUrl == null || !IsApiPath(apiCheckUrl);
         }
 
         [Route("/[action]")]
@@ -424,6 +512,11 @@ namespace Viper.Controllers
         [SearchExclude]
         public async Task<IActionResult> CasLogin([FromQuery] string? ticket = null, [FromQuery] string? ReturnUrl = null)
         {
+            if (!_authSettings.CasEnabled)
+            {
+                return NotFound();
+            }
+
             return await AuthenticateCasLogin(ticket, ReturnUrl);
         }
 
@@ -544,7 +637,7 @@ namespace Viper.Controllers
         }
 
         /// <summary>
-        /// Logout function -- redirects to CAS logout, no VIEW
+        /// Logout function -- clears the local session then signs out of the provider, no VIEW
         /// </summary>
         /// <returns></returns>
         [Route("/[action]")]
@@ -552,7 +645,39 @@ namespace Viper.Controllers
         public async Task<IActionResult> Logout()
         {
             _userHelper.ClearCachedRolesAndPermissions(_userHelper.GetCurrentUser());
+
+            // Read the provider off the principal before signing out, while the claims still exist.
+            var signedInWithEntraId = string.Equals(
+                User.FindFirst(ClaimTypes.AuthenticationMethod)?.Value,
+                EntraIdClaimMapper.AuthenticationMethod,
+                StringComparison.Ordinal);
+
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            if (signedInWithEntraId)
+            {
+                if (_authSettings.EntraIdEnabled)
+                {
+                    // Federated sign-out. Without it the Entra session outlives the VIPER cookie
+                    // and the next sign-in silently reuses it, which looks like logout did nothing.
+                    return SignOut(
+                        new AuthenticationProperties { RedirectUri = Url.Content("~/") },
+                        EntraIdClaimMapper.AuthenticationScheme);
+                }
+
+                // Entra was switched off while this cookie was still valid, so its handler is no
+                // longer registered and the end_session endpoint is unreachable; the upstream Entra
+                // session has to age out on its own. Falling through to CAS logout would be wrong:
+                // this user never had a CAS session to end.
+                return LocalRedirect("~/");
+            }
+
+            if (!_authSettings.CasEnabled)
+            {
+                // CAS has been switched off, so there is no CAS session left to end. This also
+                // covers a stale CAS cookie still in flight after the cutover.
+                return LocalRedirect("~/");
+            }
 
             // Send homepage link after CAS logout
             var returnUrl = WebUtility.UrlEncode(_publicUrl.BaseUrl);

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -179,6 +179,7 @@ public class HomeControllerCasUrlTests
             Substitute.For<IHttpClientFactory>(),
             Options.Create(new CasSettings { CasBaseUrl = CasBaseUrl }),
             publicUrl,
+            Options.Create(new AuthenticationSettings()),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
             Substitute.For<VIPERContext>(),
