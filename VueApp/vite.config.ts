@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from "vite"
 import plugin from "@vitejs/plugin-vue"
 import Inspector from "vite-plugin-vue-inspector"
 import fs from "node:fs"
+// oxlint-disable-next-line unicorn/import-style
 import path, { resolve } from "node:path"
 // oxlint-disable-next-line import/max-dependencies -- Vite config requires multiple build tool integrations
 import child_process from "node:child_process"
@@ -61,8 +62,8 @@ export default defineConfig(({ mode }) => {
     const viteEnv = loadEnv(mode, path.resolve(process.cwd(), ".."), ["VITE_"])
 
     // Parse port numbers with fallbacks to defaults
-    const vitePort = Number.parseInt(viteEnv.VITE_PORT || process.env.VITE_PORT || "5173", 10)
-    const hmrPort = Number.parseInt(viteEnv.VITE_HMR_PORT || process.env.VITE_HMR_PORT || "24678", 10)
+    const vitePort = Math.trunc(Number(viteEnv.VITE_PORT || process.env.VITE_PORT || "5173"))
+    const hmrPort = Math.trunc(Number(viteEnv.VITE_HMR_PORT || process.env.VITE_HMR_PORT || "24678"))
 
     // Validate port numbers
     if (Number.isNaN(vitePort) || vitePort < 1 || vitePort > MAX_PORT) {
@@ -173,6 +174,7 @@ export default defineConfig(({ mode }) => {
                     clinicalscheduler: resolve(import.meta.dirname, "src/ClinicalScheduler/index.html"),
                     effort: resolve(import.meta.dirname, "src/Effort/index.html"),
                     eval: resolve(import.meta.dirname, "src/Eval/index.html"),
+                    personnel: resolve(import.meta.dirname, "src/Personnel/index.html"),
                 },
                 output: {
                     manualChunks(id) {
