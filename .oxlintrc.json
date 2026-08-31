@@ -142,6 +142,8 @@
                 "no-console": "off",
                 "no-void": "off",
                 "no-implicit-globals": "off",
+                "import/no-commonjs": "off",
+                "no-require-imports": "off", // Build scripts are CommonJS by design, not ESM
                 "import/no-nodejs-modules": "off",
                 "import/no-default-export": "off",
                 "import/no-named-export": "off", // lib/ modules export helper sets by name

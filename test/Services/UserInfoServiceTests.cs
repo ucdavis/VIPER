@@ -13,8 +13,25 @@ using Viper.Models.Courses;
 
 namespace Viper.test.Services
 {
+    [Collection("HttpHelper static state")]
     public class UserInfoServiceTests
     {
+        private static readonly UserInfoViewPermissions AllPermissions = new()
+        {
+            IsOwnPage = true,
+            CanViewDirectoryDetail = true,
+            CanViewStudentID = true,
+            CanViewIAM = true,
+            CanViewRoles = true,
+            CanViewUCPath = true,
+            CanViewUCPathDetail = true,
+            CanViewIDCards = true,
+            CanViewKeys = true,
+            CanViewLoans = true,
+            CanViewInstinct = true,
+            CanViewADGroups = true
+        };
+
         private readonly ITestOutputHelper _output;
 
         public UserInfoServiceTests(ITestOutputHelper output)
@@ -165,7 +182,7 @@ namespace Viper.test.Services
             UserInfoResult? result;
             try
             {
-                result = await userInfoService.GetUserInfoAsync("99999999", "88888888");
+                result = await userInfoService.GetUserInfoAsync("99999999", "88888888", AllPermissions);
             }
             finally
             {

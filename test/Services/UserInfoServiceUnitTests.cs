@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Net;
 using System.Text;
+using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
@@ -17,8 +18,25 @@ using Viper.Models.Courses;
 
 namespace Viper.test.Services
 {
+    [Collection("HttpHelper static state")]
     public class UserInfoServiceUnitTests
     {
+        private static readonly UserInfoViewPermissions AllPermissions = new()
+        {
+            IsOwnPage = true,
+            CanViewDirectoryDetail = true,
+            CanViewStudentID = true,
+            CanViewIAM = true,
+            CanViewRoles = true,
+            CanViewUCPath = true,
+            CanViewUCPathDetail = true,
+            CanViewIDCards = true,
+            CanViewKeys = true,
+            CanViewLoans = true,
+            CanViewInstinct = true,
+            CanViewADGroups = true
+        };
+
         private readonly IMemoryCache _memoryCache;
         private readonly IConfiguration _configuration;
 
@@ -103,7 +121,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("non-existent-iam", "non-existent-mothra");
+            var result = await service.GetUserInfoAsync("non-existent-iam", "non-existent-mothra", AllPermissions);
 
             // Assert
             Assert.Null(result);
@@ -133,7 +151,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-123", null);
+            var result = await service.GetUserInfoAsync("iam-123", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -200,7 +218,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-emp", null);
+            var result = await service.GetUserInfoAsync("iam-emp", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -271,7 +289,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-cards", null);
+            var result = await service.GetUserInfoAsync("iam-cards", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -334,7 +352,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-keys", null);
+            var result = await service.GetUserInfoAsync("iam-keys", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -404,7 +422,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-loans", null);
+            var result = await service.GetUserInfoAsync("iam-loans", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -491,7 +509,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-raps", null);
+            var result = await service.GetUserInfoAsync("iam-raps", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -590,7 +608,7 @@ namespace Viper.test.Services
             var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             // Act
-            var result = await service.GetUserInfoAsync("iam-caller", null);
+            var result = await service.GetUserInfoAsync("iam-caller", null, AllPermissions);
 
             // Assert
             Assert.NotNull(result);
@@ -673,7 +691,7 @@ namespace Viper.test.Services
             HttpHelper.Configure(_memoryCache, _configuration, mockEnv, null, null, null, null);
             try
             {
-                var result = await service.GetUserInfoAsync("iam-inst", null);
+                var result = await service.GetUserInfoAsync("iam-inst", null, AllPermissions);
 
                 Assert.NotNull(result);
                 Assert.Null(result.InstinctInfo?.ErrorMessage);

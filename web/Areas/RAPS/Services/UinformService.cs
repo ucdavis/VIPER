@@ -212,7 +212,7 @@ namespace Viper.Areas.RAPS.Services
                 // Every request would fail auth without credentials; skip the doomed
                 // call so unit tests and unconfigured environments don't hit the live
                 // uInform host (Dev/test have no key pair configured).
-                if (Interlocked.Exchange(ref _missingCredentialsLogged, 1) == 0)
+                if (TryMarkMissingCredentialsLogged())
                 {
                     _logger.Warn("uInform request skipped: Credentials:uInformPublicKey/uInformPrivateKey are not configured.");
                 }
@@ -262,6 +262,13 @@ namespace Viper.Areas.RAPS.Services
 
             return uInformResponse;
         }
+
+        /// <summary>
+        /// Atomically marks the missing-credentials warning as logged. Returns true
+        /// only for the caller that flips it, so the warning is emitted once.
+        /// </summary>
+        private static bool TryMarkMissingCredentialsLogged() =>
+            Interlocked.Exchange(ref _missingCredentialsLogged, 1) == 0;
 
         private static string GetAuthSignature(HttpMethod method, string publicKey, int epochTime)
         {

@@ -45,6 +45,11 @@ namespace Viper.Areas.Directory.Models
         // Student Information
         public string? StudentPriorName { get; set; }
         public string? StudentBannerId { get; set; }
+        /// <summary>
+        /// Non-empty when the student has a FERPA confidentiality hold. Gates directory-identifying
+        /// student fields (prior name, Banner ID, majors) in the view - see UserInfo.cshtml.
+        /// </summary>
+        public string? StudentConfidentialScope { get; set; }
         public string? StudentStatus { get; set; }
         public string? StudentPrimaryMajor { get; set; }
         public string? StudentAllMajors { get; set; }
@@ -85,19 +90,11 @@ namespace Viper.Areas.Directory.Models
 
         // UC Path Information
         public List<string> UCPathFlags { get; set; } = new List<string>();
-        public string? UCPathJobCode { get; set; }
-        public string? UCPathJobDescription { get; set; }
-        public string? UCPathDepartmentId { get; set; }
-        public string? UCPathDepartmentDescription { get; set; }
-        public string? UCPathJobStatus { get; set; }
-        public string? UCPathEmployeeStatus { get; set; }
-        public string? UCPathJobStatusDescription { get; set; }
-        public DateTime? UCPathPositionEffectiveDate { get; set; }
-        public DateTime? UCPathExpectedEndDate { get; set; }
-        public decimal? UCPathFTE { get; set; }
-        public string? UCPathUnion { get; set; }
-        public string? UCPathReportsToName { get; set; }
-        public string? UCPathReportsToPosition { get; set; }
+        /// <summary>
+        /// A person can hold more than one concurrent UC Path position (e.g. appointments in
+        /// two departments); this lists all of them, not just the most recently effective one.
+        /// </summary>
+        public List<UCPathPositionResult> UCPathPositions { get; set; } = new List<UCPathPositionResult>();
         public List<UCPathResult> UCPathHistory { get; set; } = new List<UCPathResult>();
 
         // ID Cards, Keys, Loans
@@ -137,6 +134,33 @@ namespace Viper.Areas.Directory.Models
         public bool IsOwnPage { get; set; }
         public bool ShowPhoneLinks { get; set; }
         public bool HasAltPhoto { get; set; }
+
+        /// <summary>
+        /// Names of sections that failed to load (e.g. a SIS or UCPath outage) and so may be
+        /// showing incomplete data. Populated by the Populate*Async methods on UserInfoService.
+        /// </summary>
+        public List<string> UnavailableSections { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Permission flags for the requesting user, computed by the controller before the fetch
+    /// so UserInfoService can skip populating sections the requester isn't allowed to see,
+    /// rather than fetching everything and only gating the view.
+    /// </summary>
+    public class UserInfoViewPermissions
+    {
+        public bool IsOwnPage { get; set; }
+        public bool CanViewDirectoryDetail { get; set; }
+        public bool CanViewStudentID { get; set; }
+        public bool CanViewIAM { get; set; }
+        public bool CanViewRoles { get; set; }
+        public bool CanViewUCPath { get; set; }
+        public bool CanViewUCPathDetail { get; set; }
+        public bool CanViewIDCards { get; set; }
+        public bool CanViewKeys { get; set; }
+        public bool CanViewLoans { get; set; }
+        public bool CanViewInstinct { get; set; }
+        public bool CanViewADGroups { get; set; }
     }
 
     public class SystemRole

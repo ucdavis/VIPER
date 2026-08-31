@@ -263,17 +263,13 @@ try
     RegisterDbContext<PhonesDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
     RegisterDbContext<EvalDbContext>("Eval");
-    RegisterDbContext<EquipmentLoanContext>("VIPER");
-    RegisterDbContext<IDCardsContext>("VIPER");
-    RegisterDbContext<KeysContext>("VIPER");
-    RegisterDbContext<PPSContext>("VIPER");
-
-    // Add HttpClient support
-    builder.Services.AddHttpClient();
 
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
-    builder.Services.AddScoped<Viper.Areas.Directory.Services.UserInfoService>();
+
+    // UserInfo feature: its EF contexts (equipment loans, ID cards, keys, PPS),
+    // HttpClient factory, and service. See UserInfoServiceCollectionExtensions.
+    builder.AddUserInfoServices(enableDetailedErrors);
 
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();

@@ -84,9 +84,11 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
-        /// Get user information by iamid or mothraid
+        /// Get user information by iamid or mothraid. Only populates the sections the requester
+        /// is permitted to see, per <paramref name="permissions"/> - permissions gate the fetch
+        /// itself, not just what the view renders.
         /// </summary>
-        public async Task<UserInfoResult?> GetUserInfoAsync(string? iamId, string? mothraId)
+        public async Task<UserInfoResult?> GetUserInfoAsync(string? iamId, string? mothraId, UserInfoViewPermissions permissions)
         {
             UserInfoResult? result = null;
 
@@ -107,23 +109,62 @@ namespace Viper.Areas.Directory.Services
                 return null;
             }
 
-            var individual = await _aaudContext.AaudUsers.FirstOrDefaultAsync(u => (u.MothraId == result.MothraId));
+            result.IsOwnPage = permissions.IsOwnPage;
+            result.CanViewDirectoryDetail = permissions.CanViewDirectoryDetail;
+            result.CanViewStudentID = permissions.CanViewStudentID;
+            result.CanViewIAM = permissions.CanViewIAM;
+            result.CanViewRoles = permissions.CanViewRoles;
+            result.CanViewUCPath = permissions.CanViewUCPath;
+            result.CanViewUCPathDetail = permissions.CanViewUCPathDetail;
+            result.CanViewIDCards = permissions.CanViewIDCards;
+            result.CanViewKeys = permissions.CanViewKeys;
+            result.CanViewLoans = permissions.CanViewLoans;
+            result.CanViewInstinct = permissions.CanViewInstinct;
+            result.CanViewADGroups = permissions.CanViewADGroups;
 
-            // Populate additional information
-            await PopulateDirectoryInfoAsync(result);
-            await PopulateEmployeeInfoAsync(result);
-            await PopulateStudentInfoAsync(result);
-            await PopulateIamInfoAsync(result);
-            await PopulateSystemRolesAsync(result);
-            await PopulateUCPathInfoAsync(result);
-            await PopulateIDCardsAsync(result);
-            await PopulateKeysAsync(result);
-            await PopulateLoansAsync(result);
-            if (individual != null)
+            // Populate only the sections this requester is permitted to see.
+            if (permissions.CanViewDirectoryDetail)
             {
-                await PopulateInstinctInfoAsync(result, individual);
+                await PopulateDirectoryInfoAsync(result);
+                await PopulateEmployeeInfoAsync(result);
+                await PopulateStudentInfoAsync(result);
             }
-            await PopulateActiveDirectoryInfoAsync(result);
+            if (permissions.CanViewIAM)
+            {
+                await PopulateIamInfoAsync(result);
+            }
+            if (permissions.CanViewRoles)
+            {
+                await PopulateSystemRolesAsync(result);
+            }
+            if (permissions.CanViewUCPath)
+            {
+                await PopulateUCPathInfoAsync(result);
+            }
+            if (permissions.CanViewIDCards)
+            {
+                await PopulateIDCardsAsync(result);
+            }
+            if (permissions.CanViewKeys)
+            {
+                await PopulateKeysAsync(result);
+            }
+            if (permissions.CanViewLoans)
+            {
+                await PopulateLoansAsync(result);
+            }
+            if (permissions.CanViewInstinct)
+            {
+                var individual = await _aaudContext.AaudUsers.AsNoTracking().FirstOrDefaultAsync(u => (u.MothraId == result.MothraId));
+                if (individual != null)
+                {
+                    await PopulateInstinctInfoAsync(result, individual);
+                }
+            }
+            if (permissions.CanViewADGroups)
+            {
+                await PopulateActiveDirectoryInfoAsync(result);
+            }
 
             return result;
         }
@@ -139,6 +180,7 @@ namespace Viper.Areas.Directory.Services
                 var currentTerms = await GetCurrentTermsAsync();
 
                 var user = await _aaudContext.AaudUsers
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.IamId == iamId);
 
                 if (user == null)
@@ -165,6 +207,7 @@ namespace Viper.Areas.Directory.Services
                 var currentTerms = await GetCurrentTermsAsync();
 
                 var user = await _aaudContext.AaudUsers
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.MothraId == mothraId);
 
                 if (user == null)
@@ -249,6 +292,19 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
+        /// Logs a section failure and records it on the result so the view can show a
+        /// partial-data notice instead of silently rendering an incomplete page.
+        /// </summary>
+        private void RecordSectionFailure(UserInfoResult result, string section, Exception ex, string logMessage)
+        {
+            _logger.LogWarning(ex, logMessage);
+            if (!result.UnavailableSections.Contains(section))
+            {
+                result.UnavailableSections.Add(section);
+            }
+        }
+
+        /// <summary>
         /// get data from LDAP/VMACS
         /// </summary>
 #pragma warning disable CA1416 // Validate platform compatibility
@@ -268,7 +324,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is NullReferenceException || ex is PlatformNotSupportedException || ex is System.DirectoryServices.DirectoryServicesCOMException || ex is System.DirectoryServices.Protocols.DirectoryException)
             {
-                _logger.LogWarning(ex, "PopulateDirectoryInfoAsync LDAP failed");
+                RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync LDAP failed");
             }
 #pragma warning restore CA1416
 
@@ -284,7 +340,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "PopulateDirectoryInfoAsync VMACS failed");
+                RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync VMACS failed");
             }
         }
 
@@ -300,11 +356,13 @@ namespace Viper.Areas.Directory.Services
             {
                 var currentTerms = await GetCurrentTermsAsync();
                 var aaudUser = await _aaudContext.AaudUsers
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.EmployeeId == result.EmployeeId);
 
                 if (aaudUser?.EmployeePKey != null)
                 {
                     var employee = await _aaudContext.Employees
+                        .AsNoTracking()
                         .FirstOrDefaultAsync(e => e.EmpPKey == aaudUser.EmployeePKey && currentTerms.Contains(e.EmpTermCode));
 
                     if (employee != null)
@@ -326,6 +384,7 @@ namespace Viper.Areas.Directory.Services
                         if (deptCodes.Count > 0)
                         {
                             var deptRows = await _aaudContext.LdapDepartments
+                                .AsNoTracking()
                                 .Where(d => d.LdapDeptCode != null && deptCodes.Contains(d.LdapDeptCode))
                                 .ToListAsync();
 
@@ -343,7 +402,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "PopulateEmployeeInfoAsync failed");
+                RecordSectionFailure(result, "Employee Information", ex, "PopulateEmployeeInfoAsync failed");
             }
         }
 
@@ -358,34 +417,35 @@ namespace Viper.Areas.Directory.Services
             try
             {
                 // Get current term for the student
-                var currentTerm = await GetCurrentOrFutureTermForStudentAsync(result.Pidm);
+                var currentTerm = await GetCurrentOrFutureTermForStudentAsync(result, result.Pidm);
 
                 // Get basic student information (non-term dependent)
-                result.StudentPriorName = await GetStudentPriorNamesAsync(result.Pidm);
-                result.StudentBannerId = await GetStudentBannerIdAsync(result.Pidm);
+                result.StudentConfidentialScope = await GetStudentConfidentialScopeAsync(result, result.Pidm);
+                result.StudentPriorName = await GetStudentPriorNamesAsync(result, result.Pidm);
+                result.StudentBannerId = await GetStudentBannerIdAsync(result, result.Pidm);
 
                 if (!string.IsNullOrEmpty(currentTerm))
                 {
                     // Get term-dependent information
-                    result.StudentStatus = await GetStudentStatusAsync(currentTerm, result.Pidm);
-                    result.StudentRegistrationStatus = await GetStudentRegistrationStatusAsync(currentTerm, result.Pidm);
-                    result.StudentPrimaryMajor = await GetStudentMajorAsync(currentTerm, result.Pidm);
-                    result.StudentAllMajors = await GetStudentAllMajorsAsync(currentTerm, result.Pidm);
-                    result.StudentClassLevel = await GetStudentClassLevelAsync(currentTerm, result.Pidm);
-                    result.StudentClassOf = await GetStudentClassOfAsync(currentTerm, result.Pidm);
+                    result.StudentStatus = await GetStudentStatusAsync(result, currentTerm, result.Pidm);
+                    result.StudentRegistrationStatus = await GetStudentRegistrationStatusAsync(result, currentTerm, result.Pidm);
+                    result.StudentPrimaryMajor = await GetStudentMajorAsync(result, currentTerm, result.Pidm);
+                    result.StudentAllMajors = await GetStudentAllMajorsAsync(result, currentTerm, result.Pidm);
+                    result.StudentClassLevel = await GetStudentClassLevelAsync(result, currentTerm, result.Pidm);
+                    result.StudentClassOf = await GetStudentClassOfAsync(result, currentTerm, result.Pidm);
                 }
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
                 // Exceptions during student info retrieval are caught and ignored to allow other directory details to load.
-                _logger.LogWarning(ex, "PopulateStudentInfoAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "PopulateStudentInfoAsync failed");
             }
         }
 
         /// <summary>
         /// Get current or future term for student - equivalent to getCurrentOrFutureTermForUser in SIS.cfc
         /// </summary>
-        private async Task<string?> GetCurrentOrFutureTermForStudentAsync(string pidm)
+        private async Task<string?> GetCurrentOrFutureTermForStudentAsync(UserInfoResult result, string pidm)
         {
             try
             {
@@ -406,7 +466,28 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetCurrentOrFutureTermForStudentAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetCurrentOrFutureTermForStudentAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student FERPA confidentiality scope - equivalent to getConfidentialScope in SIS.cfc.
+        /// A non-null/non-empty result means the student has a confidentiality hold.
+        /// </summary>
+        private async Task<string?> GetStudentConfidentialScopeAsync(UserInfoResult result, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<ConfidentialScopeResult>("EXEC usp_sis_getConfidentialScope @Pidm = {0}", pidm)
+                    .ToListAsync();
+
+                return rows.FirstOrDefault()?.ZtvconfDesc;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentConfidentialScopeAsync failed");
                 return null;
             }
         }
@@ -414,7 +495,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student prior names - equivalent to getPriorName in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentPriorNamesAsync(string pidm)
+        private async Task<string?> GetStudentPriorNamesAsync(UserInfoResult result, string pidm)
         {
             try
             {
@@ -436,7 +517,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentPriorNamesAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentPriorNamesAsync failed");
                 return null;
             }
         }
@@ -444,7 +525,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student Banner ID - equivalent to getBannerID in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentBannerIdAsync(string pidm)
+        private async Task<string?> GetStudentBannerIdAsync(UserInfoResult result, string pidm)
         {
             try
             {
@@ -452,12 +533,12 @@ namespace Viper.Areas.Directory.Services
                     .SqlQueryRaw<BannerIdResult>("EXEC usp_sis_getBannerID @pidm = {0}", pidm)
                     .ToListAsync();
 
-                var result = rows.FirstOrDefault();
-                return result?.SpridenId;
+                var bannerId = rows.FirstOrDefault();
+                return bannerId?.SpridenId;
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentBannerIdAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentBannerIdAsync failed");
                 return null;
             }
         }
@@ -465,7 +546,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student status for term - equivalent to getStudentStatus in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentStatusAsync(string termCode, string pidm)
+        private async Task<string?> GetStudentStatusAsync(UserInfoResult result, string termCode, string pidm)
         {
             try
             {
@@ -473,13 +554,13 @@ namespace Viper.Areas.Directory.Services
                     .SqlQueryRaw<StudentStatusResult>("EXEC usp_sis_getStudentStatus @thisTermCode = {0}, @thispidm = {1}", termCode, pidm)
                     .ToListAsync();
 
-                var result = rows.FirstOrDefault();
+                var status = rows.FirstOrDefault();
 
-                return result?.RegStatus;
+                return status?.RegStatus;
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentStatusAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentStatusAsync failed");
                 return null;
             }
         }
@@ -487,19 +568,19 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student registration status - equivalent to getRegStatus in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentRegistrationStatusAsync(string termCode, string pidm)
+        private async Task<string?> GetStudentRegistrationStatusAsync(UserInfoResult result, string termCode, string pidm)
         {
             try
             {
-                var result = await _sisContext.Database
+                var regStatus = await _sisContext.Database
                     .SqlQueryRaw<RegistrationStatusResult>("EXEC usp_sis_getCurrentRegStatus @termCode = {0}, @pidm = {1}", termCode, pidm)
                     .ToListAsync();
 
-                return result.Any() ? "Yes" : "No";
+                return regStatus.Any() ? "Yes" : "No";
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentRegistrationStatusAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentRegistrationStatusAsync failed");
                 return "No";
             }
         }
@@ -507,7 +588,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student primary major - equivalent to getMajor in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentMajorAsync(string termCode, string pidm)
+        private async Task<string?> GetStudentMajorAsync(UserInfoResult result, string termCode, string pidm)
         {
             try
             {
@@ -515,13 +596,13 @@ namespace Viper.Areas.Directory.Services
                     .SqlQueryRaw<MajorResult>("EXEC usp_sis_getMajor @termCode = {0}, @pidm = {1}", termCode, pidm)
                     .ToListAsync();
 
-                var result = rows.FirstOrDefault();
+                var major = rows.FirstOrDefault();
 
-                return result?.SGBSTDN_MAJR_CODE_1;
+                return major?.SGBSTDN_MAJR_CODE_1;
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentMajorAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentMajorAsync failed");
                 return null;
             }
         }
@@ -529,7 +610,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get all student majors - equivalent to getAllMajors in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentAllMajorsAsync(string termCode, string pidm)
+        private async Task<string?> GetStudentAllMajorsAsync(UserInfoResult result, string termCode, string pidm)
         {
             try
             {
@@ -537,15 +618,15 @@ namespace Viper.Areas.Directory.Services
                     .SqlQueryRaw<AllMajorsResult>("EXEC usp_sis_getAllMajors @termCode = {0}, @pidm = {1}", termCode, pidm)
                     .ToListAsync();
 
-                var result = rows.FirstOrDefault();
+                var allMajors = rows.FirstOrDefault();
 
-                if (result != null)
+                if (allMajors != null)
                 {
                     var majors = new List<string>();
-                    if (!string.IsNullOrEmpty(result.SGBSTDN_MAJR_CODE_1))
-                        majors.Add(result.SGBSTDN_MAJR_CODE_1);
-                    if (!string.IsNullOrEmpty(result.SGBSTDN_MAJR_CODE_2))
-                        majors.Add(result.SGBSTDN_MAJR_CODE_2);
+                    if (!string.IsNullOrEmpty(allMajors.SGBSTDN_MAJR_CODE_1))
+                        majors.Add(allMajors.SGBSTDN_MAJR_CODE_1);
+                    if (!string.IsNullOrEmpty(allMajors.SGBSTDN_MAJR_CODE_2))
+                        majors.Add(allMajors.SGBSTDN_MAJR_CODE_2);
 
                     return string.Join(", ", majors);
                 }
@@ -554,7 +635,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentAllMajorsAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentAllMajorsAsync failed");
                 return null;
             }
         }
@@ -562,7 +643,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student class level - equivalent to getClassLevel in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentClassLevelAsync(string termCode, string pidm)
+        private async Task<string?> GetStudentClassLevelAsync(UserInfoResult result, string termCode, string pidm)
         {
             try
             {
@@ -570,13 +651,13 @@ namespace Viper.Areas.Directory.Services
                     .SqlQueryRaw<ClassLevelResult>("EXEC usp_sis_getClassLevel @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
                     .ToListAsync();
 
-                var result = rows.FirstOrDefault();
+                var classLevel = rows.FirstOrDefault();
 
-                return result?.SgvclssClasCode;
+                return classLevel?.SgvclssClasCode;
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentClassLevelAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentClassLevelAsync failed");
                 return null;
             }
         }
@@ -584,7 +665,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get student class of year - equivalent to getClassOf in SIS.cfc
         /// </summary>
-        private async Task<string?> GetStudentClassOfAsync(string termCode, string pidm)
+        private async Task<string?> GetStudentClassOfAsync(UserInfoResult result, string termCode, string pidm)
         {
             try
             {
@@ -607,7 +688,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "GetStudentClassOfAsync failed");
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentClassOfAsync failed");
                 return null;
             }
         }
@@ -672,7 +753,7 @@ namespace Viper.Areas.Directory.Services
             catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
                 // Log exception but don't fail the entire request
-                _logger.LogWarning(ex, "IAM API request failed");
+                RecordSectionFailure(result, "IAM Information", ex, "IAM API request failed");
             }
         }
 
@@ -685,6 +766,7 @@ namespace Viper.Areas.Directory.Services
 
             // Query tblRoleMembers and join tblRoles for this user
             var roleMembers = await _rapsContext.TblRoleMembers
+                .AsNoTracking()
                 .Include(rm => rm.Role)
                 .Where(rm => rm.MemberId == result.MothraId && rm.ViewName == null)
                 .ToListAsync();
@@ -737,6 +819,7 @@ namespace Viper.Areas.Directory.Services
                 join role in _rapsContext.TblRoles
                     on memberRole.RoleId equals role.RoleId
                 where memberRole.MemberId == memberId
+                && permission.Permission.StartsWith(systemPrefix)
                 && (memberRole.StartDate == null || memberRole.StartDate <= DateTime.Today)
                 && (memberRole.EndDate == null || memberRole.EndDate >= DateTime.Today)
                 select new
@@ -745,12 +828,13 @@ namespace Viper.Areas.Directory.Services
                     permission.Permission,
                     rolePermissions.Access,
                     role.Role
-                }).ToListAsync();
+                }).AsNoTracking().ToListAsync();
 
             var permsAssigned = await (from permission in _rapsContext.TblPermissions
                                        join memberPermissions in _rapsContext.TblMemberPermissions
                                            on permission.PermissionId equals memberPermissions.PermissionId
                                        where memberPermissions.MemberId == memberId
+                                       && permission.Permission.StartsWith(systemPrefix)
                                        && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
                                        && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
                                        select new
@@ -758,7 +842,7 @@ namespace Viper.Areas.Directory.Services
                                            permission.PermissionId,
                                            permission.Permission,
                                            memberPermissions.Access
-                                       }).ToListAsync();
+                                       }).AsNoTracking().ToListAsync();
 
             var permissions = new Dictionary<int, PermissionInfo>();
 
@@ -819,9 +903,9 @@ namespace Viper.Areas.Directory.Services
                 }
             }
 
-            // Filter to only allowed permissions starting with the systemPrefix, sorted by name
+            // systemPrefix is already applied in the queries above; only the access check remains.
             return permissions.Values
-                .Where(p => p.Access == "1" && p.Permission.StartsWith(systemPrefix))
+                .Where(p => p.Access == "1")
                 .OrderBy(p => p.Permission)
                 .ToList();
         }
@@ -849,6 +933,7 @@ namespace Viper.Areas.Directory.Services
             {
                 // Get UC Path person information
                 var person = await _ppsContext.VwPeople
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Emplid == result.EmployeeId);
 
                 if (person != null)
@@ -856,43 +941,51 @@ namespace Viper.Areas.Directory.Services
                     result.UCPathFlags = GetUCPathFlags(person);
                 }
 
-                // Get UC Path position information
-                var position = await _ppsContext.VwPersonJobPositions
+                // Get UC Path position information. A person can hold more than one concurrent
+                // position (e.g. appointments in two departments), so fetch all of them rather
+                // than just the one with the latest effective date.
+                var positions = await _ppsContext.VwPersonJobPositions
+                    .AsNoTracking()
                     .Where(p => p.Emplid == result.EmployeeId)
                     .OrderByDescending(p => p.Effdt)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
-                if (position != null)
+                var reportsToIds = positions
+                    .Select(p => p.ReportsTo)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!)
+                    .Distinct()
+                    .ToList();
+
+                var reportsToLookup = await BuildReportsToLookupAsync(reportsToIds);
+
+                result.UCPathPositions = positions.Select(position =>
                 {
-                    result.UCPathJobCode = position.Jobcode;
-                    result.UCPathJobDescription = position.JobcodeDesc;
-                    result.UCPathDepartmentId = position.Deptid;
-                    result.UCPathDepartmentDescription = position.DeptDesc;
-                    result.UCPathJobStatus = position.JobStatus;
-                    result.UCPathEmployeeStatus = position.EmplStatus;
-                    result.UCPathJobStatusDescription = position.JobStatusDesc;
-                    result.UCPathPositionEffectiveDate = position.PositionEffdt;
-                    result.UCPathExpectedEndDate = position.ExpectedEndDate;
-                    result.UCPathFTE = position.Fte;
-                    result.UCPathUnion = position.UnionCd;
+                    var reportsTo = !string.IsNullOrEmpty(position.ReportsTo) && reportsToLookup.TryGetValue(position.ReportsTo, out var match)
+                        ? match
+                        : (Name: string.Empty, Position: string.Empty);
 
-                    // Get reports to information
-                    if (!string.IsNullOrEmpty(position.ReportsTo))
+                    return new UCPathPositionResult
                     {
-                        var reportsTo = await _ppsContext.VwPersonJobPositions
-                            .FirstOrDefaultAsync(r => r.PositionNbr == position.ReportsTo);
-
-                        if (reportsTo != null)
-                        {
-                            result.UCPathReportsToName = $"{reportsTo.FirstName} {reportsTo.LastName}".Trim();
-                            result.UCPathReportsToPosition = reportsTo.JobcodeDesc;
-                        }
-                    }
-                }
+                        JobCode = position.Jobcode,
+                        JobDescription = position.JobcodeDesc,
+                        DepartmentId = position.Deptid,
+                        DepartmentDescription = position.DeptDesc,
+                        JobStatus = position.JobStatus,
+                        EmployeeStatus = position.EmplStatus,
+                        JobStatusDescription = position.JobStatusDesc,
+                        PositionEffectiveDate = position.PositionEffdt,
+                        ExpectedEndDate = position.ExpectedEndDate,
+                        FTE = position.Fte,
+                        Union = position.UnionCd,
+                        ReportsToName = reportsTo.Name,
+                        ReportsToPosition = reportsTo.Position
+                    };
+                }).ToList();
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "PopulateUCPathInfoAsync failed");
+                RecordSectionFailure(result, "UC Path", ex, "PopulateUCPathInfoAsync failed");
             }
 
             // Get UC Path History from the VwPersonJobPositionAll view
@@ -910,6 +1003,7 @@ namespace Viper.Areas.Directory.Services
             try
             {
                 var historyData = await _ppsContext.VwPersonJobPositionAlls
+                    .AsNoTracking()
                     .Where(p => p.Emplid == result.EmployeeId)
                     .OrderByDescending(p => p.PositionEffdt)
                     .ThenByDescending(p => p.Effdt)
@@ -947,7 +1041,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "PopulateUCPathHistoryAsync failed");
+                RecordSectionFailure(result, "UC Path History", ex, "PopulateUCPathHistoryAsync failed");
             }
         }
 
@@ -962,30 +1056,26 @@ namespace Viper.Areas.Directory.Services
                 return lookup;
 
             var historyRows = await _ppsContext.VwPersonJobPositionAlls
+                .AsNoTracking()
                 .Where(r => r.PositionNbr != null && EF.Parameter(positionNbrs).Contains(r.PositionNbr))
                 .ToListAsync();
 
-            foreach (var row in historyRows)
+            foreach (var row in historyRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
             {
-                if (row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr))
-                {
-                    lookup[row.PositionNbr] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
-                }
+                lookup[row.PositionNbr!] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
             }
 
             var missingIds = positionNbrs.Where(id => !lookup.ContainsKey(id)).ToList();
             if (missingIds.Count > 0)
             {
                 var currentRows = await _ppsContext.VwPersonJobPositions
+                    .AsNoTracking()
                     .Where(r => r.PositionNbr != null && EF.Parameter(missingIds).Contains(r.PositionNbr))
                     .ToListAsync();
 
-                foreach (var row in currentRows)
+                foreach (var row in currentRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
                 {
-                    if (row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr))
-                    {
-                        lookup[row.PositionNbr] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
-                    }
+                    lookup[row.PositionNbr!] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
                 }
             }
 
@@ -1013,7 +1103,7 @@ namespace Viper.Areas.Directory.Services
                                        Card = card,
                                        StatusDescription = status != null ? status.DvtStatusDesc : "",
                                        DeactivatedReasonDescription = reason != null ? reason.DvtReasonDesc : ""
-                                   }).ToListAsync();
+                                   }).AsNoTracking().ToListAsync();
 
                 foreach (var item in cards)
                 {
@@ -1034,7 +1124,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "PopulateIDCardsAsync failed");
+                RecordSectionFailure(result, "ID Cards", ex, "PopulateIDCardsAsync failed");
             }
         }
 
@@ -1050,13 +1140,28 @@ namespace Viper.Areas.Directory.Services
                                             where ka.AssignedTo == result.MothraId && ka.Deleted == null
                                             orderby ka.IssuedDate descending, ka.KeyId
                                             select new { Assignment = ka, Key = k })
+                                            .AsNoTracking()
                                             .ToListAsync();
+
+                var issuerIds = keyAssignments
+                    .Select(item => item.Assignment.IssuedBy)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!)
+                    .Distinct()
+                    .ToList();
+
+                var issuerNames = issuerIds.Count > 0
+                    ? await _aaudContext.AaudUsers
+                        .AsNoTracking()
+                        .Where(u => issuerIds.Contains(u.MothraId))
+                        .ToDictionaryAsync(u => u.MothraId, u => u.DisplayFullName)
+                    : new Dictionary<string, string>();
 
                 foreach (var item in keyAssignments)
                 {
-                    // Get issuer information from AAUD
-                    var issuer = await _aaudContext.AaudUsers
-                        .FirstOrDefaultAsync(u => u.MothraId == item.Assignment.IssuedBy);
+                    var issuerName = item.Assignment.IssuedBy != null && issuerNames.TryGetValue(item.Assignment.IssuedBy, out var name)
+                        ? name
+                        : null;
 
                     result.Keys.Add(new KeyResult
                     {
@@ -1064,13 +1169,13 @@ namespace Viper.Areas.Directory.Services
                         KeyNumber = item.Key.KeyNumber,
                         CutNumber = item.Assignment.CutNumber,
                         IssuedDate = item.Assignment.IssuedDate,
-                        IssuedBy = issuer?.DisplayFullName
+                        IssuedBy = issuerName
                     });
                 }
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "PopulateKeysAsync failed");
+                RecordSectionFailure(result, "Keys Assigned", ex, "PopulateKeysAsync failed");
             }
         }
 
@@ -1082,6 +1187,7 @@ namespace Viper.Areas.Directory.Services
             try
             {
                 var loans = await _equipmentLoanContext.Loans
+                    .AsNoTracking()
                     .Where(l => l.LoanPidm == result.Pidm)
                     .Include(l => l.LoanItems)
                     .ThenInclude(li => li.LoanitemAsset)
@@ -1104,15 +1210,15 @@ namespace Viper.Areas.Directory.Services
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogWarning(ex, "PopulateLoansAsync failed");
+                RecordSectionFailure(result, "Loaner Equipment", ex, "PopulateLoansAsync failed");
             }
             catch (DbException ex)
             {
-                _logger.LogWarning(ex, "PopulateLoansAsync failed");
+                RecordSectionFailure(result, "Loaner Equipment", ex, "PopulateLoansAsync failed");
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "PopulateLoansAsync failed");
+                RecordSectionFailure(result, "Loaner Equipment", ex, "PopulateLoansAsync failed");
             }
         }
 
@@ -1123,8 +1229,13 @@ namespace Viper.Areas.Directory.Services
         {
             try
             {
-                var instinctResult = await GetInstinctUserAsync(user.LastName, user.FirstName, user.MiddleName);
+                var instinctResult = await GetInstinctUserAsync(user.LastName, user.FirstName, user.MiddleName, user.LoginId);
                 result.InstinctInfo = instinctResult;
+
+                if (!string.IsNullOrEmpty(instinctResult.ErrorMessage) && !result.UnavailableSections.Contains("Instinct"))
+                {
+                    result.UnavailableSections.Add("Instinct");
+                }
 
                 if (instinctResult.Valid)
                 {
@@ -1144,6 +1255,7 @@ namespace Viper.Areas.Directory.Services
             catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
                 result.InstinctInfo = new InstinctResult { ErrorMessage = $"Populate Exception: {ex.Message}" };
+                RecordSectionFailure(result, "Instinct", ex, "PopulateInstinctInfoAsync failed");
             }
         }
 
@@ -1232,7 +1344,7 @@ namespace Viper.Areas.Directory.Services
             }
             catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
             {
-                _logger.LogWarning(ex, "Error populating AD info");
+                RecordSectionFailure(result, "Active Directory Group Membership", ex, "Error populating AD info");
             }
         }
 
@@ -1251,7 +1363,7 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Get Instinct user information via GraphQL API
         /// </summary>
-        private async Task<InstinctResult> GetInstinctUserAsync(string lastName, string firstName, string? middleName)
+        private async Task<InstinctResult> GetInstinctUserAsync(string lastName, string firstName, string? middleName, string? expectedUsername)
         {
             var result = new InstinctResult();
 
@@ -1326,7 +1438,11 @@ namespace Viper.Areas.Directory.Services
             }";
 
             // Execute GraphQL query
-            var apiUrl = _configuration["Instinct:ApiUrl"] ?? "https://uc-davis.api.instinctvet.com/";
+            var apiUrl = GetInstinctApiUrl(result);
+            if (apiUrl == null)
+            {
+                return result;
+            }
             var httpClient = _httpClientFactory.CreateClient();
 
             var variablesJson = JsonSerializer.Serialize(new { name = lastName });
@@ -1341,9 +1457,22 @@ namespace Viper.Areas.Directory.Services
 
                 if (graphqlResponse?.Data?.SearchUsers != null)
                 {
-                    bool foundMatch = false;
-                    var matchedUser = graphqlResponse.Data.SearchUsers
-                        .FirstOrDefault(user => nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)));
+                    var candidates = graphqlResponse.Data.SearchUsers
+                        .Where(user => string.Equals(user.NameLast, lastName, StringComparison.OrdinalIgnoreCase)
+                            && nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+
+                    // Same first/last name can match more than one Instinct account. Prefer an exact
+                    // username match to disambiguate; if that doesn't narrow it to one, don't guess -
+                    // assigning the wrong person's account/roles is worse than showing nothing.
+                    InstinctUser? matchedUser = candidates.Count switch
+                    {
+                        0 => null,
+                        1 => candidates[0],
+                        _ when !string.IsNullOrEmpty(expectedUsername) => candidates
+                            .SingleOrDefault(user => string.Equals(user.Username, expectedUsername, StringComparison.OrdinalIgnoreCase)),
+                        _ => null
+                    };
 
                     if (matchedUser != null)
                     {
@@ -1357,9 +1486,12 @@ namespace Viper.Areas.Directory.Services
                             .Where(r => r.Label != null)
                             .Select(r => r.Label!)
                             .ToList() ?? new List<string>();
-                        foundMatch = true;
                     }
-                    if (!foundMatch)
+                    else if (candidates.Count > 1)
+                    {
+                        result.ErrorMessage = $"Multiple Instinct accounts matched {lastName}, {firstName} and could not be disambiguated by username.";
+                    }
+                    else
                     {
                         // Do not include other candidates' names from the search results here -
                         // they belong to unrelated people and would leak into this user's directory page.
@@ -1387,6 +1519,23 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
+        /// Reads the configured Instinct API URL. Fails fast instead of falling back to the
+        /// production host, so a misconfigured dev/test box can't silently hit prod Instinct.
+        /// </summary>
+        private string? GetInstinctApiUrl(InstinctResult result)
+        {
+            var apiUrl = _configuration["Instinct:ApiUrl"];
+            if (string.IsNullOrWhiteSpace(apiUrl))
+            {
+                const string errMsg = "Instinct:ApiUrl is not configured";
+                _logger.LogWarning("Instinct API: {ErrorMessage}", errMsg);
+                AppendError(result, errMsg);
+                return null;
+            }
+            return apiUrl;
+        }
+
+        /// <summary>
         /// OAuth access token for Instinct
         /// </summary>
         private async Task<string?> GetInstinctAccessTokenAsync(InstinctResult result)
@@ -1401,7 +1550,11 @@ namespace Viper.Areas.Directory.Services
 
             try
             {
-                var apiUrl = _configuration["Instinct:ApiUrl"] ?? "https://uc-davis.api.instinctvet.com/";
+                var apiUrl = GetInstinctApiUrl(result);
+                if (apiUrl == null)
+                {
+                    return null;
+                }
                 if (!apiUrl.EndsWith('/'))
                 {
                     apiUrl += "/";
@@ -1442,8 +1595,10 @@ namespace Viper.Areas.Directory.Services
 
                         if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
                         {
-                            // Cache token for slightly less than expiry time (subtract 2 hours as in CF code)
-                            var cacheExpiry = TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 7200); // 2 hours buffer
+                            // Cache token for slightly less than expiry time (subtract 2 hours as in CF code).
+                            // ExpiresIn can be under 2 hours (or absent, defaulting to 0), so clamp to a floor
+                            // instead of handing IMemoryCache.Set a zero/negative TimeSpan, which throws.
+                            var cacheExpiry = TimeSpan.FromSeconds(Math.Max(60, tokenResponse.ExpiresIn - 7200)); // 2 hours buffer
                             _memoryCache.Set(cacheKey, tokenResponse.AccessToken, cacheExpiry);
 
                             return tokenResponse.AccessToken;
@@ -1642,6 +1797,11 @@ namespace Viper.Areas.Directory.Services
     public class ClassLevelResult
     {
         public string? SgvclssClasCode { get; set; }
+    }
+
+    public class ConfidentialScopeResult
+    {
+        public string? ZtvconfDesc { get; set; }
     }
 
     public class AuthDbRecord

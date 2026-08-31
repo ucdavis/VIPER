@@ -4,8 +4,17 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { spawn, spawnSync } from "node:child_process"
+import crossSpawn from "cross-spawn"
 
 const { env } = process
+
+// On Windows, npx resolves to npx.cmd. Node's own spawnSync/spawn refuse to
+// run .cmd/.bat files directly without shell: true (CVE-2024-27980 fix), but
+// shell: true re-tokenizes the whole command line through cmd.exe, breaking
+// file paths with spaces or &. cross-spawn resolves and invokes npx.cmd
+// correctly on Windows (and plain npx elsewhere) without either problem, so
+// oxfmt is spawned through it rather than raw child_process.
+const NPX_COMMAND = "npx"
 
 // Windows command line limit is ~8191 chars. Use a conservative threshold
 // to account for the node executable path and script path overhead.
@@ -214,11 +223,10 @@ function categorizeFiles(files) {
  * @returns {{passed: boolean, failed: string[]}} - Result with pass status and failed files
  */
 function runOxfmtCheckBatch(files) {
-    const result = spawnSync("npx", ["oxfmt", "--check", ...files], {
+    const result = crossSpawn.sync(NPX_COMMAND, ["oxfmt", "--check", ...files], {
         stdio: "pipe",
         cwd: projectRoot,
         encoding: "utf8",
-        shell: true,
     })
 
     if (result.error) {
@@ -267,10 +275,9 @@ function runOxfmtCheck(files, fix) {
         }
 
         if (fix) {
-            const result = spawnSync("npx", ["oxfmt", "--write", ...batch], {
+            const result = crossSpawn.sync(NPX_COMMAND, ["oxfmt", "--write", ...batch], {
                 stdio: "inherit",
                 cwd: projectRoot,
-                shell: true,
             })
             if (result.error || result.status !== 0) {
                 allPassed = false

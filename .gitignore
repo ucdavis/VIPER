@@ -519,7 +519,3 @@ inspect-report/
 
 # Agent folders
 .claude
-
-# Exclude Impeccable skill and hooks
-.github/skills/impeccable/
-.github/hooks/impeccable.json
