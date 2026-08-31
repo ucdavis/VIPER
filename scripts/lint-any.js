@@ -503,12 +503,13 @@ async function main() {
 
     const oxfmtPassed = runOxfmtCheck(oxfmtFiles, shouldFix)
 
+    // Run frontend linters and dotnet linter in parallel
     // Frontend linters run sequentially among themselves (they share .vue files in --fix mode)
-    // and are synchronous, so they finish before the async linters below start.
-    const frontendCode = runFrontendLinters(categories, shouldFix, shouldClearCache)
-
-    // The remaining linters are independent of each other and run concurrently
-    const asyncLinterCodes = await Promise.all([
+    // Dotnet linter is independent and runs concurrently
+    const linterCodes = await Promise.all([
+        // Wrap runFrontendLinters (synchronous) so every element of this
+        // array is actually a Promise (Promise.all previously received a mix).
+        Promise.resolve(runFrontendLinters(categories, shouldFix, shouldClearCache)),
         runLinterAsync(
             "lint-staged-dotnet.js",
             categories.dotnet,
@@ -532,7 +533,7 @@ async function main() {
         ),
     ])
 
-    const maxLinterCode = Math.max(0, frontendCode, ...asyncLinterCodes)
+    const maxLinterCode = Math.max(0, ...linterCodes)
 
     console.log("\n✅ Smart linting complete!")
 
@@ -548,9 +549,7 @@ async function main() {
 }
 
 // oxlint-disable-next-line promise/prefer-await-to-then -- Top-level entry point; async IIFE adds no value
-main().catch(
-    /** @param {unknown} error */ (error) => {
-        console.error("❌ Unexpected error:", error.message)
-        process.exit(1)
-    },
-)
+main().catch((/** @type {unknown} */ error) => {
+    console.error("❌ Unexpected error:", error instanceof Error ? error.message : String(error))
+    process.exit(1)
+})
