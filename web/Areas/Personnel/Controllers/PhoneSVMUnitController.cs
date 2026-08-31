@@ -44,7 +44,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error adding data to SVM unit {UnitId}: {Message}",
                     unitId, LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
@@ -69,7 +69,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error updating data in SVM unit {UnitId}: {Message}",
                     unitId, LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
@@ -96,7 +96,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error deleting SVM list row {EntryId}: {Message}",
                     entryId, LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));

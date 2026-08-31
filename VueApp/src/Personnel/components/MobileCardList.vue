@@ -7,7 +7,7 @@
         <!-- tabindex allows a jump link to land focus here, not just the viewport. -->
         <h2
             :id="anchorId"
-            class="text-h6 q-mt-none q-mb-sm sticky-filter-offset"
+            class="q-mt-none q-mb-sm sticky-filter-offset"
             tabindex="-1"
         >
             {{ title }}

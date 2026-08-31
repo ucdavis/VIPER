@@ -3,10 +3,11 @@ using Riok.Mapperly.Abstractions;
 namespace Viper.Areas.Personnel.Models
 {
     /// <summary>
-    /// Maps the phones entities to the shapes the API returns. Every property an entity has and
-    /// its DTO does not is named in a [MapperIgnoreSource] below, so the omissions are decisions
-    /// rather than oversights and a column added to an entity is a build error here before it can
-    /// become a silent change to the API contract. See PhoneDtos.cs for why the DTOs exist.
+    /// Maps the phones entities to the shapes the API returns. The DTOs are what pin the wire
+    /// shape: a property added to an entity cannot reach a caller unless it is added to the DTO
+    /// too, so the contract never widens by accident. See PhoneDtos.cs for why the DTOs exist.
+    ///
+    /// The [MapperIgnoreSource] attributes below record why each omission is deliberate.
     /// </summary>
     [Mapper(RequiredMappingStrategy = RequiredMappingStrategy.None)]
     public static partial class PersonnelMapper

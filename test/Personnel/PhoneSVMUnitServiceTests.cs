@@ -178,6 +178,45 @@ public sealed class PhoneSVMUnitServiceTests : IDisposable
         Assert.False(staffRow.IsActive);
     }
 
+    /// <summary>
+    /// A staff-keyed id is only the list's row key while the unit has no active leader. A stale
+    /// page can still send one after another maintainer adds a leader, and the staff sweep does
+    /// not run in that case - so without the guard the delete soft-deletes nothing and the UI
+    /// still reports "Record deleted".
+    /// </summary>
+    [Fact]
+    public async Task DeleteUnitRow_Throws_AndChangesNothing_WhenAStaffRowsUnitHasALeaderAgain()
+    {
+        SeedUnit();
+        _context.SVMUnitPerson.Add(new SVMUnitPerson
+        {
+            UnitPersonId = 1,
+            UnitId = 1,
+            PersonIam = "staff01",
+            PosType = "Staff",
+            IsActive = true,
+        });
+        // Added after the stale page rendered its staff-keyed row.
+        _context.SVMUnitPerson.Add(new SVMUnitPerson
+        {
+            UnitPersonId = 2,
+            UnitId = 1,
+            PersonIam = "dean01",
+            PosType = "Dean",
+            IsActive = true,
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.DeleteUnitRow(1, TestContext.Current.CancellationToken));
+
+        Assert.Equal("That record has changed since the page was loaded. Please refresh and try again.", ex.Message);
+
+        // Refused outright rather than half-applied: both rows are still active.
+        Assert.Equal(2, await _context.SVMUnitPerson
+            .CountAsync(p => p.UnitId == 1 && p.IsActive, TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task DeleteUnitRow_LeavesOtherUnitsAlone()
     {

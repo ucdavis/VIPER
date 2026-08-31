@@ -43,7 +43,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error adding a frequently called number: {Message}",
                     LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
@@ -67,7 +67,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error updating frequently called number {EntryId}: {Message}",
                     entryId, LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
@@ -91,7 +91,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error deleting frequently called number {EntryId}: {Message}",
                     entryId, LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));

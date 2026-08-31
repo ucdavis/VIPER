@@ -237,6 +237,93 @@ public sealed class PhoneListUnitServiceTests : IDisposable
             .FirstOrDefaultAsync(p => p.PersonIam == "ghost01", TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// PhonePerson is shared across every list, so keying the write off the request rather than
+    /// the row would let a PUT naming a different real person rewrite that third party's phone,
+    /// direct phone and office - while this row went on showing the person it always named. The
+    /// dialog cannot produce this (its picker is hidden on edit), so it is refused outright.
+    /// </summary>
+    [Fact]
+    public async Task UpdateUnitPersonData_Throws_AndLeavesTheOtherPersonAlone_WhenTheIamIsNotTheRowsOwn()
+    {
+        _context.ViperPerson.Add(new ViperPerson
+        {
+            PersonId = 5,
+            IamId = "other01",
+            FirstName = "Other",
+            LastName = "Person",
+            FullName = "Other Person",
+            CurrentEmployee = true,
+        });
+        _context.PhonePerson.Add(new PhonePerson
+        {
+            PersonIam = "other01",
+            Phone = "530-555-3000",
+            DirectPhone = "530-555-3001",
+            Office = "Room 300",
+        });
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var unitPerson = await _context.PhoneListUnitPerson
+            .SingleAsync(p => p.PersonIam == "listed01" && p.PhoneListUnitId == 1, TestContext.Current.CancellationToken);
+
+        // A real person, so this gets past the existence guard the way the reported case would.
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 1,
+            EmployeeIam = "other01",
+            Phone = "530-555-8000",
+            DirectPhone = "530-555-8001",
+            Office = "Room 800",
+            ListFirst = false,
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.UpdateUnitPersonData(1, unitPerson.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken));
+
+        Assert.Equal("That record is for a different person. Please reload and try again.", ex.Message);
+
+        // The third party keeps every detail they had.
+        var otherPerson = await _context.PhonePerson
+            .SingleAsync(p => p.PersonIam == "other01", TestContext.Current.CancellationToken);
+        Assert.Equal("530-555-3000", otherPerson.Phone);
+        Assert.Equal("530-555-3001", otherPerson.DirectPhone);
+        Assert.Equal("Room 300", otherPerson.Office);
+
+        // And the row's own person is untouched, rather than half-applied.
+        var rowPerson = await _context.PhonePerson
+            .SingleAsync(p => p.PersonIam == "listed01", TestContext.Current.CancellationToken);
+        Assert.Equal("530-555-1000", rowPerson.Phone);
+        Assert.Equal("Room 100", rowPerson.Office);
+    }
+
+    /// <summary>
+    /// The counterpart to the mismatch guard: the IAM the dialog actually sends on an edit is the
+    /// row's own, and that has to keep working.
+    /// </summary>
+    [Fact]
+    public async Task UpdateUnitPersonData_UpdatesThePhoneRow_WhenTheIamMatchesTheRow()
+    {
+        var unitPerson = await _context.PhoneListUnitPerson
+            .SingleAsync(p => p.PersonIam == "listed01" && p.PhoneListUnitId == 1, TestContext.Current.CancellationToken);
+        var request = new PhoneListUnitDataRequest
+        {
+            UnitId = 1,
+            EmployeeIam = "listed01",
+            Phone = "530-555-8000",
+            DirectPhone = "530-555-8001",
+            Office = "Room 800",
+            ListFirst = false,
+        };
+
+        await _service.UpdateUnitPersonData(1, unitPerson.PhoneListUnitPersonId, request, TestContext.Current.CancellationToken);
+
+        var phonePerson = await _context.PhonePerson
+            .SingleAsync(p => p.PersonIam == "listed01", TestContext.Current.CancellationToken);
+        Assert.Equal("530-555-8000", phonePerson.Phone);
+        Assert.Equal("530-555-8001", phonePerson.DirectPhone);
+        Assert.Equal("Room 800", phonePerson.Office);
+    }
+
     [Fact]
     public async Task AddUnitPersonData_CalledTwiceForSamePerson_UpsertsInsteadOfDuplicating()
     {
