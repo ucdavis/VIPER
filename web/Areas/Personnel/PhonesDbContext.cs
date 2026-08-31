@@ -41,7 +41,7 @@ public class PhonesDbContext : DbContext
             entity.Property(e => e.DirectPhone).HasColumnName("DirectPhone").HasMaxLength(25);
             entity.Property(e => e.Office).HasColumnName("Office").HasMaxLength(100);
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
-            entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy");
+            entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy").HasMaxLength(10);
 
             // Cross-schema reference to users.Person.
             // For current employees, largely 1-to-1 but a few duplicate

@@ -8,7 +8,10 @@
         {{ errorMessage }}
     </StatusBanner>
 
-    <template v-if="!loading && !errorMessage">
+    <!-- Not gated on errorMessage: a failed read here still renders whatever arrived, so hiding
+         the filter would leave a full page of sections with no way to search them. The banner
+         above says what was lost. -->
+    <template v-if="!loading">
         <span>Updated {{ formatDate(updatedDate?.toString() ?? "") || "Never" }}</span>
         <PhoneListFilter v-model="search">
             <!-- Read-only only: this page stacks every section at once, which on a phone runs to

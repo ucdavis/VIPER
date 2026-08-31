@@ -182,6 +182,32 @@ describe("sVMPhonesMaintain.vue - load failures", () => {
         expect(banner.text()).toContain("could not be loaded")
     })
 
+    it("still renders the sections that did arrive alongside the banner", async () => {
+        expect.hasAssertions()
+
+        // GetSVMData reports its error when either of its own reads failed, so the sections can be
+        // fully populated next to a banner. That is the premise the filter guard depends on.
+        const wrapper = await mountPage({
+            sections: [sectionWithDeletableRow()],
+            loadError: "The phone list could not be loaded.",
+        })
+
+        expect(wrapper.findComponent({ name: "SVMPhoneSectionTable" }).exists()).toBeTruthy()
+    })
+
+    it("keeps the filter over the sections that did arrive", async () => {
+        expect.hasAssertions()
+
+        const wrapper = await mountPage({
+            sections: [sectionWithDeletableRow()],
+            loadError: "The phone list could not be loaded.",
+        })
+
+        // Gating the filter on the error would leave a full page of sections with no way to search
+        // them. The banner above already says what was lost.
+        expect(wrapper.findComponent({ name: "PhoneListFilter" }).exists()).toBeTruthy()
+    })
+
     it("clears the banner once a later load succeeds", async () => {
         expect.hasAssertions()
         const wrapper = await mountPage({ loadError: "The phone list could not be loaded." })

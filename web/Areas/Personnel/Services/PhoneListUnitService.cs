@@ -171,20 +171,25 @@ namespace Viper.Areas.Personnel.Services
         /// indirectly. Phone lists maintainers change office (not shared with SVM),
         /// (office) phone (shared with SVM), and direct phone (not shared with SVM)
         /// in this table.
+        ///
+        /// personIam is passed separately rather than read off the request, so each caller has to
+        /// say whose row it is writing. On an edit that is the person the list row already names,
+        /// never the one the request asks for.
         /// </summary>
         private async Task AddOrUpdatePhonePerson(
+            string personIam,
             PhoneListUnitDataRequest request,
             string? userIam,
             DateTime updateTimestamp,
             CancellationToken ct = default
         )
         {
-            var modifiedPerson = await _context.PhonePerson.FindAsync(new object?[] { request.EmployeeIam.Trim() }, ct);
+            var modifiedPerson = await _context.PhonePerson.FindAsync(new object?[] { personIam.Trim() }, ct);
             if (modifiedPerson == null)
             {
                 modifiedPerson = new PhonePerson
                 {
-                    PersonIam = request.EmployeeIam.Trim(),
+                    PersonIam = personIam.Trim(),
                     Phone = request.Phone.Trim(),
                     DirectPhone = request.DirectPhone.Trim(),
                     Office = request.Office.Trim(),
@@ -232,7 +237,8 @@ namespace Viper.Areas.Personnel.Services
             using var transaction = await _context.Database.BeginTransactionAsync(ct);
             var userIam = _userHelper.GetCurrentUser()?.IamId;
             var updateTimestamp = DateTime.Now;
-            await AddOrUpdatePhonePerson(request, userIam, updateTimestamp, ct);
+            // The row this creates is keyed off the same IAM, so the two cannot diverge here.
+            await AddOrUpdatePhonePerson(request.EmployeeIam.Trim(), request, userIam, updateTimestamp, ct);
 
             if (request.ListFirst)
             {
@@ -272,11 +278,21 @@ namespace Viper.Areas.Personnel.Services
         {
             var modifiedPhoneListPerson = await GetUnitPersonInList(listId, unitPersonId, ct);
             await VerifyPersonExists(request.EmployeeIam.Trim(), ct);
+            // This endpoint edits the phone, direct phone and office of whoever the row already
+            // names; it cannot move the row to a different person. PhonePerson is shared across
+            // every list, so honouring a mismatched IAM would silently rewrite a third party's
+            // details while this row went on showing the original person. Checked after the
+            // existence guard, so an unknown IAM still reports itself as unknown.
+            if (!string.Equals(modifiedPhoneListPerson.PersonIam, request.EmployeeIam.Trim(), StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("That record is for a different person. Please reload and try again.");
+            }
             using var transaction = await _context.Database.BeginTransactionAsync(ct);
             var userIam = _userHelper.GetCurrentUser()?.IamId;
             var updateTimestamp = DateTime.Now;
 
-            await AddOrUpdatePhonePerson(request, userIam, updateTimestamp, ct);
+            // Keyed off the row rather than the request, matching UpdateListFirst below.
+            await AddOrUpdatePhonePerson(modifiedPhoneListPerson.PersonIam, request, userIam, updateTimestamp, ct);
             if (request.ListFirst)
             {
                 // Clear the flag on the unit the record actually lives in, not the one the

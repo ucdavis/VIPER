@@ -270,10 +270,10 @@ const { form, saving, formError, isEdit, save, resetForm, onValidationError } = 
 const activeUnits = computed(() => props.units.find((e) => e.section.toString() === form.value.section.value)?.units)
 
 function onUpdatedUnit() {
+    // Cleared when the newly picked unit has no fax, the same way the staff fields below are.
+    // Leaving the old value in place would save one unit's fax onto another.
     const faxLookup = props.unitFaxNumbers.find((e) => e.unitId.toString() === form.value.unit.value)
-    if (faxLookup !== undefined && faxLookup.fax) {
-        form.value.fax = faxLookup.fax
-    }
+    form.value.fax = faxLookup?.fax ?? ""
 
     // A unit has only one admin staff, so auto-populate any existing staff's data
     // when adding a new record for the unit.

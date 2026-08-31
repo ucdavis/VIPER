@@ -135,6 +135,12 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         // the query never populated - phoneList and phoneListUnit, always null. They are gone from
         // the DTO, and asserting on the serialized JSON is what actually pins the wire contract:
         // the DTO type alone would not catch a nav property being reintroduced on it.
+        //
+        // The row matters: phoneListUnit and isActive live on PhoneListUnitPerson, so without one
+        // in the payload those two assertions pass against an empty array without ever seeing the
+        // DTO they are about.
+        AddUnitPersonRow(1, 1);
+
         var result = await _controller.GetUnits("VMDO", TestContext.Current.CancellationToken);
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
 
@@ -150,8 +156,11 @@ public sealed class PhoneListUnitControllerTests : IDisposable
         Assert.DoesNotContain("phoneList\"", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("phoneListUnit\"", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("isActive", json, StringComparison.OrdinalIgnoreCase);
-        // The data the client does read still arrives.
+        // The data the client does read still arrives. person01 is the one that proves a nested
+        // PhoneListUnitPersonDto actually serialized, rather than an empty array wearing the right
+        // property name - which is what would put the two assertions above back to sleep.
         Assert.Contains("phoneListUnitPersons", json, StringComparison.Ordinal);
+        Assert.Contains("person01", json, StringComparison.Ordinal);
         Assert.Contains("Front Office", json, StringComparison.Ordinal);
     }
 

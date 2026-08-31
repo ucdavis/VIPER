@@ -213,7 +213,7 @@ describe("sVMAddRecordDialog.vue - admin staff autofill in add mode", () => {
         )
     })
 
-    it("clears the admin staff fields when switching to a unit with no existing staff record", async () => {
+    it("clears the carried-over unit fields when switching to a unit that has none of its own", async () => {
         expect.hasAssertions()
         resetTestState()
         const wrapper = mountDialog({
@@ -228,7 +228,8 @@ describe("sVMAddRecordDialog.vue - admin staff autofill in add mode", () => {
                     ],
                 },
             ],
-            unitFaxNumbers: [],
+            // Both only on unit 10, so picking 20 afterwards has nothing to overwrite them with.
+            unitFaxNumbers: [{ unitId: 10, fax: "530-555-9999" }],
             unitAdminStaff: [
                 {
                     unitId: 10,
@@ -248,7 +249,7 @@ describe("sVMAddRecordDialog.vue - admin staff autofill in add mode", () => {
         await unitSelect!.vm.$emit("update:model-value", { label: "Anatomy", value: "20" })
         await flushPromises()
 
-        // Otherwise unit 10's staff would silently be carried over and saved under unit 20.
+        // Otherwise unit 10's staff and fax would silently be carried over and saved under unit 20.
         const [deanSelector, staffSelector] = wrapper.findAllComponents(selectorStub)
         expect(staffSelector!.props("modelValue")).toMatchObject({ iamId: "", fullName: "" })
 
@@ -258,7 +259,7 @@ describe("sVMAddRecordDialog.vue - admin staff autofill in add mode", () => {
 
         expect(svmUnitService.addUnitData).toHaveBeenCalledWith(
             "20",
-            expect.objectContaining({ staffIam: "", staffPhone: "", staffUnitPerson: -1 }),
+            expect.objectContaining({ staffIam: "", staffPhone: "", staffUnitPerson: -1, fax: "" }),
         )
     })
 })

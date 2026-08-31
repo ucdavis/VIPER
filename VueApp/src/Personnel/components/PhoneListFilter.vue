@@ -1,7 +1,7 @@
 <template>
     <div
         ref="bar"
-        class="phone-list-filter q-mb-md"
+        class="phone-list-filter q-mb-md q-mt-md"
     >
         <q-input
             v-model="search"
@@ -33,7 +33,7 @@ const search = defineModel<string>({ required: true })
 // header above it. The height is not a constant: the field is a fixed 40px but the padding is in
 // rem, and the root font-size steps from 14px to 16px at 768px.
 const barRef = useTemplateRef<HTMLElement>("bar")
-const { height } = useElementSize(barRef)
+const { height } = useElementSize(barRef, undefined, { box: "border-box" })
 watchEffect(() => {
     document.documentElement.style.setProperty("--phone-list-filter-height", `${Math.round(height.value)}px`)
 })
