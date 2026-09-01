@@ -11,9 +11,11 @@ namespace Viper.Classes
     public class SitemapMiddleware
     {
         private readonly RequestDelegate _next;
-        public SitemapMiddleware(RequestDelegate next)
+        private readonly ILogger<SitemapMiddleware> _logger;
+        public SitemapMiddleware(RequestDelegate next, ILogger<SitemapMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
 
         public async Task Invoke(HttpContext context)
@@ -36,37 +38,20 @@ namespace Viper.Classes
                     {
                         var methods = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                             .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType) || typeof(Task<IActionResult>).IsAssignableFrom(method.ReturnType))
+                            .Where(IsPubliclyListable)
                             .Distinct<MethodInfo>();
 
                         Dictionary<string, string> URLs = new Dictionary<string, string>();
 
                         foreach (var method in methods)
                         {
-                            Attribute? anonAttribute = method.GetCustomAttribute(typeof(AllowAnonymousAttribute));
-                            Attribute? anonAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(AllowAnonymousAttribute));
-                            Attribute? authAttribute = method.GetCustomAttribute(typeof(AuthorizeAttribute));
-                            Attribute? permAttribute = method.GetCustomAttribute(typeof(PermissionAttribute));
-                            Attribute? excludeAttribute = method.GetCustomAttribute(typeof(SearchExcludeAttribute));
-                            Attribute? excludeAttributeClass = method.DeclaringType?.GetCustomAttribute(typeof(SearchExcludeAttribute));
+                            string url = string.Format("{0}/{1}/{2}", rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
+                            string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
-                            if (((anonAttribute != null  // method is anonymous
-                                    || anonAttributeClass != null  // or class is anonymous
-                                )
-                                && (authAttribute == null // and method does not have authorize arrtribute 
-                                    || permAttribute == null // or method does not have permission arrtribute
-                                ))
-                                && excludeAttribute == null && excludeAttributeClass == null) // and method and class do not have "search exclude" attribute
+                            if (!URLs.ContainsKey(url))
                             {
-                                string url = string.Format("{0}/{1}/{2}", rootUrl, controller.Name.ToLower().Replace("controller", ""), method.Name.ToLower());
-                                string lastMod = DateTime.UtcNow.ToString("yyyy-MM-dd");
-
-                                if (!URLs.ContainsKey(url))
-                                {
-                                    URLs.Add(url, lastMod);
-                                }
-
+                                URLs.Add(url, lastMod);
                             }
-
                         }
                         foreach (var url in URLs)
                         {
@@ -94,11 +79,13 @@ namespace Viper.Classes
                 }
                 // Middleware boundary: any sitemap-generation failure (DB, IO,
                 // reflection, etc.) must fall through to the pipeline rather than
-                // break the request.
+                // break the request. Log it: swallowing silently is what let an
+                // AmbiguousMatchException turn the sitemap into a blanket 404 unnoticed.
 #pragma warning disable CA1031
-                catch (Exception)
+                catch (Exception ex)
 #pragma warning restore CA1031
                 {
+                    _logger.LogError(ex, "Sitemap generation failed; falling through to the pipeline.");
                     await _next(context);
                 }
             }
@@ -106,6 +93,37 @@ namespace Viper.Classes
             {
                 await _next(context);
             }
+        }
+
+        /// <summary>
+        /// A sitemap advertises pages an anonymous visitor can actually reach, so an action
+        /// qualifies only when it is anonymous, ungated, and not search-excluded.
+        /// </summary>
+        /// <remarks>
+        /// Every lookup covers the declaring controller as well as the method: [Permission] and
+        /// [SearchExclude] both target classes, and a class-level gate binds its actions. That
+        /// matters most for [Permission], which is an IAuthorizationFilter: only the built-in
+        /// AuthorizeFilter honors [AllowAnonymous], so a class-gated action still forbids at
+        /// runtime and must never be advertised.
+        ///
+        /// Testing [Permission] also covers [Authorize], because PermissionAttribute derives from
+        /// it. That inheritance is why these are plural lookups: a method carrying both
+        /// (HomeController.EmulateUser) matches AuthorizeAttribute twice, and the singular
+        /// GetCustomAttribute throws AmbiguousMatchException, which turned the sitemap into a 404.
+        /// </remarks>
+        internal static bool IsPubliclyListable(MethodInfo method)
+        {
+            bool isAnonymous = HasAttribute<AllowAnonymousAttribute>(method);
+            bool isPermissionGated = HasAttribute<PermissionAttribute>(method);
+            bool isSearchExcluded = HasAttribute<SearchExcludeAttribute>(method);
+
+            return isAnonymous && !isPermissionGated && !isSearchExcluded;
+        }
+
+        private static bool HasAttribute<TAttribute>(MethodInfo method) where TAttribute : Attribute
+        {
+            return method.GetCustomAttributes(typeof(TAttribute), inherit: true).Length > 0
+                || method.DeclaringType?.GetCustomAttributes(typeof(TAttribute), inherit: true).Length > 0;
         }
     }
 

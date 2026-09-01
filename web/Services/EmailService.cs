@@ -312,12 +312,6 @@ namespace Viper.Services
         public bool UseMailpit { get; set; } = false;
 
         /// <summary>
-        /// Base URL for links in emails (e.g., "https://viper.vetmed.ucdavis.edu/2").
-        /// Used to construct absolute URLs for email content.
-        /// </summary>
-        public string? BaseUrl { get; set; }
-
-        /// <summary>
         /// When true, all emails are redirected to the logged-in user's email address.
         /// Use for non-production environments to allow testers to see emails their actions generate.
         /// The original recipients are logged and added to the subject line; CC/BCC are removed.
