@@ -31,6 +31,10 @@ namespace Web.Authorization
         /// <summary>
         /// <c>credentialType</c> value standing in for Duo when Entra reports a multifactor sign-in.
         /// </summary>
+        /// <remarks>
+        /// Conditional on <c>amr</c> because campus grants Duo exceptions: a password-only sign-in
+        /// must fail the 2FA policy exactly as a Duo-less CAS session would.
+        /// </remarks>
         public const string MultifactorCredentialType = "EntraIdMultifactorCredential";
 
         /// <summary>
@@ -94,7 +98,10 @@ namespace Web.Authorization
         /// <remarks>
         /// <c>amr</c> ("authentication methods references") is an array in a v2.0 id_token, so it
         /// arrives as repeated claims. "mfa" is the standard value; "ngcmfa" appears for a freshly
-        /// proofed credential.
+        /// proofed credential. A Duo-backed campus sign-in was observed to carry ["pwd", "mfa"]
+        /// (2026-08-31). The claim only exists because the app registration's manifest requests it:
+        /// optionalClaims.idToken must contain { "name": "amr" }; without that entry v2.0 tokens
+        /// omit amr entirely and every Entra session would fail the 2FA policy.
         /// </remarks>
         public static bool HasMultifactorAuthentication(ClaimsPrincipal? principal)
         {

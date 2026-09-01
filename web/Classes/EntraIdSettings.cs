@@ -28,12 +28,13 @@ namespace Web.Authorization
         public string SignedOutCallbackPath { get; set; } = "/signout-entra";
 
         /// <summary>
-        /// Claim carrying the user's campus kerberos id. "onpremisessamaccountname" is a mapped
-        /// claim (enterprise app, Attributes &amp; Claims, source user.onpremisessamaccountname,
-        /// "Expose claim in JWT tokens" ticked) that yields the bare id, e.g. "rexl". The standard
-        /// "preferred_username" is NOT a substitute: at UC Davis its local part is the email alias
-        /// ("rvlorenzo@ucdavis.edu"), which AAUD does not key on. Only this claim is read; a token
-        /// without it is rejected rather than signed in as the alias.
+        /// Claim carrying the user's campus kerberos id. Only the configured claim is consulted;
+        /// a token without it is rejected rather than signed in. The default,
+        /// "onpremisessamaccountname", is a mapped claim (enterprise app, Attributes &amp; Claims,
+        /// source user.onpremisessamaccountname, "Expose claim in JWT tokens" ticked) yielding the
+        /// bare id, e.g. "rexl". Reconfiguring to an email-style claim such as "preferred_username"
+        /// is possible but unsafe at UC Davis: its local part is the email alias
+        /// ("rvlorenzo@ucdavis.edu"), which AAUD does not key on.
         /// </summary>
         public string LoginIdClaim { get; set; } = "onpremisessamaccountname";
 
