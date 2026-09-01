@@ -5,8 +5,7 @@ import { defineConfig, loadEnv } from "vite"
 import plugin from "@vitejs/plugin-vue"
 import Inspector from "vite-plugin-vue-inspector"
 import fs from "node:fs"
-// oxlint-disable-next-line unicorn/import-style
-import path, { resolve } from "node:path"
+import path from "node:path"
 // oxlint-disable-next-line import/max-dependencies -- Vite config requires multiple build tool integrations
 import child_process from "node:child_process"
 import { env } from "node:process"
@@ -165,16 +164,16 @@ export default defineConfig(({ mode }) => {
             emptyOutDir: true,
             rolldownOptions: {
                 input: {
-                    main: resolve(import.meta.dirname, "index.html"),
-                    cts: resolve(import.meta.dirname, "src/CTS/index.html"),
-                    computing: resolve(import.meta.dirname, "src/Computing/index.html"),
-                    students: resolve(import.meta.dirname, "src/Students/index.html"),
-                    cms: resolve(import.meta.dirname, "src/CMS/index.html"),
-                    cahfs: resolve(import.meta.dirname, "src/CAHFS/index.html"),
-                    clinicalscheduler: resolve(import.meta.dirname, "src/ClinicalScheduler/index.html"),
-                    effort: resolve(import.meta.dirname, "src/Effort/index.html"),
-                    eval: resolve(import.meta.dirname, "src/Eval/index.html"),
-                    personnel: resolve(import.meta.dirname, "src/Personnel/index.html"),
+                    main: path.resolve(import.meta.dirname, "index.html"),
+                    cts: path.resolve(import.meta.dirname, "src/CTS/index.html"),
+                    computing: path.resolve(import.meta.dirname, "src/Computing/index.html"),
+                    students: path.resolve(import.meta.dirname, "src/Students/index.html"),
+                    cms: path.resolve(import.meta.dirname, "src/CMS/index.html"),
+                    cahfs: path.resolve(import.meta.dirname, "src/CAHFS/index.html"),
+                    clinicalscheduler: path.resolve(import.meta.dirname, "src/ClinicalScheduler/index.html"),
+                    effort: path.resolve(import.meta.dirname, "src/Effort/index.html"),
+                    eval: path.resolve(import.meta.dirname, "src/Eval/index.html"),
+                    personnel: path.resolve(import.meta.dirname, "src/Personnel/index.html"),
                 },
                 output: {
                     manualChunks(id) {

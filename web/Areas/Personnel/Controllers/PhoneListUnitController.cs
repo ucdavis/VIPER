@@ -87,7 +87,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error adding a unit person to list {Code}: {Message}",
                     LogSanitizer.SanitizeString(code), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
@@ -115,7 +115,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error updating unit person {UnitPersonId} in list {Code}: {Message}",
                     unitPersonId, LogSanitizer.SanitizeString(code), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));
@@ -143,7 +143,7 @@ namespace Viper.Areas.Personnel.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException ex) when (ex.IsDataRejection())
             {
                 _logger.LogWarning(ex, "Database error deleting unit person {UnitPersonId} from list {Code}: {Message}",
                     unitPersonId, LogSanitizer.SanitizeString(code), LogSanitizer.SanitizeString(ex.InnerException?.Message ?? ex.Message));

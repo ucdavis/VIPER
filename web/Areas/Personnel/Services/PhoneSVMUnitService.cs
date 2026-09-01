@@ -301,14 +301,31 @@ namespace Viper.Areas.Personnel.Services
         }
 
         /// <summary>
+        /// An active leader row for the unit - anything carrying a PosType that is not Staff. A
+        /// unit with one renders under that leader; only a unit without one renders a staff-keyed
+        /// row. The delete guard and the staff sweep both turn on this, so it lives in one place.
+        /// </summary>
+        private Task<bool> HasActiveLeader(int unitId, CancellationToken ct) =>
+            _context.SVMUnitPerson
+                .AsNoTracking()
+                .AnyAsync(
+                    p => p.UnitId == unitId &&
+                    p.PosType != null &&
+                    p.PosType != "" &&
+                    p.PosType != "Staff" &&
+                    p.IsActive,
+                    ct
+                );
+
+        /// <summary>
         /// Removes one row of the SVM list. A row is a dean/director plus the admin staff shared
         /// by every row for that unit, so removing it deletes the leader and then the staff only
         /// once no other row still lists them. Both happen in one transaction: as two separate
         /// requests they could half-apply, leaving the caller unable to tell which part landed.
         ///
-        /// entryId is the row key the list renders: the leader UnitPerson, or the admin staff
-        /// for a unit that has staff but no active leader. Both cases reduce to the same rule,
-        /// so there is no branch on which kind of row was named.
+        /// entryId is the row key the list renders: the leader UnitPerson, or the admin staff for
+        /// a unit that has staff but no active leader. A staff-keyed id is only meaningful while
+        /// that second condition still holds, so it is refused once the unit has a leader again.
         ///
         /// Leaves SVMUnit and PhonePerson unchanged.
         /// </summary>
@@ -322,6 +339,17 @@ namespace Viper.Areas.Personnel.Services
             if (rowEntry == null)
             {
                 throw new InvalidOperationException("That record has already been removed.");
+            }
+
+            // A staff row is only the list's row key while its unit has no active leader. If one
+            // exists now, the page that named this row is stale: the unit renders under that
+            // leader, the sweep below would not run, and the delete would report success having
+            // changed nothing. Deleting the staff on its own is not what the reader asked for -
+            // it would blank the staff on a leader row they cannot see.
+            if (rowEntry.PosType == "Staff" && await HasActiveLeader(rowEntry.UnitId, ct))
+            {
+                throw new InvalidOperationException(
+                    "That record has changed since the page was loaded. Please refresh and try again.");
             }
 
             var userIam = _userHelper.GetCurrentUser()?.IamId;
@@ -343,17 +371,7 @@ namespace Viper.Areas.Personnel.Services
 
             // The admin staff entry belongs to the unit, not to this row, so it survives as long
             // as any leader row still lists it.
-            var leadersRemain = await _context.SVMUnitPerson
-                .AsNoTracking()
-                .AnyAsync(
-                    p => p.UnitId == rowEntry.UnitId &&
-                    p.PosType != null &&
-                    p.PosType != "" &&
-                    p.PosType != "Staff" &&
-                    p.IsActive,
-                    ct
-                );
-            if (!leadersRemain)
+            if (!await HasActiveLeader(rowEntry.UnitId, ct))
             {
                 var staffEntries = await _context.SVMUnitPerson
                     .Where(p => p.UnitId == rowEntry.UnitId && p.PosType == "Staff" && p.IsActive)

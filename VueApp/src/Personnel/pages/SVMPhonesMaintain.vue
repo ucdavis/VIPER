@@ -8,15 +8,17 @@
         {{ errorMessage }}
     </StatusBanner>
 
-    <template v-if="!loading && !errorMessage">
-        <!-- Not wrapped in a div: a sticky element can only travel within its own parent, so a
+    <!-- Not wrapped in a div: a sticky element can only travel within its own parent, so a
          wrapper holding nothing but the filter would pin it to a box its own height and it would
-         scroll away immediately. Its siblings are the lists it filters. -->
-        <PhoneListFilter
-            v-if="!loading"
-            v-model="search"
-        />
-    </template>
+         scroll away immediately. Its siblings are the lists it filters.
+
+         Not gated on errorMessage either: a failed read here still renders whatever arrived, so
+         hiding the filter would leave a full page of sections with no way to search them. The
+         banner above says what was lost. -->
+    <PhoneListFilter
+        v-if="!loading"
+        v-model="search"
+    />
 
     <SVMPhoneSectionTable
         v-for="section in sections"
