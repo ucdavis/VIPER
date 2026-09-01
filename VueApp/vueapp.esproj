@@ -18,6 +18,8 @@
     <Folder Include="src\CTS\types\" />
     <Folder Include="src\js\" />
     <Folder Include="src\composables\" />
+    <Folder Include="src\Personnel\pages\" />
+    <Folder Include="src\Personnel\router\" />
     <Folder Include="src\Students\types\" />
     <Folder Include="src\Students\pages\" />
   </ItemGroup>

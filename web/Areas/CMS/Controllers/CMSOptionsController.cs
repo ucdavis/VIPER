@@ -4,6 +4,8 @@ using Viper.Areas.CMS.Constants;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
+using Viper.Models.AAUD;
 using Web.Authorization;
 
 namespace Viper.Areas.CMS.Controllers
@@ -65,22 +67,23 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("people")]
         public async Task<ActionResult<List<CmsPersonOption>>> SearchPeople(string search, CancellationToken ct = default)
         {
-            if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
+            var normalizedSearch = PersonSearchHelper.Normalize(search);
+            if (normalizedSearch == null)
             {
                 return new List<CmsPersonOption>();
             }
-            search = search.Trim();
 
-            return await _aaudContext.AaudUsers
+            var namePredicate = PersonSearchHelper
+                .NameMatches<AaudUser>(u => u.DisplayLastName, u => u.DisplayFirstName, normalizedSearch)
+                .Or(u => u.LoginId != null && u.LoginId.Contains(normalizedSearch))
+                .Or(u => u.MailId != null && u.MailId.Contains(normalizedSearch));
+
+            var query = _aaudContext.AaudUsers
                 .AsNoTracking()
                 .Where(u => u.Current != 0 && u.IamId != null)
-                .Where(u => (u.DisplayLastName + ", " + u.DisplayFirstName).Contains(search)
-                    || (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
-                    || (u.LoginId != null && u.LoginId.Contains(search))
-                    || (u.MailId != null && u.MailId.Contains(search)))
-                .OrderBy(u => u.DisplayLastName)
-                .ThenBy(u => u.DisplayFirstName)
-                .Take(25)
+                .Where(namePredicate);
+
+            return await PersonSearchHelper.OrderAndCap(query, u => u.DisplayLastName, u => u.DisplayFirstName)
                 .Select(u => new CmsPersonOption
                 {
                     IamId = u.IamId!,

@@ -31,6 +31,7 @@ using Viper.Areas.CMS.Services;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
+using Viper.Areas.Personnel;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -52,7 +53,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students" };
+string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students", "Personnel" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -230,6 +231,8 @@ try
     RegisterDbContext<SISContext>("SIS");
     // Effort tables are in the VIPER database's [effort] schema.
     RegisterDbContext<EffortDbContext>("VIPER");
+    // Phone tables are in the VIPER database's [phones] schema.
+    RegisterDbContext<PhonesDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
 
     // Register UserHelper service (must be before Scrutor to take precedence)
@@ -256,6 +259,7 @@ try
                 "Viper.Areas.Students.Services",
                 "Viper.Areas.Curriculum.Services",
                 "Viper.Areas.Effort.Services",
+                "Viper.Areas.Personnel.Services",
                 "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))

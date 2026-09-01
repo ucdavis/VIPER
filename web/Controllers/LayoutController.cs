@@ -30,7 +30,7 @@ namespace Viper.Controllers
             new[] { "/faculty/default.cfm", "Faculty", "SVMSecure.Faculty" },
             new[] { "/fiscal/default.cfm", "Fiscal", "SVMSecure.Fiscal" },
             new[] { "/IDCards/default.cfm", "IDCards", "SVMSecure.IDCards.Apply" },
-            new[] { "/personnel/default.cfm", "Personnel", "SVMSecure.Personnel" },
+            new[] { "~/Personnel", "Personnel", "SVMSecure.Personnel" },
             new[] { "~/Policy", "Policies", "SVMSecure" },
             new[] { "/research/default.cfm", "Research", "SVMSecure.Research" },
             new[] { "/schedule/default.cfm", "Schedule", "SVMSecure.Schedule" },
