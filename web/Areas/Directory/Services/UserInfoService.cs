@@ -320,11 +320,22 @@ namespace Viper.Areas.Directory.Services
                     result.Phone = ldapUser.TelephoneNumber;
                     result.Mobile = ldapUser.Mobile;
                     result.PostalAddress = ldapUser.PostalAddress;
+                    result.StudentId = ldapUser.UcdStudentSid;
+                    result.LabeledUri = ldapUser.LabeledUri;
                 }
             }
             catch (Exception ex) when (ex is NullReferenceException || ex is PlatformNotSupportedException || ex is System.DirectoryServices.DirectoryServicesCOMException || ex is System.DirectoryServices.Protocols.DirectoryException)
             {
                 RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync LDAP failed");
+            }
+
+            try
+            {
+                result.EmailHost = IndividualSearchResult.LookupEmailHost(_aaudContext, result.MailId);
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync EmailHost lookup failed");
             }
 #pragma warning restore CA1416
 
@@ -792,9 +803,13 @@ namespace Viper.Areas.Directory.Services
             }
 
             var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
+            var allPermissions = await GetUserPermissionsAsync(result.MothraId);
             foreach (var category in categories)
             {
-                var categoryPerms = await GetUserPermissionsForSystemAsync(result.MothraId, category);
+                var categoryPerms = allPermissions
+                    .Where(p => p.Permission.StartsWith(category))
+                    .OrderBy(p => p.Permission)
+                    .ToList();
                 var sysPerm = new SystemPermission
                 {
                     Category = category,
@@ -806,9 +821,11 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
-        /// Get RSOP (Resultant Set of Permissions) for a user in a specific system
+        /// Get RSOP (Resultant Set of Permissions) for a user across all systems. Fetched once per
+        /// user rather than once per category - callers that only care about one system's prefix
+        /// can filter the returned list with .Where(p => p.Permission.StartsWith(prefix)).
         /// </summary>
-        private async Task<List<PermissionInfo>> GetUserPermissionsForSystemAsync(string memberId, string systemPrefix)
+        private async Task<List<PermissionInfo>> GetUserPermissionsAsync(string memberId)
         {
             var permsViaRoles = await (
                 from permission in _rapsContext.TblPermissions
@@ -819,7 +836,6 @@ namespace Viper.Areas.Directory.Services
                 join role in _rapsContext.TblRoles
                     on memberRole.RoleId equals role.RoleId
                 where memberRole.MemberId == memberId
-                && permission.Permission.StartsWith(systemPrefix)
                 && (memberRole.StartDate == null || memberRole.StartDate <= DateTime.Today)
                 && (memberRole.EndDate == null || memberRole.EndDate >= DateTime.Today)
                 select new
@@ -834,7 +850,6 @@ namespace Viper.Areas.Directory.Services
                                        join memberPermissions in _rapsContext.TblMemberPermissions
                                            on permission.PermissionId equals memberPermissions.PermissionId
                                        where memberPermissions.MemberId == memberId
-                                       && permission.Permission.StartsWith(systemPrefix)
                                        && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
                                        && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
                                        select new
@@ -1047,7 +1062,8 @@ namespace Viper.Areas.Directory.Services
 
         /// <summary>
         /// Batch-resolve reports-to name/job title for a set of position numbers in at most two
-        /// queries, instead of looking each one up individually per history row.
+        /// queries, instead of looking each one up individually per history row. Rows are ordered
+        /// by Effdt/Effseq descending so the first row seen per PositionNbr is the most recent one.
         /// </summary>
         private async Task<Dictionary<string, (string Name, string Position)>> BuildReportsToLookupAsync(List<string> positionNbrs)
         {
@@ -1058,6 +1074,8 @@ namespace Viper.Areas.Directory.Services
             var historyRows = await _ppsContext.VwPersonJobPositionAlls
                 .AsNoTracking()
                 .Where(r => r.PositionNbr != null && EF.Parameter(positionNbrs).Contains(r.PositionNbr))
+                .OrderByDescending(r => r.Effdt)
+                .ThenByDescending(r => r.Effseq)
                 .ToListAsync();
 
             foreach (var row in historyRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
@@ -1071,6 +1089,8 @@ namespace Viper.Areas.Directory.Services
                 var currentRows = await _ppsContext.VwPersonJobPositions
                     .AsNoTracking()
                     .Where(r => r.PositionNbr != null && EF.Parameter(missingIds).Contains(r.PositionNbr))
+                    .OrderByDescending(r => r.Effdt)
+                    .ThenByDescending(r => r.Effseq)
                     .ToListAsync();
 
                 foreach (var row in currentRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))

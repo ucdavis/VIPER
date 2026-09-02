@@ -6,6 +6,7 @@ namespace Viper.Classes.SQLContext;
 public partial class PPSContext : DbContext
 {
     public PPSContext()
+
     {
     }
 
@@ -281,14 +282,6 @@ public partial class PPSContext : DbContext
     public virtual DbSet<VwStipend> VwStipends { get; set; }
 
     public virtual DbSet<VwUserinfoUser> VwUserinfoUsers { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (HttpHelper.Settings != null)
-        {
-            optionsBuilder.UseSqlServer(HttpHelper.Settings["ConnectionStrings:PPS"]);
-        }
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

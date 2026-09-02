@@ -86,8 +86,8 @@
                 v-if="strippedPathCount"
                 type="info"
             >
-                Removed the leading "viper/" from {{ strippedPathCount }}
-                {{ inflect("path", strippedPathCount) }}; paths are relative to the legacy webroot.
+                Removed the leading "viper/" from {{ strippedPathCount }} {{ inflect("path", strippedPathCount) }};
+                paths are relative to the legacy webroot.
             </StatusBanner>
             <p class="text-body2">
                 {{ importableCount }} of {{ preview.length }} {{ inflect("file", preview.length) }} will be imported
