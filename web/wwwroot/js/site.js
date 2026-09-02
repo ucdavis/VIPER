@@ -154,8 +154,7 @@ async function loadViperLeftNav() {
     }
     qs = qs.length > 0 ? `?${qs.join("&")}` : ""
     // Fix nav not loading when the url is host/2 instead of host/2/
-    // oxlint-disable-next-line no-magic-numbers -- last 2 chars of URL path
-    const navLocation = globalThis.location.href.slice(-2) === "/2" ? "/2/nav" : "nav"
+    const navLocation = globalThis.location.href.endsWith("/2") ? "/2/nav" : "nav"
     this.viperNavMenu = await viperFetch(this, navLocation + qs)
 }
 

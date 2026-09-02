@@ -68,6 +68,8 @@
             }
         ],
         "id-length": "off",
+        // One declaration per statement. The rule's own default is the opposite.
+        "one-var": ["error", "never"],
         "max-lines-per-function": [
             "warn",
             {
