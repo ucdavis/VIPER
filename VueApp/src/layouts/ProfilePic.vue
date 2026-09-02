@@ -2,6 +2,7 @@
     <q-btn-dropdown
         v-if="isLoggedIn"
         unelevated
+        toggle-aria-haspopup="menu"
     >
         <template #label>
             <q-avatar size="40px">
@@ -16,7 +17,10 @@
                 </q-tooltip>
             </q-avatar>
         </template>
-        <q-list dense>
+        <q-list
+            dense
+            role="menu"
+        >
             <q-item
                 v-if="isEmulating"
                 class="bg-warning"
