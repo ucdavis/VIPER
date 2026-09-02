@@ -3,3 +3,7 @@
 // CmsFileTypes allow-list; keep the two in sync.
 export const CMS_ACCEPTED_EXTENSIONS =
     ".pdf,.docx,.doc,.xls,.xlsx,.csv,.ppt,.pptx,.pptm,.txt,.html,.gif,.png,.jpg,.jpeg,.tiff,.mp3,.wav,.mp4,.webm,.oft,.eps,.zip,.7z,.dmg,.exe"
+
+// Image types the editor's Insert Image dialog can upload and render. A subset of the allow-list
+// above (tiff is left out because browsers do not render it).
+export const IMAGE_EXTENSIONS = ["gif", "png", "jpg", "jpeg"] as const
