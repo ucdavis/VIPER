@@ -243,8 +243,8 @@ const SEGMENTS = [
 }
 
 .scale-opt:has(input:checked) {
-    background: rgba(255, 255, 255, 0.35);
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+    background: rgb(255 255 255 / 35%);
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 85%);
     border-radius: 3px;
 }
 

@@ -164,7 +164,6 @@ export default defineConfig(({ mode }) => {
             emptyOutDir: true,
             rolldownOptions: {
                 input: {
-                    main: path.resolve(import.meta.dirname, "index.html"),
                     cts: path.resolve(import.meta.dirname, "src/CTS/index.html"),
                     computing: path.resolve(import.meta.dirname, "src/Computing/index.html"),
                     students: path.resolve(import.meta.dirname, "src/Students/index.html"),

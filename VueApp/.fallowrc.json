@@ -1,7 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/fallow-schema.json",
     "entry": [
-        "src/main.ts",
         "src/CAHFS/cahfs.ts",
         "src/CMS/cms.ts",
         "src/CTS/cts.ts",
@@ -9,7 +8,6 @@
         "src/Computing/computing.ts",
         "src/Effort/effort.ts",
         "src/Students/students.ts",
-        "index.html",
         "src/CAHFS/index.html",
         "src/CMS/index.html",
         "src/CTS/index.html",

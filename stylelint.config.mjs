@@ -8,9 +8,18 @@ export default {
     // genuine WCAG failure found so far came from a recommended rule. Revisit strict,
     // media-prefers-color-scheme in particular, if we implement dark mode.
     extends: ["stylelint-config-standard", "@double-great/stylelint-a11y/recommended"],
-    customSyntax: "postcss-html",
+    // Must stay scoped, never top-level: postcss-html returns an empty document for a
+    // plain .css file, so a global customSyntax silently skips every CSS file in the repo.
+    overrides: [
+        {
+            files: ["**/*.vue", "**/*.html"],
+            customSyntax: "postcss-html",
+        },
+    ],
     ignoreFiles: [
         "**/bin/**", // .NET build output directories
+        "dist/**", // .NET publish output (gitignored)
+        "jscpd-report/**", // Generated jscpd report, vendors tailwind.css/prism.css (gitignored)
         "**/node_modules/**", // Node.js package dependencies
         "**/obj/**", // .NET intermediate build files
         "**/scopedcss/**", // .NET scoped CSS build artifacts

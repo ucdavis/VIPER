@@ -353,7 +353,7 @@ h2 {
     z-index: 5;
     background: #eceff1;
     border-radius: 6px;
-    padding: 4px 8px 8px 8px;
+    padding: 4px 8px 8px;
     border: 1px solid silver;
 }
 

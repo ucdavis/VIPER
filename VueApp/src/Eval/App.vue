@@ -12,4 +12,3 @@
 <script setup lang="ts">
 import GenericError from "@/components/GenericError.vue"
 </script>
-

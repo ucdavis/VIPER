@@ -92,4 +92,3 @@ watch(localDrawerOpen, (newValue) => {
     align-items: center;
 }
 </style>
-

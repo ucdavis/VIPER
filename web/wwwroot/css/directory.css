@@ -7,7 +7,7 @@
     background-color: #f8f8f8;
     border: 2px solid #fff;
     border-radius: 7px;
-    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+    box-shadow: rgb(100 100 111 / 20%) 0 7px 29px 0;
     padding: 0;
     overflow: clip;
 }
@@ -15,22 +15,27 @@
 .directory .row {
     padding: 0;
 }
+
 .directory .col {
     padding: 8px;
     display: block;
 }
+
 .directory .ids,
 .directory .tools {
     padding: 8px;
 }
+
 .directory .contact div,
 .directory .ids div,
 .directory .tools div {
     flex: 0 0 95%;
 }
+
 .directory .ids div {
     font-weight: bold;
 }
+
 .directory .ids div span {
     font-weight: normal;
     display: inline-block;
@@ -38,14 +43,15 @@
     text-align: right;
     margin-right: 0;
 }
+
 .directory .contact {
     margin-top: 1em;
 }
-.directory div {
-}
+
 .directory .card_header {
     background-color: var(--ucdavis-black-60, #666);
 }
+
 .directory .SVM {
     background-color: var(--ucdavis-blue-80);
 }
@@ -78,25 +84,31 @@
     margin: 0;
     padding: 0;
 }
+
 .directory .directory-name {
     font-size: 15px;
     font-weight: 600;
 }
+
 .directory .directory-detail {
     font-size: 12px;
     font-weight: 400;
 }
+
 .directory .directory-level {
     font-size: 12px;
 }
+
 .directory .directory-tag {
     font-size: 11px;
     color: var(--ucdavis-black-60);
     font-weight: bold;
 }
+
 .directory .directory-username {
     font-size: 10px;
 }
+
 .directory .top_button {
     color: #fff;
     text-align: center;
@@ -105,11 +117,15 @@
     width: 12%;
     max-width: 40px;
 }
+
 .directory .SVM .top_button {
     color: #a4b5c8;
 }
+
 .directory .top_button:hover,
-.directory .SVM .top_button:hover {
+.directory .top_button:focus,
+.directory .SVM .top_button:hover,
+.directory .SVM .top_button:focus {
     color: #fff;
 }
 
@@ -150,7 +166,9 @@
 }
 
 .userinfo h1 a:hover,
-.userinfo h2 a:hover {
+.userinfo h1 a:focus,
+.userinfo h2 a:hover,
+.userinfo h2 a:focus {
     color: #1864ab;
     text-decoration: underline;
 }
@@ -177,7 +195,7 @@
     color: #495057;
     font-size: 10pt;
     font-style: italic;
-    margin: 0.5rem 0 1rem 0;
+    margin: 0.5rem 0 1rem;
 }
 
 .userinfo div + div {
@@ -269,7 +287,6 @@
 }
 
 .userinfo ul li ul li {
-    padding-left: -0.2rem;
     margin-left: 2.2rem;
 }
 
@@ -298,8 +315,4 @@
     font-size: 10pt;
     color: #4dabf7;
     user-select: none;
-    -moz-user-select: none;
-    -khtml-user-select: none;
-    -webkit-user-select: none;
-    -o-user-select: none;
 }

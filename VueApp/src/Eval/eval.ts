@@ -11,4 +11,3 @@ bootstrapSpa({
         viperOneUrl: import.meta.env.VITE_VIPER_1_HOME,
     },
 })
-

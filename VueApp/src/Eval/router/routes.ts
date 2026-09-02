@@ -23,4 +23,3 @@ const routes = [
 ]
 
 export { routes }
-

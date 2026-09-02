@@ -65,7 +65,7 @@
        so palette changes propagate without touching this file's selectors. */
     --welcome-bg: var(--ucdavis-blue-100);
     --welcome-accent: var(--ucdavis-gold-100);
-    --welcome-card-bg: #ffffff;
+    --welcome-card-bg: #fff;
     --welcome-card-fg: #13253f;
     --welcome-card-heading: var(--ucdavis-blue-100);
     --welcome-card-muted: #64748b;
@@ -73,25 +73,24 @@
     /* On-dark text alphas — only place a literal rgba() is acceptable, and
        only because CSS has no syntax for "alpha-modify this var" in static
        sheets. Bumped to 0.92 (was 0.85 in mock) for WCAG AA at body sizes. */
-    --welcome-text-strong: rgba(255, 255, 255, 1);
-    --welcome-text-body: rgba(255, 255, 255, 0.92);
-    --welcome-text-footer: rgba(255, 255, 255, 0.7);
-    --welcome-divider: rgba(255, 255, 255, 0.22);
+    --welcome-text-strong: rgb(255 255 255 / 100%);
+    --welcome-text-body: rgb(255 255 255 / 92%);
+    --welcome-text-footer: rgb(255 255 255 / 70%);
+    --welcome-divider: rgb(255 255 255 / 22%);
 
     /* Gold focus ring for the dark splash — default outlines disappear on
        the gradient-darkened photo, so make focus visible and obvious. */
-    --welcome-focus-ring: 0 0 0 0.1875rem rgba(255, 197, 25, 0.85);
+    --welcome-focus-ring: 0 0 0 0.1875rem rgb(255 197 25 / 85%);
 
     /* Ambient-tinted shadows: Aggie Blue rather than black, so every darkening
        layer on the splash (hero gradients, legibility bands, these halos, the
        card lift) derives from the same brand hue. Alphas sit slightly above the
        old black values to preserve perceived depth. Mirrored in DESIGN.md's
        Shadow Vocabulary. */
-    --welcome-text-halo: 0 0.125rem 0.5rem rgba(2, 40, 81, 0.5);
-    --welcome-footer-halo: 0 0.0625rem 0.1875rem rgba(2, 40, 81, 0.6);
-    --welcome-card-shadow: 0 1.875rem 5rem rgba(2, 40, 81, 0.5);
-
-    --welcome-font: "Proxima Nova", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    --welcome-text-halo: 0 0.125rem 0.5rem rgb(2 40 81 / 50%);
+    --welcome-footer-halo: 0 0.0625rem 0.1875rem rgb(2 40 81 / 60%);
+    --welcome-card-shadow: 0 1.875rem 5rem rgb(2 40 81 / 50%);
+    --welcome-font: "Proxima Nova", -apple-system, blinkmacsystemfont, "Segoe UI", roboto, arial, sans-serif;
 }
 
 /* Reset just enough for the standalone page. */
@@ -118,7 +117,7 @@ body {
     padding: 0;
     margin: -1px;
     overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
 }
@@ -184,6 +183,7 @@ body {
 /* -------- Hero ------------------------------------------------------------ */
 .welcome-hero {
     position: relative;
+
     /* Fill the viewport below the header: 0.75rem bar padding + 2.75rem brand + 0.1875rem rule. */
     min-height: calc(100vh - 3.6875rem);
     overflow: hidden;
@@ -203,7 +203,7 @@ body {
     right: 0;
     bottom: 0;
     height: 11rem;
-    background: linear-gradient(to top, rgba(2, 40, 81, 0.78) 0%, rgba(2, 40, 81, 0.55) 35%, rgba(2, 40, 81, 0) 100%);
+    background: linear-gradient(to top, rgb(2 40 81 / 78%) 0%, rgb(2 40 81 / 55%) 35%, rgb(2 40 81 / 0%) 100%);
     pointer-events: none;
     z-index: 0;
 }
@@ -219,7 +219,7 @@ body {
     top: 0;
     bottom: 0;
     width: 55%;
-    background: linear-gradient(to right, rgba(2, 40, 81, 0.5) 0%, rgba(2, 40, 81, 0.25) 60%, rgba(2, 40, 81, 0) 100%);
+    background: linear-gradient(to right, rgb(2 40 81 / 50%) 0%, rgb(2 40 81 / 25%) 60%, rgb(2 40 81 / 0%) 100%);
     pointer-events: none;
     z-index: 0;
 }
@@ -228,7 +228,7 @@ body {
    HEROES object (login.html:94-121). Brighter crops get stronger overlays. */
 .welcome-hero--svm_building {
     background-image:
-        linear-gradient(90deg, rgba(2, 40, 81, 0.72) 0%, rgba(2, 40, 81, 0.55) 45%, rgba(2, 40, 81, 0.15) 100%),
+        linear-gradient(90deg, rgb(2 40 81 / 72%) 0%, rgb(2 40 81 / 55%) 45%, rgb(2 40 81 / 15%) 100%),
         image-set(
             url("../images/login/photo-svm-building.avif") type("image/avif"),
             url("../images/login/photo-svm-building.jpg") type("image/jpeg")
@@ -238,7 +238,7 @@ body {
 
 .welcome-hero--vetmed_admin {
     background-image:
-        linear-gradient(90deg, rgba(2, 40, 81, 0.62) 0%, rgba(2, 40, 81, 0.55) 45%, rgba(2, 40, 81, 0.15) 100%),
+        linear-gradient(90deg, rgb(2 40 81 / 62%) 0%, rgb(2 40 81 / 55%) 45%, rgb(2 40 81 / 15%) 100%),
         image-set(
             url("../images/login/photo-vetmed-admin.avif") type("image/avif"),
             url("../images/login/photo-vetmed-admin.jpg") type("image/jpeg")
@@ -248,7 +248,7 @@ body {
 
 .welcome-hero--ophthalmology {
     background-image:
-        linear-gradient(90deg, rgba(2, 40, 81, 0.74) 0%, rgba(2, 40, 81, 0.48) 45%, rgba(2, 40, 81, 0.18) 100%),
+        linear-gradient(90deg, rgb(2 40 81 / 74%) 0%, rgb(2 40 81 / 48%) 45%, rgb(2 40 81 / 18%) 100%),
         image-set(
             url("../images/login/photo-ophthalmology.avif") type("image/avif"),
             url("../images/login/photo-ophthalmology.jpg") type("image/jpeg")
@@ -258,7 +258,7 @@ body {
 
 .welcome-hero--guinea_pig {
     background-image:
-        linear-gradient(90deg, rgba(2, 40, 81, 0.78) 0%, rgba(2, 40, 81, 0.58) 50%, rgba(2, 40, 81, 0.3) 100%),
+        linear-gradient(90deg, rgb(2 40 81 / 78%) 0%, rgb(2 40 81 / 58%) 50%, rgb(2 40 81 / 30%) 100%),
         image-set(
             url("../images/login/photo-guinea-pig.avif") type("image/avif"),
             url("../images/login/photo-guinea-pig.jpg") type("image/jpeg")
@@ -268,7 +268,7 @@ body {
 
 .welcome-hero--horse_foal {
     background-image:
-        linear-gradient(90deg, rgba(2, 40, 81, 0.72) 0%, rgba(2, 40, 81, 0.55) 45%, rgba(2, 40, 81, 0.18) 100%),
+        linear-gradient(90deg, rgb(2 40 81 / 72%) 0%, rgb(2 40 81 / 55%) 45%, rgb(2 40 81 / 18%) 100%),
         image-set(
             url("../images/login/photo-horse-foal.avif") type("image/avif"),
             url("../images/login/photo-horse-foal.jpg") type("image/jpeg")
@@ -278,6 +278,7 @@ body {
 
 .welcome-hero__inner {
     width: 100%;
+
     /* Keep the horizontal padding inside width:100% — without this the padding
        is added on top and the content overflows the viewport (clipped by the
        hero's overflow:hidden), most visibly on narrow screens. */
@@ -295,6 +296,7 @@ body {
 .welcome-editorial {
     position: relative;
     z-index: 1;
+
     /* Soft halo so the editorial text stays legible against bright photo regions
        (e.g., the building photo) without needing per-image gradient tuning. */
     text-shadow: var(--welcome-text-halo);
@@ -390,11 +392,18 @@ body {
     font-size: 0.9375rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+
     /* Transparent border so the outlined variant below doesn't shift the solid one by 2px. */
     border: 0.0625rem solid transparent;
     transition:
         background-color 120ms ease-out,
         color 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .welcome-cta {
+        transition: none;
+    }
 }
 
 .welcome-cta:hover,
@@ -442,7 +451,8 @@ body {
     font-weight: 500;
 }
 
-.welcome-help:hover {
+.welcome-help:hover,
+.welcome-help:focus {
     color: var(--welcome-card-heading);
     text-decoration: underline;
 }
@@ -469,6 +479,7 @@ body {
 .welcome-footer__links {
     display: flex;
     align-items: center;
+
     /* No flex gap — the pipe separators provide the horizontal spacing. */
     gap: 0;
 }
@@ -487,7 +498,7 @@ body {
 .welcome-footer__icon {
     width: 0.875rem;
     height: 0.875rem;
-    fill: currentColor;
+    fill: currentcolor;
     flex-shrink: 0;
 }
 
@@ -495,12 +506,19 @@ body {
     padding: 0 0.5rem;
 }
 
-.welcome-footer a:hover {
+.welcome-footer a:hover,
+.welcome-footer a:focus {
     color: var(--welcome-accent);
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .welcome-footer a {
+        transition: none;
+    }
+}
+
 /* -------- Mobile / narrow viewport -------------------------------------- */
-@media (max-width: 767.98px) {
+@media (width <= 767.98px) {
     .welcome-header__bar {
         padding: 0.375rem 1.25rem;
     }
@@ -532,10 +550,10 @@ body {
         background-image:
             linear-gradient(
                 180deg,
-                rgba(2, 40, 81, 0.3) 0%,
-                rgba(2, 40, 81, 0.4) 35%,
-                rgba(2, 40, 81, 0.88) 75%,
-                rgba(2, 40, 81, 0.97) 100%
+                rgb(2 40 81 / 30%) 0%,
+                rgb(2 40 81 / 40%) 35%,
+                rgb(2 40 81 / 88%) 75%,
+                rgb(2 40 81 / 97%) 100%
             ),
             image-set(
                 url("../images/login/photo-svm-building.avif") type("image/avif"),
@@ -547,10 +565,10 @@ body {
         background-image:
             linear-gradient(
                 180deg,
-                rgba(2, 40, 81, 0.25) 0%,
-                rgba(2, 40, 81, 0.35) 35%,
-                rgba(2, 40, 81, 0.88) 75%,
-                rgba(2, 40, 81, 0.97) 100%
+                rgb(2 40 81 / 25%) 0%,
+                rgb(2 40 81 / 35%) 35%,
+                rgb(2 40 81 / 88%) 75%,
+                rgb(2 40 81 / 97%) 100%
             ),
             image-set(
                 url("../images/login/photo-vetmed-admin.avif") type("image/avif"),
@@ -562,10 +580,10 @@ body {
         background-image:
             linear-gradient(
                 180deg,
-                rgba(2, 40, 81, 0.35) 0%,
-                rgba(2, 40, 81, 0.45) 35%,
-                rgba(2, 40, 81, 0.9) 75%,
-                rgba(2, 40, 81, 0.97) 100%
+                rgb(2 40 81 / 35%) 0%,
+                rgb(2 40 81 / 45%) 35%,
+                rgb(2 40 81 / 90%) 75%,
+                rgb(2 40 81 / 97%) 100%
             ),
             image-set(
                 url("../images/login/photo-ophthalmology.avif") type("image/avif"),
@@ -577,10 +595,10 @@ body {
         background-image:
             linear-gradient(
                 180deg,
-                rgba(2, 40, 81, 0.4) 0%,
-                rgba(2, 40, 81, 0.55) 40%,
-                rgba(2, 40, 81, 0.92) 75%,
-                rgba(2, 40, 81, 0.97) 100%
+                rgb(2 40 81 / 40%) 0%,
+                rgb(2 40 81 / 55%) 40%,
+                rgb(2 40 81 / 92%) 75%,
+                rgb(2 40 81 / 97%) 100%
             ),
             image-set(
                 url("../images/login/photo-guinea-pig.avif") type("image/avif"),
@@ -592,10 +610,10 @@ body {
         background-image:
             linear-gradient(
                 180deg,
-                rgba(2, 40, 81, 0.25) 0%,
-                rgba(2, 40, 81, 0.3) 35%,
-                rgba(2, 40, 81, 0.85) 75%,
-                rgba(2, 40, 81, 0.97) 100%
+                rgb(2 40 81 / 25%) 0%,
+                rgb(2 40 81 / 30%) 35%,
+                rgb(2 40 81 / 85%) 75%,
+                rgb(2 40 81 / 97%) 100%
             ),
             image-set(
                 url("../images/login/photo-horse-foal.avif") type("image/avif"),
@@ -647,6 +665,7 @@ body {
     .welcome-footer__links {
         flex-wrap: wrap;
         justify-content: center;
+
         /* Row-gap only, for when the links wrap; pipes handle the horizontal gap. */
         gap: 0.5rem 0;
     }
