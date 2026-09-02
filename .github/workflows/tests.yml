@@ -50,7 +50,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./VueApp/test-report.junit.xml
           flags: frontend
-          report-type: test_results
+          report_type: test_results
 
   backend:
     name: Backend Tests
@@ -66,17 +66,18 @@ jobs:
 
       - name: Run tests with coverage
         run: >-
-          dotnet test test/
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
-          --logger "junit;LogFilePath=../test-report.junit.xml"
+          dotnet test --project test/Viper.test.csproj
+          --
+          --coverage --coverage-output-format cobertura
+          --coverage-output coverage.cobertura.xml
+          --report-xunit-junit --report-xunit-junit-filename test-report.junit.xml
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() && env.HAS_CODECOV_TOKEN == 'true' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/**/coverage.cobertura.xml
+          files: ./TestResults/coverage.cobertura.xml
           flags: backend
 
       - name: Upload test results to Codecov
@@ -84,6 +85,6 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./test-report.junit.xml
+          files: ./TestResults/test-report.junit.xml
           flags: backend
-          report-type: test_results
+          report_type: test_results
