@@ -52,8 +52,9 @@
                     label="Add Course"
                     dense
                     class="full-width-xs"
+                    toggle-aria-haspopup="menu"
                 >
-                    <q-list>
+                    <q-list role="menu">
                         <q-item
                             v-if="hasImportCourse"
                             v-close-popup
