@@ -1,3 +1,4 @@
+import type { NavigationGuard } from "vue-router"
 import { createSpaRouter } from "@/shared/create-spa-router"
 import { routes, cmsHomePermissions } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
@@ -5,7 +6,8 @@ import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 
 const router = createSpaRouter(routes)
 
-router.beforeEach(async (to) => {
+// Exported so tests can run the guard over a router whose page components are stubs.
+const cmsGuard: NavigationGuard = async (to) => {
     const { requireLogin } = useRequireLogin(to)
     const loginResult = await requireLogin(true, "SVMSecure.CMS")
     if (loginResult !== undefined && !loginResult) {
@@ -25,6 +27,8 @@ router.beforeEach(async (to) => {
     if (to.name === "CmsAuth" && checkHasOnePermission(cmsHomePermissions)) {
         return { name: "CmsHome" }
     }
-})
+}
 
-export { router as cmsRouter }
+router.beforeEach(cmsGuard)
+
+export { router as cmsRouter, cmsGuard }

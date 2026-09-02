@@ -1,6 +1,9 @@
 import { createPinia, setActivePinia } from "pinia"
+import type { Router } from "vue-router"
 import { useUserStore } from "@/store/UserStore"
-import { cmsRouter } from "@/CMS/router"
+import { createGuardedStubRouter } from "@/shared/__tests__/guarded-stub-router"
+import { cmsGuard } from "@/CMS/router"
+import { routes } from "@/CMS/router/routes"
 
 // The real beforeEach guard calls requireLogin, which hits the network and needs a Quasar/inject
 // context. Stub it (Vitest hoists this above the imports) so the test exercises only the
@@ -10,41 +13,40 @@ vi.mock("@/composables/RequireLogin", () => ({
     getLoginUrl: () => ({ value: "" }),
 }))
 
-// Park on a neutral route first so the push to the area root is never a redundant navigation
-// (which would resolve to a NavigationFailure and leave currentRoute unchanged).
-async function goToAreaRoot(): Promise<void> {
-    await cmsRouter.push("/__reset__")
-    await cmsRouter.push("/CMS/")
+/** A fresh router and user store for a visitor holding these permissions. */
+function routerFor(permissions: string[]): Router {
+    setActivePinia(createPinia())
+    useUserStore().setPermissions(permissions)
+    return createGuardedStubRouter(routes, cmsGuard)
 }
 
-describe("CMS area-root canonicalization", () => {
-    beforeEach(() => {
-        setActivePinia(createPinia())
-    })
-
+describe("cms router - area-root canonicalization", () => {
     it("redirects base SVMSecure.CMS users from /CMS/ to the Home hub", async () => {
-        useUserStore().setPermissions(["SVMSecure.CMS"])
+        expect.hasAssertions()
+        const router = routerFor(["SVMSecure.CMS"])
 
-        await goToAreaRoot()
+        await router.push("/CMS/")
 
-        expect(cmsRouter.currentRoute.value.name).toBe("CmsHome")
+        expect(router.currentRoute.value.name).toBe("CmsHome")
     })
 
     it("redirects granular-only users (no base SVMSecure.CMS) to the Home hub", async () => {
+        expect.hasAssertions()
         // The regression: AllFiles/ManageNavigation/etc. users can enter the area but used to be
         // stranded on /CMS/ because canonicalization only checked the base permission.
-        useUserStore().setPermissions(["SVMSecure.CMS.AllFiles"])
+        const router = routerFor(["SVMSecure.CMS.AllFiles"])
 
-        await goToAreaRoot()
+        await router.push("/CMS/")
 
-        expect(cmsRouter.currentRoute.value.name).toBe("CmsHome")
+        expect(router.currentRoute.value.name).toBe("CmsHome")
     })
 
     it("leaves visitors with no CMS permissions on the CmsAuth landing", async () => {
-        useUserStore().setPermissions([])
+        expect.hasAssertions()
+        const router = routerFor([])
 
-        await goToAreaRoot()
+        await router.push("/CMS/")
 
-        expect(cmsRouter.currentRoute.value.name).toBe("CmsAuth")
+        expect(router.currentRoute.value.name).toBe("CmsAuth")
     })
 })
