@@ -267,7 +267,8 @@
             "files": ["web/wwwroot/js/**"],
             "rules": {
                 "no-unused-vars": "off", // Functions are called from Razor views via <script> tags
-                "import/unambiguous": "off" // These are <script> tag files, not ES modules
+                "import/unambiguous": "off", // These are <script> tag files, not ES modules
+                "no-implicit-globals": "off" // The top-level declarations are the public API Razor views call
             }
         }
     ],

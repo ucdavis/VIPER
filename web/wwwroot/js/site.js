@@ -79,7 +79,7 @@ async function viperFetch(VueApp, url, data = {}, additionalFunctions = [], erro
             return r.pagination ? { result: result, pagination: r.pagination } : result
         })
         // Catch errors, including those thrown by handleViperFetchError
-        .catch((error) => showViperFetchError(VueApp, error, errorTarget))
+        .catch((/** @type {unknown} */ error) => showViperFetchError(VueApp, error, errorTarget))
 }
 
 /*
