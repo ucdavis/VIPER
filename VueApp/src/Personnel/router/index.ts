@@ -1,5 +1,5 @@
 import { createSpaRouter } from "@/shared/create-spa-router"
-import type { RouteLocationNormalized } from "vue-router"
+import type { NavigationGuard, RouteLocationNormalized } from "vue-router"
 import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { useUserStore } from "@/store/UserStore"
@@ -27,7 +27,8 @@ function needsAuthentication(from: RouteLocationNormalized): boolean {
     return from.matched.length === 0 || !useUserStore().isLoggedIn
 }
 
-router.beforeEach(async (to, from) => {
+// Exported so tests can run the guard over a router whose page components are stubs.
+const personnelGuard: NavigationGuard = async (to, from) => {
     if (needsAuthentication(from) && !(await authenticate(to))) {
         return false
     }
@@ -36,6 +37,8 @@ router.beforeEach(async (to, from) => {
     if (required !== null && required !== undefined && !checkHasOnePermission(required)) {
         return { name: "PersonnelHome" }
     }
-})
+}
 
-export { router }
+router.beforeEach(personnelGuard)
+
+export { router, personnelGuard }
