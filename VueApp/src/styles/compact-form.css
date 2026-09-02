@@ -37,6 +37,8 @@
 
 :is(.compact-form, .effort-form) .q-field--error .q-field__messages::before {
     content: "error";
+
+    /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword -- Icon font: a generic fallback renders the ligature name "error" as literal text. */
     font-family: "Material Icons";
     font-size: 1rem;
     line-height: 1;

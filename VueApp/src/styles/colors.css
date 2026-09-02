@@ -1,5 +1,7 @@
 /* UC Davis Brand Colors - Complete Official Palette */
+
 /* SINGLE SOURCE OF TRUTH: Edit colors here, TypeScript will read from CSS variables */
+
 /* Source: https://communicationsguide.ucdavis.edu/brand-guide/colors */
 
 :root {
@@ -18,7 +20,7 @@
     /* UC Davis Gold Shades (10-100%) */
     --ucdavis-gold-100: #ffbf00;
     --ucdavis-gold-90: #ffc519;
-    --ucdavis-gold-80: #ffcc33;
+    --ucdavis-gold-80: #fc3;
     --ucdavis-gold-70: #ffd24c;
     --ucdavis-gold-60: #ffd966;
     --ucdavis-gold-50: #ffdf80;
@@ -28,15 +30,15 @@
     --ucdavis-gold-10: #fff9e5;
 
     /* UC Davis Black/Grey Shades (10-100%) */
-    --ucdavis-black-100: #000000;
+    --ucdavis-black-100: #000;
     --ucdavis-black-90: #191919;
-    --ucdavis-black-80: #333333;
+    --ucdavis-black-80: #333;
     --ucdavis-black-70: #4c4c4c;
-    --ucdavis-black-60: #666666;
+    --ucdavis-black-60: #666;
     --ucdavis-black-50: #7f7f7f;
-    --ucdavis-black-40: #999999;
+    --ucdavis-black-40: #999;
     --ucdavis-black-30: #b2b2b2;
-    --ucdavis-black-20: #cccccc;
+    --ucdavis-black-20: #ccc;
     --ucdavis-black-10: #e5e5e5;
 
     /* UC Davis Extended Brand Colors */
@@ -49,7 +51,7 @@
     /* Neutral surface tokens — blue-tinted near-whites with no equivalent in the
        brand ramp (its lightest blue, --ucdavis-blue-10 #cdd6e0, is far too dark
        for a panel fill). Borders use the existing --ucdavis-black-10 directly. */
-    --surface: #ffffff;
+    --surface: #fff;
     --surface-tint: #f5f7fb;
     --surface-tint-raised: #fafbff;
 
@@ -66,29 +68,36 @@
 }
 
 /* Background utility classes — UC Davis palette */
+
 /* Quasar palette utilities (bg-red-1, bg-blue-1, etc.) are not WCAG-aligned
    with our brand. Prefer these classes. */
 .bg-ucdavis-blue-10 {
     background-color: var(--ucdavis-blue-10);
 }
+
 .bg-ucdavis-blue-20 {
     background-color: var(--ucdavis-blue-20);
 }
+
 .bg-ucdavis-gold-10 {
     background-color: var(--ucdavis-gold-10);
 }
+
 .bg-ucdavis-gold-20 {
     background-color: var(--ucdavis-gold-20);
 }
+
 /* Secondary-palette accents for categorical distinction (charts, tags). Exposed as
    bg-* utilities so Quasar color="arboretum"/"cabernet" resolves on badges/chips,
    since these are not part of Quasar's registered brand palette. */
 .bg-arboretum {
     background-color: var(--ucdavis-arboretum);
 }
+
 .bg-cabernet {
     background-color: var(--ucdavis-cabernet);
 }
+
 /* Overrides Quasar's .text-warning; bright gold fails WCAG contrast on white.
    !important required to beat Quasar's own !important. */
 .text-warning {
