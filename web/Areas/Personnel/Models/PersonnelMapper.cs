@@ -27,13 +27,13 @@ namespace Viper.Areas.Personnel.Models
         // The nested mappings the list mappings above reach through. Declared rather than left to
         // Mapperly so each one can name what it drops.
 
-        private static partial ViperPersonDto ToViperPersonDto(ViperPerson source);
+        private static partial ViperPersonDto? ToViperPersonDto(ViperPerson? source);
 
         // The two collections are the other side of relationships already being serialized; a
         // person nested under a unit does not carry the units back.
         [MapperIgnoreSource(nameof(PhonePerson.UnitPersons))]
         [MapperIgnoreSource(nameof(PhonePerson.PhoneListUnitPersons))]
-        private static partial PhonePersonDto ToPhonePersonDto(PhonePerson source);
+        private static partial PhonePersonDto? ToPhonePersonDto(PhonePerson? source);
 
         // The parent unit, which the caller already has: these arrive nested inside it.
         // IsActive is the soft-delete flag, and the read queries return only active rows.
