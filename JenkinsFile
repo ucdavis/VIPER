@@ -89,7 +89,7 @@ pipeline {
 				script {
 					parallel(
 						backend: {
-							bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+							bat '"C:\\Program Files\\dotnet\\dotnet" test --project ./test/Viper.test.csproj --configuration release -- --report-xunit-junit --report-xunit-junit-filename TestResults.xml'
 						},
 						frontend: {
 							bat 'npm run --prefix VueApp test:run'
@@ -170,8 +170,8 @@ pipeline {
 		always {
 			//Run junit on the test report to build output
 			script {
-				if(fileExists('test/TestResults/TestResults.xml')) {
-					junit testResults: 'test/TestResults/TestResults.xml', skipPublishingChecks: true
+				if(fileExists('TestResults/TestResults.xml')) {
+					junit testResults: 'TestResults/TestResults.xml', skipPublishingChecks: true
 				}
 			}
 
