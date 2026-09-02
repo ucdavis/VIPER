@@ -17,7 +17,10 @@ def copyOfflineOperations = [
 		prodDestination: "%viperprodnet%",
 		includeFiles: "app_offline.htm",
 		excludeFiles: "",
-		excludeDirectories: ""
+		// Source is the workspace root, and /S /E replicates its directory tree,
+		// so the test run's output dir would be created on the webroot just to be
+		// purged by the publish copy that follows.
+		excludeDirectories: "TestResults"
 	]
 
 ]
