@@ -17,10 +17,11 @@ def copyOfflineOperations = [
 		prodDestination: "%viperprodnet%",
 		includeFiles: "app_offline.htm",
 		excludeFiles: "",
-		// Source is the workspace root, and /S /E replicates its directory tree,
-		// so the test run's output dir would be created on the webroot just to be
-		// purged by the publish copy that follows.
-		excludeDirectories: "TestResults"
+		// Only app_offline.htm is copied, but /S /E still replicates every workspace
+		// directory onto the webroot for the publish copy to purge: ~2,700 entries per
+		// server. Bare names (not %workspacePath%, which breaks on the space in the
+		// workspace path) exclude the tree without touching the offline wipe.
+		excludeDirectories: "VueApp web .git test .github scripts TestResults .vscode .husky .config"
 	]
 
 ]
