@@ -83,7 +83,7 @@ import { computed } from "vue"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import StatusBadge from "@/components/StatusBadge.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
-import { getAuditActionColor } from "../utils/audit-actions"
+import { getAuditActionColor } from "@/composables/use-audit-colors"
 import type { AuditLogEntry } from "../types/audit-types"
 
 const props = defineProps<{
