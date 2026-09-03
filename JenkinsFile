@@ -17,7 +17,11 @@ def copyOfflineOperations = [
 		prodDestination: "%viperprodnet%",
 		includeFiles: "app_offline.htm",
 		excludeFiles: "",
-		excludeDirectories: ""
+		// Only app_offline.htm is copied, but /S /E still replicates every workspace
+		// directory onto the webroot for the publish copy to purge: ~2,700 entries per
+		// server. Bare names (not %workspacePath%, which breaks on the space in the
+		// workspace path) exclude the tree without touching the offline wipe.
+		excludeDirectories: "VueApp web .git test .github scripts TestResults .vscode .husky .config"
 	]
 
 ]
@@ -89,7 +93,7 @@ pipeline {
 				script {
 					parallel(
 						backend: {
-							bat '"C:\\Program Files\\dotnet\\dotnet" test ./test/Viper.test.csproj -e Test --logger "junit" --configuration release --nologo'
+							bat '"C:\\Program Files\\dotnet\\dotnet" test --project ./test/Viper.test.csproj --configuration release -- --report-xunit-junit --report-xunit-junit-filename TestResults.xml'
 						},
 						frontend: {
 							bat 'npm run --prefix VueApp test:run'
@@ -170,8 +174,8 @@ pipeline {
 		always {
 			//Run junit on the test report to build output
 			script {
-				if(fileExists('test/TestResults/TestResults.xml')) {
-					junit testResults: 'test/TestResults/TestResults.xml', skipPublishingChecks: true
+				if(fileExists('TestResults/TestResults.xml')) {
+					junit testResults: 'TestResults/TestResults.xml', skipPublishingChecks: true
 				}
 			}
 
