@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
 using Viper.Areas.RAPS.Services;
+using Viper.Classes;
 using Viper.Classes.SQLContext;
 using Web.Authorization;
 
@@ -11,9 +12,8 @@ using Web.Authorization;
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{Instance=VIPER}/[controller]")]
-    [ApiController]
     [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
-    public class MembersController : ControllerBase
+    public class MembersController : ApiController
     {
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
