@@ -1,9 +1,9 @@
 import { getAuditActionColor } from "@/composables/use-audit-colors"
 
 /**
- * Unit tests for the shared audit-badge palette: both current vocabularies (CMS file audit,
- * Effort audit list) must keep resolving to the same verb-class colors, and unknown actions
- * fall back to the neutral grey.
+ * Unit tests for the shared audit-badge palette: all three current vocabularies (CMS file
+ * audit, Effort audit list, Clinical Scheduler audit trail) must keep resolving to the same
+ * verb-class colors, and unknown actions fall back to the neutral grey.
  */
 
 describe("getAuditActionColor - shared verb palette", () => {
@@ -29,6 +29,17 @@ describe("getAuditActionColor - shared verb palette", () => {
         ["ImportRecords", "info"],
         ["VerifyRecords", "positive"],
     ])("colors the Effort action %s as %s", (action, color) => {
+        expect(getAuditActionColor(action)).toBe(color)
+    })
+
+    // Sentence-style actions from ScheduleAuditActions.cs. Three of the four put the verb
+    // somewhere the prefix rules cannot see, so they are exact-match entries.
+    it.each([
+        ["Added to rotation", "positive"],
+        ["Removed from rotation", "negative"],
+        ["Made primary evaluator", "primary"],
+        ["Primary evaluator flag removed", "warning"],
+    ])("colors the Clinical Scheduler action %s as %s", (action, color) => {
         expect(getAuditActionColor(action)).toBe(color)
     })
 

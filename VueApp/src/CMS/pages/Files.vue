@@ -10,8 +10,12 @@
                 color="primary"
                 label="File Tools"
                 class="q-mr-sm"
+                toggle-aria-haspopup="menu"
             >
-                <q-list dense>
+                <q-list
+                    dense
+                    role="menu"
+                >
                     <q-item
                         v-for="tool in fileTools"
                         :key="tool.label"

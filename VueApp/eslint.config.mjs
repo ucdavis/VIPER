@@ -108,6 +108,7 @@ export default [
             "vue/multi-word-component-names": "off", // Allow single-word area components
 
             // Vue reactivity & composable quality (eslint-plugin-harlanzw)
+            "harlanzw/prefer-satisfies": "warn",
             "harlanzw/vue-no-async-lifecycle-hook": "warn",
             "harlanzw/vue-no-faux-composables": "warn",
             "harlanzw/vue-no-nested-reactivity": "warn",
