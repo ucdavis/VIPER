@@ -1,6 +1,6 @@
-@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
 @{
-    IUserHelper userHelper = new UserHelper();
+    IUserHelper UserHelper = new UserHelper();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -85,7 +85,7 @@
                 <q-btn flat dense icon="menu" aria-label="Navigation menu" class="q-mr-xs lt-md">
                     @await Component.InvokeAsync("MiniNav",
                     new {
-                    user = userHelper.GetCurrentUser()
+                    user = UserHelper.GetCurrentUser()
                     }
                     )
                 </q-btn>
@@ -117,14 +117,14 @@
 
                 @await Component.InvokeAsync("ProfilePic",
                 new {
-                userName = userHelper.GetCurrentUser()?.LoginId
+                userName = UserHelper.GetCurrentUser()?.LoginId
                 }
                 )
             </q-toolbar>
 
             @await Component.InvokeAsync("MainNav",
             new {
-            user = userHelper.GetCurrentUser()
+            user = UserHelper.GetCurrentUser()
             }
             )
 
@@ -132,7 +132,7 @@
 
         @await Component.InvokeAsync("LeftNav",
         new {
-        user = userHelper.GetCurrentUser(),
+        user = UserHelper.GetCurrentUser(),
         nav = 0
         }
         )
@@ -142,7 +142,7 @@
                 @{
                     var allowAnonymousContent = ViewData["AllowAnonymousContent"] as bool? ?? false;
                 }
-                @if (userHelper.GetCurrentUser() != null || allowAnonymousContent)
+                @if (UserHelper.GetCurrentUser() != null || allowAnonymousContent)
                 {
                     <div class="q-pa-md" v-cloak>
                     @RenderBody()
