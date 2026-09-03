@@ -17,7 +17,6 @@ public class EmergencyContactService : IEmergencyContactService
     private readonly AAUDContext _aaudContext;
     private readonly IUserHelper _userHelper;
     private readonly ILogger<EmergencyContactService> _logger;
-    private readonly RAPSCacheService _rapsCacheService;
     private readonly RAPSAuditService _rapsAuditService;
 
     public EmergencyContactService(
@@ -32,7 +31,6 @@ public class EmergencyContactService : IEmergencyContactService
         _aaudContext = aaudContext;
         _userHelper = userHelper;
         _logger = logger;
-        _rapsCacheService = new RAPSCacheService(rapsContext, aaudContext, userHelper);
         _rapsAuditService = new RAPSAuditService(rapsContext, userHelper);
     }
 
@@ -311,7 +309,6 @@ public class EmergencyContactService : IEmergencyContactService
             _rapsAuditService.AuditRolePermissionChange(rolePermission!, RAPSAuditService.AuditActionType.Delete);
             _rapsContext.TblRolePermissions.Remove(rolePermission!);
             await _rapsContext.SaveChangesAsync();
-            ClearCacheForRoleMembers(roleId);
             return false;
         }
 
@@ -337,7 +334,6 @@ public class EmergencyContactService : IEmergencyContactService
             _rapsAuditService.AuditRolePermissionChange(rolePermission, RAPSAuditService.AuditActionType.Update);
         }
         await _rapsContext.SaveChangesAsync();
-        ClearCacheForRoleMembers(roleId);
         return true;
     }
 
@@ -374,7 +370,6 @@ public class EmergencyContactService : IEmergencyContactService
             }
             _rapsContext.TblMemberPermissions.RemoveRange(existing);
             await _rapsContext.SaveChangesAsync();
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
             return false;
         }
 
@@ -391,7 +386,6 @@ public class EmergencyContactService : IEmergencyContactService
         _rapsContext.TblMemberPermissions.Add(memberPermission);
         _rapsAuditService.AuditPermissionMemberChange(memberPermission, RAPSAuditService.AuditActionType.Create);
         await _rapsContext.SaveChangesAsync();
-        _rapsCacheService.ClearCachedRolesAndPermissionsForUser(user.MothraId);
         return true;
     }
 
@@ -596,25 +590,6 @@ public class EmergencyContactService : IEmergencyContactService
             return pidm;
         }
         return null;
-    }
-
-    /// <summary>
-    /// Clears the cached roles and permissions for all members of a given role,
-    /// so that permission changes take effect immediately.
-    /// </summary>
-    private void ClearCacheForRoleMembers(int roleId)
-    {
-        var memberIds = _rapsContext.TblRoleMembers
-            .Where(rm => rm.RoleId == roleId
-                && (rm.StartDate == null || rm.StartDate <= DateTime.Now)
-                && (rm.EndDate == null || rm.EndDate >= DateTime.Now))
-            .Select(rm => rm.MemberId)
-            .ToList();
-
-        foreach (var memberId in memberIds)
-        {
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
-        }
     }
 
     private static void ValidatePhone(string? value, string fieldName, List<string> invalidFields)

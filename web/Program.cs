@@ -32,6 +32,7 @@ using Viper.Areas.Effort;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
 using Viper.Areas.Personnel;
+using Viper.Areas.RAPS.Services;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -209,7 +210,7 @@ try
     // Configure DbContext options with connection strings via DI
     var enableDetailedErrors = builder.Environment.EnvironmentName != "Production";
 
-    void RegisterDbContext<TContext>(string connectionStringKey) where TContext : DbContext
+    void RegisterDbContext<TContext>(string connectionStringKey, Action<DbContextOptionsBuilder>? configure = null) where TContext : DbContext
     {
         var connStr = builder.Configuration.GetConnectionString(connectionStringKey)
             ?? throw new InvalidOperationException($"Connection string '{connectionStringKey}' not configured");
@@ -218,6 +219,7 @@ try
             // Match our SQL Server 2016 compat level (130) so EF Core 10 generates optimal SQL for our DB version
             options.UseSqlServer(connStr, o => o.UseCompatibilityLevel(130));
             if (enableDetailedErrors) options.EnableDetailedErrors();
+            configure?.Invoke(options);
         });
     }
 
@@ -225,7 +227,8 @@ try
     RegisterDbContext<CoursesContext>("Courses");
     RegisterDbContext<CrestContext>("CREST");
     RegisterDbContext<DictionaryContext>("Dictionary");
-    RegisterDbContext<RAPSContext>("RAPS");
+    // The interceptor evicts affected users' cached permissions on any RAPS write, whatever made it.
+    RegisterDbContext<RAPSContext>("RAPS", o => o.AddInterceptors(new RapsCacheInvalidationInterceptor()));
     RegisterDbContext<VIPERContext>("VIPER");
     RegisterDbContext<ClinicalSchedulerContext>("ClinicalScheduler");
     RegisterDbContext<SISContext>("SIS");

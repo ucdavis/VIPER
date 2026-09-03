@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
@@ -11,21 +12,23 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{Instance=VIPER}/[controller]")]
     [ApiController]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     public class MembersController : ControllerBase
     {
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
-        private readonly RAPSCacheService _rapsCacheService;
 
-        public MembersController(RAPSContext context, AAUDContext aaudContext)
+        public MembersController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
-            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
         // GET: <Members>
+        // The union of what the three pages using this typeahead require. Without it, any RAPS Users
+        // member could enumerate identities here.
+        [Permission(Allow = "RAPS.Admin,RAPS.UserLookup,RAPS.EditRoleMembership,RAPS.EditMemberPermissions")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<MemberSearchResult>>> Search(string search, string active = "active")
         {
@@ -68,6 +71,7 @@ namespace Viper.Areas.RAPS.Controllers
         }
 
         // GET <Members>/12345678
+        [Permission(Allow = "RAPS.Admin,RAPS.UserLookup,RAPS.EditRoleMembership,RAPS.EditMemberPermissions")]
         [HttpGet("{memberId}")]
         public async Task<ActionResult<MemberSearchResult>> Get(string memberId)
         {
@@ -217,7 +221,6 @@ namespace Viper.Areas.RAPS.Controllers
             }
             await new CloneService(_context).Clone(instance, sourceMemberId, targetMemberId, objectsToClone);
 
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(targetMemberId);
             return NoContent();
         }
 

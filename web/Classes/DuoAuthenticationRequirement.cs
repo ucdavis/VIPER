@@ -32,12 +32,17 @@ namespace Web.Authorization
             {
                 if (httpContext is not null)
                 {
+                    // No Duo credential can be issued for a localhost callback, so Development bypasses
+                    // the check. RapsControllerAuthorizationTests is what guards the policy itself.
                     var env = httpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
                     if (env != null && env.EnvironmentName == "Development")
                     {
                         context.Succeed(requirement);
                     }
-                    httpContext.Items["ErrorMessage"] = "DUO two-factor authentication is required";
+                    else
+                    {
+                        httpContext.Items["ErrorMessage"] = "DUO two-factor authentication is required";
+                    }
                 }
                 else
                 {

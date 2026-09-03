@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using NLog;
 using Viper.Areas.RAPS.Services;
 using Viper.Classes;
@@ -18,7 +17,7 @@ namespace Viper.Areas.RAPS.Controllers
 {
     [Area("RAPS")]
     [Route("[area]/[action]")]
-    [Authorize(Roles = "VMDO SVM-IT,RAPS Users")]//, Policy = "2faAuthentication"
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     public class RAPSController : AreaController
     {
         private readonly RAPSContext _RAPSContext;
@@ -121,7 +120,10 @@ namespace Viper.Areas.RAPS.Controllers
                 nav.Add(new NavMenuItem { MenuItemText = inst, MenuItemURL = "~/raps/" + inst + "/" + (usePage ? page : "RoleList") });
             }
             nav.Add(new NavMenuItem { MenuItemText = "Roles", IsHeader = true });
-            nav.Add(new NavMenuItem { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
+            if (_securityService.CanViewRoleList(instance))
+            {
+                nav.Add(new NavMenuItem { MenuItemText = "Role List", MenuItemURL = "Rolelist" });
+            }
             if (_securityService.IsAllowedTo("EditRoleMembership", instance))
             {
                 nav.Add(new NavMenuItem { MenuItemText = "Role Comparison", MenuItemURL = "RolePermissionsComparison" });
@@ -236,8 +238,7 @@ namespace Viper.Areas.RAPS.Controllers
                 return View("~/Areas/RAPS/Views/Roles/ListAdmin.cshtml");
             }
 
-            if (_securityService.IsAllowedTo("ViewAllRoles", instance) ||
-                !_securityService.GetControlledRoleIds(UserHelper.GetCurrentUser()?.MothraId).IsNullOrEmpty())
+            if (_securityService.CanViewRoleList(instance))
             {
                 return View("~/Areas/RAPS/Views/Roles/List.cshtml");
             }
