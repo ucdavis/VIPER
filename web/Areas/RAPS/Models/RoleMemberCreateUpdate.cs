@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using Viper.Classes.Utilities;
 using Viper.Models.RAPS;
 
 namespace Viper.Areas.RAPS.Models
@@ -6,7 +8,9 @@ namespace Viper.Areas.RAPS.Models
     {
         public required int RoleId { get; set; }
         public required string MemberId { get; set; }
+        [JsonConverter(typeof(EmptyStringAsNullConverter<DateOnly>))]
         public DateOnly? StartDate { get; set; }
+        [JsonConverter(typeof(EmptyStringAsNullConverter<DateOnly>))]
         public DateOnly? EndDate { get; set; }
         public string Comment { get; set; } = "";
 
