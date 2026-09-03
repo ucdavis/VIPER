@@ -15,6 +15,7 @@ namespace Viper.Areas.Directory.Models
         public string DisplayName { get; set; } = null!;
         public string EduPersonNickname { get; set; } = null!;
         public string Title { get; set; } = null!;
+        public string LabeledUri { get; set; } = null!;
         public string PostalAddress { get; set; } = null!;
         public string TelephoneNumber { get; set; } = null!;
         public string Mobile { get; set; } = null!;
@@ -50,6 +51,7 @@ namespace Viper.Areas.Directory.Models
                     case "eduPersonNickname": EduPersonNickname = v.ToString(); break;
 
                     case "title": Title = v.ToString(); break;
+                    case "labeledUri": LabeledUri = v.ToString(); break;
                     case "postalAddress": PostalAddress = v.ToString(); break;
                     case "telephoneNumber": TelephoneNumber = v.ToString(); break;
                     case "mobile": Mobile = v.ToString(); break;

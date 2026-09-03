@@ -78,7 +78,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
         {
-            var individuals = await SearchCurrentAaudUsers(_aaud, search);
+            var individuals = await SearchCurrentOrFutureAaudUsers(_aaud, search);
             List<IndividualSearchResult> results = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
@@ -105,7 +105,7 @@ namespace Viper.Areas.Directory.Controllers
         {
             List<IndividualSearchResult> results = new();
             List<LdapUserContact> ldap = LdapService.GetUsersContact(search);
-            var individuals = await SearchCurrentAaudUsers(_aaud, search);
+            var individuals = await SearchCurrentOrFutureAaudUsers(_aaud, search);
             var individualsByIamId = individuals.ToLookup(m => m.IamId);
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
@@ -140,19 +140,27 @@ namespace Viper.Areas.Directory.Controllers
             await base.OnActionExecutionAsync(context, next);
         }
         /// <summary>
-        /// Current AAUD users matching the search term on name or any directory identifier, ordered for display. Shared by Get and GetUCD
+        /// Current or future AAUD users matching the search term on name or any directory identifier,
+        /// ordered for display. Shared by Get and GetUCD.
         /// </summary>
         /// <remarks>
-        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the one non-nullable identifier on AaudUser.
+        /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The
+        /// chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the
+        /// one non-nullable identifier on AaudUser.
+        ///
+        /// Current alone excludes people who are admitted/registered for an upcoming term that hasn't
+        /// started yet (e.g. an incoming student before the quarter begins) - AAUD only flips
+        /// current_student/current_employee on once the term is actually underway. Future covers that gap,
+        /// matching the population the campus LDAP directory and the legacy ColdFusion directory show.
         /// </remarks>
-        internal static Task<List<AaudUser>> SearchCurrentAaudUsers(AAUDContext aaud, string search)
+        internal static Task<List<AaudUser>> SearchCurrentOrFutureAaudUsers(AAUDContext aaud, string search)
         {
             return aaud.AaudUsers
                 .AsNoTracking()
                 .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                     || new[] { u.MailId, u.LoginId, u.SpridenId, u.Pidm, u.MothraId, u.EmployeeId, u.IamId }
                         .Any(id => id != null && id.Contains(search)))
-                .Where(u => u.Current != 0)
+                .Where(u => u.Current != 0 || u.Future != 0)
                 .OrderBy(u => u.DisplayLastName)
                 .ThenBy(u => u.DisplayFirstName)
                 .ToListAsync();
