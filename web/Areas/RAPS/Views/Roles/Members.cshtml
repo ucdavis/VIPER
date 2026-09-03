@@ -215,11 +215,8 @@
                 },
                 addUpdateMember: async function () {
                     this.disableMemberUpdate = true
-                    var oldBase = this.membersTable.urlBase
-                    this.membersTable.urlBase = "Roles/" + this.roleId + "/Members"
 
                     await this.membersTable.submit(this)
-                    this.membersTable.urlBase = oldBase
                     this.pushMemberToVMACS()
 
                     this.disableMemberUpdate = false
@@ -235,8 +232,7 @@
             watch: {
                 showViewMembers: {
                     handler(v) {
-                        this.membersTable.urlBase = ("Roles/" + this.roleId + "/Members") +
-                            (v ? "?includeViewMembers=true" : "")
+                        this.membersTable.query = v ? { includeViewMembers: true } : {}
                         this.membersTable.load()
                     }
                 }
