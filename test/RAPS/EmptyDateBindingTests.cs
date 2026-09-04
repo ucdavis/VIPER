@@ -25,8 +25,8 @@ namespace Viper.test.RAPS
             var model = DeserializeMemberPermission(
                 @"{""memberId"":""12345678"",""permissionId"":5,""access"":1,""startDate"":""2026-01-15T00:00:00"",""endDate"":""2026-06-30T00:00:00""}");
 
-            Assert.Equal(new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Local), model.StartDate);
-            Assert.Equal(new DateTime(2026, 6, 30, 0, 0, 0, DateTimeKind.Local), model.EndDate);
+            Assert.Equal(new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Unspecified), model.StartDate);
+            Assert.Equal(new DateTime(2026, 6, 30, 0, 0, 0, DateTimeKind.Unspecified), model.EndDate);
         }
 
         [Fact]
@@ -51,7 +51,7 @@ namespace Viper.test.RAPS
                 MemberId = "12345678",
                 PermissionId = 5,
                 Access = 1,
-                StartDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Local),
+                StartDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Unspecified),
                 EndDate = null
             };
 
@@ -60,7 +60,7 @@ namespace Viper.test.RAPS
                 JsonSerializer.Deserialize<MemberPermissionCreateUpdate>(json, JsonSerializerOptions.Web);
 
             Assert.NotNull(result);
-            Assert.Equal(new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Local), result.StartDate);
+            Assert.Equal(new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Unspecified), result.StartDate);
             Assert.Null(result.EndDate);
         }
 

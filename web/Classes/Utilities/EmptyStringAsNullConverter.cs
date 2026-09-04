@@ -8,15 +8,13 @@ namespace Viper.Classes.Utilities;
 /// A cleared date input posts "", which System.Text.Json otherwise rejects for
 /// DateTime?/DateOnly?, failing model binding with a 400 before the action runs.
 /// Apply per property with [JsonConverter(typeof(EmptyStringAsNullConverter&lt;DateTime&gt;))].
+/// A JSON null never reaches these methods: HandleNull defaults to false for a
+/// converter over Nullable&lt;T&gt;, so System.Text.Json reads and writes null itself.
 /// </summary>
 public class EmptyStringAsNullConverter<T> : JsonConverter<T?> where T : struct
 {
     public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (reader.TokenType == JsonTokenType.Null)
-        {
-            return null;
-        }
         if (reader.TokenType == JsonTokenType.String && string.IsNullOrWhiteSpace(reader.GetString()))
         {
             return null;
@@ -27,13 +25,10 @@ public class EmptyStringAsNullConverter<T> : JsonConverter<T?> where T : struct
 
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options)
     {
+        // Nothing to write when null, since that case is handled before it gets here.
         if (value.HasValue)
         {
             JsonSerializer.Serialize(writer, value.Value, options);
-        }
-        else
-        {
-            writer.WriteNullValue();
         }
     }
 }
