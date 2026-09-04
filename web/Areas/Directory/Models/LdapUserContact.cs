@@ -15,11 +15,11 @@ namespace Viper.Areas.Directory.Models
         public string DisplayName { get; set; } = null!;
         public string EduPersonNickname { get; set; } = null!;
         public string Title { get; set; } = null!;
-        public string LabeledUri { get; set; } = null!;
         public string PostalAddress { get; set; } = null!;
         public string TelephoneNumber { get; set; } = null!;
         public string Mobile { get; set; } = null!;
         public string Mail { get; set; } = null!;
+        public string LabeledUri { get; set; } = null!;
         public string UcdStudentLevel { get; set; } = null!;
         public string UcdStudentSid { get; set; } = null!;
         public string UcdPersonPidm { get; set; } = null!;
@@ -51,11 +51,11 @@ namespace Viper.Areas.Directory.Models
                     case "eduPersonNickname": EduPersonNickname = v.ToString(); break;
 
                     case "title": Title = v.ToString(); break;
-                    case "labeledUri": LabeledUri = v.ToString(); break;
                     case "postalAddress": PostalAddress = v.ToString(); break;
                     case "telephoneNumber": TelephoneNumber = v.ToString(); break;
                     case "mobile": Mobile = v.ToString(); break;
                     case "mail": Mail = v.ToString(); break;
+                    case "labeledUri": LabeledUri = v.ToString(); break;
 
                     case "employeeNumber": EmployeeNumber = v.ToString(); break;
                     case "ucdStudentLevel": UcdStudentLevel = v.ToString(); break;

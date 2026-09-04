@@ -79,7 +79,7 @@
         </q-card-section>
             <q-card-section class="row">
                 <q-card-section class="col photo">
-                    <q-img :src="'@HttpHelper.GetRootURL()/api/cms/photos/by-mail/' + user.mailId + '?altphoto=true'"
+                <q-img :src="'@HttpHelper.GetRootURL()/api/cms/photos/by-iam/' + user.iamId + '?altphoto=true'"
                         :alt="'Photo of ' + user.name"
                         class="photo_avatar"
                         fit="cover"
