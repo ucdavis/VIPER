@@ -87,7 +87,7 @@ namespace Viper.Areas.CMS.Services
                 return (mailId, iamId);
             }
 
-            var query = _aaudContext.AaudUsers.AsNoTracking().Where(u => u.Current != 0);
+            var query = _aaudContext.AaudUsers.AsNoTracking().Where(u => u.Current != 0 || u.Future != 0);
             if (!string.IsNullOrEmpty(mailId))
             {
                 query = query.Where(u => u.MailId == mailId);

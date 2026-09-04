@@ -8,6 +8,16 @@
 }
 <article class="userinfo">
 
+    @* Unavailable Sections *@
+    @if (Model.UnavailableSections.Any())
+    {
+        <div class="warning-surface" role="status">
+            <i class="q-icon notranslate material-icons" aria-hidden="true" role="img">warning</i>
+            <div class="text-body2">
+                <strong>Some information may be unavailable.</strong> The following sections could not be loaded and may be showing incomplete data: @string.Join(", ", Model.UnavailableSections).
+            </div>
+        </div>
+    }
 
     @* Directory Information *@
     @if (Model.CanViewDirectoryDetail || Model.IsOwnPage)

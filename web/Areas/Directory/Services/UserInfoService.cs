@@ -454,23 +454,38 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
-        /// Get current or future term for student - equivalent to getCurrentOrFutureTermForUser in SIS.cfc
+        /// Get current or future term for student - equivalent to getCurrentOrFutureTermForUser in SIS.cfc.
+        ///
+        /// Runs over its own connection built from the AAUD connection string rather than
+        /// _aaudContext, which this class otherwise uses only for EF entity queries - mixing raw
+        /// SQL and EF entities on the same context causes auth failures. No database qualifier on
+        /// the proc name either, so this follows whatever database the connection string points at,
+        /// same as the SIS raw SQL calls below.
         /// </summary>
         private async Task<string?> GetCurrentOrFutureTermForStudentAsync(UserInfoResult result, string pidm)
         {
             try
             {
+                var connectionString = _configuration.GetConnectionString("AAUD")
+                    ?? throw new InvalidOperationException("Connection string 'AAUD' not configured");
+
+                await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                await using var command = new Microsoft.Data.SqlClient.SqlCommand(
+                    "EXEC dbo.usp_get_CurrentOrFutureTermForUser @pidm = @pidm, @loginID = NULL, @termCode = @termCode OUTPUT",
+                    connection);
+
+                command.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@pidm", pidm));
+
                 var termCodeParam = new Microsoft.Data.SqlClient.SqlParameter
                 {
                     ParameterName = "@termCode",
                     SqlDbType = System.Data.SqlDbType.Int,
                     Direction = System.Data.ParameterDirection.Output
                 };
+                command.Parameters.Add(termCodeParam);
 
-                await _aaudContext.Database.ExecuteSqlRawAsync(
-                    "EXEC AAUD.dbo.usp_get_CurrentOrFutureTermForUser @pidm = @pidm, @loginID = NULL, @termCode = @termCode OUTPUT",
-                    new Microsoft.Data.SqlClient.SqlParameter("@pidm", pidm),
-                    termCodeParam);
+                await connection.OpenAsync();
+                await command.ExecuteNonQueryAsync();
 
                 var value = termCodeParam.Value;
                 return value == null || value == DBNull.Value ? null : value.ToString();
@@ -723,7 +738,7 @@ namespace Viper.Areas.Directory.Services
                 // Get people information - equivalent to iamPeople.getById() in ColdFusion
                 var peopleResponse = await iamApi.SearchForPerson(iamId: result.IamId);
                 _logger.LogDebug("IAM people response data count {Count}, error {Error}",
-                    peopleResponse.Data?.Count(), peopleResponse.ErrorMessage ?? "none");
+                    peopleResponse.Data?.Count(), LogSanitizer.SanitizeString(peopleResponse.ErrorMessage) ?? "none");
                 if (peopleResponse.Data?.Any() == true)
                 {
                     result.IamPeople = peopleResponse.Data.ToList();
@@ -739,7 +754,7 @@ namespace Viper.Areas.Directory.Services
                 // Get employee associations - equivalent to iamAssociations.getEmployeeAssociations() in ColdFusion
                 var associationsResponse = await iamApi.GetEmployeeAssociations(result.IamId);
                 _logger.LogDebug("IAM associations response data count {Count}, error {Error}",
-                    associationsResponse.Data?.Count(), associationsResponse.ErrorMessage ?? "none");
+                    associationsResponse.Data?.Count(), LogSanitizer.SanitizeString(associationsResponse.ErrorMessage) ?? "none");
                 if (associationsResponse.Data?.Any() == true)
                 {
                     result.IamAssociations = associationsResponse.Data.ToList();
@@ -1513,9 +1528,14 @@ namespace Viper.Areas.Directory.Services
                     }
                     else
                     {
+                        // No candidates is the common case - most VIPER users don't have an
+                        // Instinct account. That's not a failure, so leave Valid false and
+                        // ErrorMessage unset: PopulateInstinctInfoAsync only flags "Instinct" as
+                        // an unavailable section when ErrorMessage is set, and this isn't one.
                         // Do not include other candidates' names from the search results here -
                         // they belong to unrelated people and would leak into this user's directory page.
-                        result.ErrorMessage = $"User found in API but no name match. Variations tried: {string.Join(", ", nameVariations)}.";
+                        _logger.LogDebug("Instinct API: no account matched {LastName}, {FirstName}. Variations tried: {Variations}",
+                            LogSanitizer.SanitizeString(lastName), LogSanitizer.SanitizeString(firstName), string.Join(", ", nameVariations));
                     }
                 }
                 else
@@ -1548,7 +1568,7 @@ namespace Viper.Areas.Directory.Services
             if (string.IsNullOrWhiteSpace(apiUrl))
             {
                 const string errMsg = "Instinct:ApiUrl is not configured";
-                _logger.LogWarning("Instinct API: {ErrorMessage}", errMsg);
+                _logger.LogWarning("Instinct API: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
                 AppendError(result, errMsg);
                 return null;
             }
@@ -1586,7 +1606,7 @@ namespace Viper.Areas.Directory.Services
                 if (string.IsNullOrEmpty(password))
                 {
                     string errMsg = "Password is null or empty in configuration";
-                    _logger.LogWarning("Instinct auth: {ErrorMessage}", errMsg);
+                    _logger.LogWarning("Instinct auth: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
                     AppendError(result, errMsg);
                     return null;
                 }
@@ -1629,7 +1649,7 @@ namespace Viper.Areas.Directory.Services
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
                     string errMsg = $"Token POST request failed (Status: {response.StatusCode}): {responseContent}";
-                    _logger.LogWarning("Instinct auth: {ErrorMessage}", errMsg);
+                    _logger.LogWarning("Instinct auth: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
                     AppendError(result, errMsg);
                 }
             }

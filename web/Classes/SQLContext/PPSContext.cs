@@ -65,8 +65,6 @@ public partial class PPSContext : DbContext
 
     public virtual DbSet<EthnicityGender> EthnicityGenders { get; set; }
 
-    public virtual DbSet<EthnicityGender20210201> EthnicityGender20210201s { get; set; }
-
     public virtual DbSet<Export> Exports { get; set; }
 
     public virtual DbSet<FurloughTarget> FurloughTargets { get; set; }
@@ -240,8 +238,6 @@ public partial class PPSContext : DbContext
     public virtual DbSet<UcpathItemNote> UcpathItemNotes { get; set; }
 
     public virtual DbSet<UcpathMissingPerson> UcpathMissingPeople { get; set; }
-
-    public virtual DbSet<UcpathMissingPerson20190821> UcpathMissingPerson20190821s { get; set; }
 
     public virtual DbSet<UcpathOverride> UcpathOverrides { get; set; }
 

@@ -61,6 +61,13 @@
     padding-top: 1em;
     border-top: 1px solid #888;
 }
+/* The unavailable-sections banner is itself a div, so the section right
+   after it also matches "div + div" above. Keep the spacing but drop the
+   divider line - a gray rule directly under a colored banner reads as a
+   layout glitch rather than a section break. */
+.userinfo .warning-surface + div {
+    border-top: none;
+}
 .direct {
     position: relative;
     min-height: 17rem;
@@ -72,15 +79,12 @@
 }
 .direct span.photo2 {
     position: absolute;
-    top: 10.5rem;
-    left: 25rem;
+    top: 3rem;
+    left: 33rem;
 }
 .userinfo span.photo b,
 .userinfo span.photo2 b {
     display: block;
-}
-.userinfo span.photo2 b {
-    padding-top: 1.5rem;
 }
 .direct ul {
     width: 23rem;
