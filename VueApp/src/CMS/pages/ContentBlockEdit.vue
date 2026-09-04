@@ -63,6 +63,10 @@
                         min-height="20rem"
                         :toolbar="editorToolbar"
                         label-id="content-editor-label"
+                        :image-options="imageOptions"
+                        :image-options-hint="imageOptionsHint"
+                        :upload-image="canUploadImages ? uploadImage : undefined"
+                        :upload-unavailable-hint="uploadUnavailableHint"
                     />
 
                     <div
@@ -397,6 +401,9 @@ import { useUserStore } from "@/store/UserStore"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import { useContentDiffViewer } from "@/CMS/composables/use-content-diff-viewer"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
+import { useCmsFiles, buildUploadFormData } from "@/CMS/composables/use-cms-files"
+import { IMAGE_EXTENSIONS } from "@/CMS/file-types"
+import { toRelativeViperUrl } from "@/components/editor/editor-html"
 import BreadcrumbHeading from "@/components/BreadcrumbHeading.vue"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import InlineFileUpload from "@/CMS/components/InlineFileUpload.vue"
@@ -466,7 +473,7 @@ const block = ref<CmsContentBlock>(emptyBlock())
 
 // New files created during a save are rolled back through the same API they were uploaded to:
 // the block-scoped files route in edit mode, the global one in create mode (see InlineFileUpload).
-const fileRollbackBase = computed(() => (isNew.value ? filesApiURL : `${apiURL}/${block.value.contentBlockId}/files/`))
+const fileRollbackBase = computed(() => (isNew.value ? filesApiURL : `${apiURL}/${blockId.value}/files/`))
 
 // Files chosen in the inline uploader are staged client-side and only uploaded on Save. Fold their
 // count into the dirty state so staging alone trips the unsaved-changes guard.
@@ -478,8 +485,21 @@ const dirtyState = computed(() => ({ block: block.value, staged: stagedCount.val
 
 const { setInitialState, resetDirtyState, confirmClose } = useUnsavedChanges(dirtyState)
 
+// GUIDs of images uploaded through the editor's Insert Image dialog (uploaded immediately, unlike
+// staged inline-uploader files that only hit the server on Save). Two rollback rules: (1) a
+// confirmed discard on route leave rolls these back; (2) applySaveSuccess clears the list before
+// its own router.push, so the leave guard that push triggers deletes nothing.
+const dialogUploadGuids: string[] = []
+
 // Prompt before leaving with unsaved edits, matching the Effort forms' guard.
-onBeforeRouteLeave(async () => await confirmClose())
+onBeforeRouteLeave(async () => {
+    const confirmed = await confirmClose()
+    if (confirmed && dialogUploadGuids.length > 0) {
+        await rollbackFiles([...dialogUploadGuids])
+        dialogUploadGuids.length = 0
+    }
+    return confirmed
+})
 
 const folders = ref<string[]>([])
 const history = ref<CmsContentHistoryItem[]>([])
@@ -493,13 +513,67 @@ const searchingFiles = ref(false)
 
 const editorToolbar = [
     ["bold", "italic", "underline", "strike"],
-    [{ icon: "format_size", options: ["p", "h2", "h3", "h4", "h5"] }],
+    [{ label: "Format", icon: "format_size", list: "no-icons", options: ["p", "h2", "h3", "h4", "h5"] }],
     ["unordered", "ordered", "outdent", "indent"],
-    ["link", "hr", "quote"],
+    ["link", "image", "table", "hr", "quote"],
     ["removeFormat"],
     ["undo", "redo"],
     ["viewsource"],
 ]
+
+function isImageExtension(friendlyName: string): boolean {
+    const ext = friendlyName.slice(friendlyName.lastIndexOf(".") + 1).toLowerCase()
+    return (IMAGE_EXTENSIONS as readonly string[]).includes(ext)
+}
+
+// Attached files the editor's Insert Image dialog can insert. A file attached this session isn't
+// uploaded yet (url is "", see attachFile) and is skipped here; imageOptionsHint tells the user why.
+const imageOptions = computed(() =>
+    block.value.files
+        .filter((f) => isImageExtension(f.friendlyName) && f.url)
+        .map((f) => ({ label: f.friendlyName, value: toRelativeViperUrl(f.url) })),
+)
+
+const imageOptionsHint = computed(() =>
+    block.value.files.some((f) => isImageExtension(f.friendlyName) && !f.url)
+        ? "Save the block to use files you just attached"
+        : undefined,
+)
+
+// Block-scoped once the block has an id (edit mode); global (folder-wide) API while creating.
+const cmsFiles = useCmsFiles(inject("apiURL") as string, blockId)
+
+// Create mode needs AllFiles (the global upload API) and a chosen section path (the upload folder).
+// Edit mode is always allowed: the block-scoped API derives folder/permissions from the block itself.
+const canUploadImages = computed(() => !isNew.value || (canAccessFiles && !!block.value.viperSectionPath))
+
+const uploadUnavailableHint = computed(() => {
+    if (!isNew.value) return undefined
+    if (!canAccessFiles) return "Save the block first to upload images"
+    if (!block.value.viperSectionPath) return "Choose a VIPER section path first to upload images"
+    return undefined
+})
+
+// Uploads an image picked in the editor's Insert Image dialog immediately (unlike the
+// inline uploader's stage-then-commit-on-save), so the dialog can show it right away. Attaches it
+// to the block and tracks the GUID for the discard rollback (see dialogUploadGuids above).
+async function uploadImage(file: File): Promise<string> {
+    const data = buildUploadFormData(
+        file,
+        { allowPublicAccess: block.value.allowPublicAccess, permissions: block.value.permissions },
+        cmsFiles.isScoped.value,
+    )
+    if (!cmsFiles.isScoped.value) {
+        data.append("folder", block.value.viperSectionPath!)
+    }
+    const res = await cmsFiles.upload(data)
+    if (!res.success) {
+        throw new Error(res.errors?.[0] ?? "Failed to upload the image.")
+    }
+    attachUploadedFile(res.result)
+    dialogUploadGuids.push(res.result.fileGuid)
+    return res.result.url
+}
 
 async function loadBlock() {
     if (blockId.value === null) return
@@ -716,7 +790,10 @@ async function handleSaveConflict(res: { errors: string[] | null }, rollbackGuid
         cancel: { label: "Keep editing", flat: true },
         persistent: true,
         ok: { label: "Reload", color: "primary", unelevated: true },
-    }).onOk(() => {
+    }).onOk(async () => {
+        // Reload discards the unsaved edits, and with them the images uploaded from the dialog.
+        await rollbackFiles([...dialogUploadGuids])
+        dialogUploadGuids.length = 0
         void loadBlock()
         viewingVersion.value = false
         selectedHistory.value = null
@@ -738,6 +815,9 @@ function applySaveSuccess(res: { result: CmsContentBlock | null }) {
     // guard stays quiet on the way out, then leave for wherever this editor came from: managers get
     // the listing, delegated editors can't reach it and go home (same split as loadBlock's fallback).
     resetDirtyState()
+    // Clear before pushing: this navigation itself fires the route-leave guard, which must not
+    // roll back images that just made it into the saved block.
+    dialogUploadGuids.length = 0
     void router.push({ name: canManage.value ? "CmsContentBlocks" : "CmsHome" })
 }
 
