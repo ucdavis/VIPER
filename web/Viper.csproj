@@ -21,6 +21,10 @@
     <Content Remove="Areas\Effort\Scripts\**" />
     <EmbeddedResource Remove="Areas\Effort\Scripts\**" />
     <None Remove="Areas\Effort\Scripts\**" />
+    <Compile Remove="Areas\Personnel\Scripts\**" />
+    <Content Remove="Areas\Personnel\Scripts\**" />
+    <EmbeddedResource Remove="Areas\Personnel\Scripts\**" />
+    <None Remove="Areas\Personnel\Scripts\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,22 +44,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="7.1.0" />
+    <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="7.1.1" />
 
-    <PackageReference Include="DotNetDiag.HealthChecks.UI" Version="10.0.11" />
-    <PackageReference Include="DotNetDiag.HealthChecks.UI.Client" Version="10.0.11" />
-    <PackageReference Include="DotNetDiag.HealthChecks.UI.InMemory.Storage" Version="10.0.11" />
+    <PackageReference Include="DotNetDiag.HealthChecks.UI" Version="10.0.14" />
+    <PackageReference Include="DotNetDiag.HealthChecks.UI.Client" Version="10.0.14" />
+    <PackageReference Include="DotNetDiag.HealthChecks.UI.InMemory.Storage" Version="10.0.14" />
 
-    <PackageReference Include="AWSSDK.Core" Version="4.0.100.9" />
+    <PackageReference Include="AWSSDK.Core" Version="4.0.102.1" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
     <PackageReference Include="Hangfire.Console" Version="1.4.3" />
     <PackageReference Include="Hangfire.Heartbeat" Version="0.6.0" />
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.24" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.13.0" />
     <PackageReference Include="htmldiff.net" Version="1.5.0" />
-    <PackageReference Include="HtmlSanitizer" Version="9.1.973" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
     <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
     <PackageReference Include="Joonasw.AspNetCore.SecurityHeaders" Version="6.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.11" />
@@ -72,11 +76,11 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="10.0.11" />
     <PackageReference Include="NLog.MailKit" Version="6.1.5" />
-    <PackageReference Include="NLog.Web.AspNetCore" Version="6.1.4" />
-    <PackageReference Include="QuestPDF" Version="2026.7.2" />
+    <PackageReference Include="NLog.Web.AspNetCore" Version="6.2.0" />
+    <PackageReference Include="QuestPDF" Version="2026.8.0" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
     <PackageReference Include="Scrutor" Version="7.0.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.31.0.145097">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.33.0.1635">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

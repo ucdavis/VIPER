@@ -31,6 +31,7 @@ using Viper.Areas.CMS.Services;
 using Viper.Areas.Effort;
 using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
+using Viper.Areas.Personnel;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -52,7 +53,7 @@ if (string.Equals(aspNetEnv, "Development", StringComparison.OrdinalIgnoreCase)
 }
 
 // Centralized SPA application names to avoid duplication
-string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students" };
+string[] VueAppNames = { "CAHFS", "ClinicalScheduler", "CMS", "Computing", "CTS", "Effort", "Students", "Personnel" };
 
 var builder = WebApplication.CreateBuilder(args);
 string awsCredentialsFilePath = Directory.GetCurrentDirectory() + "\\awscredentials.xml";
@@ -149,6 +150,14 @@ try
     // Add CAS settings from appSettings configuration
     builder.Services.Configure<CasSettings>(builder.Configuration.GetSection("Cas"));
 
+    // Canonical public origin for CAS callbacks and other outward-facing links. Validated on
+    // start so a deployed environment fails fast instead of falling back to the request Host.
+    builder.Services.AddOptions<PublicUrlOptions>()
+        .Bind(builder.Configuration.GetSection(PublicUrlOptions.SectionName))
+        .ValidateOnStart();
+    builder.Services.AddSingleton<IValidateOptions<PublicUrlOptions>, PublicUrlOptionsValidator>();
+    builder.Services.AddSingleton<IPublicUrlService, PublicUrlService>();
+
     // Define authorization policies
     builder.Services.AddAuthorization(options =>
     {
@@ -222,6 +231,8 @@ try
     RegisterDbContext<SISContext>("SIS");
     // Effort tables are in the VIPER database's [effort] schema.
     RegisterDbContext<EffortDbContext>("VIPER");
+    // Phone tables are in the VIPER database's [phones] schema.
+    RegisterDbContext<PhonesDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
 
     // Register UserHelper service (must be before Scrutor to take precedence)
@@ -235,22 +246,6 @@ try
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
     builder.Services.Configure<EffortSettings>(builder.Configuration.GetSection("EffortSettings"));
-
-    // In development, derive BaseUrl from ASPNETCORE_HTTPS_PORT if not explicitly configured
-    if (builder.Environment.IsDevelopment())
-    {
-        builder.Services.PostConfigure<EmailSettings>(settings =>
-        {
-            if (string.IsNullOrWhiteSpace(settings.BaseUrl))
-            {
-                var httpsPort = Environment.GetEnvironmentVariable("ASPNETCORE_HTTPS_PORT") ?? "7157";
-                if (int.TryParse(httpsPort, out var port) && port > 0 && port < 65536)
-                {
-                    settings.BaseUrl = $"https://localhost:{port}";
-                }
-            }
-        });
-    }
 
     // Harvest phases (order matters for DI resolution, but phases self-order via Order property)
     builder.Services.AddScoped<IHarvestPhase, CrestHarvestPhase>();
@@ -268,6 +263,7 @@ try
                 "Viper.Areas.Students.Services",
                 "Viper.Areas.Curriculum.Services",
                 "Viper.Areas.Effort.Services",
+                "Viper.Areas.Personnel.Services",
                 "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))
@@ -530,7 +526,7 @@ try
         pattern: "{controller=Home}/{action=Index}").RequireAuthorization();
 
     // Setup the memory cache so we can use it via a simple static method
-    HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>());
+    HttpHelper.Configure(app.Services.GetService<IMemoryCache>(), app.Services.GetService<IConfiguration>(), app.Environment, app.Services.GetService<IHttpContextAccessor>(), app.Services.GetService<IAuthorizationService>(), app.Services.GetService<IDataProtectionProvider>(), app.Services.GetRequiredService<IPublicUrlService>());
 
 #pragma warning disable S6966 // app.Run() is appropriate for main entry point, not app.RunAsync()
     app.Run();

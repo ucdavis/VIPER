@@ -61,7 +61,7 @@ function showQueuedStatusNotification() {
 /*
  * QuasarTable - code to support a quasar table with an edit dialog and add/update/delete functions, with optional server side paging/filtering and export to csv
  */
-quasarTableDefaultConfig = {
+const quasarTableDefaultConfig = {
     // Base of the url and keys of the objects, e.g. a urlBase of "Permissions" and a key of "id" means the following ajax calls will be made
     // GET Permissions - load objects
     // POST Permissions - create a new permission
@@ -163,7 +163,7 @@ class quasarTable {
                 this.clear()
             })
             // oxlint-disable-next-line prefer-await-to-then, prefer-await-to-callbacks -- promise chain is the established pattern here
-            .catch((error) => showViperFetchError(this.vueApp, error, this.errors))
+            .catch((/** @type {unknown} */ error) => showViperFetchError(this.vueApp, error, this.errors))
     }
 
     savePagination(v) {
@@ -194,9 +194,7 @@ class quasarTable {
     // Submit (create or update) the selected item
     async submit(vueApp) {
         const bodyObject = this.createBody ? this.createBody(vueApp, this.object) : this.object
-        await (this.editing
-            ? this.update(vueApp, bodyObject)
-            : this.create(vueApp, bodyObject))
+        await (this.editing ? this.update(vueApp, bodyObject) : this.create(vueApp, bodyObject))
     }
 
     async create(vueApp, bodyObject) {
@@ -236,12 +234,13 @@ class quasarTable {
     // Delete the selected item (with confirmation dialog)
     async delete(vueApp) {
         return new Promise((resolve) => {
-            vueApp.$q.dialog({
-                title: "Confirm Delete",
-                message: "Are you sure you want to delete this item?",
-                cancel: true,
-                persistent: true,
-            })
+            vueApp.$q
+                .dialog({
+                    title: "Confirm Delete",
+                    message: "Are you sure you want to delete this item?",
+                    cancel: true,
+                    persistent: true,
+                })
                 .onOk(async () => {
                     const result = await viperFetch(
                         vueApp,

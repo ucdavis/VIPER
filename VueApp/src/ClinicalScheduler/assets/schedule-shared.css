@@ -37,7 +37,7 @@
 }
 
 /* Mobile responsiveness for main headers */
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .clinical-scheduler-container h2 {
         font-size: 1.125rem;
     }
@@ -47,7 +47,7 @@
         position: static;
         display: block;
         width: fit-content;
-        margin: 8px 0 16px 0;
+        margin: 8px 0 16px;
     }
 
     /* Shared mobile layout helpers */
@@ -86,13 +86,13 @@
     }
 }
 
-@media (max-width: 600px) {
+@media (width <= 600px) {
     .dropdown-selector {
         max-width: 100%;
     }
 }
 
-@media (max-width: 480px) {
+@media (width <= 480px) {
     .clinical-scheduler-container h2 {
         font-size: 1rem;
     }

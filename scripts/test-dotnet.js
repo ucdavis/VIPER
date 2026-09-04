@@ -98,9 +98,9 @@ function ensureBuild() {
 }
 
 /**
- * Build `dotnet test` args from the CLI: bare patterns become a FullyQualifiedName
- * filter (npm run test:backend -- MyTestClass); if any arg starts with "-",
- * all args pass through to `dotnet test` verbatim
+ * Build test app args from the CLI: bare patterns become a class filter
+ * (npm run test:backend -- MyTestClass); if any arg starts with "-",
+ * all args pass through to the test app verbatim
  * @returns {string[]}
  */
 function getTestArgs() {
@@ -108,7 +108,7 @@ function getTestArgs() {
     if (args.length === 0 || args.some((arg) => arg.startsWith("-"))) {
         return args
     }
-    return ["--filter", args.map((pattern) => `FullyQualifiedName~${pattern}`).join("|")]
+    return args.flatMap((pattern) => ["--filter-class", `*${pattern}*`])
 }
 
 /**
@@ -119,7 +119,7 @@ function getTestArgs() {
 function runTests(extraArgs) {
     logger.info(extraArgs.length > 0 ? `Running tests: ${extraArgs.join(" ")}` : "Running tests...")
     try {
-        execFileSync("dotnet", ["test", precommitDll, "--verbosity=normal", "--nologo", ...extraArgs], {
+        execFileSync("dotnet", ["test", "--test-modules", precommitDll, "--", ...extraArgs], {
             encoding: "utf8",
             timeout: 300_000, // 5 minute timeout for tests
             stdio: "inherit",

@@ -106,16 +106,16 @@
     {
         <q-item clickable>
             <q-item-section>
-                <q-btn stretch flat label="Personnel" href="@Url.Content(ViewData["OldViperURL"] + "/personnel/default.cfm")"></q-btn>
+                <q-btn stretch flat label="Personnel" href="@Url.Content("~/Personnel")"></q-btn>
             </q-item-section>
         </q-item>
     }
 
-        <q-item clickable>
-            <q-item-section>
-                <q-btn stretch flat label="Policies" href="@Url.Content(ViewData["OldViperURL"] + "/policy/default.cfm")"></q-btn>
-            </q-item-section>
-        </q-item>
+    <q-item clickable>
+        <q-item-section>
+            <q-btn stretch flat label="Policies" href="@Url.Content("~/Policy")"></q-btn>
+        </q-item-section>
+    </q-item>
 
     @if (UserHelper.HasPermission(rapsContext, Model, "SVMSecure.Research"))
     {

@@ -14,6 +14,8 @@ using Viper.EmailTemplates.Services;
 using Viper.Services;
 using CS = Viper.Models.ClinicalScheduler;
 
+using Viper.Classes;
+
 namespace Viper.test.ClinicalScheduler.Integration
 {
     /// <summary>
@@ -56,8 +58,8 @@ namespace Viper.test.ClinicalScheduler.Integration
             var mockEmailService = Substitute.For<IEmailService>();
             var mockEmailNotificationSettings = Substitute.For<IOptions<EmailNotificationSettings>>();
             mockEmailNotificationSettings.Value.Returns(new EmailNotificationSettings());
-            var mockEmailSettings = Substitute.For<IOptions<EmailSettings>>();
-            mockEmailSettings.Value.Returns(new EmailSettings());
+            var mockPublicUrl = Substitute.For<IPublicUrlService>();
+            mockPublicUrl.BaseUrl.Returns("https://test.example.com");
             var mockGradYearService = Substitute.For<IGradYearService>();
             var mockPermissionValidator = Substitute.For<IPermissionValidator>();
             var mockEmailTemplateRenderer = Substitute.For<IEmailTemplateRenderer>();
@@ -68,7 +70,7 @@ namespace Viper.test.ClinicalScheduler.Integration
                 scheduleEditLogger,
                 mockEmailService,
                 mockEmailNotificationSettings,
-                mockEmailSettings,
+                mockPublicUrl,
                 mockGradYearService,
                 mockPermissionValidator,
                 mockEmailTemplateRenderer);

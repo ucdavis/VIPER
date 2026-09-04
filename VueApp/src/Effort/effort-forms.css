@@ -1,4 +1,4 @@
-@import "@/styles/compact-form.css";
+@import url("@/styles/compact-form.css");
 
 .effort-form > .q-field,
 .effort-form > .q-checkbox,

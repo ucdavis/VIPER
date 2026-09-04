@@ -173,7 +173,7 @@ import { useQuasar } from "quasar"
 import type { QTableColumn, QTableProps } from "quasar"
 import { useDateFunctions } from "@/composables/DateFunctions"
 import StatusBadge from "@/components/StatusBadge.vue"
-import { getAuditActionColor } from "../utils/audit-actions"
+import { getAuditActionColor } from "@/composables/use-audit-colors"
 import type { AuditLogEntry } from "../types/audit-types"
 
 defineProps<{

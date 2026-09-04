@@ -17,6 +17,7 @@
     >
     <q-layout view="hHh lpR fFf">
         <q-header
+            ref="header"
             elevated
             id="mainLayoutHeader"
             height-hint="98"
@@ -198,7 +199,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, useTemplateRef, watchEffect } from "vue"
+import { useElementSize } from "@vueuse/core"
 import { useUserStore } from "@/store/UserStore"
 import LoginButton from "@/components/LoginButton.vue"
 import LeftNav from "@/layouts/LeftNav.vue"
@@ -225,6 +227,18 @@ defineProps<{
 
 const userStore = useUserStore()
 const mainLeftDrawer = ref(false)
+
+/*
+ * The header is fixed, so anything else that pins itself to the top of the page has to start
+ * below it, and anything the browser scrolls into view has to clear it. Neither can be a constant:
+ * #mainLayoutHeader is only given its 86px minimum at 768px and up, and below that its height is
+ * whatever its content comes to. Measured and published once here, by the layout that owns it.
+ */
+const headerRef = useTemplateRef<HTMLElement>("header")
+const { height: headerHeight } = useElementSize(headerRef)
+watchEffect(() => {
+    document.documentElement.style.setProperty("--viper-header-height", `${Math.round(headerHeight.value)}px`)
+})
 const environment = import.meta.env.VITE_ENVIRONMENT
 const viperHome = import.meta.env.VITE_VIPER_HOME
 const currentYear = new Date().getFullYear()

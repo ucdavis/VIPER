@@ -1,19 +1,121 @@
 <template>
-    <q-dialog
+    <RecordFormDialog
         :model-value="modelValue"
-        persistent
-        aria-labelledby="file-dialog-title"
+        title-id="file-dialog-title"
+        :title="isEdit ? 'Edit File' : 'Add File'"
+        :is-edit="isEdit"
+        :saving="saving"
+        :form-error="formError"
+        submit-label="Upload"
+        :confirm-close="confirmClose"
         @update:model-value="emit('update:modelValue', $event)"
+        @submit="save"
+        @validation-error="onValidationError"
         @hide="resetForm"
-        @keydown.escape="handleClose"
     >
-        <q-card class="dialog-card-md">
+        <div
+            v-if="isEdit"
+            class="text-body2 q-mb-sm"
+        >
+            <strong>{{ displayFile?.friendlyName }}</strong>
+            <div class="text-caption text-grey-8">
+                Link:
+                <a
+                    :href="displayFile?.friendlyUrl"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    {{ displayFile?.friendlyUrl }}
+                </a>
+                <q-btn
+                    flat
+                    dense
+                    size="sm"
+                    icon="content_copy"
+                    aria-label="Copy link"
+                    @click="copyUrl"
+                >
+                    <q-tooltip>Copy link</q-tooltip>
+                </q-btn>
+            </div>
+        </div>
+
+        <q-file
+            v-model="form.upload"
+            dense
+            outlined
+            :label="isEdit ? 'Replace file (optional)' : 'File'"
+            :accept="acceptedExtensions"
+            :rules="isEdit ? [] : [(v: File | null) => !!v || 'Please choose a file']"
+            :hint="isEdit ? 'Uploading a new file replaces the current content, keeping the same name' : undefined"
+        >
+            <template #prepend>
+                <q-icon name="attach_file" />
+            </template>
+        </q-file>
+
+        <q-select
+            v-if="!isEdit"
+            v-model="form.folder"
+            dense
+            options-dense
+            outlined
+            label="VIPER app (folder)"
+            :options="folders"
+            :rules="[(v: string | null) => !!v || 'Please select a folder']"
+            hint="Where the file is stored; it can't be changed after upload."
+        />
+
+        <q-input
+            v-model="form.description"
+            dense
+            outlined
+            type="textarea"
+            rows="2"
+            label="Description"
+            maxlength="1000"
+        />
+
+        <q-input
+            v-model="form.oldUrl"
+            dense
+            outlined
+            label="Old URL"
+            maxlength="256"
+            hint="Legacy VIPER 1 path this file replaces (optional)"
+        />
+
+        <PermissionSelector v-model="form.permissions" />
+
+        <PersonSelector
+            v-model="form.people"
+            label="People with access"
+        />
+
+        <div class="row q-gutter-x-lg">
+            <q-toggle
+                v-model="form.allowPublicAccess"
+                label="Public access"
+            />
+            <q-toggle
+                v-model="form.encrypt"
+                label="Encrypt file"
+            />
+        </div>
+    </RecordFormDialog>
+
+    <q-dialog
+        v-model="showConflict"
+        persistent
+        aria-labelledby="conflict-dialog-title"
+    >
+        <q-card class="dialog-card-sm">
             <q-card-section class="row items-center q-pb-none">
                 <div
-                    id="file-dialog-title"
+                    id="conflict-dialog-title"
                     class="text-h6"
                 >
-                    {{ isEdit ? "Edit File" : "Add File" }}
+                    File name already exists
                 </div>
                 <q-space />
                 <q-btn
@@ -21,210 +123,48 @@
                     flat
                     round
                     dense
-                    aria-label="Close dialog"
-                    @click="handleClose"
+                    aria-label="Close file name conflict dialog"
+                    @click="showConflict = false"
                 />
             </q-card-section>
-
-            <q-form
-                ref="formRef"
-                greedy
-                @submit.prevent="save"
-                @validation-error="onValidationError"
-            >
-                <q-card-section class="q-gutter-y-sm">
-                    <div
-                        v-if="isEdit"
-                        class="text-body2 q-mb-sm"
-                    >
-                        <strong>{{ displayFile?.friendlyName }}</strong>
-                        <div class="text-caption text-grey-8">
-                            Link:
-                            <a
-                                :href="displayFile?.friendlyUrl"
-                                target="_blank"
-                                rel="noopener"
-                            >
-                                {{ displayFile?.friendlyUrl }}
-                            </a>
-                            <q-btn
-                                flat
-                                dense
-                                size="sm"
-                                icon="content_copy"
-                                aria-label="Copy link"
-                                @click="copyUrl"
-                            >
-                                <q-tooltip>Copy link</q-tooltip>
-                            </q-btn>
-                        </div>
-                    </div>
-
-                    <q-file
-                        v-model="form.upload"
-                        dense
-                        outlined
-                        :label="isEdit ? 'Replace file (optional)' : 'File'"
-                        :accept="acceptedExtensions"
-                        :rules="isEdit ? [] : [(v: File | null) => !!v || 'Please choose a file']"
-                        :hint="
-                            isEdit
-                                ? 'Uploading a new file replaces the current content, keeping the same name'
-                                : undefined
-                        "
-                    >
-                        <template #prepend>
-                            <q-icon name="attach_file" />
-                        </template>
-                    </q-file>
-
-                    <q-select
-                        v-if="!isEdit"
-                        v-model="form.folder"
-                        dense
-                        options-dense
-                        outlined
-                        label="VIPER app (folder)"
-                        :options="folders"
-                        :rules="[(v: string | null) => !!v || 'Please select a folder']"
-                        hint="Where the file is stored; it can't be changed after upload."
-                    />
-
-                    <q-input
-                        v-model="form.description"
-                        dense
-                        outlined
-                        type="textarea"
-                        rows="2"
-                        label="Description"
-                        maxlength="1000"
-                    />
-
-                    <q-input
-                        v-model="form.oldUrl"
-                        dense
-                        outlined
-                        label="Old URL"
-                        maxlength="256"
-                        hint="Legacy VIPER 1 path this file replaces (optional)"
-                    />
-
-                    <PermissionSelector v-model="form.permissions" />
-
-                    <PersonSelector
-                        v-model="form.people"
-                        label="People with access"
-                    />
-
-                    <div class="row q-gutter-x-lg">
-                        <q-toggle
-                            v-model="form.allowPublicAccess"
-                            label="Public access"
+            <q-card-section>
+                <p class="text-body2">
+                    <strong>{{ form.upload?.name }}</strong> already exists in <strong>{{ form.folder }}</strong
+                    >{{ conflictDetail }}. Choose how to continue:
+                </p>
+                <q-option-group
+                    v-model="conflictChoice"
+                    :options="conflictOptions"
+                />
+                <q-input
+                    v-if="conflictChoice === 'rename'"
+                    v-model="renameTo"
+                    dense
+                    outlined
+                    label="New file name"
+                    class="q-mt-sm"
+                    :rules="[(v: string) => !!v?.trim() || 'Enter a file name']"
+                    hide-bottom-space
+                />
+            </q-card-section>
+            <q-card-actions align="right">
+                <q-btn
+                    color="primary"
+                    dense
+                    no-caps
+                    :label="conflictChoice === 'rename' ? 'Upload with new name' : 'Overwrite'"
+                    :loading="saving"
+                    @click="resolveConflict"
+                >
+                    <template #loading>
+                        <q-spinner
+                            size="1em"
+                            class="q-mr-sm"
                         />
-                        <q-toggle
-                            v-model="form.encrypt"
-                            label="Encrypt file"
-                        />
-                    </div>
-
-                    <StatusBanner
-                        v-if="formError"
-                        type="error"
-                    >
-                        {{ formError }}
-                    </StatusBanner>
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn
-                        flat
-                        label="Cancel"
-                        dense
-                        no-caps
-                        @click="handleClose"
-                    />
-                    <q-btn
-                        type="submit"
-                        :label="isEdit ? 'Save Changes' : 'Upload'"
-                        color="primary"
-                        dense
-                        no-caps
-                        :loading="saving"
-                    >
-                        <template #loading>
-                            <q-spinner
-                                size="1em"
-                                class="q-mr-sm"
-                            />
-                            {{ isEdit ? "Save Changes" : "Upload" }}
-                        </template>
-                    </q-btn>
-                </q-card-actions>
-            </q-form>
-
-            <q-dialog
-                v-model="showConflict"
-                persistent
-                aria-labelledby="conflict-dialog-title"
-            >
-                <q-card class="dialog-card-sm">
-                    <q-card-section class="row items-center q-pb-none">
-                        <div
-                            id="conflict-dialog-title"
-                            class="text-h6"
-                        >
-                            File name already exists
-                        </div>
-                        <q-space />
-                        <q-btn
-                            icon="close"
-                            flat
-                            round
-                            dense
-                            aria-label="Close file name conflict dialog"
-                            @click="showConflict = false"
-                        />
-                    </q-card-section>
-                    <q-card-section>
-                        <p class="text-body2">
-                            <strong>{{ form.upload?.name }}</strong> already exists in <strong>{{ form.folder }}</strong
-                            >{{ conflictDetail }}. Choose how to continue:
-                        </p>
-                        <q-option-group
-                            v-model="conflictChoice"
-                            :options="conflictOptions"
-                        />
-                        <q-input
-                            v-if="conflictChoice === 'rename'"
-                            v-model="renameTo"
-                            dense
-                            outlined
-                            label="New file name"
-                            class="q-mt-sm"
-                            :rules="[(v: string) => !!v?.trim() || 'Enter a file name']"
-                            hide-bottom-space
-                        />
-                    </q-card-section>
-                    <q-card-actions align="right">
-                        <q-btn
-                            color="primary"
-                            dense
-                            no-caps
-                            :label="conflictChoice === 'rename' ? 'Upload with new name' : 'Overwrite'"
-                            :loading="saving"
-                            @click="resolveConflict"
-                        >
-                            <template #loading>
-                                <q-spinner
-                                    size="1em"
-                                    class="q-mr-sm"
-                                />
-                                {{ conflictChoice === "rename" ? "Upload with new name" : "Overwrite" }}
-                            </template>
-                        </q-btn>
-                    </q-card-actions>
-                </q-card>
-            </q-dialog>
+                        {{ conflictChoice === "rename" ? "Upload with new name" : "Overwrite" }}
+                    </template>
+                </q-btn>
+            </q-card-actions>
         </q-card>
     </q-dialog>
 </template>
@@ -238,7 +178,7 @@ import { useFetch } from "@/composables/ViperFetch"
 import { useUnsavedChanges } from "@/composables/use-unsaved-changes"
 import PermissionSelector from "@/CMS/components/PermissionSelector.vue"
 import PersonSelector from "@/CMS/components/PersonSelector.vue"
-import StatusBanner from "@/components/StatusBanner.vue"
+import RecordFormDialog from "@/components/RecordFormDialog.vue"
 import { CMS_ACCEPTED_EXTENSIONS } from "@/CMS/file-types"
 import type { CmsFile, CmsFileNameCheck, CmsFilePerson } from "@/CMS/types/"
 
@@ -260,7 +200,6 @@ const { get, postForm, putForm, createUrlSearchParams } = useFetch()
 const acceptedExtensions = CMS_ACCEPTED_EXTENSIONS
 
 const isEdit = computed(() => props.file !== null)
-const formRef = ref()
 const saving = ref(false)
 const formError = ref("")
 
@@ -361,13 +300,6 @@ function resetForm() {
     conflict.value = null
     showConflict.value = false
     formError.value = ""
-    formRef.value?.resetValidation()
-}
-
-async function handleClose() {
-    if (await confirmClose()) {
-        emit("update:modelValue", false)
-    }
 }
 
 // The q-form focuses the first invalid field on a failed submit; this surfaces a matching

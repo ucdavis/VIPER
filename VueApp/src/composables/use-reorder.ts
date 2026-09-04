@@ -39,7 +39,8 @@ function useReorder<T>(list: Ref<T[]>, options: UseReorderOptions<T>) {
 
     function flash(key: ReorderKey) {
         justMovedKey.value = key
-        const generation = (flashGeneration += 1)
+        flashGeneration += 1
+        const generation = flashGeneration
         setTimeout(() => {
             if (flashGeneration === generation && justMovedKey.value === key) {
                 justMovedKey.value = null

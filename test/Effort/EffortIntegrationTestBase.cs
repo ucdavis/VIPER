@@ -72,7 +72,7 @@ public abstract class EffortIntegrationTestBase : IDisposable
 
         // Setup HttpHelper.Cache for UserHelper permission caching
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        HttpHelper.Configure(memoryCache, null!, null!, null!, null!, null!);
+        HttpHelper.Configure(memoryCache, null!, null!, null!, null!, null!, null!);
 
         // Create standard Effort permissions
         var permissions = new List<TblPermission>
