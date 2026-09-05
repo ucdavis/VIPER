@@ -1,0 +1,1854 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Viper.Classes.SQLContext;
+using Viper.Areas.Directory.Models;
+using Viper.Models.AAUD;
+using Viper.Classes.Utilities;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Viper.Areas.RAPS.Services;
+using System.Data.Common;
+
+namespace Viper.Areas.Directory.Services
+{
+    public class UserInfoService
+    {
+        private readonly AAUDContext _aaudContext;
+        private readonly RAPSContext _rapsContext;
+        private readonly CoursesContext _coursesContext;
+        private readonly EquipmentLoanContext _equipmentLoanContext;
+        private readonly PPSContext _ppsContext;
+        private readonly IDCardsContext _idCardsContext;
+        private readonly KeysContext _keysContext;
+        private readonly SISContext _sisContext;
+        private readonly IConfiguration _configuration;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IMemoryCache _memoryCache;
+        private readonly ILogger<UserInfoService> _logger;
+
+        public UserInfoService(
+            AAUDContext aaudContext,
+            RAPSContext rapsContext,
+            CoursesContext coursesContext,
+            EquipmentLoanContext equipmentLoanContext,
+            PPSContext ppsContext,
+            IDCardsContext idCardsContext,
+            KeysContext keysContext,
+            SISContext sisContext,
+            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory,
+            IMemoryCache memoryCache,
+            ILogger<UserInfoService> logger)
+        {
+            _aaudContext = aaudContext;
+            _rapsContext = rapsContext;
+            _coursesContext = coursesContext;
+            _equipmentLoanContext = equipmentLoanContext;
+            _ppsContext = ppsContext;
+            _idCardsContext = idCardsContext;
+            _keysContext = keysContext;
+            _sisContext = sisContext;
+            _configuration = configuration;
+            _httpClientFactory = httpClientFactory;
+            _memoryCache = memoryCache;
+            _logger = logger;
+        }
+
+        public UserInfoService(
+            AAUDContext aaudContext,
+            RAPSContext rapsContext,
+            CoursesContext coursesContext,
+            EquipmentLoanContext equipmentLoanContext,
+            PPSContext ppsContext,
+            IDCardsContext idCardsContext,
+            KeysContext keysContext,
+            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory,
+            IMemoryCache memoryCache,
+            ILogger<UserInfoService> logger)
+            : this(
+                  aaudContext,
+                  rapsContext,
+                  coursesContext,
+                  equipmentLoanContext,
+                  ppsContext,
+                  idCardsContext,
+                  keysContext,
+                  null!,
+                  configuration,
+                  httpClientFactory,
+                  memoryCache,
+                  logger)
+        {
+        }
+
+        /// <summary>
+        /// Get user information by iamid or mothraid. Only populates the sections the requester
+        /// is permitted to see, per <paramref name="permissions"/> - permissions gate the fetch
+        /// itself, not just what the view renders.
+        /// </summary>
+        public async Task<UserInfoResult?> GetUserInfoAsync(string? iamId, string? mothraId, UserInfoViewPermissions permissions)
+        {
+            UserInfoResult? result = null;
+
+            // Try to get user by IAM ID first
+            if (!string.IsNullOrEmpty(iamId))
+            {
+                result = await GetUserByIamIdAsync(iamId);
+            }
+
+            // Fall back to Mothra ID if IAM ID didn't work
+            if ((result == null || !result.IsValid) && !string.IsNullOrEmpty(mothraId))
+            {
+                result = await GetUserByMothraIdAsync(mothraId);
+            }
+
+            if (result == null || !result.IsValid)
+            {
+                return null;
+            }
+
+            result.IsOwnPage = permissions.IsOwnPage;
+            result.CanViewDirectoryDetail = permissions.CanViewDirectoryDetail;
+            result.CanViewStudentID = permissions.CanViewStudentID;
+            result.CanViewIAM = permissions.CanViewIAM;
+            result.CanViewRoles = permissions.CanViewRoles;
+            result.CanViewUCPath = permissions.CanViewUCPath;
+            result.CanViewUCPathDetail = permissions.CanViewUCPathDetail;
+            result.CanViewIDCards = permissions.CanViewIDCards;
+            result.CanViewKeys = permissions.CanViewKeys;
+            result.CanViewLoans = permissions.CanViewLoans;
+            result.CanViewInstinct = permissions.CanViewInstinct;
+            result.CanViewADGroups = permissions.CanViewADGroups;
+
+            // Populate only the sections this requester is permitted to see.
+            if (permissions.CanViewDirectoryDetail)
+            {
+                await PopulateDirectoryInfoAsync(result);
+                await PopulateEmployeeInfoAsync(result);
+                await PopulateStudentInfoAsync(result);
+            }
+            if (permissions.CanViewIAM)
+            {
+                await PopulateIamInfoAsync(result);
+            }
+            if (permissions.CanViewRoles)
+            {
+                await PopulateSystemRolesAsync(result);
+            }
+            if (permissions.CanViewUCPath)
+            {
+                await PopulateUCPathInfoAsync(result);
+            }
+            if (permissions.CanViewIDCards)
+            {
+                await PopulateIDCardsAsync(result);
+            }
+            if (permissions.CanViewKeys)
+            {
+                await PopulateKeysAsync(result);
+            }
+            if (permissions.CanViewLoans)
+            {
+                await PopulateLoansAsync(result);
+            }
+            if (permissions.CanViewInstinct)
+            {
+                var individual = await _aaudContext.AaudUsers.AsNoTracking().FirstOrDefaultAsync(u => (u.MothraId == result.MothraId));
+                if (individual != null)
+                {
+                    await PopulateInstinctInfoAsync(result, individual);
+                }
+            }
+            if (permissions.CanViewADGroups)
+            {
+                await PopulateActiveDirectoryInfoAsync(result);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Get user by iamid
+        /// </summary>
+        private async Task<UserInfoResult?> GetUserByIamIdAsync(string iamId)
+        {
+            try
+            {
+                // Get current terms
+                var currentTerms = await GetCurrentTermsAsync();
+
+                var user = await _aaudContext.AaudUsers
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.IamId == iamId);
+
+                if (user == null)
+                {
+                    return null;
+                }
+
+                return await MapToUserInfoResultAsync(user, currentTerms);
+            }
+            catch (DbException ex)
+            {
+                _logger.LogWarning(ex, "GetUserByIamIdAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get user by mothraid
+        /// </summary>
+        private async Task<UserInfoResult?> GetUserByMothraIdAsync(string mothraId)
+        {
+            try
+            {
+                var currentTerms = await GetCurrentTermsAsync();
+
+                var user = await _aaudContext.AaudUsers
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.MothraId == mothraId);
+
+                if (user == null)
+                {
+                    return null;
+                }
+
+                return await MapToUserInfoResultAsync(user, currentTerms);
+            }
+            catch (DbException ex)
+            {
+                _logger.LogWarning(ex, "GetUserByMothraIdAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get current academic terms
+        /// </summary>
+        private async Task<List<string>> GetCurrentTermsAsync()
+        {
+            try
+            {
+                var terms = await _coursesContext.Terminfos
+                    .Where(t => t.TermCurrentTermMulti == true)
+                    .Select(t => t.TermCode)
+                    .ToListAsync();
+
+                return terms;
+            }
+            catch (DbException ex)
+            {
+                _logger.LogWarning(ex, "GetCurrentTermsAsync failed");
+                return new List<string>();
+            }
+        }
+
+        /// <summary>
+        /// get data form aaudUser
+        /// </summary>
+        private async Task<UserInfoResult> MapToUserInfoResultAsync(AaudUser user, List<string> currentTerms)
+        {
+            var result = new UserInfoResult
+            {
+                IamId = user.IamId,
+                MothraId = user.MothraId,
+                MailId = user.MailId,
+                DisplayFullName = user.DisplayFullName,
+                LoginId = user.LoginId,
+                EmployeeId = user.EmployeeId,
+                Pidm = user.Pidm,
+                MivId = user.MivId?.ToString(),
+                IsValid = true,
+                CurrentAffiliate = user.Current == 1
+            };
+
+            // Check if employee or student
+            var hasEmployee = await _aaudContext.Employees
+                .AnyAsync(e => e.EmpPKey == user.EmployeePKey && currentTerms.Contains(e.EmpTermCode));
+
+            if (!hasEmployee && (!string.IsNullOrEmpty(user.EmployeePKey) || !string.IsNullOrEmpty(user.StudentPKey)))
+            {
+                hasEmployee = await _aaudContext.Flags
+                    .AnyAsync(f => (f.FlagsPKey == user.EmployeePKey || f.FlagsPKey == user.StudentPKey) && (f.FlagsStaff || f.FlagsTeachingFaculty));
+            }
+
+            var hasStudent = await _aaudContext.Students
+                .AnyAsync(s => s.StudentsPKey == user.StudentPKey &&
+                              s.StudentsLevelCode1 == "VM" &&
+                              currentTerms.Contains(s.StudentsTermCode));
+
+            if (!hasStudent && (!string.IsNullOrEmpty(user.EmployeePKey) || !string.IsNullOrEmpty(user.StudentPKey)))
+            {
+                hasStudent = await _aaudContext.Flags
+                    .AnyAsync(f => (f.FlagsPKey == user.EmployeePKey || f.FlagsPKey == user.StudentPKey) && f.FlagsStudent);
+            }
+
+            result.IsEmployee = hasEmployee;
+            result.IsStudent = hasStudent;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Logs a section failure and records it on the result so the view can show a
+        /// partial-data notice instead of silently rendering an incomplete page.
+        /// </summary>
+        private void RecordSectionFailure(UserInfoResult result, string section, Exception ex, string logMessage)
+        {
+            _logger.LogWarning(ex, logMessage);
+            if (!result.UnavailableSections.Contains(section))
+            {
+                result.UnavailableSections.Add(section);
+            }
+        }
+
+        /// <summary>
+        /// get data from LDAP/VMACS
+        /// </summary>
+#pragma warning disable CA1416 // Validate platform compatibility
+        private async Task PopulateDirectoryInfoAsync(UserInfoResult result)
+        {
+            try
+            {
+                var ldapUser = LdapService.GetUserByID(result.IamId);
+                if (ldapUser != null)
+                {
+                    result.Title = ldapUser.Title;
+                    result.Email = ldapUser.Mail;
+                    result.Phone = ldapUser.TelephoneNumber;
+                    result.Mobile = ldapUser.Mobile;
+                    result.PostalAddress = ldapUser.PostalAddress;
+                    result.StudentId = ldapUser.UcdStudentSid;
+                    result.LabeledUri = ldapUser.LabeledUri;
+                }
+            }
+            catch (Exception ex) when (ex is NullReferenceException || ex is PlatformNotSupportedException || ex is System.DirectoryServices.DirectoryServicesCOMException || ex is System.DirectoryServices.Protocols.DirectoryException)
+            {
+                RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync LDAP failed");
+            }
+
+            try
+            {
+                result.EmailHost = IndividualSearchResult.LookupEmailHost(_aaudContext, result.MailId);
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync EmailHost lookup failed");
+            }
+#pragma warning restore CA1416
+
+            try
+            {
+                // Get VMACS information
+                var vmacs = await VMACSService.Search(result.LoginId);
+                if (vmacs?.item != null)
+                {
+                    if (vmacs.item.Nextel?.Length > 0) result.Pager = vmacs.item.Nextel[0];
+                    if (vmacs.item.Unit?.Length > 0) result.Department = vmacs.item.Unit[0];
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Directory contact information", ex, "PopulateDirectoryInfoAsync VMACS failed");
+            }
+        }
+
+        /// <summary>
+        /// get employee data
+        /// </summary>
+        private async Task PopulateEmployeeInfoAsync(UserInfoResult result)
+        {
+            if (!result.IsEmployee || string.IsNullOrEmpty(result.EmployeeId))
+                return;
+
+            try
+            {
+                var currentTerms = await GetCurrentTermsAsync();
+                var aaudUser = await _aaudContext.AaudUsers
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.EmployeeId == result.EmployeeId);
+
+                if (aaudUser?.EmployeePKey != null)
+                {
+                    var employee = await _aaudContext.Employees
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(e => e.EmpPKey == aaudUser.EmployeePKey && currentTerms.Contains(e.EmpTermCode));
+
+                    if (employee != null)
+                    {
+                        result.EmployeePrimaryTitle = employee.EmpPrimaryTitle;
+                        result.EmployeeSchoolDivision = employee.EmpSchoolDivision;
+                        result.EmployeeStatus = employee.EmpStatus;
+                        result.EmployeeTerm = employee.EmpTermCode;
+                        result.EmployeeHomeDepartment = employee.EmpHomeDept;
+                        result.EmployeeEffortHomeDepartment = employee.EmpEffortHomeDept;
+                        result.EmployeeTeachingHomeDepartment = employee.EmpTeachingHomeDept;
+                        result.EmployeeTeachingPercentFulltime = employee.EmpTeachingPercentFulltime?.ToString();
+
+                        var deptCodes = new[] { employee.EmpHomeDept, employee.EmpEffortHomeDept }
+                            .Where(c => !string.IsNullOrEmpty(c))
+                            .Distinct()
+                            .ToList();
+
+                        if (deptCodes.Count > 0)
+                        {
+                            var deptRows = await _aaudContext.LdapDepartments
+                                .AsNoTracking()
+                                .Where(d => d.LdapDeptCode != null && deptCodes.Contains(d.LdapDeptCode))
+                                .ToListAsync();
+
+                            var deptNames = deptRows
+                                .GroupBy(d => d.LdapDeptCode!)
+                                .ToDictionary(g => g.Key, g => (g.FirstOrDefault(d => d.LdapDeptInUse == true) ?? g.First()).LdapDeptName);
+
+                            result.EmployeeHomeDepartmentName = deptNames.TryGetValue(employee.EmpHomeDept, out var homeDeptName)
+                                ? homeDeptName : null;
+                            result.EmployeeEffortHomeDepartmentName = employee.EmpEffortHomeDept != null && deptNames.TryGetValue(employee.EmpEffortHomeDept, out var effortDeptName)
+                                ? effortDeptName : null;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Employee Information", ex, "PopulateEmployeeInfoAsync failed");
+            }
+        }
+
+        /// <summary>
+        /// get student data
+        /// </summary>
+        private async Task PopulateStudentInfoAsync(UserInfoResult result)
+        {
+            if (!result.IsStudent || string.IsNullOrEmpty(result.Pidm))
+                return;
+
+            try
+            {
+                // Get current term for the student
+                var currentTerm = await GetCurrentOrFutureTermForStudentAsync(result, result.Pidm);
+
+                // Get basic student information (non-term dependent)
+                result.StudentConfidentialScope = await GetStudentConfidentialScopeAsync(result, result.Pidm);
+                result.StudentPriorName = await GetStudentPriorNamesAsync(result, result.Pidm);
+                result.StudentBannerId = await GetStudentBannerIdAsync(result, result.Pidm);
+
+                if (!string.IsNullOrEmpty(currentTerm))
+                {
+                    // Get term-dependent information
+                    result.StudentStatus = await GetStudentStatusAsync(result, currentTerm, result.Pidm);
+                    result.StudentRegistrationStatus = await GetStudentRegistrationStatusAsync(result, currentTerm, result.Pidm);
+                    result.StudentPrimaryMajor = await GetStudentMajorAsync(result, currentTerm, result.Pidm);
+                    result.StudentAllMajors = await GetStudentAllMajorsAsync(result, currentTerm, result.Pidm);
+                    result.StudentClassLevel = await GetStudentClassLevelAsync(result, currentTerm, result.Pidm);
+                    result.StudentClassOf = await GetStudentClassOfAsync(result, currentTerm, result.Pidm);
+                }
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                // Exceptions during student info retrieval are caught and ignored to allow other directory details to load.
+                RecordSectionFailure(result, "Student Information", ex, "PopulateStudentInfoAsync failed");
+            }
+        }
+
+        /// <summary>
+        /// Get current or future term for student - equivalent to getCurrentOrFutureTermForUser in SIS.cfc.
+        ///
+        /// Runs over its own connection built from the AAUD connection string rather than
+        /// _aaudContext, which this class otherwise uses only for EF entity queries - mixing raw
+        /// SQL and EF entities on the same context causes auth failures. No database qualifier on
+        /// the proc name either, so this follows whatever database the connection string points at,
+        /// same as the SIS raw SQL calls below.
+        /// </summary>
+        private async Task<string?> GetCurrentOrFutureTermForStudentAsync(UserInfoResult result, string pidm)
+        {
+            try
+            {
+                var connectionString = _configuration.GetConnectionString("AAUD")
+                    ?? throw new InvalidOperationException("Connection string 'AAUD' not configured");
+
+                await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                await using var command = new Microsoft.Data.SqlClient.SqlCommand(
+                    "EXEC dbo.usp_get_CurrentOrFutureTermForUser @pidm = @pidm, @loginID = NULL, @termCode = @termCode OUTPUT",
+                    connection);
+
+                command.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@pidm", pidm));
+
+                var termCodeParam = new Microsoft.Data.SqlClient.SqlParameter
+                {
+                    ParameterName = "@termCode",
+                    SqlDbType = System.Data.SqlDbType.Int,
+                    Direction = System.Data.ParameterDirection.Output
+                };
+                command.Parameters.Add(termCodeParam);
+
+                await connection.OpenAsync();
+                await command.ExecuteNonQueryAsync();
+
+                var value = termCodeParam.Value;
+                return value == null || value == DBNull.Value ? null : value.ToString();
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetCurrentOrFutureTermForStudentAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student FERPA confidentiality scope - equivalent to getConfidentialScope in SIS.cfc.
+        /// A non-null/non-empty result means the student has a confidentiality hold.
+        /// </summary>
+        private async Task<string?> GetStudentConfidentialScopeAsync(UserInfoResult result, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<ConfidentialScopeResult>("EXEC usp_sis_getConfidentialScope @Pidm = {0}", pidm)
+                    .ToListAsync();
+
+                return rows.FirstOrDefault()?.ZtvconfDesc;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentConfidentialScopeAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student prior names - equivalent to getPriorName in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentPriorNamesAsync(UserInfoResult result, string pidm)
+        {
+            try
+            {
+                var nameList = await _sisContext.Database
+                    .SqlQueryRaw<PriorNameResult>("EXEC usp_sis_getPriorName @thisPidm = {0}", pidm)
+                    .ToListAsync();
+
+                if (nameList?.Count > 0)
+                {
+                    var names = nameList
+                        .Where(name => !string.IsNullOrEmpty(name.StudentName) && name.ActivityDate.HasValue)
+                        .Select(name => $"{name.StudentName} ({name.ActivityDate:MM/dd/yyyy})")
+                        .ToList();
+
+                    return string.Join(", ", names);
+                }
+
+                return null;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentPriorNamesAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student Banner ID - equivalent to getBannerID in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentBannerIdAsync(UserInfoResult result, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<BannerIdResult>("EXEC usp_sis_getBannerID @pidm = {0}", pidm)
+                    .ToListAsync();
+
+                var bannerId = rows.FirstOrDefault();
+                return bannerId?.SpridenId;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentBannerIdAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student status for term - equivalent to getStudentStatus in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentStatusAsync(UserInfoResult result, string termCode, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<StudentStatusResult>("EXEC usp_sis_getStudentStatus @thisTermCode = {0}, @thispidm = {1}", termCode, pidm)
+                    .ToListAsync();
+
+                var status = rows.FirstOrDefault();
+
+                return status?.RegStatus;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentStatusAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student registration status - equivalent to getRegStatus in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentRegistrationStatusAsync(UserInfoResult result, string termCode, string pidm)
+        {
+            try
+            {
+                var regStatus = await _sisContext.Database
+                    .SqlQueryRaw<RegistrationStatusResult>("EXEC usp_sis_getCurrentRegStatus @termCode = {0}, @pidm = {1}", termCode, pidm)
+                    .ToListAsync();
+
+                return regStatus.Any() ? "Yes" : "No";
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentRegistrationStatusAsync failed");
+                return "No";
+            }
+        }
+
+        /// <summary>
+        /// Get student primary major - equivalent to getMajor in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentMajorAsync(UserInfoResult result, string termCode, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<MajorResult>("EXEC usp_sis_getMajor @termCode = {0}, @pidm = {1}", termCode, pidm)
+                    .ToListAsync();
+
+                var major = rows.FirstOrDefault();
+
+                return major?.SGBSTDN_MAJR_CODE_1;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentMajorAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get all student majors - equivalent to getAllMajors in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentAllMajorsAsync(UserInfoResult result, string termCode, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<AllMajorsResult>("EXEC usp_sis_getAllMajors @termCode = {0}, @pidm = {1}", termCode, pidm)
+                    .ToListAsync();
+
+                var allMajors = rows.FirstOrDefault();
+
+                if (allMajors != null)
+                {
+                    var majors = new List<string>();
+                    if (!string.IsNullOrEmpty(allMajors.SGBSTDN_MAJR_CODE_1))
+                        majors.Add(allMajors.SGBSTDN_MAJR_CODE_1);
+                    if (!string.IsNullOrEmpty(allMajors.SGBSTDN_MAJR_CODE_2))
+                        majors.Add(allMajors.SGBSTDN_MAJR_CODE_2);
+
+                    return string.Join(", ", majors);
+                }
+
+                return null;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentAllMajorsAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student class level - equivalent to getClassLevel in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentClassLevelAsync(UserInfoResult result, string termCode, string pidm)
+        {
+            try
+            {
+                var rows = await _sisContext.Database
+                    .SqlQueryRaw<ClassLevelResult>("EXEC usp_sis_getClassLevel @thisTermCode = {0}, @thisPidm = {1}", termCode, pidm)
+                    .ToListAsync();
+
+                var classLevel = rows.FirstOrDefault();
+
+                return classLevel?.SgvclssClasCode;
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentClassLevelAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get student class of year - equivalent to getClassOf in SIS.cfc
+        /// </summary>
+        private async Task<string?> GetStudentClassOfAsync(UserInfoResult result, string termCode, string pidm)
+        {
+            try
+            {
+                var classOfParam = new Microsoft.Data.SqlClient.SqlParameter
+                {
+                    ParameterName = "@thisClassOf",
+                    SqlDbType = System.Data.SqlDbType.VarChar,
+                    Size = 4,
+                    Direction = System.Data.ParameterDirection.Output
+                };
+
+                await _sisContext.Database.ExecuteSqlRawAsync(
+                    "EXEC usp_sis_getClassOf @thisTermCode = @thisTermCode, @thisPidm = @thisPidm, @thisClassOf = @thisClassOf OUTPUT",
+                    new Microsoft.Data.SqlClient.SqlParameter("@thisTermCode", termCode),
+                    new Microsoft.Data.SqlClient.SqlParameter("@thisPidm", pidm),
+                    classOfParam);
+
+                var value = classOfParam.Value;
+                return value == null || value == DBNull.Value ? null : value.ToString();
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Student Information", ex, "GetStudentClassOfAsync failed");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Populate iam information
+        /// </summary>
+        private async Task PopulateIamInfoAsync(UserInfoResult result)
+        {
+            if (string.IsNullOrEmpty(result.IamId))
+            {
+                _logger.LogDebug("IAM API: result.IamId is null or empty");
+                return;
+            }
+
+            try
+            {
+                _logger.LogDebug("IAM API request for IamId {IamId}", LogSanitizer.SanitizeId(result.IamId));
+                var iamApi = new IamApi(_httpClientFactory);
+
+                // Get people information - equivalent to iamPeople.getById() in ColdFusion
+                var peopleResponse = await iamApi.SearchForPerson(iamId: result.IamId);
+                _logger.LogDebug("IAM people response data count {Count}, error {Error}",
+                    peopleResponse.Data?.Count(), LogSanitizer.SanitizeString(peopleResponse.ErrorMessage) ?? "none");
+                if (peopleResponse.Data?.Any() == true)
+                {
+                    result.IamPeople = peopleResponse.Data.ToList();
+                    var person = peopleResponse.Data.First();
+                    result.PPSId = person.PpsId;
+                    result.OFullName = person.OFullName;
+                    result.IsHSEmployee = person.IsHSEmployee;
+                    result.IsFaculty = person.IsFaculty;
+                    result.IsStaff = person.IsStaff;
+                    result.IsExternal = person.IsExternal;
+                }
+
+                // Get employee associations - equivalent to iamAssociations.getEmployeeAssociations() in ColdFusion
+                var associationsResponse = await iamApi.GetEmployeeAssociations(result.IamId);
+                _logger.LogDebug("IAM associations response data count {Count}, error {Error}",
+                    associationsResponse.Data?.Count(), LogSanitizer.SanitizeString(associationsResponse.ErrorMessage) ?? "none");
+                if (associationsResponse.Data?.Any() == true)
+                {
+                    result.IamAssociations = associationsResponse.Data.ToList();
+                    var association = associationsResponse.Data.First(); // Get first/primary association
+                    result.AssociationsTitle = association.TitleDisplayName;
+                    result.AssociationsTitleCode = association.TitleCode;
+                    result.AssociationsDepartment = association.DeptDisplayName;
+                    result.AssociationsDepartmentCode = association.DeptCode;
+                    result.AssociationsAdminDepartment = association.AdminDeptDisplayName;
+                    result.AssociationsAdminDepartmentAbbrev = association.AdminDeptAbbrev;
+                    result.AssociationsAdminDepartmentCode = association.AdminDeptCode;
+                    result.AssociationsAppointmentDepartment = association.ApptDeptDisplayName;
+                    result.AssociationsAppointmentDepartmentAbbrev = association.ApptDeptAbbrev;
+                    result.AssociationsAppointmentDepartmentCode = association.ApptDeptCode;
+                    result.AssociationsPositionType = association.PositionType;
+                    result.AssociationsEmployeeClass = association.EmplClassDesc;
+                    result.AssociationsPercentFulltime = association.PercentFullTime;
+                    result.AssociationsStartDate = association.AssocStartDate;
+                    result.AssociationsEndDate = association.AssocEndDate;
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
+            {
+                // Log exception but don't fail the entire request
+                RecordSectionFailure(result, "IAM Information", ex, "IAM API request failed");
+            }
+        }
+
+        private async Task PopulateSystemRolesAsync(UserInfoResult result)
+        {
+            if (string.IsNullOrEmpty(result.MothraId))
+                return;
+
+            var systems = new[] { "VIPER", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" };
+
+            // Query tblRoleMembers and join tblRoles for this user
+            var roleMembers = await _rapsContext.TblRoleMembers
+                .AsNoTracking()
+                .Include(rm => rm.Role)
+                .Where(rm => rm.MemberId == result.MothraId && rm.ViewName == null)
+                .ToListAsync();
+
+            foreach (var system in systems)
+            {
+                // Filter roles belonging to the current system/instance
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                var filteredRoles = roleMembers
+                    .Where(rm => rm.Role != null && RAPSSecurityService.RoleBelongsToInstance(system, rm.Role))
+                    .Select(rm => rm.Role)
+                    .OrderBy(r => r.DisplayName ?? r.Role);
+
+                result.SystemRoles.AddRange(filteredRoles.Select(role =>
+                {
+                    string displayName = role.DisplayName ?? role.Role;
+                    return new SystemRole
+                    {
+                        System = system,
+                        DisplayName = FormatPermissionName(displayName)
+                    };
+                }));
+            }
+
+            var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
+            var allPermissions = await GetUserPermissionsAsync(result.MothraId);
+            foreach (var category in categories)
+            {
+                var categoryPerms = allPermissions
+                    .Where(p => p.Permission.StartsWith(category))
+                    .OrderBy(p => p.Permission)
+                    .ToList();
+                var sysPerm = new SystemPermission
+                {
+                    Category = category,
+                    Count = categoryPerms.Count,
+                    Permissions = categoryPerms.Select(p => p.Permission).ToList()
+                };
+                result.SystemPermissions.Add(sysPerm);
+            }
+        }
+
+        /// <summary>
+        /// Get RSOP (Resultant Set of Permissions) for a user across all systems. Fetched once per
+        /// user rather than once per category - callers that only care about one system's prefix
+        /// can filter the returned list with .Where(p => p.Permission.StartsWith(prefix)).
+        /// </summary>
+        private async Task<List<PermissionInfo>> GetUserPermissionsAsync(string memberId)
+        {
+            var permsViaRoles = await (
+                from permission in _rapsContext.TblPermissions
+                join rolePermissions in _rapsContext.TblRolePermissions
+                    on permission.PermissionId equals rolePermissions.PermissionId
+                join memberRole in _rapsContext.TblRoleMembers
+                    on rolePermissions.RoleId equals memberRole.RoleId
+                join role in _rapsContext.TblRoles
+                    on memberRole.RoleId equals role.RoleId
+                where memberRole.MemberId == memberId
+                && (memberRole.StartDate == null || memberRole.StartDate <= DateTime.Today)
+                && (memberRole.EndDate == null || memberRole.EndDate >= DateTime.Today)
+                select new
+                {
+                    permission.PermissionId,
+                    permission.Permission,
+                    rolePermissions.Access,
+                    role.Role
+                }).AsNoTracking().ToListAsync();
+
+            var permsAssigned = await (from permission in _rapsContext.TblPermissions
+                                       join memberPermissions in _rapsContext.TblMemberPermissions
+                                           on permission.PermissionId equals memberPermissions.PermissionId
+                                       where memberPermissions.MemberId == memberId
+                                       && (memberPermissions.StartDate == null || memberPermissions.StartDate <= DateTime.Today)
+                                       && (memberPermissions.EndDate == null || memberPermissions.EndDate >= DateTime.Today)
+                                       select new
+                                       {
+                                           permission.PermissionId,
+                                           permission.Permission,
+                                           memberPermissions.Access
+                                       }).AsNoTracking().ToListAsync();
+
+            var permissions = new Dictionary<int, PermissionInfo>();
+
+            // Add permissions assigned via roles
+            foreach (var p in permsViaRoles)
+            {
+                if (permissions.TryGetValue(p.PermissionId, out PermissionInfo? existing))
+                {
+                    // Record deny if this role is denying access
+                    if (existing.Access == "1" && p.Access == 0)
+                    {
+                        existing.Access = "0";
+                        existing.Source = p.Role;
+                    }
+                    else if (existing.Access == p.Access.ToString())
+                    {
+                        existing.Source += "," + p.Role;
+                    }
+                }
+                else
+                {
+                    permissions[p.PermissionId] = new PermissionInfo
+                    {
+                        PermissionId = p.PermissionId,
+                        Permission = p.Permission,
+                        Source = p.Role,
+                        SourceType = "Role",
+                        Access = p.Access.ToString()
+                    };
+                }
+            }
+
+            // Add permissions assigned directly
+            foreach (var p in permsAssigned)
+            {
+                if (permissions.TryGetValue(p.PermissionId, out PermissionInfo? existing))
+                {
+                    if (existing.Access == "1" && p.Access == 0)
+                    {
+                        existing.Access = "0";
+                        existing.Source = "Member Permission";
+                    }
+                    else if (existing.Access == p.Access.ToString())
+                    {
+                        existing.Source += ",Member Permission";
+                    }
+                }
+                else
+                {
+                    permissions[p.PermissionId] = new PermissionInfo
+                    {
+                        PermissionId = p.PermissionId,
+                        Permission = p.Permission,
+                        Source = "Member Permission",
+                        SourceType = "Member",
+                        Access = p.Access.ToString()
+                    };
+                }
+            }
+
+            // systemPrefix is already applied in the queries above; only the access check remains.
+            return permissions.Values
+                .Where(p => p.Access == "1")
+                .OrderBy(p => p.Permission)
+                .ToList();
+        }
+
+        private static string FormatPermissionName(string val)
+        {
+            if (string.IsNullOrEmpty(val)) return "";
+            string clean = val;
+            clean = clean.Replace("CN=", "", StringComparison.OrdinalIgnoreCase);
+            clean = clean.Replace("OU=", "", StringComparison.OrdinalIgnoreCase);
+            clean = clean.Replace("DC=", "", StringComparison.OrdinalIgnoreCase);
+            return clean.Replace(",", ".");
+        }
+
+
+        /// <summary>
+        /// Populate UC Path information
+        /// </summary>
+        private async Task PopulateUCPathInfoAsync(UserInfoResult result)
+        {
+            if (string.IsNullOrEmpty(result.EmployeeId))
+                return;
+
+            try
+            {
+                // Get UC Path person information
+                var person = await _ppsContext.VwPeople
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Emplid == result.EmployeeId);
+
+                if (person != null)
+                {
+                    result.UCPathFlags = GetUCPathFlags(person);
+                }
+
+                // Get UC Path position information. A person can hold more than one concurrent
+                // position (e.g. appointments in two departments), so fetch all of them rather
+                // than just the one with the latest effective date.
+                var positions = await _ppsContext.VwPersonJobPositions
+                    .AsNoTracking()
+                    .Where(p => p.Emplid == result.EmployeeId)
+                    .OrderByDescending(p => p.Effdt)
+                    .ToListAsync();
+
+                var reportsToIds = positions
+                    .Select(p => p.ReportsTo)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!)
+                    .Distinct()
+                    .ToList();
+
+                var reportsToLookup = await BuildReportsToLookupAsync(reportsToIds);
+
+                result.UCPathPositions = positions.Select(position =>
+                {
+                    var reportsTo = !string.IsNullOrEmpty(position.ReportsTo) && reportsToLookup.TryGetValue(position.ReportsTo, out var match)
+                        ? match
+                        : (Name: string.Empty, Position: string.Empty);
+
+                    return new UCPathPositionResult
+                    {
+                        JobCode = position.Jobcode,
+                        JobDescription = position.JobcodeDesc,
+                        DepartmentId = position.Deptid,
+                        DepartmentDescription = position.DeptDesc,
+                        JobStatus = position.JobStatus,
+                        EmployeeStatus = position.EmplStatus,
+                        JobStatusDescription = position.JobStatusDesc,
+                        PositionEffectiveDate = position.PositionEffdt,
+                        ExpectedEndDate = position.ExpectedEndDate,
+                        FTE = position.Fte,
+                        Union = position.UnionCd,
+                        ReportsToName = reportsTo.Name,
+                        ReportsToPosition = reportsTo.Position
+                    };
+                }).ToList();
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "UC Path", ex, "PopulateUCPathInfoAsync failed");
+            }
+
+            // Get UC Path History from the VwPersonJobPositionAll view
+            await PopulateUCPathHistoryAsync(result);
+        }
+
+        /// <summary>
+        /// Populate UC Path History information - equivalent to get_ucpath_history in userinfo.cfc
+        /// </summary>
+        private async Task PopulateUCPathHistoryAsync(UserInfoResult result)
+        {
+            if (string.IsNullOrEmpty(result.EmployeeId))
+                return;
+
+            try
+            {
+                var historyData = await _ppsContext.VwPersonJobPositionAlls
+                    .AsNoTracking()
+                    .Where(p => p.Emplid == result.EmployeeId)
+                    .OrderByDescending(p => p.PositionEffdt)
+                    .ThenByDescending(p => p.Effdt)
+                    .ToListAsync();
+
+                var reportsToIds = historyData
+                    .Select(h => h.ReportsTo)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!)
+                    .Distinct()
+                    .ToList();
+
+                var reportsToLookup = await BuildReportsToLookupAsync(reportsToIds);
+
+                var ucPathResults = historyData.Select(history =>
+                {
+                    var reportsTo = !string.IsNullOrEmpty(history.ReportsTo) && reportsToLookup.TryGetValue(history.ReportsTo, out var match)
+                        ? match
+                        : (Name: string.Empty, Position: string.Empty);
+
+                    return new UCPathResult
+                    {
+                        JobCode = history.Jobcode,
+                        JobCodeDescription = history.JobcodeDesc,
+                        DepartmentId = history.Deptid,
+                        DepartmentDescription = history.DeptDesc,
+                        ActionDescription = history.ActionDescr,
+                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                        ReportsTo = reportsTo.Name,
+                        ReportsToPosition = reportsTo.Position
+                    };
+                });
+
+                result.UCPathHistory.AddRange(ucPathResults);
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "UC Path History", ex, "PopulateUCPathHistoryAsync failed");
+            }
+        }
+
+        /// <summary>
+        /// Batch-resolve reports-to name/job title for a set of position numbers in at most two
+        /// queries, instead of looking each one up individually per history row. Rows are ordered
+        /// by Effdt/Effseq descending so the first row seen per PositionNbr is the most recent one.
+        /// </summary>
+        private async Task<Dictionary<string, (string Name, string Position)>> BuildReportsToLookupAsync(List<string> positionNbrs)
+        {
+            var lookup = new Dictionary<string, (string Name, string Position)>();
+            if (positionNbrs.Count == 0)
+                return lookup;
+
+            var historyRows = await _ppsContext.VwPersonJobPositionAlls
+                .AsNoTracking()
+                .Where(r => r.PositionNbr != null && EF.Parameter(positionNbrs).Contains(r.PositionNbr))
+                .OrderByDescending(r => r.Effdt)
+                .ThenByDescending(r => r.Effseq)
+                .ToListAsync();
+
+            foreach (var row in historyRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
+            {
+                lookup[row.PositionNbr!] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
+            }
+
+            var missingIds = positionNbrs.Where(id => !lookup.ContainsKey(id)).ToList();
+            if (missingIds.Count > 0)
+            {
+                var currentRows = await _ppsContext.VwPersonJobPositions
+                    .AsNoTracking()
+                    .Where(r => r.PositionNbr != null && EF.Parameter(missingIds).Contains(r.PositionNbr))
+                    .OrderByDescending(r => r.Effdt)
+                    .ThenByDescending(r => r.Effseq)
+                    .ToListAsync();
+
+                foreach (var row in currentRows.Where(row => row.PositionNbr != null && !lookup.ContainsKey(row.PositionNbr)))
+                {
+                    lookup[row.PositionNbr!] = ($"{row.FirstName} {row.LastName}".Trim(), row.JobcodeDesc);
+                }
+            }
+
+            return lookup;
+        }
+
+        /// <summary>
+        /// Populate ID Cards information
+        /// </summary>
+        private async Task PopulateIDCardsAsync(UserInfoResult result)
+        {
+            try
+            {
+                var cards = await (from card in _idCardsContext.IdCards
+                                   join status in _idCardsContext.DvtCardStatuses
+                                       on card.IdCardCurrentStatus equals status.DvtStatusCode into statusJoin
+                                   from status in statusJoin.DefaultIfEmpty()
+                                   join reason in _idCardsContext.DvtReasons
+                                       on card.IdcardDeactivatedReason equals reason.DvtReasonCode into reasonJoin
+                                   from reason in reasonJoin.DefaultIfEmpty()
+                                   where card.IdCardLoginId == result.LoginId
+                                   orderby card.IdCardAppliedDate descending
+                                   select new
+                                   {
+                                       Card = card,
+                                       StatusDescription = status != null ? status.DvtStatusDesc : "",
+                                       DeactivatedReasonDescription = reason != null ? reason.DvtReasonDesc : ""
+                                   }).AsNoTracking().ToListAsync();
+
+                foreach (var item in cards)
+                {
+                    var card = item.Card;
+                    result.IDCards.Add(new IDCardResult
+                    {
+                        Number = card.IdCardNumber?.ToString(),
+                        DisplayName = card.IdCardDisplayName,
+                        LastName = card.IdCardLastName,
+                        Line2 = card.IdCardLine2,
+                        StatusDescription = item.StatusDescription,
+                        DeactivatedReason = item.DeactivatedReasonDescription,
+                        Applied = card.IdCardAppliedDate,
+                        Issued = card.IdCardIssueDate,
+                        Deactivated = card.IdcardDeactivatedDate
+                    });
+                }
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "ID Cards", ex, "PopulateIDCardsAsync failed");
+            }
+        }
+
+        /// <summary>
+        /// Populate Keys information
+        /// </summary>
+        private async Task PopulateKeysAsync(UserInfoResult result)
+        {
+            try
+            {
+                var keyAssignments = await (from ka in _keysContext.KeyAssignments
+                                            join k in _keysContext.Keys on ka.KeyId equals k.KeyId
+                                            where ka.AssignedTo == result.MothraId && ka.Deleted == null
+                                            orderby ka.IssuedDate descending, ka.KeyId
+                                            select new { Assignment = ka, Key = k })
+                                            .AsNoTracking()
+                                            .ToListAsync();
+
+                var issuerIds = keyAssignments
+                    .Select(item => item.Assignment.IssuedBy)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Select(id => id!)
+                    .Distinct()
+                    .ToList();
+
+                var issuerNames = issuerIds.Count > 0
+                    ? await _aaudContext.AaudUsers
+                        .AsNoTracking()
+                        .Where(u => issuerIds.Contains(u.MothraId))
+                        .ToDictionaryAsync(u => u.MothraId, u => u.DisplayFullName)
+                    : new Dictionary<string, string>();
+
+                foreach (var item in keyAssignments)
+                {
+                    var issuerName = item.Assignment.IssuedBy != null && issuerNames.TryGetValue(item.Assignment.IssuedBy, out var name)
+                        ? name
+                        : null;
+
+                    result.Keys.Add(new KeyResult
+                    {
+                        AccessDescription = item.Key.AccessDescription,
+                        KeyNumber = item.Key.KeyNumber,
+                        CutNumber = item.Assignment.CutNumber,
+                        IssuedDate = item.Assignment.IssuedDate,
+                        IssuedBy = issuerName
+                    });
+                }
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Keys Assigned", ex, "PopulateKeysAsync failed");
+            }
+        }
+
+        /// <summary>
+        /// Populate Loans information
+        /// </summary>
+        private async Task PopulateLoansAsync(UserInfoResult result)
+        {
+            try
+            {
+                var loans = await _equipmentLoanContext.Loans
+                    .AsNoTracking()
+                    .Where(l => l.LoanPidm == result.Pidm)
+                    .Include(l => l.LoanItems)
+                    .ThenInclude(li => li.LoanitemAsset)
+                    .OrderByDescending(l => l.LoanDate)
+                    .ToListAsync();
+
+                foreach (var loan in loans)
+                {
+                    foreach (var loanItem in loan.LoanItems)
+                    {
+                        result.Loans.Add(new LoanResult
+                        {
+                            AssetName = loanItem.LoanitemAsset.AssetName,
+                            LoanDate = loan.LoanDate,
+                            DueDate = loan.LoanDueDate,
+                            Comments = loan.LoanComments
+                        });
+                    }
+                }
+            }
+            catch (DbUpdateException ex)
+            {
+                RecordSectionFailure(result, "Loaner Equipment", ex, "PopulateLoansAsync failed");
+            }
+            catch (DbException ex)
+            {
+                RecordSectionFailure(result, "Loaner Equipment", ex, "PopulateLoansAsync failed");
+            }
+            catch (InvalidOperationException ex)
+            {
+                RecordSectionFailure(result, "Loaner Equipment", ex, "PopulateLoansAsync failed");
+            }
+        }
+
+        /// <summary>
+        /// Populate Instinct information
+        /// </summary>
+        private async Task PopulateInstinctInfoAsync(UserInfoResult result, AaudUser user)
+        {
+            try
+            {
+                var instinctResult = await GetInstinctUserAsync(user.LastName, user.FirstName, user.MiddleName, user.LoginId);
+                result.InstinctInfo = instinctResult;
+
+                if (!string.IsNullOrEmpty(instinctResult.ErrorMessage) && !result.UnavailableSections.Contains("Instinct"))
+                {
+                    result.UnavailableSections.Add("Instinct");
+                }
+
+                if (instinctResult.Valid)
+                {
+                    result.InstinctId = instinctResult.InstinctId;
+                    result.InstinctUsername = instinctResult.Username;
+                    result.InstinctRoles = instinctResult.Roles;
+                    result.InstinctStatus = instinctResult.Status;
+                    result.InstinctIsActive = instinctResult.IsActive;
+
+                    if (!string.IsNullOrEmpty(instinctResult.PasswordExpiresAt) &&
+                        DateTime.TryParse(instinctResult.PasswordExpiresAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var expireDate))
+                    {
+                        result.InstinctPasswordExpiresAt = expireDate;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
+            {
+                result.InstinctInfo = new InstinctResult { ErrorMessage = $"Populate Exception: {ex.Message}" };
+                RecordSectionFailure(result, "Instinct", ex, "PopulateInstinctInfoAsync failed");
+            }
+        }
+
+        private static string AdClean(string a)
+        {
+            if (string.IsNullOrEmpty(a)) return "";
+            var toReturn = a;
+            toReturn = toReturn.Replace("CN=", "", StringComparison.OrdinalIgnoreCase);
+            toReturn = toReturn.Replace("OU=", "", StringComparison.OrdinalIgnoreCase);
+            toReturn = toReturn.Replace("DC=", "", StringComparison.OrdinalIgnoreCase);
+            return toReturn;
+        }
+
+        private static string PermFormat(string a)
+        {
+            return AdClean(a).Replace(",", ".");
+        }
+
+        private static string AdFormat(string a, string[] domains)
+        {
+            var toReturn = AdClean(a);
+            foreach (var d in domains)
+            {
+                var domainWithCommas = d.Replace(".", ",");
+                toReturn = toReturn.Replace(domainWithCommas, d, StringComparison.OrdinalIgnoreCase);
+            }
+            var parts = toReturn.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(p => p.Trim())
+                                .Reverse()
+                                .ToList();
+            return string.Join("/", parts);
+        }
+
+        /// <summary>
+        /// Populate Active Directory information
+        /// </summary>
+        private async Task PopulateActiveDirectoryInfoAsync(UserInfoResult result)
+        {
+            if (string.IsNullOrEmpty(result.LoginId))
+            {
+                return;
+            }
+
+            try
+            {
+                var uinformService = new UinformService();
+                var adUser = await uinformService.GetUser(samAccountName: result.LoginId);
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                if (adUser != null && !string.IsNullOrEmpty(adUser.SamAccountName))
+                {
+                    result.ADDisplayName = adUser.DisplayName;
+                    result.ADMail = adUser.Mail;
+                    result.ADSamAccountName = adUser.SamAccountName;
+                    result.ADUserPrincipalName = adUser.UserPrincipalName;
+                    result.ADDistinguishedName = PermFormat(adUser.DistinguishedName ?? "");
+
+                    var allGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (adUser.MemberOf != null)
+                    {
+                        foreach (var g in adUser.MemberOf)
+                        {
+                            allGroups.Add(g);
+                        }
+                    }
+                    if (adUser.MemberOfAll != null)
+                    {
+                        foreach (var g in adUser.MemberOfAll)
+                        {
+                            allGroups.Add(g);
+                        }
+                    }
+
+                    var isProd = HttpHelper.Environment?.IsProduction() ?? false;
+                    var domains = isProd
+                        ? new[] { "ad3.ucdavis.edu", "ou.ad3.ucdavis.edu", "ucsvm.ucdavis.edu", "ad.vmth.ucdavis.edu", "vetmed.ucdavis.edu", "svm.ucdavis.edu" }
+                        : new[] { "t3.ucdavis.edu" };
+                    result.ADMemberOf.AddRange(
+                        allGroups
+                            .Select(groupDn => AdFormat(groupDn, domains))
+                            .Where(formattedGroup => !string.IsNullOrEmpty(formattedGroup))
+                    );
+
+                    // Sort the groups
+                    result.ADMemberOf = result.ADMemberOf.OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "Active Directory Group Membership", ex, "Error populating AD info");
+            }
+        }
+
+        /// <summary>
+        /// Get user photo data
+        /// </summary>
+        public static async Task<byte[]?> GetUserPhotoAsync(string mailId, bool useAltPhoto = false)
+        {
+            // stubbed
+            return null;
+        }
+
+
+
+
+        /// <summary>
+        /// Get Instinct user information via GraphQL API
+        /// </summary>
+        private async Task<InstinctResult> GetInstinctUserAsync(string lastName, string firstName, string? middleName, string? expectedUsername)
+        {
+            var result = new InstinctResult();
+
+            // Get access token
+            var accessToken = await GetInstinctAccessTokenAsync(result);
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return result;
+            }
+
+            // Build name variations for matching
+            var nameVariations = new List<string> { firstName };
+
+            var firstNameParts = firstName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var first = firstNameParts.FirstOrDefault() ?? "";
+
+            if (firstNameParts.Length > 0 && !nameVariations.Contains(first))
+            {
+                nameVariations.Add(first);
+            }
+
+            if (firstNameParts.Length > 1)
+            {
+                var sb = new StringBuilder(first);
+                for (int i = 1; i < firstNameParts.Length; i++)
+                {
+                    if (firstNameParts[i].Length > 0)
+                    {
+                        sb.Append(' ').Append(firstNameParts[i][0]);
+                        var accum = sb.ToString();
+                        if (!nameVariations.Contains(accum))
+                        {
+                            nameVariations.Add(accum);
+                        }
+                    }
+                }
+            }
+
+            var temp = nameVariations.ToList();
+            if (!string.IsNullOrEmpty(middleName))
+            {
+                var middleParts = middleName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var name in temp)
+                {
+                    nameVariations.AddRange(middleParts
+                        .Where(middlePart => middlePart.Length > 0)
+                        .Select(middlePart => $"{name} {middlePart[0]}")
+                        .Where(variation => !nameVariations.Contains(variation)));
+                }
+            }
+
+            // Create GraphQL query
+            var query = @"
+            query SearchUsers($name: String!) {
+                searchUsers(name: $name) {
+                    id
+                    initials
+                    instinctId
+                    isActive
+                    isProtected
+                    nameFirst
+                    nameMiddle
+                    nameLast
+                    passwordExpiresAt
+                    status
+                    username
+                    roles {
+                        description
+                        label
+                    }
+                }
+            }";
+
+            // Execute GraphQL query
+            var apiUrl = GetInstinctApiUrl(result);
+            if (apiUrl == null)
+            {
+                return result;
+            }
+            var httpClient = _httpClientFactory.CreateClient();
+
+            var variablesJson = JsonSerializer.Serialize(new { name = lastName });
+            var queryUrl = $"{apiUrl}?query={Uri.EscapeDataString(query)}&variables={Uri.EscapeDataString(variablesJson)}";
+            httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+
+            var response = await httpClient.GetAsync(queryUrl);
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var graphqlResponse = JsonSerializer.Deserialize<InstinctGraphQLResponse>(responseContent);
+
+                if (graphqlResponse?.Data?.SearchUsers != null)
+                {
+                    var candidates = graphqlResponse.Data.SearchUsers
+                        .Where(user => string.Equals(user.NameLast, lastName, StringComparison.OrdinalIgnoreCase)
+                            && nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+
+                    // Same first/last name can match more than one Instinct account. Prefer an exact
+                    // username match to disambiguate; if that doesn't narrow it to one, don't guess -
+                    // assigning the wrong person's account/roles is worse than showing nothing.
+                    InstinctUser? matchedUser = candidates.Count switch
+                    {
+                        0 => null,
+                        1 => candidates[0],
+                        _ when !string.IsNullOrEmpty(expectedUsername) => candidates
+                            .SingleOrDefault(user => string.Equals(user.Username, expectedUsername, StringComparison.OrdinalIgnoreCase)),
+                        _ => null
+                    };
+
+                    if (matchedUser != null)
+                    {
+                        result.Valid = true;
+                        result.InstinctId = matchedUser.InstinctId;
+                        result.IsActive = matchedUser.IsActive;
+                        result.PasswordExpiresAt = matchedUser.PasswordExpiresAt;
+                        result.Status = matchedUser.Status;
+                        result.Username = matchedUser.Username;
+                        result.Roles = matchedUser.Roles?
+                            .Where(r => r.Label != null)
+                            .Select(r => r.Label!)
+                            .ToList() ?? new List<string>();
+                    }
+                    else if (candidates.Count > 1)
+                    {
+                        result.ErrorMessage = $"Multiple Instinct accounts matched {lastName}, {firstName} and could not be disambiguated by username.";
+                    }
+                    else
+                    {
+                        // No candidates is the common case - most VIPER users don't have an
+                        // Instinct account. That's not a failure, so leave Valid false and
+                        // ErrorMessage unset: PopulateInstinctInfoAsync only flags "Instinct" as
+                        // an unavailable section when ErrorMessage is set, and this isn't one.
+                        // Do not include other candidates' names from the search results here -
+                        // they belong to unrelated people and would leak into this user's directory page.
+                        _logger.LogDebug("Instinct API: no account matched {LastName}, {FirstName}. Variations tried: {Variations}",
+                            LogSanitizer.SanitizeString(lastName), LogSanitizer.SanitizeString(firstName), string.Join(", ", nameVariations));
+                    }
+                }
+                else
+                {
+                    result.ErrorMessage = "GraphQL response contained no searchUsers data.";
+                }
+            }
+            else
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                result.ErrorMessage = $"GraphQL query failed (Status: {response.StatusCode}): {responseContent}";
+            }
+            return result;
+        }
+
+        private static void AppendError(InstinctResult result, string msg)
+        {
+            result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                ? msg
+                : $"{result.ErrorMessage} | {msg}";
+        }
+
+        /// <summary>
+        /// Reads the configured Instinct API URL. Fails fast instead of falling back to the
+        /// production host, so a misconfigured dev/test box can't silently hit prod Instinct.
+        /// </summary>
+        private string? GetInstinctApiUrl(InstinctResult result)
+        {
+            var apiUrl = _configuration["Instinct:ApiUrl"];
+            if (string.IsNullOrWhiteSpace(apiUrl))
+            {
+                const string errMsg = "Instinct:ApiUrl is not configured";
+                _logger.LogWarning("Instinct API: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
+                AppendError(result, errMsg);
+                return null;
+            }
+            return apiUrl;
+        }
+
+        /// <summary>
+        /// OAuth access token for Instinct
+        /// </summary>
+        private async Task<string?> GetInstinctAccessTokenAsync(InstinctResult result)
+        {
+            const string cacheKey = "instinct_access_token";
+
+            // Check cache first
+            if (_memoryCache.TryGetValue(cacheKey, out string? cachedToken) && !string.IsNullOrEmpty(cachedToken))
+            {
+                return cachedToken;
+            }
+
+            try
+            {
+                var apiUrl = GetInstinctApiUrl(result);
+                if (apiUrl == null)
+                {
+                    return null;
+                }
+                if (!apiUrl.EndsWith('/'))
+                {
+                    apiUrl += "/";
+                }
+                var tokenUrl = apiUrl + "auth/token";
+                var username = "ucdavisapi";
+                var password = HttpHelper.GetSetting<string>("Credentials", "InstinctApi") ?? "";
+
+                if (string.IsNullOrEmpty(password))
+                {
+                    string errMsg = "Password is null or empty in configuration";
+                    _logger.LogWarning("Instinct auth: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
+                    AppendError(result, errMsg);
+                    return null;
+                }
+
+                var httpClient = _httpClientFactory.CreateClient();
+                var formParams = new List<KeyValuePair<string, string>>
+                {
+                    new("username", username),
+                    new("password", password),
+                    new("grant_type", "password"),
+                    new("scope", "api_access")
+                };
+
+                using var formContent = new FormUrlEncodedContent(formParams);
+                _logger.LogDebug("Instinct auth: sending token POST request");
+                using var response = await httpClient.PostAsync(tokenUrl, formContent);
+                _logger.LogDebug("Instinct auth: response status code {StatusCode}", response.StatusCode);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var tokenResponse = JsonSerializer.Deserialize<InstinctTokenResponse>(responseContent);
+                    if (tokenResponse != null)
+                    {
+                        _logger.LogDebug("Instinct auth: deserialized token length {Length}", tokenResponse.AccessToken.Length);
+
+                        if (!string.IsNullOrEmpty(tokenResponse.AccessToken))
+                        {
+                            // Cache token for slightly less than expiry time (subtract 2 hours as in CF code).
+                            // ExpiresIn can be under 2 hours (or absent, defaulting to 0), so clamp to a floor
+                            // instead of handing IMemoryCache.Set a zero/negative TimeSpan, which throws.
+                            var cacheExpiry = TimeSpan.FromSeconds(Math.Max(60, tokenResponse.ExpiresIn - 7200)); // 2 hours buffer
+                            _memoryCache.Set(cacheKey, tokenResponse.AccessToken, cacheExpiry);
+
+                            return tokenResponse.AccessToken;
+                        }
+                    }
+                }
+                else
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    string errMsg = $"Token POST request failed (Status: {response.StatusCode}): {responseContent}";
+                    _logger.LogWarning("Instinct auth: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
+                    AppendError(result, errMsg);
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is JsonException || ex is InvalidOperationException)
+            {
+                string errMsg = $"Token request exception: {ex.Message}";
+                _logger.LogWarning(ex, "Instinct auth token request failed");
+                AppendError(result, errMsg);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extract UC Path flags from VwPerson entity
+        /// </summary>
+        private static List<string> GetUCPathFlags(dynamic person)
+        {
+            var flags = new List<string>();
+            var flagDefinitions = new Dictionary<string, string>
+            {
+                {"EmpAcdmcFederationFlg", "Academic Federation"},
+                {"EmpAcdmcFlg", "ACDMC"},
+                {"EmpAcdmcSenateFlg", "ACDMC Senate"},
+                {"EmpAcdmcStdtFlg", "ACDMC Stdt"},
+                {"EmpFacultyFlg", "Faculty"},
+                {"EmpLadderRankFlg", "Ladder Rank"},
+                {"EmpMgrFlg", "Manager"},
+                {"EmpMspCareerFlg", "MSP Career"},
+                {"EmpMspCareerPartialyrFlg", "MSP Career Partial Year"},
+                {"EmpMspCasualFlg", "MSP Casual"},
+                {"EmpMspCntrctFlg", "MSP Contract"},
+                {"EmpMspFlg", "MSP"},
+                {"EmpMspSeniorMgmtFlg", "MSP Senior Management"},
+                {"EmpSspCareerFlg", "SSP Career"},
+                {"EmpSspCareerPartialyrFlg", "SSP Career Partial Year"},
+                {"EmpSspCasualFlg", "SSP Casual"},
+                {"EmpSspCasualRestrictedFlg", "SSP Casual Restricted"},
+                {"EmpSspCntrctFlg", "SSP Contract"},
+                {"EmpSspFlg", "SSP"},
+                {"EmpSspFloaterFlg", "SSP Floater"},
+                {"EmpSspPerDiemFlg", "SSP Per diem"},
+                {"EmpSupvrFlg", "Supervisor"},
+                {"EmpTeachingFacultyFlg", "Teaching Faculty"},
+                {"EmpWosempFlg", "WOSEMP"}
+            };
+
+            var personType = person.GetType();
+            foreach (var flag in flagDefinitions)
+            {
+                var property = personType.GetProperty(flag.Key);
+                if (property != null)
+                {
+                    var value = property.GetValue(person)?.ToString();
+                    if (value == "Y")
+                    {
+                        flags.Add(flag.Value);
+                    }
+                }
+            }
+            return flags;
+        }
+    }
+
+    // JSON for Instinct API
+    public class InstinctTokenResponse
+    {
+        [JsonPropertyName("access_token")]
+        public string AccessToken { get; set; } = string.Empty;
+
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
+
+        [JsonPropertyName("token_type")]
+        public string TokenType { get; set; } = string.Empty;
+
+        [JsonPropertyName("scope")]
+        public string Scope { get; set; } = string.Empty;
+    }
+
+    public class InstinctGraphQLResponse
+    {
+        [JsonPropertyName("data")]
+        public InstinctGraphQLData? Data { get; set; }
+    }
+
+    public class InstinctGraphQLData
+    {
+        [JsonPropertyName("searchUsers")]
+        public List<InstinctUser>? SearchUsers { get; set; }
+    }
+
+    public class InstinctUser
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("initials")]
+        public string? Initials { get; set; }
+
+        [JsonPropertyName("instinctId")]
+        public string? InstinctId { get; set; }
+
+        [JsonPropertyName("isActive")]
+        public bool IsActive { get; set; }
+
+        [JsonPropertyName("isProtected")]
+        public bool IsProtected { get; set; }
+
+        [JsonPropertyName("nameFirst")]
+        public string? NameFirst { get; set; }
+
+        [JsonPropertyName("nameMiddle")]
+        public string? NameMiddle { get; set; }
+
+        [JsonPropertyName("nameLast")]
+        public string? NameLast { get; set; }
+
+        [JsonPropertyName("passwordExpiresAt")]
+        public string? PasswordExpiresAt { get; set; }
+
+        [JsonPropertyName("status")]
+        public string? Status { get; set; }
+
+        [JsonPropertyName("username")]
+        public string? Username { get; set; }
+
+        [JsonPropertyName("roles")]
+        // ReSharper disable once CollectionNeverUpdated.Global
+        public List<InstinctRole>? Roles { get; set; }
+    }
+
+    public class InstinctRole
+    {
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("label")]
+        public string? Label { get; set; }
+    }
+
+    // Helper class for permission processing
+    public class PermissionInfo
+    {
+        public int PermissionId { get; set; }
+        public string Permission { get; set; } = string.Empty;
+        public string Access { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+        public string SourceType { get; set; } = string.Empty;
+    }
+
+    // Result classes for student stored procedures
+    public class PriorNameResult
+    {
+        public string? StudentName { get; set; }
+        public DateTime? ActivityDate { get; set; }
+    }
+
+    public class BannerIdResult
+    {
+        public string? SpridenId { get; set; }
+    }
+
+    public class StudentStatusResult
+    {
+        public string? RegStatus { get; set; }
+    }
+
+    public class RegistrationStatusResult
+    {
+        public string? Status { get; set; }
+    }
+
+    public class MajorResult
+    {
+        public string? SGBSTDN_MAJR_CODE_1 { get; set; }
+    }
+
+    public class AllMajorsResult
+    {
+        public string? SGBSTDN_MAJR_CODE_1 { get; set; }
+        public string? SGBSTDN_MAJR_CODE_2 { get; set; }
+    }
+
+    public class ClassLevelResult
+    {
+        public string? SgvclssClasCode { get; set; }
+    }
+
+    public class ConfidentialScopeResult
+    {
+        public string? ZtvconfDesc { get; set; }
+    }
+
+    public class AuthDbRecord
+    {
+        public string Credential { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string EncryptedString { get; set; } = string.Empty;
+    }
+}
+

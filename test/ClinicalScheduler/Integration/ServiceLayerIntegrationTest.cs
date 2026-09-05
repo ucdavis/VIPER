@@ -16,6 +16,7 @@ namespace Viper.test.ClinicalScheduler.Integration
     /// Tests the new service architecture with StudentScheduleService, InstructorScheduleService,
     /// and how ClinicalScheduleService delegates to them.
     /// </summary>
+    [Collection("HttpHelper static state")]
     public class ServiceLayerIntegrationTest : IntegrationTestBase
     {
         private static readonly DateTime ScheduleStart = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Local);

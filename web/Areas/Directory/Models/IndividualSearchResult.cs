@@ -38,8 +38,8 @@ namespace Viper.Areas.Directory.Models
         public bool? Ross { get; set; }
         public DateTime? Added { get; set; }
         public string? Phone { get; set; }
-        public string? Nextel { get; set; } = null!;
-        public string? LDPager { get; set; } = null!;
+        public string? Nextel { get; set; }
+        public string? LDPager { get; set; }
         public string? Mobile { get; set; }
         public string? PostalAddress { get; set; }
         public string? UCDAffiliation { get; set; }
@@ -97,9 +97,9 @@ namespace Viper.Areas.Directory.Models
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
                 Email = ldapUserContact.Mail;
-                MailId = ldapUserContact.Mail?.Split("@")[0];
+                MailId = ldapUserContact.Mail?.Split("@")[0] ?? "";
                 UserName = ldapUserContact.Uid;
-                PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
+                PostalAddress = ldapUserContact.PostalAddress?.Replace("$", '\n'.ToString()) ?? "";
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
@@ -122,20 +122,35 @@ namespace Viper.Areas.Directory.Models
         [SupportedOSPlatform("windows")]
         public void LookupEmailHost(AAUDContext context)
         {
-            if (MailId != null)
+            var host = LookupEmailHost(context, MailId);
+            if (host != null)
             {
-                // Sanitize MailId to prevent SQL injection in OPENQUERY (which doesn't support parameters)
-                var safeMailId = MailId.Replace("'", "''");
-                var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{safeMailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')";
-                var lastHost = context.Database.SqlQueryRaw<string>(query)
-                    .AsEnumerable()
-                    .Select(r => r.Split("@")[^1])
-                    .LastOrDefault();
-                if (lastHost != null)
-                {
-                    EmailHost = lastHost;
-                }
+                EmailHost = host;
             }
+        }
+
+        /// <summary>
+        /// Looks up the email host from the Mothra linked server for the given mail ID.
+        /// Shared logic behind the instance overload above, so callers that only have a
+        /// mail ID (e.g. UserInfoService, which doesn't build a full IndividualSearchResult)
+        /// can reuse the same query instead of duplicating it.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        public static string? LookupEmailHost(AAUDContext context, string? mailId)
+        {
+            if (mailId == null)
+            {
+                return null;
+            }
+
+            // Sanitize mailId to prevent SQL injection in OPENQUERY (which doesn't support parameters)
+            var safeMailId = mailId.Replace("'", "''");
+            var query = $"SELECT * FROM OPENQUERY(UCDMothra,'SELECT (USERPART || ''@'' || HOSTPART) AS USERATHOST FROM MOTHRA.MAILIDS WHERE MAILID = ''{safeMailId}'' AND MAILSTATUS = ''A'' AND MAILTYPE = ''P''')";
+            return context.Database.SqlQueryRaw<string>(query)
+                .AsEnumerable()
+                .Select(r => r.Split("@")[^1])
+                .LastOrDefault();
         }
     }
 }
+

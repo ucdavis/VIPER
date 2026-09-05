@@ -238,6 +238,10 @@ try
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
 
+    // UserInfo feature: its EF contexts (equipment loans, ID cards, keys, PPS),
+    // HttpClient factory, and service. See UserInfoServiceCollectionExtensions.
+    builder.AddUserInfoServices(enableDetailedErrors);
+
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
