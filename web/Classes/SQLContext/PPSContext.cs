@@ -243,8 +243,6 @@ public partial class PPSContext : DbContext
 
     public virtual DbSet<UcpathVerificationItem> UcpathVerificationItems { get; set; }
 
-    public virtual DbSet<UcpathmissingpersonBk> UcpathmissingpersonBks { get; set; }
-
     public virtual DbSet<UnionDV> UnionDVs { get; set; }
 
     public virtual DbSet<UpdateLog> UpdateLogs { get; set; }
@@ -2602,63 +2600,6 @@ public partial class PPSContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("ethsex_apptDeptName");
             entity.Property(e => e.EthsexEthnicity)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_ethnicity");
-            entity.Property(e => e.EthsexExtractDate)
-                .HasColumnType("datetime")
-                .HasColumnName("ethsex_extractDate");
-            entity.Property(e => e.EthsexGender)
-                .HasMaxLength(1)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_gender");
-            entity.Property(e => e.EthsexHireDate)
-                .HasColumnType("datetime")
-                .HasColumnName("ethsex_hireDate");
-            entity.Property(e => e.EthsexHomeDept)
-                .HasMaxLength(6)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_homeDept");
-            entity.Property(e => e.EthsexHomeDeptName)
-                .HasMaxLength(30)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_homeDeptName");
-            entity.Property(e => e.EthsexName)
-                .HasMaxLength(30)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_name");
-            entity.Property(e => e.EthsexPayRate)
-                .HasColumnType("numeric(12, 4)")
-                .HasColumnName("ethsex_payRate");
-            entity.Property(e => e.EthsexStep)
-                .HasMaxLength(4)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_step");
-            entity.Property(e => e.EthsexTitle)
-                .HasMaxLength(30)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_title");
-            entity.Property(e => e.EthsexTitleCode)
-                .HasMaxLength(6)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_titleCode");
-        });
-
-        modelBuilder.Entity<EthnicityGender20210201>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("ethnicityGender_2021_02_01");
-
-            entity.Property(e => e.EthsexApptDept)
-                .HasMaxLength(6)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_apptDept");
-            entity.Property(e => e.EthsexApptDeptName)
-                .HasMaxLength(30)
-                .IsUnicode(false)
-                .HasColumnName("ethsex_apptDeptName");
-            entity.Property(e => e.EthsexEthnicity)
-                .HasMaxLength(40)
                 .IsUnicode(false)
                 .HasColumnName("ethsex_ethnicity");
             entity.Property(e => e.EthsexExtractDate)
@@ -11134,26 +11075,6 @@ public partial class PPSContext : DbContext
                 .HasColumnName("note");
         });
 
-        modelBuilder.Entity<UcpathMissingPerson20190821>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("UCPathMissingPerson_20190821");
-
-            entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("name");
-            entity.Property(e => e.Note)
-                .HasMaxLength(200)
-                .IsUnicode(false)
-                .HasColumnName("note");
-            entity.Property(e => e.PpsId)
-                .HasMaxLength(9)
-                .IsUnicode(false)
-                .HasColumnName("pps_id");
-        });
-
         modelBuilder.Entity<UcpathOverride>(entity =>
         {
             entity.HasKey(e => e.OverrideId);
@@ -11301,26 +11222,6 @@ public partial class PPSContext : DbContext
                 .HasMaxLength(50)
                 .IsUnicode(false)
                 .HasColumnName("verificationType");
-        });
-
-        modelBuilder.Entity<UcpathmissingpersonBk>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("ucpathmissingperson_bk");
-
-            entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("name");
-            entity.Property(e => e.Note)
-                .HasMaxLength(200)
-                .IsUnicode(false)
-                .HasColumnName("note");
-            entity.Property(e => e.PpsId)
-                .HasMaxLength(9)
-                .IsUnicode(false)
-                .HasColumnName("pps_id");
         });
 
         modelBuilder.Entity<UnionDV>(entity =>
