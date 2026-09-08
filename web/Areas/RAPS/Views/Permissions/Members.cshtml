@@ -146,8 +146,8 @@
                                 memberId: object.member?.value,
                                 permissionId: v.urlParams.get("permissionId"),
                                 access: object.access === 1 ? 1 : 0,
-                                startDate: object?.startDate,
-                                endDate: object?.endDate
+                                startDate: object?.startDate || null,
+                                endDate: object?.endDate || null
                             }
                         },
                         //on selection, format dates and set up user select box
