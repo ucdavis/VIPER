@@ -621,6 +621,41 @@ header .q-avatar {
     line-height: 1.4;
 }
 
+/* Tables and images inside sanitized CMS content, in the live block and the editor alike. Tables
+   carry no default borders, so a table inserted from the editor would be invisible without these.
+   A table too wide for the block scrolls inside it (overflow-x on the two containers) instead of
+   widening the page. */
+.content-block,
+.content-block-editor .q-editor__content {
+    overflow-x: auto;
+}
+
+.content-block table,
+.content-block-editor .q-editor__content table {
+    max-width: 100%;
+    border-collapse: collapse;
+}
+
+.content-block th,
+.content-block td,
+.content-block-editor .q-editor__content th,
+.content-block-editor .q-editor__content td {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--ucdavis-black-20);
+}
+
+.content-block th,
+.content-block-editor .q-editor__content th {
+    /* The table-header token, matching the q-table header fill above */
+    background-color: #eee;
+}
+
+.content-block img,
+.content-block-editor .q-editor__content img {
+    max-width: 100%;
+    height: auto;
+}
+
 /* QEditor's heading picker (the format_size dropdown) previews each option by rendering a real
    heading inside its dropdown menu. That menu teleports to <body>, outside the .content-block-editor
    scope above, so without this the previews fall back to browser-default sizes (h2 ~60px) and wildly
