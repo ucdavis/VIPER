@@ -133,6 +133,21 @@
 
             <template #body-cell-actions="cellProps">
                 <q-td :props="cellProps">
+                    <q-btn
+                        v-if="!cellProps.row.deletedOn"
+                        dense
+                        flat
+                        no-caps
+                        size="sm"
+                        color="secondary"
+                        icon="open_in_new"
+                        :href="viewUrl(cellProps.row)"
+                        target="_blank"
+                        rel="noopener"
+                        :aria-label="`View ${cellProps.row.title || 'content block'} (opens in new window)`"
+                    >
+                        <q-tooltip>View</q-tooltip>
+                    </q-btn>
                     <EditButton
                         entity-name="content block"
                         :to="{ name: 'CmsContentBlockEdit', params: { id: cellProps.row.contentBlockId } }"
@@ -174,6 +189,21 @@
                                 />
                                 <q-space />
                                 <div class="col-auto row items-center no-wrap list-card-actions">
+                                    <q-btn
+                                        v-if="!row.deletedOn"
+                                        dense
+                                        flat
+                                        no-caps
+                                        size="sm"
+                                        color="secondary"
+                                        icon="open_in_new"
+                                        :href="viewUrl(row)"
+                                        target="_blank"
+                                        rel="noopener"
+                                        :aria-label="`View ${row.title || 'content block'} (opens in new window)`"
+                                    >
+                                        <q-tooltip>View</q-tooltip>
+                                    </q-btn>
                                     <EditButton
                                         entity-name="content block"
                                         :to="{ name: 'CmsContentBlockEdit', params: { id: row.contentBlockId } }"
@@ -338,6 +368,16 @@ function reload() {
 async function loadSectionPaths() {
     const res = await get(apiURL + "/section-paths")
     sectionPaths.value = res.success ? res.result : []
+}
+
+// The block's own display URL (the VIPER 1 /cms/content/?fn= equivalent), opened in a new window
+// so the manager keeps their place in the list. Blocks with no friendly name are addressed by id,
+// the way VIPER 1's ?cbid= URL did. Deleted blocks have no display URL at all (the endpoint serves
+// active blocks only), so the caller hides the link for those.
+function viewUrl(block: CmsContentBlock) {
+    return block.friendlyName
+        ? router.resolve({ name: "CmsContentView", params: { fn: block.friendlyName } }).href
+        : router.resolve({ name: "CmsContentViewById", params: { id: block.contentBlockId } }).href
 }
 
 async function deleteBlock(block: CmsContentBlock) {

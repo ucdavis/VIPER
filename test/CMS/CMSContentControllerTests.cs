@@ -188,6 +188,62 @@ public sealed class CMSContentControllerTests : IDisposable
     }
 
     [Fact]
+    public void GetContentBlockById_ReturnsNotFound_WhenMissing()
+    {
+        var result = _controller.GetContentBlockById(999);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetContentBlockById_ServesBlockWithNoFriendlyName()
+    {
+        // The id route exists for exactly this case: a block with no friendly name has no fn URL,
+        // so the content-block list links it by id instead.
+        var block = new Models.VIPER.ContentBlock
+        {
+            Content = "<p>body</p>",
+            Title = "No Friendly Name",
+            System = "Viper",
+            FriendlyName = "",
+            AllowPublicAccess = true,
+            ModifiedOn = DateTime.Now,
+            ModifiedBy = "author"
+        };
+        _context.ContentBlocks.Add(block);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = _controller.GetContentBlockById(block.ContentBlockId);
+
+        Assert.NotNull(result.Value);
+        Assert.Equal(block.ContentBlockId, result.Value.ContentBlockId);
+        Assert.Equal("No Friendly Name", result.Value.Title);
+    }
+
+    [Fact]
+    public async Task GetContentBlockById_ReturnsNotFound_ForSoftDeletedBlock()
+    {
+        // Deleted blocks stay unreachable through the display endpoints, id route included.
+        var block = new Models.VIPER.ContentBlock
+        {
+            Content = "<p>body</p>",
+            Title = "Deleted",
+            System = "Viper",
+            FriendlyName = "",
+            AllowPublicAccess = true,
+            ModifiedOn = DateTime.Now,
+            ModifiedBy = "author",
+            DeletedOn = DateTime.Now
+        };
+        _context.ContentBlocks.Add(block);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = _controller.GetContentBlockById(block.ContentBlockId);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
     public async Task GetContentBlockByFn_ProjectsToDto_AndDoesNotLeakEntityInternals()
     {
         // Regression: this endpoint is anonymous. It must project to a DTO and never serialize the

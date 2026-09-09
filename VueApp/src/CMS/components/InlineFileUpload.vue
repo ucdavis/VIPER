@@ -85,7 +85,7 @@
 // fallow-ignore-file complexity
 import { computed, inject, ref, watch } from "vue"
 import { useDropZone, useFileDialog } from "@vueuse/core"
-import { useCmsFiles } from "@/CMS/composables/use-cms-files"
+import { useCmsFiles, buildUploadFormData } from "@/CMS/composables/use-cms-files"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { CMS_ACCEPTED_EXTENSIONS } from "@/CMS/file-types"
 import type { CmsFile, CmsFileNameCheck } from "@/CMS/types/"
@@ -234,20 +234,6 @@ async function attachExisting(item: StagedFile): Promise<CommitResult> {
     return { file: res.result as CmsFile, created: false }
 }
 
-// Shared multipart body. On the global files API the client supplies public-access + permissions;
-// the block-scoped API derives both from the block, so only the file itself is sent there.
-function buildUploadData(item: StagedFile): FormData {
-    const data = new FormData()
-    data.append("file", item.file)
-    if (!isContentScoped.value) {
-        data.append("allowPublicAccess", String(props.allowPublicAccess ?? false))
-        for (const permission of props.permissions) {
-            data.append("permissions", permission)
-        }
-    }
-    return data
-}
-
 // Overwrite replaces an existing record's content in place (legacy editFile), keeping its GUID.
 // It is destructive to a pre-existing file and can't be un-done, so it is NOT rolled back.
 // The edit endpoint is a whole-record save, so the record is re-read first: its ModifiedOn is the
@@ -294,7 +280,11 @@ async function commitOne(item: StagedFile): Promise<CommitResult> {
     if (!isContentScoped.value && item.conflict && item.action === "existing" && item.conflict.existingFileGuid) {
         return attachExisting(item)
     }
-    const data = buildUploadData(item)
+    const data = buildUploadFormData(
+        item.file,
+        { allowPublicAccess: props.allowPublicAccess ?? false, permissions: props.permissions },
+        isContentScoped.value,
+    )
     if (!isContentScoped.value && item.conflict && item.action === "overwrite" && item.conflict.existingFileGuid) {
         return overwriteInPlace(item, data)
     }

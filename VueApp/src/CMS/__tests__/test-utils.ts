@@ -47,6 +47,8 @@ const CMS_ROUTES: RouteRecordRaw[] = [
     { path: "/CMS/ManageFiles/Audit", name: "CmsFileAudit", component: stub },
     { path: "/CMS/ManageFiles/Import", name: "CmsFileImport", component: stub },
     { path: "/CMS/ManageFiles/BulkEncrypt", name: "CmsBulkEncrypt", component: stub },
+    { path: "/CMS/Content/:fn", name: "CmsContentView", component: stub },
+    { path: "/CMS/Content/id/:id(\\d+)", name: "CmsContentViewById", component: stub },
     { path: "/CMS/ManageLeftNav", name: "CmsLeftNavMenus", component: stub },
     { path: "/CMS/ManageLeftNav/Edit/:id?", name: "CmsLeftNavEdit", component: stub },
 ]

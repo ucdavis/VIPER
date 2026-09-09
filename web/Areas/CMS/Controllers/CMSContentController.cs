@@ -114,10 +114,25 @@ namespace Viper.Areas.CMS.Controllers
         [HttpGet("fn/{friendlyName}")]
         public ActionResult<PublicContentBlockDto> GetContentBlockByFn(string friendlyName)
         {
+            return DisplayBlock(null, friendlyName);
+        }
+
+        //GET: content/id/{contentBlockId} — the same display endpoint keyed by id, for blocks with
+        //no friendly name (nothing else identifies those in a URL). The permission filter is the
+        //one below, so an id the caller may not see is indistinguishable from a missing one.
+        [HttpGet("id/{contentBlockId:int}")]
+        public ActionResult<PublicContentBlockDto> GetContentBlockById(int contentBlockId)
+        {
+            return DisplayBlock(contentBlockId, null);
+        }
+
+        // Shared body of the two anonymous display endpoints above.
+        private ActionResult<PublicContentBlockDto> DisplayBlock(int? contentBlockId, string? friendlyName)
+        {
             // status: 1 = active only. A public display endpoint must never serve soft-deleted
             // blocks (passing null would include DeletedOn != null rows).
             var block = new Data.CMS(_context, _rapsContext, _sanitizerService)
-                .GetContentBlocksAllowed(null, friendlyName, null, null, null, null, null, 1)?.FirstOrDefault();
+                .GetContentBlocksAllowed(contentBlockId, friendlyName, null, null, null, null, null, 1)?.FirstOrDefault();
             if (block == null)
             {
                 return NotFound();

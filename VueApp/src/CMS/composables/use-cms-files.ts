@@ -11,7 +11,28 @@ import { useFetch } from "@/composables/ViperFetch"
 // server-side. Global mode (no id) targets the folder-wide `cms/files/...` API. The block-scoped API
 // exposes only check-name / upload / delete, so per-file overwrite-in-place and use-existing (GET/PUT
 // on a specific file) are global-only; callers gate those on `isScoped`.
-export function useCmsFiles(apiRoot: string, contentBlockId: MaybeRefOrGetter<number | null | undefined>) {
+type UploadOptions = { allowPublicAccess: boolean; permissions: string[] }
+
+/**
+ * Shared multipart body for both upload routes. The block-scoped route (scoped = true) derives
+ * folder, public flag and permissions from the block server-side, so only the file is sent there.
+ * The global route needs public flag and permissions from the client (folder is sent only for a
+ * plain new upload, not the overwrite-in-place PUT, so it is appended by that caller instead of
+ * here).
+ */
+function buildUploadFormData(file: File, options: UploadOptions, scoped: boolean): FormData {
+    const data = new FormData()
+    data.append("file", file)
+    if (!scoped) {
+        data.append("allowPublicAccess", String(options.allowPublicAccess))
+        for (const permission of options.permissions) {
+            data.append("permissions", permission)
+        }
+    }
+    return data
+}
+
+function useCmsFiles(apiRoot: string, contentBlockId: MaybeRefOrGetter<number | null | undefined>) {
     const { get, postForm, putForm, del, createUrlSearchParams } = useFetch()
 
     const isScoped = computed(() => typeof toValue(contentBlockId) === "number")
@@ -42,3 +63,5 @@ export function useCmsFiles(apiRoot: string, contentBlockId: MaybeRefOrGetter<nu
         },
     }
 }
+
+export { buildUploadFormData, useCmsFiles }
