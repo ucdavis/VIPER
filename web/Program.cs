@@ -12,7 +12,12 @@ using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+// dotnet format reports IDE0005 here, but the build disagrees: removing this using breaks
+// OpenIdConnectEvents at the bottom of the file with CS0246. The analyzer misses the reference
+// because it sits in a static local function below the top-level statements.
+#pragma warning disable IDE0005
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+#pragma warning restore IDE0005
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Rewrite;
@@ -141,6 +146,13 @@ try
         options.Cookie.Name = "VIPER.Antiforgery";
     });
 
+    // How long a sign-in cookie stays usable, and therefore how long a revoked Entra session has
+    // to be remembered for the revocation to mean anything.
+    var authCookieLifetime = TimeSpan.FromHours(12);
+
+    builder.Services.AddSingleton(sp =>
+        new EntraSessionRevocationStore(sp.GetRequiredService<IMemoryCache>(), authCookieLifetime));
+
     // Setup the shared sign-in cookie. Both CAS and Entra ID sign in to this same cookie, so a
     // session looks identical downstream no matter which provider issued it.
     var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -149,7 +161,36 @@ try
             options.Cookie.Name = "VIPER.Authentication.UCD";
             options.LoginPath = new PathString("/welcome");
             options.AccessDeniedPath = new PathString("/Error/403");
-            options.ExpireTimeSpan = TimeSpan.FromHours(12);
+            options.ExpireTimeSpan = authCookieLifetime;
+
+            options.Events = new CookieAuthenticationEvents
+            {
+                // Front-channel logout cannot clear this cookie itself: Entra frames the logout URL
+                // on its own origin, and a SameSite=Lax cookie is neither sent nor accepted in that
+                // context. So the sign-out is recorded server side and enforced here instead, on
+                // the next request the cookie is presented for. CAS sessions carry no sid and skip
+                // the lookup entirely.
+                OnValidatePrincipal = async context =>
+                {
+                    var sessionId = context.Principal?
+                        .FindFirst(EntraIdClaimMapper.SessionIdClaimType)?.Value;
+
+                    if (string.IsNullOrEmpty(sessionId))
+                    {
+                        return;
+                    }
+
+                    var revocations = context.HttpContext.RequestServices
+                        .GetRequiredService<EntraSessionRevocationStore>();
+
+                    if (revocations.IsRevoked(sessionId))
+                    {
+                        context.RejectPrincipal();
+                        await context.HttpContext.SignOutAsync(
+                            CookieAuthenticationDefaults.AuthenticationScheme);
+                    }
+                }
+            };
         });
 
     // Add CAS settings from appSettings configuration
@@ -166,7 +207,14 @@ try
     // Login providers this environment offers. Campus is retiring CAS in favor of Entra ID, so
     // TEST runs both at once to exercise the Entra path before it becomes the only option.
     builder.Services.Configure<AuthenticationSettings>(builder.Configuration.GetSection("Authentication"));
-    builder.Services.Configure<EntraIdSettings>(builder.Configuration.GetSection("EntraId"));
+    builder.Services.Configure<EntraIdSettings>(
+        builder.Configuration.GetSection(EntraIdSettings.SectionName));
+
+    // Relays a front-channel logout to VIPER 1. Its own client so the short timeout applies here
+    // and nowhere else: this call runs inside an iframe Entra is blocking on.
+    builder.Services.AddHttpClient(EntraIdSettings.FrontChannelLogoutClientName, (sp, client) =>
+        client.Timeout = TimeSpan.FromSeconds(
+            sp.GetRequiredService<IOptions<EntraIdSettings>>().Value.FrontChannelLogoutTimeoutSeconds));
 
     // Re-register the resolved set, which may be narrower than what was configured, so the app
     // never advertises a provider that failed to wire up.
@@ -341,12 +389,9 @@ try
 
     var app = builder.Build();
 
-    // Add Content Security Policy. Skip for HealthChecks.UI paths - the bundled UI
-    // uses inline scripts and data: fonts that our strict CSP would block. Those
-    // paths are already IP-gated to trusted SVM admin subnets, so relaxing CSP
-    // there is acceptable.
+    // Add Content Security Policy, except on the paths CspPolicy.IsExemptPath names.
     app.UseWhen(
-        ctx => !HealthCheckExtensions.IsUIPath(ctx.Request.Path),
+        ctx => !CspPolicy.IsExemptPath(ctx.Request.Path),
         branch => branch.UseCsp(csp =>
     {
         // Legacy Razor pages need 'unsafe-eval'; the /2/vue branch below drops it. See CspPolicy.
@@ -589,7 +634,7 @@ static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, Aut
 {
     var settings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>()
         ?? new AuthenticationSettings();
-    var entraIdSettings = builder.Configuration.GetSection("EntraId").Get<EntraIdSettings>()
+    var entraIdSettings = builder.Configuration.GetSection(EntraIdSettings.SectionName).Get<EntraIdSettings>()
         ?? new EntraIdSettings();
 
     if (settings.EntraIdEnabled)
@@ -678,10 +723,16 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                     return Task.CompletedTask;
                 }
 
+                // The one claim from the token worth keeping besides identity: it is what a later
+                // front-channel logout names, and this is the last point the raw token is in hand.
+                var sessionId = context.Principal?
+                    .FindFirst(EntraIdClaimMapper.SessionIdClaimType)?.Value;
+
                 context.Principal = EntraIdClaimMapper.BuildPrincipal(
                     loginId,
                     EntraIdClaimMapper.HasMultifactorAuthentication(context.Principal),
-                    DateTime.Now);
+                    DateTime.Now,
+                    sessionId);
 
                 return Task.CompletedTask;
             },
