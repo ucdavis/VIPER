@@ -12,6 +12,27 @@ namespace Web.Authorization
     /// </remarks>
     public class EntraIdSettings
     {
+        // Constants, not settings: the configuration binder ignores consts, so nothing below
+        // this block can be overridden from appsettings the way the properties that follow can.
+
+        /// <summary>Configuration section these settings bind from.</summary>
+        public const string SectionName = "EntraId";
+
+        /// <summary>
+        /// Path Entra calls, in a hidden iframe, when the user signs out anywhere in the tenant.
+        /// Registered as the app registration's single "Front-channel logout URL" (TEST registers
+        /// "https://&lt;host&gt;/2/frontchannel-logout"; the PathBase is applied by routing).
+        /// </summary>
+        /// <remarks>
+        /// A const rather than a setting: it is a route attribute on
+        /// <c>EntraLogoutController</c> and the CSP framing exemption in <c>Program.cs</c> keys off
+        /// the same value, so the two cannot be allowed to drift.
+        /// </remarks>
+        public const string FrontChannelLogoutPath = "/frontchannel-logout";
+
+        /// <summary>Named <see cref="HttpClient"/> used to forward front-channel logouts.</summary>
+        public const string FrontChannelLogoutClientName = "EntraFrontChannelLogout";
+
         /// <summary>UC Davis Entra tenant id.</summary>
         public string? TenantId { get; set; }
 
@@ -26,6 +47,25 @@ namespace Web.Authorization
 
         /// <summary>Path Entra returns to after a federated sign-out.</summary>
         public string SignedOutCallbackPath { get; set; } = "/signout-entra";
+
+        /// <summary>
+        /// Absolute URL notified server-side when a front-channel logout arrives, in practice
+        /// VIPER 1's "/public/entra/frontchannel-logout.cfm".
+        /// </summary>
+        /// <remarks>
+        /// An app registration has room for exactly one front-channel logout URL and VIPER 1 shares
+        /// this registration, so VIPER 1 cannot hear from Entra directly. VIPER 2 owns the URL and
+        /// relays. Blank (the default) simply skips the relay, which is what a developer machine
+        /// with no VIPER 1 running wants.
+        /// </remarks>
+        public string? FrontChannelLogoutForwardTo { get; set; }
+
+        /// <summary>
+        /// How long to wait on the relay. Short on purpose: the caller is an iframe Entra is
+        /// blocking on, and a VIPER 1 that cannot answer promptly is not worth stalling sign-out
+        /// everywhere else for.
+        /// </summary>
+        public int FrontChannelLogoutTimeoutSeconds { get; set; } = 5;
 
         /// <summary>
         /// Claim carrying the user's campus kerberos id. Only the configured claim is consulted;
