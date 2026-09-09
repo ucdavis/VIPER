@@ -30,7 +30,15 @@
             </span>
             <span class="photo2">
                 <b>Alternative Photo</b>
-                <img src="@HttpHelper.GetRootURL()/api/cms/photos/by-mail/@Model.MailId?altPhoto=true" width="87" height="111" alt="Alternative Photo" />
+                @* Not every person has an alternate photo; the endpoint 404s when there isn't
+                   one, and the script below (registered via addEventListener, not an inline
+                   onerror attribute - this app's CSP blocks inline event-handler attributes)
+                   hides the label along with the broken image rather than leaving an empty
+                   placeholder in its place. The real URL is only in data-src: the script sets
+                   it as .src (kicking off the request) only after the error listener is
+                   already attached, so there's no window where the image can fail before
+                   anything is listening for it. *@
+                <img id="altPhoto" data-src="@HttpHelper.GetRootURL()/api/cms/photos/by-mail/@Model.MailId?altPhoto=true" width="87" height="111" alt="Alternative Photo" />
             </span>
             <h3>@Model.DisplayFullName</h3>
             @if (!Model.CurrentAffiliate)
@@ -603,6 +611,68 @@
     }
 
 </article>
+
+@section Scripts {
+    <script asp-add-nonce="true">
+        (function () {
+            var initialAltPhoto = document.getElementById("altPhoto");
+            if (!initialAltPhoto) {
+                return;
+            }
+
+            var src = initialAltPhoto.getAttribute("data-src");
+            if (!src) {
+                return;
+            }
+
+            // The Vue/Quasar app mounts on <body> right after this script block runs (see
+            // VueCdnCreate.cshtml's createApp(...).mount('body')), and since it's given no
+            // explicit template, it compiles whatever document.body.innerHTML is at that
+            // moment and replaces the body's contents with freshly-rendered nodes - including
+            // this <img>/<span>. That mount() call is synchronous and runs immediately after
+            // this script (both are plain top-level <script> tags), so it always completes
+            // before this fetch's .then()/.catch() callbacks can run (promise callbacks are
+            // microtasks, which only run after all queued synchronous scripts finish). That
+            // means any element reference captured here, before the fetch starts, points at a
+            // node Vue is about to discard - mutating it later has no visible effect. Always
+            // re-fetch the live element from inside the async callbacks instead.
+            function currentAltPhoto() {
+                return document.getElementById("altPhoto");
+            }
+
+            function hideAltPhoto() {
+                var el = currentAltPhoto();
+                var span = el && el.closest("span");
+                if (span) {
+                    span.style.display = "none";
+                }
+            }
+
+            // Checking availability with a real fetch, instead of setting .src and relying on
+            // the <img> error event, sidesteps the img load/error event path entirely. Only
+            // wire up the <img> src (as an object URL, so the bytes aren't fetched twice) once
+            // we've confirmed a real photo came back; anything else (404, network failure)
+            // hides the label instead.
+            fetch(src, { credentials: "same-origin" })
+                .then(function (response) {
+                    if (!response.ok) {
+                        hideAltPhoto();
+                        return null;
+                    }
+                    return response.blob();
+                })
+                .then(function (blob) {
+                    if (blob) {
+                        var el = currentAltPhoto();
+                        if (el) {
+                            el.src = URL.createObjectURL(blob);
+                        }
+                    }
+                })
+                .catch(hideAltPhoto);
+        })();
+    </script>
+}
 
 @functions {
     public class PermissionNode
