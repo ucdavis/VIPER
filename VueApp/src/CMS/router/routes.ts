@@ -101,6 +101,25 @@ const routes = [
         component: () => import("@/CMS/pages/ContentBlockEdit.vue"),
     },
     {
+        // Standalone display of one block by friendly name: the VIPER 1 /cms/content/?fn=
+        // equivalent, and the target of the content-block list's "View" link. Unauthenticated
+        // access is allowed because the display endpoint filters on the block's own permissions
+        // (public blocks render for anyone; a restricted one 404s for a viewer without access).
+        path: "/CMS/Content/:fn",
+        name: "CmsContentView",
+        meta: { layout: ViperLayout, allowUnAuth: true },
+        component: () => import("@/CMS/pages/ContentBlockView.vue"),
+    },
+    {
+        // The same display page keyed by id, for blocks with no friendly name. Ranked above the
+        // :fn route by vue-router (static "id" segment beats a param), so a block named "id"
+        // still resolves.
+        path: "/CMS/Content/id/:id(\\d+)",
+        name: "CmsContentViewById",
+        meta: { layout: ViperLayout, allowUnAuth: true },
+        component: () => import("@/CMS/pages/ContentBlockView.vue"),
+    },
+    {
         path: "/CMS/ManageLeftNav",
         name: "CmsLeftNavMenus",
         meta: { layout: ViperLayout, permissions: ["SVMSecure.CMS.ManageNavigation"] },
