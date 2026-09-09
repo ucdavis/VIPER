@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.RAPS.Models;
@@ -10,6 +11,7 @@ using Web.Authorization;
 namespace Viper.Areas.RAPS.Controllers
 {
     [Route("raps/{instance}/[controller]")]
+    [Authorize(Roles = "VMDO SVM-IT,RAPS Users", Policy = "2faAuthentication")]
     [Permission(Allow = "RAPS.Admin,RAPS.ViewAuditTrail")]
     public class AuditController : ApiController
     {

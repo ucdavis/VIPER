@@ -12,6 +12,7 @@ namespace Viper.test.Effort;
 /// Integration tests for PercentAssignTypesController.
 /// Tests the full stack: Controller -> Service -> DbContext.
 /// </summary>
+[Collection(HttpHelperCacheCollection.Name)]
 public class PercentAssignTypesControllerIntegrationTests : EffortIntegrationTestBase
 {
     private readonly PercentAssignTypesController _controller;

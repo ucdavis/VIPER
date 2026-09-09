@@ -17,14 +17,12 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
-        private readonly RAPSCacheService _rapsCacheService;
 
-        public RoleMembersController(RAPSContext context, AAUDContext aaudContext)
+        public RoleMembersController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
-            _rapsCacheService = new RAPSCacheService(_context, aaudContext);
         }
 
         //GET: Roles/5/Members
@@ -102,8 +100,6 @@ namespace Viper.Areas.RAPS.Controllers
                 return BadRequest(result);
             }
 
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
-
             TblRoleMember? tblRoleMember = await _context.TblRoleMembers.FindAsync(roleId, memberId);
             return CreatedAtAction("GetTblRole", new { roleId, memberId }, tblRoleMember);
         }
@@ -139,8 +135,6 @@ namespace Viper.Areas.RAPS.Controllers
             _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Update, roleMemberCreateUpdate.Comment);
             await _context.SaveChangesAsync();
 
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
-
             return NoContent();
         }
 
@@ -168,8 +162,6 @@ namespace Viper.Areas.RAPS.Controllers
             _context.TblRoleMembers.Remove(tblRoleMember);
             _auditService.AuditRoleMemberChange(tblRoleMember, RAPSAuditService.AuditActionType.Delete, comment);
             await _context.SaveChangesAsync();
-
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             return NoContent();
         }

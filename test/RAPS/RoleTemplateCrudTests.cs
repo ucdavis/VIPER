@@ -91,12 +91,9 @@ namespace Viper.test.RAPS
             return context;
         }
 
-        // The AAUD context only reaches the cache service, which neither create nor update touches.
         private static RoleTemplatesController CreateController(RAPSContext context)
         {
-            var aaudContext = new AAUDContext(new DbContextOptionsBuilder<AAUDContext>()
-                .UseInMemoryDatabase("AAUD_" + Guid.NewGuid()).Options);
-            return new RoleTemplatesController(context, aaudContext);
+            return new RoleTemplatesController(context);
         }
 
         private static async Task<RoleTemplate> SeedTemplateAsync(RAPSContext context)

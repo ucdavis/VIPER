@@ -114,7 +114,7 @@
             }
             @if (UserHelper.HasPermission(rapsContext, UserHelper.GetCurrentUser(), "SVMSecure.SU"))
             {
-                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="face" :aria-label="'Emulate ' + props.row.name" :href="'/EmulateUser/' + props.row.loginId"></q-btn>
+                @: <q-btn :props="props" size="sm" padding="xs" color="primary" square flat icon="face" :aria-label="'Emulate ' + props.row.name" :href="'@HttpHelper.GetRootURL()/EmulateUser/' + props.row.loginId"></q-btn>
             }
         </q-td>
     </template>

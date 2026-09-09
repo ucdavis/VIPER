@@ -24,7 +24,6 @@ namespace Viper.test.RAPS
 
         private SqliteConnection _connection = null!;
         private RAPSContext _context = null!;
-        private AAUDContext _aaudContext = null!;
 
         public async ValueTask InitializeAsync()
         {
@@ -34,9 +33,6 @@ namespace Viper.test.RAPS
                 .UseSqlite(_connection)
                 .Options);
             await _context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
-            _aaudContext = new AAUDContext(new DbContextOptionsBuilder<AAUDContext>()
-                .UseSqlite(_connection)
-                .Options);
 
             var alreadyHeld = new TblRole { RoleId = RoleAlreadyHeldId, Role = "VIPER.AlreadyHeld", Description = "Held" };
             var toAdd = new TblRole { RoleId = RoleToAddId, Role = "VIPER.ToAdd", Description = "Not held" };
@@ -66,11 +62,10 @@ namespace Viper.test.RAPS
         public async ValueTask DisposeAsync()
         {
             await _context.DisposeAsync();
-            await _aaudContext.DisposeAsync();
             await _connection.DisposeAsync();
         }
 
-        private RoleTemplatesController CreateController() => new(_context, _aaudContext);
+        private RoleTemplatesController CreateController() => new(_context);
 
         [Fact]
         public async Task PreviewRoleTemplateApply_UnknownMember_ReturnsOkWithNullResult()

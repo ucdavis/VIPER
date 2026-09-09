@@ -18,16 +18,14 @@ namespace Viper.Areas.RAPS.Controllers
         private readonly RAPSContext _context;
         private readonly RAPSSecurityService _securityService;
         private readonly RAPSAuditService _auditService;
-        private readonly RAPSCacheService _rapsCacheService;
         public IUserHelper UserHelper { get; private set; }
 
-        public MemberPermissionsController(RAPSContext context, AAUDContext aaudContext)
+        public MemberPermissionsController(RAPSContext context)
         {
             _context = context;
             _securityService = new RAPSSecurityService(_context);
             _auditService = new RAPSAuditService(_context);
             UserHelper = new UserHelper();
-            _rapsCacheService = new RAPSCacheService(context, aaudContext, UserHelper);
         }
 
         // GET: Members/12345678/Permissions
@@ -204,8 +202,6 @@ namespace Viper.Areas.RAPS.Controllers
                 throw;
             }
 
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
-
             return NoContent();
         }
 
@@ -262,8 +258,6 @@ namespace Viper.Areas.RAPS.Controllers
                 throw;
             }
 
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
-
             return CreatedAtAction("GetTblMemberPermission", new { memberId, permissionId }, tblMemberPermission);
         }
 
@@ -291,8 +285,6 @@ namespace Viper.Areas.RAPS.Controllers
             _context.TblMemberPermissions.Remove(tblMemberPermission);
             _auditService.AuditPermissionMemberChange(tblMemberPermission, RAPSAuditService.AuditActionType.Delete);
             await _context.SaveChangesAsync();
-
-            _rapsCacheService.ClearCachedRolesAndPermissionsForUser(memberId);
 
             return NoContent();
         }

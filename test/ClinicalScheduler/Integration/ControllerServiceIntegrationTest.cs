@@ -26,6 +26,7 @@ namespace Viper.test.ClinicalScheduler.Integration
     /// because the PermissionAttribute creates its own UserHelper instance, preventing proper mocking.
     /// These tests are kept for documentation purposes and can be converted to unit tests.
     /// </summary>
+    [Collection(HttpHelperCacheCollection.Name)]
     public class ControllerServiceIntegrationTest : IntegrationTestBase
     {
         private readonly IPersonService _personService;
