@@ -831,18 +831,20 @@ namespace Viper.test.Services
             }
         }
 
-        [Fact]
-        public async Task PopulateInstinctInfoAsync_ApiUrlNotConfiguredOnDevelopment_IsNotTreatedAsFailure()
+        [Theory]
+        [InlineData("Development")]
+        [InlineData("Test")]
+        public async Task PopulateInstinctInfoAsync_ApiUrlNotConfiguredOnNonProdEnvironment_IsNotTreatedAsFailure(string environmentName)
         {
-            // Local dev boxes normally don't have the Instinct SSM parameters at all, so a
-            // missing Instinct:ApiUrl there is expected, not a failure - it should not surface
-            // as an "Instinct unavailable" error the way it still does on Test/Production
+            // Development and Test boxes aren't guaranteed to have the Instinct SSM parameters,
+            // so a missing Instinct:ApiUrl there is expected, not a failure - it should not
+            // surface as an "Instinct unavailable" error the way it still does on Production
             // (covered by GetInstinctApiUrl's own fail-fast behavior, exercised indirectly by
             // the other Instinct tests above, which all configure Instinct:ApiUrl).
-            var devConfigWithoutInstinct = new ConfigurationBuilder()
+            var configWithoutInstinct = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    { "ASPNETCORE_ENVIRONMENT", "Development" }
+                    { "ASPNETCORE_ENVIRONMENT", environmentName }
                     // Deliberately no Instinct:ApiUrl.
                 })
                 .Build();
@@ -850,7 +852,7 @@ namespace Viper.test.Services
             var aaudOptions = CreateInMemoryOptions<AAUDContext>();
             using (var aaudSetup = new AAUDContext(aaudOptions))
             {
-                aaudSetup.AaudUsers.Add(CreateTestUser("iam-devnoconfig", "mothra-devnoconfig", firstName: "Dev", lastName: "NoConfig"));
+                aaudSetup.AaudUsers.Add(CreateTestUser($"iam-noconfig-{environmentName}", $"mothra-noconfig-{environmentName}", firstName: "NoConfig", lastName: environmentName));
                 await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
@@ -865,18 +867,70 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, devConfigWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, configWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
 
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
-            HttpHelper.Configure(_memoryCache, devConfigWithoutInstinct, mockEnv, null, null, null, null);
+            HttpHelper.Configure(_memoryCache, configWithoutInstinct, mockEnv, null, null, null, null);
             try
             {
-                var result = await service.GetUserInfoAsync("iam-devnoconfig", null, AllPermissions);
+                var result = await service.GetUserInfoAsync($"iam-noconfig-{environmentName}", null, AllPermissions);
 
                 Assert.NotNull(result);
                 Assert.Null(result.InstinctInfo?.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.DoesNotContain("Instinct", result.UnavailableSections);
+            }
+            finally
+            {
+                HttpHelper.Configure(null, null, null!, null, null, null, null);
+            }
+        }
+
+        [Fact]
+        public async Task PopulateInstinctInfoAsync_ApiUrlNotConfiguredOnProduction_IsTreatedAsFailure()
+        {
+            // Production is deliberately excluded from the Development/Test suppression - it's
+            // expected to always have Instinct configured, so a missing ApiUrl there is a real
+            // problem and should still surface as an "Instinct unavailable" error.
+            var prodConfigWithoutInstinct = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    { "ASPNETCORE_ENVIRONMENT", "Production" }
+                    // Deliberately no Instinct:ApiUrl.
+                })
+                .Build();
+
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-prodnoconfig", "mothra-prodnoconfig", firstName: "Prod", lastName: "NoConfig"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            var httpFactory = CreateMockHttpClientFactory(_ =>
+                throw new InvalidOperationException("Should not call out to Instinct when ApiUrl isn't configured."));
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, prodConfigWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+
+            var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            HttpHelper.Configure(_memoryCache, prodConfigWithoutInstinct, mockEnv, null, null, null, null);
+            try
+            {
+                var result = await service.GetUserInfoAsync("iam-prodnoconfig", null, AllPermissions);
+
+                Assert.NotNull(result);
+                Assert.NotNull(result.InstinctInfo?.ErrorMessage);
+                Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo!.ErrorMessage);
+                Assert.Null(result.InstinctId);
+                Assert.Contains("Instinct", result.UnavailableSections);
             }
             finally
             {

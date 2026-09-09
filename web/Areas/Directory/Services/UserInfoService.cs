@@ -1578,11 +1578,11 @@ namespace Viper.Areas.Directory.Services
 
         /// <summary>
         /// Reads the configured Instinct API URL. Fails fast instead of falling back to the
-        /// production host, so a misconfigured dev/test box can't silently hit prod Instinct.
-        /// Local Development boxes normally don't have the Instinct SSM parameters at all, so
-        /// a missing URL there is expected, not a failure - it's logged but not surfaced as a
-        /// page-level error. Test/Production are expected to have it configured, so a missing
-        /// URL in those environments still fails loud.
+        /// production host, so a misconfigured non-prod box can't silently hit prod Instinct.
+        /// Development and Test boxes don't reliably have the Instinct SSM parameters, so a
+        /// missing URL there is expected, not a failure - it's logged but not surfaced as a
+        /// page-level error. Production is expected to have it configured, so a missing URL
+        /// there still fails loud.
         /// </summary>
         private string? GetInstinctApiUrl(InstinctResult result)
         {
@@ -1590,10 +1590,10 @@ namespace Viper.Areas.Directory.Services
             if (string.IsNullOrWhiteSpace(apiUrl))
             {
                 const string errMsg = "Instinct:ApiUrl is not configured";
-                if (IsDevelopmentEnvironment())
+                if (IsInstinctOptionalEnvironment())
                 {
-                    _logger.LogDebug("Instinct API: {ErrorMessage} (not treated as an error on Development)",
-                        LogSanitizer.SanitizeString(errMsg));
+                    _logger.LogDebug("Instinct API: {ErrorMessage} (not treated as an error on {Environment})",
+                        LogSanitizer.SanitizeString(errMsg), _configuration["ASPNETCORE_ENVIRONMENT"]);
                     return null;
                 }
                 _logger.LogWarning("Instinct API: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
@@ -1604,12 +1604,17 @@ namespace Viper.Areas.Directory.Services
         }
 
         /// <summary>
-        /// True when running under the Development environment (ASPNETCORE_ENVIRONMENT), which
-        /// AddEnvironmentVariables() surfaces through IConfiguration alongside appsettings.json.
+        /// True when running under Development or Test (ASPNETCORE_ENVIRONMENT, surfaced
+        /// through IConfiguration by AddEnvironmentVariables() alongside appsettings.json) -
+        /// the environments where Instinct access isn't guaranteed to be configured, so a
+        /// missing Instinct:ApiUrl shouldn't be treated as a page-level error. Production is
+        /// deliberately excluded: it's expected to always have Instinct configured.
         /// </summary>
-        private bool IsDevelopmentEnvironment()
+        private bool IsInstinctOptionalEnvironment()
         {
-            return string.Equals(_configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+            var environment = _configuration["ASPNETCORE_ENVIRONMENT"];
+            return string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(environment, "Test", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
