@@ -1490,9 +1490,31 @@ namespace Viper.Areas.Directory.Services
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var graphqlResponse = JsonSerializer.Deserialize<InstinctGraphQLResponse>(responseContent);
 
-                if (graphqlResponse?.Data?.SearchUsers != null)
+                if (graphqlResponse?.Errors is { Count: > 0 } graphqlErrors)
                 {
-                    var candidates = graphqlResponse.Data.SearchUsers
+                    // GraphQL over HTTP returns 200 even when the query itself failed server-side
+                    // (bad auth, downstream outage, etc.) - the convention is an "errors" array
+                    // alongside a possibly-null "data". That is a real failure, unlike a query
+                    // that ran fine and simply found nobody by that name (searchUsers is a
+                    // nullable list, so a clean "no match" can also come back as null rather than
+                    // an empty array - see the branch below).
+                    var messages = string.Join("; ", graphqlErrors
+                        .Select(e => e.Message)
+                        .Where(m => !string.IsNullOrEmpty(m)));
+                    result.ErrorMessage = string.IsNullOrEmpty(messages)
+                        ? "GraphQL query returned an error with no message."
+                        : $"GraphQL query returned errors: {messages}";
+                }
+                else if (graphqlResponse == null)
+                {
+                    result.ErrorMessage = "GraphQL response could not be parsed.";
+                }
+                else
+                {
+                    // No GraphQL-level errors. Treat a null searchUsers the same as an empty one -
+                    // both mean the query ran fine and matched nobody, which is the common case
+                    // since most VIPER users don't have an Instinct account.
+                    var candidates = (graphqlResponse.Data?.SearchUsers ?? new List<InstinctUser>())
                         .Where(user => string.Equals(user.NameLast, lastName, StringComparison.OrdinalIgnoreCase)
                             && nameVariations.Any(name => string.Equals(name, user.NameFirst, StringComparison.OrdinalIgnoreCase)))
                         .ToList();
@@ -1538,10 +1560,6 @@ namespace Viper.Areas.Directory.Services
                             LogSanitizer.SanitizeString(lastName), LogSanitizer.SanitizeString(firstName), string.Join(", ", nameVariations));
                     }
                 }
-                else
-                {
-                    result.ErrorMessage = "GraphQL response contained no searchUsers data.";
-                }
             }
             else
             {
@@ -1561,6 +1579,10 @@ namespace Viper.Areas.Directory.Services
         /// <summary>
         /// Reads the configured Instinct API URL. Fails fast instead of falling back to the
         /// production host, so a misconfigured dev/test box can't silently hit prod Instinct.
+        /// Local Development boxes normally don't have the Instinct SSM parameters at all, so
+        /// a missing URL there is expected, not a failure - it's logged but not surfaced as a
+        /// page-level error. Test/Production are expected to have it configured, so a missing
+        /// URL in those environments still fails loud.
         /// </summary>
         private string? GetInstinctApiUrl(InstinctResult result)
         {
@@ -1568,11 +1590,26 @@ namespace Viper.Areas.Directory.Services
             if (string.IsNullOrWhiteSpace(apiUrl))
             {
                 const string errMsg = "Instinct:ApiUrl is not configured";
+                if (IsDevelopmentEnvironment())
+                {
+                    _logger.LogDebug("Instinct API: {ErrorMessage} (not treated as an error on Development)",
+                        LogSanitizer.SanitizeString(errMsg));
+                    return null;
+                }
                 _logger.LogWarning("Instinct API: {ErrorMessage}", LogSanitizer.SanitizeString(errMsg));
                 AppendError(result, errMsg);
                 return null;
             }
             return apiUrl;
+        }
+
+        /// <summary>
+        /// True when running under the Development environment (ASPNETCORE_ENVIRONMENT), which
+        /// AddEnvironmentVariables() surfaces through IConfiguration alongside appsettings.json.
+        /// </summary>
+        private bool IsDevelopmentEnvironment()
+        {
+            return string.Equals(_configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -1734,12 +1771,24 @@ namespace Viper.Areas.Directory.Services
     {
         [JsonPropertyName("data")]
         public InstinctGraphQLData? Data { get; set; }
+
+        // Standard GraphQL-over-HTTP convention: server-side query failures come back as a 200
+        // with this populated (data is often null alongside it), distinct from a query that ran
+        // fine and simply found no matching users.
+        [JsonPropertyName("errors")]
+        public List<InstinctGraphQLError>? Errors { get; set; }
     }
 
     public class InstinctGraphQLData
     {
         [JsonPropertyName("searchUsers")]
         public List<InstinctUser>? SearchUsers { get; set; }
+    }
+
+    public class InstinctGraphQLError
+    {
+        [JsonPropertyName("message")]
+        public string? Message { get; set; }
     }
 
     public class InstinctUser

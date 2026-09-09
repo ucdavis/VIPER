@@ -707,6 +707,183 @@ namespace Viper.test.Services
                 HttpHelper.Configure(null, null, null!, null, null, null, null);
             }
         }
+
+        [Fact]
+        public async Task PopulateInstinctInfoAsync_NullSearchUsersWithNoErrors_IsNotTreatedAsFailure()
+        {
+            // searchUsers is a nullable list in the schema, so a query that runs fine and simply
+            // finds nobody can come back as "searchUsers": null instead of an empty array - most
+            // VIPER users don't have an Instinct account, and that must not surface as an error.
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-noinst", "mothra-noinst", firstName: "No", lastName: "Account"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            var httpFactory = CreateMockHttpClientFactory(request =>
+            {
+                var uri = request.RequestUri?.ToString() ?? "";
+                if (uri.Contains("auth/token"))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"access_token\": \"tok\", \"expires_in\": 86400}", Encoding.UTF8, "application/json")
+                    };
+                }
+                if (uri.Contains("query="))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(@"{ ""data"": { ""searchUsers"": null } }", Encoding.UTF8, "application/json")
+                    };
+                }
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+
+            var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            HttpHelper.Configure(_memoryCache, _configuration, mockEnv, null, null, null, null);
+            try
+            {
+                var result = await service.GetUserInfoAsync("iam-noinst", null, AllPermissions);
+
+                Assert.NotNull(result);
+                Assert.Null(result.InstinctInfo?.ErrorMessage);
+                Assert.Null(result.InstinctId);
+                Assert.DoesNotContain("Instinct", result.UnavailableSections);
+            }
+            finally
+            {
+                HttpHelper.Configure(null, null, null!, null, null, null, null);
+            }
+        }
+
+        [Fact]
+        public async Task PopulateInstinctInfoAsync_GraphQLErrors_IsTreatedAsFailure()
+        {
+            // Unlike a clean "no match", a populated "errors" array is GraphQL's own signal that
+            // the query itself failed server-side - that's a real failure and should surface as
+            // one, distinct from someone simply not having an Instinct account.
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-gqlerr", "mothra-gqlerr", firstName: "Gql", lastName: "Error"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            var httpFactory = CreateMockHttpClientFactory(request =>
+            {
+                var uri = request.RequestUri?.ToString() ?? "";
+                if (uri.Contains("auth/token"))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"access_token\": \"tok\", \"expires_in\": 86400}", Encoding.UTF8, "application/json")
+                    };
+                }
+                if (uri.Contains("query="))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(
+                            @"{ ""data"": null, ""errors"": [ { ""message"": ""Downstream service unavailable"" } ] }",
+                            Encoding.UTF8, "application/json")
+                    };
+                }
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+
+            var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            HttpHelper.Configure(_memoryCache, _configuration, mockEnv, null, null, null, null);
+            try
+            {
+                var result = await service.GetUserInfoAsync("iam-gqlerr", null, AllPermissions);
+
+                Assert.NotNull(result);
+                Assert.NotNull(result.InstinctInfo?.ErrorMessage);
+                Assert.Contains("Downstream service unavailable", result.InstinctInfo!.ErrorMessage);
+                Assert.Null(result.InstinctId);
+                Assert.Contains("Instinct", result.UnavailableSections);
+            }
+            finally
+            {
+                HttpHelper.Configure(null, null, null!, null, null, null, null);
+            }
+        }
+
+        [Fact]
+        public async Task PopulateInstinctInfoAsync_ApiUrlNotConfiguredOnDevelopment_IsNotTreatedAsFailure()
+        {
+            // Local dev boxes normally don't have the Instinct SSM parameters at all, so a
+            // missing Instinct:ApiUrl there is expected, not a failure - it should not surface
+            // as an "Instinct unavailable" error the way it still does on Test/Production
+            // (covered by GetInstinctApiUrl's own fail-fast behavior, exercised indirectly by
+            // the other Instinct tests above, which all configure Instinct:ApiUrl).
+            var devConfigWithoutInstinct = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    { "ASPNETCORE_ENVIRONMENT", "Development" }
+                    // Deliberately no Instinct:ApiUrl.
+                })
+                .Build();
+
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-devnoconfig", "mothra-devnoconfig", firstName: "Dev", lastName: "NoConfig"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            var httpFactory = CreateMockHttpClientFactory(_ =>
+                throw new InvalidOperationException("Should not call out to Instinct when ApiUrl isn't configured."));
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, devConfigWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+
+            var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            HttpHelper.Configure(_memoryCache, devConfigWithoutInstinct, mockEnv, null, null, null, null);
+            try
+            {
+                var result = await service.GetUserInfoAsync("iam-devnoconfig", null, AllPermissions);
+
+                Assert.NotNull(result);
+                Assert.Null(result.InstinctInfo?.ErrorMessage);
+                Assert.Null(result.InstinctId);
+                Assert.DoesNotContain("Instinct", result.UnavailableSections);
+            }
+            finally
+            {
+                HttpHelper.Configure(null, null, null!, null, null, null, null);
+            }
+        }
+
         [Fact]
         public async Task TestGetEmployeeAssociationsDirectly()
         {
