@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Viper.Areas.RAPS.Controllers;
+using Viper.Classes;
 
 namespace Viper.test.RAPS
 {
@@ -36,6 +37,26 @@ namespace Viper.test.RAPS
                 .FirstOrDefault(r => !string.IsNullOrEmpty(r));
 
             Assert.False(string.IsNullOrEmpty(roles), $"{controller.Name} is missing an [Authorize(Roles = ...)] restriction");
+        }
+
+        /// <summary>
+        /// MembersController drifted onto ControllerBase and so missed the ApiController filters:
+        /// it returned bare arrays where every sibling returned the { success, result } envelope,
+        /// and its exceptions skipped the standard error shape and correlation id.
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(RapsControllers))]
+        public void EveryRapsApiController_DerivesFromApiController(Type controller)
+        {
+            // The page controller renders views, so it is an AreaController, not an API controller.
+            if (typeof(AreaController).IsAssignableFrom(controller))
+            {
+                return;
+            }
+
+            Assert.True(typeof(ApiController).IsAssignableFrom(controller),
+                $"{controller.Name} does not derive from ApiController, so it misses [ApiResponse], "
+                + "[ApiExceptionFilter] and [ApiSessionUpdateFilter]");
         }
 
         [Fact]

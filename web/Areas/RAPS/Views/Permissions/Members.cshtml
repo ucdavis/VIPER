@@ -179,10 +179,9 @@
                     }
 
                     update(() => {
-                        fetch("Members?search=" + val)
-                            .then(r => r.json())
+                        viperFetch(this, "Members?search=" + val)
                             .then(data =>
-                                this.memberSearchResults = data
+                                this.memberSearchResults = (data ?? [])
                                     .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
                             )
                     })
