@@ -12,8 +12,12 @@ namespace Viper.test.Classes
     /// </summary>
     public class AuthorizationFallbackTests
     {
+        // EntraLogoutController is called by Entra, never by a signed-in browser, so the
+        // FallbackPolicy would deny every front-channel logout and users would stay signed in to
+        // VIPER after signing out of Entra, with nothing but a 401 in the logs to show for it.
         public static TheoryData<Type> AnonymousControllers() =>
-            new(typeof(CMSController), typeof(LayoutController), typeof(LoggedInUserController));
+            new(typeof(CMSController), typeof(LayoutController), typeof(LoggedInUserController),
+                typeof(EntraLogoutController));
 
         [Theory]
         [MemberData(nameof(AnonymousControllers))]
