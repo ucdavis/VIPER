@@ -1,0 +1,253 @@
+using System.Net;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using Viper.Controllers;
+using Web.Authorization;
+
+namespace Viper.test.Controllers
+{
+    // Entra calls this endpoint from a hidden iframe and ignores whatever it says, so the only
+    // behavior worth testing is the side effects: which sessions get revoked, and what VIPER 1 is
+    // told. Getting the guards wrong in the permissive direction turns an anonymous GET into a way
+    // to sign other people out.
+    public sealed class EntraLogoutControllerTests : IDisposable
+    {
+        private const string Tenant = "tenant-id";
+        private const string ExpectedIssuer = "https://login.microsoftonline.com/tenant-id/v2.0";
+        private const string ViperOne = "https://viper1.example/public/entra/frontchannel-logout.cfm";
+        private const string ClientId = "3f2e1d0c-9b8a-4756-8c3d-2a1b0c9d8e7f";
+
+        private sealed class RecordingHandler : HttpMessageHandler
+        {
+            public List<Uri> Requests { get; } = [];
+            public Exception? ThrowOnSend { get; set; }
+            public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
+
+            // The controller disposes what it is handed (`using var response`), but that is
+            // invisible across Task.FromResult, so the response is held here to make the
+            // ownership explicit rather than look like a leak.
+            private HttpResponseMessage? _issued;
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                Requests.Add(request.RequestUri!);
+
+                if (ThrowOnSend != null)
+                {
+                    return Task.FromException<HttpResponseMessage>(ThrowOnSend);
+                }
+
+                _issued = new HttpResponseMessage(StatusCode);
+                return Task.FromResult(_issued);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    _issued?.Dispose();
+                }
+
+                base.Dispose(disposing);
+            }
+        }
+
+        // xUnit builds one instance per test and each test calls Build once, so a single
+        // handler per instance is all there is to clean up.
+        private RecordingHandler? _handler;
+
+        public void Dispose()
+        {
+            _handler?.Dispose();
+        }
+
+        private (EntraLogoutController Controller, EntraSessionRevocationStore Store, RecordingHandler Handler)
+            Build(string? forwardTo = ViperOne)
+        {
+            var store = new EntraSessionRevocationStore(
+                new MemoryCache(new MemoryCacheOptions()), TimeSpan.FromHours(12));
+
+            // Stand in for the request that would have introduced "session-a" to the store.
+            store.NoteActive("session-a");
+
+            var handler = _handler = new RecordingHandler();
+            var factory = Substitute.For<IHttpClientFactory>();
+            factory.CreateClient(Arg.Any<string>())
+                .Returns(_ => new HttpClient(handler, disposeHandler: false));
+
+            var settings = new EntraIdSettings
+            {
+                TenantId = Tenant,
+                ClientId = ClientId,
+                FrontChannelLogoutForwardTo = forwardTo
+            };
+
+            var controller = new EntraLogoutController(store, factory, Options.Create(settings))
+            {
+                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            };
+
+            return (controller, store, handler);
+        }
+
+        [Fact]
+        public async Task FrontChannelLogout_ValidRequest_RevokesTheSession()
+        {
+            var (controller, store, _) = Build();
+
+            await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            Assert.True(store.IsRevoked("session-a"));
+        }
+
+        // Anyone can reach this endpoint with any sid, so an oversized one must not reach either
+        // the shared cache or the relay to VIPER 1.
+        [Fact]
+        public async Task FrontChannelLogout_OversizedSid_RevokesNothingAndDoesNotRelay()
+        {
+            var (controller, store, handler) = Build();
+            var sid = new string('a', 65);
+
+            var result = await controller.FrontChannelLogout(sid, ExpectedIssuer);
+
+            Assert.False(store.IsRevoked(sid));
+            Assert.Empty(handler.Requests);
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Fact]
+        public async Task FrontChannelLogout_ValidRequest_ForwardsSidAndIssToViperOne()
+        {
+            var (controller, _, handler) = Build();
+
+            await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            var forwarded = Assert.Single(handler.Requests);
+
+            Assert.Equal("https://viper1.example/public/entra/frontchannel-logout.cfm",
+                forwarded.GetLeftPart(UriPartial.Path));
+            Assert.Contains("sid=session-a", forwarded.Query, StringComparison.Ordinal);
+            Assert.Contains(ExpectedIssuer, Uri.UnescapeDataString(forwarded.Query),
+                StringComparison.Ordinal);
+        }
+
+        // No sid means Entra did not say which session ended. Revoking nothing is the only safe
+        // reading; the alternative is signing out every user in the tenant on an anonymous GET.
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public async Task FrontChannelLogout_NoSid_RevokesNothingAndDoesNotForward(string? sid)
+        {
+            var (controller, _, handler) = Build();
+
+            var result = await controller.FrontChannelLogout(sid, ExpectedIssuer);
+
+            Assert.Empty(handler.Requests);
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Fact]
+        public async Task FrontChannelLogout_IssuerFromAnotherTenant_IsIgnored()
+        {
+            var (controller, store, handler) = Build();
+
+            await controller.FrontChannelLogout(
+                "session-a", "https://login.microsoftonline.com/someone-else/v2.0");
+
+            Assert.False(store.IsRevoked("session-a"));
+            Assert.Empty(handler.Requests);
+        }
+
+        // iss is optional in the front-channel logout spec, so its absence must not block a
+        // sign-out that is otherwise well formed.
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public async Task FrontChannelLogout_NoIssuer_StillRevokes(string? iss)
+        {
+            var (controller, store, _) = Build();
+
+            await controller.FrontChannelLogout("session-a", iss);
+
+            Assert.True(store.IsRevoked("session-a"));
+        }
+
+        [Fact]
+        public async Task FrontChannelLogout_IssuerDiffersOnlyByTrailingSlash_StillRevokes()
+        {
+            var (controller, store, _) = Build();
+
+            await controller.FrontChannelLogout("session-a", ExpectedIssuer + "/");
+
+            Assert.True(store.IsRevoked("session-a"));
+        }
+
+        // VIPER 1 being down or slow must not cost VIPER 2 its own sign-out, and must not hand
+        // Entra an error for an iframe that cannot act on one.
+        [Fact]
+        public async Task FrontChannelLogout_ForwardThrows_StillRevokesAndAnswersOk()
+        {
+            var (controller, store, handler) = Build();
+            handler.ThrowOnSend = new HttpRequestException("VIPER 1 is unreachable");
+
+            var result = await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            Assert.True(store.IsRevoked("session-a"));
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Fact]
+        public async Task FrontChannelLogout_ForwardTimesOut_StillRevokesAndAnswersOk()
+        {
+            var (controller, store, handler) = Build();
+            handler.ThrowOnSend = new TaskCanceledException("timed out");
+
+            var result = await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            Assert.True(store.IsRevoked("session-a"));
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Fact]
+        public async Task FrontChannelLogout_ForwardAnswersError_StillRevokesAndAnswersOk()
+        {
+            var (controller, store, handler) = Build();
+            handler.StatusCode = HttpStatusCode.NotFound;
+
+            var result = await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            Assert.True(store.IsRevoked("session-a"));
+            Assert.IsType<OkResult>(result);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public async Task FrontChannelLogout_NoForwardTargetConfigured_StillRevokes(string? forwardTo)
+        {
+            var (controller, store, handler) = Build(forwardTo);
+
+            await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            Assert.True(store.IsRevoked("session-a"));
+            Assert.Empty(handler.Requests);
+        }
+
+        // A cached 200 would swallow the next sign-out for this session.
+        [Fact]
+        public async Task FrontChannelLogout_SetsNoStore()
+        {
+            var (controller, _, _) = Build();
+
+            await controller.FrontChannelLogout("session-a", ExpectedIssuer);
+
+            Assert.Equal("no-store", controller.Response.Headers.CacheControl);
+        }
+    }
+}
