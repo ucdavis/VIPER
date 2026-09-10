@@ -652,8 +652,10 @@
             // the <img> error event, sidesteps the img load/error event path entirely. Only
             // wire up the <img> src (as an object URL, so the bytes aren't fetched twice) once
             // we've confirmed a real photo came back; anything else (404, network failure)
-            // hides the label instead.
-            fetch(src, { credentials: "same-origin" })
+            // hides the label instead. cache: "no-store" forces this to always hit the network
+            // rather than risk reusing a stale/incomplete browser cache entry for this exact
+            // URL from an earlier visit - we want a fresh answer on every page load anyway.
+            fetch(src, { credentials: "same-origin", cache: "no-store" })
                 .then(function (response) {
                     if (!response.ok) {
                         hideAltPhoto();
