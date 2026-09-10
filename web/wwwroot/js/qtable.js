@@ -129,13 +129,18 @@ class quasarTable {
 
         let queryParams = ""
         this.loading = true
+        // Read-only params belong here rather than in urlBase, which create/update/delete also
+        // build their URLs from (see getUpdateURL).
+        const queryParamObject = { ...this.query }
         if (this.serverSidePagination) {
-            const queryParamObject = {
+            Object.assign(queryParamObject, {
                 perPage: this.pagination.rowsPerPage,
                 page: this.pagination.page,
                 sortOrder: (this.pagination.sortBy || "") + (this.pagination.descending ? " desc" : ""),
                 filter: this.filter || "",
-            }
+            })
+        }
+        if (Object.keys(queryParamObject).length > 0) {
             queryParams = `?${new URLSearchParams(queryParamObject)}`
         }
         viperFetch(vueApp, this.urlBase + queryParams, {}, [])

@@ -10,6 +10,7 @@
 # Agent AI development scratch docs (plans, smoke-test guides); not committed
 PLAN-*.md
 SMOKETEST-*.md
+.review-pr-ignored-*
 
 # User-specific files
 *.rsuser

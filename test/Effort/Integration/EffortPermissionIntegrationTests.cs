@@ -8,7 +8,7 @@ namespace Viper.test.Effort.Integration;
 /// Tests the complete flow of permission checks for department-level,
 /// full access, and self-service permission models.
 /// </summary>
-[Collection("HttpHelper static state")]
+[Collection(HttpHelperCacheCollection.Name)]
 public class EffortPermissionIntegrationTests : EffortIntegrationTestBase
 {
     private readonly EffortPermissionService _permissionService;

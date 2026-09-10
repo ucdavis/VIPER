@@ -4,6 +4,7 @@ using Viper.Areas.ClinicalScheduler.Services;
 
 namespace Viper.test.ClinicalScheduler
 {
+    [Collection(HttpHelperCacheCollection.Name)]
     public class SchedulePermissionServiceTest : ClinicalSchedulerTestBase
     {
         private readonly ILogger<SchedulePermissionService> _mockLogger;

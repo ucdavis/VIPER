@@ -138,6 +138,7 @@
                     memberRolesTable: new quasarTable({
                         keys: ["roleId"],
                         urlBase: "Members",
+                        query: { includeViewMembers: true },
                         columns: [
                             { name: "links", label: "Actions", field: "", align: "left", style: "width:75px;" },
                             { name: "role", label: "Role", field: "roleName", align: "left", sortable: true, format: v => v.substr(0, 75) },
@@ -253,10 +254,7 @@
                     })
                 },
                 addUpdateRoleMember: async function () {
-                    var oldBase = this.memberRolesTable.urlBase
-                    this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
                     await this.memberRolesTable.submit(this)
-                    this.memberRolesTable.urlBase = oldBase
                     this.pushToVMACS()
                 },
                 loadTables: async function () {
@@ -278,7 +276,7 @@
             async mounted() {
                 this.memberId = this.urlParams.get("memberId")
                 this.loadMember()
-                this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles?includeViewMembers=true"
+                this.memberRolesTable.urlBase = "Members/" + this.memberId + "/Roles"
                 this.loadTables()
                 this.showMemberRoles = true
                 this.showAddRoles = false

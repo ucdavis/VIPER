@@ -78,7 +78,7 @@ async function mountPage(query: Record<string, string> = {}) {
     return { wrapper, router }
 }
 
-describe("ContentBlocks.vue - filter-driven query params", () => {
+describe("contentBlocks.vue - filter-driven query params", () => {
     beforeEach(() => routeGet({ total: 42 }))
 
     it("requests page 1 with default sort and active status on mount, binding rows and rowsNumber", async () => {
@@ -137,11 +137,11 @@ describe("ContentBlocks.vue - filter-driven query params", () => {
             return Promise.resolve({ success: false, result: null })
         })
         const { wrapper } = await mountPage()
-        expect(wrapper.findComponent({ name: "QTable" }).props("rows")).toEqual([])
+        expect(wrapper.findComponent({ name: "QTable" }).props("rows")).toStrictEqual([])
     })
 })
 
-describe("ContentBlocks.vue - URL filter sync", () => {
+describe("contentBlocks.vue - URL filter sync", () => {
     beforeEach(() => routeGet())
 
     it("initializes filters from the URL query (deep-link) and reflects them in the request", async () => {
@@ -179,7 +179,7 @@ describe("ContentBlocks.vue - URL filter sync", () => {
     })
 })
 
-describe("ContentBlocks.vue - onRequest pagination passthrough", () => {
+describe("contentBlocks.vue - onRequest pagination passthrough", () => {
     beforeEach(() => routeGet({ total: 200 }))
 
     it("uses the sort/descending/page from a table request", async () => {
@@ -203,7 +203,7 @@ function listCallCount(): number {
     return mockGet.mock.calls.map((c) => c[0] as string).filter((u) => !u.includes("/section-paths")).length
 }
 
-describe("ContentBlocks.vue - delete and restore actions", () => {
+describe("contentBlocks.vue - delete and restore actions", () => {
     beforeEach(() => routeGet())
 
     it("soft-deletes the block and reloads the list once the confirm dialog is accepted", async () => {
@@ -274,5 +274,37 @@ describe("ContentBlocks.vue - delete and restore actions", () => {
         await flushPromises()
 
         expect(document.body.textContent).toContain("Failed to restore content block")
+    })
+})
+
+// View link: the block's standalone display URL, opened in a new window. Named blocks link by
+// friendly name and the rest by id; only deleted blocks (which the display endpoint refuses) have
+// no link.
+describe("contentBlocks.vue - view link", () => {
+    beforeEach(() => routeGet())
+
+    it("links to the block display URL in a new window", async () => {
+        const { wrapper } = await mountPage()
+
+        const link = wrapper.find('[aria-label^="View Welcome"]')
+
+        expect(link.attributes("href")).toContain("/CMS/Content/welcome")
+        expect(link.attributes("target")).toBe("_blank")
+    })
+
+    it("links by id when the block has no friendly name", async () => {
+        routeGet({ rows: [{ ...BLOCK_ROW, contentBlockId: 42, friendlyName: null }] })
+        const { wrapper } = await mountPage()
+
+        const link = wrapper.find('[aria-label^="View Welcome"]')
+
+        expect(link.attributes("href")).toContain("/CMS/Content/id/42")
+    })
+
+    it("offers no view link for a deleted block", async () => {
+        routeGet({ rows: [{ ...BLOCK_ROW, deletedOn: "2024-02-01T00:00:00" }] })
+        const { wrapper } = await mountPage()
+
+        expect(wrapper.findAll('[aria-label^="View"]')).toHaveLength(0)
     })
 })

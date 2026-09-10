@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Areas.ClinicalScheduler.Services;
 using Viper.Areas.CMS.Data;
@@ -9,6 +10,8 @@ using Viper.Classes.SQLContext;
 namespace Viper.Controllers
 {
     [Route("/api/layout")]
+    // Returns a permission-filtered nav to anonymous visitors, who get the public subset.
+    [AllowAnonymous]
     public class LayoutController : ApiController
     {
         private readonly RAPSContext _context;

@@ -146,8 +146,8 @@
                                 memberId: object.member?.value,
                                 permissionId: v.urlParams.get("permissionId"),
                                 access: object.access === 1 ? 1 : 0,
-                                startDate: object?.startDate,
-                                endDate: object?.endDate
+                                startDate: object?.startDate || null,
+                                endDate: object?.endDate || null
                             }
                         },
                         //on selection, format dates and set up user select box
@@ -179,10 +179,9 @@
                     }
 
                     update(() => {
-                        fetch("Members?search=" + val)
-                            .then(r => r.json())
+                        viperFetch(this, "Members?search=" + val)
                             .then(data =>
-                                this.memberSearchResults = data
+                                this.memberSearchResults = (data ?? [])
                                     .map(m => ({ label: m.displayLastName + ", " + m.displayFirstName, value: m.memberId }))
                             )
                     })

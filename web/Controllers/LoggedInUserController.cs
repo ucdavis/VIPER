@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -6,7 +7,9 @@ using Viper.Classes.SQLContext;
 namespace Viper.Controllers
 {
     [Route("/api/loggedInUser")]
-    //[Permission(Allow = "SVMSecure")]
+    // Answers anonymously by design: the front end asks who is logged in before it knows
+    // whether anyone is, and gets a null user rather than a 401.
+    [AllowAnonymous]
     public class LoggedInUserController : ApiController
     {
         private readonly IAntiforgery _antiforgery;
