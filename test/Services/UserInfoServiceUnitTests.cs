@@ -821,7 +821,7 @@ namespace Viper.test.Services
 
                 Assert.NotNull(result);
                 Assert.NotNull(result.InstinctInfo?.ErrorMessage);
-                Assert.Contains("Downstream service unavailable", result.InstinctInfo!.ErrorMessage);
+                Assert.Contains("Downstream service unavailable", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);
             }
@@ -928,7 +928,7 @@ namespace Viper.test.Services
 
                 Assert.NotNull(result);
                 Assert.NotNull(result.InstinctInfo?.ErrorMessage);
-                Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo!.ErrorMessage);
+                Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);
             }
