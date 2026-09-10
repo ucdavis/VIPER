@@ -37,6 +37,7 @@ using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
+using Viper.Controllers;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
 using Web;
@@ -146,6 +147,7 @@ try
             options.LoginPath = new PathString("/login");
             options.AccessDeniedPath = new PathString("/Error/403");
             options.ExpireTimeSpan = TimeSpan.FromHours(12);
+            options.Events.OnCheckSlidingExpiration = SessionTimeoutController.DoNotSlideCookie;
         });
 
     // Add CAS settings from appSettings configuration
