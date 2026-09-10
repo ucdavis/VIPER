@@ -367,6 +367,7 @@ try
         csp.AllowImages
             .FromSelf()// This domain
             .From("data:")// Allow data: images
+            .From("blob:")// Allow blob: images (e.g. UserInfo's alt-photo fetch-then-createObjectURL)
             .From("https://www.google-analytics.com")
             .From("*.ucdavis.edu")
             .From("vetmed.ucdavis.edu")
