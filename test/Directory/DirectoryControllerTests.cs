@@ -21,8 +21,8 @@ public sealed class DirectoryControllerTests : IDisposable
     /// <summary>
     /// A trimmed AAUDContext mapping only AaudUser: the full AAUD warehouse model has
     /// computed columns and views SQLite EnsureCreated cannot build (same pattern as
-    /// StudentGroupServiceQueryTests). Current is a plain column here, so tests set it
-    /// directly instead of via the production computed column.
+    /// StudentGroupServiceQueryTests). Current and Future are plain columns here, so
+    /// tests set them directly instead of via the production computed columns.
     /// </summary>
     private sealed class TestAaudContext(DbContextOptions<AAUDContext> options) : AAUDContext(options)
     {
@@ -59,7 +59,7 @@ public sealed class DirectoryControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchCurrentAaudUsers_MatchesNameAndEveryIdentifierField()
+    public async Task SearchCurrentOrFutureAaudUsers_MatchesNameAndEveryIdentifierField()
     {
         SeedUser(1, lastName: "Delfigo", firstName: "Ann");
         SeedUser(2, lastName: "Berry", firstName: "Bo", mailId: "fig@ucdavis.edu");
@@ -72,52 +72,69 @@ public sealed class DirectoryControllerTests : IDisposable
         SeedUser(9, lastName: "Ivy", firstName: "Ira");
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var results = await DirectoryController.SearchCurrentAaudUsers(_context, "fig");
+        var results = await DirectoryController.SearchCurrentOrFutureAaudUsers(_context, "fig");
 
         // One match per field, none for user 9, ordered by last name
         Assert.Equal([2, 3, 4, 1, 5, 6, 7, 8], results.Select(u => u.AaudUserId));
     }
 
     [Fact]
-    public async Task SearchCurrentAaudUsers_MatchesTermSpanningFirstAndLastName()
+    public async Task SearchCurrentOrFutureAaudUsers_MatchesTermSpanningFirstAndLastName()
     {
         SeedUser(1, lastName: "Graham", firstName: "Anna");
         SeedUser(2, lastName: "Graham", firstName: "Steve");
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var results = await DirectoryController.SearchCurrentAaudUsers(_context, "na Gra");
+        var results = await DirectoryController.SearchCurrentOrFutureAaudUsers(_context, "na Gra");
 
         Assert.Equal([1], results.Select(u => u.AaudUserId));
     }
 
     [Fact]
-    public async Task SearchCurrentAaudUsers_ExcludesUsersNoLongerCurrent()
+    public async Task SearchCurrentOrFutureAaudUsers_ExcludesUsersNeitherCurrentNorFuture()
     {
         SeedUser(1, lastName: "Figworth", firstName: "Cur");
         SeedUser(2, lastName: "Figworth", firstName: "Old", current: 0);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var results = await DirectoryController.SearchCurrentAaudUsers(_context, "Figworth");
+        var results = await DirectoryController.SearchCurrentOrFutureAaudUsers(_context, "Figworth");
 
         Assert.Equal([1], results.Select(u => u.AaudUserId));
     }
 
     [Fact]
-    public async Task SearchCurrentAaudUsers_OrdersByLastNameThenFirstName()
+    public async Task SearchCurrentOrFutureAaudUsers_IncludesFutureOnlyUsers()
+    {
+        // An admitted/registered student for an upcoming term (e.g. before Fall quarter
+        // starts) is Future but not yet Current - AAUD only flips Current on once the
+        // term is underway. The legacy ColdFusion directory and campus LDAP already show
+        // these people, so this search needs to as well.
+        SeedUser(1, lastName: "Figworth", firstName: "Incoming", current: 0, future: 1);
+        SeedUser(2, lastName: "Figworth", firstName: "Gone", current: 0, future: 0);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var results = await DirectoryController.SearchCurrentOrFutureAaudUsers(_context, "Figworth");
+
+        Assert.Equal([1], results.Select(u => u.AaudUserId));
+    }
+
+    [Fact]
+    public async Task SearchCurrentOrFutureAaudUsers_OrdersByLastNameThenFirstName()
     {
         SeedUser(1, lastName: "Fig", firstName: "Zoe");
         SeedUser(2, lastName: "Fig", firstName: "Al");
         SeedUser(3, lastName: "Elm", firstName: "Bea", mailId: "Fig@ucdavis.edu");
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var results = await DirectoryController.SearchCurrentAaudUsers(_context, "Fig");
+        var results = await DirectoryController.SearchCurrentOrFutureAaudUsers(_context, "Fig");
 
         Assert.Equal([3, 2, 1], results.Select(u => u.AaudUserId));
     }
 
     private void SeedUser(int id, string lastName, string firstName, string? mailId = null,
         string? loginId = null, string? spridenId = null, string? pidm = null,
-        string? mothraId = null, string? employeeId = null, string? iamId = null, int current = 1)
+        string? mothraId = null, string? employeeId = null, string? iamId = null, int current = 1,
+        int future = 0)
     {
         _context.AaudUsers.Add(new AaudUser
         {
@@ -135,7 +152,8 @@ public sealed class DirectoryControllerTests : IDisposable
             DisplayLastName = lastName,
             DisplayFirstName = firstName,
             DisplayFullName = firstName + " " + lastName,
-            Current = current
+            Current = current,
+            Future = future
         });
     }
 }

@@ -19,11 +19,12 @@ namespace Viper.Areas.Directory.Models
         public string TelephoneNumber { get; set; } = null!;
         public string Mobile { get; set; } = null!;
         public string Mail { get; set; } = null!;
+        public string LabeledUri { get; set; } = null!;
         public string UcdStudentLevel { get; set; } = null!;
         public string UcdStudentSid { get; set; } = null!;
         public string UcdPersonPidm { get; set; } = null!;
         public string EmployeeNumber { get; set; } = null!;
-        public string MothraId { get; set; } = null!;
+        public string? MothraId { get; set; }
         public string IamId { get; set; } = null!;
         public string UcdPersonAffiliation { get; set; } = null!;
         public string originalObject { get; set; } = null!;
@@ -54,6 +55,7 @@ namespace Viper.Areas.Directory.Models
                     case "telephoneNumber": TelephoneNumber = v.ToString(); break;
                     case "mobile": Mobile = v.ToString(); break;
                     case "mail": Mail = v.ToString(); break;
+                    case "labeledUri": LabeledUri = v.ToString(); break;
 
                     case "employeeNumber": EmployeeNumber = v.ToString(); break;
                     case "ucdStudentLevel": UcdStudentLevel = v.ToString(); break;
@@ -68,3 +70,4 @@ namespace Viper.Areas.Directory.Models
         }
     }
 }
+

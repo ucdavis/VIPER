@@ -9,6 +9,7 @@ using Viper.Classes.SQLContext;
 using Viper.Classes.Utilities;
 using Viper.Models.AAUD;
 using Web.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Viper.Areas.Directory.Controllers
 {
@@ -35,7 +36,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("")]
         public ActionResult Index(string? useExample)
         {
-            return View("~/Areas/Directory/Views/Card.cshtml");
+            return View("~/Areas/Directory/Views/Card.cshtml", new DirectoryUser());
         }
 
         /// <summary>
@@ -50,6 +51,28 @@ namespace Viper.Areas.Directory.Controllers
 
 
         /// <summary>
+        /// Directory search via query parameters (handles special characters and avoids race conditions)
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetFromQuery([FromQuery] string search, [FromQuery] bool ucd = false)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return Ok(new List<IndividualSearchResult>());
+            }
+            if (ucd)
+            {
+                return await GetUCD(search);
+            }
+            return await Get(search);
+        }
+
+        /// <summary>
         /// Directory list
         /// </summary>
         /// <param name="search">search string</param>
@@ -57,7 +80,7 @@ namespace Viper.Areas.Directory.Controllers
         [Route("search/{search}")]
         public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
         {
-            var individuals = await SearchCurrentAaudUsers(_aaud, search);
+            var individuals = await SearchCurrentOrFutureAaudUsers(_aaud, search);
             List<IndividualSearchResult> results = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
@@ -84,7 +107,7 @@ namespace Viper.Areas.Directory.Controllers
         {
             List<IndividualSearchResult> results = new();
             List<LdapUserContact> ldap = LdapService.GetUsersContact(search);
-            var individuals = await SearchCurrentAaudUsers(_aaud, search);
+            var individuals = await SearchCurrentOrFutureAaudUsers(_aaud, search);
             var individualsByIamId = individuals.ToLookup(m => m.IamId);
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
@@ -102,34 +125,46 @@ namespace Viper.Areas.Directory.Controllers
             return results;
         }
 
-        /// <summary>
-        /// Directory results
-        /// </summary>
-        /// <param name="mothraID">Mothra ID</param>
-        [Route("userInfo/{mothraID}")]
-        public IActionResult DirectoryResult(string mothraID)
+        private static void PopulateVmacsDetails(IndividualSearchResult result, VMACSQuery? vm)
         {
-            // pull in the user based on uid
-            return View("~/Areas/Directory/Views/UserInfo.cshtml");
+            if (vm?.item != null)
+            {
+                if (vm.item.Nextel?.Length > 0) result.Nextel = vm.item.Nextel[0];
+                if (vm.item.LDPager?.Length > 0) result.LDPager = vm.item.LDPager[0];
+                if (vm.item.Unit?.Length > 0) result.Department = vm.item.Unit[0];
+            }
+        }
+
+        [NonAction]
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context,
+                                                         ActionExecutionDelegate next)
+        {
+            PopulateLeftNav(context, "viper-home");
+            await base.OnActionExecutionAsync(context, next);
         }
 
         /// <summary>
-        /// Current AAUD users matching the search term on name or any directory identifier,
+        /// Current or future AAUD users matching the search term on name or any directory identifier,
         /// ordered for display. Shared by Get and GetUCD.
         /// </summary>
         /// <remarks>
         /// The identifiers are checked through an inline collection rather than an OR chain on purpose. The
         /// chain trips cs/complex-condition, and its MothraId null check is dead code since MothraId is the
         /// one non-nullable identifier on AaudUser.
+        ///
+        /// Current alone excludes people who are admitted/registered for an upcoming term that hasn't
+        /// started yet (e.g. an incoming student before the quarter begins) - AAUD only flips
+        /// current_student/current_employee on once the term is actually underway. Future covers that gap,
+        /// matching the population the campus LDAP directory and the legacy ColdFusion directory show.
         /// </remarks>
-        internal static Task<List<AaudUser>> SearchCurrentAaudUsers(AAUDContext aaud, string search)
+        internal static Task<List<AaudUser>> SearchCurrentOrFutureAaudUsers(AAUDContext aaud, string search)
         {
             return aaud.AaudUsers
                 .AsNoTracking()
                 .Where(u => (u.DisplayFirstName + " " + u.DisplayLastName).Contains(search)
                     || new[] { u.MailId, u.LoginId, u.SpridenId, u.Pidm, u.MothraId, u.EmployeeId, u.IamId }
                         .Any(id => id != null && id.Contains(search)))
-                .Where(u => u.Current != 0)
+                .Where(u => u.Current != 0 || u.Future != 0)
                 .OrderBy(u => u.DisplayLastName)
                 .ThenBy(u => u.DisplayFirstName)
                 .ToListAsync();
@@ -147,14 +182,9 @@ namespace Viper.Areas.Directory.Controllers
             {
                 return;
             }
-            var item = (await VMACSService.Search(result.LoginId))?.item;
-            if (item == null)
-            {
-                return;
-            }
-            if (item.Nextel is { Length: > 0 }) result.Nextel = item.Nextel[0];
-            if (item.LDPager is { Length: > 0 }) result.LDPager = item.LDPager[0];
-            if (item.Unit is { Length: > 0 }) result.Department = item.Unit[0];
+            var vm = await VMACSService.Search(result.LoginId);
+            PopulateVmacsDetails(result, vm);
         }
     }
 }
+

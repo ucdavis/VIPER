@@ -13,6 +13,11 @@ namespace Viper.test.CMS;
 /// Tests for CmsUserPhotoService: AAUD id resolution (MailId, LoginId, IamId, MothraId),
 /// alternate ProfilePhotos lookup with traversal protection, delegation to the Students photo
 /// pipeline, and the Last-Modified timestamp used for conditional-caching (FIX 4).
+/// GetUserPhotoAsync (the primary/id-card photo) always returns a result, falling back to the
+/// default "no picture" image, which makes it the right choice for most places a photo is
+/// displayed. GetAlternatePhotoAsync has no such fallback: a missing/rejected alt photo returns
+/// null rather than the primary id-card photo, so a caller can tell "no alt photo" apart from a
+/// successful lookup instead of the two being indistinguishable.
 /// </summary>
 public sealed class CmsUserPhotoServiceTests : IDisposable
 {
@@ -82,7 +87,7 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     [Fact]
     public async Task GetUserPhoto_ByMailId_DelegatesToStudentPipeline()
     {
-        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: false,
+        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, null,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(IdCardPhotoBytes, photo.Bytes);
@@ -94,7 +99,7 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     {
         SeedUser(loginId: "jdoe", mailId: "janedoe");
 
-        await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: false,
+        await _service.GetUserPhotoAsync(null, "jdoe", null, null,
             TestContext.Current.CancellationToken);
 
         await _photoService.Received(1).GetStudentPhotoAsync("janedoe");
@@ -105,7 +110,7 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     {
         SeedUser(mothraId: "m-9001", mailId: "janedoe");
 
-        await _service.GetUserPhotoAsync(null, null, null, "m-9001", preferAltPhoto: false,
+        await _service.GetUserPhotoAsync(null, null, null, "m-9001",
             TestContext.Current.CancellationToken);
 
         await _photoService.Received(1).GetStudentPhotoAsync("janedoe");
@@ -114,7 +119,7 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     [Fact]
     public async Task GetUserPhoto_UnknownMothraId_FallsBackToDefaultPipeline()
     {
-        var photo = await _service.GetUserPhotoAsync(null, null, null, "no-such-mothra", preferAltPhoto: false,
+        var photo = await _service.GetUserPhotoAsync(null, null, null, "no-such-mothra",
             TestContext.Current.CancellationToken);
 
         Assert.Equal(IdCardPhotoBytes, photo.Bytes);
@@ -124,7 +129,7 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     [Fact]
     public async Task GetUserPhoto_UnknownLoginId_FallsBackToDefaultPipeline()
     {
-        var photo = await _service.GetUserPhotoAsync(null, "nosuchuser", null, null, preferAltPhoto: false,
+        var photo = await _service.GetUserPhotoAsync(null, "nosuchuser", null, null,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(IdCardPhotoBytes, photo.Bytes);
@@ -132,83 +137,89 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetUserPhoto_PreferAltPhoto_ServesProfilePhoto()
+    public async Task GetUserPhoto_IdCardPhoto_LastModifiedIsStableAcrossCalls()
+    {
+        // The delegated Students pipeline exposes no per-file timestamp, so id-card/nopic
+        // responses use a stable per-process proxy; repeated calls must agree.
+        var first = await _service.GetUserPhotoAsync("jdoe", null, null, null,
+            TestContext.Current.CancellationToken);
+        var second = await _service.GetUserPhotoAsync("jdoe", null, null, null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(first.LastModified, second.LastModified);
+        Assert.Equal(0, first.LastModified.Millisecond);
+    }
+
+    [Fact]
+    public async Task GetAlternatePhoto_ServesProfilePhoto()
     {
         SeedUser(iamId: "1000999");
         await File.WriteAllBytesAsync(Path.Join(_profilePhotoRoot, "1000999.jpg"), AltPhotoBytes,
             TestContext.Current.CancellationToken);
 
-        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: true,
+        var photo = await _service.GetAlternatePhotoAsync(null, "jdoe", null, null,
             TestContext.Current.CancellationToken);
 
+        Assert.NotNull(photo);
         Assert.Equal(AltPhotoBytes, photo.Bytes);
         await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
     }
 
     [Fact]
-    public async Task GetUserPhoto_ByMailIdPreferAltPhoto_ResolvesIamIdAndServesProfilePhoto()
+    public async Task GetAlternatePhoto_ByMailId_ResolvesIamIdAndServesProfilePhoto()
     {
         SeedUser(mailId: "jdoe", iamId: "1000999");
         await File.WriteAllBytesAsync(Path.Join(_profilePhotoRoot, "1000999.jpg"), AltPhotoBytes,
             TestContext.Current.CancellationToken);
 
-        var photo = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: true,
+        var photo = await _service.GetAlternatePhotoAsync("jdoe", null, null, null,
             TestContext.Current.CancellationToken);
 
+        Assert.NotNull(photo);
         Assert.Equal(AltPhotoBytes, photo.Bytes);
         await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
     }
 
     [Fact]
-    public async Task GetUserPhoto_PreferAltPhoto_MissingAltFallsBackToIdCard()
+    public async Task GetAlternatePhoto_Missing_ReturnsNull()
     {
         SeedUser(mailId: "janedoe", iamId: "1000999");
 
-        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: true,
+        var photo = await _service.GetAlternatePhotoAsync(null, "jdoe", null, null,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
-        await _photoService.Received(1).GetStudentPhotoAsync("janedoe");
+        // Unlike the primary id-card photo, the alternate photo has no placeholder fallback -
+        // a missing alt photo means "don't render this image", not "show the primary instead".
+        Assert.Null(photo);
+        await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
     }
 
     [Theory]
     [InlineData("../1000999")]
     [InlineData("..\\secrets")]
     [InlineData("a/b")]
-    public async Task GetUserPhoto_TraversalShapedIamId_IgnoresAltPhoto(string iamId)
+    public async Task GetAlternatePhoto_TraversalShapedIamId_ReturnsNull(string iamId)
     {
-        var photo = await _service.GetUserPhotoAsync(null, null, iamId, null, preferAltPhoto: true,
+        var photo = await _service.GetAlternatePhotoAsync(null, null, iamId, null,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(IdCardPhotoBytes, photo.Bytes);
+        Assert.Null(photo);
+        await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
     }
 
     [Fact]
-    public async Task GetUserPhoto_AltPhoto_LastModifiedReflectsFileWriteTime_TruncatedToWholeSeconds()
+    public async Task GetAlternatePhoto_LastModifiedReflectsFileWriteTime_TruncatedToWholeSeconds()
     {
         SeedUser(iamId: "1000999");
         var photoPath = Path.Join(_profilePhotoRoot, "1000999.jpg");
         await File.WriteAllBytesAsync(photoPath, AltPhotoBytes, TestContext.Current.CancellationToken);
         var fileWriteTime = File.GetLastWriteTimeUtc(photoPath);
 
-        var photo = await _service.GetUserPhotoAsync(null, "jdoe", null, null, preferAltPhoto: true,
+        var photo = await _service.GetAlternatePhotoAsync(null, "jdoe", null, null,
             TestContext.Current.CancellationToken);
 
+        Assert.NotNull(photo);
         Assert.Equal(0, photo.LastModified.Millisecond);
         Assert.True(Math.Abs((photo.LastModified.UtcDateTime - fileWriteTime).TotalSeconds) < 1.5);
-    }
-
-    [Fact]
-    public async Task GetUserPhoto_IdCardPhoto_LastModifiedIsStableAcrossCalls()
-    {
-        // The delegated Students pipeline exposes no per-file timestamp, so id-card/nopic
-        // responses use a stable per-process proxy; repeated calls must agree.
-        var first = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: false,
-            TestContext.Current.CancellationToken);
-        var second = await _service.GetUserPhotoAsync("jdoe", null, null, null, preferAltPhoto: false,
-            TestContext.Current.CancellationToken);
-
-        Assert.Equal(first.LastModified, second.LastModified);
-        Assert.Equal(0, first.LastModified.Millisecond);
     }
 }

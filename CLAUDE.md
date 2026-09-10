@@ -45,6 +45,7 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 
 ## Testing & Git
 
+- **No VMACS production calls**: Unit tests, local environments, and test environments must NEVER send requests to the VMACS production server. All external HTTP requests (e.g., VMACS, Instinct, IAM API) must be mocked using in-memory databases and mock HTTP clients/factories to prevent production spam.
 - **UI**: Test UI changes with Playwright MCP (modals, forms, keyboard nav)
 - **API**: Use Playwright MCP to visit endpoints, APIs require browser auth, `curl` fails
 - **Branch & merge flow**: Branch off `main`, named `feature/`|`fix/`|etc. plus the JIRA ticket if applicable (e.g. `feature/VPR-104-clinical-scheduler`). After code review, merge into `Development` and push, which deploys to TEST. After the PR is approved on TEST, merge into `main`. Every change goes through `Development` first.
