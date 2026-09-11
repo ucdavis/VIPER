@@ -10,30 +10,47 @@ function withBase(base: string, run: () => void): void {
     }
 }
 
+describe("buildLoginUrl endpoint selection", () => {
+    it("defaults to the welcome splash", () => {
+        withBase("/", () => {
+            expect(buildLoginUrl("/Effort")).toBe("/welcome?ReturnUrl=%2FEffort")
+        })
+    })
+
+    it("goes straight to CAS when the login endpoint is requested", () => {
+        // Explicit "Log in" buttons skip the splash so a deliberate click isn't met
+        // with a second sign-in screen.
+        withBase("/", () => {
+            expect(buildLoginUrl("/Effort", "login")).toBe("/login?ReturnUrl=%2FEffort")
+        })
+    })
+})
+
 describe("buildLoginUrl application base handling", () => {
     it("emits root-relative paths when the app is served at the domain root", () => {
         withBase("/", () => {
-            expect(buildLoginUrl("/CTS/")).toBe("/login?ReturnUrl=%2FCTS%2F")
+            expect(buildLoginUrl("/CTS/")).toBe("/welcome?ReturnUrl=%2FCTS%2F")
         })
     })
 
     it("keeps the /2 base for the subpath deployment", () => {
         // TEST/PROD run VIPER 2 under a "/2" PathBase; dropping it escapes to the legacy site.
         withBase("/2/", () => {
-            expect(buildLoginUrl("/2/CTS/")).toBe("/2/login?ReturnUrl=%2F2%2FCTS%2F")
+            expect(buildLoginUrl("/2/CTS/")).toBe("/2/welcome?ReturnUrl=%2F2%2FCTS%2F")
+            expect(buildLoginUrl("/2/CTS/", "login")).toBe("/2/login?ReturnUrl=%2F2%2FCTS%2F")
         })
     })
 
     it("inserts the separator when the base is configured without a trailing slash", () => {
-        // Guards the "/2login" regression: the base is normalized, then joined with "/".
+        // Guards the "/2welcome" regression: the base is normalized, then joined with "/".
         withBase("/2", () => {
-            expect(buildLoginUrl("/2/CTS/")).toBe("/2/login?ReturnUrl=%2F2%2FCTS%2F")
+            expect(buildLoginUrl("/2/CTS/")).toBe("/2/welcome?ReturnUrl=%2F2%2FCTS%2F")
         })
     })
 
     it("collapses a base with duplicate trailing slashes", () => {
         withBase("/2///", () => {
-            expect(buildLoginUrl("/2/CTS/")).toBe("/2/login?ReturnUrl=%2F2%2FCTS%2F")
+            expect(buildLoginUrl("/2/CTS/")).toBe("/2/welcome?ReturnUrl=%2F2%2FCTS%2F")
         })
     })
 })
@@ -41,13 +58,13 @@ describe("buildLoginUrl application base handling", () => {
 describe("buildLoginUrl invalid return paths", () => {
     it("falls back to the application root instead of forwarding an off-site path", () => {
         withBase("/", () => {
-            expect(buildLoginUrl("https://evil.example/x")).toBe("/login?ReturnUrl=%2F")
+            expect(buildLoginUrl("https://evil.example/x")).toBe("/welcome?ReturnUrl=%2F")
         })
     })
 
     it("falls back to the base-prefixed root in the subpath deployment", () => {
         withBase("/2/", () => {
-            expect(buildLoginUrl("https://evil.example/x")).toBe("/2/login?ReturnUrl=%2F2%2F")
+            expect(buildLoginUrl("https://evil.example/x")).toBe("/2/welcome?ReturnUrl=%2F2%2F")
         })
     })
 })
@@ -56,7 +73,7 @@ describe("buildLoginUrl return paths carrying a query string", () => {
     it("round-trips the query string (the CTS landing forwards location.search)", () => {
         withBase("/2/", () => {
             expect(buildLoginUrl("/2/CTS/?sendBackTo=/cts/epa")).toBe(
-                "/2/login?ReturnUrl=%2F2%2FCTS%2F%3FsendBackTo%3D%2Fcts%2Fepa",
+                "/2/welcome?ReturnUrl=%2F2%2FCTS%2F%3FsendBackTo%3D%2Fcts%2Fepa",
             )
         })
     })
@@ -68,14 +85,14 @@ describe("buildLoginUrl return paths carrying a query string", () => {
         // the app root after sign-in.
         withBase("/2/", () => {
             expect(buildLoginUrl("/2/CTS/?sendBackTo=%2Fcts%2Fepa")).toBe(
-                "/2/login?ReturnUrl=%2F2%2FCTS%2F%3FsendBackTo%3D%252Fcts%252Fepa",
+                "/2/welcome?ReturnUrl=%2F2%2FCTS%2F%3FsendBackTo%3D%252Fcts%252Fepa",
             )
         })
     })
 
     it("keeps a return path whose query carries encoded dots", () => {
         withBase("/2/", () => {
-            expect(buildLoginUrl("/2/CTS/?q=%2e%2e")).toBe("/2/login?ReturnUrl=%2F2%2FCTS%2F%3Fq%3D%252e%252e")
+            expect(buildLoginUrl("/2/CTS/?q=%2e%2e")).toBe("/2/welcome?ReturnUrl=%2F2%2FCTS%2F%3Fq%3D%252e%252e")
         })
     })
 })
