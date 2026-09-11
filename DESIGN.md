@@ -212,7 +212,7 @@ A UC Davis institutional palette: Aggie Blue is the foundation, Aggie Gold is th
 - **Ink** (`ink`): Quasar `dark`; default high-contrast text. `dark-page` is the dark page background.
 - **Body Grey** (`body-grey`): The AA-safe muted text color, `--ucdavis-black-60`. Quasar's default `.text-grey` and `.bg-grey` are remapped to this so muted text still clears 4.5:1.
 - **Surface** (`surface`): Card, panel, and workspace background, and the welcome card over the hero photo.
-- **Table Header** (`table-header`): Sticky `q-table` header fill, and the fill on `q-table__top` and `q-table__bottom`.
+- **Table Header** (`table-header`): Sticky `q-table` header fill, the fill on `q-table__top` and `q-table__bottom`, and the header fill on bordered tables in CMS content.
 - **Gold Text** (`gold-text`): The darkened gold used for gold-colored *text* on light backgrounds, since bright gold fails AA at text sizes.
 - **Focus Blue** (`focus-blue`): The outer ring of the keyboard focus halo in the app. The only non-brand hue in the system.
 - **Splash Card Ink** (`splash-card-ink`) and **Splash Card Muted** (`splash-card-muted`): Body and secondary text inside the white sign-in card. Slightly warmer and softer than the workspace pairing, because the card sits on a photograph rather than on a page.

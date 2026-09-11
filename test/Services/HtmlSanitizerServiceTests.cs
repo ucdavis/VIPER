@@ -140,6 +140,10 @@ public class HtmlSanitizerServiceTests
     [InlineData("<a target=\"_blank\" rel=\"noopener\" href=\"https://example.com\">x</a>", "target=\"_blank\"", "rel=\"noopener\"")]
     [InlineData("<a href=\"https://example.com/file.pdf\" download=\"file.pdf\">x</a>", "download=\"file.pdf\"", "href=\"https://example.com/file.pdf\"")]
     [InlineData("<table><thead><tr><th scope=\"col\">h</th></tr></thead></table>", "<thead>", "scope=\"col\"")]
+    [InlineData("<table border=\"1\"><tbody><tr><td>x</td></tr></tbody></table>", "border=\"1\"", "<td>")]
+    [InlineData("<table align=\"center\"><tbody><tr><td align=\"right\">x</td></tr></tbody></table>", "align=\"center\"", "align=\"right\"")]
+    [InlineData("<table cellpadding=\"4\" cellspacing=\"0\"><tbody><tr><td>x</td></tr></tbody></table>", "cellpadding=\"4\"", "cellspacing=\"0\"")]
+    [InlineData("<table><tbody><tr valign=\"top\"><td>x</td></tr></tbody></table>", "valign=\"top\"", "<td>")]
     public void Preserves_allowed_constructs(string input, string mustContain1, string mustContain2)
     {
         var output = _sanitizer.Sanitize(input);
