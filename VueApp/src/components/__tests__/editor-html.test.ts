@@ -121,7 +121,7 @@ test("buildImageHtml makes src relative and escapes alt, emitting alt even when 
 test("buildTableHtml with a header splits header row from body rows", () => {
     const html = buildTableHtml({ rows: 3, cols: 3, header: true })
     expect(html).toBe(
-        "<table><thead><tr><th>&nbsp;</th><th>&nbsp;</th><th>&nbsp;</th></tr></thead>" +
+        '<table border="1"><thead><tr><th>&nbsp;</th><th>&nbsp;</th><th>&nbsp;</th></tr></thead>' +
             "<tbody><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" +
             "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></tbody></table><p><br></p>",
     )
@@ -135,8 +135,13 @@ test("buildTableHtml with rows=1 and header=true has no tbody at all", () => {
 
 test("buildTableHtml with rows=1 and header=false has a single body row and no thead", () => {
     const html = buildTableHtml({ rows: 1, cols: 2, header: false })
-    expect(html).toBe("<table><tbody><tr><td>&nbsp;</td><td>&nbsp;</td></tr></tbody></table><p><br></p>")
+    expect(html).toBe('<table border="1"><tbody><tr><td>&nbsp;</td><td>&nbsp;</td></tr></tbody></table><p><br></p>')
     expect(html).not.toContain("<thead")
+})
+
+test("buildTableHtml writes border=0 and the align attribute when asked", () => {
+    const html = buildTableHtml({ rows: 1, cols: 1, header: false, border: false, align: "center" })
+    expect(html).toBe('<table border="0" align="center"><tbody><tr><td>&nbsp;</td></tr></tbody></table><p><br></p>')
 })
 
 test("buildTableHtml clamps cols to 20", () => {

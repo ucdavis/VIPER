@@ -5,13 +5,15 @@ import RichTextEditor from "@/components/RichTextEditor.vue"
 import EditorImageDialog from "@/components/editor/EditorImageDialog.vue"
 import EditorLinkDialog from "@/components/editor/EditorLinkDialog.vue"
 import EditorTableDialog from "@/components/editor/EditorTableDialog.vue"
+import RecordFormDialog from "@/components/RecordFormDialog.vue"
 import { MAX_TABLE_COLS } from "@/components/editor/editor-html"
+import type { TableAlign } from "@/components/editor/editor-html"
 // <script setup> exposes nothing to the type system, so the tests reach each dialog's refs through
 // a narrowed view of the instance instead of `any`.
 type LinkDialogVm = { address: string; text: string; newWindow: boolean }
 type LinkKind = "url" | "email" | "phone"
 type ImageDialogVm = { file: File | null; alt: string }
-type TableDialogVm = { rows: number; cols: number }
+type TableDialogVm = { form: { rows: number; cols: number; header: boolean; border: boolean; align: TableAlign } }
 
 // QEditor renders its toolbar buttons only after a deferred (setTimeout-based) refresh, so let a
 // real macrotask elapse before reading the toolbar, then settle the resulting re-render.
@@ -439,18 +441,41 @@ test("the table dialog inserts the shape it collected and rejects one past the b
 
     // A count over the limit has to be refused here: buildTableHtml clamps silently, so letting it
     // through gives the user a table that quietly isn't the one they asked for.
-    dialog.cols = MAX_TABLE_COLS + 1
+    dialog.form.cols = MAX_TABLE_COLS + 1
     await nextTick()
     await submitDialog(wrapper)
     expect(editor.vm.runCmd).not.toHaveBeenCalled()
 
-    dialog.rows = 2
-    dialog.cols = 2
+    dialog.form.rows = 2
+    dialog.form.cols = 2
+    dialog.form.border = false
+    dialog.form.align = "center"
     await nextTick()
     await submitDialog(wrapper)
     expect(editor.vm.runCmd).toHaveBeenCalledWith(
         "insertHTML",
-        "<table><thead><tr><th>&nbsp;</th><th>&nbsp;</th></tr></thead>" +
+        '<table border="0" align="center"><thead><tr><th>&nbsp;</th><th>&nbsp;</th></tr></thead>' +
             "<tbody><tr><td>&nbsp;</td><td>&nbsp;</td></tr></tbody></table><p><br></p>",
     )
+})
+
+test("closing the table dialog clears every field, not just the ones with a named default", async () => {
+    const wrapper = await mountEditor({ toolbar: FULL_TOOLBAR })
+    await openViaHandler(wrapper, "table")
+    const dialog = wrapper.findComponent(EditorTableDialog)
+    const vm = dialog.vm as unknown as TableDialogVm
+
+    vm.form.rows = 2
+    vm.form.cols = 2
+    vm.form.header = false
+    vm.form.border = false
+    vm.form.align = "center"
+    await nextTick()
+
+    // Without a full reset the next table silently inherits the last one's borders and alignment,
+    // which is invisible in the dialog because those controls look the same either way.
+    dialog.findComponent(RecordFormDialog).vm.$emit("hide")
+    await nextTick()
+
+    expect({ ...vm.form }).toStrictEqual({ rows: 3, cols: 3, header: true, border: true, align: "" })
 })

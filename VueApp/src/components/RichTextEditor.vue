@@ -39,7 +39,7 @@ import EditorLinkDialog from "@/components/editor/EditorLinkDialog.vue"
 import EditorImageDialog from "@/components/editor/EditorImageDialog.vue"
 import EditorTableDialog from "@/components/editor/EditorTableDialog.vue"
 import { buildImageHtml, buildLinkHtml, buildTableHtml, parseLinkHref } from "@/components/editor/editor-html"
-import type { LinkKind } from "@/components/editor/editor-html"
+import type { LinkKind, TableOptions } from "@/components/editor/editor-html"
 
 /**
  * Shared rich-text (HTML) editor wrapping Quasar's QEditor. Centralizes the accessibility and
@@ -309,7 +309,7 @@ function onImageSubmit(value: { src: string; alt: string }) {
     void closeThenRun(imageDialogOpen, savedRange, "insertHTML", buildImageHtml(value))
 }
 
-function onTableSubmit(value: { rows: number; cols: number; header: boolean }) {
+function onTableSubmit(value: TableOptions) {
     void closeThenRun(tableDialogOpen, savedRange, "insertHTML", buildTableHtml(value))
 }
 
