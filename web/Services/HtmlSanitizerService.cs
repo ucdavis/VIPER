@@ -51,6 +51,9 @@ namespace Viper.Services
             {
                 "href", "src", "alt", "title", "class", "id", "name",
                 "width", "height", "colspan", "rowspan", "scope",
+                // Presentational table attributes migrated VIPER 1 content carries (the set legacy
+                // antisamy-cms.xml allowed); border additionally selects bordered styling in base.css.
+                "border", "align", "valign", "cellpadding", "cellspacing",
                 "target", "rel", "download",
                 "style"
             })

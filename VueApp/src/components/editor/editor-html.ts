@@ -120,22 +120,34 @@ function tbody(rowCount: number, bodyRow: string): string {
 const MAX_TABLE_ROWS = 50
 const MAX_TABLE_COLS = 20
 
+/** Table alignment, written as the presentational align attribute; "" leaves the attribute off. */
+type TableAlign = "" | "left" | "center" | "right"
+
+interface TableOptions {
+    rows: number
+    cols: number
+    header: boolean
+    /** Off writes border="0", CKEditor's (VIPER 1) marker for a layout table, which base.css leaves unstyled. */
+    border?: boolean
+    align?: TableAlign
+}
+
 /**
  * Build a <table> skeleton. `rows` is the total row count including the header row when `header`
  * is true. Every cell holds &nbsp; so the caret can enter it in contenteditable. A trailing
  * `<p><br></p>` is appended so the user can type below the table.
  */
-function buildTableHtml(opts: { rows: number; cols: number; header: boolean }): string {
+function buildTableHtml(opts: TableOptions): string {
     const rows = clamp(opts.rows, 1, MAX_TABLE_ROWS)
     const cols = clamp(opts.cols, 1, MAX_TABLE_COLS)
 
     const headerRow = `<tr>${"<th>&nbsp;</th>".repeat(cols)}</tr>`
     const bodyRow = `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`
 
-    const table = opts.header
-        ? `<table><thead>${headerRow}</thead>${tbody(rows - 1, bodyRow)}</table>`
-        : `<table>${tbody(rows, bodyRow)}</table>`
-    return `${table}<p><br></p>`
+    const border = (opts.border ?? true) ? 1 : 0
+    const align = opts.align ? ` align="${opts.align}"` : ""
+    const inner = opts.header ? `<thead>${headerRow}</thead>${tbody(rows - 1, bodyRow)}` : tbody(rows, bodyRow)
+    return `<table border="${border}"${align}>${inner}</table><p><br></p>`
 }
 
 export {
@@ -150,4 +162,4 @@ export {
     MAX_TABLE_ROWS,
     MAX_TABLE_COLS,
 }
-export type { LinkKind }
+export type { LinkKind, TableAlign, TableOptions }

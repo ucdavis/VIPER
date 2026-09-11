@@ -65,6 +65,10 @@
        ring in base.css / site.css so components can reference a token instead
        of repeating the hex. */
     --focus-ring-color: #258cfb;
+
+    /* Table header fill, shared by q-table headers and bordered CMS content
+       tables so the two treatments cannot drift apart. */
+    --table-header: #eee;
 }
 
 /* Background utility classes — UC Davis palette */
