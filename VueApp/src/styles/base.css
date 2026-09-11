@@ -764,6 +764,14 @@ header .q-avatar {
     background-color: var(--table-header);
 }
 
+/* A table without visible borders has nothing marking its cells in the editor's formatted view, so
+   the editor alone draws a dotted guide, as VIPER 1's CKEditor did with its showborders plugin. The
+   live block has no such rule, so the page still renders the table borderless. */
+.content-block-editor .q-editor__content table:not([border]) :is(th, td),
+.content-block-editor .q-editor__content table[border="0"] :is(th, td) {
+    border: 1px dotted var(--ucdavis-black-20);
+}
+
 .content-block img,
 .content-block-editor .q-editor__content img {
     max-width: 100%;
