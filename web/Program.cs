@@ -143,7 +143,7 @@ try
         .AddCookie(options =>
         {
             options.Cookie.Name = "VIPER.Authentication.UCD";
-            options.LoginPath = new PathString("/login");
+            options.LoginPath = new PathString("/welcome");
             options.AccessDeniedPath = new PathString("/Error/403");
             options.ExpireTimeSpan = TimeSpan.FromHours(12);
         });
@@ -362,8 +362,8 @@ try
 
         // Allow fonts to be downloaded from:
         csp.AllowFonts
-            .FromSelf()// This domain
-            .From("fonts.gstatic.com");
+            .FromSelf() // Roboto and Material Icons, self-hosted under /fonts
+            .From("https://campusfont.ucdavis.edu"); // Proxima Nova - campus license forbids self-hosting
 
         // Allow other sites to put this in an iframe?
         csp.AllowFraming
@@ -387,7 +387,6 @@ try
         // Allow styles
         csp.AllowStyles
             .FromSelf() // This domain
-            .From("fonts.googleapis.com") // Google Fonts stylesheets
             .AllowUnsafeInline(); // Allows inline CSS
     }));
 
@@ -442,7 +441,28 @@ try
         RedirectToAppendTrailingSlash = true
     });
 
-    // General static files (favicon, /css, /js, /images, etc.).
+    // Serve one wwwroot folder with its own Cache-Control. The general UseStaticFiles
+    // below stays header-free, since /css and /js are not content-fingerprinted and
+    // must not be cached past a deploy.
+    void UseCachedStaticFiles(string folder, string cacheControl) =>
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(
+                Path.Join(builder.Environment.WebRootPath, folder)),
+            RequestPath = $"/{folder}",
+            OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = cacheControl
+        });
+
+    // Self-hosted fonts (Roboto, Material Icons), served with long-lived cache
+    // headers. Proxima Nova is not here: it loads from campusfont.ucdavis.edu,
+    // since the campus license does not allow us to host the files ourselves.
+    UseCachedStaticFiles("fonts", "public, max-age=31536000, immutable"); // 1 year
+
+    // Brand images and login photos. Not immutable like /fonts: these filenames are
+    // not content-fingerprinted, so a replacement has to age out.
+    UseCachedStaticFiles("images", "public, max-age=2592000"); // 30 days
+
+    // General static files (favicon, /css, /js, etc.).
     app.UseStaticFiles();
 
     app.UseSitemapMiddleware();

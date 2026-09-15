@@ -13,7 +13,8 @@ import { applicationBase } from "./application-base"
  * vary per SPA.
  */
 export function createSpaRouter(routes: RouteRecordRaw[]): Router {
-    // CreateWebHistory wants an explicit "/" at the domain root, where applicationBase() is "".
+    // An explicit "/" is required at the domain root, where applicationBase() (built for
+    // concatenation) is the empty string.
     const baseUrl = applicationBase() || "/"
     const router = createRouter({
         scrollBehavior: (to, from, savedPosition) => {
