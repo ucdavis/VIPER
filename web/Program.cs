@@ -441,21 +441,28 @@ try
         RedirectToAppendTrailingSlash = true
     });
 
+    // Serve one wwwroot folder with its own Cache-Control. The general UseStaticFiles
+    // below stays header-free, since /css and /js are not content-fingerprinted and
+    // must not be cached past a deploy.
+    void UseCachedStaticFiles(string folder, string cacheControl) =>
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(
+                Path.Join(builder.Environment.WebRootPath, folder)),
+            RequestPath = $"/{folder}",
+            OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = cacheControl
+        });
+
     // Self-hosted fonts (Roboto, Material Icons), served with long-lived cache
     // headers. Proxima Nova is not here: it loads from campusfont.ucdavis.edu,
     // since the campus license does not allow us to host the files ourselves.
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(
-            Path.Join(builder.Environment.WebRootPath, "fonts")),
-        RequestPath = "/fonts",
-        OnPrepareResponse = ctx =>
-        {
-            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable"; // 1 year
-        }
-    });
+    UseCachedStaticFiles("fonts", "public, max-age=31536000, immutable"); // 1 year
 
-    // General static files (favicon, /css, /js, /images, etc.).
+    // Brand images and login photos. Not immutable like /fonts: these filenames are
+    // not content-fingerprinted, so a replacement has to age out.
+    UseCachedStaticFiles("images", "public, max-age=2592000"); // 30 days
+
+    // General static files (favicon, /css, /js, etc.).
     app.UseStaticFiles();
 
     app.UseSitemapMiddleware();
