@@ -13,7 +13,7 @@ namespace Viper.test.Classes
     public class AuthorizationFallbackTests
     {
         public static TheoryData<Type> AnonymousControllers() =>
-            new(typeof(CMSController), typeof(LayoutController), typeof(LoggedInUserController));
+            new(typeof(CMSController), typeof(LayoutController), typeof(LoggedInUserController), typeof(SessionTimeoutController));
 
         [Theory]
         [MemberData(nameof(AnonymousControllers))]
