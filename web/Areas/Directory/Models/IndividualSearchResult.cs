@@ -43,6 +43,7 @@ namespace Viper.Areas.Directory.Models
         public string? Mobile { get; set; }
         public string? PostalAddress { get; set; }
         public string? UCDAffiliation { get; set; }
+        public string? UcdStudentLevel { get; set; }
         public string? UserName { get; set; }
         public bool? SVM { get; set; }
         public string? originalObject { get; set; }
@@ -101,6 +102,7 @@ namespace Viper.Areas.Directory.Models
                 UserName = ldapUserContact.Uid;
                 PostalAddress = ldapUserContact.PostalAddress?.Replace("$", '\n'.ToString()) ?? "";
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
+                UcdStudentLevel = ldapUserContact.UcdStudentLevel;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
                     DisplayFullName = ldapUserContact.DisplayName;

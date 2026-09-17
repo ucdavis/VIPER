@@ -55,7 +55,7 @@ namespace Viper.Areas.Directory.Controllers
         /// </summary>
         [SupportedOSPlatform("windows")]
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetFromQuery([FromQuery] string search, [FromQuery] bool ucd = false)
+        public async Task<ActionResult<IEnumerable<object>>> GetFromQuery([FromQuery] string search, [FromQuery] bool ucd = false)
         {
             if (!ModelState.IsValid)
             {
@@ -63,7 +63,7 @@ namespace Viper.Areas.Directory.Controllers
             }
             if (string.IsNullOrWhiteSpace(search))
             {
-                return Ok(new List<IndividualSearchResult>());
+                return Ok(new List<object>());
             }
             if (ucd)
             {
@@ -78,10 +78,17 @@ namespace Viper.Areas.Directory.Controllers
         /// <param name="search">search string</param>
         [SupportedOSPlatform("windows")]
         [Route("search/{search}")]
-        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> Get(string search)
+        public async Task<ActionResult<IEnumerable<object>>> Get(string search)
         {
             var individuals = await SearchCurrentOrFutureAaudUsers(_aaud, search);
-            List<IndividualSearchResult> results = new();
+            // Held as List<object> (not List<IndividualSearchResult>) on purpose: System.Text.Json
+            // resolves each element's contract from the collection's *declared* generic argument,
+            // not the instance's runtime type. With List<IndividualSearchResult>, every element -
+            // even ones actually constructed as IndividualSearchResultWithIDs - would serialize
+            // using only the base class's properties, silently dropping SpridenId/Pidm/EmployeeId
+            // regardless of hasDetailPermission below. object is the one element type for which
+            // System.Text.Json falls back to the runtime type per element.
+            List<object> results = new();
             AaudUser? currentUser = UserHelper.GetCurrentUser();
             bool hasDetailPermission = UserHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryDetail");
             foreach (var m in individuals)
@@ -103,9 +110,11 @@ namespace Viper.Areas.Directory.Controllers
         /// <param name="search">search string</param>
         [SupportedOSPlatform("windows")]
         [Route("search/{search}/ucd")]
-        public async Task<ActionResult<IEnumerable<IndividualSearchResult>>> GetUCD(string search)
+        public async Task<ActionResult<IEnumerable<object>>> GetUCD(string search)
         {
-            List<IndividualSearchResult> results = new();
+            // See the comment in Get() above: List<object>, not List<IndividualSearchResult>, is
+            // required for IndividualSearchResultWithIDs's extra properties to actually serialize.
+            List<object> results = new();
             List<LdapUserContact> ldap = LdapService.GetUsersContact(search);
             var individuals = await SearchCurrentOrFutureAaudUsers(_aaud, search);
             var individualsByIamId = individuals.ToLookup(m => m.IamId);

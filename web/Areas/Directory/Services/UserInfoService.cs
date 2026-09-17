@@ -261,7 +261,13 @@ namespace Viper.Areas.Directory.Services
                 Pidm = user.Pidm,
                 MivId = user.MivId?.ToString(),
                 IsValid = true,
-                CurrentAffiliate = user.Current == 1
+                // Current alone misses continuing students/employees admitted or registered for
+                // an upcoming term that hasn't started yet - AAUD only flips current_student/
+                // current_employee once the term is actually underway (see the comment on
+                // DirectoryController.SearchCurrentOrFutureAaudUsers, which treats the same
+                // Current-or-Future population as affiliated). Without Future here, someone
+                // between terms is incorrectly flagged "Not Current" on their own page.
+                CurrentAffiliate = user.Current == 1 || user.Future == 1
             };
 
             // Check if employee or student
