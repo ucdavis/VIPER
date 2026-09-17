@@ -9,13 +9,24 @@ namespace Viper.Areas.CMS.Services
     public interface ICmsUserPhotoService
     {
         /// <summary>
-        /// Get a user photo by any supported id (MailId, LoginId, IamId, or MothraId). Resolution
-        /// order matches legacy userPhoto.cfc: alternate profile photo (by IamId, only when
-        /// requested via preferAltPhoto), then id-card photo (by MailId), then the default
-        /// "no picture" image. The result carries a Last-Modified value for conditional caching.
+        /// Get a user's primary photo by any supported id (MailId, LoginId, IamId, or MothraId).
+        /// Resolution matches legacy userPhoto.cfc: id-card photo (by MailId), then the default
+        /// "no picture" image - this always returns a result, which makes it the right choice
+        /// for most places a photo is displayed. The result carries a Last-Modified value for
+        /// conditional caching.
         /// </summary>
         Task<CmsUserPhotoResult> GetUserPhotoAsync(string? mailId, string? loginId, string? iamId, string? mothraId,
-            bool preferAltPhoto, CancellationToken ct = default);
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Get a user's alternate profile photo (by IamId) from the ProfilePhotos store. Unlike
+        /// GetUserPhotoAsync, this has no placeholder fallback: it returns null when the person
+        /// has no alternate photo, so a caller that only wants to show it when one actually
+        /// exists (e.g. UserInfo's second photo slot) can tell that apart from a successful
+        /// lookup, instead of it being replaced by the primary photo.
+        /// </summary>
+        Task<CmsUserPhotoResult?> GetAlternatePhotoAsync(string? mailId, string? loginId, string? iamId,
+            string? mothraId, CancellationToken ct = default);
     }
 
     /// <summary>
@@ -59,22 +70,26 @@ namespace Viper.Areas.CMS.Services
         }
 
         public async Task<CmsUserPhotoResult> GetUserPhotoAsync(string? mailId, string? loginId, string? iamId,
-            string? mothraId, bool preferAltPhoto, CancellationToken ct = default)
+            string? mothraId, CancellationToken ct = default)
         {
-            // Resolve whichever id was provided to the person's mailId (+ iamId when needed).
-            (mailId, iamId) = await ResolveIdsAsync(mailId, loginId, iamId, mothraId, needIamId: preferAltPhoto, ct);
-
-            if (preferAltPhoto && iamId != null)
-            {
-                var altPhoto = await ReadAltPhotoAsync(iamId, ct);
-                if (altPhoto != null)
-                {
-                    return altPhoto;
-                }
-            }
+            // Only mailId is needed for the id-card photo; skip resolving iamId.
+            (mailId, _) = await ResolveIdsAsync(mailId, loginId, iamId, mothraId, needIamId: false, ct);
 
             var bytes = await _photoService.GetStudentPhotoAsync(mailId ?? string.Empty);
             return new CmsUserPhotoResult(bytes, DelegatedPhotoLastModified);
+        }
+
+        public async Task<CmsUserPhotoResult?> GetAlternatePhotoAsync(string? mailId, string? loginId,
+            string? iamId, string? mothraId, CancellationToken ct = default)
+        {
+            // The alternate photo is keyed by iamId; resolve it if the caller didn't already
+            // have it (e.g. UserInfo's <img> tags only send mailId).
+            (_, iamId) = await ResolveIdsAsync(mailId, loginId, iamId, mothraId, needIamId: true, ct);
+
+            // Unlike GetUserPhotoAsync, there's no "nopic" placeholder fallback here - a missing
+            // alternate photo returns null so the caller can leave the image out entirely rather
+            // than silently substituting the primary photo in its place.
+            return iamId != null ? await ReadAltPhotoAsync(iamId, ct) : null;
         }
 
         private async Task<(string? MailId, string? IamId)> ResolveIdsAsync(string? mailId, string? loginId,
@@ -87,7 +102,7 @@ namespace Viper.Areas.CMS.Services
                 return (mailId, iamId);
             }
 
-            var query = _aaudContext.AaudUsers.AsNoTracking().Where(u => u.Current != 0);
+            var query = _aaudContext.AaudUsers.AsNoTracking().Where(u => u.Current != 0 || u.Future != 0);
             if (!string.IsNullOrEmpty(mailId))
             {
                 query = query.Where(u => u.MailId == mailId);

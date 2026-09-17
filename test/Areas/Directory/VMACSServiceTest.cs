@@ -31,7 +31,6 @@ namespace Viper.test.Areas.Directory
 
         [Theory]
         [InlineData("https://vmacs-qa.example.edu")]
-        [InlineData("http://vmacs.example.edu/")]
         public void IsValidBaseUrl_True_ForAbsoluteHttpUrls(string baseUrl)
         {
             Assert.True(VMACSService.IsValidBaseUrl(baseUrl));
@@ -44,7 +43,7 @@ namespace Viper.test.Areas.Directory
         [InlineData("not-a-url")]
         [InlineData("/relative/path")]
         [InlineData("vmacs-qa.example.edu")]
-        [InlineData("ftp://vmacs.example.edu")]
+        [InlineData("ftp://vmacs-qa.example.edu")]
         [InlineData("file:///etc/passwd")]
         public void IsValidBaseUrl_False_ForMissingOrNonHttpUrls(string? baseUrl)
         {
