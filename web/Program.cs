@@ -293,6 +293,14 @@ try
     // All health-check DI wiring lives in HealthCheckExtensions.
     builder.Services.AddViperHealthChecks(builder.Configuration, builder.Environment);
 
+    // Middle link of the graceful-shutdown chain, pinned at the .NET 10
+    // default; HangfireExtensions has the full chain note. The host has to
+    // outlast Hangfire's drain, or in-flight jobs are cut off and re-queued on
+    // a slot flip. Setting this here also wins over the host's built-in
+    // shutdownTimeoutSeconds config key, which nothing in this repo sets.
+    builder.Services.Configure<HostOptions>(options =>
+        options.ShutdownTimeout = TimeSpan.FromSeconds(30));
+
     // Hangfire scheduler. No-op when Hangfire:Enabled is false.
     builder.Services.AddViperHangfire(builder.Configuration, logger);
 
