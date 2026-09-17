@@ -77,9 +77,12 @@ namespace Viper.Classes.Scheduler
             services.AddSingleton<IBackgroundProcess>(_ => new ProcessMonitor(checkInterval: TimeSpan.FromSeconds(30)));
 
             // Inner link of the graceful-shutdown chain: Hangfire 15s <= host
-            // 30s (Program.cs) <= IIS app pool shutdownTimeLimit 90s (unset,
-            // so the IIS default applies), so a slot flip drains instead of
-            // killing work mid-job. Both C# links are pinned at today's
+            // 30s (Program.cs) <= IIS 90s, so a slot flip drains instead of
+            // killing work mid-job. IIS has two shutdown paths and both read
+            // 90s: the ASP.NET Core Module, pinned in web.config because its
+            // own default is only 10s, and the app pool's
+            // processModel/shutdownTimeLimit, left unset so the 90s IIS
+            // default applies. Both C# links are pinned at today's
             // framework defaults on purpose: the host default already moved
             // once (5s to 30s in .NET 6) and a move either way would invert
             // the ordering silently. Note this bounds how long a worker gets
