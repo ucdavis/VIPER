@@ -68,7 +68,12 @@ namespace Viper.Areas.Directory.Controllers
                 {
                     IsOwnPage = ownPage,
                     CanViewDirectoryDetail = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryDetail"),
-                    CanViewStudentID = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.studentID"),
+                    // "SVMSecure.studentID" was never a real permission - RAPS defines this one as
+                    // "SVMSecure.DirectoryStudentID" ("Access to the StudentID return value for any
+                    // users returned"). The stale name meant this always evaluated false, so the
+                    // Student ID line at the top of the page never showed for anyone, regardless of
+                    // what permissions/roles a viewer actually held.
+                    CanViewStudentID = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.DirectoryStudentID"),
                     CanViewIAM = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.iam"),
                     CanViewRoles = ownPage || _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.userinfo.raps"),
                     CanViewUCPath = _userHelper.HasPermission(_rapsContext, currentUser, "SVMSecure.directoryUCPathInfo"),
