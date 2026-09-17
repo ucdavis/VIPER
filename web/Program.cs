@@ -277,8 +277,8 @@ try
         builder.Services.AddDatabaseDeveloperPageExceptionFilter();
     }
 
-    // Add Data Protection services (i.e. encryption)
-    builder.Services.AddDataProtection();
+    // All Data Protection key ring wiring lives in DataProtectionExtensions.
+    builder.Services.AddViperDataProtection(builder.Configuration);
 
     // Add email services
     builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
