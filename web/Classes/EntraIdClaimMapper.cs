@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace Web.Authorization
 {
@@ -36,6 +37,19 @@ namespace Web.Authorization
         /// must fail the 2FA policy exactly as a Duo-less CAS session would.
         /// </remarks>
         public const string MultifactorCredentialType = "EntraIdMultifactorCredential";
+
+        /// <summary>
+        /// Entra's session id, carried through to the cookie so front-channel logout can find the
+        /// session it is being told to end.
+        /// </summary>
+        /// <remarks>
+        /// Like <c>amr</c>, this claim only exists because the app registration asks for it:
+        /// optionalClaims.idToken must contain { "name": "sid" }. Without that entry the token
+        /// omits it, and a front-channel logout arrives naming a session nothing can match, so the
+        /// user stays signed in to VIPER after signing out of Entra. Sessions that predate the
+        /// claim simply have no sid and are unaffected either way.
+        /// </remarks>
+        public const string SessionIdClaimType = JwtRegisteredClaimNames.Sid;
 
         /// <summary>
         /// Resolves the campus kerberos login id from an Entra principal, or null when the
@@ -119,7 +133,15 @@ namespace Web.Authorization
         /// Builds the cookie principal for an Entra login, matching the claim shape
         /// <c>AuthenticateCasLogin</c> produces.
         /// </summary>
-        public static ClaimsPrincipal BuildPrincipal(string loginId, bool hasMultifactor, DateTime authenticatedAt)
+        /// <param name="sessionId">
+        /// Entra's <c>sid</c>, when the token carried one. Optional: a token without it still signs
+        /// in normally, it just cannot be ended by a front-channel logout later.
+        /// </param>
+        public static ClaimsPrincipal BuildPrincipal(
+            string loginId,
+            bool hasMultifactor,
+            DateTime authenticatedAt,
+            string? sessionId = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(loginId);
 
@@ -137,6 +159,11 @@ namespace Web.Authorization
             if (hasMultifactor)
             {
                 claims.Add(new Claim("credentialType", MultifactorCredentialType));
+            }
+
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                claims.Add(new Claim(SessionIdClaimType, sessionId));
             }
 
             return new ClaimsPrincipal(

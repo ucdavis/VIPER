@@ -285,6 +285,39 @@ namespace Test.Classes
             Assert.Equal(authenticatedAt.ToString("o"), principal.FindFirst("authenticationDate")?.Value);
         }
 
+        // The claim type must stay the literal "sid": that is what the app registration's
+        // optionalClaims.idToken entry is named, so a different value silently stops matching.
+        [Fact]
+        public void SessionIdClaimType_IsTheWireClaimName()
+        {
+            Assert.Equal("sid", EntraIdClaimMapper.SessionIdClaimType);
+        }
+
+        // The sid is what a later front-channel logout names. Drop it here and the sign-out has
+        // nothing to match, so the user stays signed in to VIPER after signing out of Entra.
+        [Fact]
+        public void BuildPrincipal_SessionIdSupplied_IsCarriedIntoTheCookie()
+        {
+            var principal = EntraIdClaimMapper.BuildPrincipal(
+                "jdoe", hasMultifactor: false, authenticatedAt: DateTime.Now, sessionId: "session-a");
+
+            Assert.Equal("session-a", principal.FindFirst(EntraIdClaimMapper.SessionIdClaimType)?.Value);
+        }
+
+        // A token without a sid still signs in; it just cannot be ended remotely. Writing a blank
+        // claim instead would make every such session look like the same revocable session.
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void BuildPrincipal_NoSessionId_AddsNoSidClaim(string? sessionId)
+        {
+            var principal = EntraIdClaimMapper.BuildPrincipal(
+                "jdoe", hasMultifactor: false, authenticatedAt: DateTime.Now, sessionId: sessionId);
+
+            Assert.Null(principal.FindFirst(EntraIdClaimMapper.SessionIdClaimType));
+        }
+
         #endregion
     }
 }

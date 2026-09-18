@@ -81,6 +81,25 @@ namespace Test.Classes
             Assert.Equal("/signout-entra", settings.SignedOutCallbackPath);
             Assert.Equal("onpremisessamaccountname", settings.LoginIdClaim);
             Assert.True(settings.StripEmailDomain);
+
+            // No relay target by default, so a developer machine with no VIPER 1 running simply
+            // skips the forward instead of stalling every sign-out on a connection refusal.
+            Assert.Null(settings.FrontChannelLogoutForwardTo);
+            Assert.Equal(5, settings.FrontChannelLogoutTimeoutSeconds);
+        }
+
+        // The route attribute on EntraLogoutController and the CSP framing exemption both key off
+        // this const, and it is registered as the app registration's front-channel logout URL.
+        [Fact]
+        public void FrontChannelLogoutPath_MatchesTheRegisteredUrl()
+        {
+            Assert.Equal("/frontchannel-logout", EntraIdSettings.FrontChannelLogoutPath);
+        }
+
+        [Fact]
+        public void SectionName_MatchesTheAppsettingsKey()
+        {
+            Assert.Equal("EntraId", EntraIdSettings.SectionName);
         }
     }
 }
