@@ -86,6 +86,11 @@ namespace Viper.test.Classes
             // skips the forward instead of stalling every sign-out on a connection refusal.
             Assert.Null(settings.FrontChannelLogoutForwardTo);
             Assert.Equal(5, settings.FrontChannelLogoutTimeoutSeconds);
+
+            // Matches VIPER 1's AuthSettings.cfc default. Blank it and campus users are sent
+            // through Microsoft's home-realm step, typing an email address before the campus
+            // sign-in page.
+            Assert.Equal("ucdavis.edu", settings.DomainHint);
         }
 
         // The route attribute on EntraLogoutController and the CSP framing exemption both key off

@@ -87,6 +87,18 @@ namespace Web.Authorization
         /// </summary>
         public bool StripEmailDomain { get; set; } = true;
 
+        /// <summary>
+        /// Sent as "domain_hint" on every sign-in so campus users skip Microsoft's home-realm
+        /// step (typing an email address before being handed to the campus identity provider).
+        /// Matches VIPER 1's <c>AuthSettings.cfc</c> default.
+        /// </summary>
+        /// <remarks>
+        /// It also limits the account picker to this domain, so an admin account in another
+        /// verified domain such as ad3.ucdavis.edu is not offered. Set to "" to get the full
+        /// picker back.
+        /// </remarks>
+        public string DomainHint { get; set; } = "ucdavis.edu";
+
         /// <summary>Authority URL for the tenant, derived from <see cref="TenantId"/>.</summary>
         public string Authority => $"https://login.microsoftonline.com/{TenantId}/v2.0";
 
