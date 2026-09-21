@@ -7,13 +7,13 @@ using NSubstitute;
 using Viper.Controllers;
 using Web.Authorization;
 
-namespace Test.Controllers
+namespace Viper.test.Controllers
 {
     // Entra calls this endpoint from a hidden iframe and ignores whatever it says, so the only
     // behavior worth testing is the side effects: which sessions get revoked, and what VIPER 1 is
     // told. Getting the guards wrong in the permissive direction turns an anonymous GET into a way
     // to sign other people out.
-    public class EntraLogoutControllerTests
+    public sealed class EntraLogoutControllerTests : IDisposable
     {
         private const string Tenant = "tenant-id";
         private const string ExpectedIssuer = "https://login.microsoftonline.com/tenant-id/v2.0";
@@ -25,24 +25,52 @@ namespace Test.Controllers
             public Exception? ThrowOnSend { get; set; }
             public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
 
+            // The controller disposes what it is handed (`using var response`), but that is
+            // invisible across Task.FromResult, so the response is held here to make the
+            // ownership explicit rather than look like a leak.
+            private HttpResponseMessage? _issued;
+
             protected override Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 Requests.Add(request.RequestUri!);
 
-                return ThrowOnSend != null
-                    ? Task.FromException<HttpResponseMessage>(ThrowOnSend)
-                    : Task.FromResult(new HttpResponseMessage(StatusCode));
+                if (ThrowOnSend != null)
+                {
+                    return Task.FromException<HttpResponseMessage>(ThrowOnSend);
+                }
+
+                _issued = new HttpResponseMessage(StatusCode);
+                return Task.FromResult(_issued);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    _issued?.Dispose();
+                }
+
+                base.Dispose(disposing);
             }
         }
 
-        private static (EntraLogoutController Controller, EntraSessionRevocationStore Store, RecordingHandler Handler)
+        // xUnit builds one instance per test and each test calls Build once, so a single
+        // handler per instance is all there is to clean up.
+        private RecordingHandler? _handler;
+
+        public void Dispose()
+        {
+            _handler?.Dispose();
+        }
+
+        private (EntraLogoutController Controller, EntraSessionRevocationStore Store, RecordingHandler Handler)
             Build(string? forwardTo = ViperOne)
         {
             var store = new EntraSessionRevocationStore(
                 new MemoryCache(new MemoryCacheOptions()), TimeSpan.FromHours(12));
 
-            var handler = new RecordingHandler();
+            var handler = _handler = new RecordingHandler();
             var factory = Substitute.For<IHttpClientFactory>();
             factory.CreateClient(Arg.Any<string>())
                 .Returns(_ => new HttpClient(handler, disposeHandler: false));

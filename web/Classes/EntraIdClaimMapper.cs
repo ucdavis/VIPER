@@ -2,6 +2,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.IdentityModel.JsonWebTokens;
 
+// Joins the existing Web.Authorization cluster in this folder (CasSettings,
+// ClaimsTransformer, PermissionAttribute) rather than the folder-derived Viper.Classes.
+// ReSharper disable once CheckNamespace
 namespace Web.Authorization
 {
     /// <summary>
@@ -133,6 +136,9 @@ namespace Web.Authorization
         /// Builds the cookie principal for an Entra login, matching the claim shape
         /// <c>AuthenticateCasLogin</c> produces.
         /// </summary>
+        /// <param name="loginId">Campus kerberos login id the principal is built for.</param>
+        /// <param name="hasMultifactor">Whether the token showed a multifactor sign-in.</param>
+        /// <param name="authenticatedAt">When the sign-in happened, in local time.</param>
         /// <param name="sessionId">
         /// Entra's <c>sid</c>, when the token carried one. Optional: a token without it still signs
         /// in normally, it just cannot be ended by a front-channel logout later.

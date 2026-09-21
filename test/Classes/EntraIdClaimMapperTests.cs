@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Web.Authorization;
 
-namespace Test.Classes
+namespace Viper.test.Classes
 {
     public class EntraIdClaimMapperTests
     {

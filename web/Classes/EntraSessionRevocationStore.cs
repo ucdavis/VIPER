@@ -1,5 +1,8 @@
 using Microsoft.Extensions.Caching.Memory;
 
+// Joins the existing Web.Authorization cluster in this folder (CasSettings,
+// ClaimsTransformer, PermissionAttribute) rather than the folder-derived Viper.Classes.
+// ReSharper disable once CheckNamespace
 namespace Web.Authorization
 {
     /// <summary>
@@ -22,6 +25,7 @@ namespace Web.Authorization
         private readonly IMemoryCache _cache;
         private readonly TimeSpan _retention;
 
+        /// <summary>Creates a store over the app-wide memory cache.</summary>
         /// <param name="cache">The app-wide memory cache.</param>
         /// <param name="retention">
         /// How long a revocation is remembered. Must be at least the sign-in cookie lifetime:

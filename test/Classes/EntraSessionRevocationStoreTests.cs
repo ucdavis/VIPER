@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Web.Authorization;
 
-namespace Test.Classes
+namespace Viper.test.Classes
 {
     // This store is the only thing standing between "signed out of Entra" and "still signed in to
     // VIPER", because the sign-in cookie cannot otherwise be invalidated before it expires. A false

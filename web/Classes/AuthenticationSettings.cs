@@ -1,3 +1,6 @@
+// Joins the existing Web.Authorization cluster in this folder (CasSettings,
+// ClaimsTransformer, PermissionAttribute) rather than the folder-derived Viper.Classes.
+// ReSharper disable once CheckNamespace
 namespace Web.Authorization
 {
     /// <summary>

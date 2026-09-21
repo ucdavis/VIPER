@@ -1,6 +1,6 @@
 using Web.Authorization;
 
-namespace Test.Classes
+namespace Viper.test.Classes
 {
     // IsConfigured decides at startup whether the OIDC handler is registered at all. When it is
     // wrong in the permissive direction the app offers a sign-in button that dead-ends, which is
