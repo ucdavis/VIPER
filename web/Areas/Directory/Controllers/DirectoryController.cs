@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Viper.Areas.CMS.Services;
 using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes;
@@ -19,12 +20,14 @@ namespace Viper.Areas.Directory.Controllers
     {
         public AAUDContext _aaud { get; private set; }
         private readonly RAPSContext? _rapsContext;
+        private readonly ICmsUserPhotoService _cmsUserPhotoService;
         public IUserHelper UserHelper { get; private set; }
 
-        public DirectoryController(AAUDContext aaud, RAPSContext rapsContext)
+        public DirectoryController(AAUDContext aaud, RAPSContext rapsContext, ICmsUserPhotoService cmsUserPhotoService)
         {
             _aaud = aaud;
             _rapsContext = rapsContext;
+            _cmsUserPhotoService = cmsUserPhotoService;
             UserHelper = new UserHelper();
         }
 
@@ -98,6 +101,7 @@ namespace Viper.Areas.Directory.Controllers
                 result.LookupEmailHost(_aaud);
                 results.Add(result);
                 await AddVmacsContactInfoAsync(result);
+                await PopulateAltPhotoFlagAsync(result);
             }
             return results;
         }
@@ -127,6 +131,7 @@ namespace Viper.Areas.Directory.Controllers
                 result.LookupEmailHost(_aaud);
                 results.Add(result);
                 await AddVmacsContactInfoAsync(result);
+                await PopulateAltPhotoFlagAsync(result);
             }
             return results;
         }
@@ -189,6 +194,20 @@ namespace Viper.Areas.Directory.Controllers
             }
             var vm = await VMACSService.Search(result.LoginId);
             PopulateVmacsDetails(result, vm);
+        }
+
+        /// <summary>
+        /// Sets HasAltPhoto so the card view can pick between the alternate and default photo
+        /// up front, instead of the browser always requesting the alternate photo and falling
+        /// back to a generic placeholder icon when the person doesn't have one. A local
+        /// file-existence check (see CmsUserPhotoService), not a network call.
+        /// </summary>
+        private async Task PopulateAltPhotoFlagAsync(IndividualSearchResult result)
+        {
+            if (!string.IsNullOrEmpty(result.IamId))
+            {
+                result.HasAltPhoto = await _cmsUserPhotoService.HasAlternatePhotoAsync(result.IamId);
+            }
         }
     }
 }
