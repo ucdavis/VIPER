@@ -47,6 +47,7 @@ namespace Viper.Areas.Directory.Models
         public string? UserName { get; set; }
         public bool? SVM { get; set; }
         public string? originalObject { get; set; }
+        public bool HasAltPhoto { get; set; }
 
         public IndividualSearchResult() { }
 
