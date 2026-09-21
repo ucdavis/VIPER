@@ -730,16 +730,57 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                     return Task.CompletedTask;
                 }
 
-                // The one claim from the token worth keeping besides identity: it is what a later
-                // front-channel logout names, and this is the last point the raw token is in hand.
+                // The two claims from the token worth keeping besides identity, and this is the
+                // last point the raw token is in hand: sid is what a later front-channel logout
+                // names, login_hint is what sign-out sends back as logout_hint.
                 var sessionId = context.Principal?
                     .FindFirst(EntraIdClaimMapper.SessionIdClaimType)?.Value;
+                var loginHint = context.Principal?
+                    .FindFirst(EntraIdClaimMapper.LoginHintClaimType)?.Value;
 
                 context.Principal = EntraIdClaimMapper.BuildPrincipal(
                     loginId,
                     EntraIdClaimMapper.HasMultifactorAuthentication(context.Principal),
                     DateTime.Now,
-                    sessionId);
+                    sessionId,
+                    loginHint);
+
+                return Task.CompletedTask;
+            },
+
+            OnRedirectToIdentityProvider = context =>
+            {
+                // Skips Microsoft's home-realm step, where the user would otherwise type an email
+                // address before being handed to the campus identity provider. There is no
+                // OpenIdConnectOptions.DomainHint, so it has to be set on the outgoing message.
+                //
+                // Left off when a picker was asked for: domain_hint sends the browser on to
+                // adfs.ucdavis.edu before the picker could render, and it hides accounts in other
+                // verified domains such as ad3.ucdavis.edu. The handler has already copied Prompt
+                // off the challenge properties by the time this runs, so it is the signal to read.
+                var pickingAccount = string.Equals(
+                    context.ProtocolMessage.Prompt, "select_account", StringComparison.Ordinal);
+
+                if (!string.IsNullOrWhiteSpace(settings.DomainHint) && !pickingAccount)
+                {
+                    context.ProtocolMessage.DomainHint = settings.DomainHint;
+                }
+
+                return Task.CompletedTask;
+            },
+
+            OnRedirectToIdentityProviderForSignOut = context =>
+            {
+                // End the account this cookie belongs to instead of asking which, when more than
+                // one is signed in. SaveTokens is off, so id_token_hint is never sent and this is
+                // the only handle sign-out has. Entra ignores a UPN here: only the login_hint
+                // claim's value works.
+                if (context.Properties.Items.TryGetValue(
+                        EntraIdClaimMapper.LogoutHintPropertyKey, out var logoutHint)
+                    && !string.IsNullOrWhiteSpace(logoutHint))
+                {
+                    context.ProtocolMessage.SetParameter("logout_hint", logoutHint);
+                }
 
                 return Task.CompletedTask;
             },

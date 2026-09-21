@@ -55,6 +55,24 @@ namespace Web.Authorization
         public const string SessionIdClaimType = JwtRegisteredClaimNames.Sid;
 
         /// <summary>
+        /// Entra's opaque per-account sign-in hint, carried through to the cookie so sign-out can
+        /// name the account being ended.
+        /// </summary>
+        /// <remarks>
+        /// Another registration-dependent claim: optionalClaims.idToken must contain
+        /// { "name": "login_hint" }. Entra honors "logout_hint" only when it carries this value;
+        /// a UPN or preferred_username is ignored. Without it a user signed in to more than one
+        /// account is asked which to sign out of, which is the behavior this replaces.
+        /// </remarks>
+        public const string LoginHintClaimType = "login_hint";
+
+        /// <summary>
+        /// <c>AuthenticationProperties.Items</c> key carrying the hint from the Logout action to
+        /// the sign-out redirect event, which is the only place the outgoing message is reachable.
+        /// </summary>
+        public const string LogoutHintPropertyKey = "viper:logout_hint";
+
+        /// <summary>
         /// Resolves the campus kerberos login id from an Entra principal, or null when the
         /// configured claim is absent or blank. There is deliberately no fallback to
         /// preferred_username, upn or email: at UC Davis those carry the campus email alias, and
@@ -143,11 +161,16 @@ namespace Web.Authorization
         /// Entra's <c>sid</c>, when the token carried one. Optional: a token without it still signs
         /// in normally, it just cannot be ended by a front-channel logout later.
         /// </param>
+        /// <param name="loginHint">
+        /// Entra's <c>login_hint</c>, when the token carried one. Optional in the same way: without
+        /// it sign-out simply omits <c>logout_hint</c> and behaves as it did before.
+        /// </param>
         public static ClaimsPrincipal BuildPrincipal(
             string loginId,
             bool hasMultifactor,
             DateTime authenticatedAt,
-            string? sessionId = null)
+            string? sessionId = null,
+            string? loginHint = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(loginId);
 
@@ -170,6 +193,11 @@ namespace Web.Authorization
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
                 claims.Add(new Claim(SessionIdClaimType, sessionId));
+            }
+
+            if (!string.IsNullOrWhiteSpace(loginHint))
+            {
+                claims.Add(new Claim(LoginHintClaimType, loginHint));
             }
 
             return new ClaimsPrincipal(
