@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Classes;
@@ -115,6 +116,45 @@ public sealed class HomeControllerLoginProviderTests
         Assert.Equal("/Effort", result.Properties?.RedirectUri);
     }
 
+    // With two Entra accounts signed in, the tenant session is reused silently and the second is
+    // unreachable. The picker is how a user switches, so a deliberate switch has to ask for it.
+    [Fact]
+    public void EntraLogin_SelectAccount_AsksEntraForTheAccountPicker()
+    {
+        var controller = CreateController(LoginProviders.EntraId);
+
+        var result = Assert.IsType<ChallengeResult>(controller.EntraLogin("/Effort", selectAccount: true));
+
+        Assert.Equal(
+            "select_account",
+            result.Properties?.GetParameter<string>(OpenIdConnectParameterNames.Prompt));
+    }
+
+    // The passive redirect out of a protected page must stay silent, or every SSO hop grows a
+    // picker click.
+    [Fact]
+    public void EntraLogin_Default_SendsNoPrompt()
+    {
+        var controller = CreateController(LoginProviders.EntraId);
+
+        var result = Assert.IsType<ChallengeResult>(controller.EntraLogin("/Effort"));
+
+        Assert.Null(result.Properties?.GetParameter<string>(OpenIdConnectParameterNames.Prompt));
+    }
+
+    // Forcing the picker here would charge the single-account majority a click on every sign-in,
+    // when Entra already raises its own picker for the ambiguous case.
+    [Fact]
+    public void Login_NeverRequestsTheAccountPicker()
+    {
+        var controller = CreateController(LoginProviders.EntraId);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login());
+
+        Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
+        Assert.False(result.RouteValues?.ContainsKey("selectAccount"));
+    }
+
     // The OIDC handler follows RedirectUri wherever it points after sign-in.
     [Theory]
     [InlineData("https://evil.example.com/")]
@@ -160,19 +200,29 @@ public sealed class HomeControllerLoginProviderTests
 
     // Logout is the only action that reaches the authentication stack, so it needs an
     // IAuthenticationService in the container that the other tests can do without.
-    private static HomeController ArrangeForLogout(LoginProviders enabled, string authenticationMethod)
+    private static HomeController ArrangeForLogout(
+        LoginProviders enabled,
+        string authenticationMethod,
+        string? loginHint = null)
     {
         var controller = CreateController(enabled, authenticated: true);
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Name, "tester"),
+            new(ClaimTypes.AuthenticationMethod, authenticationMethod)
+        };
+
+        if (loginHint != null)
+        {
+            claims.Add(new Claim(EntraIdClaimMapper.LoginHintClaimType, loginHint));
+        }
 
         var services = new ServiceCollection();
         services.AddSingleton(Substitute.For<IAuthenticationService>());
         controller.HttpContext.RequestServices = services.BuildServiceProvider();
-        controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [
-                new Claim(ClaimTypes.Name, "tester"),
-                new Claim(ClaimTypes.AuthenticationMethod, authenticationMethod)
-            ],
-            authenticationType: "TestAuth"));
+        controller.HttpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity(claims, authenticationType: "TestAuth"));
 
         return controller;
     }
@@ -196,6 +246,35 @@ public sealed class HomeControllerLoginProviderTests
         var result = Assert.IsType<SignOutResult>(await controller.Logout());
 
         Assert.Equal(EntraIdClaimMapper.AuthenticationScheme, Assert.Single(result.AuthenticationSchemes));
+    }
+
+    // SaveTokens is off, so no id_token_hint is ever sent and this is the only handle sign-out
+    // has on which account to end. Without it Entra asks the user to pick.
+    [Fact]
+    public async Task Logout_EntraUser_WithLoginHint_CarriesItToTheSignOutRequest()
+    {
+        var controller = ArrangeForLogout(
+            LoginProviders.EntraId, EntraIdClaimMapper.AuthenticationMethod, loginHint: "hint-a");
+
+        var result = Assert.IsType<SignOutResult>(await controller.Logout());
+
+        Assert.Equal("hint-a", result.Properties?.Items[EntraIdClaimMapper.LogoutHintPropertyKey]);
+    }
+
+    // Sessions predating the optional claim have no hint, and a blank logout_hint is worse than
+    // none: sign-out must degrade to exactly the URL it sent before.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task Logout_EntraUser_WithoutLoginHint_OmitsIt(string? loginHint)
+    {
+        var controller = ArrangeForLogout(
+            LoginProviders.EntraId, EntraIdClaimMapper.AuthenticationMethod, loginHint);
+
+        var result = Assert.IsType<SignOutResult>(await controller.Logout());
+
+        Assert.False(
+            result.Properties?.Items.ContainsKey(EntraIdClaimMapper.LogoutHintPropertyKey));
     }
 
     // An Entra cookie outlives the provider being switched off (12h expiry), e.g. reverting a
