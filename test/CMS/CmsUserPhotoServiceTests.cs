@@ -222,4 +222,49 @@ public sealed class CmsUserPhotoServiceTests : IDisposable
         Assert.Equal(0, photo.LastModified.Millisecond);
         Assert.True(Math.Abs((photo.LastModified.UtcDateTime - fileWriteTime).TotalSeconds) < 1.5);
     }
+
+    [Fact]
+    public async Task HasAlternatePhoto_ExistingFile_ReturnsTrue()
+    {
+        await File.WriteAllBytesAsync(Path.Join(_profilePhotoRoot, "1000999.jpg"), AltPhotoBytes,
+            TestContext.Current.CancellationToken);
+
+        var hasPhoto = await _service.HasAlternatePhotoAsync("1000999",
+            TestContext.Current.CancellationToken);
+
+        Assert.True(hasPhoto);
+    }
+
+    [Fact]
+    public async Task HasAlternatePhoto_MissingFile_ReturnsFalse()
+    {
+        var hasPhoto = await _service.HasAlternatePhotoAsync("no-such-iam",
+            TestContext.Current.CancellationToken);
+
+        Assert.False(hasPhoto);
+    }
+
+    [Fact]
+    public async Task HasAlternatePhoto_DoesNotReadFileBytes()
+    {
+        // Distinguishes this from GetAlternatePhotoAsync: it should answer from a plain
+        // existence check without going through the Students photo pipeline at all.
+        await File.WriteAllBytesAsync(Path.Join(_profilePhotoRoot, "1000999.jpg"), AltPhotoBytes,
+            TestContext.Current.CancellationToken);
+
+        await _service.HasAlternatePhotoAsync("1000999", TestContext.Current.CancellationToken);
+
+        await _photoService.DidNotReceive().GetStudentPhotoAsync(Arg.Any<string>());
+    }
+
+    [Theory]
+    [InlineData("../1000999")]
+    [InlineData("..\\secrets")]
+    [InlineData("a/b")]
+    public async Task HasAlternatePhoto_TraversalShapedIamId_ReturnsFalse(string iamId)
+    {
+        var hasPhoto = await _service.HasAlternatePhotoAsync(iamId, TestContext.Current.CancellationToken);
+
+        Assert.False(hasPhoto);
+    }
 }

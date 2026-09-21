@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Net;
 using System.Text;
+using Viper.Areas.CMS.Services;
 using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.SQLContext;
@@ -118,7 +119,7 @@ namespace Viper.test.Services
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("non-existent-iam", "non-existent-mothra", AllPermissions);
@@ -148,7 +149,7 @@ namespace Viper.test.Services
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-123", null, AllPermissions);
@@ -159,6 +160,76 @@ namespace Viper.test.Services
             Assert.Equal("mothra-123", result.MothraId);
             Assert.Equal("Test User", result.DisplayFullName);
             Assert.True(result.CurrentAffiliate);
+        }
+
+        [Fact]
+        public async Task GetUserInfoAsync_CanViewDirectoryDetail_SetsHasAltPhotoFromPhotoService()
+        {
+            // Arrange
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-altphoto", "mothra-altphoto"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            var photoService = Substitute.For<ICmsUserPhotoService>();
+            photoService.HasAlternatePhotoAsync("iam-altphoto", Arg.Any<CancellationToken>()).Returns(true);
+
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), photoService);
+
+            // Act
+            var result = await service.GetUserInfoAsync("iam-altphoto", null, AllPermissions);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.True(result.HasAltPhoto);
+        }
+
+        [Fact]
+        public async Task GetUserInfoAsync_CannotViewDirectoryDetail_SkipsAltPhotoCheck()
+        {
+            // Arrange
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-nodetail", "mothra-nodetail"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            var photoService = Substitute.For<ICmsUserPhotoService>();
+            photoService.HasAlternatePhotoAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), photoService);
+            var permissions = new UserInfoViewPermissions { CanViewDirectoryDetail = false };
+
+            // Act
+            var result = await service.GetUserInfoAsync("iam-nodetail", null, permissions);
+
+            // Assert - permissions gate the fetch itself, so a requester without directory-detail
+            // access shouldn't trigger a photo-service call at all (matching the pattern the other
+            // Populate*Async calls already follow).
+            Assert.NotNull(result);
+            Assert.False(result.HasAltPhoto);
+            await photoService.DidNotReceive().HasAlternatePhotoAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
 
         [Fact]
@@ -215,7 +286,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-emp", null, AllPermissions);
@@ -286,7 +357,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-cards", null, AllPermissions);
@@ -349,7 +420,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(keysOptions);
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-keys", null, AllPermissions);
@@ -419,7 +490,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-loans", null, AllPermissions);
@@ -506,7 +577,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
             var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-raps", null, AllPermissions);
@@ -605,7 +676,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act
             var result = await service.GetUserInfoAsync("iam-caller", null, AllPermissions);
@@ -684,7 +755,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // Act & Assert with temporary HttpHelper configuration
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
@@ -749,7 +820,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             HttpHelper.Configure(_memoryCache, _configuration, mockEnv, null, null, null, null);
@@ -811,7 +882,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             HttpHelper.Configure(_memoryCache, _configuration, mockEnv, null, null, null, null);
@@ -867,7 +938,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, configWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, configWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             HttpHelper.Configure(_memoryCache, configWithoutInstinct, mockEnv, null, null, null, null);
@@ -918,7 +989,7 @@ namespace Viper.test.Services
             using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
 
-            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, prodConfigWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, prodConfigWithoutInstinct, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             var mockEnv = Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             HttpHelper.Configure(_memoryCache, prodConfigWithoutInstinct, mockEnv, null, null, null, null);

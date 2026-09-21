@@ -27,6 +27,15 @@ namespace Viper.Areas.CMS.Services
         /// </summary>
         Task<CmsUserPhotoResult?> GetAlternatePhotoAsync(string? mailId, string? loginId, string? iamId,
             string? mothraId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Whether a person has an alternate profile photo, without reading its bytes. For a
+        /// caller that already has IamId in hand (e.g. UserInfo, which resolves it before
+        /// rendering the page) this is cheaper than GetAlternatePhotoAsync: it skips both the
+        /// AAUD id-resolution lookup (unnecessary when IamId is already known) and the file
+        /// read, doing only the existence check.
+        /// </summary>
+        Task<bool> HasAlternatePhotoAsync(string iamId, CancellationToken ct = default);
     }
 
     /// <summary>
@@ -130,7 +139,12 @@ namespace Viper.Areas.CMS.Services
             return user == null ? (mailId, iamId) : (user.MailId ?? mailId, user.IamId ?? iamId);
         }
 
-        private async Task<CmsUserPhotoResult?> ReadAltPhotoAsync(string iamId, CancellationToken ct)
+        /// <summary>
+        /// Resolves iamId to the alt photo's on-disk path, applying the same safe-id and
+        /// path-containment checks GetAlternatePhotoAsync's file read relies on. Returns null
+        /// for a rejected/unsafe iamId; does not check whether the file actually exists.
+        /// </summary>
+        private string? GetSafeAltPhotoPath(string iamId)
         {
             if (!SafeIdRegex().IsMatch(iamId))
             {
@@ -140,7 +154,19 @@ namespace Viper.Areas.CMS.Services
 
             var photoPath = Path.GetFullPath(Path.Join(_profilePhotoPath, Path.GetFileName(iamId) + ".jpg"));
             var root = Path.GetFullPath(_profilePhotoPath + Path.DirectorySeparatorChar);
-            if (!photoPath.StartsWith(root, CmsFilePathSafety.PathComparison) || !File.Exists(photoPath))
+            return photoPath.StartsWith(root, CmsFilePathSafety.PathComparison) ? photoPath : null;
+        }
+
+        public Task<bool> HasAlternatePhotoAsync(string iamId, CancellationToken ct = default)
+        {
+            var photoPath = GetSafeAltPhotoPath(iamId);
+            return Task.FromResult(photoPath != null && File.Exists(photoPath));
+        }
+
+        private async Task<CmsUserPhotoResult?> ReadAltPhotoAsync(string iamId, CancellationToken ct)
+        {
+            var photoPath = GetSafeAltPhotoPath(iamId);
+            if (photoPath == null || !File.Exists(photoPath))
             {
                 return null;
             }

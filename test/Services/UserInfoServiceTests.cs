@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Net;
 using System.Text;
+using Viper.Areas.CMS.Services;
 using Viper.Areas.Directory.Models;
 using Viper.Areas.Directory.Services;
 using Viper.Classes.SQLContext;
@@ -172,7 +173,7 @@ namespace Viper.test.Services
             using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
             using var sis = new SISContext(CreateInMemoryOptions<SISContext>());
 
-            var userInfoService = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, sis, config, httpClientFactory, memoryCache, Substitute.For<ILogger<UserInfoService>>());
+            var userInfoService = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, sis, config, httpClientFactory, memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
 
             // 4. Act
             // Temporary HttpHelper configuration inside the test context
