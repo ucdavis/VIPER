@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Viper.Areas.RAPS.Services;
+using Viper.Areas.CMS.Services;
 using System.Data.Common;
 
 namespace Viper.Areas.Directory.Services
@@ -26,6 +27,7 @@ namespace Viper.Areas.Directory.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMemoryCache _memoryCache;
         private readonly ILogger<UserInfoService> _logger;
+        private readonly ICmsUserPhotoService _cmsUserPhotoService;
 
         public UserInfoService(
             AAUDContext aaudContext,
@@ -39,7 +41,8 @@ namespace Viper.Areas.Directory.Services
             IConfiguration configuration,
             IHttpClientFactory httpClientFactory,
             IMemoryCache memoryCache,
-            ILogger<UserInfoService> logger)
+            ILogger<UserInfoService> logger,
+            ICmsUserPhotoService cmsUserPhotoService)
         {
             _aaudContext = aaudContext;
             _rapsContext = rapsContext;
@@ -53,6 +56,7 @@ namespace Viper.Areas.Directory.Services
             _httpClientFactory = httpClientFactory;
             _memoryCache = memoryCache;
             _logger = logger;
+            _cmsUserPhotoService = cmsUserPhotoService;
         }
 
         public UserInfoService(
@@ -66,7 +70,8 @@ namespace Viper.Areas.Directory.Services
             IConfiguration configuration,
             IHttpClientFactory httpClientFactory,
             IMemoryCache memoryCache,
-            ILogger<UserInfoService> logger)
+            ILogger<UserInfoService> logger,
+            ICmsUserPhotoService cmsUserPhotoService)
             : this(
                   aaudContext,
                   rapsContext,
@@ -79,7 +84,8 @@ namespace Viper.Areas.Directory.Services
                   configuration,
                   httpClientFactory,
                   memoryCache,
-                  logger)
+                  logger,
+                  cmsUserPhotoService)
         {
         }
 
@@ -128,6 +134,13 @@ namespace Viper.Areas.Directory.Services
                 await PopulateDirectoryInfoAsync(result);
                 await PopulateEmployeeInfoAsync(result);
                 await PopulateStudentInfoAsync(result);
+
+                // Checked here (a local file-existence check, not a network call) so the view
+                // can decide up front whether to draw the Alternative Photo section at all,
+                // instead of always rendering it and having client-side JS hide it after a
+                // failed fetch.
+                result.HasAltPhoto = !string.IsNullOrEmpty(result.IamId)
+                    && await _cmsUserPhotoService.HasAlternatePhotoAsync(result.IamId);
             }
             if (permissions.CanViewIAM)
             {
