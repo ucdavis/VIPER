@@ -318,6 +318,37 @@ namespace Viper.test.Classes
             Assert.Null(principal.FindFirst(EntraIdClaimMapper.SessionIdClaimType));
         }
 
+        // Same contract as sid: the literal claim name the app registration's optionalClaims
+        // entry uses, and the only value Entra accepts back as logout_hint.
+        [Fact]
+        public void LoginHintClaimType_IsTheWireClaimName()
+        {
+            Assert.Equal("login_hint", EntraIdClaimMapper.LoginHintClaimType);
+        }
+
+        // Without this on the cookie, sign-out cannot name an account and a user with two signed
+        // in is asked which one to end.
+        [Fact]
+        public void BuildPrincipal_LoginHintSupplied_IsCarriedIntoTheCookie()
+        {
+            var principal = EntraIdClaimMapper.BuildPrincipal(
+                "jdoe", hasMultifactor: false, authenticatedAt: DateTime.Now, loginHint: "hint-a");
+
+            Assert.Equal("hint-a", principal.FindFirst(EntraIdClaimMapper.LoginHintClaimType)?.Value);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void BuildPrincipal_NoLoginHint_AddsNoClaim(string? loginHint)
+        {
+            var principal = EntraIdClaimMapper.BuildPrincipal(
+                "jdoe", hasMultifactor: false, authenticatedAt: DateTime.Now, loginHint: loginHint);
+
+            Assert.Null(principal.FindFirst(EntraIdClaimMapper.LoginHintClaimType));
+        }
+
         #endregion
     }
 }
