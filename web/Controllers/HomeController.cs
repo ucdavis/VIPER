@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Viper.Areas.CMS.Data;
 using Viper.Classes;
 using Viper.Classes.SQLContext;
@@ -406,6 +407,9 @@ namespace Viper.Controllers
             if (forcedProvider == LoginProviders.EntraId
                 || (forcedProvider == null && !_authSettings.CasEnabled))
             {
+                // No picker from here, however the user arrived. Entra signs a single signed-in
+                // account straight through and raises its own picker only when several match,
+                // which is what we want; the splash's switch-account link is the way to override.
                 return RedirectToAction(nameof(EntraLogin), new { ReturnUrl });
             }
 
@@ -425,7 +429,11 @@ namespace Viper.Controllers
         [Route("/[action]")]
         [AllowAnonymous]
         [SearchExclude]
-        public IActionResult EntraLogin([FromQuery] string? ReturnUrl = null)
+#pragma warning disable S6967 // Action only reads ReturnUrl and selectAccount, no model binding required
+        public IActionResult EntraLogin(
+            [FromQuery] string? ReturnUrl = null,
+            [FromQuery] bool selectAccount = false)
+#pragma warning restore S6967
         {
             if (!_authSettings.EntraIdEnabled)
             {
@@ -440,12 +448,22 @@ namespace Viper.Controllers
             // No /CasLogin counterpart is needed: the OIDC handler owns its callback path, carries
             // RedirectUri through the OAuth state, and redirects there itself once the shared
             // cookie is issued.
-            return Challenge(
-                new AuthenticationProperties
-                {
-                    RedirectUri = string.IsNullOrEmpty(returnUrl) ? Url.Content("~/") : returnUrl
-                },
-                EntraIdClaimMapper.AuthenticationScheme);
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = string.IsNullOrEmpty(returnUrl) ? Url.Content("~/") : returnUrl
+            };
+
+            if (selectAccount)
+            {
+                // Set only by the "use a different account" link. Without it a user whose other
+                // account is the last one Entra still holds gets signed back into it silently,
+                // with nothing offering a choice. Forging the flag costs an attacker an account
+                // picker, so it needs no protection. The handler reads this parameter itself, so
+                // no redirect event is involved; suppressing domain_hint for it does need one.
+                properties.SetParameter(OpenIdConnectParameterNames.Prompt, "select_account");
+            }
+
+            return Challenge(properties, EntraIdClaimMapper.AuthenticationScheme);
         }
 
         // Resolves where to send the user after a successful sign-in, shared by every provider so
@@ -638,6 +656,7 @@ namespace Viper.Controllers
                 User.FindFirst(ClaimTypes.AuthenticationMethod)?.Value,
                 EntraIdClaimMapper.AuthenticationMethod,
                 StringComparison.Ordinal);
+            var logoutHint = User.FindFirst(EntraIdClaimMapper.LoginHintClaimType)?.Value;
 
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
@@ -647,9 +666,16 @@ namespace Viper.Controllers
                 {
                     // Federated sign-out. Without it the Entra session outlives the VIPER cookie
                     // and the next sign-in silently reuses it, which looks like logout did nothing.
-                    return SignOut(
-                        new AuthenticationProperties { RedirectUri = Url.Content("~/") },
-                        EntraIdClaimMapper.AuthenticationScheme);
+                    var properties = new AuthenticationProperties { RedirectUri = Url.Content("~/") };
+
+                    if (!string.IsNullOrWhiteSpace(logoutHint))
+                    {
+                        // Names the account being ended, so a user with two signed in is not asked
+                        // which. Sessions predating the claim just omit it and behave as before.
+                        properties.Items[EntraIdClaimMapper.LogoutHintPropertyKey] = logoutHint;
+                    }
+
+                    return SignOut(properties, EntraIdClaimMapper.AuthenticationScheme);
                 }
 
                 // Entra was switched off while this cookie was still valid, so its handler is no
