@@ -52,7 +52,6 @@ function makeUnit(persons: PhoneListUnitPerson[]): PhoneListUnitAPIResponse {
 describe("getPhoneListData()", () => {
     it("omits the direct phone column for non-internal, view-only callers", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(phoneListUnitService.getUnitsByList).mockResolvedValue([makeUnit([makeUnitPerson()])])
 
         const units = await getPhoneListData("VMDO", false, false)
@@ -66,7 +65,6 @@ describe("getPhoneListData()", () => {
 
     it("shows the direct phone column for internal viewers even outside edit mode", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(phoneListUnitService.getUnitsByList).mockResolvedValue([makeUnit([makeUnitPerson()])])
 
         const units = await getPhoneListData("VMDO", false, true)
@@ -78,7 +76,6 @@ describe("getPhoneListData()", () => {
 
     it("shows maintain-only columns in edit mode regardless of internal status", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(phoneListUnitService.getUnitsByList).mockResolvedValue([makeUnit([makeUnitPerson()])])
 
         const units = await getPhoneListData("VMDO", true, false)
@@ -92,7 +89,6 @@ describe("getPhoneListData()", () => {
 
     it("drops rows for former employees whose person record is gone, and falls back to a sparse name otherwise", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(phoneListUnitService.getUnitsByList).mockResolvedValue([
             makeUnit([
                 makeUnitPerson({ person: null }),
@@ -127,7 +123,6 @@ describe("getPhoneListData()", () => {
      */
     it("formats listFirst as text, so a view without cell slots does not print a raw boolean", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(phoneListUnitService.getUnitsByList).mockResolvedValue([makeUnit([makeUnitPerson()])])
 
         const units = await getPhoneListData("VMDO", true, false)

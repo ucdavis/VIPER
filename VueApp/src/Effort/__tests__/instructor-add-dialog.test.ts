@@ -21,7 +21,6 @@ vi.mock("../services/instructor-service", () => ({
 describe("InstructorAddDialog - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Create Instructor Error States", () => {
@@ -124,7 +123,6 @@ describe("InstructorAddDialog - Error Handling", () => {
 describe("InstructorAddDialog - State Management", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Loading State", () => {

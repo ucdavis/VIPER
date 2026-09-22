@@ -14,7 +14,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 describe("svmFrequentNumberService()", () => {
     it("returns the frequent numbers on success", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const numbers = [{ numberId: 1, label: "Front Desk", phone: "530-555-1000", sortOrder: null }]
         mockGet.mockResolvedValue({ success: true, result: numbers })
 
@@ -25,7 +24,6 @@ describe("svmFrequentNumberService()", () => {
 
     it("returns null for a failed request, which an empty array could not distinguish", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await svmFrequentNumberService.getFrequentNumbers()
@@ -35,7 +33,6 @@ describe("svmFrequentNumberService()", () => {
 
     it("returns an empty array when there are genuinely no frequent numbers", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         const result = await svmFrequentNumberService.getFrequentNumbers()
@@ -45,7 +42,6 @@ describe("svmFrequentNumberService()", () => {
 
     it("posts new frequent number data to the base endpoint", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPost.mockResolvedValue({ success: true, result: true })
         const formData = { label: "Front Desk", phone: "530-555-1000", entryId: -1 }
 

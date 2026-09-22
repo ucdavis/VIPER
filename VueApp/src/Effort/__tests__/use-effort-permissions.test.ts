@@ -5,7 +5,6 @@ import { useUserStore } from "@/store/UserStore"
 describe("useEffortPermissions composable", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Permission Constants", () => {

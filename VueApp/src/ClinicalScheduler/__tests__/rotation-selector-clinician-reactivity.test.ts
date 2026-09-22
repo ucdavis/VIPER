@@ -25,7 +25,6 @@ function mountSelector(props: Record<string, unknown> = {}) {
 describe("RotationSelector - clinician self-scheduling reactivity", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
         // Skip the store's network init; the plain rotations path does not read permissions client-side.
         const store = usePermissionsStore()
         vi.spyOn(store, "initialize").mockResolvedValue()

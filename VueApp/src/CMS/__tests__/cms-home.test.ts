@@ -208,9 +208,6 @@ describe("cmsHome.vue - delegated editable blocks card", () => {
     })
 
     it("does not fetch or show the editable card for a manager", async () => {
-        // The shared get() mock accumulates calls across tests; clear it so this assertion only
-        // sees this manager mount's requests.
-        getMock.mockClear()
         routeEditable(EDITABLE)
         const wrapper = await mountHome() // Full admin
         await flushPromises()

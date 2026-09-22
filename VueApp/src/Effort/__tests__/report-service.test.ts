@@ -58,10 +58,6 @@ const mockReport = {
 
 // oxlint-disable-next-line eslint/max-lines-per-function -- Test suite groups related service tests
 describe("ReportService", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getTeachingActivityGrouped", () => {
         it("should return report on successful response", async () => {
             mockGet.mockResolvedValue({ success: true, result: mockReport })

@@ -18,7 +18,6 @@ describe("Permissions Store - Utility Methods", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Service Name Utilities", () => {

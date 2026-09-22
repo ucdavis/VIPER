@@ -12,6 +12,7 @@ node_modules
 dist
 dist-ssr
 coverage
+.vitest
 *.junit.xml
 bundle-stats.html
 *.local

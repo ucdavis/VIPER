@@ -87,7 +87,6 @@ function personSelectorExists(): boolean {
 }
 
 function resetTestState(): void {
-    vi.clearAllMocks()
     document.body.innerHTML = ""
 }
 

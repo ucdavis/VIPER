@@ -21,10 +21,6 @@ const TEST_TERM_CODE = 202410
 
 // oxlint-disable-next-line eslint/max-lines-per-function -- Test suite groups related service tests
 describe("DashboardService", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getStats", () => {
         it("should return stats on successful response", async () => {
             const mockStats = {

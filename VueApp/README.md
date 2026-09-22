@@ -37,3 +37,18 @@ npm run build
 ```sh
 npm run lint
 ```
+
+### Unit Tests with [Vitest](https://vitest.dev/)
+
+```sh
+npm run test:run    # single run
+npm run test        # watch mode
+```
+
+From the repo root, `npm run test:frontend` runs the same suite and
+`npm run test:frontend -- <file-pattern>` narrows it to matching files.
+
+Mock call history is cleared before every test, because Vitest enables
+`clearMocks` by default. A `beforeEach(() => vi.clearAllMocks())` is therefore
+redundant: clear a mock explicitly only mid-test, when an assertion needs to
+ignore calls made earlier in the same test.

@@ -65,7 +65,6 @@ async function mountUnderRouter(component: unknown) {
 describe("phone list pages - changing the route code", () => {
     it("refetches the newly named list when the code changes", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubList("VMDO")
         vi.mocked(phoneListModifiedDateService.getModifiedDate).mockResolvedValue(null)
         vi.mocked(getPhoneListData).mockResolvedValue([])
@@ -83,7 +82,6 @@ describe("phone list pages - changing the route code", () => {
 
     it("shows the new list's name rather than the previous one", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubList("VMDO")
         vi.mocked(phoneListModifiedDateService.getModifiedDate).mockResolvedValue(null)
         vi.mocked(getPhoneListData).mockResolvedValue([])
@@ -100,7 +98,6 @@ describe("phone list pages - changing the route code", () => {
 
     it("rescopes the maintain page to the new list, so edits go to the right one", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubList("VMDO")
         vi.mocked(getPhoneListData).mockResolvedValue([])
 

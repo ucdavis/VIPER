@@ -106,7 +106,6 @@ function findAddButton(wrapper: ReturnType<typeof mountPage>) {
 describe("phoneListMaintain.vue - error banner", () => {
     it("hides the error banner on a normal load", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubListInfo()
         // RecordFormDialog's QDialog teleports to document.body, so clear any leftover content
         // from a previous test's dialog before asserting on document.body.textContent.
@@ -121,7 +120,6 @@ describe("phoneListMaintain.vue - error banner", () => {
 
     it("raises a toast carrying the server message when a delete fails", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubListInfo()
         // RecordFormDialog's QDialog teleports to document.body, so clear any leftover content
         // from a previous test's dialog before asserting on document.body.textContent.
@@ -148,7 +146,6 @@ describe("phoneListMaintain.vue - error banner", () => {
 
     it("confirms a successful delete with a toast, and reloads the list", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubListInfo()
         document.body.innerHTML = ""
         vi.mocked(getPhoneListData).mockResolvedValue([unitWithDeletableRow()])
@@ -173,7 +170,6 @@ describe("phoneListMaintain.vue - error banner", () => {
 
     it("opens the add dialog scoped to the clicked unit", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubListInfo()
         // RecordFormDialog's QDialog teleports to document.body, so clear any leftover content
         // from a previous test's dialog before asserting on document.body.textContent.
@@ -192,7 +188,6 @@ describe("phoneListMaintain.vue - error banner", () => {
 
     it("opens the edit dialog pre-filled when edit is clicked on a row", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubListInfo()
         // RecordFormDialog's QDialog teleports to document.body, so clear any leftover content
         // from a previous test's dialog before asserting on document.body.textContent.
@@ -217,7 +212,6 @@ describe("phoneListMaintain.vue - error banner", () => {
 
     it("redirects away, without fetching rows, when the caller cannot maintain the list", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         document.body.innerHTML = ""
         // The maintain role is the list's own, so no static route guard can gate this page.
         // The API rejects the writes regardless; this keeps a non-maintainer out of an editor
@@ -233,7 +227,6 @@ describe("phoneListMaintain.vue - error banner", () => {
 
     it("reloads the phone data when the dialog reports a save", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         stubListInfo()
         // RecordFormDialog's QDialog teleports to document.body, so clear any leftover content
         // from a previous test's dialog before asserting on document.body.textContent.

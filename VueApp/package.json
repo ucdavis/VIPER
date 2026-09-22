@@ -45,7 +45,7 @@
         "@typescript-eslint/eslint-plugin": "^8.68.0",
         "@typescript-eslint/parser": "^8.65.0",
         "@vitejs/plugin-vue": "^6.0.8",
-        "@vitest/coverage-v8": "^4.1.11",
+        "@vitest/coverage-v8": "^5.0.0",
         "@vue/test-utils": "^2.4.11",
         "@vue/tsconfig": "^0.9.1",
         "chokidar": "^5.0.0",
@@ -65,7 +65,7 @@
         "typescript": "^6.0.3",
         "vite": "^8.2.2",
         "vite-plugin-vue-inspector": "^7.0.0",
-        "vitest": "^4.1.7",
+        "vitest": "^5.0.0",
         "vue-tsc": "^3.3.11"
     },
     "overrides": {

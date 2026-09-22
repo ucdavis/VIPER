@@ -51,7 +51,6 @@ function createMockPreview(overrides: Partial<HarvestPreviewDto> = {}): HarvestP
 describe("HarvestDialog - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Preview Load Errors", () => {
@@ -158,7 +157,6 @@ describe("HarvestDialog - Error Handling", () => {
 describe("HarvestDialog - Loading States", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     it("should track loading state during preview fetch", async () => {
@@ -210,7 +208,6 @@ describe("HarvestDialog - Loading States", () => {
 describe("HarvestDialog - Validation Logic", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     it("should disable confirm when errors exist in preview", () => {
@@ -311,7 +308,6 @@ describe("HarvestDialog - Validation Logic", () => {
 describe("HarvestDialog - State Reset", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     it("should reset all state when dialog closes", () => {
@@ -369,7 +365,6 @@ describe("HarvestDialog - State Reset", () => {
 describe("HarvestDialog - Summary Display", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     it("should display correct summary totals", () => {

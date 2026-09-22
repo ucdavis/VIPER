@@ -38,7 +38,6 @@ function bodyText(): string {
 }
 
 function resetTestState(): void {
-    vi.clearAllMocks()
     document.body.innerHTML = ""
 }
 
