@@ -891,7 +891,8 @@ namespace Viper.test.Services
                 var result = await service.GetUserInfoAsync("iam-gqlerr", null, AllPermissions);
 
                 Assert.NotNull(result);
-                Assert.NotNull(result.InstinctInfo?.ErrorMessage);
+                Assert.NotNull(result.InstinctInfo);
+                Assert.NotNull(result.InstinctInfo!.ErrorMessage);
                 Assert.Contains("Downstream service unavailable", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);
