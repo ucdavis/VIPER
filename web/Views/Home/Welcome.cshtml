@@ -13,6 +13,16 @@
             : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
     }
 
+    // Straight to the Entra endpoint rather than through /login, because this is the one link
+    // that forces the account picker and /login deliberately never does.
+    string SwitchAccountUrl()
+    {
+        var url = $"{Url.Content("~/EntraLogin")}?selectAccount=true";
+        return string.IsNullOrEmpty(returnUrl)
+            ? url
+            : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
     // Which providers to offer. Defaults to CAS alone if the controller didn't say, so a
     // misconfiguration degrades to the pre-Entra behavior rather than to no way to sign in.
     var casEnabled = ViewData["CasEnabled"] as bool? ?? true;
@@ -96,6 +106,12 @@
                             </a>
                         }
                     </div>
+                    @if (entraIdEnabled)
+                    {
+                        @* The buttons above send no prompt, so Entra signs a single account
+                           straight through. This is the way out for someone who wants another. *@
+                        <a class="welcome-help" href="@SwitchAccountUrl()">Use a different account</a>
+                    }
                     <a class="welcome-help"
                        href="https://www.vetmed.ucdavis.edu/about/svmit"
                        target="_blank"

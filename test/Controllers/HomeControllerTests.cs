@@ -651,28 +651,21 @@ public sealed class HomeControllerTests
         Assert.Null(result.Properties?.GetParameter<string>(OpenIdConnectParameterNames.Prompt));
     }
 
-    // /login is both the passive landing and what the splash buttons post to, so the picker has
-    // to key off the explicit provider rather than the endpoint.
-    [Fact]
-    public void Login_ExplicitEntraId_RequestsTheAccountPicker()
+    // Forcing the picker here would charge the single-account majority a click on every sign-in,
+    // when Entra already raises its own picker for the ambiguous case. Only the switch-account
+    // link asks for one, and it goes straight to /EntraLogin.
+    [Theory]
+    [InlineData(LoginProviders.Both, LoginProviders.EntraId)]
+    [InlineData(LoginProviders.EntraId, null)]
+    public void Login_NeverRequestsTheAccountPicker(LoginProviders enabled, LoginProviders? requested)
     {
-        var controller = CreateController(LoginProviders.Both);
+        var controller = CreateController(enabled);
         Arrange(authenticated: false, controller);
 
-        var result = Assert.IsType<RedirectToActionResult>(controller.Login(provider: LoginProviders.EntraId));
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login(provider: requested));
 
-        Assert.True((bool?)result.RouteValues?["selectAccount"]);
-    }
-
-    [Fact]
-    public void Login_EntraIdOnly_PassiveArrival_DoesNotRequestTheAccountPicker()
-    {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        var result = Assert.IsType<RedirectToActionResult>(controller.Login());
-
-        Assert.False((bool?)result.RouteValues?["selectAccount"]);
+        Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
+        Assert.False(result.RouteValues?.ContainsKey("selectAccount"));
     }
 
     // The /api guard is shared by every provider, so it must hold on the Entra path too.

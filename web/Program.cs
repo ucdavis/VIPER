@@ -760,7 +760,15 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                 // Skips Microsoft's home-realm step, where the user would otherwise type an email
                 // address before being handed to the campus identity provider. There is no
                 // OpenIdConnectOptions.DomainHint, so it has to be set on the outgoing message.
-                if (!string.IsNullOrWhiteSpace(settings.DomainHint))
+                //
+                // Left off when a picker was asked for: domain_hint sends the browser on to
+                // adfs.ucdavis.edu before the picker could render, and it hides accounts in other
+                // verified domains such as ad3.ucdavis.edu. The handler has already copied Prompt
+                // off the challenge properties by the time this runs, so it is the signal to read.
+                var pickingAccount = string.Equals(
+                    context.ProtocolMessage.Prompt, "select_account", StringComparison.Ordinal);
+
+                if (!string.IsNullOrWhiteSpace(settings.DomainHint) && !pickingAccount)
                 {
                     context.ProtocolMessage.DomainHint = settings.DomainHint;
                 }

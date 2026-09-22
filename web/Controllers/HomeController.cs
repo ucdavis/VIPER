@@ -407,12 +407,10 @@ namespace Viper.Controllers
             if (forcedProvider == LoginProviders.EntraId
                 || (forcedProvider == null && !_authSettings.CasEnabled))
             {
-                // An explicit provider means the user asked to sign in, so offer the account
-                // picker. Arriving with none is the passive redirect out of a protected page,
-                // where a picker would put a click in front of every silent SSO hop.
-                return RedirectToAction(
-                    nameof(EntraLogin),
-                    new { ReturnUrl, selectAccount = forcedProvider != null });
+                // No picker from here, however the user arrived. Entra signs a single signed-in
+                // account straight through and raises its own picker only when several match,
+                // which is what we want; the splash's switch-account link is the way to override.
+                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl });
             }
 
             if (forcedProvider == null && _authSettings.HasProviderChoice)
@@ -457,10 +455,11 @@ namespace Viper.Controllers
 
             if (selectAccount)
             {
-                // Without this a second Entra account is unreachable: the tenant session is reused
-                // silently and nothing offers a way to pick. Forging the flag costs an attacker an
-                // account picker, so it needs no protection. The handler reads this parameter
-                // itself, so no redirect event is involved.
+                // Set only by the "use a different account" link. Without it a user whose other
+                // account is the last one Entra still holds gets signed back into it silently,
+                // with nothing offering a choice. Forging the flag costs an attacker an account
+                // picker, so it needs no protection. The handler reads this parameter itself, so
+                // no redirect event is involved; suppressing domain_hint for it does need one.
                 properties.SetParameter(OpenIdConnectParameterNames.Prompt, "select_account");
             }
 
