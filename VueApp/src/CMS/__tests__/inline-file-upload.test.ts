@@ -227,7 +227,7 @@ describe("inlineFileUpload.vue - commit", () => {
         expect((data.get("file") as File).name).toBe("report.pdf")
         expect(data.get("folder")).toBe("Apps")
         expect(data.get("allowPublicAccess")).toBe("true")
-        expect(data.getAll("permissions")).toStrictEqual(["SVMSecure.CMS", "SVMSecure.CMS.AllFiles"])
+        expect([...data.getAll("permissions")]).toStrictEqual(["SVMSecure.CMS", "SVMSecure.CMS.AllFiles"])
         expect(data.has("fileName")).toBeFalsy()
         expect(data.has("overwrite")).toBeFalsy()
 
@@ -304,7 +304,7 @@ describe("inlineFileUpload.vue - commit", () => {
         expect(data.get("description")).toBe("Quarterly report")
         expect(data.get("oldUrl")).toBe("/old/report.pdf")
         expect(data.get("encrypt")).toBe("true")
-        expect(data.getAll("iamIds")).toStrictEqual(["iam-1"])
+        expect([...data.getAll("iamIds")]).toStrictEqual(["iam-1"])
     })
 
     it("pOSTs with the overwrite flag when overwriting an on-disk file that has no record", async () => {

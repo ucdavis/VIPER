@@ -52,3 +52,15 @@ Mock call history is cleared before every test, because Vitest enables
 `clearMocks` by default. A `beforeEach(() => vi.clearAllMocks())` is therefore
 redundant: clear a mock explicitly only mid-test, when an assertion needs to
 ignore calls made earlier in the same test.
+
+Tests run on the `vmThreads` pool, which creates one happy-dom per worker
+instead of one per test file. That keeps per-file isolation and cuts the suite
+roughly 4x (~40s to ~10s), at one cost: a value built outside the test realm,
+such as the array from `FormData.getAll()` or from a component prop, has a
+foreign `Array` prototype. `toStrictEqual` compares prototypes, so it fails on
+such a value with "Compared values have no visual difference". Spread it into
+the test realm first, which keeps the assertion strict:
+
+```ts
+expect([...fd.getAll("permissions")]).toStrictEqual(["SVMSecure.CMS"])
+```
