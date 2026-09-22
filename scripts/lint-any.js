@@ -30,18 +30,25 @@ const MAX_ARG_LENGTH = 7000
 // Get command line arguments
 const args = process.argv.slice(2)
 const shouldFix = args.includes("--fix")
+const shouldFormat = args.includes("--format")
+// Both flags write formatting; only --fix also runs the linters' autofixes.
+const writeFormatting = shouldFix || shouldFormat
 const shouldClearCache = args.includes("--clear-cache")
-const inputArgs = args.filter((arg) => !["--fix", "--clear-cache"].includes(arg))
+// Anything that is not a flag is a file, folder or pattern.
+const inputArgs = args.filter((arg) => !arg.startsWith("--"))
 
 if (inputArgs.length === 0) {
     console.log(`
 🔍 Smart Linter - Routes files to the correct linter automatically
 
 Usage:
-  npm run lint [-- --fix] [-- --clear-cache] <file|folder|pattern>
+  npm run lint [-- --format] [-- --fix] [-- --clear-cache] <file|folder|pattern>
 
 Options:
-  --fix          Auto-fix issues where possible
+  --format       Fix formatting only (oxfmt). Never changes code behavior.
+  --fix          --format, plus every linter's autofixes. Some of those rewrite
+                 code, not just layout (e.g. toEqual → toStrictEqual in
+                 __tests__), so review the diff before committing.
   --clear-cache  Clear the build cache before linting
 
 Examples:
@@ -49,7 +56,8 @@ Examples:
   npm run lint VueApp/src/components/HelloWorld.vue
   npm run lint web/wwwroot/css/directory.css
   npm run lint VueApp/src
-  npm run lint -- --fix VueApp/src  (auto-fix issues)
+  npm run lint -- --format VueApp/src  (fix formatting only)
+  npm run lint -- --fix VueApp/src  (formatting + linter autofixes)
   npm run lint -- --clear-cache web/  (clear cache and lint)
 
 Supported file types:
@@ -291,8 +299,6 @@ function runOxfmtCheck(files, fix) {
         for (const f of allFailedFiles) {
             console.log(`  - ${f}`)
         }
-        console.log("\n💡 Files need formatting. Run with --fix to auto-format:")
-        console.log("   npm run lint -- --fix <files>")
     }
 
     return allPassed
@@ -489,10 +495,17 @@ async function main() {
         console.log(`  📎 JSCPD (duplication): ${categories.jscpd.length} files`)
     }
 
+    if (shouldFix) {
+        console.log(
+            "\n⚠️  --fix also applies linter autofixes that can change behavior" +
+                "\n   (e.g. toEqual → toStrictEqual in __tests__). Use --format for formatting only.",
+        )
+    }
+
     // Run oxfmt on JS/TS/CSS/Vue files only (C# formatting is handled by dotnet format)
     const oxfmtFiles = [...new Set([...categories.css, ...categories.vue, ...categories.ts])]
 
-    const oxfmtPassed = runOxfmtCheck(oxfmtFiles, shouldFix)
+    const oxfmtPassed = runOxfmtCheck(oxfmtFiles, writeFormatting)
 
     // Frontend linters run sequentially among themselves (they share .vue files in --fix mode)
     // and are synchronous, so they finish before the async linters below start.
@@ -527,9 +540,9 @@ async function main() {
 
     console.log("\n✅ Smart linting complete!")
 
-    if (!oxfmtPassed && !shouldFix) {
-        console.log("\n💡 Some files have formatting issues. Use --fix to auto-format:")
-        console.log("   npm run lint -- --fix <files>")
+    if (!oxfmtPassed && !writeFormatting) {
+        console.log("\n💡 Some files have formatting issues. Use --format to auto-format:")
+        console.log("   npm run lint -- --format <files>")
         process.exit(1)
     }
 
