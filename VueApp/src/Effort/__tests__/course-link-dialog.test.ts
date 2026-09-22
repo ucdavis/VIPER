@@ -47,7 +47,6 @@ function filterCourses(courses: typeof sampleCourses, needle: string): typeof sa
 describe("CourseLinkDialog - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Create Relationship Error States", () => {

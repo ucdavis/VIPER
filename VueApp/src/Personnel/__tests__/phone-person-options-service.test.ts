@@ -25,7 +25,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 describe("searchPeopleOptions()", () => {
     it("returns the matching people, scoped to the given list code", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const people = [
             {
                 personId: 1,
@@ -49,7 +48,6 @@ describe("searchPeopleOptions()", () => {
 
     it("returns an empty array (not null) when the search matches nobody", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         const result = await searchPeopleOptions("Nonexistent")
@@ -59,7 +57,6 @@ describe("searchPeopleOptions()", () => {
 
     it("returns null (not an empty array) when the request fails", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await searchPeopleOptions("Smith")

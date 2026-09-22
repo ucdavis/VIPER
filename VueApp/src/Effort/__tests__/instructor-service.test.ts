@@ -23,10 +23,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 const TEST_TERM_CODE = 202_410
 
 describe("InstructorService — instructor list and detail", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getInstructors", () => {
         it("should return instructors on successful response", async () => {
             const mockData = [
@@ -119,10 +115,6 @@ describe("InstructorService — instructor list and detail", () => {
 })
 
 describe("InstructorService — create, update, delete", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("createInstructor", () => {
         it("should return success with instructor on successful creation", async () => {
             const mockInstructor = { personId: 1, fullName: "Alice Smith" }
@@ -241,10 +233,6 @@ describe("InstructorService — create, update, delete", () => {
 })
 
 describe("InstructorService — departments and job groups", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getInstructorDepartments", () => {
         it("should return departments on successful response", async () => {
             const mockData = [

@@ -15,7 +15,6 @@ describe("useReportUrlParams composable", () => {
     beforeEach(() => {
         mockRoute.query = {}
         mockRoute.params = {}
-        mockReplace.mockClear()
     })
 
     describe("getInitialFilters", () => {

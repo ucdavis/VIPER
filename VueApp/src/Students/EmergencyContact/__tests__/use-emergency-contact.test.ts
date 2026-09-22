@@ -50,10 +50,6 @@ function makeDetail(overrides: Partial<StudentContactDetail> = {}): StudentConta
 }
 
 describe("useEmergencyContact utilities", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("contactCompleteness", () => {
         it("should return 0 for empty contact", () => {
             const contact: ContactInfo = {
@@ -164,10 +160,6 @@ describe("useEmergencyContact utilities", () => {
 })
 
 describe("useEmergencyContact — stateful behavior", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("loadDetail", () => {
         it("populates form and clears loading on success", async () => {
             const detail = makeDetail()

@@ -25,8 +25,6 @@ describe("photo-gallery-store", () => {
     beforeEach(() => {
         // Create a fresh pinia instance for each test
         setActivePinia(createPinia())
-        // Reset all mocks
-        vi.clearAllMocks()
     })
 
     describe("initialization", () => {

@@ -247,7 +247,7 @@ describe("ContentBlockEdit.vue - uploadImage", () => {
         expect(fd.has("file")).toBeTruthy()
         expect(fd.get("folder")).toBe("/apps")
         expect(fd.get("allowPublicAccess")).toBe("false")
-        expect(fd.getAll("permissions")).toStrictEqual(["SVMSecure.CMS"])
+        expect([...fd.getAll("permissions")]).toStrictEqual(["SVMSecure.CMS"])
     })
 
     it("create mode without a section path leaves uploadImage undefined with a path-first hint", async () => {
@@ -287,7 +287,9 @@ describe("ContentBlockEdit.vue - imageOptions", () => {
         const { wrapper } = await mountEdit()
         const editorStub = wrapper.findComponent(richTextEditorStub)
 
-        expect(editorStub.props("imageOptions")).toStrictEqual([{ label: "sec-photo.png", value: "/2/CMS/Files?id=a" }])
+        expect([...editorStub.props("imageOptions")]).toStrictEqual([
+            { label: "sec-photo.png", value: "/2/CMS/Files?id=a" },
+        ])
         expect(editorStub.props("imageOptionsHint")).toBe("Save the block to use files you just attached")
     })
 })

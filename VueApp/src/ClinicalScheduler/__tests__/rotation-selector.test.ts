@@ -13,8 +13,6 @@ describe("RotationSelector", () => {
     let componentLogic: ReturnType<typeof createComponentLogic> = {} as ReturnType<typeof createComponentLogic>
 
     beforeEach(() => {
-        // Reset all mocks
-        vi.clearAllMocks()
         componentLogic = createComponentLogic()
 
         // Setup default mock responses

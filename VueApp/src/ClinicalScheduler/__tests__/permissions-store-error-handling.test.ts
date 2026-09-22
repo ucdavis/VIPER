@@ -18,7 +18,6 @@ describe("Permissions Store - Error Handling & Hierarchy", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Error Handling", () => {

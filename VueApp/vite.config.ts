@@ -192,6 +192,9 @@ export default defineConfig(({ mode }) => {
         test: {
             environment: "happy-dom",
             globals: true,
+            // One happy-dom per worker instead of one per test file, ~4x faster.
+            // Realm caveat when asserting: see VueApp/README.md.
+            pool: "vmThreads",
             coverage: {
                 provider: "v8",
                 reporter: ["text", "cobertura"],

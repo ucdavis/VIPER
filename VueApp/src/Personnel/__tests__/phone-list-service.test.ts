@@ -25,7 +25,6 @@ const listInfo = {
 describe("phoneListService()", () => {
     it("returns the list info on success", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: listInfo })
 
         const result = await phoneListService.getPhoneListInfo("VMDO")
@@ -36,7 +35,6 @@ describe("phoneListService()", () => {
 
     it("percent-encodes a code so it cannot break out of the path segment", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: listInfo })
 
         await phoneListService.getPhoneListInfo("a/b c")
@@ -46,7 +44,6 @@ describe("phoneListService()", () => {
 
     it("returns null when the request fails", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await phoneListService.getPhoneListInfo("VMDO")
@@ -56,7 +53,6 @@ describe("phoneListService()", () => {
 
     it("returns null when the request succeeds but finds no matching list", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: null })
 
         const result = await phoneListService.getPhoneListInfo("Nonexistent")

@@ -8,7 +8,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 describe("svmSectionService()", () => {
     it("returns the sections on success", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const sections = [
             { sectionId: 1, name: "VMDO", includeAbbrv: false, unitName: null, directorTitle: "Dean", sortOrder: 1 },
         ]
@@ -21,7 +20,6 @@ describe("svmSectionService()", () => {
 
     it("returns null for a failed request, which an empty array could not distinguish", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await svmSectionService.getSections()
@@ -31,7 +29,6 @@ describe("svmSectionService()", () => {
 
     it("returns an empty array for a list that genuinely has no sections", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         const result = await svmSectionService.getSections()

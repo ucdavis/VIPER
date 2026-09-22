@@ -32,7 +32,6 @@ const mockClinicians = [
  */
 function setupTest() {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
 
     // Default mock for getClinicians
     vi.mocked(ClinicianService.getClinicians).mockResolvedValue({

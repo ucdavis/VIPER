@@ -46,7 +46,6 @@ afterEach(() => {
 })
 
 function stubDataServices(): void {
-    vi.clearAllMocks()
     vi.mocked(getFrequentlyCalledNumbers).mockResolvedValue({ rows: [], error: null })
     vi.mocked(svmModifiedDateService.getModifiedDate).mockResolvedValue(null)
 }

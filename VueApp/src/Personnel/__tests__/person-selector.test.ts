@@ -50,7 +50,6 @@ async function triggerFilter(wrapper: ReturnType<typeof mountSelector>, value: s
 describe("personSelector.vue", () => {
     it("scopes the search to the given listCode", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(searchPeopleOptions).mockResolvedValue([])
         const wrapper = mountSelector("VMDO")
 
@@ -61,7 +60,6 @@ describe("personSelector.vue", () => {
 
     it("reflects the search results into the QSelect options", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const people: AugmentedViperPerson[] = [
             {
                 personId: 1,
@@ -84,7 +82,6 @@ describe("personSelector.vue", () => {
 
     it("emits the selected person when one is chosen", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const person: AugmentedViperPerson = {
             personId: 1,
             firstName: "Amy",
@@ -104,7 +101,6 @@ describe("personSelector.vue", () => {
 
     it("emits a sparse fallback person when the selection is cleared", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const wrapper = mountSelector()
 
         await wrapper.findComponent({ name: "QSelect" }).vm.$emit("update:model-value", null)
@@ -120,7 +116,6 @@ describe("personSelector.vue", () => {
      */
     it("shows no chip on a pristine form, where the person is a sparse placeholder", () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
 
         const wrapper = mountSelector()
 
@@ -129,7 +124,6 @@ describe("personSelector.vue", () => {
 
     it("shows a chip once a person is actually selected", () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
 
         const wrapper = mountSelector("", { iamId: "asmith", fullName: "Amy Smith" })
 
@@ -141,7 +135,6 @@ describe("personSelector.vue", () => {
 
     it("captions each option with the person's email, so alike names can be told apart", () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const wrapper = mountSelector()
 
         // Rendered straight from the slot rather than by opening the select: QSelect puts its

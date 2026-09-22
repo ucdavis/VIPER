@@ -31,7 +31,6 @@ const formData = {
 describe("phoneListUnitService()", () => {
     it("returns the API results for getUnitsByList", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const units = [
             {
                 phoneListUnitId: 1,
@@ -51,7 +50,6 @@ describe("phoneListUnitService()", () => {
 
     it("normalizes a null or empty getUnitsByList result to an empty array", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await phoneListUnitService.getUnitsByList("VMDO")
@@ -61,7 +59,6 @@ describe("phoneListUnitService()", () => {
 
     it("posts new unit-person data to the unitPerson endpoint for the given list", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPost.mockResolvedValue({ success: true, result: true })
 
         await phoneListUnitService.addUnitPersonData("VMDO", formData)
@@ -71,7 +68,6 @@ describe("phoneListUnitService()", () => {
 
     it("puts updated unit-person data under the list code and record id", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPut.mockResolvedValue({ success: true, result: true })
 
         await phoneListUnitService.updateUnitPersonData("VMDO", 7, formData)
@@ -81,7 +77,6 @@ describe("phoneListUnitService()", () => {
 
     it("deletes a unit-person record under the list code", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockDel.mockResolvedValue({ success: true, result: true })
 
         await phoneListUnitService.deleteUnitPersonData("VMDO", 7)

@@ -53,10 +53,6 @@ describe("useBulkDeletion - confirmation gate", () => {
         clearSelections: vi.fn<() => void>(),
     })
 
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     it("lists affected weeks in numeric order in the primary-evaluator warning", async () => {
         expect.hasAssertions()
         // 1, 2 and 10 expose lexicographic sorting, which would render "1, 10, 2".

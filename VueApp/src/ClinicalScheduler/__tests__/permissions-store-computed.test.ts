@@ -19,7 +19,6 @@ describe("Permissions Store - Permission Level Detection", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Admin and Manager Detection", () => {
@@ -98,7 +97,6 @@ describe("Permissions Store - Service-Specific Permissions", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Service Permission Detection", () => {
@@ -145,7 +143,6 @@ describe("Permissions Store - Own Schedule Permissions", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Own Schedule Detection", () => {
@@ -180,7 +177,6 @@ describe("Permissions Store - General Permission Detection", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Any Edit Permission Detection", () => {
@@ -225,7 +221,6 @@ describe("Permissions Store - Clinician View Access", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Clinician View Permission", () => {
@@ -296,7 +291,6 @@ describe("Permissions Store - Clinician View Read-Only Access", () => {
     beforeEach(() => {
         // Create fresh pinia instance for each test
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("hasClinicianViewReadOnly Permission", () => {

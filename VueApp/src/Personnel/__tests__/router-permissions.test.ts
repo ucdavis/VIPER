@@ -40,7 +40,6 @@ function signIn() {
 /** A fresh router, user store, and login spy for a visitor holding these permissions. */
 function routerFor(permissions: string[]): Router {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
     mockRequireLogin.mockResolvedValue(true)
     useUserStore().setPermissions(permissions)
     return createGuardedStubRouter(routes, personnelGuard)

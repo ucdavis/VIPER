@@ -104,7 +104,6 @@ async function waitForAsync() {
 // Test setup helper that combines common setup steps
 function setupTest() {
     setupTestPinia()
-    vi.clearAllMocks()
     return {
         router: createTestRouter(),
         mockStore: createMockPermissionsStore(),

@@ -39,7 +39,6 @@ function mountPage() {
 }
 
 function stubListInfo(canViewDirectPhone: boolean): void {
-    vi.clearAllMocks()
     vi.mocked(phoneListService.getPhoneListInfo).mockResolvedValue({
         phoneListId: 1,
         code: "VMDO",
@@ -114,7 +113,6 @@ describe("phoneList.vue - loading, naming, and internal-use banner", () => {
 
     it("reports an unknown list code instead of rendering an empty list", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(phoneListService.getPhoneListInfo).mockResolvedValue(null)
 
         const wrapper = mountPage()

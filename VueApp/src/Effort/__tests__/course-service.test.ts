@@ -23,10 +23,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 const TEST_TERM_CODE = 202_410
 
 describe("CourseService — evaluation methods", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getCourseEvaluations", () => {
         it("should return evaluation status on successful response", async () => {
             const mockData = {
@@ -171,10 +167,6 @@ describe("CourseService — evaluation methods", () => {
 })
 
 describe("CourseService — course effort methods", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getCourseEffort", () => {
         it("should return effort data on successful response", async () => {
             const mockData = {
