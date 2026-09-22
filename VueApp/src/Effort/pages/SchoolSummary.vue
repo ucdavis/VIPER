@@ -84,6 +84,7 @@
                             <tr
                                 v-if="deptIdx < report.departments.length - 1"
                                 class="divider-row"
+                                tabindex="-1"
                                 aria-hidden="true"
                             >
                                 <td colspan="100%">
