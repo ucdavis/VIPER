@@ -234,4 +234,22 @@ describe("EmergencyContactService — access status and exports", () => {
             expect(result).toBeFalsy()
         })
     })
+
+    describe("pdf exports", () => {
+        it("should open each pdf in a new tab", () => {
+            const open = vi.spyOn(globalThis, "open").mockReturnValue(null)
+
+            emergencyContactService.openOverviewPdf()
+            emergencyContactService.openPdf()
+
+            expect(open).toHaveBeenNthCalledWith(
+                1,
+                expect.stringMatching(/\/export\/overview\/pdf$/u),
+                "_blank",
+                "noopener",
+            )
+            expect(open).toHaveBeenNthCalledWith(2, expect.stringMatching(/\/export\/pdf$/u), "_blank", "noopener")
+            open.mockRestore()
+        })
+    })
 })
