@@ -2,6 +2,8 @@ import type { RouteLocationNormalized } from "vue-router"
 import ViperLayout from "@/layouts/ViperLayout.vue"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useUserStore } from "@/store/UserStore"
+import { careerSelectionGuards } from "@/Students/CareerSelection/router/career-selection-guards"
+import { CAREER_SELECTION_PERMISSIONS } from "@/Students/CareerSelection/constants/permissions"
 
 const adminPermissions = ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.SIS.AllStudents"]
 const editPermissions = ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.Students.EmergencyContactStudent"]
@@ -115,6 +117,57 @@ const routes = [
                     permissions: ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.SIS.AllStudents"],
                 },
                 component: () => import("@/Students/EmergencyContact/pages/EmergencyContactReport.vue"),
+            },
+        ],
+    },
+    {
+        path: "/Students/CareerSelection/",
+        meta: {
+            layout: ViperLayout,
+        },
+        children: [
+            {
+                path: "",
+                name: "CareerSelectionList",
+                meta: { layout: ViperLayout },
+                beforeEnter: careerSelectionGuards.list,
+                component: () => import("@/Students/CareerSelection/pages/CareerSelectionList.vue"),
+            },
+            {
+                path: "edit/:pidm",
+                name: "CareerSelectionEdit",
+                beforeEnter: careerSelectionGuards.edit,
+                meta: { layout: ViperLayout },
+                component: () => import("@/Students/CareerSelection/pages/CareerSelectionForm.vue"),
+            },
+            {
+                path: "view/:pidm",
+                name: "CareerSelectionView",
+                beforeEnter: careerSelectionGuards.view,
+                meta: { layout: ViperLayout },
+                component: () => import("@/Students/CareerSelection/pages/CareerSelectionView.vue"),
+            },
+            {
+                path: "report",
+                name: "CareerSelectionReport",
+                meta: {
+                    layout: ViperLayout,
+                    permissions: [
+                        CAREER_SELECTION_PERMISSIONS.ADMIN,
+                        CAREER_SELECTION_PERMISSIONS.READ_ONLY,
+                        CAREER_SELECTION_PERMISSIONS.FACULTY,
+                    ],
+                },
+                component: () => import("@/Students/CareerSelection/pages/CareerSelectionReport.vue"),
+            },
+            {
+                path: "options",
+                name: "CareerSelectionManageOptions",
+                meta: {
+                    layout: ViperLayout,
+                    permissions: [CAREER_SELECTION_PERMISSIONS.ADMIN],
+                },
+                component: () => import("@/Students/CareerSelection/pages/CareerSelectionManageOptions.vue"),
             },
         ],
     },

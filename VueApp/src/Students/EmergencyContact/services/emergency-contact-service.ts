@@ -1,4 +1,5 @@
-import { useFetch, postForBlob, downloadBlob } from "@/composables/ViperFetch"
+import { useFetch } from "@/composables/ViperFetch"
+import { StudentAppService } from "@/Students/services/student-app-service"
 import type {
     StudentContactListItem,
     StudentContactDetail,
@@ -7,8 +8,13 @@ import type {
     AppAccessStatus,
 } from "../types"
 
-class EmergencyContactService {
-    private baseUrl = `${import.meta.env.VITE_API_URL}students/emergency-contacts`
+class EmergencyContactService extends StudentAppService<AppAccessStatus> {
+    constructor() {
+        super("students/emergency-contacts", {
+            overviewExcel: "emergency-contact-overview.xlsx",
+            excel: "emergency-contacts.xlsx",
+        })
+    }
 
     getList = async (): Promise<StudentContactListItem[]> => {
         const { get } = useFetch()
@@ -50,24 +56,6 @@ class EmergencyContactService {
         return response.result as StudentContactReport[]
     }
 
-    getAccessStatus = async (): Promise<AppAccessStatus | null> => {
-        const { get } = useFetch()
-        const response = await get(`${this.baseUrl}/access/status`)
-        if (!response.success || !response.result) {
-            return null
-        }
-        return response.result as AppAccessStatus
-    }
-
-    toggleAppAccess = async (): Promise<boolean | null> => {
-        const { post } = useFetch()
-        const response = await post(`${this.baseUrl}/access/toggle-app`)
-        if (!response.success) {
-            return null
-        }
-        return response.result as boolean
-    }
-
     toggleIndividualAccess = async (personId: number): Promise<boolean | null> => {
         const { post } = useFetch()
         const response = await post(`${this.baseUrl}/access/${personId}/toggle`)
@@ -84,32 +72,6 @@ class EmergencyContactService {
             return false
         }
         return response.result as boolean
-    }
-
-    downloadOverviewExcel = async (): Promise<boolean> => {
-        const { blob, filename } = await postForBlob(`${this.baseUrl}/export/overview/excel`, {})
-        if (blob.size === 0) {
-            return false
-        }
-        downloadBlob(blob, filename ?? "emergency-contact-overview.xlsx")
-        return true
-    }
-
-    openOverviewPdf = (): void => {
-        globalThis.open(`${this.baseUrl}/export/overview/pdf`, "_blank", "noopener")
-    }
-
-    downloadExcel = async (): Promise<boolean> => {
-        const { blob, filename } = await postForBlob(`${this.baseUrl}/export/excel`, {})
-        if (blob.size === 0) {
-            return false
-        }
-        downloadBlob(blob, filename ?? "emergency-contacts.xlsx")
-        return true
-    }
-
-    openPdf = (): void => {
-        globalThis.open(`${this.baseUrl}/export/pdf`, "_blank", "noopener")
     }
 }
 
