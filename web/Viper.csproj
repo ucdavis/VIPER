@@ -25,6 +25,10 @@
     <Content Remove="Areas\Personnel\Scripts\**" />
     <EmbeddedResource Remove="Areas\Personnel\Scripts\**" />
     <None Remove="Areas\Personnel\Scripts\**" />
+    <Compile Remove="Areas\Students\Scripts\**" />
+    <Content Remove="Areas\Students\Scripts\**" />
+    <EmbeddedResource Remove="Areas\Students\Scripts\**" />
+    <None Remove="Areas\Students\Scripts\**" />
   </ItemGroup>
 
   <ItemGroup>
