@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
+using Viper.Classes.Utilities;
 using Viper.Models;
 
 namespace Viper.Classes
@@ -70,5 +71,40 @@ namespace Viper.Classes
             Response.Headers.Expires = "0";
             return File(bytes, contentType);
         }
+
+        /// <summary>
+        /// Returns an Excel workbook as a download, named by <see cref="ExcelHelper.BuildExportFilename"/>.
+        /// </summary>
+        protected FileStreamResult ExcelFile(MemoryStream stream, ExportFilenameOptions filenameOptions)
+        {
+            return File(stream, ExcelContentType, ExcelHelper.BuildExportFilename(filenameOptions));
+        }
+
+        /// <inheritdoc cref="ExcelFile(MemoryStream, ExportFilenameOptions)"/>
+        protected FileStreamResult ExcelFile(MemoryStream stream, string reportName)
+        {
+            return ExcelFile(stream, new ExportFilenameOptions { ReportName = reportName });
+        }
+
+        /// <summary>
+        /// Returns a CSV as a download, named by <see cref="ExcelHelper.BuildExportFilename"/>.
+        /// </summary>
+        protected FileContentResult CsvFile(byte[] bytes, string reportName)
+        {
+            return File(bytes, CsvContentType,
+                ExcelHelper.BuildExportFilename(new ExportFilenameOptions { ReportName = reportName, Extension = ".csv" }));
+        }
+
+        /// <summary>
+        /// Builds an export from <paramref name="data"/>, or returns 204 No Content when there is
+        /// nothing to export so the client can tell the user rather than hand them an empty file.
+        /// </summary>
+        protected ActionResult FileOrNoContent<T>(List<T> data, Func<List<T>, ActionResult> buildFile)
+        {
+            return data.Count == 0 ? NoContent() : buildFile(data);
+        }
+
+        private const string ExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        private const string CsvContentType = "text/csv";
     }
 }

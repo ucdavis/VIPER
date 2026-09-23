@@ -53,4 +53,27 @@ public static class PdfAccessibilityHelper
                 PDFUA_Conformance = PDFUA_Conformance.PDFUA_1
             });
     }
+
+    /// <summary>
+    /// Returns an em-dash placeholder when the value is null or empty so that
+    /// QuestPDF emits the cell as a tagged TD (whitespace-only and empty Text
+    /// elements are dropped from the structure tree, breaking PDF/UA clause 7.2).
+    /// </summary>
+    public static string OrDash(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
+
+    /// <summary>
+    /// Render a centered "Page N of M" counter. It is marked as an artifact, since a
+    /// repeating page number is not content assistive tech should read.
+    /// </summary>
+    public static void PageNumberFooter(this IContainer container)
+    {
+        container.SemanticIgnore().AlignCenter().Text(x =>
+        {
+            x.Span("Page ");
+            x.CurrentPageNumber();
+            x.Span(" of ");
+            x.TotalPages();
+        });
+    }
 }
