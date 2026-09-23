@@ -2,29 +2,11 @@ import { createSpaRouter } from "@/shared/create-spa-router"
 import { routes } from "./routes"
 import { useRequireLogin } from "@/composables/RequireLogin"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
-import { useFetch } from "@/composables/ViperFetch"
 import { useUserStore } from "@/store/UserStore"
+import { ensurePermissions } from "./ensure-permissions"
+import { CAREER_SELECTION_PERMISSION_PREFIX } from "@/Students/CareerSelection/constants/permissions"
 
 const router = createSpaRouter(routes)
-
-// In-flight latch: dedups concurrent navigations but resets after each attempt so later
-// sessions (e.g. re-auth into an SIS role) can re-fetch instead of reusing a stale resolution.
-let sisPermissionsPromise: Promise<void> | null = null
-
-async function loadSisPermissions() {
-    try {
-        const userStore = useUserStore()
-        const { get } = useFetch()
-        const apiUrl = import.meta.env.VITE_API_URL
-        const sisPerms = await get(`${apiUrl}loggedInUser/permissions?prefix=SVMSecure.SIS`)
-        if (sisPerms.success && Array.isArray(sisPerms.result)) {
-            const currentPermissions = userStore.userInfo?.permissions ?? []
-            userStore.setPermissions([...currentPermissions, ...sisPerms.result])
-        }
-    } finally {
-        sisPermissionsPromise = null
-    }
-}
 
 router.beforeEach(async (to, from) => {
     const userStore = useUserStore()
@@ -40,16 +22,11 @@ router.beforeEach(async (to, from) => {
             return false
         }
 
-        // SIS permissions are in a separate area, so they aren't loaded by requireLogin.
-        // Emergency Contact routes grant access via SVMSecure.SIS.AllStudents.
-        const existingPermissions = userStore.userInfo?.permissions ?? []
-        const hasSisPermissions = existingPermissions.some((p: string) => p.startsWith("SVMSecure.SIS"))
-        if (!hasSisPermissions) {
-            if (!sisPermissionsPromise) {
-                sisPermissionsPromise = loadSisPermissions()
-            }
-            await sisPermissionsPromise
-        }
+        // Emergency Contact routes grant access via SVMSecure.SIS.AllStudents, and Career
+        // Selection routes via SVMSecure.CareerSelection; both areas are outside requireLogin.
+        // Fetched together rather than in turn, to save a round trip: the store merges each
+        // area's result into what is already held, so the order they arrive in does not matter.
+        await Promise.all([ensurePermissions("SVMSecure.SIS"), ensurePermissions(CAREER_SELECTION_PERMISSION_PREFIX)])
     }
 
     if (to.meta.permissions !== undefined) {
