@@ -6,8 +6,11 @@ import type { QTableProps } from "quasar"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import CompletenessIcon from "../components/CompletenessIcon.vue"
 import ExportToolbar from "@/components/ExportToolbar.vue"
-import AppAccessControls from "../components/AppAccessControls.vue"
+import StudentRecordLink from "@/Students/components/StudentRecordLink.vue"
+import StudentEmail from "@/Students/components/StudentEmail.vue"
+import AppAccessControls from "@/Students/components/AppAccessControls.vue"
 import { emergencyContactService } from "../services/emergency-contact-service"
+import { useReportExports } from "@/Students/composables/use-report-exports"
 import { formatPhone } from "../utils/phone"
 import type { StudentContactListItem } from "../types"
 
@@ -89,21 +92,14 @@ function navigateToStudent(row: StudentContactListItem): void {
     }
 }
 
-async function handleExcelExport(): Promise<void> {
-    const success = await emergencyContactService.downloadOverviewExcel()
-    if (success) {
-        $q.notify({ type: "positive", message: "Excel report downloaded." })
-    } else {
-        $q.notify({ type: "warning", message: "No data to export." })
-    }
-}
+const { handleExcelExport, handlePdfExport } = useReportExports(rows, {
+    downloadExcel: emergencyContactService.downloadOverviewExcel,
+    openPdf: emergencyContactService.openOverviewPdf,
+})
 
-function handlePdfExport(): void {
-    if (rows.value.length === 0) {
-        $q.notify({ type: "warning", message: "No data to export." })
-        return
-    }
-    emergencyContactService.openOverviewPdf()
+async function getAccessStatus(): Promise<{ appOpen: boolean; individualGrantCount: number } | null> {
+    const status = await emergencyContactService.getAccessStatus()
+    return status && { appOpen: status.appOpen, individualGrantCount: status.individualGrants.length }
 }
 
 async function loadGrantedIds(): Promise<void> {
@@ -141,6 +137,8 @@ onMounted(load)
 
         <AppAccessControls
             v-if="isAdmin"
+            :get-status="getAccessStatus"
+            :toggle="emergencyContactService.toggleAppAccess"
             @access-status-changed="loadGrantedIds"
         />
 
@@ -183,46 +181,18 @@ onMounted(load)
 
             <template #body-cell-fullName="props">
                 <q-td :props="props">
-                    <router-link
-                        v-if="props.row.hasDetailRoute"
-                        :to="{ name: detailRoute, params: { pidm: props.row.personId } }"
-                        class="text-primary"
-                        :aria-label="`${isAdmin ? 'Edit' : 'View'} ${props.row.fullName}`"
-                    >
-                        {{ props.row.fullName }}
-                        <q-icon
-                            :name="isAdmin ? 'edit' : 'visibility'"
-                            size="0.875rem"
-                            class="q-ml-xs"
-                            aria-hidden="true"
-                        />
-                    </router-link>
-                    <span
-                        v-else
-                        class="text-grey-7"
-                    >
-                        {{ props.row.fullName }}
-                        <q-icon
-                            name="warning"
-                            size="0.875rem"
-                            color="orange"
-                            class="q-ml-xs"
-                        >
-                            <q-tooltip>No AAUD mapping, record cannot be opened</q-tooltip>
-                        </q-icon>
-                    </span>
+                    <StudentRecordLink
+                        :student="props.row"
+                        edit-route="EmergencyContactEdit"
+                        view-route="EmergencyContactView"
+                        :can-edit="isAdmin"
+                    />
                 </q-td>
             </template>
 
             <template #body-cell-email="props">
                 <q-td :props="props">
-                    <a
-                        v-if="props.row.email"
-                        :href="`mailto:${props.row.email}`"
-                        class="text-primary"
-                    >
-                        {{ props.row.email }}
-                    </a>
+                    <StudentEmail :email="props.row.email" />
                 </q-td>
             </template>
 
@@ -291,34 +261,13 @@ onMounted(load)
                                 >
                                     <q-tooltip>Individual access granted</q-tooltip>
                                 </q-icon>
-                                <router-link
-                                    v-if="props.row.hasDetailRoute"
-                                    :to="{ name: detailRoute, params: { pidm: props.row.personId } }"
-                                    class="text-primary text-weight-medium"
-                                    :aria-label="`${isAdmin ? 'Edit' : 'View'} ${props.row.fullName}`"
-                                >
-                                    {{ props.row.fullName }}
-                                    <q-icon
-                                        :name="isAdmin ? 'edit' : 'visibility'"
-                                        size="0.875rem"
-                                        class="q-ml-xs"
-                                        aria-hidden="true"
-                                    />
-                                </router-link>
-                                <span
-                                    v-else
-                                    class="text-grey-7 text-weight-medium"
-                                >
-                                    {{ props.row.fullName }}
-                                    <q-icon
-                                        name="warning"
-                                        size="0.875rem"
-                                        color="orange"
-                                        class="q-ml-xs"
-                                    >
-                                        <q-tooltip>No AAUD mapping, record cannot be opened</q-tooltip>
-                                    </q-icon>
-                                </span>
+                                <StudentRecordLink
+                                    :student="props.row"
+                                    edit-route="EmergencyContactEdit"
+                                    view-route="EmergencyContactView"
+                                    :can-edit="isAdmin"
+                                    emphasized
+                                />
                                 <q-space />
                                 <span class="text-caption text-grey">{{ props.row.classLevel }}</span>
                             </div>
