@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, useTemplateRef } from "vue"
-import { useQuasar } from "quasar"
 import type { QTable, QTableProps } from "quasar"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import ExportToolbar from "@/components/ExportToolbar.vue"
+import { useReportExports } from "@/Students/composables/use-report-exports"
+import { useScrollableTableRegion } from "@/composables/use-scrollable-table-region"
 import { formatPhone } from "../utils/phone"
 import type { StudentContactReport, ContactInfo } from "../types"
 
-const $q = useQuasar()
 const loading = ref(false)
 const rows = ref<StudentContactReport[]>([])
 const filter = ref("")
@@ -55,22 +55,10 @@ function formatContact(contact: ContactInfo | null | undefined): string[] {
     return lines
 }
 
-async function handleExcelExport(): Promise<void> {
-    const success = await emergencyContactService.downloadExcel()
-    if (success) {
-        $q.notify({ type: "positive", message: "Excel report downloaded." })
-    } else {
-        $q.notify({ type: "warning", message: "No data to export." })
-    }
-}
-
-function handlePdfExport(): void {
-    if (rows.value.length === 0) {
-        $q.notify({ type: "warning", message: "No data to export." })
-        return
-    }
-    emergencyContactService.openPdf()
-}
+const { handleExcelExport, handlePdfExport } = useReportExports(rows, {
+    downloadExcel: emergencyContactService.downloadExcel,
+    openPdf: emergencyContactService.openPdf,
+})
 
 async function load(): Promise<void> {
     loading.value = true
@@ -78,17 +66,9 @@ async function load(): Promise<void> {
     loading.value = false
 }
 
-onMounted(() => {
-    load()
-    // Axe's scrollable-region-focusable rule requires the horizontal scroll
-    // container to be reachable by keyboard; Quasar doesn't expose a prop for it.
-    const scroller = (tableRef.value?.$el as HTMLElement | undefined)?.querySelector<HTMLElement>(".q-table__middle")
-    if (scroller) {
-        scroller.tabIndex = 0
-        scroller.setAttribute("role", "region")
-        scroller.setAttribute("aria-label", "Emergency contact report table")
-    }
-})
+useScrollableTableRegion(tableRef, "Emergency contact report table")
+
+onMounted(load)
 </script>
 
 <template>
