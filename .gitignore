@@ -511,6 +511,9 @@ web/Areas/Effort/Scripts/Effort_Database_Schema_And_Data_LEGACY.txt
 # PhoneLists migration script outputs
 web/Areas/Personnel/Scripts/AnalysisOutput/
 
+# Career Selection migration script outputs
+web/Areas/Students/Scripts/AnalysisOutput/
+
 # Code-quality tool outputs (fallow cache + jscpd + ReSharper reports)
 .fallow/
 VueApp/.fallow/
