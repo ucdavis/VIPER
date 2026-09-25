@@ -399,7 +399,7 @@ public class MeritSummaryService : BaseReportService, IMeritSummaryService
                     if (!isSpacer) ws.Cell(row, col).Value = type;
                     col++;
                 }
-                ws.Range($"{row}:{row}").Style.Font.Bold = true;
+                BoldExcelHeaderRow(ws, row);
                 ws.SheetView.FreezeRows(row);
                 row++;
 

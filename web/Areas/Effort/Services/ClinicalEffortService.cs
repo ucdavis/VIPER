@@ -453,7 +453,7 @@ public class ClinicalEffortService : BaseReportService, IClinicalEffortService
                 ws.Cell(row, col++).Value = type;
             }
             int totalCols = col - 1;
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             ws.SheetView.FreezeRows(row);
             row++;
 

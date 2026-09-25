@@ -435,7 +435,7 @@ public class ClinicalScheduleService : BaseReportService, IClinicalScheduleServi
         {
             ws.Cell(row, col).Value = "AY Total";
         }
-        ws.Range($"{row}:{row}").Style.Font.Bold = true;
+        BoldExcelHeaderRow(ws, row);
         ws.SheetView.FreezeRows(row);
         // After the term loop, col is one past the last term column. The
         // "AY Total" cell sits at col (no further increment) when showTotal,

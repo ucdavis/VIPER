@@ -688,7 +688,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
             int headerRow = row;
             ws.Cell(row, 1).Value = "Instructor";
             ws.Cell(row, 2).Value = "Average";
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             ws.SheetView.FreezeRows(row);
             row++;
 
@@ -751,7 +751,7 @@ public class EvaluationReportService : BaseReportService, IEvaluationReportServi
             ws.Cell(row, 4).Value = "Course";
             ws.Cell(row, 5).Value = "Average";
             ws.Cell(row, 6).Value = "Median";
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             ws.SheetView.FreezeRows(row);
             row++;
 

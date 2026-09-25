@@ -40,6 +40,11 @@ namespace Viper.Services
             _userHelper = userHelper;
         }
 
+        /// <summary>
+        /// Creates the SMTP client for each send. Tests swap in a substitute so no socket is opened.
+        /// </summary>
+        internal Func<ISmtpClient> SmtpClientFactory { get; init; } = () => new SmtpClient();
+
         public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = true, string? from = null)
         {
             await SendEmailAsync(new[] { to }, subject, body, isHtml, from);
@@ -147,7 +152,7 @@ namespace Viper.Services
         {
             try
             {
-                using var client = new SmtpClient();
+                using var client = SmtpClientFactory();
 
                 // Determine SSL/TLS options
                 var secureSocketOptions = SecureSocketOptions.None;
