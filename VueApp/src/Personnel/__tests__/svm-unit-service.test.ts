@@ -16,7 +16,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 describe("svmUnitService()", () => {
     it("returns the units for a section on success", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const units = [
             {
                 unitId: 10,
@@ -38,7 +37,6 @@ describe("svmUnitService()", () => {
 
     it("returns null for a failed request, which an empty array could not distinguish", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         const result = await svmUnitService.getAllUnits()
@@ -48,7 +46,6 @@ describe("svmUnitService()", () => {
 
     it("returns an empty array for a list that genuinely has no units", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         const result = await svmUnitService.getAllUnits()
@@ -58,7 +55,6 @@ describe("svmUnitService()", () => {
 
     it("posts new unit data to the units endpoint", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPost.mockResolvedValue({ success: true, result: true })
         const dto = {
             fax: "",
@@ -80,7 +76,6 @@ describe("svmUnitService()", () => {
 
     it("deletes a list row by its row key", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockDel.mockResolvedValue({ success: true, result: true })
 
         await svmUnitService.deleteRow(7)

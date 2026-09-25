@@ -8,7 +8,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 describe("svmModifiedDateService()", () => {
     it("returns the modified date", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: "2026-01-01T00:00:00" })
 
         const result = await svmModifiedDateService.getModifiedDate()
@@ -19,7 +18,6 @@ describe("svmModifiedDateService()", () => {
 
     it("returns null when there is no modified date on record", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: null })
 
         const result = await svmModifiedDateService.getModifiedDate()

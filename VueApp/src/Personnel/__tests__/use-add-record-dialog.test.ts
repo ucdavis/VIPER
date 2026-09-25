@@ -53,7 +53,6 @@ function buildOptions(overrides: Partial<Parameters<typeof useAddRecordDialog<Fo
 describe("useAddRecordDialog()", () => {
     it("surfaces the validation error and never calls sendSave when the form is invalid", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const sendSave = makeSendSave()
         const { save, formError } = useAddRecordDialog(buildOptions({ validate: () => "Label is required.", sendSave }))
 
@@ -65,7 +64,6 @@ describe("useAddRecordDialog()", () => {
 
     it("notifies, saves the result, and closes the dialog on a successful save", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const onSaved = vi.fn<(result: unknown) => void>()
         const onClose = vi.fn<() => void>()
         const sendSave = makeSendSave({ success: true, result: { id: 42 }, errors: null })
@@ -80,7 +78,6 @@ describe("useAddRecordDialog()", () => {
 
     it("surfaces the server error and leaves the dialog open on a failed save", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const onSaved = vi.fn<(result: unknown) => void>()
         const onClose = vi.fn<() => void>()
         const sendSave = makeSendSave({ success: false, errors: ["Phone number is already in use."] })
@@ -95,7 +92,6 @@ describe("useAddRecordDialog()", () => {
 
     it("ignores a second save call while the first is still in flight", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const deferredSave = createDeferred<SaveOutcome>()
         const sendSave = vi.fn<SendSave>(() => deferredSave.promise)
         const { save } = useAddRecordDialog(buildOptions({ sendSave }))

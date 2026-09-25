@@ -26,7 +26,6 @@ const isValidUnits = (v: number) => v >= 0
 describe("CourseEditDialog - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Update Course Error States", () => {

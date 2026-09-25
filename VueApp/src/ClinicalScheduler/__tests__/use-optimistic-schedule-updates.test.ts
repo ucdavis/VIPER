@@ -20,7 +20,6 @@ describe("useScheduleUpdatesWithRollback - Operation Queue", () => {
     let mockScheduleData: any = null
 
     beforeEach(() => {
-        vi.clearAllMocks()
         // Create a plain object that can be cloned
         mockScheduleData = {
             rotationId: 1,
@@ -168,7 +167,6 @@ describe("useScheduleUpdatesWithRollback - Error Handling", () => {
     let mockScheduleData: any = null
 
     beforeEach(() => {
-        vi.clearAllMocks()
         // Create a plain object that can be cloned
         mockScheduleData = {
             rotationId: 1,

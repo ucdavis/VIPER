@@ -156,7 +156,6 @@ async function clickAction(root: Pick<Page, "findAllComponents">, action: "edit"
  * Pass false to decline the confirmation dialog.
  */
 function resetMocks(confirmed = true) {
-    vi.clearAllMocks()
     mockConfirmAction.mockResolvedValue(confirmed)
     // RecordFormDialog's QDialog teleports to document.body, which outlives the wrapper, so a
     // previous test's dialog would still be there when asserting on document.body.textContent.

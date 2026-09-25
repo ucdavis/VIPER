@@ -13,9 +13,6 @@ describe("RotationSelector - Service API", () => {
     const componentLogic = createComponentLogic()
 
     beforeEach(() => {
-        // Reset all mocks
-        vi.clearAllMocks()
-
         // Setup default mock responses
         vi.mocked(RotationService.getRotations).mockResolvedValue({
             success: true,

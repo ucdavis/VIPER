@@ -43,10 +43,6 @@ function makeEmptyRequest(overrides: Partial<UpdateStudentContactRequest> = {}):
 }
 
 describe("EmergencyContactService — read operations", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getList", () => {
         it("should return list on successful response", async () => {
             const mockData = [
@@ -136,10 +132,6 @@ describe("EmergencyContactService — read operations", () => {
 })
 
 describe("EmergencyContactService — write operations", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("updateContact", () => {
         it("should return success result on successful update", async () => {
             const mockResult = { personId: 1, fullName: "Smith, John", canEdit: true }
@@ -201,10 +193,6 @@ describe("EmergencyContactService — write operations", () => {
 })
 
 describe("EmergencyContactService — access status and exports", () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
-
     describe("getAccessStatus", () => {
         it("should return access status on successful response", async () => {
             const mockData = { appOpen: true, individualGrants: [] }

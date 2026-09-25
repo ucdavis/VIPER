@@ -47,6 +47,8 @@ When I ask a question or make an observation, respond with an answer - do NOT ju
 
 - **UI**: Test UI changes with Playwright MCP (modals, forms, keyboard nav)
 - **API**: Use Playwright MCP to visit endpoints, APIs require browser auth, `curl` fails
+- **Frontend mocks**: Vitest clears mock call history before every test (`clearMocks` default), so `vi.clearAllMocks()` in a `beforeEach` is redundant. Clear a mock explicitly only mid-test, when an assertion must ignore calls made earlier in the same test.
+- **Frontend test realm**: tests run on the `vmThreads` pool (one happy-dom per worker, ~4x faster than one per file). Values built outside the test realm (`FormData.getAll()`, a component prop) carry a foreign `Array` prototype, so `toStrictEqual` fails with "values have no visual difference". Spread first: `expect([...fd.getAll("x")]).toStrictEqual([...])`.
 - **Branch & merge flow**: Branch off `main`, named `feature/`|`fix/`|etc. plus the JIRA ticket if applicable (e.g. `feature/VPR-104-clinical-scheduler`). After code review, merge into `Development` and push, which deploys to TEST. After the PR is approved on TEST, merge into `main`. Every change goes through `Development` first.
 - **Never branch off `Development`**: it is a merge/deploy target, never a base. A branch being "behind `Development`" is expected and not a concern (you never sync or rebase from it). Its history is messy by design and never rewritten.
 - **Squash during review**: If a branch is still unmerged and worked by a single developer, squash code-review fixes into the relevant existing commit for cleaner history rather than stacking "address review" commits.

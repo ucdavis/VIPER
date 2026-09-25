@@ -22,7 +22,6 @@ vi.mock("../services/course-service", () => ({
 describe("CourseImportDialog - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Import Error States", () => {

@@ -25,7 +25,6 @@ const TEST_TERM_CODE = 202410
 describe("InstructorEdit - Error Handling", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Update Instructor Error States", () => {
@@ -175,7 +174,6 @@ describe("InstructorEdit - Error Handling", () => {
 describe("InstructorEdit - State Management", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Loading State", () => {

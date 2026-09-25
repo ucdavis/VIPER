@@ -114,7 +114,6 @@ function staffOnlyUnit(unitId: number, unitPersonId: number, iamId: string): SVM
 describe("getSVMData()", () => {
     it("builds view-mode columns with location/phone/fax fields, and edit-mode columns with edit/delete", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([])
 
@@ -137,7 +136,6 @@ describe("getSVMData()", () => {
 
     it("includes the abbreviation column only in view mode when the section flags includeAbbrv", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection({ includeAbbrv: true })])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([])
 
@@ -150,7 +148,6 @@ describe("getSVMData()", () => {
 
     it("splits leaders from the shared admin staff record and appends the interim suffix", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
             makeUnit({
@@ -194,7 +191,6 @@ describe("getSVMData()", () => {
 
     it("produces no rows, without throwing, when a unit has no unitPersons", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([makeUnit({ unitPersons: null })])
 
@@ -205,7 +201,6 @@ describe("getSVMData()", () => {
 
     it("blanks the admin staff fields when a unit has a leader but no assigned staff", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([makeUnit({ unitPersons: [makeUnitPerson()] })])
 
@@ -219,7 +214,6 @@ describe("getSVMData()", () => {
 
     it("falls back to an empty person, without throwing, when a leader's person record is null", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
             makeUnit({ unitPersons: [makeUnitPerson({ person: null })] }),
@@ -236,7 +230,6 @@ describe("getSVMData()", () => {
 
     it("keeps a staff-only unit visible by standing in a blank dean/director", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([staffOnlyUnit(10, 7, "staff01")])
 
@@ -255,7 +248,6 @@ describe("getSVMData()", () => {
 
     it("gives staff-only rows distinct row keys", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
             staffOnlyUnit(10, 7, "staff01"),
@@ -273,7 +265,6 @@ describe("getSVMData()", () => {
 
     it("flags a row as the last for its unit only when the unit yields one row", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
             makeUnit({
@@ -286,7 +277,6 @@ describe("getSVMData()", () => {
 
         const { newSections: twoLeaders } = await getSVMData(false)
 
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([makeUnit({ unitPersons: [makeUnitPerson()] })])
 
@@ -302,7 +292,6 @@ describe("getSVMData()", () => {
 describe("getSVMData() - column labels", () => {
     it("heads the director column with the section's own title", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([])
 
@@ -313,7 +302,6 @@ describe("getSVMData() - column labels", () => {
 
     it("leaves the director column unlabelled when the section carries no director title", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         // DirectorTitle is nullable on phones.SVMSection, so a null has to read as a blank header
         // rather than reaching the column definition as one.
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection({ directorTitle: null })])
@@ -328,7 +316,6 @@ describe("getSVMData() - column labels", () => {
 describe("getSVMData() - row shaping edge cases", () => {
     it("ignores a unit person carrying no PosType, who is neither a leader nor the staff", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
             makeUnit({
@@ -346,7 +333,6 @@ describe("getSVMData() - row shaping edge cases", () => {
 
     it("hides a row whose leader and staff both lack a record to key it on", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([
             makeUnit({ unitPersons: [makeUnitPerson({ unitPersonId: -1 })] }),
@@ -361,7 +347,6 @@ describe("getSVMData() - row shaping edge cases", () => {
 
     it("blanks a leader's phone when their record carries none", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         const leader = makeUnitPerson()
         leader.person!.phone = null
@@ -376,7 +361,6 @@ describe("getSVMData() - row shaping edge cases", () => {
 describe("getSVMData() - section grouping", () => {
     it("fetches units once and groups them onto their own sections", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([
             makeSection({ sectionId: 1, name: "VMDO" }),
             makeSection({ sectionId: 2, name: "Departments" }),
@@ -406,7 +390,6 @@ describe("getSVMData() - section grouping", () => {
 
     it("leaves a section with no units empty rather than borrowing another section's", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([
             makeSection({ sectionId: 1, name: "VMDO" }),
             makeSection({ sectionId: 2, name: "Departments" }),
@@ -425,7 +408,6 @@ describe("getSVMData() - section grouping", () => {
 describe("getFrequentlyCalledNumbers()", () => {
     it("maps numberId to entryId", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const apiResponse: SVMFrequentNumberAPIResponse[] = [
             { numberId: 5, label: "Front Desk", phone: "530-555-1000", sortOrder: null },
         ]
@@ -439,7 +421,6 @@ describe("getFrequentlyCalledNumbers()", () => {
 
     it("reports an error when the request failed, rather than an empty list", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmFrequentNumberService.getFrequentNumbers).mockResolvedValue(null)
 
         const results = await getFrequentlyCalledNumbers()
@@ -452,7 +433,6 @@ describe("getFrequentlyCalledNumbers()", () => {
 describe("getSVMData() - load failures", () => {
     it("reports no error when both reads succeed", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([])
 
@@ -463,7 +443,6 @@ describe("getSVMData() - load failures", () => {
 
     it("reports an error when the sections could not be loaded", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue(null)
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue([])
 
@@ -475,7 +454,6 @@ describe("getSVMData() - load failures", () => {
 
     it("reports an error but still renders the sections when only the units failed", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         vi.mocked(svmSectionService.getSections).mockResolvedValue([makeSection()])
         vi.mocked(svmUnitService.getAllUnits).mockResolvedValue(null)
 

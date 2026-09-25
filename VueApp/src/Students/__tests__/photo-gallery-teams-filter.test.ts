@@ -14,7 +14,6 @@ import { usePhotoGalleryStore } from "../stores/photo-gallery-store"
 describe("PhotoGallery - Teams Filter", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        vi.clearAllMocks()
     })
 
     describe("Teams filter visibility for class levels", () => {
