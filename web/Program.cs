@@ -208,8 +208,8 @@ try
     builder.Services.AddSingleton<IValidateOptions<PublicUrlOptions>, PublicUrlOptionsValidator>();
     builder.Services.AddSingleton<IPublicUrlService, PublicUrlService>();
 
-    // The login provider this environment uses. Campus is retiring CAS in favor of Entra ID, and
-    // the cutover is a switch of this setting.
+    // Login providers this environment offers. Deployed environments run one; "Both" puts a
+    // choice on the splash for local development and testing.
     builder.Services.Configure<AuthenticationSettings>(builder.Configuration.GetSection("Authentication"));
     builder.Services.Configure<EntraIdSettings>(
         builder.Configuration.GetSection(EntraIdSettings.SectionName));
@@ -638,9 +638,9 @@ finally
     LogManager.Shutdown();
 }
 
-// Works out which login provider this environment can actually use, and registers the Entra ID
-// handler when it is both enabled and fully configured. Falls back to CAS when the configured
-// value is unusable, such as Entra switched on without the settings to back it.
+// Works out which login providers this environment can actually offer, and registers the Entra ID
+// handler when it is both enabled and fully configured. Returns the resolved set, which is narrower
+// than the configured one when Entra is switched on without the settings to back it.
 static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, AuthenticationBuilder authenticationBuilder, Logger logger)
 {
     var settings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>()
@@ -650,15 +650,7 @@ static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, Aut
 
     // Configuration binds any integer onto the flags enum, so drop bits that name no provider
     // before anything downstream reads them.
-    settings.EnabledProviders &= LoginProviders.Cas | LoginProviders.EntraId;
-
-    if (settings.CasEnabled && settings.EntraIdEnabled)
-    {
-        // Offering both needs a page to choose between them, and there is none yet.
-        logger.Error("Authentication:EnabledProviders names both CAS and Entra ID, but only one "
-            + "provider is supported. Falling back to CAS.");
-        return LoginProviders.Cas;
-    }
+    settings.EnabledProviders &= LoginProviders.Both;
 
     if (settings.EntraIdEnabled)
     {
