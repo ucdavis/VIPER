@@ -106,6 +106,32 @@ public sealed class HomeControllerLoginProviderTests
         Assert.IsType<NotFoundResult>(controller.EntraLogin());
     }
 
+    [Theory]
+    [InlineData(EntraIdClaimMapper.NoAccountReason, true)]
+    [InlineData(null, false)]
+    [InlineData("other", false)]
+    public void SignInProblem_FlagsOnlyTheNoAccountReason(string? reason, bool expected)
+    {
+        var controller = CreateController(LoginProviders.EntraId);
+
+        var result = Assert.IsType<ViewResult>(controller.SignInProblem(reason));
+
+        Assert.Equal(expected, result.ViewData["NoAccount"]);
+    }
+
+    // The account-picker button links to EntraLogin, which 404s when CAS is the provider.
+    [Theory]
+    [InlineData(LoginProviders.EntraId, true)]
+    [InlineData(LoginProviders.Cas, false)]
+    public void SignInProblem_OffersAccountPickerOnlyWhenEntraEnabled(LoginProviders enabled, bool expected)
+    {
+        var controller = CreateController(enabled);
+
+        var result = Assert.IsType<ViewResult>(controller.SignInProblem());
+
+        Assert.Equal(expected, result.ViewData["EntraIdEnabled"]);
+    }
+
     [Fact]
     public void EntraLogin_WhenEnabled_ChallengesEntraScheme()
     {

@@ -73,6 +73,11 @@ namespace Web.Authorization
         public const string LogoutHintPropertyKey = "viper:logout_hint";
 
         /// <summary>
+        /// <c>SignInProblem</c> reason for an Entra account with no AAUD user.
+        /// </summary>
+        public const string NoAccountReason = "noaccount";
+
+        /// <summary>
         /// Resolves the campus kerberos login id from an Entra principal, or null when the
         /// configured claim is absent or blank. There is deliberately no fallback to
         /// preferred_username, upn or email: at UC Davis those carry the campus email alias, and
