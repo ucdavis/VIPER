@@ -947,7 +947,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
                 if (!isSpacer) ws.Cell(row, col).Value = type;
                 col++;
             }
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             ws.SheetView.FreezeRows(row);
             row++;
 
@@ -995,7 +995,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
                 if (!isSpacer) ws.Cell(row, col).Value = type;
                 col++;
             }
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             row++;
 
             // Department totals (col 2 = under Course column, matching Instructor Totals row)
@@ -1055,7 +1055,7 @@ public class MeritReportService : BaseReportService, IMeritReportService
                     if (!isSpacer) ws.Cell(row, col).Value = type;
                     col++;
                 }
-                ws.Range($"{row}:{row}").Style.Font.Bold = true;
+                BoldExcelHeaderRow(ws, row);
                 ws.SheetView.FreezeRows(row);
                 row++;
 

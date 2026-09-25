@@ -392,6 +392,15 @@ public abstract partial class BaseReportService
     }
 
     /// <summary>
+    /// Bold the written cells of a header row. Styling the whole row (e.g. <c>ws.Range("n:n")</c>)
+    /// writes a style record for all 16,384 columns, which slows export and bloats the file.
+    /// </summary>
+    protected static void BoldExcelHeaderRow(IXLWorksheet ws, int row)
+    {
+        ws.Row(row).CellsUsed().Style.Font.Bold = true;
+    }
+
+    /// <summary>
     /// Write a "Filters: Dept: All  Role: All  ..." line to an Excel worksheet.
     /// Returns the next available row number.
     /// </summary>

@@ -1,7 +1,12 @@
+using System.Net.Sockets;
+using MailKit;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
 using Viper.Models.AAUD;
@@ -11,7 +16,7 @@ namespace Viper.test.Services;
 
 /// <summary>
 /// Unit tests for EmailService.
-/// Tests focus on exception wrapping behavior since SMTP operations require mocking.
+/// SMTP is substituted, so no test opens a socket.
 /// </summary>
 public class EmailServiceTests
 {
@@ -19,6 +24,7 @@ public class EmailServiceTests
     private readonly IHostEnvironment _hostEnvironmentMock;
     private readonly IHttpContextAccessor _httpContextAccessorMock;
     private readonly IUserHelper _userHelperMock;
+    private readonly ISmtpClient _smtpClientMock;
 
     public EmailServiceTests()
     {
@@ -26,6 +32,7 @@ public class EmailServiceTests
         _hostEnvironmentMock = Substitute.For<IHostEnvironment>();
         _httpContextAccessorMock = Substitute.For<IHttpContextAccessor>();
         _userHelperMock = Substitute.For<IUserHelper>();
+        _smtpClientMock = Substitute.For<ISmtpClient>();
 
         _hostEnvironmentMock.EnvironmentName.Returns("Development");
     }
@@ -35,7 +42,7 @@ public class EmailServiceTests
         settings ??= new EmailSettings
         {
             SmtpHost = "localhost",
-            SmtpPort = 0, // Avoids sending emails during tests
+            SmtpPort = 1025,
             DefaultFromAddress = "test@example.com",
             UseMailpit = true
         };
@@ -45,8 +52,20 @@ public class EmailServiceTests
             _loggerMock,
             _hostEnvironmentMock,
             _httpContextAccessorMock,
-            _userHelperMock);
+            _userHelperMock)
+        {
+            SmtpClientFactory = () => _smtpClientMock
+        };
     }
+
+    private void AssertSentTo(string address) =>
+        _smtpClientMock.Received(1).SendAsync(
+            Arg.Is<MimeMessage>(m => m.To.Mailboxes.Single().Address == address),
+            Arg.Any<CancellationToken>(),
+            Arg.Any<ITransferProgress>());
+
+    private void AssertNothingSent() =>
+        _smtpClientMock.DidNotReceiveWithAnyArgs().SendAsync(default(MimeMessage)!);
 
     [Fact]
     public async Task SendMultipartEmailAsync_NoBody_ThrowsArgumentException()
@@ -63,13 +82,15 @@ public class EmailServiceTests
     public async Task SendEmailAsync_ValidAddresses_DevModeSkipsWhenMailpitUnavailable()
     {
         // Arrange
+        _smtpClientMock.ConnectAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<SecureSocketOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new SocketException((int)SocketError.ConnectionRefused)));
         var service = CreateService();
 
         // Act - In dev mode with Mailpit, connection failures are silently skipped
         await service.SendEmailAsync("recipient@example.com", "Subject", "<p>Body</p>");
 
-        // Assert - No exception means dev+Mailpit path worked (silent skip)
-        Assert.True(true);
+        // Assert
+        AssertNothingSent();
     }
 
     [Fact]
@@ -129,8 +150,9 @@ public class EmailServiceTests
         // Act - should not throw, email is silently suppressed
         await service.SendEmailAsync("recipient@example.com", "Subject", "<p>Body</p>");
 
-        // Assert - verify GetCurrentUser was called
+        // Assert - redirect lookup ran, nothing was sent
         _userHelperMock.Received(1).GetCurrentUser();
+        AssertNothingSent();
     }
 
     [Fact]
@@ -148,11 +170,11 @@ public class EmailServiceTests
         _userHelperMock.GetCurrentUser().Returns(currentUser);
         var service = CreateService(settings);
 
-        // Act - In dev mode with Mailpit unavailable, connection failures are silently skipped
+        // Act
         await service.SendEmailAsync("original@example.com", "Test Subject", "<p>Body</p>");
 
-        // Assert - verify redirect happened (GetCurrentUser was called)
-        _userHelperMock.Received(1).GetCurrentUser();
+        // Assert
+        AssertSentTo("testuser@ucdavis.edu");
     }
 
     [Fact]
@@ -171,11 +193,11 @@ public class EmailServiceTests
         _userHelperMock.GetCurrentUser().Returns(currentUser);
         var service = CreateService(settings);
 
-        // Act - In dev mode with Mailpit unavailable, connection failures are silently skipped
+        // Act
         await service.SendEmailAsync("original@example.com", "Test Subject", "<p>Body</p>");
 
-        // Assert - verify GetCurrentUser was called (email would be testuser@ucdavis.edu)
-        _userHelperMock.Received(1).GetCurrentUser();
+        // Assert
+        AssertSentTo("testuser@ucdavis.edu");
     }
 
     [Fact]
@@ -196,6 +218,7 @@ public class EmailServiceTests
 
         // Assert - GetCurrentUser should NOT be called when redirect is disabled
         _userHelperMock.DidNotReceive().GetCurrentUser();
+        AssertSentTo("recipient@example.com");
     }
 
     [Fact]
@@ -215,7 +238,8 @@ public class EmailServiceTests
         // Act - no exception should be thrown; email is suppressed before SMTP attempt
         await service.SendEmailAsync("recipient@example.com", "Subject", "<p>Body</p>");
 
-        // Assert - GetCurrentUser was called (redirect logic was exercised)
+        // Assert - redirect lookup ran, SMTP was never contacted
         _userHelperMock.Received(1).GetCurrentUser();
+        _ = _smtpClientMock.DidNotReceive().ConnectAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<SecureSocketOptions>(), Arg.Any<CancellationToken>());
     }
 }
