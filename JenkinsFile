@@ -93,7 +93,8 @@ pipeline {
 				script {
 					parallel(
 						backend: {
-							bat '"C:\\Program Files\\dotnet\\dotnet" test --project ./test/Viper.test.csproj --configuration release -- --report-xunit-junit --report-xunit-junit-filename TestResults.xml'
+							// Casing must match the publish step's "Release", or MSBuild recompiles web/
+							bat '"C:\\Program Files\\dotnet\\dotnet" test --project ./test/Viper.test.csproj --configuration Release -- --report-xunit-junit --report-xunit-junit-filename TestResults.xml'
 						},
 						frontend: {
 							bat 'npm run --prefix VueApp test:run'
