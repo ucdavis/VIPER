@@ -669,3 +669,58 @@ body {
         transition: none;
     }
 }
+
+/* ============================================================================
+   Plain variant, used by Views/Home/SignInProblem.cshtml and ported from VIPER 1
+   public/css/welcome.css. Same brand chrome and type as the splash above, but no
+   hero photo: these are terminal states, not an invitation.
+   ============================================================================ */
+.welcome-hero--plain {
+    background-image: none;
+}
+
+/* The photo is gone, so the gradients that kept text legible over it have
+   nothing to darken and would only muddy the flat blue. */
+.welcome-hero--plain::before,
+.welcome-hero--plain::after {
+    display: none;
+}
+
+/* One centered column instead of the editorial/card pair. Capped rather than
+   tracked at a fixed width, so narrow viewports shrink it instead of overflowing. */
+.welcome-hero--plain .welcome-hero__inner {
+    max-width: 33rem; /* 28rem card + the inner's 2.5rem side padding */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+}
+
+/* This page has no display headline, so the card heading is the h1 and carries a
+   little more weight than its counterpart on the splash. Still well below display
+   scale: the workspace heading rule applies, not the brand-surface one. */
+.welcome-hero--plain .welcome-card__heading {
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.welcome-card__message {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--welcome-card-fg);
+}
+
+.welcome-hero--plain .welcome-cta-group {
+    margin-top: 1.75rem;
+}
+
+@media (width <= 767.98px) {
+    .welcome-hero--plain .welcome-hero__inner {
+        /* The splash stretches its two columns to fill the column; a single card
+           should sit centered in the space instead, as it does on desktop. */
+        align-items: center;
+    }
+
+    .welcome-hero--plain .welcome-card__heading {
+        font-size: 1.5rem;
+    }
+}

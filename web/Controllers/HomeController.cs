@@ -637,6 +637,23 @@ namespace Viper.Controllers
         }
 
         /// <summary>
+        /// Where a failed Entra sign-in lands. Offers the account picker, since a plain retry would
+        /// silently reuse whichever account Entra still holds.
+        /// </summary>
+        /// <param name="reason"><see cref="EntraIdClaimMapper.NoAccountReason"/> when the account has no AAUD user.</param>
+        [Route("/[action]")]
+        [AllowAnonymous]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        [SearchExclude]
+#pragma warning disable S6967 // Reads one optional query value, no model binding required
+        public IActionResult SignInProblem([FromQuery] string? reason = null)
+#pragma warning restore S6967
+        {
+            ViewData["NoAccount"] = string.Equals(reason, EntraIdClaimMapper.NoAccountReason, StringComparison.Ordinal);
+            return View();
+        }
+
+        /// <summary>
         /// Logout function -- clears the local session then signs out of the provider, no VIEW
         /// </summary>
         /// <remarks>

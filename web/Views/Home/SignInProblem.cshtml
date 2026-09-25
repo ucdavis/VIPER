@@ -1,0 +1,56 @@
+@{
+    // Layout = null like Welcome: the terminal-state "plain" variant of the splash, worded to match
+    // VIPER 1's /public/entra/signin.cfm.
+    Layout = null;
+
+    var noAccount = ViewData["NoAccount"] as bool? ?? false;
+    const string helpEmail = "svmithelp@ucdavis.edu";
+    var (beforeEmail, afterEmail) = noAccount
+        ? ("Your account's login id could not be matched to a VIPER account. Please contact ", ".")
+        : ("Sign-in could not be completed. Please try again, and contact ", " if the problem continues.");
+
+    // Prefilled so the desk gets what the user saw and when without asking.
+    var body = "I had a problem signing in to VIPER.\r\n\r\nMessage: " + beforeEmail + helpEmail + afterEmail
+        + "\r\nTime: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
+        + "\r\nAccount I signed in with: ";
+    var helpHref = "mailto:" + helpEmail
+        + "?subject=" + Uri.EscapeDataString("VIPER: Sign-in problem")
+        + "&body=" + Uri.EscapeDataString(body);
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VIPER sign-in</title>
+    <link rel="preconnect" href="https://campusfont.ucdavis.edu" crossorigin />
+    <link rel="stylesheet" href="~/css/welcome.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="welcome-header">
+        <div class="welcome-header__bar">
+            <partial name="_ViperBrand" />
+        </div>
+        <div class="welcome-header__rule" aria-hidden="true"></div>
+    </header>
+
+    <main class="welcome-hero welcome-hero--plain">
+        <div class="welcome-hero__inner">
+            <div class="welcome-card">
+                <h1 class="welcome-card__heading">Sign-in problem</h1>
+                <p class="welcome-card__message">@beforeEmail<a href="@helpHref">@helpEmail</a>@afterEmail</p>
+                <div class="welcome-cta-group">
+                    <a class="welcome-cta" href="@Url.Content("~/")">
+                        <span>Return to VIPER</span>
+                        <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                    </a>
+                </div>
+                @* A plain retry would silently reuse whichever account Entra still holds. *@
+                <a class="welcome-help" href="@Url.Content("~/EntraLogin")?selectAccount=true">Sign in with a different account</a>
+            </div>
+        </div>
+
+        <partial name="_WelcomeFooter" />
+    </main>
+</body>
+</html>
