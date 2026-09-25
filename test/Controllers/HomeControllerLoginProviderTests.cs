@@ -105,6 +105,19 @@ public sealed class HomeControllerLoginProviderTests
         Assert.IsType<NotFoundResult>(controller.EntraLogin());
     }
 
+    [Theory]
+    [InlineData(EntraIdClaimMapper.NoAccountReason, true)]
+    [InlineData(null, false)]
+    [InlineData("other", false)]
+    public void SignInProblem_FlagsOnlyTheNoAccountReason(string? reason, bool expected)
+    {
+        var controller = CreateController(LoginProviders.EntraId);
+
+        var result = Assert.IsType<ViewResult>(controller.SignInProblem(reason));
+
+        Assert.Equal(expected, result.ViewData["NoAccount"]);
+    }
+
     [Fact]
     public void EntraLogin_WhenEnabled_ChallengesEntraScheme()
     {
