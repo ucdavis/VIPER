@@ -1,0 +1,33 @@
+@{
+    // Worded to match VIPER 1's /public/entra/signin.cfm.
+    ViewData["Title"] = "Sign-in problem";
+    ViewData["AllowAnonymousContent"] = true;
+
+    var noAccount = ViewData["NoAccount"] as bool? ?? false;
+    const string helpEmail = "svmithelp@ucdavis.edu";
+    var (beforeEmail, afterEmail) = noAccount
+        ? ("Your account's login id could not be matched to a VIPER account. Please contact ", ".")
+        : ("Sign-in could not be completed. Please try again, and contact ", " if the problem continues.");
+
+    // Prefilled so the desk gets what the user saw and when without asking.
+    var body = "I had a problem signing in to VIPER.\r\n\r\nMessage: " + beforeEmail + helpEmail + afterEmail
+        + "\r\nTime: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
+        + "\r\nAccount I signed in with: ";
+    var helpHref = "mailto:" + helpEmail
+        + "?subject=" + Uri.EscapeDataString("VIPER: Sign-in problem")
+        + "&body=" + Uri.EscapeDataString(body);
+}
+@* Same card as the layout's anonymous "Log In" prompt, so the two read as one flow. *@
+<div class="q-pa-xl flex flex-center">
+    <q-card style="max-width: 480px">
+        <q-card-section>
+            <h1 class="text-h6 q-my-none">Sign-in problem</h1>
+            <p class="text-body1 q-mt-sm q-mb-none">@beforeEmail<a href="@helpHref">@helpEmail</a>@afterEmail</p>
+        </q-card-section>
+        <q-card-actions align="left" class="q-px-md q-pb-md">
+            <q-btn color="primary" label="Return to VIPER" href="@Url.Content("~/")" no-caps></q-btn>
+            @* A plain retry would silently reuse whichever account Entra still holds. *@
+            <q-btn flat color="primary" label="Sign in with a different account" href="@Url.Content("~/EntraLogin")?selectAccount=true" no-caps></q-btn>
+        </q-card-actions>
+    </q-card>
+</div>
