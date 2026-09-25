@@ -178,3 +178,9 @@ dotnet_diagnostic.CA1505.severity = none
 # ApiPaginationAttribute.OnActionExecuting always constructs the object and overwrites the action argument
 [web/Models/ApiPagination.cs]
 dotnet_diagnostic.S6964.severity = none
+
+# S6964: IsOther is bound as part of the save request but never trusted — ValidateSelectionAsync
+# re-reads it from the option table before the mapper consumes it, so a client value cannot
+# influence what is stored
+[web/Areas/Students/Models/CareerDropdownOption.cs]
+dotnet_diagnostic.S6964.severity = none
