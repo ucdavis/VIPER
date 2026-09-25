@@ -500,7 +500,7 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                 if (!isSpacer) ws.Cell(row, col).Value = type;
                 col++;
             }
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             ws.SheetView.FreezeRows(row);
             row++;
 
@@ -552,7 +552,7 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                 if (!isSpacer) ws.Cell(row, col).Value = type;
                 col++;
             }
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             row++;
 
             // Department totals row
@@ -627,7 +627,7 @@ public class TeachingActivityService : BaseReportService, ITeachingActivityServi
                 if (!isSpacer) ws.Cell(row, col).Value = type;
                 col++;
             }
-            ws.Range($"{row}:{row}").Style.Font.Bold = true;
+            BoldExcelHeaderRow(ws, row);
             ws.SheetView.FreezeRows(row);
             row++;
 
