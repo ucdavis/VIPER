@@ -2,12 +2,41 @@
     Layout = null;
     // Controller has already validated ReturnUrl with Url.IsLocalUrl and nulled it if unsafe.
     var returnUrl = ViewData["ReturnUrl"] as string;
-    var loginUrl = string.IsNullOrEmpty(returnUrl)
-        ? Url.Content("~/login")
-        : $"{Url.Content("~/login")}?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+
+    // "provider" is explicit on both buttons: without it /login would send the two-provider case
+    // back to this page instead of on to CAS.
+    string SignInUrl(string provider)
+    {
+        var url = $"{Url.Content("~/login")}?provider={provider}";
+        return string.IsNullOrEmpty(returnUrl)
+            ? url
+            : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    // Straight to the Entra endpoint rather than through /login, because this is the one link
+    // that forces the account picker and /login deliberately never does.
+    string SwitchAccountUrl()
+    {
+        var url = $"{Url.Content("~/EntraLogin")}?selectAccount=true";
+        return string.IsNullOrEmpty(returnUrl)
+            ? url
+            : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    // Which providers to offer. Defaults to CAS alone if the controller didn't say, so a
+    // misconfiguration degrades to the pre-Entra behavior rather than to no way to sign in.
+    var casEnabled = ViewData["CasEnabled"] as bool? ?? true;
+    var entraIdEnabled = ViewData["EntraIdEnabled"] as bool? ?? false;
+    var showBoth = casEnabled && entraIdEnabled;
+
+    // With one provider there is no choice to explain, so the button keeps the plain "Sign in"
+    // and the solid primary style. The outlined variant only makes sense against a primary.
+    var casLabel = showBoth ? "Sign in with CAS" : "Sign in";
+    var entraLabel = showBoth ? "Sign in with Entra ID" : "Sign in";
+    var entraClass = showBoth ? "welcome-cta welcome-cta--secondary" : "welcome-cta";
+
     var hero = ViewData["Hero"] as string ?? "ophthalmology";
     var destinationLabel = ViewData["DestinationLabel"] as string;
-    var year = DateTime.Now.Year;
     // Preload the AVIF that the CSS image-set() picks on capable browsers (must
     // match that URL byte-for-byte to be reused). The type hint below lets
     // browsers without AVIF skip the preload and fall back to the JPEG.
@@ -53,10 +82,35 @@
                             You'll be taken to <strong>@destinationLabel</strong> after signing in.
                         </p>
                     }
-                    <a class="welcome-cta" href="@loginUrl">
-                        <span>Sign in</span>
-                        <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
-                    </a>
+                    @if (showBoth)
+                    {
+                        <p class="welcome-card__choice">
+                            Campus is moving from CAS to Entra ID. Either option signs you in to the
+                            same account.
+                        </p>
+                    }
+                    <div class="welcome-cta-group">
+                        @if (casEnabled)
+                        {
+                            <a class="welcome-cta" href="@SignInUrl("Cas")">
+                                <span>@casLabel</span>
+                                <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                            </a>
+                        }
+                        @if (entraIdEnabled)
+                        {
+                            <a class="@entraClass" href="@SignInUrl("EntraId")">
+                                <span>@entraLabel</span>
+                                <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                            </a>
+                        }
+                    </div>
+                    @if (entraIdEnabled)
+                    {
+                        @* The buttons above send no prompt, so Entra signs a single account
+                           straight through. This is the way out for someone who wants another. *@
+                        <a class="welcome-help" href="@SwitchAccountUrl()">Use a different account</a>
+                    }
                     <a class="welcome-help"
                        href="https://www.vetmed.ucdavis.edu/about/svmit"
                        target="_blank"
@@ -68,34 +122,7 @@
             </div>
         </div>
 
-        <footer class="welcome-footer">
-            <span class="welcome-footer__links">
-                <a href="https://svmithelp.vetmed.ucdavis.edu/" target="_blank" rel="noopener">
-                    <svg class="welcome-footer__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z" />
-                    </svg>
-                    SVM-IT ServiceDesk
-                    <span class="sr-only">(opens in new window)</span>
-                </a>
-                <span class="welcome-footer__sep" aria-hidden="true">|</span>
-                <a href="https://www.vetmed.ucdavis.edu/" target="_blank" rel="noopener">
-                    <svg class="welcome-footer__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M12 2 4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
-                    </svg>
-                    SVM Home
-                    <span class="sr-only">(opens in new window)</span>
-                </a>
-                <span class="welcome-footer__sep" aria-hidden="true">|</span>
-                <a href="https://www.ucdavis.edu/" target="_blank" rel="noopener">
-                    <svg class="welcome-footer__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3 1 9l11 6 9-4.91V17h2V9L12 3z" />
-                    </svg>
-                    UC Davis
-                    <span class="sr-only">(opens in new window)</span>
-                </a>
-            </span>
-            <span>&copy; @year School of Veterinary Medicine</span>
-        </footer>
+        <partial name="_WelcomeFooter" />
     </main>
 </body>
 </html>
