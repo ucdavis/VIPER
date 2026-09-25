@@ -38,33 +38,43 @@ public sealed class HomeControllerTests
     // "/ClinicalScheduler" is a splash-eligible area landing page; "/ClinicalScheduler/rotation" is a deep link.
     private static readonly string[] _areas = { "ClinicalScheduler", "Effort", "RAPS", "CTS" };
 
+    private readonly IActionDescriptorCollectionProvider _actionProvider;
+
     public HomeControllerTests()
     {
-        var actionProvider = Substitute.For<IActionDescriptorCollectionProvider>();
+        _actionProvider = Substitute.For<IActionDescriptorCollectionProvider>();
         var descriptors = _areaControllerTypes
             .Select(t => new ControllerActionDescriptor { ControllerTypeInfo = t.GetTypeInfo() })
             .ToList();
-        actionProvider.ActionDescriptors.Returns(new ActionDescriptorCollection(descriptors, version: 1));
+        _actionProvider.ActionDescriptors.Returns(new ActionDescriptorCollection(descriptors, version: 1));
 
-        _controller = new HomeController(
+        _controller = CreateController(LoginProviders.Cas);
+    }
+
+    // CAS-only is the default so the pre-Entra tests describe the pre-Entra behavior; the
+    // provider-selection tests pass an explicit combination.
+    private HomeController CreateController(LoginProviders enabledProviders)
+    {
+        return new HomeController(
             Substitute.For<IHttpClientFactory>(),
             Options.Create(new CasSettings { CasBaseUrl = "https://cas.example.edu/" }),
             new PublicUrlService(
                 Options.Create(new PublicUrlOptions { PublicBaseUrl = "https://viper.example.edu/2" }),
                 Substitute.For<IHttpContextAccessor>()),
-            Options.Create(new AuthenticationSettings()),
+            Options.Create(new AuthenticationSettings { EnabledProviders = enabledProviders }),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
             Substitute.For<VIPERContext>(),
-            actionProvider);
+            _actionProvider);
     }
 
     /// <summary>
     /// Wires up a controller context with the requested auth state and a URL helper whose
     /// IsLocalUrl mirrors framework semantics (local = rooted path, not protocol-relative).
     /// </summary>
-    private void Arrange(bool authenticated)
+    private void Arrange(bool authenticated, HomeController? target = null)
     {
+        var controller = target ?? _controller;
         var identity = authenticated
             ? new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "tester") }, authenticationType: "TestAuth")
             : new ClaimsIdentity();
@@ -78,9 +88,9 @@ public sealed class HomeControllerTests
         httpContext.Request.Host = new HostString("viper.test");
         httpContext.Request.Path = "/login";
 
-        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
         // View() resolves ITempDataDictionaryFactory from DI unless TempData is already set.
-        _controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
+        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
 
         var url = Substitute.For<IUrlHelper>();
         url.IsLocalUrl(Arg.Any<string?>()).Returns(ci =>
@@ -103,7 +113,7 @@ public sealed class HomeControllerTests
                 && !candidate.StartsWith("~//")
                 && !candidate.StartsWith("~/\\");
         });
-        _controller.Url = url;
+        controller.Url = url;
     }
 
     [Theory]
@@ -549,5 +559,144 @@ public sealed class HomeControllerTests
         Assert.Equal("no-cache", indexPragma);
         Assert.Equal(indexCacheControl, _controller.Response.Headers["Cache-Control"].ToString());
         Assert.Equal(indexPragma, _controller.Response.Headers["Pragma"].ToString());
+    }
+
+    // ---- Both providers on the splash -------------------------------------------------------
+    // "Both" puts a choice on the splash for local development and testing. /login has to decide
+    // where to send an unqualified request without ever bouncing the user in a loop. The
+    // single-provider cases live in HomeControllerLoginProviderTests.
+
+    // With both enabled there is no defensible default, so the unqualified /login that every
+    // existing "Log in" link uses hands off to the splash, which is the chooser.
+    [Fact]
+    public void Login_BothProviders_NoExplicitProvider_RedirectsToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login());
+
+        Assert.Equal(nameof(HomeController.Welcome), result.ActionName);
+    }
+
+    // Only the validated ReturnUrl is forwarded to the chooser; an off-site one is dropped.
+    [Fact]
+    public void Login_BothProviders_ForwardsSanitizedReturnUrlToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login("https://evil.com/phish"));
+
+        Assert.Null(result.RouteValues?["ReturnUrl"]);
+    }
+
+    // The chooser's own buttons pass provider explicitly. Without that, the CAS button would post
+    // back to /login and be redirected to /welcome again: an infinite bounce.
+    [Fact]
+    public void Login_BothProviders_ExplicitCas_GoesToCasNotBackToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectResult>(controller.Login(provider: LoginProviders.Cas));
+
+        Assert.StartsWith("https://cas.example.edu/login?service=", result.Url);
+    }
+
+    // Forcing the picker here would cost the single-account majority a click on every sign-in.
+    // Only the splash's switch-account link asks for the picker.
+    [Fact]
+    public void Login_BothProviders_ExplicitEntraId_RedirectsToEntraLoginWithoutPicker()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login(provider: LoginProviders.EntraId));
+
+        Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
+        Assert.False(result.RouteValues?.ContainsKey("selectAccount"));
+    }
+
+    // A hand-crafted ?provider= for a provider this environment does not offer must not reach a
+    // half-configured handler.
+    [Theory]
+    [InlineData(LoginProviders.EntraId, LoginProviders.Cas)]
+    [InlineData(LoginProviders.Cas, LoginProviders.EntraId)]
+    public void Login_ProviderNotEnabled_ReturnsNotFound(LoginProviders enabled, LoginProviders requested)
+    {
+        var controller = CreateController(enabled);
+        Arrange(authenticated: false, controller);
+
+        Assert.IsType<NotFoundResult>(controller.Login(provider: requested));
+    }
+
+    // Regression guard for the ordering bug where the two-provider hand-off to the chooser ran
+    // before the /api guard and answered with the splash.
+    [Theory]
+    [InlineData("/api/secret")]
+    [InlineData("~/api/secret")]
+    public void Login_BothProviders_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        Assert.IsType<UnauthorizedResult>(controller.Login(returnUrl));
+    }
+
+    // The /api guard has to hold on /welcome itself, not just on the /login it would otherwise
+    // delegate to. With both providers enabled the delegating branch is skipped, so without an
+    // explicit guard the splash renders 200 for an /api ReturnUrl while single-provider mode 401s.
+    [Theory]
+    [InlineData(LoginProviders.Cas, "/api/secret")]
+    [InlineData(LoginProviders.Both, "/api/secret")]
+    [InlineData(LoginProviders.Both, "~/api/secret")]
+    [InlineData(LoginProviders.Both, "/API/secret")]
+    public void Welcome_Anonymous_RejectsApiReturnUrl_WithUnauthorized(LoginProviders enabled, string returnUrl)
+    {
+        var controller = CreateController(enabled);
+        Arrange(authenticated: false, controller);
+
+        Assert.IsType<UnauthorizedResult>(controller.Welcome(returnUrl));
+    }
+
+    [Fact]
+    public void Welcome_Anonymous_SubpathApiReturnUrl_RejectedInBothMode()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+        controller.HttpContext.Request.PathBase = "/2";
+
+        Assert.IsType<UnauthorizedResult>(controller.Welcome("/2/api/secret"));
+    }
+
+    // Normally a deep link skips the splash and goes straight to the provider. It cannot when both
+    // are offered, because the splash is the only place to choose, and /login would send it right
+    // back here. Regression guard for that loop.
+    [Fact]
+    public void Welcome_BothProviders_DeepLink_RendersSplashInsteadOfRedirecting()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<ViewResult>(controller.Welcome("/ClinicalScheduler/rotation"));
+
+        Assert.Equal("Welcome", result.ViewName);
+        Assert.Equal("/ClinicalScheduler/rotation", result.ViewData["ReturnUrl"]);
+    }
+
+    [Theory]
+    [InlineData(LoginProviders.Cas, true, false)]
+    [InlineData(LoginProviders.EntraId, false, true)]
+    [InlineData(LoginProviders.Both, true, true)]
+    public void Welcome_PassesEnabledProvidersToView(LoginProviders enabled, bool casExpected, bool entraExpected)
+    {
+        var controller = CreateController(enabled);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<ViewResult>(controller.Welcome());
+
+        Assert.Equal(casExpected, result.ViewData["CasEnabled"]);
+        Assert.Equal(entraExpected, result.ViewData["EntraIdEnabled"]);
     }
 }

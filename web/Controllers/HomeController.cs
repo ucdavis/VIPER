@@ -107,10 +107,25 @@ namespace Viper.Controllers
                 return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "~/" : ReturnUrl);
             }
 
+            // An /api ReturnUrl gets a 401 rather than a sign-in page. With one provider the
+            // deep-link branch below enforces this by way of /login, but when both are offered that
+            // branch is skipped, so the guard has to be stated here or the two modes disagree.
+            if (relativeReturnUrl != null && IsApiPath(relativeReturnUrl))
+            {
+                return Unauthorized();
+            }
+
             // Only passive arrivals get the splash: the bare site root or a top-level area
             // landing page (e.g. "/ClinicalScheduler"). A deep link (e.g. "/ClinicalScheduler/rotation")
-            // skips the interstitial and goes straight to CAS so we don't interrupt a targeted workflow.
-            if (!IsSplashTarget(relativeReturnUrl, GetAreaNames(_actionDescriptorProvider)))
+            // skips the interstitial and goes straight to the provider so we don't interrupt a
+            // targeted workflow.
+            //
+            // When both providers are offered there is nothing to skip to: the splash is the only
+            // place the user can pick one, so every anonymous arrival gets it. This is also what
+            // keeps /welcome and /login from bouncing off each other, since /login sends the
+            // two-provider case back here.
+            if (!_authSettings.HasProviderChoice
+                && !IsSplashTarget(relativeReturnUrl, GetAreaNames(_actionDescriptorProvider)))
             {
                 return RedirectToAction(nameof(Login), new { ReturnUrl });
             }
@@ -129,6 +144,8 @@ namespace Viper.Controllers
             ViewData["ReturnUrl"] = returnUrl;
             ViewData["Hero"] = PickRandomHeroKey();
             ViewData["DestinationLabel"] = destinationLabel;
+            ViewData["CasEnabled"] = _authSettings.CasEnabled;
+            ViewData["EntraIdEnabled"] = _authSettings.EntraIdEnabled;
 
             return View("Welcome");
         }
@@ -358,28 +375,52 @@ namespace Viper.Controllers
         }
 
         /// <summary>
-        /// Login function -- sends the user to the enabled sign-in provider, no VIEW
+        /// Login function -- sends the user to a sign-in provider, no VIEW
         /// </summary>
         /// <remarks>
         /// Provider-aware so every existing "Log in" link keeps working across the CAS to Entra ID
-        /// cutover, which is a config switch rather than a code change.
+        /// cutover. With a single provider enabled this goes straight to it; with both enabled
+        /// there is nothing sensible to pick, so it hands off to the welcome splash, which is the
+        /// chooser.
         /// </remarks>
         [Route("/[action]")]
         [AllowAnonymous]
         [SearchExclude]
-        public IActionResult Login([FromQuery] string? ReturnUrl = null)
+#pragma warning disable S6967 // Action only reads ReturnUrl and provider, no model binding required
+        public IActionResult Login([FromQuery] string? ReturnUrl = null, [FromQuery] LoginProviders? provider = null)
+#pragma warning restore S6967
         {
-            // Resolved before dispatching so the /api 401 contract holds for either provider.
+            // An explicit provider (the welcome screen's buttons) always wins, and must, or the
+            // chooser's own CAS button would bounce straight back to the chooser.
+            var forcedProvider = provider is LoginProviders.Cas or LoginProviders.EntraId ? provider : null;
+
+            if (forcedProvider != null && !_authSettings.EnabledProviders.HasFlag(forcedProvider.Value))
+            {
+                return NotFound();
+            }
+
+            // Resolved before dispatching so the /api 401 contract holds identically no matter
+            // which provider this request ends up at, including the hand-off to the chooser.
             if (!TryResolveLoginReturnUrl(ReturnUrl, out var returnUrl))
             {
                 return Unauthorized();
             }
 
-            if (_authSettings.EntraIdEnabled)
+            // Forward only the validated URL; the app-root default is implied, so leave it off the query.
+            var forwardUrl = returnUrl == (Request.PathBase.Value ?? string.Empty) ? null : returnUrl;
+
+            if (forcedProvider == LoginProviders.EntraId
+                || (forcedProvider == null && !_authSettings.CasEnabled))
             {
-                // No picker from here. Entra signs a single signed-in account straight through and
-                // raises its own picker only when several match, which is what we want.
-                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl });
+                // No picker from here, however the user arrived. Entra signs a single signed-in
+                // account straight through and raises its own picker only when several match,
+                // which is what we want; the splash's switch-account link is the way to override.
+                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl = forwardUrl });
+            }
+
+            if (forcedProvider == null && _authSettings.HasProviderChoice)
+            {
+                return RedirectToAction(nameof(Welcome), new { ReturnUrl = forwardUrl });
             }
 
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
