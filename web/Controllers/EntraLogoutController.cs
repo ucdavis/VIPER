@@ -28,14 +28,18 @@ namespace Viper.Controllers
     /// Anonymous by necessity: the caller is Entra, not a signed-in user. Two things follow. The
     /// endpoint is framed cross-site, so <c>Program.cs</c> exempts this path from the CSP that
     /// otherwise sends <c>frame-ancestors 'none'</c> and would stop the iframe loading at all. And
-    /// anyone can post any <c>sid</c> to it, so it must stay a pure no-op for values that do not
-    /// match a live session: revoking an unknown id costs a cache entry and nothing else.
+    /// anyone can request it with any <c>sid</c>, so the value is length-capped before it reaches
+    /// either the shared cache or the relay to VIPER 1.
     /// </para>
     /// </remarks>
     [AllowAnonymous]
     [Route(EntraIdSettings.FrontChannelLogoutPath)]
     public class EntraLogoutController : ControllerBase
     {
+        // Generous next to the 36 characters of a GUID, so a format change does not drop a real
+        // sign-out, but small enough that junk cannot grow the cache or the relay URL.
+        private const int MaxSessionIdLength = 64;
+
         private readonly EntraSessionRevocationStore _revocations;
         private readonly IHttpClientFactory _clientFactory;
         private readonly EntraIdSettings _settings;
@@ -68,6 +72,16 @@ namespace Viper.Controllers
                 // user of the tenant is not a reasonable reading of an unauthenticated GET.
                 HttpHelper.Logger.Log(LogLevel.Warn,
                     "Front-channel logout ignored: no sid in the request.");
+                return Ok();
+            }
+
+            if (sid.Length > MaxSessionIdLength)
+            {
+                // An Entra sid is a GUID. Capping the length keeps an anonymous caller from
+                // sizing either the cache key or the relay URL, without guessing at the format.
+                HttpHelper.Logger.Log(LogLevel.Warn,
+                    "Front-channel logout ignored: sid longer than "
+                    + MaxSessionIdLength + " characters.");
                 return Ok();
             }
 

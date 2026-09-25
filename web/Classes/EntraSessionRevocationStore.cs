@@ -21,6 +21,7 @@ namespace Web.Authorization
     {
         // Namespaced because IMemoryCache is shared with roles, permissions and photos.
         private const string KeyPrefix = "entra-revoked-sid:";
+        private const string ActiveKeyPrefix = "entra-active-sid:";
 
         private readonly IMemoryCache _cache;
         private readonly TimeSpan _retention;
@@ -38,14 +39,44 @@ namespace Web.Authorization
             _retention = retention;
         }
 
-        /// <summary>Marks an Entra session id as signed out. Ignores null or blank ids.</summary>
-        // ponytail: in-process, so revocations are lost on an app restart and are not shared
-        // between nodes. That is sound only because VIPER 2 runs one instance per environment
+        /// <summary>
+        /// Records that a cookie carrying this session id is in use, which is what makes the id
+        /// revocable. Called on every authenticated request, so a restart rebuilds the markers.
+        /// </summary>
+        public void NoteActive(string? sessionId)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                return;
+            }
+
+            // Sliding, so reading the marker refreshes it and the steady state is a lookup.
+            var key = ActiveKeyPrefix + sessionId;
+            if (!_cache.TryGetValue(key, out _))
+            {
+                _cache.Set(key, true, new MemoryCacheEntryOptions { SlidingExpiration = _retention });
+            }
+        }
+
+        /// <summary>Marks an Entra session id as signed out. Ignores blank and unknown ids.</summary>
+        /// <remarks>
+        /// The caller is an anonymous endpoint anyone can reach. A length cap alone would still let
+        /// a stranger write one lasting entry per distinct id into a cache shared with roles,
+        /// permissions and photos, so only ids a live cookie has presented are admitted.
+        /// </remarks>
+        // ponytail: in-process, so a restart drops both the revocations and the active markers that
+        // gate them, leaving surviving cookies unrevocable until each makes its next request. That
+        // is sound only because VIPER 2 runs one instance per environment
         // (AddDataProtection() keeps its key ring locally, so a second node could not read the
         // first's cookies anyway). Move this to IDistributedCache if either fact changes.
         public void Revoke(string? sessionId)
         {
             if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                return;
+            }
+
+            if (!_cache.TryGetValue(ActiveKeyPrefix + sessionId, out _))
             {
                 return;
             }

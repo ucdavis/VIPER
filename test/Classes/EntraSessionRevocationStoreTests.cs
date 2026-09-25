@@ -11,10 +11,36 @@ namespace Viper.test.Classes
         private static EntraSessionRevocationStore Store() =>
             new(new MemoryCache(new MemoryCacheOptions()), TimeSpan.FromHours(12));
 
+        // Only ids a live cookie has presented are revocable, so a test that expects a revocation
+        // to stick has to establish the session first.
+        private static EntraSessionRevocationStore StoreWith(params string[] activeSessionIds)
+        {
+            var store = Store();
+
+            foreach (var sessionId in activeSessionIds)
+            {
+                store.NoteActive(sessionId);
+            }
+
+            return store;
+        }
+
+        // The endpoint is anonymous and takes the sid from the query string, so anyone can name
+        // any id. A length cap alone would still let each distinct one cost a lasting cache entry.
+        [Fact]
+        public void Revoke_SessionNeverSeenOnACookie_IsIgnored()
+        {
+            var store = Store();
+
+            store.Revoke("never-issued");
+
+            Assert.False(store.IsRevoked("never-issued"));
+        }
+
         [Fact]
         public void IsRevoked_AfterRevoke_ReturnsTrue()
         {
-            var store = Store();
+            var store = StoreWith("session-a");
 
             store.Revoke("session-a");
 
@@ -30,7 +56,7 @@ namespace Viper.test.Classes
         [Fact]
         public void Revoke_OneSession_LeavesOtherSessionsAlone()
         {
-            var store = Store();
+            var store = StoreWith("session-a", "session-b");
 
             store.Revoke("session-a");
 
@@ -45,7 +71,7 @@ namespace Viper.test.Classes
         [InlineData("   ")]
         public void IsRevoked_BlankSessionId_ReturnsFalse(string? sessionId)
         {
-            var store = Store();
+            var store = StoreWith("session-a");
             store.Revoke("session-a");
 
             Assert.False(store.IsRevoked(sessionId));
@@ -67,7 +93,7 @@ namespace Viper.test.Classes
         [Fact]
         public void IsRevoked_IsCaseSensitive()
         {
-            var store = Store();
+            var store = StoreWith("Session-A", "session-a");
 
             store.Revoke("Session-A");
 

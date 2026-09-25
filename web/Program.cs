@@ -189,7 +189,11 @@ try
                         context.RejectPrincipal();
                         await context.HttpContext.SignOutAsync(
                             CookieAuthenticationDefaults.AuthenticationScheme);
+                        return;
                     }
+
+                    // The anonymous front-channel endpoint only honours ids seen on a live cookie.
+                    revocations.NoteActive(sessionId);
                 }
             };
         });
@@ -651,6 +655,10 @@ static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, Aut
     var entraIdSettings = builder.Configuration.GetSection(EntraIdSettings.SectionName).Get<EntraIdSettings>()
         ?? new EntraIdSettings();
 
+    // Configuration binds any integer onto the flags enum, so drop bits that name no provider
+    // before anything downstream reads them.
+    settings.EnabledProviders &= LoginProviders.Both;
+
     if (settings.EntraIdEnabled)
     {
         if (entraIdSettings.IsConfigured)
@@ -661,7 +669,7 @@ static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, Aut
         {
             // Fail loudly at startup rather than serving a sign-in button that dead-ends.
             logger.Fatal("Entra ID login is enabled but EntraId configuration is incomplete "
-                + "(need TenantId and ClientId). The Entra sign-in option will not be offered.");
+                + "(need TenantId and a GUID ClientId). The Entra sign-in option will not be offered.");
             settings.EnabledProviders &= ~LoginProviders.EntraId;
         }
     }
@@ -685,6 +693,8 @@ static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, Aut
 // so nothing downstream has to know which provider the user picked.
 static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder, EntraIdSettings settings)
 {
+    const string EntraNoAccountItemKey = "viper:entra_no_account";
+
     authenticationBuilder.AddOpenIdConnect(EntraIdClaimMapper.AuthenticationScheme, options =>
     {
         options.Authority = settings.Authority;
@@ -719,7 +729,7 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
 
         options.Events = new OpenIdConnectEvents
         {
-            OnTokenValidated = context =>
+            OnTokenValidated = async context =>
             {
                 var loginId = EntraIdClaimMapper.ResolveLoginId(context.Principal, settings);
 
@@ -734,7 +744,22 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                         + ". Claims received: " + LogSanitizer.SanitizeString(received));
 
                     context.Fail("Entra ID token did not contain a usable campus login id.");
-                    return Task.CompletedTask;
+                    return;
+                }
+
+                // Entra also holds accounts that are not VIPER users, such as departmental ones like
+                // svm-entra. Signed in, they would land roleless with no hint why, so refuse them here.
+                var aaudContext = context.HttpContext.RequestServices.GetRequiredService<AAUDContext>();
+                if (!await aaudContext.AaudUsers.AnyAsync(u => u.LoginId == loginId, context.HttpContext.RequestAborted))
+                {
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn,
+                        "Entra ID login rejected: no AAUD user for login id "
+                        + LogSanitizer.SanitizeString(loginId));
+
+                    // Read by OnRemoteFailure, which runs later in this same callback request.
+                    context.HttpContext.Items[EntraNoAccountItemKey] = true;
+                    context.Fail("Entra ID account has no AAUD user.");
+                    return;
                 }
 
                 // The two claims from the token worth keeping besides identity, and this is the
@@ -751,8 +776,6 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                     DateTime.Now,
                     sessionId,
                     loginHint);
-
-                return Task.CompletedTask;
             },
 
             OnRedirectToIdentityProvider = context =>
@@ -802,7 +825,8 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                     + LogSanitizer.SanitizeString(context.Failure?.Message));
 
                 // Swallow the raw provider error page and send the user somewhere recoverable.
-                context.Response.Redirect(context.Request.PathBase + "/Error");
+                var noAccount = context.HttpContext.Items.ContainsKey(EntraNoAccountItemKey);
+                context.Response.Redirect(context.Request.PathBase + "/SignInProblem" + (noAccount ? "?reason=" + EntraIdClaimMapper.NoAccountReason : ""));
                 context.HandleResponse();
                 return Task.CompletedTask;
             }

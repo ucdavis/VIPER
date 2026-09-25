@@ -18,6 +18,7 @@ namespace Viper.test.Controllers
         private const string Tenant = "tenant-id";
         private const string ExpectedIssuer = "https://login.microsoftonline.com/tenant-id/v2.0";
         private const string ViperOne = "https://viper1.example/public/entra/frontchannel-logout.cfm";
+        private const string ClientId = "3f2e1d0c-9b8a-4756-8c3d-2a1b0c9d8e7f";
 
         private sealed class RecordingHandler : HttpMessageHandler
         {
@@ -70,6 +71,9 @@ namespace Viper.test.Controllers
             var store = new EntraSessionRevocationStore(
                 new MemoryCache(new MemoryCacheOptions()), TimeSpan.FromHours(12));
 
+            // Stand in for the request that would have introduced "session-a" to the store.
+            store.NoteActive("session-a");
+
             var handler = _handler = new RecordingHandler();
             var factory = Substitute.For<IHttpClientFactory>();
             factory.CreateClient(Arg.Any<string>())
@@ -78,7 +82,7 @@ namespace Viper.test.Controllers
             var settings = new EntraIdSettings
             {
                 TenantId = Tenant,
-                ClientId = "client-id",
+                ClientId = ClientId,
                 FrontChannelLogoutForwardTo = forwardTo
             };
 
@@ -98,6 +102,21 @@ namespace Viper.test.Controllers
             await controller.FrontChannelLogout("session-a", ExpectedIssuer);
 
             Assert.True(store.IsRevoked("session-a"));
+        }
+
+        // Anyone can reach this endpoint with any sid, so an oversized one must not reach either
+        // the shared cache or the relay to VIPER 1.
+        [Fact]
+        public async Task FrontChannelLogout_OversizedSid_RevokesNothingAndDoesNotRelay()
+        {
+            var (controller, store, handler) = Build();
+            var sid = new string('a', 65);
+
+            var result = await controller.FrontChannelLogout(sid, ExpectedIssuer);
+
+            Assert.False(store.IsRevoked(sid));
+            Assert.Empty(handler.Requests);
+            Assert.IsType<OkResult>(result);
         }
 
         [Fact]

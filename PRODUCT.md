@@ -75,6 +75,6 @@ Absences that future work must not paper over:
 
 ## Accessibility & Inclusion
 
-WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and fonts are self-hosted for reliable rendering.
+WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and Roboto and Material Icons are self-hosted for reliable rendering (Proxima Nova is served from the campus font server).
 
 The component-level contract that delivers this (contrast ratios, landmarks, keyboard semantics, dialog naming, live-region politeness) is specified in [DESIGN.md](DESIGN.md).

@@ -7,10 +7,13 @@ namespace Viper.test.Classes
     // exactly the failure the startup guard exists to prevent.
     public class EntraIdSettingsTests
     {
+        // A real client id is a GUID; MetadataAddress passes it to Entra as "?appid=".
+        private const string ClientGuid = "3f2e1d0c-9b8a-4756-8c3d-2a1b0c9d8e7f";
+
         private static EntraIdSettings Configured() => new()
         {
             TenantId = "tenant",
-            ClientId = "client"
+            ClientId = ClientGuid
         };
 
         [Fact]
@@ -31,16 +34,39 @@ namespace Viper.test.Classes
             Assert.False(settings.IsConfigured);
         }
 
+        // A malformed id registers the handler and then dead-ends at discovery, which in
+        // Entra-only mode locks everyone out, so it has to fail the startup guard like a blank one.
+        // The braced and dashless forms parse as GUIDs but are not what Entra accepts in "?appid=".
         [Theory]
         [InlineData(null)]
         [InlineData("")]
         [InlineData("   ")]
-        public void IsConfigured_ClientIdMissing_ReturnsFalse(string? clientId)
+        [InlineData("client")]
+        [InlineData("3f2e1d0c-9b8a-4756-8c3d")]
+        [InlineData("{3f2e1d0c-9b8a-4756-8c3d-2a1b0c9d8e7f}")]
+        [InlineData("3f2e1d0c9b8a47568c3d2a1b0c9d8e7f")]
+        public void IsConfigured_ClientIdMissingOrMalformed_ReturnsFalse(string? clientId)
         {
             var settings = Configured();
             settings.ClientId = clientId;
 
             Assert.False(settings.IsConfigured);
+        }
+
+        // These come from Parameter Store, where a trailing newline would otherwise be baked into
+        // the authority and discovery URLs.
+        [Fact]
+        public void Identifiers_AreTrimmed()
+        {
+            var settings = new EntraIdSettings
+            {
+                TenantId = "  tenant\n",
+                ClientId = " " + ClientGuid + " "
+            };
+
+            Assert.Equal("tenant", settings.TenantId);
+            Assert.Equal(ClientGuid, settings.ClientId);
+            Assert.True(settings.IsConfigured);
         }
 
         [Fact]
@@ -56,7 +82,8 @@ namespace Viper.test.Classes
         public void MetadataAddress_IsAppSpecificDiscoveryDocument()
         {
             Assert.Equal(
-                "https://login.microsoftonline.com/tenant/v2.0/.well-known/openid-configuration?appid=client",
+                "https://login.microsoftonline.com/tenant/v2.0/.well-known/openid-configuration?appid="
+                + ClientGuid,
                 Configured().MetadataAddress);
         }
 

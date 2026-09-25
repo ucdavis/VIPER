@@ -10,10 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using NSubstitute;
-using Viper.Classes;
 using Viper.Classes.SQLContext;
+using Viper.Classes;
 using Viper.Controllers;
-using Viper.test.TestSupport;
 using Web.Authorization;
 
 namespace Viper.test.Controllers;
@@ -61,7 +60,9 @@ public sealed class HomeControllerTests
         return new HomeController(
             Substitute.For<IHttpClientFactory>(),
             Options.Create(new CasSettings { CasBaseUrl = "https://cas.example.edu/" }),
-            Substitute.For<IPublicUrlService>(),
+            new PublicUrlService(
+                Options.Create(new PublicUrlOptions { PublicBaseUrl = "https://viper.example.edu/2" }),
+                Substitute.For<IHttpContextAccessor>()),
             Options.Create(new AuthenticationSettings { EnabledProviders = enabledProviders }),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
@@ -93,7 +94,28 @@ public sealed class HomeControllerTests
         // View() resolves ITempDataDictionaryFactory from DI unless TempData is already set.
         controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
 
-        controller.Url = UrlHelperStub.Create();
+        var url = Substitute.For<IUrlHelper>();
+        url.IsLocalUrl(Arg.Any<string?>()).Returns(ci =>
+        {
+            var candidate = ci.Arg<string?>();
+            if (string.IsNullOrEmpty(candidate))
+            {
+                return false;
+            }
+
+            // Mirror framework semantics: rooted "/..." and app-relative "~/..." are
+            // local, but protocol-relative ("//"), backslash ("/\") and their "~/"
+            // variants are not.
+            if (candidate.StartsWith('/'))
+            {
+                return !candidate.StartsWith("//") && !candidate.StartsWith("/\\");
+            }
+
+            return candidate.StartsWith("~/")
+                && !candidate.StartsWith("~//")
+                && !candidate.StartsWith("~/\\");
+        });
+        controller.Url = url;
     }
 
     [Theory]
@@ -611,6 +633,19 @@ public sealed class HomeControllerTests
         Assert.IsType<NotFoundResult>(_controller.EntraLogin());
     }
 
+    [Theory]
+    [InlineData(EntraIdClaimMapper.NoAccountReason, true)]
+    [InlineData(null, false)]
+    [InlineData("other", false)]
+    public void SignInProblem_FlagsOnlyTheNoAccountReason(string? reason, bool expected)
+    {
+        Arrange(authenticated: false);
+
+        var result = Assert.IsType<ViewResult>(_controller.SignInProblem(reason));
+
+        Assert.Equal(expected, result.ViewData["NoAccount"]);
+    }
+
     [Fact]
     public void EntraLogin_WhenEnabled_ChallengesEntraScheme()
     {
@@ -759,6 +794,17 @@ public sealed class HomeControllerTests
             new ClaimsIdentity(claims, authenticationType: "TestAuth"));
 
         return controller;
+    }
+
+    // CustomAntiforgeryFilter only validates tokens on unsafe methods, so dropping the verb
+    // constraint would silently remove the CSRF protection along with it.
+    [Fact]
+    public void Logout_IsPostOnly()
+    {
+        var method = typeof(HomeController).GetMethod(nameof(HomeController.Logout));
+
+        Assert.NotNull(method);
+        Assert.Single(method.GetCustomAttributes(typeof(HttpPostAttribute), inherit: false));
     }
 
     [Fact]

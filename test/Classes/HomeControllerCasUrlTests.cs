@@ -195,8 +195,10 @@ public class HomeControllerCasUrlTests
         httpContext.Request.Path = new PathString("/Login");
 
         controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
         // Login validates ReturnUrl through Url.IsLocalUrl, which DI cannot resolve here.
         controller.Url = UrlHelperStub.Create();
+
         return controller;
     }
 

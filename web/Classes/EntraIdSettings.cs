@@ -36,11 +36,24 @@ namespace Web.Authorization
         /// <summary>Named <see cref="HttpClient"/> used to forward front-channel logouts.</summary>
         public const string FrontChannelLogoutClientName = "EntraFrontChannelLogout";
 
+        // Trimmed on set: these arrive from Parameter Store, where a stray newline would be baked
+        // into the authority and discovery URLs and fail at the first sign-in.
+        private string? _tenantId;
+        private string? _clientId;
+
         /// <summary>UC Davis Entra tenant id.</summary>
-        public string? TenantId { get; set; }
+        public string? TenantId
+        {
+            get => _tenantId;
+            set => _tenantId = value?.Trim();
+        }
 
         /// <summary>Application (client) id of the VIPER Enterprise App registration.</summary>
-        public string? ClientId { get; set; }
+        public string? ClientId
+        {
+            get => _clientId;
+            set => _clientId = value?.Trim();
+        }
 
         /// <summary>
         /// Redirect path Entra returns to. Registered as a redirect URI in the app registration.
@@ -111,8 +124,13 @@ namespace Web.Authorization
         public string MetadataAddress => $"{Authority}/.well-known/openid-configuration?appid={ClientId}";
 
         /// <summary>True when there is enough configuration to register the OIDC handler.</summary>
+        /// <remarks>
+        /// ClientId must be a dashed GUID: <see cref="MetadataAddress"/> passes it as "?appid=",
+        /// and any other shape registers the handler and then dead-ends at discovery. TenantId is
+        /// only checked for content, since Entra accepts a verified domain name there too.
+        /// </remarks>
         public bool IsConfigured =>
             !string.IsNullOrWhiteSpace(TenantId)
-            && !string.IsNullOrWhiteSpace(ClientId);
+            && Guid.TryParseExact(ClientId, "D", out _);
     }
 }
