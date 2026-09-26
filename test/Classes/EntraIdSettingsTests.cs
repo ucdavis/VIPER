@@ -1,0 +1,137 @@
+using Web.Authorization;
+
+namespace Viper.test.Classes
+{
+    // IsConfigured decides at startup whether the OIDC handler is registered at all. When it is
+    // wrong in the permissive direction the app offers a sign-in button that dead-ends, which is
+    // exactly the failure the startup guard exists to prevent.
+    public class EntraIdSettingsTests
+    {
+        // A real client id is a GUID; MetadataAddress passes it to Entra as "?appid=".
+        private const string ClientGuid = "3f2e1d0c-9b8a-4756-8c3d-2a1b0c9d8e7f";
+
+        private static EntraIdSettings Configured() => new()
+        {
+            TenantId = "tenant",
+            ClientId = ClientGuid
+        };
+
+        [Fact]
+        public void IsConfigured_AllRequiredValuesPresent_ReturnsTrue()
+        {
+            Assert.True(Configured().IsConfigured);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void IsConfigured_TenantIdMissing_ReturnsFalse(string? tenantId)
+        {
+            var settings = Configured();
+            settings.TenantId = tenantId;
+
+            Assert.False(settings.IsConfigured);
+        }
+
+        // A malformed id registers the handler and then dead-ends at discovery, which in
+        // Entra-only mode locks everyone out, so it has to fail the startup guard like a blank one.
+        // The braced and dashless forms parse as GUIDs but are not what Entra accepts in "?appid=".
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData("client")]
+        [InlineData("3f2e1d0c-9b8a-4756-8c3d")]
+        [InlineData("{3f2e1d0c-9b8a-4756-8c3d-2a1b0c9d8e7f}")]
+        [InlineData("3f2e1d0c9b8a47568c3d2a1b0c9d8e7f")]
+        public void IsConfigured_ClientIdMissingOrMalformed_ReturnsFalse(string? clientId)
+        {
+            var settings = Configured();
+            settings.ClientId = clientId;
+
+            Assert.False(settings.IsConfigured);
+        }
+
+        // These come from Parameter Store, where a trailing newline would otherwise be baked into
+        // the authority and discovery URLs.
+        [Fact]
+        public void Identifiers_AreTrimmed()
+        {
+            var settings = new EntraIdSettings
+            {
+                TenantId = "  tenant\n",
+                ClientId = " " + ClientGuid + " "
+            };
+
+            Assert.Equal("tenant", settings.TenantId);
+            Assert.Equal(ClientGuid, settings.ClientId);
+            Assert.True(settings.IsConfigured);
+        }
+
+        [Fact]
+        public void IsConfigured_DefaultSettings_ReturnsFalse()
+        {
+            Assert.False(new EntraIdSettings().IsConfigured);
+        }
+
+        // Tokens for this app are signed with its own certificate (claims-mapping policy), which only
+        // the app-specific discovery document exposes. Dropping "?appid=" breaks every sign-in with
+        // IDX10503, so the exact shape is pinned.
+        [Fact]
+        public void MetadataAddress_IsAppSpecificDiscoveryDocument()
+        {
+            Assert.Equal(
+                "https://login.microsoftonline.com/tenant/v2.0/.well-known/openid-configuration?appid="
+                + ClientGuid,
+                Configured().MetadataAddress);
+        }
+
+        [Fact]
+        public void Authority_UsesV2EndpointForTenant()
+        {
+            var settings = new EntraIdSettings { TenantId = "a8046f64-66c0-4f00-9046-c8daf92ff62b" };
+
+            Assert.Equal(
+                "https://login.microsoftonline.com/a8046f64-66c0-4f00-9046-c8daf92ff62b/v2.0",
+                settings.Authority);
+        }
+
+        // The defaults are the deployed contract: the callback paths are registered as redirect
+        // URIs in the app registration, and the claim/strip pair is what yields a bare kerberos id.
+        [Fact]
+        public void Defaults_MatchRegisteredRedirectUrisAndAaudLoginIdShape()
+        {
+            var settings = new EntraIdSettings();
+
+            Assert.Equal("/signin-entra", settings.CallbackPath);
+            Assert.Equal("/signout-entra", settings.SignedOutCallbackPath);
+            Assert.Equal("onpremisessamaccountname", settings.LoginIdClaim);
+            Assert.True(settings.StripEmailDomain);
+
+            // No relay target by default, so a developer machine with no VIPER 1 running simply
+            // skips the forward instead of stalling every sign-out on a connection refusal.
+            Assert.Null(settings.FrontChannelLogoutForwardTo);
+            Assert.Equal(5, settings.FrontChannelLogoutTimeoutSeconds);
+
+            // Matches VIPER 1's AuthSettings.cfc default. Blank it and campus users are sent
+            // through Microsoft's home-realm step, typing an email address before the campus
+            // sign-in page.
+            Assert.Equal("ucdavis.edu", settings.DomainHint);
+        }
+
+        // The route attribute on EntraLogoutController and the CSP framing exemption both key off
+        // this const, and it is registered as the app registration's front-channel logout URL.
+        [Fact]
+        public void FrontChannelLogoutPath_MatchesTheRegisteredUrl()
+        {
+            Assert.Equal("/frontchannel-logout", EntraIdSettings.FrontChannelLogoutPath);
+        }
+
+        [Fact]
+        public void SectionName_MatchesTheAppsettingsKey()
+        {
+            Assert.Equal("EntraId", EntraIdSettings.SectionName);
+        }
+    }
+}
