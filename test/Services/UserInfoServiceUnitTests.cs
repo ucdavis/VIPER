@@ -603,6 +603,142 @@ namespace Viper.test.Services
         }
 
         [Fact]
+        public async Task PopulateSystemRolesAsync_IncludesViewAssignedRoles()
+        {
+            // Arrange - a role membership added by a RAPS population view (e.g. a student
+            // roster view) should still show up on the UserInfo page, not just roles that
+            // were assigned to the individual directly.
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-student", "mothra-student"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            var rapsOptions = CreateInMemoryOptions<RAPSContext>();
+            using (var rapsSetup = new RAPSContext(rapsOptions))
+            {
+                var role = new TblRole
+                {
+                    RoleId = 20,
+                    Role = "CN=Student,OU=Roles,DC=viper",
+                    DisplayName = "Student"
+                };
+                rapsSetup.TblRoles.Add(role);
+
+                rapsSetup.TblRoleMembers.Add(new TblRoleMember
+                {
+                    RoleId = 20,
+                    MemberId = "mothra-student",
+                    Role = role,
+                    ViewName = "VwStudentsDvm"
+                });
+
+                await rapsSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(rapsOptions);
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
+
+            // Act
+            var result = await service.GetUserInfoAsync("iam-student", null, AllPermissions);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Single(result.SystemRoles);
+            Assert.Equal("VIPER", result.SystemRoles[0].System);
+            Assert.Equal("Student", result.SystemRoles[0].DisplayName);
+        }
+
+        [Fact]
+        public async Task PopulateSystemRolesAsync_ExcludesExpiredOrNotYetStartedRoleMemberships()
+        {
+            // Arrange
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-expired", "mothra-expired"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            var rapsOptions = CreateInMemoryOptions<RAPSContext>();
+            using (var rapsSetup = new RAPSContext(rapsOptions))
+            {
+                var expiredRole = new TblRole
+                {
+                    RoleId = 30,
+                    Role = "CN=Expired,OU=Roles,DC=viper",
+                    DisplayName = "Expired"
+                };
+                var futureRole = new TblRole
+                {
+                    RoleId = 31,
+                    Role = "CN=Future,OU=Roles,DC=viper",
+                    DisplayName = "Future"
+                };
+                var activeRole = new TblRole
+                {
+                    RoleId = 32,
+                    Role = "CN=Active,OU=Roles,DC=viper",
+                    DisplayName = "Active"
+                };
+                rapsSetup.TblRoles.AddRange(expiredRole, futureRole, activeRole);
+
+                rapsSetup.TblRoleMembers.Add(new TblRoleMember
+                {
+                    RoleId = 30,
+                    MemberId = "mothra-expired",
+                    Role = expiredRole,
+                    EndDate = DateTime.Today.AddDays(-1)
+                });
+                rapsSetup.TblRoleMembers.Add(new TblRoleMember
+                {
+                    RoleId = 31,
+                    MemberId = "mothra-expired",
+                    Role = futureRole,
+                    StartDate = DateTime.Today.AddDays(1)
+                });
+                rapsSetup.TblRoleMembers.Add(new TblRoleMember
+                {
+                    RoleId = 32,
+                    MemberId = "mothra-expired",
+                    Role = activeRole,
+                    StartDate = DateTime.Today.AddDays(-1),
+                    EndDate = DateTime.Today.AddDays(1)
+                });
+
+                await rapsSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(rapsOptions);
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var pps = new PPSContext(CreateInMemoryOptions<PPSContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
+
+            // Act
+            var result = await service.GetUserInfoAsync("iam-expired", null, AllPermissions);
+
+            // Assert - only the active role membership should show up
+            Assert.NotNull(result);
+            Assert.Single(result.SystemRoles);
+            Assert.Equal("Active", result.SystemRoles[0].DisplayName);
+        }
+
+        [Fact]
         public async Task PopulateIamInfoAsync_CallsApiAndMapsCollections()
         {
             // Arrange

@@ -813,7 +813,9 @@ namespace Viper.Areas.Directory.Services
             var roleMembers = await _rapsContext.TblRoleMembers
                 .AsNoTracking()
                 .Include(rm => rm.Role)
-                .Where(rm => rm.MemberId == result.MothraId && rm.ViewName == null)
+                .Where(rm => rm.MemberId == result.MothraId
+                    && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
+                    && (rm.EndDate == null || rm.EndDate >= DateTime.Today))
                 .ToListAsync();
 
             foreach (var system in systems)
