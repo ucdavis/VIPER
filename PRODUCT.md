@@ -29,7 +29,7 @@ Because migration is incremental, every new surface has to be legible next to a 
 ## Operating Context
 
 - **Access is never anonymous.** Every working surface is behind campus single sign-on, gated by RAPS roles through `[Permission(Allow = "SVMSecure.{Area}")]`. The only unauthenticated surface in the product is the login and welcome page.
-- **Moving from CAS to Entra ID.** Campus is retiring CAS in favor of Microsoft Entra ID. `Authentication:EnabledProviders` (`Cas` or `EntraId`) picks the one provider an environment signs in with, and both sign in to the same cookie, so a session is identical downstream. PROD and TEST stay on CAS until a hard cutover to Entra ID in December 2026, alongside the campus Canvas LMS switch; local development runs Entra ID. The cutover is that one config value.
+- **Moving from CAS to Entra ID.** Campus is retiring CAS in favor of Microsoft Entra ID. `Authentication:EnabledProviders` (`Cas` or `EntraId`) picks the one provider an environment signs in with (`Both` offers a choice on the welcome page, for local development and testing only), and both sign in to the same cookie, so a session is identical downstream. PROD and TEST stay on CAS until a hard cutover to Entra ID in December 2026, alongside the campus Canvas LMS switch; local development runs Entra ID. The cutover is that one config value.
 - **Two sites, one perceived system.** TEST and PROD run VIPER 2 as an IIS sub-application under `/2`, beside legacy VIPER 1 at `/`. Local development has no base path, so subpath bugs surface only on TEST and PROD.
 - **Areas in the suite today.** Backend areas: CMS, CTS, ClinicalScheduler, Computing, Curriculum, Directory, Effort, RAPS, Scheduler, Students. Vue SPAs: CAHFS, CMS, CTS, ClinicalScheduler, Computing, Effort, Students.
 - **Release path.** Feature branch off `main`, merged to `Development` to deploy to TEST, then to `main` after approval on TEST. Jenkins runs the deploys.
@@ -55,7 +55,7 @@ The visual expression of all this, including what VIPER must not look like, is s
 
 Real assets that design work may rely on:
 
-- **Proxima Nova**, the UC Davis campus typeface, self-hosted as woff2 at regular, medium, bold, and extrabold, in both `VueApp/src/assets/fonts/proxima-nova/` and `web/wwwroot/fonts/proxima-nova/`.
+- **Proxima Nova**, the UC Davis campus typeface, at regular, medium, bold, and extrabold, loaded from the campus font server at `campusfont.ucdavis.edu`. It may not be self-hosted, so no copies live in this repo; the `@font-face` blocks in `web/wwwroot/css/site.css`, `welcome.css`, and `VueApp/src/styles/base.css` are the only references.
 - **Self-hosted Roboto and Material Icons**: `VueApp/src/assets/fonts/roboto-v51-latin.woff2`, `roboto-v51-latin-ext.woff2`, and `material-icons.woff2`, built to `web/wwwroot/vue/assets/`.
 - **Five login hero photographs** in AVIF and JPG at `web/wwwroot/images/login/`: guinea pig, horse and foal, ophthalmology, the SVM building, and vetmed admin.
 - **Brand marks**: the rod of asclepius (`rod-of-asclepius-white.avif` and `.png`), the `_ViperBrand.cshtml` lockup partial, `web/wwwroot/images/UCDSVMLogo.png`, and `nopic.jpg` as the person-photo placeholder.
@@ -75,6 +75,6 @@ Absences that future work must not paper over:
 
 ## Accessibility & Inclusion
 
-WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and fonts are self-hosted for reliable rendering.
+WCAG 2.1 AA is the system-wide standard, enforced rather than aspired to, because the audience is mandatory daily users across a full range of needs and abilities. Layouts work from mobile (390px) up, reduced-motion preferences are respected, and Roboto and Material Icons are self-hosted for reliable rendering (Proxima Nova is served from the campus font server).
 
 The component-level contract that delivers this (contrast ratios, landmarks, keyboard semantics, dialog naming, live-region politeness) is specified in [DESIGN.md](DESIGN.md).

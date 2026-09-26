@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Viper.Classes;
@@ -195,7 +196,8 @@ public class HomeControllerCasUrlTests
             Options.Create(new AuthenticationSettings()),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
-            Substitute.For<VIPERContext>());
+            Substitute.For<VIPERContext>(),
+            Substitute.For<IActionDescriptorCollectionProvider>());
 
         var httpContext = new DefaultHttpContext
         {
@@ -208,13 +210,27 @@ public class HomeControllerCasUrlTests
 
         controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
-        // Login validates ReturnUrl through Url.IsLocalUrl, which DI cannot resolve here.
+        // IsSafeReturnUrl calls Url.IsLocalUrl, so give the controller a URL helper that
+        // mirrors framework semantics: rooted "/..." and app-relative "~/..." are local,
+        // protocol-relative ("//") and backslash ("/\\") forms are not.
         var url = Substitute.For<IUrlHelper>();
         url.IsLocalUrl(Arg.Any<string?>()).Returns(ci =>
-            ci.Arg<string?>() is { } candidate
-            && candidate.StartsWith('/')
-            && !candidate.StartsWith("//")
-            && !candidate.StartsWith("/\\"));
+        {
+            var candidate = ci.Arg<string?>();
+            if (string.IsNullOrEmpty(candidate))
+            {
+                return false;
+            }
+
+            if (candidate.StartsWith('/'))
+            {
+                return !candidate.StartsWith("//") && !candidate.StartsWith("/\\");
+            }
+
+            return candidate.StartsWith("~/")
+                && !candidate.StartsWith("~//")
+                && !candidate.StartsWith("~/\\");
+        });
         controller.Url = url;
 
         return controller;

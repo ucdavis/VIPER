@@ -1,0 +1,702 @@
+using System.Reflection;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using Viper.Classes.SQLContext;
+using Viper.Classes;
+using Viper.Controllers;
+using Web.Authorization;
+
+namespace Viper.test.Controllers;
+
+/// <summary>
+/// Unit tests for HomeController's anonymous landing / login flow, focused on the
+/// open-redirect protections and redirect-loop guard added with the welcome page.
+/// </summary>
+public sealed class HomeControllerTests
+{
+    private readonly HomeController _controller;
+
+    // Real area controllers, one per area. GetAreaNames() derives the area set from the
+    // "Viper.Areas.<Area>.…" controller namespace, so these expose ClinicalScheduler/Effort/RAPS/CTS.
+    // Effort is intentionally an API-only area (its controllers carry no [Area]) — the case the
+    // namespace-based derivation fixes versus the old [Area] route-value lookup.
+    private static readonly Type[] _areaControllerTypes =
+    {
+        typeof(Viper.Areas.ClinicalScheduler.Controllers.CliniciansController),
+        typeof(Viper.Areas.Effort.Controllers.ReportsController),
+        typeof(Viper.Areas.RAPS.Controllers.RAPSController),
+        typeof(Viper.Areas.CTS.Controllers.CTSController),
+    };
+
+    // "/ClinicalScheduler" is a splash-eligible area landing page; "/ClinicalScheduler/rotation" is a deep link.
+    private static readonly string[] _areas = { "ClinicalScheduler", "Effort", "RAPS", "CTS" };
+
+    private readonly IActionDescriptorCollectionProvider _actionProvider;
+
+    public HomeControllerTests()
+    {
+        _actionProvider = Substitute.For<IActionDescriptorCollectionProvider>();
+        var descriptors = _areaControllerTypes
+            .Select(t => new ControllerActionDescriptor { ControllerTypeInfo = t.GetTypeInfo() })
+            .ToList();
+        _actionProvider.ActionDescriptors.Returns(new ActionDescriptorCollection(descriptors, version: 1));
+
+        _controller = CreateController(LoginProviders.Cas);
+    }
+
+    // CAS-only is the default so the pre-Entra tests describe the pre-Entra behavior; the
+    // provider-selection tests pass an explicit combination.
+    private HomeController CreateController(LoginProviders enabledProviders)
+    {
+        return new HomeController(
+            Substitute.For<IHttpClientFactory>(),
+            Options.Create(new CasSettings { CasBaseUrl = "https://cas.example.edu/" }),
+            new PublicUrlService(
+                Options.Create(new PublicUrlOptions { PublicBaseUrl = "https://viper.example.edu/2" }),
+                Substitute.For<IHttpContextAccessor>()),
+            Options.Create(new AuthenticationSettings { EnabledProviders = enabledProviders }),
+            Substitute.For<AAUDContext>(),
+            Substitute.For<RAPSContext>(),
+            Substitute.For<VIPERContext>(),
+            _actionProvider);
+    }
+
+    /// <summary>
+    /// Wires up a controller context with the requested auth state and a URL helper whose
+    /// IsLocalUrl mirrors framework semantics (local = rooted path, not protocol-relative).
+    /// </summary>
+    private void Arrange(bool authenticated, HomeController? target = null)
+    {
+        var controller = target ?? _controller;
+        var identity = authenticated
+            ? new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "tester") }, authenticationType: "TestAuth")
+            : new ClaimsIdentity();
+
+        var httpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity),
+            RequestServices = new ServiceCollection().BuildServiceProvider(),
+        };
+        httpContext.Request.Scheme = "https";
+        httpContext.Request.Host = new HostString("viper.test");
+        httpContext.Request.Path = "/login";
+
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        // View() resolves ITempDataDictionaryFactory from DI unless TempData is already set.
+        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
+
+        var url = Substitute.For<IUrlHelper>();
+        url.IsLocalUrl(Arg.Any<string?>()).Returns(ci =>
+        {
+            var candidate = ci.Arg<string?>();
+            if (string.IsNullOrEmpty(candidate))
+            {
+                return false;
+            }
+
+            // Mirror framework semantics: rooted "/..." and app-relative "~/..." are
+            // local, but protocol-relative ("//"), backslash ("/\") and their "~/"
+            // variants are not.
+            if (candidate.StartsWith('/'))
+            {
+                return !candidate.StartsWith("//") && !candidate.StartsWith("/\\");
+            }
+
+            return candidate.StartsWith("~/")
+                && !candidate.StartsWith("~//")
+                && !candidate.StartsWith("~/\\");
+        });
+        controller.Url = url;
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("/welcome", true)]
+    [InlineData("/Welcome", true)]
+    [InlineData("/welcome/", true)]
+    [InlineData("/login", true)]
+    [InlineData("/LOGIN?ReturnUrl=/x", true)]
+    [InlineData("/welcome#frag", true)]
+    [InlineData("/caslogin", true)] // re-entering the ticket handler without a ticket would 403
+    [InlineData("/CasLogin/", true)]
+    [InlineData("/entralogin", true)]
+    [InlineData("/EntraLogin/", true)]
+    [InlineData("/signin-entra", true)] // OIDC callback: re-entering it without a code would fail
+    [InlineData("/signout-entra", true)]
+    [InlineData("/RAPS/Roles", false)]
+    [InlineData("/welcomepage", false)]
+    [InlineData("/caslogins", false)]
+    [InlineData("/entraloginx", false)]
+    public void IsAuthEntryPath_DetectsLoopTargets(string? url, bool expected)
+    {
+        Assert.Equal(expected, HomeController.IsAuthEntryPath(url));
+    }
+
+    // Parity with the Vue guard, which rejects "../" and any "%2e" outright. A dot-segment survives
+    // IsLocalUrl and the root-relative /api check, then resolves somewhere else once the browser
+    // follows it — including in the percent-encoded spellings the URL spec also resolves.
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("/Effort/Reports", false)]
+    [InlineData("/Effort/..api/x", false)] // ".." only counts as a whole segment
+    [InlineData("/dots../x", false)]
+    [InlineData("/Effort/%2ename/x", false)] // encoded dot only counts as a whole segment too
+    [InlineData("/Effort/../api/secret", true)]
+    [InlineData("/2/Effort/../api/secret", true)]
+    [InlineData("/./api/secret", true)]
+    [InlineData("/Effort/..", true)]
+    [InlineData("/Effort/../api?tab=1", true)]
+    [InlineData("/Effort/%2e%2e/api/secret", true)] // browsers resolve the encoded form the same way
+    [InlineData("/Effort/%2E%2E/api/secret", true)] // and the match is ASCII case-insensitive
+    [InlineData("/Effort/.%2e/api/secret", true)] // mixed encoding counts as ".." too
+    [InlineData("/Effort/%2e./api/secret", true)]
+    [InlineData("/%2e/api/secret", true)]
+    public void ContainsDotSegment_DetectsTraversal(string? url, bool expected)
+    {
+        Assert.Equal(expected, HomeController.ContainsDotSegment(url));
+    }
+
+    // The single ReturnUrl contract shared by /welcome, /login and /CasLogin, exercised under a
+    // subpath deployment so the base-prefixed and "~/" spellings are covered in one place.
+    [Theory]
+    [InlineData("/Effort", true)]
+    [InlineData("/2/Effort", true)]
+    [InlineData("~/Effort", true)]
+    [InlineData("/2/Effort/Reports?year=2026", true)]
+    [InlineData("/welcomepage", true)] // near-match on an entry point is a normal page
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("https://evil.com/phish", false)]
+    [InlineData("//evil.com", false)]
+    [InlineData("/welcome", false)] // redirect loop
+    [InlineData("/login", false)]
+    [InlineData("/caslogin", false)] // ticketless re-entry 403s a user who just signed in
+    [InlineData("/2/welcome", false)] // base-prefixed entry points must be caught too
+    [InlineData("/2/CasLogin/", false)]
+    [InlineData("~/welcome", false)] // app-relative spelling must not slip past
+    [InlineData("/Effort/../api/secret", false)]
+    [InlineData("/2/Effort/%2e%2e/api/secret", false)]
+    [InlineData(@"/Effort\..\api/secret", false)] // browsers read "\" as "/"
+    public void IsSafeReturnUrl_EnforcesSharedContract(string? returnUrl, bool expected)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        Assert.Equal(expected, _controller.IsSafeReturnUrl(returnUrl));
+    }
+
+    // Splash appears only for the front door (an empty return path or the bare site root) and for a
+    // single-segment area landing page. Anything deeper, or a single segment that is not a registered
+    // area, is treated as a deep link.
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("/", true)]
+    [InlineData("/ClinicalScheduler", true)]
+    [InlineData("/clinicalscheduler", true)] // area match is case-insensitive
+    [InlineData("/Effort/", true)] // trailing slash on an area root still counts
+    [InlineData("/Effort?tab=1", true)] // query string is ignored
+    [InlineData("/ClinicalScheduler/rotation", false)] // deep link
+    [InlineData("/CTS/epa", false)] // CTS is an area, but this is a deep link
+    [InlineData("/MyPermissions", false)] // single segment, not an area
+    [InlineData("/cahfs", false)] // not a registered MVC area
+    public void IsSplashTarget_ClassifiesPassiveLandingsVsDeepLinks(string? url, bool expected)
+    {
+        var areas = new HashSet<string>(_areas, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(expected, HomeController.IsSplashTarget(url, areas));
+    }
+
+    // In a subpath deployment (PathBase "/2") the ReturnUrl is prefixed with the base. StripPathBase
+    // removes it on a segment boundary so the splash classifier sees an app-relative path, while leaving
+    // unrelated paths (and the no-base dev case) untouched.
+    [Theory]
+    [InlineData(null, "/2", null)]
+    [InlineData("", "/2", "")]
+    [InlineData("/2/ClinicalScheduler", "/2", "/ClinicalScheduler")]
+    [InlineData("/2/ClinicalScheduler/rotation", "/2", "/ClinicalScheduler/rotation")]
+    [InlineData("/2", "/2", "")] // app root under the subpath
+    [InlineData("/2/", "/2", "/")]
+    [InlineData("/2?tab=1", "/2", "?tab=1")] // query is preserved for the classifier to strip
+    [InlineData("/22/x", "/2", "/22/x")] // segment boundary: "/2" must not strip from "/22"
+    [InlineData("/ClinicalScheduler", "", "/ClinicalScheduler")] // no base configured (dev)
+    [InlineData("/ClinicalScheduler", null, "/ClinicalScheduler")]
+    public void StripPathBase_RemovesBaseOnSegmentBoundary(string? url, string? pathBase, string? expected)
+    {
+        Assert.Equal(expected, HomeController.StripPathBase(url, pathBase));
+    }
+
+    // Area names come from controller namespaces (Viper.Areas.<Area>.…), so API-only areas with no
+    // [Area] attribute are still recognized. Non-area namespaces and near-matches resolve to null.
+    [Theory]
+    [InlineData("Viper.Areas.Effort.Controllers", "Effort")]
+    [InlineData("Viper.Areas.ClinicalScheduler.Controllers.SomethingV2", "ClinicalScheduler")]
+    [InlineData("Viper.Areas.CMS", "CMS")]
+    [InlineData("Viper.Controllers", null)] // not an area
+    [InlineData("Viper.Areas", null)] // no area segment
+    [InlineData("Viper.AreasButNotReally.X", null)] // prefix must end on a namespace boundary
+    [InlineData(null, null)]
+    public void AreaFromControllerNamespace_ExtractsAreaSegment(string? ns, string? expected)
+    {
+        Assert.Equal(expected, HomeController.AreaFromControllerNamespace(ns));
+    }
+
+    [Fact]
+    public void Index_Anonymous_RendersWelcomeWithNoStore()
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Index();
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Welcome", view.ViewName);
+        Assert.Equal("no-store,no-cache", _controller.Response.Headers.CacheControl.ToString());
+    }
+
+    // An area landing page ("/ClinicalScheduler") is a passive arrival, so it still gets the splash
+    // with its ReturnUrl preserved.
+    [Fact]
+    public void Welcome_Anonymous_AreaLanding_RendersSplashWithReturnUrl()
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Welcome("/ClinicalScheduler");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Welcome", view.ViewName);
+        Assert.Equal("/ClinicalScheduler", view.ViewData["ReturnUrl"]);
+    }
+
+    // Effort is an API-only area (no [Area] MVC controller); its landing page must still splash.
+    // Regression guard for the namespace-based area derivation that replaced the [Area] route-value lookup.
+    [Fact]
+    public void Welcome_Anonymous_ApiOnlyAreaLanding_RendersSplash()
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Welcome("/Effort");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Welcome", view.ViewName);
+        Assert.Equal("/Effort", view.ViewData["ReturnUrl"]);
+    }
+
+    // A deep link ("/ClinicalScheduler/rotation") skips the interstitial and goes straight to CAS
+    // via the Login action, carrying the ReturnUrl so the user lands where they intended.
+    [Fact]
+    public void Welcome_Anonymous_DeepLink_RedirectsToCasLogin()
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Welcome("/ClinicalScheduler/rotation");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(HomeController.Login), redirect.ActionName);
+        Assert.Equal("/ClinicalScheduler/rotation", redirect.RouteValues?["ReturnUrl"]);
+    }
+
+    // Under a subpath deployment (PathBase "/2") the area landing page arrives as "/2/ClinicalScheduler".
+    // The base is stripped for classification so it still gets the splash, with the friendly area label
+    // resolved and the full (base-prefixed) ReturnUrl preserved for the round trip.
+    [Fact]
+    public void Welcome_Anonymous_SubpathAreaLanding_RendersSplash()
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome("/2/ClinicalScheduler");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Welcome", view.ViewName);
+        Assert.Equal("/2/ClinicalScheduler", view.ViewData["ReturnUrl"]);
+        Assert.Equal("Clinical Scheduler", view.ViewData["DestinationLabel"]);
+    }
+
+    // A subpath deep link ("/2/ClinicalScheduler/rotation") still bypasses the splash and goes to CAS,
+    // carrying the full base-prefixed ReturnUrl.
+    [Fact]
+    public void Welcome_Anonymous_SubpathDeepLink_RedirectsToCasLogin()
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome("/2/ClinicalScheduler/rotation");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(HomeController.Login), redirect.ActionName);
+        Assert.Equal("/2/ClinicalScheduler/rotation", redirect.RouteValues?["ReturnUrl"]);
+    }
+
+    // Under a subpath deployment every unsafe ReturnUrl arrives base-prefixed, so the base has to come
+    // off before the guards run. Both classes are covered here: auth entry points that would loop (or
+    // 403 on a ticketless re-entry), and dot-segments the browser resolves elsewhere after the CAS round
+    // trip. In each case the splash renders with a null ReturnUrl rather than bouncing back out to CAS.
+    [Theory]
+    [InlineData("/2/welcome")]
+    [InlineData("/2/login")]
+    [InlineData("/2/Welcome/")]
+    [InlineData("/2/caslogin")] // would re-enter the ticket handler ticketless and 403 after a good sign-in
+    [InlineData("/Effort/../api/secret")]
+    [InlineData("/2/Effort/../api/secret")]
+    [InlineData("/2/Effort/%2e%2e/api/secret")] // browsers resolve the encoded spelling the same way
+    public void Welcome_Anonymous_SubpathUnsafeReturnUrl_DropsReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome(returnUrl);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Welcome", view.ViewName);
+        Assert.Null(view.ViewData["ReturnUrl"]);
+    }
+
+    // Authenticated welcome with no ReturnUrl under a subpath deployment redirects to "~/" so the app
+    // root keeps its PathBase ("/2/") instead of escaping to the domain root. Regression guard for the
+    // bare "/" that sent logged-in users out to the legacy site.
+    [Fact]
+    public void Welcome_Authenticated_NoReturnUrl_RedirectsToAppRelativeRoot()
+    {
+        Arrange(authenticated: true);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome();
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("~/", redirect.Url);
+    }
+
+    // Anonymous users still get the Welcome view, but any ReturnUrl that is non-local
+    // (open redirect) or points back at /welcome|/login (redirect loop) is dropped.
+    [Theory]
+    [InlineData("https://evil.com/phish")]
+    [InlineData("//evil.com")]
+    [InlineData("/welcome")]
+    [InlineData("/login")]
+    [InlineData("~/welcome")] // app-relative loop targets must still be caught after normalization
+    [InlineData("~/login")]
+    public void Welcome_Anonymous_DropsUnsafeReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Welcome(returnUrl);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Null(view.ViewData["ReturnUrl"]);
+    }
+
+    [Fact]
+    public void Welcome_Authenticated_RedirectsToLocalReturnUrl()
+    {
+        Arrange(authenticated: true);
+
+        var result = _controller.Welcome("/Effort/Foo");
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/Effort/Foo", redirect.Url);
+    }
+
+    // "~/" is the app root, so it must resolve under the PathBase ("/2") rather than the domain root.
+    [Fact]
+    public void Welcome_Authenticated_ResolvesAppRelativeReturnUrlUnderPathBase()
+    {
+        Arrange(authenticated: true);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome("~/Effort/Foo");
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/2/Effort/Foo", redirect.Url);
+    }
+
+    // App root is "~/" (not "/") so a subpath deployment keeps its PathBase ("/2/") rather than
+    // escaping to the domain root (the legacy site).
+    [Theory]
+    [InlineData("https://evil.com")]
+    [InlineData(null)]
+    public void Welcome_Authenticated_RedirectsToRootWhenReturnUrlInvalidOrMissing(string? returnUrl)
+    {
+        Arrange(authenticated: true);
+
+        var result = _controller.Welcome(returnUrl);
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("~/", redirect.Url);
+    }
+
+    // The /api guard matches the api segment case-insensitively (routing is case-insensitive) and
+    // on a segment boundary, so "/api", "/api/...", "/api?..." are rejected in any casing while
+    // non-API paths that merely start with "api" (e.g. "/apiary") pass through to CAS.
+    [Theory]
+    [InlineData("/api", true)]
+    [InlineData("/api/foo", true)]
+    [InlineData("/API/foo", true)]
+    [InlineData("/Api?x=1", true)]
+    [InlineData("/api#frag", true)]
+    [InlineData("/apiary", false)]
+    [InlineData("/", false)]
+    public void IsApiPath_MatchesApiSegmentCaseInsensitivelyOnBoundary(string url, bool expected)
+    {
+        Assert.Equal(expected, HomeController.IsApiPath(url));
+    }
+
+    [Theory]
+    [InlineData("/api/secret")]
+    [InlineData("/API/secret")] // routing is case-insensitive, so the guard must be too
+    [InlineData("~/api/secret")] // app-relative form must not bypass the /api guard
+    public void Login_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Login(returnUrl);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    // A non-API path that merely starts with "api" is not caught by the guard; it proceeds to the
+    // normal CAS redirect.
+    [Fact]
+    public void Login_ForwardsNonApiPathStartingWithApiToCas()
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Login("/apiary");
+
+        Assert.IsType<RedirectResult>(result);
+    }
+
+    // Under a subpath deployment the /api ReturnUrl arrives base-prefixed ("/2/api/..."). The base is
+    // stripped before the guard so it is still rejected and never forwarded to CAS. Regression guard for
+    // the pre-strip /api check that a "/2/api/..." ReturnUrl slipped past.
+    [Theory]
+    [InlineData("/2/api/secret")]
+    [InlineData("/2/API/secret")] // base-prefixed + mixed case must not bypass the guard
+    public void Login_RejectsSubpathApiReturnUrl_WithUnauthorized(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Login(returnUrl);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Theory]
+    [InlineData("https://evil.com/phish")]
+    [InlineData("//evil.com")]
+    public void Login_DoesNotForwardNonLocalReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+
+        var result = _controller.Login(returnUrl);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.DoesNotContain("evil.com", redirect.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // A dot-segment ReturnUrl passes IsLocalUrl and the root-relative /api check, but the browser
+    // resolves it after the CAS round trip: "/2/Effort/../api/secret" lands on "/2/api/secret" and
+    // dumps the user on a JSON 401. Dropped up front instead, matching the Vue guard.
+    // Asserting on "Effort" rather than "api/secret": the ReturnUrl is double URL-encoded into the CAS
+    // service URL, so any assertion containing a slash would pass even with the guard removed.
+    [Theory]
+    [InlineData("/Effort/../api/secret")]
+    [InlineData("/2/Effort/../api/secret")]
+    [InlineData("~/Effort/../api/secret")]
+    [InlineData("/2/Effort/%2e%2e/api/secret")]
+    public void Login_DoesNotForwardDotSegmentReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Login(returnUrl);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.DoesNotContain("Effort", redirect.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // /login applies the same auth-entry guard as /welcome, so "/login?ReturnUrl=/welcome" cannot
+    // bounce the user back to the splash after a successful sign-in. ("/login" and "/caslogin" are
+    // covered by IsSafeReturnUrl above: both are substrings of the CAS service URL, so they can't be
+    // asserted against the redirect target here.)
+    [Theory]
+    [InlineData("/welcome")]
+    [InlineData("/2/welcome")]
+    [InlineData("~/welcome")]
+    public void Login_DoesNotForwardAuthEntryReturnUrl(string returnUrl)
+    {
+        Arrange(authenticated: false);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Login(returnUrl);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.DoesNotContain("welcome", redirect.Url, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // The anonymous "/" splash must carry the same no-store headers as /welcome, which gets them from
+    // [ResponseCache]. Both now route through the shared WelcomeSplash helper.
+    [Fact]
+    public void Index_And_Welcome_Anonymous_EmitMatchingNoStoreHeaders()
+    {
+        Arrange(authenticated: false);
+        _controller.Index();
+        var indexCacheControl = _controller.Response.Headers["Cache-Control"].ToString();
+        var indexPragma = _controller.Response.Headers["Pragma"].ToString();
+
+        Arrange(authenticated: false);
+        _controller.Welcome();
+
+        Assert.Equal("no-store,no-cache", indexCacheControl);
+        Assert.Equal("no-cache", indexPragma);
+        Assert.Equal(indexCacheControl, _controller.Response.Headers["Cache-Control"].ToString());
+        Assert.Equal(indexPragma, _controller.Response.Headers["Pragma"].ToString());
+    }
+
+    // ---- Both providers on the splash -------------------------------------------------------
+    // "Both" puts a choice on the splash for local development and testing. /login has to decide
+    // where to send an unqualified request without ever bouncing the user in a loop. The
+    // single-provider cases live in HomeControllerLoginProviderTests.
+
+    // With both enabled there is no defensible default, so the unqualified /login that every
+    // existing "Log in" link uses hands off to the splash, which is the chooser.
+    [Fact]
+    public void Login_BothProviders_NoExplicitProvider_RedirectsToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login());
+
+        Assert.Equal(nameof(HomeController.Welcome), result.ActionName);
+    }
+
+    // Only the validated ReturnUrl is forwarded to the chooser; an off-site one is dropped.
+    [Fact]
+    public void Login_BothProviders_ForwardsSanitizedReturnUrlToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login("https://evil.com/phish"));
+
+        Assert.Null(result.RouteValues?["ReturnUrl"]);
+    }
+
+    // The chooser's own buttons pass provider explicitly. Without that, the CAS button would post
+    // back to /login and be redirected to /welcome again: an infinite bounce.
+    [Fact]
+    public void Login_BothProviders_ExplicitCas_GoesToCasNotBackToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectResult>(controller.Login(provider: LoginProviders.Cas));
+
+        Assert.StartsWith("https://cas.example.edu/login?service=", result.Url);
+    }
+
+    // Forcing the picker here would cost the single-account majority a click on every sign-in.
+    // Only the splash's switch-account link asks for the picker.
+    [Fact]
+    public void Login_BothProviders_ExplicitEntraId_RedirectsToEntraLoginWithoutPicker()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login(provider: LoginProviders.EntraId));
+
+        Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
+        Assert.False(result.RouteValues?.ContainsKey("selectAccount"));
+    }
+
+    // A hand-crafted ?provider= for a provider this environment does not offer must not reach a
+    // half-configured handler.
+    [Theory]
+    [InlineData(LoginProviders.EntraId, LoginProviders.Cas)]
+    [InlineData(LoginProviders.Cas, LoginProviders.EntraId)]
+    public void Login_ProviderNotEnabled_ReturnsNotFound(LoginProviders enabled, LoginProviders requested)
+    {
+        var controller = CreateController(enabled);
+        Arrange(authenticated: false, controller);
+
+        Assert.IsType<NotFoundResult>(controller.Login(provider: requested));
+    }
+
+    // Regression guard for the ordering bug where the two-provider hand-off to the chooser ran
+    // before the /api guard and answered with the splash.
+    [Theory]
+    [InlineData("/api/secret")]
+    [InlineData("~/api/secret")]
+    public void Login_BothProviders_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        Assert.IsType<UnauthorizedResult>(controller.Login(returnUrl));
+    }
+
+    // The /api guard has to hold on /welcome itself, not just on the /login it would otherwise
+    // delegate to. With both providers enabled the delegating branch is skipped, so without an
+    // explicit guard the splash renders 200 for an /api ReturnUrl while single-provider mode 401s.
+    [Theory]
+    [InlineData(LoginProviders.Cas, "/api/secret")]
+    [InlineData(LoginProviders.Both, "/api/secret")]
+    [InlineData(LoginProviders.Both, "~/api/secret")]
+    [InlineData(LoginProviders.Both, "/API/secret")]
+    public void Welcome_Anonymous_RejectsApiReturnUrl_WithUnauthorized(LoginProviders enabled, string returnUrl)
+    {
+        var controller = CreateController(enabled);
+        Arrange(authenticated: false, controller);
+
+        Assert.IsType<UnauthorizedResult>(controller.Welcome(returnUrl));
+    }
+
+    [Fact]
+    public void Welcome_Anonymous_SubpathApiReturnUrl_RejectedInBothMode()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+        controller.HttpContext.Request.PathBase = "/2";
+
+        Assert.IsType<UnauthorizedResult>(controller.Welcome("/2/api/secret"));
+    }
+
+    // Normally a deep link skips the splash and goes straight to the provider. It cannot when both
+    // are offered, because the splash is the only place to choose, and /login would send it right
+    // back here. Regression guard for that loop.
+    [Fact]
+    public void Welcome_BothProviders_DeepLink_RendersSplashInsteadOfRedirecting()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<ViewResult>(controller.Welcome("/ClinicalScheduler/rotation"));
+
+        Assert.Equal("Welcome", result.ViewName);
+        Assert.Equal("/ClinicalScheduler/rotation", result.ViewData["ReturnUrl"]);
+    }
+
+    [Theory]
+    [InlineData(LoginProviders.Cas, true, false)]
+    [InlineData(LoginProviders.EntraId, false, true)]
+    [InlineData(LoginProviders.Both, true, true)]
+    public void Welcome_PassesEnabledProvidersToView(LoginProviders enabled, bool casExpected, bool entraExpected)
+    {
+        var controller = CreateController(enabled);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<ViewResult>(controller.Welcome());
+
+        Assert.Equal(casExpected, result.ViewData["CasEnabled"]);
+        Assert.Equal(entraExpected, result.ViewData["EntraIdEnabled"]);
+    }
+}
