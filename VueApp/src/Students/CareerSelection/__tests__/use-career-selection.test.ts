@@ -51,7 +51,6 @@ function detail(overrides: Partial<StudentCareerDetail> = {}): StudentCareerDeta
 describe("loading a record", () => {
     it("fills the form from the loaded record", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, studentInfo: form, detail: loaded } = useCareerSelection()
 
@@ -64,7 +63,6 @@ describe("loading a record", () => {
 
     it("leaves the form empty when the record cannot be read", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(null)
         const { loadDetail, studentInfo: form, detail: loaded } = useCareerSelection()
 
@@ -76,7 +74,6 @@ describe("loading a record", () => {
 
     it("clears the loading flag once the record is in", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, loading } = useCareerSelection()
 
@@ -89,7 +86,6 @@ describe("loading a record", () => {
 
     it("copies the record rather than editing it in place", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         // The form must not mutate the loaded record, which the page also reads from.
         const loadedRecord = detail()
         mockGetDetail.mockResolvedValue(loadedRecord)
@@ -105,7 +101,6 @@ describe("loading a record", () => {
 describe("dirty tracking", () => {
     it("starts clean after loading", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, isDirty } = useCareerSelection()
 
@@ -116,7 +111,6 @@ describe("dirty tracking", () => {
 
     it("notices an edited field", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, studentInfo: form, isDirty } = useCareerSelection()
         await loadDetail(100)
@@ -128,7 +122,6 @@ describe("dirty tracking", () => {
 
     it("notices a changed dropdown", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, studentInfo: form, isDirty } = useCareerSelection()
         await loadDetail(100)
@@ -140,7 +133,6 @@ describe("dirty tracking", () => {
 
     it("reads as clean again when the edit is undone", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, studentInfo: form, isDirty } = useCareerSelection()
         await loadDetail(100)
@@ -155,7 +147,6 @@ describe("dirty tracking", () => {
 describe("saving", () => {
     it("sends the form and keeps the refreshed record", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const saved = detail({ lastUpdated: "2026-04-18T09:00:00" })
         mockUpdate.mockResolvedValue({ success: true, result: saved, errors: [] })
@@ -173,7 +164,6 @@ describe("saving", () => {
 
     it("reads as clean after a successful save", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, save, studentInfo: form, isDirty } = useCareerSelection()
         await loadDetail(100)
@@ -191,7 +181,6 @@ describe("saving", () => {
 
     it("keeps the edits and reports the errors when the save is refused", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, save, studentInfo: form, saveErrors, isDirty } = useCareerSelection()
         await loadDetail(100)
@@ -208,7 +197,6 @@ describe("saving", () => {
 
     it("clears earlier errors when a later save succeeds", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGetDetail.mockResolvedValue(detail())
         const { loadDetail, save, saveErrors } = useCareerSelection()
         await loadDetail(100)
@@ -223,7 +211,6 @@ describe("saving", () => {
 
     it("clears the saving flag once the save is done", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockUpdate.mockResolvedValue({ success: true, result: detail(), errors: [] })
         const { save, saving } = useCareerSelection()
 

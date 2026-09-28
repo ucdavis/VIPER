@@ -75,7 +75,6 @@ describe("option label validation", () => {
 describe("career selection service option endpoints", () => {
     it("maps each option type to its URL slug", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         await careerSelectionService.getOptions("career")
@@ -175,7 +174,6 @@ describe("career option list state", () => {
 
     it("does not reload after a failed save", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPut.mockResolvedValue({ success: false, result: null, errors: ["Duplicate"] })
         const manager = useCareerOptionManager("species")
 

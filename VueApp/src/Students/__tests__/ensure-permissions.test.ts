@@ -18,7 +18,6 @@ vi.mock("@/composables/ViperFetch", () => ({
 /** Starts a session holding the given permissions, as a fresh navigation would. */
 function setUser(permissions: string[]): void {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
     useUserStore().setPermissions(permissions)
 }
 

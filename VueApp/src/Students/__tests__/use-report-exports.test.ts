@@ -13,7 +13,6 @@ vi.mock("quasar", () => ({
 }))
 
 function setup(rowCount: number, downloadResult = true) {
-    vi.clearAllMocks()
     const rows = ref(Array.from({ length: rowCount }, (_, i) => ({ id: i })))
     const downloadExcel = vi.fn<() => Promise<boolean>>().mockResolvedValue(downloadResult)
     const downloadCsv = vi.fn<() => Promise<boolean>>().mockResolvedValue(downloadResult)
@@ -29,7 +28,6 @@ function setup(rowCount: number, downloadResult = true) {
 
 /** A report with no CSV endpoint, as the emergency contact pages are today. */
 function setupWithoutCsv() {
-    vi.clearAllMocks()
     const rows = ref([{ id: 1 }])
     const downloadExcel = vi.fn<() => Promise<boolean>>().mockResolvedValue(true)
     return useReportExports(rows, { downloadExcel, openPdf: vi.fn<() => void>() })
@@ -58,33 +56,33 @@ describe("excel export", () => {
 })
 
 describe("pdf export", () => {
-    it("opens the pdf when there are rows", () => {
+    it("opens the pdf when there are rows", async () => {
         expect.hasAssertions()
         const { handlePdfExport, openPdf } = setup(2)
 
-        handlePdfExport()
+        await handlePdfExport()
 
         expect(openPdf).toHaveBeenCalledWith()
         expect(mockNotify).not.toHaveBeenCalled()
     })
 
-    it("warns rather than opening a blank tab when the grid is empty", () => {
+    it("warns rather than opening a blank tab when the grid is empty", async () => {
         expect.hasAssertions()
         // The PDF opens in a new tab, so an empty grid has to be caught before opening it.
         const { handlePdfExport, openPdf } = setup(0)
 
-        handlePdfExport()
+        await handlePdfExport()
 
         expect(openPdf).not.toHaveBeenCalled()
         expect(mockNotify).toHaveBeenCalledWith({ type: "warning", message: "No data to export." })
     })
 
-    it("follows the grid as its rows change", () => {
+    it("follows the grid as its rows change", async () => {
         expect.hasAssertions()
         const { rows, handlePdfExport, openPdf } = setup(0)
 
         rows.value = [{ id: 1 }]
-        handlePdfExport()
+        await handlePdfExport()
 
         expect(openPdf).toHaveBeenCalledWith()
     })
@@ -93,7 +91,6 @@ describe("pdf export", () => {
 describe("pdf download", () => {
     /** A report that downloads its PDF rather than opening it, as career selection does. */
     function setupDownload(rowCount: number, downloadResult = true) {
-        vi.clearAllMocks()
         const rows = ref(Array.from({ length: rowCount }, (_, i) => ({ id: i })))
         const downloadPdf = vi.fn<() => Promise<boolean>>().mockResolvedValue(downloadResult)
         const downloadExcel = vi.fn<() => Promise<boolean>>().mockResolvedValue(true)
@@ -133,7 +130,6 @@ describe("pdf download", () => {
 describe("grid-narrowed exports", () => {
     /** A report that sends the grid's rows and exports even when empty, as career selection does. */
     function setupGrid(rowCount: number) {
-        vi.clearAllMocks()
         const rows = ref(Array.from({ length: rowCount }, (_, i) => ({ id: i })))
         const downloadExcel = vi.fn<(rowKeys?: string[]) => Promise<boolean>>().mockResolvedValue(true)
         const downloadPdf = vi.fn<(rowKeys?: string[]) => Promise<boolean>>().mockResolvedValue(true)

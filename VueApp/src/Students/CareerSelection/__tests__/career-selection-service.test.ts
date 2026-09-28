@@ -42,7 +42,6 @@ function emptyStudentInfo(): StudentInfo {
 describe("roster and report", () => {
     it("reads the roster from the app's base url", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [{ personId: 100 }] })
 
         const result = await careerSelectionService.getList()
@@ -53,7 +52,6 @@ describe("roster and report", () => {
 
     it("returns an empty roster when the request fails", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         await expect(careerSelectionService.getList()).resolves.toStrictEqual([])
@@ -61,7 +59,6 @@ describe("roster and report", () => {
 
     it("reads the report from its own endpoint", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         await careerSelectionService.getReport()
@@ -73,7 +70,6 @@ describe("roster and report", () => {
 describe("one student's record", () => {
     it("requests the record by person id", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: { personId: 100, studentInfo: emptyStudentInfo() } })
 
         await careerSelectionService.getDetail(100)
@@ -83,7 +79,6 @@ describe("one student's record", () => {
 
     it("returns null when the record cannot be read", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         await expect(careerSelectionService.getDetail(100)).resolves.toBeNull()
@@ -91,7 +86,6 @@ describe("one student's record", () => {
 
     it("turns absent plans into empty strings for the form", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         // The textareas bind to strings; null would render as "null" and count as a change.
         mockGet.mockResolvedValue({
             success: true,
@@ -109,7 +103,6 @@ describe("one student's record", () => {
 
     it("leaves written plans alone", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({
             success: true,
             result: {
@@ -127,7 +120,6 @@ describe("one student's record", () => {
 describe("saving a record", () => {
     it("puts the form to the student's endpoint and returns the refreshed record", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         const info = emptyStudentInfo()
         mockPut.mockResolvedValue({ success: true, result: { personId: 100, studentInfo: info }, errors: [] })
 
@@ -140,7 +132,6 @@ describe("saving a record", () => {
 
     it("reports the server's errors and no record when the save is refused", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPut.mockResolvedValue({ success: false, result: null, errors: ["Select a career direction."] })
 
         const response = await careerSelectionService.updateCareerSelection(100, emptyStudentInfo())
@@ -151,7 +142,6 @@ describe("saving a record", () => {
 
     it("reports an empty error list when the server sends none", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPut.mockResolvedValue({ success: false, result: null })
 
         const response = await careerSelectionService.updateCareerSelection(100, emptyStudentInfo())
@@ -163,7 +153,6 @@ describe("saving a record", () => {
 describe("mentor search", () => {
     it("passes the search text as a query parameter", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: [] })
 
         await careerSelectionService.searchMentors("smith")
@@ -173,7 +162,6 @@ describe("mentor search", () => {
 
     it("returns null on a failed search so the picker can tell it from no matches", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         await expect(careerSelectionService.searchMentors("smith")).resolves.toBeNull()
@@ -183,7 +171,6 @@ describe("mentor search", () => {
 describe("app access", () => {
     it("reads whether the app is open", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: true, result: true })
 
         const result = await careerSelectionService.getAccessStatus()
@@ -194,7 +181,6 @@ describe("app access", () => {
 
     it("reports a closed app as false, not as a failed read", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         // A bare boolean status makes "closed" falsy, so only null may mean failure.
         mockGet.mockResolvedValue({ success: true, result: false })
 
@@ -204,7 +190,6 @@ describe("app access", () => {
 
     it("returns null when the status cannot be read", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockGet.mockResolvedValue({ success: false, result: null })
 
         await expect(careerSelectionService.getAccessStatus()).resolves.toBeNull()
@@ -212,7 +197,6 @@ describe("app access", () => {
 
     it("posts the toggle and returns the new state", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPost.mockResolvedValue({ success: true, result: false })
 
         const result = await careerSelectionService.toggleAppAccess()
@@ -223,7 +207,6 @@ describe("app access", () => {
 
     it("returns null when the toggle fails", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPost.mockResolvedValue({ success: false })
 
         await expect(careerSelectionService.toggleAppAccess()).resolves.toBeNull()
@@ -233,7 +216,6 @@ describe("app access", () => {
 describe("exports", () => {
     it("downloads the overview workbook under a career selection filename", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
 
         const downloaded = await careerSelectionService.downloadOverviewExcel()
@@ -245,7 +227,6 @@ describe("exports", () => {
 
     it("prefers the filename the server sends", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: "CareerSelection_20260417.xlsx" })
 
         await careerSelectionService.downloadExcel()
@@ -255,7 +236,6 @@ describe("exports", () => {
 
     it("reports nothing to download when the export comes back empty", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPostForBlob.mockResolvedValue({ blob: new Blob([]), filename: null })
 
         const downloaded = await careerSelectionService.downloadExcel()
@@ -266,7 +246,6 @@ describe("exports", () => {
 
     it("sends the grid's row keys with every export", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
 
         await careerSelectionService.downloadOverviewExcel(["2", "STU00003"])
@@ -289,7 +268,6 @@ describe("exports", () => {
 
     it("sends an empty key list as it is, so the server returns headers only", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
 
         await careerSelectionService.downloadExcel([])
@@ -299,7 +277,6 @@ describe("exports", () => {
 
     it("posts for each pdf and downloads it rather than opening a tab", async () => {
         expect.hasAssertions()
-        vi.clearAllMocks()
         mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
 
         await careerSelectionService.downloadOverviewPdf()

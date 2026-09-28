@@ -23,7 +23,6 @@ vi.mock("@/composables/use-confirm-dialog", () => ({
 
 /** Arms the guard for a form in the given state, as mounting the page would. */
 function armGuard(isDirty: Ref<boolean>): void {
-    vi.clearAllMocks()
     delete registered.guard
     useConfirmLeave(isDirty)
 }

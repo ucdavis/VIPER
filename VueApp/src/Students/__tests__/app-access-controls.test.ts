@@ -34,7 +34,6 @@ vi.mock("quasar", async (importOriginal) => {
 type Status = { appOpen: boolean; individualGrantCount?: number } | null
 
 function mountControls(statuses: Status[], toggleResult: boolean | null = true) {
-    vi.clearAllMocks()
     delete dialogCallbacks.onOk
     const getStatus = vi.fn<() => Promise<Status>>()
     for (const status of statuses) {

@@ -46,7 +46,6 @@ function option(id: number, label: string, overrides: Partial<CareerSelectionOpt
 }
 
 function mountManager(options: CareerSelectionOption[], loadFailed = false) {
-    vi.clearAllMocks()
     managerState.options.value = options
     managerState.loadFailed.value = loadFailed
     managerState.deletingId.value = null
