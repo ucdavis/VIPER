@@ -108,7 +108,6 @@ try
             // Add global CSRF validation filter for POST/PUT/PATCH/DELETE requests
             options.Filters.Add<CustomAntiforgeryFilter>();
         })
-        .AddSessionStateTempDataProvider()
         .AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
@@ -116,18 +115,11 @@ try
 
     builder.Host.UseNLog();
 
-    // Add cache options and session
-    builder.Services.AddDistributedMemoryCache();
+    // No session store on purpose: nothing in the app reads HttpContext.Session, and an
+    // in-process one would not survive a blue/green slot flip.
+
     builder.Services.AddMemoryCache();
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddSession(options =>
-    {
-        options.IdleTimeout = TimeSpan.FromMinutes(60);
-        options.Cookie.Name = ".VIPER2.Session"; // <--- Add line
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.IsEssential = true;
-    });
 
     // Cross site request forgery security
     // For AJAX calls be sure to set the header name to this value and pass the antiforgery token
@@ -451,7 +443,7 @@ try
     app.UseRouting();
 
     // SPA shell serving for Vue app prefixes like /CMS, /Effort, etc. Runs before
-    // auth/session so static Vue assets skip that per-request overhead.
+    // authentication so static Vue assets skip that per-request overhead.
     // Only runs when no MVC controller endpoint claimed the path, so attribute-routed
     // legacy endpoints (e.g. /CMS/Files → CMSController.Files) reach the controller
     // instead of being rewritten to the SPA shell.
@@ -504,7 +496,7 @@ try
             });
         });
 
-    // Auth/session run after the SPA shell block so built Vue assets skip them, but
+    // Authentication runs after the SPA shell block so built Vue assets skip it, but
     // still before health checks, Hangfire, and controllers, which need an authenticated user.
     app.UseAuthentication();
     // After authentication so download rate-limit buckets can key on the logged-in user
@@ -513,7 +505,6 @@ try
     app.UseRateLimiter();
     app.UseAuthorization();
     app.UseCookiePolicy();
-    app.UseSession();
 
     // All health-check pipeline wiring lives in HealthCheckExtensions.
     app.UseViperHealthChecks();
