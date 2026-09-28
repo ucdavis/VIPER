@@ -107,49 +107,33 @@ describe("career selection route guards", () => {
         })
     })
 
+    // Whether a record can be edited comes from the server with the record, and the form sends
+    // anyone refused on to the view page; these guards only place users they can without it.
     describe("edit access", () => {
-        it("allows an admin to edit any record", () => {
+        it("lets staff through to any record, leaving the form to ask the server", () => {
             expect.hasAssertions()
-            setUser([ADMIN])
-            expect(admits(requireCareerEditAccess(OTHER_ID))).toBeTruthy()
+            // A read-only user is refused by the form, not here, so the page and its Edit button
+            // follow the same answer.
+            for (const permission of [ADMIN, READ_ONLY, FACULTY]) {
+                setUser([permission])
+                expect(admits(requireCareerEditAccess(OTHER_ID))).toBeTruthy()
+            }
         })
 
-        // canEditOwnRecord no longer lists ADMIN, so the early return in requireCareerEditAccess
-        // is the only thing admitting an admin to their own record.
-        it("allows an admin to edit their own record", () => {
+        it("lets a student through to their own record, whether or not the app is open", () => {
             expect.hasAssertions()
-            setUser([ADMIN])
-            expect(admits(requireCareerEditAccess(OWN_ID))).toBeTruthy()
+            // A closed app is the form's to handle, as the server's canEdit already reflects it.
+            for (const permissions of [[VIEW_OWN, STUDENT], [VIEW_OWN]]) {
+                setUser(permissions)
+                expect(admits(requireCareerEditAccess(OWN_ID))).toBeTruthy()
+            }
         })
 
-        it("allows a student to edit their own record while the app is open", () => {
-            expect.hasAssertions()
-            setUser([VIEW_OWN, STUDENT])
-            expect(admits(requireCareerEditAccess(OWN_ID))).toBeTruthy()
-        })
-
-        it("redirects a student to their own view while the app is closed", () => {
-            expect.hasAssertions()
-            setUser([VIEW_OWN])
-            expect(requireCareerEditAccess(OWN_ID)).toStrictEqual(ownView())
-        })
-
-        it("redirects a student away from another student's edit page", () => {
+        it("redirects a student away from another student's edit page, without a notice", () => {
             expect.hasAssertions()
             setUser([VIEW_OWN, STUDENT])
             expect(requireCareerEditAccess(OTHER_ID)).toStrictEqual(ownView())
-        })
-
-        it("redirects a read-only user to the record they asked for, not their own", () => {
-            expect.hasAssertions()
-            setUser([READ_ONLY])
-            expect(requireCareerEditAccess(OTHER_ID)).toStrictEqual(ownView(OTHER_ID))
-        })
-
-        it("does not let a read-only user edit", () => {
-            expect.hasAssertions()
-            setUser([READ_ONLY])
-            expect(admits(requireCareerEditAccess(OTHER_ID))).toBeFalsy()
+            expect(takeNotice()).toBeNull()
         })
 
         it("sends a user with no career selection access home, saying why", () => {
@@ -157,13 +141,6 @@ describe("career selection route guards", () => {
             setUser(["SVMSecure.Students"])
             expect(requireCareerEditAccess(OWN_ID)).toStrictEqual(HOME)
             expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.NO_ACCESS)
-        })
-
-        it("says nothing when a closed app sends a student to their view", () => {
-            expect.hasAssertions()
-            setUser([VIEW_OWN])
-            requireCareerEditAccess(OWN_ID)
-            expect(takeNotice()).toBeNull()
         })
     })
 

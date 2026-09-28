@@ -122,8 +122,8 @@ async function initForm(): Promise<void> {
             careerDirectionOptions.value = careerOptions
             focusOptions.value = speciesOpts
             postGradOptions.value = postGradOpts
-            // Students without edit access should see the read-only view page instead.
-            if (detail.value && !detail.value.canEdit && !detail.value.canViewStudentList) {
+            // Anyone the server will not let edit this record reads it on the view page instead.
+            if (detail.value && !detail.value.canEdit) {
                 // Hand any notice on, so the view page shows it rather than it leaving with this one.
                 if (accessNotice.value) {
                     setAccessNotice(accessNotice.value)

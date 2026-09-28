@@ -44,10 +44,6 @@ function isFaculty(): boolean {
     return checkHasOnePermission([FACULTY])
 }
 
-function canEditOwnRecord(): boolean {
-    return checkHasOnePermission([STUDENT])
-}
-
 function hasOwnRecord(): boolean {
     return checkHasOnePermission([VIEW_OWN, STUDENT])
 }
@@ -79,25 +75,12 @@ function requireCareerViewAccess(pidm: string | number) {
     return Number(pidm) === ownId ? true : viewRoute(ownId)
 }
 
+// Whether this record can be edited is the server's call: the record carries canEdit, the same
+// rule its save enforces, and the form sends anyone it refuses on to the view page. Deciding it
+// here from the client's permissions could disagree with the Edit button the server showed, so
+// the edit page admits exactly who the view page does.
 function requireCareerEditAccess(pidm: string | number) {
-    if (isAdmin()) {
-        return true
-    }
-
-    const ownId = ownRecordId()
-    if (Number(pidm) !== ownId) {
-        // Do not disclose the existence of the record to unauthorized users.
-        if (canViewAllRecords() || isFaculty()) {
-            return viewRoute(pidm)
-        }
-        return ownId !== null && hasOwnRecord() ? viewRoute(ownId) : denyAccess()
-    }
-
-    if (canEditOwnRecord()) {
-        return true
-    }
-    // App closed: the record stays readable even though it can no longer be edited.
-    return hasOwnRecord() ? viewRoute(ownId) : denyAccess()
+    return requireCareerViewAccess(pidm)
 }
 
 function requireCareerListAccess() {
@@ -110,8 +93,8 @@ function requireCareerListAccess() {
         return denyAccess()
     }
 
-    // Edit rather than View, because the edit guard downgrades to View when the app is
-    // closed and a student who can edit should not have to click through a read-only page.
+    // Edit rather than View, because the form downgrades to View when the app is closed and
+    // a student who can edit should not have to click through a read-only page.
     return editRoute(ownId)
 }
 

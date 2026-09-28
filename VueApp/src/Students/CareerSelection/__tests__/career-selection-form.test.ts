@@ -10,9 +10,11 @@ import type { CareerDropdownOption, StudentCareerDetail } from "../types"
  * saved against an empty option list.
  */
 
+const { mockReplace } = vi.hoisted(() => ({ mockReplace: vi.fn<(to: unknown) => void>() }))
+
 vi.mock("vue-router", () => ({
     useRoute: () => ({ params: { pidm: "42" } }),
-    useRouter: () => ({ push: vi.fn<(to: unknown) => void>(), replace: vi.fn<(to: unknown) => void>() }),
+    useRouter: () => ({ push: vi.fn<(to: unknown) => void>(), replace: mockReplace }),
 }))
 vi.mock("@/composables/CheckPagePermission", () => ({ checkHasOnePermission: () => false }))
 vi.mock("@/composables/use-confirm-leave", () => ({ useConfirmLeave: () => {} }))
@@ -73,5 +75,31 @@ describe("career selection form", () => {
         await flushPromises()
 
         expect(shell.props("loading")).toBeFalsy()
+    })
+
+    // The route guard admits by the client's permissions; whether this record can be edited is
+    // the server's answer, the same one that decides whether the view page shows an Edit button.
+    it("sends staff the server will not let edit on to the view page", async () => {
+        expect.hasAssertions()
+        vi.spyOn(careerSelectionService, "getDetail").mockResolvedValue({ ...detail, canEdit: false })
+        vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
+
+        mountForm()
+        await flushPromises()
+
+        expect(mockReplace).toHaveBeenCalledWith({ name: "CareerSelectionView", params: { pidm: 42 } })
+    })
+
+    it("opens the form for anyone the server lets edit", async () => {
+        expect.hasAssertions()
+        // The client checks nothing here (checkHasOnePermission is mocked to deny everything),
+        // so only the server's canEdit keeps the form open.
+        vi.spyOn(careerSelectionService, "getDetail").mockResolvedValue(detail)
+        vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
+
+        mountForm()
+        await flushPromises()
+
+        expect(mockReplace).not.toHaveBeenCalled()
     })
 })
