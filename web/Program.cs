@@ -278,8 +278,10 @@ try
         builder.Services.AddDatabaseDeveloperPageExceptionFilter();
     }
 
-    // Add Data Protection services (i.e. encryption)
-    builder.Services.AddDataProtection();
+    // Data Protection (i.e. encryption). Key ring is shared between the
+    // blue/green slots when DataProtection:KeyRingPath is set; locally it
+    // stays at the default per-machine location. See DataProtectionExtensions.
+    builder.Services.AddViperDataProtection(builder.Configuration);
 
     // Add email services
     builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
