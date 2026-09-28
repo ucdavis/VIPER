@@ -112,7 +112,7 @@
             <q-separator v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)"></q-separator>
             <q-card-section class="row ids" v-if="ids && (user.spridentId || user.pidm || user.employeeId || user.iamId || user.mothraId || user.mivId)">
                 <div v-if="user.spridenId">
-                    <span>BannerID:</span>
+                    <span>BannerID: </span>
                     @if (Model.CanSeeAllStudents)
                     {
                     @: <a :href="'@HttpHelper.GetOldViperRootURL()' + '/students/sis/default.cfm?Page=AssignPidmAndRedirect&amp;Pidm=' + user.spridenId + '&amp;JumpPage=Home'">{{ user.spridenId }}</a>
