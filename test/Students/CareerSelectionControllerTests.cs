@@ -202,14 +202,13 @@ public class CareerSelectionControllerTests
     [Fact]
     public async Task GetStudentCareerDetail_StudentOpeningAnotherRecord_ReturnsForbid()
     {
-        var student = GrantPermission(CreateUser(100, "student", "STU001"), CareerSelectionPermissions.Student);
+        GrantPermission(CreateUser(100, "student", "STU001"), CareerSelectionPermissions.Student);
 
         var result = await _controller.GetStudentCareerDetail(999);
 
         AssertForbidden(result.Result);
         await _service.DidNotReceive().GetStudentCareerDetailAsync(
             Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>());
-        Assert.Equal(100, student.AaudUserId);
     }
 
     [Fact]
@@ -515,17 +514,20 @@ public class CareerSelectionControllerTests
     }
 
     [Fact]
-    public async Task ExportOverviewExcel_NoStudents_ReturnsNoContent()
+    public async Task ExportOverviewExcel_NoStudents_ReturnsAHeadersOnlyWorkbook()
     {
+        // Legacy handed back a file with headers and no rows rather than refusing the export.
         var admin = CreateUser(1, "admin", "ADMIN001");
         _userHelper.GetCurrentUser().Returns(admin);
         _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
         _service.GetStudentCareerListAsync(StudentListAccess.AllStudents).Returns([]);
+        using var stream = new MemoryStream([1, 2, 3]);
+        _exportService.GenerateOverviewExcel(Arg.Any<List<StudentCareerListItemDto>>()).Returns(stream);
 
         var result = await _controller.ExportOverviewExcel();
 
-        Assert.IsType<NoContentResult>(result);
-        _exportService.DidNotReceive().GenerateOverviewExcel(Arg.Any<List<StudentCareerListItemDto>>());
+        Assert.IsType<FileStreamResult>(result);
+        _exportService.Received(1).GenerateOverviewExcel(Arg.Is<List<StudentCareerListItemDto>>(d => d.Count == 0));
     }
 
     [Fact]
@@ -564,7 +566,7 @@ public class CareerSelectionControllerTests
     }
 
     [Fact]
-    public async Task ExportOverviewPdf_WithStudents_ReturnsAnInlinePdf()
+    public async Task ExportOverviewPdf_WithStudents_ReturnsAPdfDownload()
     {
         var admin = CreateUser(1, "admin", "ADMIN001");
         _userHelper.GetCurrentUser().Returns(admin);
@@ -577,22 +579,23 @@ public class CareerSelectionControllerTests
 
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", file.ContentType);
-        // Inline exports carry student data, so they must not be cached by browsers or proxies.
-        Assert.Equal("private, no-store, max-age=0", _controller.Response.Headers.CacheControl);
+        Assert.Matches(@"^CareerSelectionOverview_\d{8}\.pdf$", file.FileDownloadName);
     }
 
     [Fact]
-    public async Task ExportOverviewPdf_NoStudents_ReturnsNoContent()
+    public async Task ExportOverviewPdf_NoStudents_ReturnsAPdf()
     {
         var admin = CreateUser(1, "admin", "ADMIN001");
         _userHelper.GetCurrentUser().Returns(admin);
         _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
         _service.GetStudentCareerListAsync(StudentListAccess.AllStudents).Returns([]);
+        _exportService.GenerateOverviewPdf(Arg.Any<List<StudentCareerListItemDto>>()).Returns([1, 2, 3]);
 
         var result = await _controller.ExportOverviewPdf();
 
-        Assert.IsType<NoContentResult>(result);
-        _exportService.DidNotReceive().GenerateOverviewPdf(Arg.Any<List<StudentCareerListItemDto>>());
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", file.ContentType);
+        _exportService.Received(1).GenerateOverviewPdf(Arg.Is<List<StudentCareerListItemDto>>(d => d.Count == 0));
     }
 
     [Fact]
@@ -622,6 +625,7 @@ public class CareerSelectionControllerTests
 
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", file.ContentType);
+        Assert.Matches(@"^CareerSelection_\d{8}\.pdf$", file.FileDownloadName);
         await _service.Received(1).GetStudentCareerReportAsync(StudentListAccess.MentoredBy("FAC001"));
     }
 
@@ -672,17 +676,105 @@ public class CareerSelectionControllerTests
     }
 
     [Fact]
-    public async Task ExportOverviewCsv_NoStudents_ReturnsNoContent()
+    public async Task ExportOverviewCsv_NoStudents_ReturnsAHeadersOnlyCsv()
     {
         var admin = CreateUser(1, "admin", "ADMIN001");
         _userHelper.GetCurrentUser().Returns(admin);
         _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
         _service.GetStudentCareerListAsync(StudentListAccess.AllStudents).Returns([]);
+        _exportService.GenerateOverviewCsv(Arg.Any<List<StudentCareerListItemDto>>()).Returns([1, 2, 3]);
 
         var result = await _controller.ExportOverviewCsv();
 
-        Assert.IsType<NoContentResult>(result);
-        _exportService.DidNotReceive().GenerateOverviewCsv(Arg.Any<List<StudentCareerListItemDto>>());
+        Assert.IsType<FileContentResult>(result);
+        _exportService.Received(1).GenerateOverviewCsv(Arg.Is<List<StudentCareerListItemDto>>(d => d.Count == 0));
+    }
+
+    [Fact]
+    public async Task ExportCsv_WithRowKeys_ExportsThoseRowsInTheGridsOrder()
+    {
+        var admin = CreateUser(1, "admin", "ADMIN001");
+        _userHelper.GetCurrentUser().Returns(admin);
+        _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
+        _service.GetStudentCareerReportAsync(StudentListAccess.AllStudents).Returns(
+        [
+            new StudentCareerReportDto { PersonId = 5, RowKey = "5" },
+            new StudentCareerReportDto { PersonId = 6, RowKey = "6" },
+            new StudentCareerReportDto { PersonId = 7, RowKey = "7" },
+        ]);
+        _exportService.GenerateCsv(Arg.Any<List<StudentCareerReportDto>>()).Returns([1, 2, 3]);
+
+        await _controller.ExportCsv(new CareerSelectionExportRequest { RowKeys = ["7", "5"] });
+
+        _exportService.Received(1).GenerateCsv(Arg.Is<List<StudentCareerReportDto>>(
+            d => d.Select(r => r.PersonId).SequenceEqual(new[] { 7, 5 })));
+    }
+
+    [Fact]
+    public async Task ExportExcel_FacultySendsANonMenteesKey_ExportsOnlyTheirMentees()
+    {
+        // Keys only narrow what the caller may already see; a key for someone else's student
+        // matches nothing in the mentor's roster and is dropped.
+        var faculty = CreateUser(2, "faculty", "FAC001");
+        _userHelper.GetCurrentUser().Returns(faculty);
+        _service.ResolveScope(faculty).Returns(CareerSelectionScope.Mentored);
+        _service.GetStudentCareerReportAsync(StudentListAccess.MentoredBy("FAC001"))
+            .Returns([new StudentCareerReportDto { PersonId = 5, RowKey = "5" }]);
+        using var stream = new MemoryStream([1, 2, 3]);
+        _exportService.GenerateExcel(Arg.Any<List<StudentCareerReportDto>>()).Returns(stream);
+
+        await _controller.ExportExcel(new CareerSelectionExportRequest { RowKeys = ["5", "99"] });
+
+        _exportService.Received(1).GenerateExcel(Arg.Is<List<StudentCareerReportDto>>(
+            d => d.Count == 1 && d[0].PersonId == 5));
+    }
+
+    [Fact]
+    public async Task ExportPdf_EmptyRowKeys_ReturnsAPdfWithNoRows()
+    {
+        // The grid's search matched nothing: still a file, as legacy gave.
+        var admin = CreateUser(1, "admin", "ADMIN001");
+        _userHelper.GetCurrentUser().Returns(admin);
+        _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
+        _service.GetStudentCareerReportAsync(StudentListAccess.AllStudents)
+            .Returns([new StudentCareerReportDto { PersonId = 5, RowKey = "5" }]);
+        _exportService.GeneratePdf(Arg.Any<List<StudentCareerReportDto>>()).Returns([1, 2, 3]);
+
+        var result = await _controller.ExportPdf(new CareerSelectionExportRequest { RowKeys = [] });
+
+        Assert.IsType<FileContentResult>(result);
+        _exportService.Received(1).GeneratePdf(Arg.Is<List<StudentCareerReportDto>>(d => d.Count == 0));
+    }
+
+    [Fact]
+    public async Task ExportOverviewExcel_NoRowKeys_ExportsEveryStudent()
+    {
+        var admin = CreateUser(1, "admin", "ADMIN001");
+        _userHelper.GetCurrentUser().Returns(admin);
+        _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
+        _service.GetStudentCareerListAsync(StudentListAccess.AllStudents).Returns(
+        [
+            new StudentCareerListItemDto { PersonId = 5, RowKey = "5" },
+            new StudentCareerListItemDto { PersonId = 6, RowKey = "6" },
+        ]);
+        using var stream = new MemoryStream([1, 2, 3]);
+        _exportService.GenerateOverviewExcel(Arg.Any<List<StudentCareerListItemDto>>()).Returns(stream);
+
+        await _controller.ExportOverviewExcel(new CareerSelectionExportRequest { RowKeys = null });
+
+        _exportService.Received(1).GenerateOverviewExcel(Arg.Is<List<StudentCareerListItemDto>>(d => d.Count == 2));
+    }
+
+    [Theory]
+    [InlineData(nameof(CareerSelectionController.ExportPdf))]
+    [InlineData(nameof(CareerSelectionController.ExportOverviewPdf))]
+    public void PdfExports_ArePosts(string action)
+    {
+        // The row keys ride in a body, which a GET cannot carry.
+        var method = typeof(CareerSelectionController).GetMethod(action)!;
+
+        Assert.NotNull(method.GetCustomAttributes(typeof(HttpPostAttribute), inherit: false).SingleOrDefault());
+        Assert.Empty(method.GetCustomAttributes(typeof(HttpGetAttribute), inherit: false));
     }
 
     #endregion

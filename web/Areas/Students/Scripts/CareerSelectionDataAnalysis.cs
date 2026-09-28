@@ -31,8 +31,12 @@ namespace Viper.Areas.Students.Scripts
     /// How one legacy option column encoded its answers. Implicit is legacy's way of recording
     /// "Other" - a null option id beside free text - and becomes a real reference to the catch-all
     /// row. Stale is the reverse and is discarded, matching what the app itself writes.
+    /// The Placeholder counts are legacy's prompt text, read as blank before the rest are counted,
+    /// split by what it sat beside: no option, the catch-all, or a real option.
     /// </summary>
-    public sealed record OtherEncodingCounts(string Column, int Implicit, int Stale, int AlreadyOther);
+    public sealed record OtherEncodingCounts(
+        string Column, int Implicit, int Stale, int AlreadyOther,
+        int PlaceholderNoOption, int PlaceholderOnOther, int PlaceholderOnRealOption);
 
     /// <summary>
     /// Flat, unscored data-quality report for the SIS -> students schema career selection
@@ -201,6 +205,8 @@ namespace Viper.Areas.Students.Scripts
             {
                 Console.WriteLine($"  {e.Column}: {e.Implicit:N0} implicit Other, " +
                     $"{e.AlreadyOther:N0} already Other, {e.Stale:N0} stale text to discard");
+                Console.WriteLine($"    placeholder text to discard: {e.PlaceholderNoOption:N0} with no option, " +
+                    $"{e.PlaceholderOnOther:N0} on Other, {e.PlaceholderOnRealOption:N0} beside a real option");
             }
             Console.WriteLine();
 
@@ -385,6 +391,9 @@ namespace Viper.Areas.Students.Scripts
             var implicitCount = 0;
             var staleCount = 0;
             var alreadyOtherCount = 0;
+            var placeholderNoOption = 0;
+            var placeholderOnOther = 0;
+            var placeholderOnRealOption = 0;
 
             var sql = $"SELECT {optionColumn}, {otherColumn} FROM [dbo].[tb_CareerSelection]";
 
@@ -393,8 +402,27 @@ namespace Viper.Areas.Students.Scripts
             while (reader.Read())
             {
                 var optionId = reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0);
-                var otherText = reader.IsDBNull(1) ? null : reader.GetString(1);
-                var hasText = !string.IsNullOrWhiteSpace(otherText);
+                var rawText = reader.IsDBNull(1) ? null : reader.GetString(1);
+
+                if (CareerSelectionScriptHelper.IsLegacyOtherPlaceholder(rawText))
+                {
+                    if (optionId is null)
+                    {
+                        placeholderNoOption++;
+                    }
+                    else if (optionId == otherId)
+                    {
+                        placeholderOnOther++;
+                    }
+                    else
+                    {
+                        placeholderOnRealOption++;
+                    }
+                }
+
+                // Classified on the text the migration keeps, so these counts match what it writes.
+                var otherText = CareerSelectionScriptHelper.CleanOtherText(rawText);
+                var hasText = otherText.Length > 0;
 
                 if (CareerSelectionScriptHelper.IsImplicitOther(optionId, otherText))
                 {
@@ -410,7 +438,9 @@ namespace Viper.Areas.Students.Scripts
                 }
             }
 
-            _report.OtherEncodings.Add(new OtherEncodingCounts(optionColumn, implicitCount, staleCount, alreadyOtherCount));
+            _report.OtherEncodings.Add(new OtherEncodingCounts(
+                optionColumn, implicitCount, staleCount, alreadyOtherCount,
+                placeholderNoOption, placeholderOnOther, placeholderOnRealOption));
         }
 
         // Check 3: postGradOther has no destination column, so the migration folds it into
@@ -440,6 +470,12 @@ namespace Viper.Areas.Students.Scripts
                 // the same rule the other three columns follow. Merging it would attribute an
                 // explanation to a choice the student did not make.
                 if (postGrad is not null && postGrad != otherId)
+                {
+                    continue;
+                }
+
+                // The placeholder is read as blank, so there is nothing to merge.
+                if (CareerSelectionScriptHelper.IsLegacyOtherPlaceholder(postGradOther))
                 {
                     continue;
                 }
@@ -720,9 +756,14 @@ namespace Viper.Areas.Students.Scripts
             sb.AppendLine("   already    = already references the catch-all row.");
             sb.AppendLine("   stale      = a real non-catch-all option AND free text. The text is");
             sb.AppendLine("                discarded, which is what the app writes on every save.");
+            sb.AppendLine($"   placeholder = legacy's \"{CareerSelectionScriptHelper.LegacyOtherPlaceholder}\" prompt,");
+            sb.AppendLine("                discarded as blank before the counts above are taken. With no");
+            sb.AppendLine("                option the row stays unanswered; on Other it keeps no text.");
             foreach (var e in _report.OtherEncodings)
             {
                 sb.AppendLine($"  {e.Column}: implicit={e.Implicit:N0} already={e.AlreadyOther:N0} stale={e.Stale:N0}");
+                sb.AppendLine($"    placeholder: no-option={e.PlaceholderNoOption:N0} on-other={e.PlaceholderOnOther:N0} " +
+                    $"real-option={e.PlaceholderOnRealOption:N0}");
             }
             sb.AppendLine();
 

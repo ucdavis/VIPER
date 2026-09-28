@@ -192,6 +192,38 @@ public class ExportServiceTests
         Assert.Equal(System.Text.Encoding.UTF8.GetPreamble(), bytes.Take(3));
     }
 
+    [Fact]
+    public void GenerateOverviewExcel_NoStudents_StillWritesTheHeaderRow()
+    {
+        using var workbook = new XLWorkbook(_careerExports.GenerateOverviewExcel([]));
+        var sheet = workbook.Worksheets.First();
+
+        Assert.Equal("Class", sheet.Cell(2, 1).GetString());
+        Assert.Equal(string.Empty, sheet.Cell(3, 1).GetString());
+    }
+
+    [Fact]
+    public void GenerateOverviewCsv_NoStudents_StillWritesTheHeaderRow()
+    {
+        var lines = ReadCsv(_careerExports.GenerateOverviewCsv([]));
+
+        Assert.Single(lines);
+        Assert.Contains("\"Last Updated\"", lines[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateOverviewPdf_NoStudents_ProducesAPdf()
+    {
+        // An empty export draws a "No matching records found" row spanning the table.
+        AssertIsPdf(_careerExports.GenerateOverviewPdf([]));
+    }
+
+    [Fact]
+    public void GeneratePdf_NoStudents_ProducesAPdf()
+    {
+        AssertIsPdf(_careerExports.GeneratePdf([]));
+    }
+
     #endregion
 
     #region Emergency contacts

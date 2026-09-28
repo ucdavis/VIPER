@@ -248,6 +248,34 @@ public sealed class CareerSelectionServiceTests : IDisposable
         Assert.Equal("STU00009", student.RowKey);
     }
 
+    [Fact]
+    public async Task GetStudentCareerListAsync_OrdersByLastThenFirstName()
+    {
+        // Seeded out of order. "de Luca" before "Zeta" shows the sort ignores case, where an
+        // ordinal sort would put every capitalized name first.
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001", lastName: "Zeta", firstName: "Ann");
+        await SeedStudentAsync(101, "STU00002", pidm: "20000002", lastName: "Alpha", firstName: "Zed");
+        await SeedStudentAsync(102, "STU00003", pidm: "20000003", lastName: "de Luca", firstName: "Ann");
+        await SeedStudentAsync(103, "STU00004", pidm: "20000004", lastName: "Alpha", firstName: "Amy");
+
+        var result = await _service.GetStudentCareerListAsync(StudentListAccess.AllStudents);
+
+        Assert.Equal([103, 101, 102, 100], result.Select(r => r.PersonId));
+    }
+
+    [Fact]
+    public async Task GetStudentCareerListAsync_SameName_OrdersByMothraId()
+    {
+        // Seeded with the higher MothraId first, so a pass-through of insertion order would fail.
+        await SeedStudentAsync(101, "STU00002", pidm: "20000002", lastName: "Smith", firstName: "Sam");
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001", lastName: "Smith", firstName: "Sam");
+
+        var result = await _service.GetStudentCareerListAsync(StudentListAccess.AllStudents);
+
+        // PersonId 100 holds STU00001.
+        Assert.Equal([100, 101], result.Select(r => r.PersonId));
+    }
+
     #endregion
 
     #region GetStudentCareerReportAsync
@@ -302,6 +330,18 @@ public sealed class CareerSelectionServiceTests : IDisposable
         var student = Assert.Single(await _service.GetStudentCareerReportAsync(StudentListAccess.MentoredBy(MentorMothraId)));
 
         Assert.Equal(100, student.PersonId);
+    }
+
+    [Fact]
+    public async Task GetStudentCareerReportAsync_OrdersByLastThenFirstName()
+    {
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001", lastName: "Beta", firstName: "Ann");
+        await SeedStudentAsync(101, "STU00002", pidm: "20000002", lastName: "Alpha", firstName: "Zed");
+        await SeedStudentAsync(102, "STU00003", pidm: "20000003", lastName: "Alpha", firstName: "Amy");
+
+        var result = await _service.GetStudentCareerReportAsync(StudentListAccess.AllStudents);
+
+        Assert.Equal([102, 101, 100], result.Select(r => r.PersonId));
     }
 
     #endregion
@@ -503,13 +543,14 @@ public sealed class CareerSelectionServiceTests : IDisposable
 
     /// <summary>Adds a DVM student to the students view and to AaudUser. Call SaveChanges after.</summary>
     private async Task<AaudUser> SeedStudentAsync(int personId, string mothraId, string pidm,
-        string lastName = "Student", string mailId = "student", string loginId = "student")
+        string lastName = "Student", string mailId = "student", string loginId = "student",
+        string firstName = "Test")
     {
         _aaudContext.Set<VwDvmStudentsMaxTerm>().Add(new VwDvmStudentsMaxTerm
         {
             IdsMothraId = mothraId,
             PersonLastName = lastName,
-            PersonFirstName = "Test",
+            PersonFirstName = firstName,
             StudentsClassLevel = "V1",
             IdsPidm = pidm,
             IdsMailid = mailId,
@@ -523,11 +564,11 @@ public sealed class CareerSelectionServiceTests : IDisposable
             MothraId = mothraId,
             LoginId = loginId,
             Pidm = pidm,
-            DisplayFullName = $"Test {lastName}",
-            DisplayFirstName = "Test",
+            DisplayFullName = $"{firstName} {lastName}",
+            DisplayFirstName = firstName,
             DisplayLastName = lastName,
             LastName = lastName,
-            FirstName = "Test"
+            FirstName = firstName
         };
         _aaudContext.AaudUsers.Add(user);
         await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);

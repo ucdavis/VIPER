@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Viper.Areas.Students.Constants;
 using Viper.Areas.Students.Models;
@@ -372,18 +373,23 @@ public class CareerSelectionController : ApiController
     /// </summary>
     [HttpPost("export/overview/excel")]
     [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportOverviewExcel() => ExportAsync(
+    public Task<ActionResult> ExportOverviewExcel(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
+        request,
         _service.GetStudentCareerListAsync,
         data => ExcelFile(_exportService.GenerateOverviewExcel(data), "CareerSelectionOverview"));
 
     /// <summary>
-    /// Export the overview (completeness summary) as a PDF file.
+    /// Export the overview (completeness summary) as a PDF file. A POST rather than a GET because
+    /// the grid's row keys can outgrow a query string.
     /// </summary>
-    [HttpGet("export/overview/pdf")]
+    [HttpPost("export/overview/pdf")]
     [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportOverviewPdf() => ExportAsync(
+    public Task<ActionResult> ExportOverviewPdf(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
+        request,
         _service.GetStudentCareerListAsync,
-        data => InlineFile(_exportService.GenerateOverviewPdf(data), "application/pdf",
+        data => File(_exportService.GenerateOverviewPdf(data), "application/pdf",
             $"CareerSelectionOverview_{DateTime.Now:yyyyMMdd}.pdf"));
 
     /// <summary>
@@ -391,7 +397,9 @@ public class CareerSelectionController : ApiController
     /// </summary>
     [HttpPost("export/overview/csv")]
     [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportOverviewCsv() => ExportAsync(
+    public Task<ActionResult> ExportOverviewCsv(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
+        request,
         _service.GetStudentCareerListAsync,
         data => CsvFile(_exportService.GenerateOverviewCsv(data), "CareerSelectionOverview"));
 
@@ -400,18 +408,23 @@ public class CareerSelectionController : ApiController
     /// </summary>
     [HttpPost("export/excel")]
     [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportExcel() => ExportAsync(
+    public Task<ActionResult> ExportExcel(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
+        request,
         _service.GetStudentCareerReportAsync,
         data => ExcelFile(_exportService.GenerateExcel(data), "CareerSelection"));
 
     /// <summary>
-    /// Export all career selections as a PDF file.
+    /// Export all career selections as a PDF file. A POST rather than a GET because the grid's
+    /// row keys can outgrow a query string.
     /// </summary>
-    [HttpGet("export/pdf")]
+    [HttpPost("export/pdf")]
     [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportPdf() => ExportAsync(
+    public Task<ActionResult> ExportPdf(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
+        request,
         _service.GetStudentCareerReportAsync,
-        data => InlineFile(_exportService.GeneratePdf(data), "application/pdf",
+        data => File(_exportService.GeneratePdf(data), "application/pdf",
             $"CareerSelection_{DateTime.Now:yyyyMMdd}.pdf"));
 
     /// <summary>
@@ -419,16 +432,20 @@ public class CareerSelectionController : ApiController
     /// </summary>
     [HttpPost("export/csv")]
     [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportCsv() => ExportAsync(
+    public Task<ActionResult> ExportCsv(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
+        request,
         _service.GetStudentCareerReportAsync,
         data => CsvFile(_exportService.GenerateCsv(data), "CareerSelection"));
 
     /// <summary>
     /// Runs an export over the students the caller may see: a faculty mentor's export is narrowed
-    /// to their mentees, the same as the roster it mirrors.
+    /// to their mentees, the same as the roster it mirrors, and then to the grid's rows when the
+    /// request names them. Nothing to export still produces a file, headers only, as legacy did.
     /// </summary>
-    private async Task<ActionResult> ExportAsync<T>(
+    private async Task<ActionResult> ExportAsync<T>(CareerSelectionExportRequest? request,
         Func<StudentListAccess, Task<List<T>>> loadData, Func<List<T>, ActionResult> buildFile)
+        where T : StudentCareerRowDto
     {
         var access = ResolveStudentListAccess();
         if (access.IsDenied)
@@ -437,6 +454,6 @@ public class CareerSelectionController : ApiController
         }
 
         var data = await loadData(access);
-        return FileOrNoContent(data, buildFile);
+        return buildFile(CareerSelectionExportRequest.ApplyRowKeys(data, request));
     }
 }

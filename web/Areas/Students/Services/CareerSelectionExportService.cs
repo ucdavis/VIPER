@@ -130,6 +130,7 @@ public class CareerSelectionExportService : ICareerSelectionExportService
             });
 
             PdfHeaderRow(table);
+            PdfEmptyRowIfNone(table, data.Count);
 
             foreach (var d in data)
             {
@@ -222,6 +223,7 @@ public class CareerSelectionExportService : ICareerSelectionExportService
             });
 
             PdfHeaderRow(table);
+            PdfEmptyRowIfNone(table, data.Count);
 
             foreach (var d in data)
             {
@@ -266,6 +268,20 @@ public class CareerSelectionExportService : ICareerSelectionExportService
                     .Text(label).Style(hdrStyle);
             }
         });
+    }
+
+    /// <summary>
+    /// The grid's own wording for a search that matches nothing, so an empty PDF reads as
+    /// "nothing matched" rather than as a failed render.
+    /// </summary>
+    private const string NoRecordsMessage = "No matching records found";
+
+    private static void PdfEmptyRowIfNone(TableDescriptor table, int rowCount)
+    {
+        if (rowCount == 0)
+        {
+            table.Cell().ColumnSpan((uint)ColumnHeaders.Length).Padding(2).Text(NoRecordsMessage).Italic();
+        }
     }
 
     private static string CompletenessLabel(bool complete) => complete ? "Yes" : "No";

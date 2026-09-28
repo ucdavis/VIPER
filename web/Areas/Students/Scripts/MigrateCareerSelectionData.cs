@@ -55,6 +55,7 @@ namespace Viper.Areas.Students.Scripts
         private int _implicitOtherConverted;
         private int _staleOtherTextDropped;
         private int _postGradOtherMerged;
+        private int _placeholderDropped;
 
         public MigrateCareerSelectionData(bool apply, IConfiguration? configuration = null)
         {
@@ -585,14 +586,22 @@ namespace Viper.Areas.Students.Scripts
         /// - A real option selected alongside stale text drops the text, which is what
         ///   CareerSelectionMapper.OtherTextFor does on every save the app makes.
         ///
+        /// Legacy's placeholder prompt is read as blank before any of this, so a row holding only
+        /// the placeholder stays unanswered, and a catch-all selection keeps no text.
+        ///
         /// Text is returned empty rather than null so every text column stores the same "unfilled"
         /// value the app writes.
         /// </summary>
         private (int? OptionId, string OtherText) ResolveOption(int? legacyOptionId, string? legacyOtherText, int otherId)
         {
-            var text = (legacyOtherText ?? string.Empty).Trim();
+            if (CareerSelectionScriptHelper.IsLegacyOtherPlaceholder(legacyOtherText))
+            {
+                _placeholderDropped++;
+            }
 
-            if (CareerSelectionScriptHelper.IsImplicitOther(legacyOptionId, legacyOtherText))
+            var text = CareerSelectionScriptHelper.CleanOtherText(legacyOtherText);
+
+            if (CareerSelectionScriptHelper.IsImplicitOther(legacyOptionId, text))
             {
                 _implicitOtherConverted++;
                 return (otherId, text);
@@ -683,6 +692,7 @@ namespace Viper.Areas.Students.Scripts
             Console.WriteLine($"  Implicit Other re-pointed at a catch-all row: {_implicitOtherConverted:N0}");
             Console.WriteLine($"  postGradOther folded into ShortTermStatement: {_postGradOtherMerged:N0}");
             Console.WriteLine($"  Stale free text discarded:                    {_staleOtherTextDropped:N0}");
+            Console.WriteLine($"  Legacy placeholder text discarded:            {_placeholderDropped:N0}");
             Console.WriteLine();
         }
 

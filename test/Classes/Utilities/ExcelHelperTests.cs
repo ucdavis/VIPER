@@ -1,6 +1,6 @@
 using Viper.Classes.Utilities;
 
-namespace Viper.test.Effort;
+namespace Viper.test.Classes.Utilities;
 
 /// <summary>
 /// Unit tests for ExcelHelper utility methods.

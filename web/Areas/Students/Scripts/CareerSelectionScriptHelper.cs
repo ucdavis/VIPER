@@ -362,6 +362,27 @@ namespace Viper.Areas.Students.Scripts
             return optionId is null && !string.IsNullOrWhiteSpace(otherText);
         }
 
+        /// <summary>
+        /// The prompt legacy's form wrote into an empty Other box on blur, which was then saved as
+        /// though the student had typed it. Confirmed against the data as the only form it takes,
+        /// in all four Other columns.
+        /// </summary>
+        public const string LegacyOtherPlaceholder = "If other, please describe here";
+
+        public static bool IsLegacyOtherPlaceholder(string? otherText)
+        {
+            return otherText?.Trim().Equals(LegacyOtherPlaceholder, StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        /// <summary>
+        /// Legacy Other text as the migration reads it: trimmed, with the placeholder treated as
+        /// blank, so it is never mistaken for an answer or appended to a statement.
+        /// </summary>
+        public static string CleanOtherText(string? otherText)
+        {
+            return IsLegacyOtherPlaceholder(otherText) ? string.Empty : (otherText ?? string.Empty).Trim();
+        }
+
         /// <summary>One row of a legacy lookup table.</summary>
         public sealed record LookupRow(int Id, string Label);
 

@@ -542,6 +542,15 @@ public class CareerSelectionService : ICareerSelectionService
 
         var (dvmStudents, mothraToPersonId) = await _dvmStudentLookup.LoadDvmStudentsAsync();
 
+        // The view has no inherent order, so without this the roster, report and exports could
+        // change order between loads. Case-insensitive ordinal matches the grid's own name sort,
+        // and MothraId keeps two students with the same name in a fixed order.
+        dvmStudents = dvmStudents
+            .OrderBy(s => s.PersonLastName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(s => s.PersonFirstName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(s => s.IdsMothraId, StringComparer.Ordinal)
+            .ToList();
+
         // The view contains PIDM as a string and the table keys on an int, so parse once here
         // rather than at each lookup below; a student whose PIDM will not parse simply has no
         // career selection to match.
