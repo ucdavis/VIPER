@@ -1,5 +1,9 @@
 import { mount, flushPromises } from "@vue/test-utils"
+import { setActivePinia, createPinia } from "pinia"
 import { Quasar } from "quasar"
+import { useUserStore } from "@/store/UserStore"
+import { setAccessNotice } from "@/Students/composables/use-access-notice"
+import { CAREER_SELECTION_ACCESS_MESSAGES } from "../constants/access-messages"
 import CareerSelectionView from "../pages/CareerSelectionView.vue"
 import { careerSelectionService } from "../services/career-selection-service"
 import type { StudentCareerDetail, StudentInfo } from "../types"
@@ -37,13 +41,17 @@ function studentInfo(overrides: Partial<StudentInfo> = {}): StudentInfo {
     }
 }
 
-async function mountView(info: Partial<StudentInfo> = {}) {
+/** The record on the route is person 42; `viewerId` is who is signed in. */
+async function mountView(info: Partial<StudentInfo> = {}, { canEdit = false, viewerId = 1 } = {}) {
+    setActivePinia(createPinia())
+    useUserStore().userInfo.userId = viewerId
+
     const detail: StudentCareerDetail = {
         personId: 42,
         fullName: "Student, Test",
         classLevel: "V2",
         studentInfo: studentInfo(info),
-        canEdit: false,
+        canEdit,
         canViewStudentList: false,
         lastUpdated: null,
     }
@@ -142,5 +150,44 @@ describe("career selection view", () => {
         const wrapper = await mountView({ direction: option("Other", true), directionOther: "" })
 
         expect(pairs(wrapper)["Career Direction"]).toBe("—")
+    })
+})
+
+describe("career selection view while editing is closed", () => {
+    const CLOSED = "Making changes is not allowed at this time."
+
+    it("tells a student why they cannot edit their own record", async () => {
+        expect.hasAssertions()
+        // Without it, the Edit button just disappears, which looks the same as something broken.
+        const wrapper = await mountView({}, { canEdit: false, viewerId: 42 })
+
+        expect(wrapper.text()).toContain(CLOSED)
+    })
+
+    it("says nothing while the student can edit", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountView({}, { canEdit: true, viewerId: 42 })
+
+        expect(wrapper.text()).not.toContain(CLOSED)
+    })
+
+    it("says nothing to staff viewing another student's record", async () => {
+        expect.hasAssertions()
+        // A read-only viewer or mentor never could edit this record, so the closure is not news.
+        const wrapper = await mountView({}, { canEdit: false, viewerId: 7 })
+
+        expect(wrapper.text()).not.toContain(CLOSED)
+    })
+})
+
+describe("career selection view after a redirect", () => {
+    it("says why a student was sent here from a page they may not use", async () => {
+        expect.hasAssertions()
+        // A student refused on the options page is taken to their own record, and told why.
+        setAccessNotice(CAREER_SELECTION_ACCESS_MESSAGES.MANAGE_OPTIONS)
+
+        const wrapper = await mountView({}, { viewerId: 42 })
+
+        expect(wrapper.text()).toContain(CAREER_SELECTION_ACCESS_MESSAGES.MANAGE_OPTIONS)
     })
 })

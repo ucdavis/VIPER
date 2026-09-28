@@ -68,6 +68,14 @@ const exportButtons = computed(() =>
     ].filter((button) => button.run !== undefined),
 )
 
+// The layout decisions live here rather than inline in the template, which keeps the template
+// itself a plain list of controls.
+/** On a phone the exports fold into one menu; elsewhere each gets its own button. */
+const showExportMenu = computed(() => compact.value && exportButtons.value.length > 0)
+const inlineExportButtons = computed(() => (compact.value ? [] : exportButtons.value))
+/** On a phone the search takes a line of its own below the buttons. */
+const searchClass = computed(() => (compact.value ? "col-12 q-mt-sm" : "q-ml-sm"))
+
 async function runExport(button: { key: string; run?: () => void | Promise<void> }): Promise<void> {
     if (!button.run) return
     running.value = button.key
@@ -97,7 +105,7 @@ async function runExport(button: { key: string; run?: () => void | Promise<void>
             :to="button.to"
         />
         <q-btn-dropdown
-            v-if="compact && exportButtons.length > 0"
+            v-if="showExportMenu"
             flat
             dense
             no-caps
@@ -132,7 +140,7 @@ async function runExport(button: { key: string; run?: () => void | Promise<void>
             </q-list>
         </q-btn-dropdown>
         <q-btn
-            v-for="button in compact ? [] : exportButtons"
+            v-for="button in inlineExportButtons"
             :key="button.key"
             flat
             dense
@@ -173,7 +181,7 @@ async function runExport(button: { key: string; run?: () => void | Promise<void>
             placeholder="Search"
             aria-label="Search"
             class="bg-white"
-            :class="compact ? 'col-12 q-mt-sm' : 'q-ml-sm'"
+            :class="searchClass"
             clearable
             :clear-value="''"
             clear-icon="close"

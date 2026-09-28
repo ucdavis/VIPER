@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CareerRecordLink from "./CareerRecordLink.vue"
 import StudentEmail from "@/Students/components/StudentEmail.vue"
+import { useDateFunctions } from "@/composables/DateFunctions"
 
 /**
  * One student as a card, for the narrow-screen grid view of the career selection roster and
@@ -22,6 +23,9 @@ const props = withDefaults(
     }>(),
     { visibleColumns: undefined },
 )
+
+// The same date format as the table's Last Updated column.
+const { formatDate } = useDateFunctions()
 
 function shows(column: string): boolean {
     return props.visibleColumns === undefined || props.visibleColumns.includes(column)
@@ -63,7 +67,7 @@ function shows(column: string): boolean {
                     v-if="shows('lastUpdated') && student.lastUpdated"
                     class="text-caption text-grey"
                 >
-                    Updated {{ new Date(student.lastUpdated).toLocaleDateString() }}
+                    Updated {{ formatDate(student.lastUpdated) }}
                 </div>
             </q-card-section>
         </q-card>

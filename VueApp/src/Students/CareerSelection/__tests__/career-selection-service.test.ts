@@ -264,21 +264,50 @@ describe("exports", () => {
         expect(mockDownloadBlob).not.toHaveBeenCalled()
     })
 
-    it("opens each pdf in a new tab", () => {
+    it("sends the grid's row keys with every export", async () => {
         expect.hasAssertions()
         vi.clearAllMocks()
-        const open = vi.spyOn(globalThis, "open").mockReturnValue(null)
+        mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
 
-        careerSelectionService.openOverviewPdf()
-        careerSelectionService.openPdf()
+        await careerSelectionService.downloadOverviewExcel(["2", "STU00003"])
+        await careerSelectionService.downloadExcel(["2"])
+        await careerSelectionService.downloadOverviewPdf(["5"])
+        await careerSelectionService.downloadPdf(["5"])
+        await careerSelectionService.downloadOverviewCsv(["7"])
+        await careerSelectionService.downloadCsv(["7"])
 
-        expect(open).toHaveBeenNthCalledWith(
-            1,
-            expect.stringMatching(/\/export\/overview\/pdf$/u),
-            "_blank",
-            "noopener",
-        )
-        expect(open).toHaveBeenNthCalledWith(2, expect.stringMatching(/\/export\/pdf$/u), "_blank", "noopener")
-        open.mockRestore()
+        const bodies = mockPostForBlob.mock.calls.map(([, body]) => body)
+        expect(bodies).toStrictEqual([
+            { rowKeys: ["2", "STU00003"] },
+            { rowKeys: ["2"] },
+            { rowKeys: ["5"] },
+            { rowKeys: ["5"] },
+            { rowKeys: ["7"] },
+            { rowKeys: ["7"] },
+        ])
+    })
+
+    it("sends an empty key list as it is, so the server returns headers only", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
+
+        await careerSelectionService.downloadExcel([])
+
+        expect(mockPostForBlob).toHaveBeenCalledWith(expect.stringMatching(/\/export\/excel$/u), { rowKeys: [] })
+    })
+
+    it("posts for each pdf and downloads it rather than opening a tab", async () => {
+        expect.hasAssertions()
+        vi.clearAllMocks()
+        mockPostForBlob.mockResolvedValue({ blob: new Blob(["x"]), filename: null })
+
+        await careerSelectionService.downloadOverviewPdf()
+        await careerSelectionService.downloadPdf()
+
+        expect(mockPostForBlob).toHaveBeenNthCalledWith(1, expect.stringMatching(/\/export\/overview\/pdf$/u), {})
+        expect(mockPostForBlob).toHaveBeenNthCalledWith(2, expect.stringMatching(/\/export\/pdf$/u), {})
+        expect(mockDownloadBlob).toHaveBeenNthCalledWith(1, expect.any(Blob), "career-selection-overview.pdf")
+        expect(mockDownloadBlob).toHaveBeenNthCalledWith(2, expect.any(Blob), "career-selection.pdf")
     })
 })

@@ -7,7 +7,9 @@ import { useRoute, useRouter } from "vue-router"
 import { useQuasar } from "quasar"
 import type { QSelect } from "quasar"
 import StatusBanner from "@/components/StatusBanner.vue"
+import AccessNoticeBanner from "@/Students/components/AccessNoticeBanner.vue"
 import StudentRecordPageShell from "@/Students/components/StudentRecordPageShell.vue"
+import { setAccessNotice, useAccessNotice } from "@/Students/composables/use-access-notice"
 import CareerSelectionSelectWithOther from "../components/CareerSelectionSelectWithOther.vue"
 import MentorSelector from "../components/MentorSelector.vue"
 import { useCareerSelection } from "../composables/use-career-selection.ts"
@@ -31,6 +33,9 @@ const postGradRef = ref<QSelect | null>(null)
 useSelectAriaLabel(postGradRef, "career-post-grad-label")
 
 const personId = computed(() => Number(route.params.pidm))
+
+// Set when a student was sent here from a page they may not use, such as the options page.
+const accessNotice = useAccessNotice()
 
 const { loading, saving, detail, saveErrors, studentInfo, isDirty, loadDetail, save } = useCareerSelection()
 
@@ -119,6 +124,10 @@ async function initForm(): Promise<void> {
             postGradOptions.value = postGradOpts
             // Students without edit access should see the read-only view page instead.
             if (detail.value && !detail.value.canEdit && !detail.value.canViewStudentList) {
+                // Hand any notice on, so the view page shows it rather than it leaving with this one.
+                if (accessNotice.value) {
+                    setAccessNotice(accessNotice.value)
+                }
                 router.replace({ name: "CareerSelectionView", params: { pidm: personId.value } })
                 return
             }
@@ -144,6 +153,8 @@ useConfirmLeave(isDirty)
     >
         <template v-if="detail">
             <h1 class="q-ma-none q-mb-md">Career Selection: {{ detail.fullName }}</h1>
+
+            <AccessNoticeBanner :notice="accessNotice" />
 
             <StatusBanner
                 v-if="missingFields.length > 0"
@@ -183,6 +194,7 @@ useConfirmLeave(isDirty)
                 >
                     <CareerSelectionSelectWithOther
                         label="What is your current career direction?"
+                        other-label="Describe other career direction"
                         :options="careerDirectionOptions"
                         :read-only="isReadOnly"
                         v-model:select-model="studentInfo.direction"
@@ -193,6 +205,7 @@ useConfirmLeave(isDirty)
 
                     <CareerSelectionSelectWithOther
                         label="What is your current primary species/career focus?"
+                        other-label="Describe other primary focus"
                         :options="focusOptions"
                         :read-only="isReadOnly"
                         v-model:select-model="studentInfo.primaryFocus"
@@ -203,6 +216,7 @@ useConfirmLeave(isDirty)
 
                     <CareerSelectionSelectWithOther
                         label="What is your current secondary species/career focus?"
+                        other-label="Describe other secondary focus"
                         :options="focusOptions"
                         :read-only="isReadOnly"
                         v-model:select-model="studentInfo.secondaryFocus"
@@ -294,7 +308,7 @@ useConfirmLeave(isDirty)
                             id="career-long-term-label"
                             class="q-mb-xs"
                         >
-                            Please describe your current long-term (next 15-20 years) career plans.
+                            Please describe your current long-term (next 15-20 years) career goals.
                         </div>
                         <div class="row q-col-gutter-sm">
                             <div class="col-12 col-sm-12">

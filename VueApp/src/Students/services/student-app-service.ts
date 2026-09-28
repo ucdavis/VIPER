@@ -63,9 +63,12 @@ abstract class StudentAppService<TAccessStatus> {
         globalThis.open(`${this.baseUrl}/export/pdf`, "_blank", "noopener")
     }
 
-    /** POSTs for an export file and saves it, or returns false when the server had nothing to export. */
-    protected async downloadExportFile(path: string, fallbackFilename: string): Promise<boolean> {
-        const { blob, filename } = await postForBlob(`${this.baseUrl}/${path}`, {})
+    /**
+     * POSTs for an export file and saves it, or returns false when the server had nothing to export.
+     * @param body The request body, for an app whose exports take one; empty otherwise.
+     */
+    protected async downloadExportFile(path: string, fallbackFilename: string, body: object = {}): Promise<boolean> {
+        const { blob, filename } = await postForBlob(`${this.baseUrl}/${path}`, body)
         if (blob.size === 0) {
             return false
         }

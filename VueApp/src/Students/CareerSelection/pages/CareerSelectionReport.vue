@@ -15,11 +15,15 @@ const rows = ref<StudentCareerReport[]>([])
 
 const statementFields = CAREER_FIELDS.filter((f) => f.statement)
 
-const { handleExcelExport, handlePdfExport, handleCsvExport } = useReportExports(rows, {
-    downloadExcel: careerSelectionService.downloadExcel,
-    openPdf: careerSelectionService.openPdf,
-    downloadCsv: careerSelectionService.downloadCsv,
-})
+// CSV is left off for now, as Excel covers it; the service and endpoints still serve it.
+const { handleExcelExport, handlePdfExport } = useReportExports(
+    rows,
+    {
+        downloadExcel: careerSelectionService.downloadExcel,
+        downloadPdf: careerSelectionService.downloadPdf,
+    },
+    { exportWhenEmpty: true },
+)
 
 async function load(): Promise<void> {
     loading.value = true
@@ -52,8 +56,8 @@ onMounted(load)
             :can-edit="isAdmin"
             label="Career selection report table"
             :cell-fields="statementFields"
+            column-storage-key="career-selection-hidden-columns"
             :excel-export="handleExcelExport"
-            :csv-export="handleCsvExport"
             :pdf-export="handlePdfExport"
             :overview-route="{ name: 'CareerSelectionList' }"
         >

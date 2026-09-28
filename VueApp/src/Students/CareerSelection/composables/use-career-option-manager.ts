@@ -65,12 +65,18 @@ function useCareerOptionManager(type: CareerOptionType) {
     const loadFailed = ref(false)
     const deletingId = ref<number | null>(null)
 
+    // The busy flags are cleared in finally blocks so an unexpected throw cannot leave the table
+    // loading or a row stuck mid-delete. The service reports failures rather than throwing today,
+    // but these hold without relying on it.
     async function load(): Promise<void> {
         loading.value = true
-        const result = await careerSelectionService.getOptions(type)
-        loadFailed.value = result === null
-        options.value = result ?? []
-        loading.value = false
+        try {
+            const result = await careerSelectionService.getOptions(type)
+            loadFailed.value = result === null
+            options.value = result ?? []
+        } finally {
+            loading.value = false
+        }
     }
 
     async function save(id: number | null, label: string): Promise<CareerOptionSaveResult> {
@@ -87,10 +93,13 @@ function useCareerOptionManager(type: CareerOptionType) {
 
     async function remove(id: number): Promise<CareerOptionSaveResult> {
         deletingId.value = id
-        const result = await careerSelectionService.deleteOption(type, id)
-        await load()
-        deletingId.value = null
-        return result
+        try {
+            const result = await careerSelectionService.deleteOption(type, id)
+            await load()
+            return result
+        } finally {
+            deletingId.value = null
+        }
     }
 
     return { options, loading, loadFailed, deletingId, load, save, remove }

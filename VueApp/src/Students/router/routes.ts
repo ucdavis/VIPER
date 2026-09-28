@@ -3,7 +3,6 @@ import ViperLayout from "@/layouts/ViperLayout.vue"
 import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useUserStore } from "@/store/UserStore"
 import { careerSelectionGuards } from "@/Students/CareerSelection/router/career-selection-guards"
-import { CAREER_SELECTION_PERMISSIONS } from "@/Students/CareerSelection/constants/permissions"
 
 const adminPermissions = ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.SIS.AllStudents"]
 const editPermissions = ["SVMSecure.Students.EmergencyContactAdmin", "SVMSecure.Students.EmergencyContactStudent"]
@@ -147,26 +146,20 @@ const routes = [
                 meta: { layout: ViperLayout },
                 component: () => import("@/Students/CareerSelection/pages/CareerSelectionView.vue"),
             },
+            // Report and options use their own guards rather than meta.permissions: the Students
+            // router's shared check sends a refusal home without a word, and these say why.
             {
                 path: "report",
                 name: "CareerSelectionReport",
-                meta: {
-                    layout: ViperLayout,
-                    permissions: [
-                        CAREER_SELECTION_PERMISSIONS.ADMIN,
-                        CAREER_SELECTION_PERMISSIONS.READ_ONLY,
-                        CAREER_SELECTION_PERMISSIONS.FACULTY,
-                    ],
-                },
+                meta: { layout: ViperLayout },
+                beforeEnter: careerSelectionGuards.report,
                 component: () => import("@/Students/CareerSelection/pages/CareerSelectionReport.vue"),
             },
             {
                 path: "options",
                 name: "CareerSelectionManageOptions",
-                meta: {
-                    layout: ViperLayout,
-                    permissions: [CAREER_SELECTION_PERMISSIONS.ADMIN],
-                },
+                meta: { layout: ViperLayout },
+                beforeEnter: careerSelectionGuards.options,
                 component: () => import("@/Students/CareerSelection/pages/CareerSelectionManageOptions.vue"),
             },
         ],

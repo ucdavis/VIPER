@@ -195,4 +195,26 @@ describe("career option list state", () => {
         expect(manager.options.value[0]?.usageCount).toBe(2)
         expect(manager.deletingId.value).toBeNull()
     })
+
+    it("clears the deleting row even if the delete throws", async () => {
+        expect.hasAssertions()
+        // The service reports failures rather than throwing today; this guards the row against
+        // being left stuck mid-delete if that ever changes.
+        mockDel.mockRejectedValue(new Error("Network down"))
+        const manager = useCareerOptionManager("species")
+
+        await expect(manager.remove(1)).rejects.toThrow("Network down")
+
+        expect(manager.deletingId.value).toBeNull()
+    })
+
+    it("stops loading even if the load throws", async () => {
+        expect.hasAssertions()
+        mockGet.mockRejectedValue(new Error("Network down"))
+        const manager = useCareerOptionManager("species")
+
+        await expect(manager.load()).rejects.toThrow("Network down")
+
+        expect(manager.loading.value).toBeFalsy()
+    })
 })

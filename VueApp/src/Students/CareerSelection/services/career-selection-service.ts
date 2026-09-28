@@ -18,12 +18,14 @@ const OPTION_TYPE_SLUGS: Record<CareerOptionType, string> = {
     postGrad: "post-grad",
 }
 
+const EXPORT_FILENAMES = {
+    overviewExcel: "career-selection-overview.xlsx",
+    excel: "career-selection.xlsx",
+}
+
 class CareerSelectionService extends StudentAppService<boolean> {
     constructor() {
-        super("students/career-selection", {
-            overviewExcel: "career-selection-overview.xlsx",
-            excel: "career-selection.xlsx",
-        })
+        super("students/career-selection", EXPORT_FILENAMES)
     }
 
     // Dropdown options, keyed on the option type slug. GET serves admins and students (only
@@ -33,10 +35,32 @@ class CareerSelectionService extends StudentAppService<boolean> {
         return id === undefined ? url : `${url}/${id}`
     }
 
-    downloadOverviewCsv = (): Promise<boolean> =>
-        this.downloadExportFile("export/overview/csv", "career-selection-overview.csv")
+    // Every export takes the keys of the rows the grid shows, in its order, so the file holds what
+    // the reader sees. Without keys the server exports every student the caller may see; an empty
+    // list gives a file with headers only.
+    private downloadGridExport(path: string, fallbackFilename: string, rowKeys?: string[]): Promise<boolean> {
+        return this.downloadExportFile(path, fallbackFilename, { rowKeys })
+    }
 
-    downloadCsv = (): Promise<boolean> => this.downloadExportFile("export/csv", "career-selection.csv")
+    override downloadOverviewExcel = (rowKeys?: string[]): Promise<boolean> =>
+        this.downloadGridExport("export/overview/excel", EXPORT_FILENAMES.overviewExcel, rowKeys)
+
+    override downloadExcel = (rowKeys?: string[]): Promise<boolean> =>
+        this.downloadGridExport("export/excel", EXPORT_FILENAMES.excel, rowKeys)
+
+    downloadOverviewCsv = (rowKeys?: string[]): Promise<boolean> =>
+        this.downloadGridExport("export/overview/csv", "career-selection-overview.csv", rowKeys)
+
+    downloadCsv = (rowKeys?: string[]): Promise<boolean> =>
+        this.downloadGridExport("export/csv", "career-selection.csv", rowKeys)
+
+    // Downloaded rather than opened in a tab: the endpoints are POSTs, so they can carry the grid's
+    // rows, and a tab opened only once the response arrives falls foul of popup blockers.
+    downloadOverviewPdf = (rowKeys?: string[]): Promise<boolean> =>
+        this.downloadGridExport("export/overview/pdf", "career-selection-overview.pdf", rowKeys)
+
+    downloadPdf = (rowKeys?: string[]): Promise<boolean> =>
+        this.downloadGridExport("export/pdf", "career-selection.pdf", rowKeys)
 
     // Returns null on a failed request so the page can tell an empty list from a load failure.
     getOptions = async (type: CareerOptionType): Promise<CareerSelectionOption[] | null> => {

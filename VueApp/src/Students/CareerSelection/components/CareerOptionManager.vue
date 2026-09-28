@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, nextTick, onMounted, ref, useTemplateRef } from "vue"
 import { useQuasar } from "quasar"
-import type { QTableColumn } from "quasar"
+import type { QBtn, QTableColumn } from "quasar"
 import { inflect } from "inflection"
 import StatusBanner from "@/components/StatusBanner.vue"
+import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import CareerOptionFormDialog from "./CareerOptionFormDialog.vue"
 import { CAREER_OPTION_TYPES, useCareerOptionManager } from "../composables/use-career-option-manager"
 import type { CareerOptionType, CareerSelectionOption } from "../types"
@@ -13,7 +14,10 @@ const { type } = defineProps<{
 }>()
 
 const $q = useQuasar()
+const { confirmAction } = useConfirmDialog()
 const config = computed(() => CAREER_OPTION_TYPES[type])
+const headingRef = useTemplateRef<HTMLHeadingElement>("headingRef")
+const addButtonRef = useTemplateRef<QBtn>("addButtonRef")
 const headingId = computed(() => `career-options-${type}`)
 
 const { options, loading, loadFailed, deletingId, load, save, remove } = useCareerOptionManager(type)
@@ -48,28 +52,47 @@ function deleteLabel(option: CareerSelectionOption): string {
     return `Cannot delete ${option.label}: selected by ${option.usageCount} ${inflect("student", option.usageCount)}`
 }
 
-function confirmDelete(option: CareerSelectionOption): void {
+/**
+ * A deleted option's row, and the Delete button that had focus with it, leaves the page. Left
+ * alone the browser drops focus to the top of the page, so it moves to the section's Add button:
+ * next to where the reader was, and the likely next step. If the reload failed, that button is
+ * disabled and cannot take focus, so the section heading does instead.
+ */
+async function focusAfterDelete(): Promise<void> {
+    await nextTick()
+    if (loadFailed.value) {
+        headingRef.value?.focus()
+        return
+    }
+    addButtonRef.value?.$el.focus()
+}
+
+async function confirmDelete(option: CareerSelectionOption): Promise<void> {
     // The button is aria-disabled rather than disabled, so it still fires. The rule is enforced
     // here; the server refuses it too, since a selection holds a foreign key to the option.
     if (option.usageCount > 0) {
         return
     }
-    $q.dialog({
+    const confirmed = await confirmAction({
         title: "Delete Option",
         message: `Delete "${option.label}"? Students will no longer be able to choose it.`,
-        cancel: { label: "Cancel", flat: true },
-        ok: { label: "Delete", color: "negative" },
-        persistent: true,
-    }).onOk(async () => {
-        const result = await remove(option.id)
-        if (result.success) {
-            $q.notify({ type: "positive", message: `Deleted "${option.label}".` })
-            return
-        }
-        $q.notify({
-            type: "negative",
-            message: result.errors.join(" ") || `Unable to delete "${option.label}". Please try again.`,
-        })
+        okLabel: "Delete",
+        okColor: "negative",
+    })
+    if (!confirmed) {
+        return
+    }
+
+    const result = await remove(option.id)
+    if (result.success) {
+        $q.notify({ type: "positive", message: `Deleted "${option.label}".` })
+        await focusAfterDelete()
+        return
+    }
+    // A refused delete keeps its row, and focus stays on its Delete button.
+    $q.notify({
+        type: "negative",
+        message: result.errors.join(" ") || `Unable to delete "${option.label}". Please try again.`,
     })
 }
 
@@ -82,21 +105,26 @@ onMounted(load)
         class="q-mb-lg"
     >
         <div class="row items-center q-mb-xs">
+            <!-- tabindex -1: focusable from script (after a delete), not a stop in the tab order. -->
             <h2
                 :id="headingId"
+                ref="headingRef"
                 class="q-ma-none"
+                tabindex="-1"
             >
                 {{ config.title }}
             </h2>
             <q-space />
+            <!-- The option type is in the visible label rather than only an aria-label, so the
+                 name a voice-control user says matches the one assistive technology uses. -->
             <q-btn
-                label="Add Option"
+                ref="addButtonRef"
+                :label="`Add ${config.singular} Option`"
                 icon="add"
                 color="positive"
                 dense
                 no-caps
                 padding="xs sm"
-                :aria-label="`Add ${config.singular} option`"
                 :disable="loading || loadFailed"
                 @click="openDialog(null)"
             />

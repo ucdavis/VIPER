@@ -17,6 +17,7 @@ function mountSelect(selectModel: CareerDropdownOption | null, otherModel = "", 
     return mount(CareerSelectionSelectWithOther, {
         props: {
             label: "Career Direction",
+            otherLabel: "Describe other career direction",
             options: OPTIONS,
             readOnly,
             selectModel,
@@ -97,12 +98,24 @@ describe("career selection select with other", () => {
         expect(input.props("modelValue")).toBe("Wildlife rehabilitation")
     })
 
-    it("holds the free text to the column's length", () => {
+    it("holds the free text to the column's length, and shows how much is left", () => {
         expect.hasAssertions()
-        // The entity caps career free text at 200 characters.
+        // The entity caps career free text at 200 characters. Without the counter, typing just
+        // stops at the limit with nothing to say why.
         const wrapper = mountSelect(OPTIONS[1])
 
-        expect(wrapper.findComponent(QInput).props("maxlength")).toBe("200")
+        const input = wrapper.findComponent(QInput)
+        expect(input.props("maxlength")).toBe("200")
+        expect(input.props("counter")).toBeTruthy()
+    })
+
+    it("labels the free-text field with the label its form gives it", () => {
+        expect.hasAssertions()
+        // A shared label would be announced the same for each field on the form, with nothing
+        // tying it to its question.
+        const wrapper = mountSelect(OPTIONS[1])
+
+        expect(wrapper.findComponent(QInput).props("label")).toBe("Describe other career direction")
     })
 
     it("shows the empty label in place of no selection", () => {

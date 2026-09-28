@@ -26,11 +26,12 @@
             >
                 <q-input
                     v-model="otherModel"
-                    label="If other, please describe here"
+                    :label="otherLabel"
                     dense
                     outlined
                     :readonly="readOnly"
                     maxlength="200"
+                    counter
                 />
             </div>
         </div>
@@ -45,6 +46,9 @@ import type { CareerDropdownOption } from "../types/index.ts"
 
 defineProps<{
     label: string // The question, in full, shown above the field as its visible label.
+    // The free-text field's own label. Each field on the form needs a distinct one, or a screen
+    // reader announces the same label for each with nothing tying it to its question.
+    otherLabel: string
     options: QSelectProps["options"]
     readOnly: boolean
     clearable?: boolean

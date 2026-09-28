@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
+import StatusBanner from "@/components/StatusBanner.vue"
+import { useUserStore } from "@/store/UserStore"
+import AccessNoticeBanner from "@/Students/components/AccessNoticeBanner.vue"
 import StudentRecordPageShell from "@/Students/components/StudentRecordPageShell.vue"
+import { useAccessNotice } from "@/Students/composables/use-access-notice"
 import { CAREER_SELECTION_RECORD_PAGE } from "../constants/record-page"
 import { careerSelectionService } from "../services/career-selection-service.ts"
 import type { CareerDropdownOption, StudentCareerDetail } from "../types/index.ts"
@@ -10,8 +14,18 @@ const route = useRoute()
 const router = useRouter()
 
 const personId = computed(() => Number(route.params.pidm))
+// Set when a student was sent here from a page they may not use, such as the options page.
+const accessNotice = useAccessNotice()
 const loading = ref(false)
 const detail = ref<StudentCareerDetail | null>(null)
+
+// A student who cannot edit their own record is here because editing is closed, so say so; the
+// Edit button disappearing on its own reads the same as something being broken. Staff viewing
+// another student's record never could edit it, so they are told nothing.
+const userStore = useUserStore()
+const editingClosed = computed(
+    () => detail.value !== null && !detail.value.canEdit && personId.value === userStore.userInfo.userId,
+)
 
 function handleEdit(): void {
     router.push({ name: "CareerSelectionEdit", params: { pidm: personId.value } })
@@ -86,6 +100,18 @@ onMounted(() => {
                     @click="handleEdit"
                 />
             </div>
+
+            <AccessNoticeBanner :notice="accessNotice" />
+
+            <!-- The legacy app's wording. -->
+            <StatusBanner
+                v-if="editingClosed"
+                type="info"
+                icon="edit_off"
+                class="form-content"
+            >
+                Making changes is not allowed at this time.
+            </StatusBanner>
 
             <div class="form-content">
                 <q-card

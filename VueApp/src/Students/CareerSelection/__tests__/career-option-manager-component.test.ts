@@ -11,27 +11,20 @@ import type { CareerOptionSaveResult, CareerSelectionOption } from "../types"
  */
 
 const mockNotify = vi.fn<(...args: unknown[]) => unknown>()
-/** Captures the confirm dialog's handler so a test can accept the prompt. */
-const dialogCallbacks: { onOk?: () => Promise<void> | void } = {}
+/** Answers the delete confirmation; each test sets whether the admin accepts it. */
+const mockConfirm = vi.fn<(options: { title: string; message: string }) => Promise<boolean>>()
 
 vi.mock("quasar", async (importOriginal) => {
     const actual = await importOriginal<Record<string, unknown>>()
     return {
         ...actual,
-        useQuasar: () => ({
-            notify: (...args: unknown[]) => mockNotify(...args),
-            dialog: () => {
-                const chain = {
-                    onOk(handler: () => Promise<void> | void) {
-                        dialogCallbacks.onOk = handler
-                        return chain
-                    },
-                }
-                return chain
-            },
-        }),
+        useQuasar: () => ({ notify: (...args: unknown[]) => mockNotify(...args) }),
     }
 })
+
+vi.mock("@/composables/use-confirm-dialog", () => ({
+    useConfirmDialog: () => ({ confirmAction: (options: { title: string; message: string }) => mockConfirm(options) }),
+}))
 
 const managerState = {
     options: ref<CareerSelectionOption[]>([]),
@@ -54,13 +47,15 @@ function option(id: number, label: string, overrides: Partial<CareerSelectionOpt
 
 function mountManager(options: CareerSelectionOption[], loadFailed = false) {
     vi.clearAllMocks()
-    delete dialogCallbacks.onOk
     managerState.options.value = options
     managerState.loadFailed.value = loadFailed
     managerState.deletingId.value = null
     managerState.remove.mockResolvedValue({ success: true, errors: [] })
+    mockConfirm.mockResolvedValue(true)
     return mount(CareerOptionManager, {
         props: { type: "species" },
+        // Attached so focus moves can be read back from document.activeElement.
+        attachTo: document.body,
         global: {
             plugins: [[Quasar, {}]],
             stubs: {
@@ -75,7 +70,16 @@ function buttonWithLabel(wrapper: ReturnType<typeof mountManager>, label: string
     return wrapper.findAll("button").find((b) => b.attributes("aria-label") === label)
 }
 
+function buttonWithText(wrapper: ReturnType<typeof mountManager>, text: string) {
+    // Contains rather than equals: the icon's ligature name renders as text beside the label.
+    return wrapper.findAll("button").find((b) => b.text().includes(text))
+}
+
 describe("career option manager", () => {
+    afterEach(() => {
+        document.body.innerHTML = ""
+    })
+
     it("wraps a long option name rather than pushing the actions off a narrow screen", () => {
         expect.hasAssertions()
         const wrapper = mountManager([option(1, "A very long species focus name ".repeat(3))])
@@ -125,10 +129,9 @@ describe("career option manager", () => {
         expect(deleteButton?.attributes("aria-disabled")).toBe("true")
         expect(deleteButton?.attributes("disabled")).toBeUndefined()
 
-        // Still reachable, so the handler is what has to refuse it: no dialog is opened, which
-        // shows as no onOk handler having been captured.
+        // Still reachable, so the handler is what has to refuse it: no confirmation is asked for.
         await deleteButton?.trigger("click")
-        expect(dialogCallbacks.onOk).toBeUndefined()
+        expect(mockConfirm).not.toHaveBeenCalled()
     })
 
     it("allows deleting an option nobody has chosen", () => {
@@ -145,11 +148,53 @@ describe("career option manager", () => {
         const wrapper = mountManager([option(1, "Equine")])
 
         await buttonWithLabel(wrapper, "Delete Equine")?.trigger("click")
-        await dialogCallbacks.onOk?.()
         await flushPromises()
 
+        expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Delete Option" }))
         expect(managerState.remove).toHaveBeenCalledWith(1)
         expect(mockNotify).toHaveBeenCalledWith({ type: "positive", message: 'Deleted "Equine".' })
+    })
+
+    it("deletes nothing when the confirmation is cancelled", async () => {
+        expect.hasAssertions()
+        const wrapper = mountManager([option(1, "Equine")])
+        mockConfirm.mockResolvedValue(false)
+
+        await buttonWithLabel(wrapper, "Delete Equine")?.trigger("click")
+        await flushPromises()
+
+        expect(managerState.remove).not.toHaveBeenCalled()
+    })
+
+    it("moves focus to the Add button once the deleted row is gone", async () => {
+        expect.hasAssertions()
+        // The Delete button that had focus leaves with its row; without this, focus would fall
+        // back to the top of the page.
+        const wrapper = mountManager([option(1, "Equine")])
+        managerState.remove.mockImplementation(async () => {
+            managerState.options.value = []
+            return { success: true, errors: [] }
+        })
+
+        await buttonWithLabel(wrapper, "Delete Equine")?.trigger("click")
+        await flushPromises()
+
+        expect(document.activeElement).toBe(buttonWithText(wrapper, "Add Species Option")?.element)
+    })
+
+    it("moves focus to the section heading when the list could not be reloaded", async () => {
+        expect.hasAssertions()
+        // The Add button is disabled while the list is unavailable, so it cannot take focus.
+        const wrapper = mountManager([option(1, "Equine")])
+        managerState.remove.mockImplementation(async () => {
+            managerState.loadFailed.value = true
+            return { success: true, errors: [] }
+        })
+
+        await buttonWithLabel(wrapper, "Delete Equine")?.trigger("click")
+        await flushPromises()
+
+        expect(document.activeElement).toBe(wrapper.find("h2").element)
     })
 
     it("reports the server's reason when a delete is refused", async () => {
@@ -158,7 +203,6 @@ describe("career option manager", () => {
         managerState.remove.mockResolvedValue({ success: false, errors: ["2 students have selected this option."] })
 
         await buttonWithLabel(wrapper, "Delete Equine")?.trigger("click")
-        await dialogCallbacks.onOk?.()
         await flushPromises()
 
         expect(mockNotify).toHaveBeenCalledWith({
@@ -181,6 +225,16 @@ describe("career option manager", () => {
         expect.hasAssertions()
         const wrapper = mountManager([], true)
 
-        expect(buttonWithLabel(wrapper, "Add Species option")?.attributes("disabled")).toBeDefined()
+        expect(buttonWithText(wrapper, "Add Species Option")?.attributes("disabled")).toBeDefined()
+    })
+
+    it("names the Add button by what it shows, so voice control can match it", () => {
+        expect.hasAssertions()
+        // An aria-label that differs from the visible text leaves "click Add Option" unmatched.
+        const wrapper = mountManager([option(1, "Equine")])
+
+        const addButton = buttonWithText(wrapper, "Add Species Option")
+        expect(addButton).toBeDefined()
+        expect(addButton?.attributes("aria-label")).toBeUndefined()
     })
 })

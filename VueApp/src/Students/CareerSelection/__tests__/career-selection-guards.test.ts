@@ -1,9 +1,13 @@
 import { setActivePinia, createPinia } from "pinia"
 import { useUserStore } from "@/store/UserStore"
+import { useAccessNotice } from "@/Students/composables/use-access-notice"
+import { CAREER_SELECTION_ACCESS_MESSAGES } from "../constants/access-messages"
 import {
     requireCareerViewAccess,
     requireCareerEditAccess,
     requireCareerListAccess,
+    requireCareerOptionsAccess,
+    requireCareerReportAccess,
 } from "../router/career-selection-guards"
 
 /**
@@ -15,6 +19,7 @@ import {
 
 const ADMIN = "SVMSecure.CareerSelection.Admin"
 const READ_ONLY = "SVMSecure.CareerSelection.ReadOnly"
+const FACULTY = "SVMSecure.CareerSelection.Faculty"
 const STUDENT = "SVMSecure.CareerSelection.Student"
 const VIEW_OWN = "SVMSecure.CareerSelection.ViewOwn"
 
@@ -37,6 +42,13 @@ function setUser(permissions: string[], userId: number | null = OWN_ID): void {
     const userStore = useUserStore()
     userStore.userInfo.userId = userId
     userStore.setPermissions(permissions)
+    // The notice is held between navigations; take any a previous test left.
+    takeNotice()
+}
+
+/** The notice the guard left for the page it redirects to, as that page would read it. */
+function takeNotice(): string | null {
+    return useAccessNotice().value
 }
 
 describe("career selection route guards", () => {
@@ -77,12 +89,15 @@ describe("career selection route guards", () => {
             expect.hasAssertions()
             setUser([VIEW_OWN, STUDENT])
             expect(requireCareerViewAccess(OTHER_ID)).toStrictEqual(ownView())
+            // A redirect within Career Selection is routine, so it says nothing.
+            expect(takeNotice()).toBeNull()
         })
 
-        it("sends a user with no career selection access home", () => {
+        it("sends a user with no career selection access home, saying why", () => {
             expect.hasAssertions()
             setUser(["SVMSecure.Students"])
             expect(requireCareerViewAccess(OWN_ID)).toStrictEqual(HOME)
+            expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.NO_ACCESS)
         })
 
         it("sends a user with no resolved id home", () => {
@@ -137,10 +152,18 @@ describe("career selection route guards", () => {
             expect(admits(requireCareerEditAccess(OTHER_ID))).toBeFalsy()
         })
 
-        it("sends a user with no career selection access home", () => {
+        it("sends a user with no career selection access home, saying why", () => {
             expect.hasAssertions()
             setUser(["SVMSecure.Students"])
             expect(requireCareerEditAccess(OWN_ID)).toStrictEqual(HOME)
+            expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.NO_ACCESS)
+        })
+
+        it("says nothing when a closed app sends a student to their view", () => {
+            expect.hasAssertions()
+            setUser([VIEW_OWN])
+            requireCareerEditAccess(OWN_ID)
+            expect(takeNotice()).toBeNull()
         })
     })
 
@@ -166,10 +189,74 @@ describe("career selection route guards", () => {
             })
         })
 
-        it("sends a user with no career selection access home", () => {
+        it("sends a user with no career selection access home, saying why", () => {
             expect.hasAssertions()
             setUser(["SVMSecure.Students"])
             expect(requireCareerListAccess()).toStrictEqual(HOME)
+            expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.NO_ACCESS)
+        })
+    })
+
+    describe("report access", () => {
+        it("allows the roster's staff onto the report", () => {
+            expect.hasAssertions()
+            for (const permission of [ADMIN, READ_ONLY, FACULTY]) {
+                setUser([permission])
+                expect(admits(requireCareerReportAccess())).toBeTruthy()
+            }
+        })
+
+        it("sends a student to their own record, as the roster does, without a notice", () => {
+            expect.hasAssertions()
+            // Legacy served the roster and report from one address, so the report redirects alike.
+            setUser([VIEW_OWN, STUDENT])
+            expect(requireCareerReportAccess()).toStrictEqual({
+                name: "CareerSelectionEdit",
+                params: { pidm: OWN_ID },
+            })
+            expect(takeNotice()).toBeNull()
+        })
+
+        it("sends a user with no career selection access home, saying why", () => {
+            expect.hasAssertions()
+            setUser(["SVMSecure.Students"])
+            expect(requireCareerReportAccess()).toStrictEqual(HOME)
+            expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.NO_ACCESS)
+        })
+    })
+
+    describe("options access", () => {
+        const ROSTER = { name: "CareerSelectionList" }
+
+        it("allows an admin to manage the options", () => {
+            expect.hasAssertions()
+            setUser([ADMIN])
+            expect(admits(requireCareerOptionsAccess())).toBeTruthy()
+            expect(takeNotice()).toBeNull()
+        })
+
+        it("sends other staff to the roster, saying they cannot manage options", () => {
+            expect.hasAssertions()
+            // Legacy refused outright here; this lands them somewhere useful and says why.
+            for (const permission of [READ_ONLY, FACULTY]) {
+                setUser([permission])
+                expect(requireCareerOptionsAccess()).toStrictEqual(ROSTER)
+                expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.MANAGE_OPTIONS)
+            }
+        })
+
+        it("sends a student via the roster, which takes them on to their record", () => {
+            expect.hasAssertions()
+            setUser([VIEW_OWN])
+            expect(requireCareerOptionsAccess()).toStrictEqual(ROSTER)
+            expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.MANAGE_OPTIONS)
+        })
+
+        it("sends a user with no career selection access home, saying they have none", () => {
+            expect.hasAssertions()
+            setUser(["SVMSecure.Students"])
+            expect(requireCareerOptionsAccess()).toStrictEqual(HOME)
+            expect(takeNotice()).toBe(CAREER_SELECTION_ACCESS_MESSAGES.NO_ACCESS)
         })
     })
 })
