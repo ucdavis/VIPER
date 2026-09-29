@@ -7,9 +7,10 @@ namespace Web.Authorization
     /// Single sign-on providers the app can offer on the welcome screen.
     /// </summary>
     /// <remarks>
-    /// Flags, because campus is mid-migration from CAS to Entra ID and TEST needs to run both
-    /// side by side. Configuration binding parses the member names, so "Cas", "EntraId",
-    /// "Both", and "Cas, EntraId" are all valid values for Authentication:EnabledProviders.
+    /// Flags so the splash can offer both side by side for local development and testing;
+    /// deployed environments run one. Configuration binding parses the member names, so "Cas",
+    /// "EntraId", "Both", and "Cas, EntraId" are all valid values for
+    /// Authentication:EnabledProviders.
     /// </remarks>
     [Flags]
     public enum LoginProviders

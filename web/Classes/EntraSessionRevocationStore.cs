@@ -64,7 +64,7 @@ namespace Web.Authorization
         /// a stranger write one lasting entry per distinct id into a cache shared with roles,
         /// permissions and photos, so only ids a live cookie has presented are admitted.
         /// </remarks>
-        // ponytail: in-process, so a restart drops both the revocations and the active markers that
+        // In-process, so a restart drops both the revocations and the active markers that
         // gate them, leaving surviving cookies unrevocable until each makes its next request. That
         // is sound only because VIPER 2 runs one instance per environment
         // (AddDataProtection() keeps its key ring locally, so a second node could not read the

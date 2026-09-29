@@ -209,8 +209,8 @@ try
     builder.Services.AddSingleton<IValidateOptions<PublicUrlOptions>, PublicUrlOptionsValidator>();
     builder.Services.AddSingleton<IPublicUrlService, PublicUrlService>();
 
-    // Login providers this environment offers. Campus is retiring CAS in favor of Entra ID, so
-    // TEST runs both at once to exercise the Entra path before it becomes the only option.
+    // Login providers this environment offers. Deployed environments run one; "Both" puts a
+    // choice on the splash for local development and testing.
     builder.Services.Configure<AuthenticationSettings>(builder.Configuration.GetSection("Authentication"));
     builder.Services.Configure<EntraIdSettings>(
         builder.Configuration.GetSection(EntraIdSettings.SectionName));
@@ -750,7 +750,7 @@ static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder
                 // Entra also holds accounts that are not VIPER users, such as departmental ones like
                 // svm-entra. Signed in, they would land roleless with no hint why, so refuse them here.
                 var aaudContext = context.HttpContext.RequestServices.GetRequiredService<AAUDContext>();
-                if (!await aaudContext.AaudUsers.AnyAsync(u => u.LoginId == loginId, context.HttpContext.RequestAborted))
+                if (!await aaudContext.AaudUsers.AsNoTracking().AnyAsync(u => u.LoginId == loginId, context.HttpContext.RequestAborted))
                 {
                     HttpHelper.Logger.Log(NLog.LogLevel.Warn,
                         "Entra ID login rejected: no AAUD user for login id "

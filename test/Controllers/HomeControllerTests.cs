@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -8,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using NSubstitute;
 using Viper.Classes.SQLContext;
 using Viper.Classes;
@@ -187,6 +185,7 @@ public sealed class HomeControllerTests
     [InlineData("~/welcome", false)] // app-relative spelling must not slip past
     [InlineData("/Effort/../api/secret", false)]
     [InlineData("/2/Effort/%2e%2e/api/secret", false)]
+    [InlineData(@"/Effort\..\api/secret", false)] // browsers read "\" as "/"
     public void IsSafeReturnUrl_EnforcesSharedContract(string? returnUrl, bool expected)
     {
         Arrange(authenticated: false);
@@ -405,6 +404,32 @@ public sealed class HomeControllerTests
         Assert.Equal("/Effort/Foo", redirect.Url);
     }
 
+    // "~/" is the app root, so it must resolve under the PathBase ("/2") rather than the domain root.
+    [Fact]
+    public void Welcome_Authenticated_ResolvesAppRelativeReturnUrlUnderPathBase()
+    {
+        Arrange(authenticated: true);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome("~/Effort/Foo");
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/2/Effort/Foo", redirect.Url);
+    }
+
+    // A ReturnUrl outside the PathBase is local but belongs to VIPER 1 on TEST/PROD.
+    [Fact]
+    public void Welcome_Authenticated_ReturnUrlOutsidePathBase_RedirectsToAppRoot()
+    {
+        Arrange(authenticated: true);
+        _controller.HttpContext.Request.PathBase = "/2";
+
+        var result = _controller.Welcome("/Effort/Foo");
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("~/", redirect.Url);
+    }
+
     // App root is "~/" (not "/") so a subpath deployment keeps its PathBase ("/2/") rather than
     // escaping to the domain root (the legacy site).
     [Theory]
@@ -467,7 +492,6 @@ public sealed class HomeControllerTests
     [Theory]
     [InlineData("/2/api/secret")]
     [InlineData("/2/API/secret")] // base-prefixed + mixed case must not bypass the guard
-    [InlineData("~/2/api/secret")] // app-relative + base-prefixed must not bypass the guard either
     public void Login_RejectsSubpathApiReturnUrl_WithUnauthorized(string returnUrl)
     {
         Arrange(authenticated: false);
@@ -550,30 +574,10 @@ public sealed class HomeControllerTests
         Assert.Equal(indexPragma, _controller.Response.Headers["Pragma"].ToString());
     }
 
-    // ---- Provider selection (VPR-61) -------------------------------------------------------
-    // Campus is migrating CAS -> Entra ID. TEST runs both at once, so /login has to decide where
-    // to send an unqualified request without ever bouncing the user in a loop.
-
-    [Fact]
-    public void Login_CasOnly_RedirectsToCas()
-    {
-        Arrange(authenticated: false);
-
-        var result = Assert.IsType<RedirectResult>(_controller.Login());
-
-        Assert.StartsWith("https://cas.example.edu/login?service=", result.Url);
-    }
-
-    [Fact]
-    public void Login_EntraIdOnly_RedirectsToEntraLogin()
-    {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        var result = Assert.IsType<RedirectToActionResult>(controller.Login());
-
-        Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
-    }
+    // ---- Both providers on the splash -------------------------------------------------------
+    // "Both" puts a choice on the splash for local development and testing. /login has to decide
+    // where to send an unqualified request without ever bouncing the user in a loop. The
+    // single-provider cases live in HomeControllerLoginProviderTests.
 
     // With both enabled there is no defensible default, so the unqualified /login that every
     // existing "Log in" link uses hands off to the splash, which is the chooser.
@@ -586,6 +590,18 @@ public sealed class HomeControllerTests
         var result = Assert.IsType<RedirectToActionResult>(controller.Login());
 
         Assert.Equal(nameof(HomeController.Welcome), result.ActionName);
+    }
+
+    // Only the validated ReturnUrl is forwarded to the chooser; an off-site one is dropped.
+    [Fact]
+    public void Login_BothProviders_ForwardsSanitizedReturnUrlToWelcome()
+    {
+        var controller = CreateController(LoginProviders.Both);
+        Arrange(authenticated: false, controller);
+
+        var result = Assert.IsType<RedirectToActionResult>(controller.Login("https://evil.com/phish"));
+
+        Assert.Null(result.RouteValues?["ReturnUrl"]);
     }
 
     // The chooser's own buttons pass provider explicitly. Without that, the CAS button would post
@@ -601,8 +617,10 @@ public sealed class HomeControllerTests
         Assert.StartsWith("https://cas.example.edu/login?service=", result.Url);
     }
 
+    // Forcing the picker here would cost the single-account majority a click on every sign-in.
+    // Only the splash's switch-account link asks for the picker.
     [Fact]
-    public void Login_BothProviders_ExplicitEntraId_RedirectsToEntraLogin()
+    public void Login_BothProviders_ExplicitEntraId_RedirectsToEntraLoginWithoutPicker()
     {
         var controller = CreateController(LoginProviders.Both);
         Arrange(authenticated: false, controller);
@@ -610,6 +628,7 @@ public sealed class HomeControllerTests
         var result = Assert.IsType<RedirectToActionResult>(controller.Login(provider: LoginProviders.EntraId));
 
         Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
+        Assert.False(result.RouteValues?.ContainsKey("selectAccount"));
     }
 
     // A hand-crafted ?provider= for a provider this environment does not offer must not reach a
@@ -625,119 +644,17 @@ public sealed class HomeControllerTests
         Assert.IsType<NotFoundResult>(controller.Login(provider: requested));
     }
 
-    [Fact]
-    public void EntraLogin_WhenDisabled_ReturnsNotFound()
-    {
-        Arrange(authenticated: false);
-
-        Assert.IsType<NotFoundResult>(_controller.EntraLogin());
-    }
-
-    [Theory]
-    [InlineData(EntraIdClaimMapper.NoAccountReason, true)]
-    [InlineData(null, false)]
-    [InlineData("other", false)]
-    public void SignInProblem_FlagsOnlyTheNoAccountReason(string? reason, bool expected)
-    {
-        Arrange(authenticated: false);
-
-        var result = Assert.IsType<ViewResult>(_controller.SignInProblem(reason));
-
-        Assert.Equal(expected, result.ViewData["NoAccount"]);
-    }
-
-    [Fact]
-    public void EntraLogin_WhenEnabled_ChallengesEntraScheme()
-    {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        var result = Assert.IsType<ChallengeResult>(controller.EntraLogin("/Effort"));
-
-        Assert.Equal(EntraIdClaimMapper.AuthenticationScheme, Assert.Single(result.AuthenticationSchemes));
-        Assert.Equal("/Effort", result.Properties?.RedirectUri);
-    }
-
-    // With two Entra accounts signed in, the tenant session is reused silently and the second is
-    // unreachable. The picker is how a user switches, so a deliberate sign-in has to ask for it.
-    [Fact]
-    public void EntraLogin_SelectAccount_AsksEntraForTheAccountPicker()
-    {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        var result = Assert.IsType<ChallengeResult>(controller.EntraLogin("/Effort", selectAccount: true));
-
-        Assert.Equal(
-            "select_account",
-            result.Properties?.GetParameter<string>(OpenIdConnectParameterNames.Prompt));
-    }
-
-    // The passive redirect out of a protected page must stay silent, or every SSO hop grows a
-    // picker click.
-    [Fact]
-    public void EntraLogin_Default_SendsNoPrompt()
-    {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        var result = Assert.IsType<ChallengeResult>(controller.EntraLogin("/Effort"));
-
-        Assert.Null(result.Properties?.GetParameter<string>(OpenIdConnectParameterNames.Prompt));
-    }
-
-    // Forcing the picker here would charge the single-account majority a click on every sign-in,
-    // when Entra already raises its own picker for the ambiguous case. Only the switch-account
-    // link asks for one, and it goes straight to /EntraLogin.
-    [Theory]
-    [InlineData(LoginProviders.Both, LoginProviders.EntraId)]
-    [InlineData(LoginProviders.EntraId, null)]
-    public void Login_NeverRequestsTheAccountPicker(LoginProviders enabled, LoginProviders? requested)
-    {
-        var controller = CreateController(enabled);
-        Arrange(authenticated: false, controller);
-
-        var result = Assert.IsType<RedirectToActionResult>(controller.Login(provider: requested));
-
-        Assert.Equal(nameof(HomeController.EntraLogin), result.ActionName);
-        Assert.False(result.RouteValues?.ContainsKey("selectAccount"));
-    }
-
-    // The /api guard is shared by every provider, so it must hold on the Entra path too.
+    // Regression guard for the ordering bug where the two-provider hand-off to the chooser ran
+    // before the /api guard and answered with the splash.
     [Theory]
     [InlineData("/api/secret")]
     [InlineData("~/api/secret")]
-    public void EntraLogin_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
+    public void Login_BothProviders_RejectsApiReturnUrl_WithUnauthorized(string returnUrl)
     {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        Assert.IsType<UnauthorizedResult>(controller.EntraLogin(returnUrl));
-    }
-
-    // An /api ReturnUrl must 401 rather than be bounced through an interactive login, and that has
-    // to be true for every provider configuration. Regression guard for the ordering bug where the
-    // two-provider hand-off to the chooser ran before the guard and answered with the splash.
-    [Theory]
-    [InlineData(LoginProviders.Both, "/api/secret")]
-    [InlineData(LoginProviders.Both, "~/api/secret")]
-    [InlineData(LoginProviders.EntraId, "/api/secret")]
-    [InlineData(LoginProviders.EntraId, "~/api/secret")]
-    public void Login_RejectsApiReturnUrl_ForEveryProviderConfiguration(LoginProviders enabled, string returnUrl)
-    {
-        var controller = CreateController(enabled);
+        var controller = CreateController(LoginProviders.Both);
         Arrange(authenticated: false, controller);
 
         Assert.IsType<UnauthorizedResult>(controller.Login(returnUrl));
-    }
-
-    [Fact]
-    public async Task CasLogin_WhenCasDisabled_ReturnsNotFound()
-    {
-        var controller = CreateController(LoginProviders.EntraId);
-        Arrange(authenticated: false, controller);
-
-        Assert.IsType<NotFoundResult>(await controller.CasLogin(ticket: "ST-1"));
     }
 
     // The /api guard has to hold on /welcome itself, not just on the /login it would otherwise
@@ -764,109 +681,6 @@ public sealed class HomeControllerTests
         controller.HttpContext.Request.PathBase = "/2";
 
         Assert.IsType<UnauthorizedResult>(controller.Welcome("/2/api/secret"));
-    }
-
-    // Logout is the only action that reaches the authentication stack, so it needs an
-    // IAuthenticationService in the container that the rest of the suite can do without.
-    private HomeController ArrangeForLogout(
-        LoginProviders enabled,
-        string authenticationMethod,
-        string? loginHint = null)
-    {
-        var controller = CreateController(enabled);
-        Arrange(authenticated: true, controller);
-
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.Name, "tester"),
-            new(ClaimTypes.AuthenticationMethod, authenticationMethod)
-        };
-
-        if (loginHint != null)
-        {
-            claims.Add(new Claim(EntraIdClaimMapper.LoginHintClaimType, loginHint));
-        }
-
-        var services = new ServiceCollection();
-        services.AddSingleton(Substitute.For<IAuthenticationService>());
-        controller.HttpContext.RequestServices = services.BuildServiceProvider();
-        controller.HttpContext.User = new ClaimsPrincipal(
-            new ClaimsIdentity(claims, authenticationType: "TestAuth"));
-
-        return controller;
-    }
-
-    // CustomAntiforgeryFilter only validates tokens on unsafe methods, so dropping the verb
-    // constraint would silently remove the CSRF protection along with it.
-    [Fact]
-    public void Logout_IsPostOnly()
-    {
-        var method = typeof(HomeController).GetMethod(nameof(HomeController.Logout));
-
-        Assert.NotNull(method);
-        Assert.Single(method.GetCustomAttributes(typeof(HttpPostAttribute), inherit: false));
-    }
-
-    [Fact]
-    public async Task Logout_EntraUser_WhileEntraEnabled_SignsOutOfEntraScheme()
-    {
-        var controller = ArrangeForLogout(LoginProviders.Both, EntraIdClaimMapper.AuthenticationMethod);
-
-        var result = Assert.IsType<SignOutResult>(await controller.Logout());
-
-        Assert.Equal(EntraIdClaimMapper.AuthenticationScheme, Assert.Single(result.AuthenticationSchemes));
-    }
-
-    // SaveTokens is off, so no id_token_hint is ever sent and this is the only handle sign-out
-    // has on which account to end. Without it Entra asks the user to pick.
-    [Fact]
-    public async Task Logout_EntraUser_WithLoginHint_CarriesItToTheSignOutRequest()
-    {
-        var controller = ArrangeForLogout(
-            LoginProviders.Both, EntraIdClaimMapper.AuthenticationMethod, loginHint: "hint-a");
-
-        var result = Assert.IsType<SignOutResult>(await controller.Logout());
-
-        Assert.Equal("hint-a", result.Properties?.Items[EntraIdClaimMapper.LogoutHintPropertyKey]);
-    }
-
-    // Sessions predating the optional claim have no hint, and a blank logout_hint is worse than
-    // none: sign-out must degrade to exactly the URL it sent before.
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    public async Task Logout_EntraUser_WithoutLoginHint_OmitsIt(string? loginHint)
-    {
-        var controller = ArrangeForLogout(
-            LoginProviders.Both, EntraIdClaimMapper.AuthenticationMethod, loginHint);
-
-        var result = Assert.IsType<SignOutResult>(await controller.Logout());
-
-        Assert.False(
-            result.Properties?.Items.ContainsKey(EntraIdClaimMapper.LogoutHintPropertyKey));
-    }
-
-    // An Entra cookie outlives the provider being switched off (12h expiry), e.g. reverting a
-    // cutover from Both back to Cas. Falling through to the CAS logout redirect would send a user
-    // who never had a CAS session to CAS's logout page.
-    [Fact]
-    public async Task Logout_EntraUser_AfterEntraDisabled_RedirectsLocallyNotToCas()
-    {
-        var controller = ArrangeForLogout(LoginProviders.Cas, EntraIdClaimMapper.AuthenticationMethod);
-
-        var result = Assert.IsType<LocalRedirectResult>(await controller.Logout());
-
-        Assert.Equal("~/", result.Url);
-    }
-
-    [Fact]
-    public async Task Logout_CasUser_StillRedirectsToCasLogout()
-    {
-        var controller = ArrangeForLogout(LoginProviders.Cas, "CAS");
-
-        var result = Assert.IsType<RedirectResult>(await controller.Logout());
-
-        Assert.StartsWith("https://cas.example.edu/logout?service=", result.Url);
     }
 
     // Normally a deep link skips the splash and goes straight to the provider. It cannot when both

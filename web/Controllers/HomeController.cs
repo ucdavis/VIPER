@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Security.Claims;
 using System.Xml.Linq;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -103,8 +104,9 @@ namespace Viper.Controllers
             if (User.Identity?.IsAuthenticated == true)
             {
                 // "~/" (not "/") so the app root keeps the PathBase ("/2/") in a subpath deployment
-                // instead of redirecting out to the domain root (the legacy site).
-                return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) ? "~/" : ReturnUrl);
+                // instead of redirecting out to the domain root (the legacy site). A ReturnUrl outside
+                // the PathBase would land there too, so it gets the same fallback as Login.
+                return LocalRedirect(string.IsNullOrEmpty(ReturnUrl) || !IsUnderPathBase(ReturnUrl) ? "~/" : ReturnUrl);
             }
 
             // An /api ReturnUrl gets a 401 rather than a sign-in page. With one provider the
@@ -165,10 +167,10 @@ namespace Viper.Controllers
         }
 
         // Url.IsLocalUrl accepts app-relative "~/..." URLs, but browsers and CAS don't
-        // understand the "~", so normalize "~/..." to "/..." before validating or
+        // understand the "~", so resolve "~/..." to "{PathBase}/..." before validating or
         // redirecting. Leaves all other values (including null) unchanged.
-        private static string? NormalizeAppRelativeUrl(string? returnUrl)
-            => returnUrl != null && returnUrl.StartsWith("~/") ? returnUrl[1..] : returnUrl;
+        private string? NormalizeAppRelativeUrl(string? returnUrl)
+            => returnUrl != null && returnUrl.StartsWith("~/") ? Request.PathBase.Value + returnUrl[1..] : returnUrl;
 
         // The ReturnUrl contract shared by every auth entry point (/welcome, /login, /CasLogin), so the
         // three cannot drift apart: the URL must be local, must not point back at an auth entry point,
@@ -177,7 +179,8 @@ namespace Viper.Controllers
         // internal (not private) so the shared guard is unit-testable via InternalsVisibleTo.
         internal bool IsSafeReturnUrl(string? returnUrl)
         {
-            if (!Url.IsLocalUrl(returnUrl))
+            // Browsers treat "\" as "/", so "/Effort\..\api" would dodge the dot-segment split below.
+            if (!Url.IsLocalUrl(returnUrl) || returnUrl.Contains('\\'))
             {
                 return false;
             }
@@ -359,7 +362,15 @@ namespace Viper.Controllers
                                          ActionExecutionDelegate next)
 #pragma warning restore S6967
         {
-            ViewData["ViperLeftNav"] = Nav();
+            // The splash pages render without the layout, so the nav query would be wasted on every
+            // anonymous arrival (including each cookie challenge funnelled through /welcome).
+            var action = context.ActionDescriptor.RouteValues["action"];
+            var rendersSplash = action is nameof(Welcome) or nameof(SignInProblem)
+                || (action == nameof(Index) && User.Identity?.IsAuthenticated != true);
+            if (!rendersSplash)
+            {
+                ViewData["ViperLeftNav"] = Nav();
+            }
             await base.OnActionExecutionAsync(context, next);
         }
 
@@ -377,9 +388,10 @@ namespace Viper.Controllers
         /// Login function -- sends the user to a sign-in provider, no VIEW
         /// </summary>
         /// <remarks>
-        /// Provider-aware so every existing "Log in" link keeps working while campus migrates off
-        /// CAS. With a single provider enabled this goes straight to it; with both enabled there is
-        /// nothing sensible to pick, so it hands off to the welcome splash, which is the chooser.
+        /// Provider-aware so every existing "Log in" link keeps working across the CAS to Entra ID
+        /// cutover. With a single provider enabled this goes straight to it; with both enabled
+        /// there is nothing sensible to pick, so it hands off to the welcome splash, which is the
+        /// chooser.
         /// </remarks>
         [Route("/[action]")]
         [AllowAnonymous]
@@ -404,18 +416,21 @@ namespace Viper.Controllers
                 return Unauthorized();
             }
 
+            // Forward only the validated URL; the app-root default is implied, so leave it off the query.
+            var forwardUrl = returnUrl == (Request.PathBase.Value ?? string.Empty) ? null : returnUrl;
+
             if (forcedProvider == LoginProviders.EntraId
                 || (forcedProvider == null && !_authSettings.CasEnabled))
             {
                 // No picker from here, however the user arrived. Entra signs a single signed-in
                 // account straight through and raises its own picker only when several match,
                 // which is what we want; the splash's switch-account link is the way to override.
-                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl });
+                return RedirectToAction(nameof(EntraLogin), new { ReturnUrl = forwardUrl });
             }
 
             if (forcedProvider == null && _authSettings.HasProviderChoice)
             {
-                return RedirectToAction(nameof(Welcome), new { ReturnUrl });
+                return RedirectToAction(nameof(Welcome), new { ReturnUrl = forwardUrl });
             }
 
             var authorizationEndpoint = _settings.CasBaseUrl + "login?service=" + WebUtility.UrlEncode(BuildRedirectUri(new PathString("/CasLogin")) + "?ReturnUrl=" + WebUtility.UrlEncode(returnUrl));
@@ -471,29 +486,44 @@ namespace Viper.Controllers
         // path, which must get a 401 rather than be bounced through an interactive login.
         private bool TryResolveLoginReturnUrl(string? requestedReturnUrl, out string returnUrl)
         {
-            // Normalize app-relative "~/..." to "/..." before validating, so the /api guard below
-            // cannot be bypassed and we never forward an invalid browser URL to a provider.
+            // Resolve app-relative "~/..." before validating, so the /api guard below cannot be
+            // bypassed and we never forward an invalid browser URL to a provider.
             requestedReturnUrl = NormalizeAppRelativeUrl(requestedReturnUrl);
 
+            // Off-site targets fall back to the app root: the OIDC handler would follow one as an
+            // open redirect, and CasLogin's LocalRedirect would throw on it after a good sign-in.
             if (!IsSafeReturnUrl(requestedReturnUrl))
             {
                 requestedReturnUrl = null;
             }
 
-            // The application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
-            // Read from the request rather than derived from GetRootURL(), which now returns the
-            // configured canonical origin and so no longer cancels against the request authority.
-            returnUrl = Request.PathBase.Value ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(requestedReturnUrl))
-            {
-                returnUrl = requestedReturnUrl;
-            }
+            // Default to the application root under the deployed PathBase ("" locally, "/2" on TEST/PROD).
+            var appRoot = Request.PathBase.Value ?? string.Empty;
+            returnUrl = string.IsNullOrEmpty(requestedReturnUrl) ? appRoot : requestedReturnUrl;
 
             // Strip the PathBase (e.g. "/2") before the /api guard so a base-prefixed
             // "/2/api/..." ReturnUrl can't slip past this root-relative check.
             var apiCheckUrl = StripPathBase(returnUrl, Request.PathBase.Value);
-            return apiCheckUrl == null || !IsApiPath(apiCheckUrl);
+            if (apiCheckUrl != null && IsApiPath(apiCheckUrl))
+            {
+                return false;
+            }
+
+            // A local URL outside the PathBase would land in VIPER 1 on TEST/PROD.
+            if (!IsUnderPathBase(returnUrl))
+            {
+                returnUrl = appRoot;
+            }
+
+            return true;
+        }
+
+        // True when a local URL stays inside this app: always locally (no PathBase), and on TEST/PROD
+        // only under "/2". Uses StripPathBase's segment-boundary match, so "/22/..." is outside.
+        private bool IsUnderPathBase(string? url)
+        {
+            var pathBase = Request.PathBase.Value;
+            return string.IsNullOrEmpty(pathBase) || StripPathBase(url, pathBase) != url;
         }
 
         [Route("/[action]")]
@@ -532,7 +562,8 @@ namespace Viper.Controllers
         {
             if (!_authSettings.CasEnabled)
             {
-                return NotFound();
+                // A CAS round trip in flight at the cutover restarts on the enabled provider.
+                return RedirectToAction(nameof(Login), new { ReturnUrl });
             }
 
             return await AuthenticateCasLogin(ticket, ReturnUrl);
@@ -678,12 +709,34 @@ namespace Viper.Controllers
         /// POST only, so a third-party page cannot sign a user out with an &lt;img&gt; tag. Callers
         /// post a form rather than fetch, because the response is a redirect the browser has to
         /// follow to reach the provider's sign-out.
+        /// Anonymous callers are let through: a session already ended (front-channel logout,
+        /// expiry) would otherwise be challenged, signed back in, and returned by GET to a 405.
         /// </remarks>
         [HttpPost]
+        [AllowAnonymous]
+#pragma warning disable S4502 // Validated in the action for signed-in callers; the filter can't tell them apart
+        [IgnoreAntiforgeryToken]
+#pragma warning restore S4502
         [Route("/[action]")]
         [SearchExclude]
         public async Task<IActionResult> Logout()
         {
+            // Already signed out. The token was issued to the old identity so it can't validate,
+            // and a forged anonymous logout has nothing to end.
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                return LocalRedirect("~/");
+            }
+
+            try
+            {
+                await HttpContext.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(HttpContext);
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return BadRequest();
+            }
+
             _userHelper.ClearCachedRolesAndPermissions(_userHelper.GetCurrentUser());
 
             // Read the provider off the principal before signing out, while the claims still exist.

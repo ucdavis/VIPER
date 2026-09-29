@@ -1,4 +1,6 @@
 using System.Net;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -121,7 +123,6 @@ public class HomeControllerCasUrlTests
 
     [Theory]
     [InlineData("~/api/students/dvm")]
-    [InlineData("~/2/api/students/dvm")]
     [InlineData("~/API/students/dvm")]
     public void Login_AppRelativeApiReturnUrl_ReturnsUnauthorized(string returnUrl)
     {
@@ -139,9 +140,25 @@ public class HomeControllerCasUrlTests
 
         var result = Assert.IsType<RedirectResult>(controller.Login("~/apiary/hives"));
 
-        // The "~" is normalized off before the URL is handed to CAS, which does not understand it.
+        // The "~" resolves to the PathBase before the URL is handed to CAS, which does not understand it.
         Assert.Equal(
-            $"{PublicBaseUrl}/CasLogin?ReturnUrl={WebUtility.UrlEncode("/apiary/hives")}",
+            $"{PublicBaseUrl}/CasLogin?ReturnUrl={WebUtility.UrlEncode("/2/apiary/hives")}",
+            ServiceParameter(result.Url));
+    }
+
+    // Outside the "/2" PathBase is VIPER 1 on TEST/PROD, so the sign-in must return to this app.
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/Effort")]
+    [InlineData("/22/Effort")]
+    public void Login_ReturnUrlOutsidePathBase_FallsBackToAppRoot(string returnUrl)
+    {
+        var controller = CreateController("secure-test.vetmed.ucdavis.edu", pathBase: "/2");
+
+        var result = Assert.IsType<RedirectResult>(controller.Login(returnUrl));
+
+        Assert.Equal(
+            $"{PublicBaseUrl}/CasLogin?ReturnUrl={WebUtility.UrlEncode("/2")}",
             ServiceParameter(result.Url));
     }
 
@@ -149,6 +166,8 @@ public class HomeControllerCasUrlTests
     public async Task Logout_BuildsServiceFromConfiguredOrigin_NotHostHeader()
     {
         var controller = CreateController(ForgedHost, pathBase: "/2");
+        controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[] { new Claim(ClaimTypes.AuthenticationMethod, "CAS") }, authenticationType: "TestAuth"));
 
         var result = Assert.IsType<RedirectResult>(await controller.Logout());
 
@@ -202,12 +221,13 @@ public class HomeControllerCasUrlTests
         return controller;
     }
 
-    // Logout signs the cookie out, which resolves IAuthenticationService from the request.
+    // Logout validates the antiforgery token and signs the cookie out, both resolved from the request.
     private static IServiceProvider AuthenticationServices()
     {
         var authentication = Substitute.For<IAuthenticationService>();
         var services = Substitute.For<IServiceProvider>();
         services.GetService(typeof(IAuthenticationService)).Returns(authentication);
+        services.GetService(typeof(IAntiforgery)).Returns(Substitute.For<IAntiforgery>());
         return services;
     }
 }
