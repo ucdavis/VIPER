@@ -127,7 +127,8 @@ body {
 .welcome-cta:focus-visible,
 .welcome-help:focus-visible,
 .welcome-footer a:focus-visible {
-    outline: none;
+    /* Transparent, not none: forced-colors mode drops box-shadow but paints this outline. */
+    outline: 0.1875rem solid transparent;
     box-shadow: var(--welcome-focus-ring);
 }
 

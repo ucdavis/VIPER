@@ -58,7 +58,7 @@ Real assets that design work may rely on:
 - **Proxima Nova**, the UC Davis campus typeface, at regular, medium, bold, and extrabold, loaded from the campus font server at `campusfont.ucdavis.edu`. It may not be self-hosted, so no copies live in this repo; the `@font-face` blocks in `web/wwwroot/css/site.css`, `welcome.css`, and `VueApp/src/styles/base.css` are the only references.
 - **Self-hosted Roboto and Material Icons**: `VueApp/src/assets/fonts/roboto-v51-latin.woff2`, `roboto-v51-latin-ext.woff2`, and `material-icons.woff2`, built to `web/wwwroot/vue/assets/`.
 - **Five login hero photographs** in AVIF and JPG at `web/wwwroot/images/login/`: guinea pig, horse and foal, ophthalmology, the SVM building, and vetmed admin.
-- **Brand marks**: the rod of asclepius (`rod-of-asclepius-white.avif` and `.png`), the `_ViperBrand.cshtml` lockup partial, `web/wwwroot/images/UCDSVMLogo.png`, and `nopic.jpg` as the person-photo placeholder.
+- **Brand marks**: the rod of asclepius (`rod-of-asclepius-white.avif` and `.png`), the `_ViperBrand.cshtml` lockup partial, and `nopic.jpg` as the person-photo placeholder.
 - **The welcome splash**: `web/Views/Home/Welcome.cshtml`, `web/wwwroot/css/welcome.css`, and `WelcomePageHelper.cs` with tests.
 
 Absences that future work must not paper over:
