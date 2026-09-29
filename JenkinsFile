@@ -5,7 +5,9 @@ def copyOperations = [
 		testDestination: "%vipertestnet%",
 		prodDestination: "%viperprodnet%",
 		includeFiles: "*.*",
-		excludeFiles: "",
+		// The robocopy mirror (/MIR) deletes files missing from the publish folder, so exclude
+		// app_offline.htm to keep the app offline (and Viper.dll unlocked) during the copy.
+		excludeFiles: "app_offline.htm",
 		excludeDirectories: ""
 	]
 
@@ -25,6 +27,14 @@ def copyOfflineOperations = [
 	]
 
 ]
+// Remove app_offline.htm from every server once the copy is done, bringing the app back.
+def bringOnline(String destination) {
+	filecopy.getServerDestinations(destination).each { dest ->
+		def offline = "${dest}\\app_offline.htm"
+		bat "if exist \"${offline}\" del /f /q \"${offline}\""
+	}
+}
+
 pipeline {
     agent any
 	tools { nodejs "NodeJS 24.19.0" }
@@ -113,6 +123,7 @@ pipeline {
 				networkShares()
 				filecopy copyOfflineOperations, 'test', env.WORKSPACE
 				filecopy copyOperations, 'test', env.WORKSPACE
+				script { bringOnline('%vipertestnet%') }
 				powershell label: 'Verify /health returns 200', script: '''
 					$url = "https://secure-test.vetmed.ucdavis.edu/2/health"
 					$maxAttempts = 15
@@ -147,6 +158,7 @@ pipeline {
 				networkShares()
 				filecopy copyOfflineOperations, 'prod', env.WORKSPACE
 				filecopy copyOperations, 'prod', env.WORKSPACE
+				script { bringOnline('%viperprodnet%') }
 				powershell label: 'Verify /health returns 200', script: '''
 					$url = "https://secure.vetmed.ucdavis.edu/2/health"
 					$maxAttempts = 15
