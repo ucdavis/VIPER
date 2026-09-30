@@ -92,6 +92,37 @@ describe("sVMPhoneSectionTable.vue - isModify gating", () => {
     })
 })
 
+/** Whether the desktop table and its heading are left showing, rather than hidden by v-show. */
+function desktopShown(wrapper: ReturnType<typeof mountTable>): boolean {
+    return (wrapper.find(".gt-sm").element as HTMLElement).style.display !== "none"
+}
+
+describe("sVMPhoneSectionTable.vue - desktop table visibility", () => {
+    it("shows the table while the search matches one of its rows", () => {
+        expect.hasAssertions()
+
+        expect(
+            desktopShown(mountTable(false, { sectionCols: readOnlyCols, rows: [makeRow()], search: "dean" })),
+        ).toBeTruthy()
+    })
+
+    it("hides the table once a search leaves it with no rows, as the list does", () => {
+        expect.hasAssertions()
+
+        expect(
+            desktopShown(mountTable(false, { sectionCols: readOnlyCols, rows: [makeRow()], search: "no match" })),
+        ).toBeFalsy()
+    })
+
+    it("keeps the emptied table in modify mode, where it carries the add button", () => {
+        expect.hasAssertions()
+
+        expect(
+            desktopShown(mountTable(true, { sectionCols: readOnlyCols, rows: [makeRow()], search: "no match" })),
+        ).toBeTruthy()
+    })
+})
+
 describe("sVMPhoneSectionTable.vue - narrow screen list", () => {
     it("shows the section heading whether or not the list can be edited", () => {
         expect.hasAssertions()

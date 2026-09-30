@@ -22,7 +22,16 @@
             <span>Updated {{ formatDate(updatedDate?.toString() ?? "") || "Never" }}</span>
         </div>
         <div>Click on a name to send an email</div>
-        <PhoneListFilter v-model="search" />
+        <PhoneListFilter
+            v-model="search"
+            :no-matches="noMatches"
+        >
+            <!-- Scrolling directly to a unit is difficult, so these jump links help users navigate. -->
+            <SectionJumpLinks
+                class="lt-md"
+                :targets="jumpTargets"
+            />
+        </PhoneListFilter>
     </template>
 
     <PhoneListUnitTable
@@ -30,20 +39,23 @@
         :key="unit.id"
         :is-maintain="false"
         :unit="unit"
+        :anchor-id="unitAnchorId(unit.id)"
         :search="search"
         :loading="loading"
     ></PhoneListUnitTable>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import { phoneListModifiedDateService } from "../services/phone-list-modified-date-service.ts"
 import { useDateFunctions } from "@/composables/DateFunctions.ts"
 import { phoneListService } from "../services/phone-list-service.ts"
 import { getPhoneListData } from "../composables/phone-list-data-fetch"
+import { matchingJumpTargets, phoneListJumpSections, unitAnchorId } from "../composables/section-jump-targets"
 import PhoneListFilter from "../components/PhoneListFilter.vue"
 import PhoneListUnitTable from "../components/PhoneListUnitTable.vue"
+import SectionJumpLinks from "../components/SectionJumpLinks.vue"
 import StatusBanner from "@/components/StatusBanner.vue"
 import type { Ref } from "vue"
 import type { PhoneListUnit } from "../types/phone-list-phone-types"
@@ -59,6 +71,15 @@ const errorMessage = ref("")
 const search = ref("")
 
 const { formatDate } = useDateFunctions()
+
+/**
+ * The units a jump link can land on. Units with no visible rows are skipped.
+ */
+const jumpTargets = computed(() => matchingJumpTargets(phoneListJumpSections(units.value), search.value))
+
+// Every unit the search empties is hidden, so with no targets left the page below the filter is
+// blank. The filter is only shown once loaded and error-free, so neither needs checking here.
+const noMatches = computed(() => search.value !== "" && jumpTargets.value.length === 0)
 
 // Loads or reloads phone data for a generic phone list like VMDO.
 async function loadPhoneData() {

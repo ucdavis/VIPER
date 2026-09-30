@@ -106,6 +106,19 @@ describe("phoneListUnitTable.vue - isMaintain gating", () => {
         expect(wrapper.text()).toContain("Smith, Amy")
     })
 
+    it("keeps the add button out of the unit headings, so its label is not part of their name", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({ unit: makeUnit([makeRow()]), loading: false, isMaintain: true, search: "" })
+        const headings = wrapper.findAll("h2")
+
+        // One for the desktop table, one for the mobile list.
+        expect(headings).toHaveLength(2)
+        for (const heading of headings) {
+            expect(heading.text()).toBe("Dean's Office")
+            expect(heading.find("button").exists()).toBeFalsy()
+        }
+    })
+
     it("shows a check icon only on the row where listFirst is true", () => {
         expect.hasAssertions()
         const wrapper = mountTable({
@@ -120,6 +133,44 @@ describe("phoneListUnitTable.vue - isMaintain gating", () => {
 
         const checkIcons = wrapper.findAllComponents({ name: "QIcon" }).filter((icon) => icon.props("name") === "check")
         expect(checkIcons).toHaveLength(1)
+    })
+})
+
+/** Whether the desktop table and its heading are left showing, rather than hidden by v-show. */
+function desktopShown(wrapper: ReturnType<typeof mountTable>): boolean {
+    return (wrapper.find(".gt-sm").element as HTMLElement).style.display !== "none"
+}
+
+describe("phoneListUnitTable.vue - desktop table visibility", () => {
+    it("shows the table while the search matches one of its rows", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({ unit: makeUnit([makeRow()]), loading: false, isMaintain: false, search: "smith" })
+
+        expect(desktopShown(wrapper)).toBeTruthy()
+    })
+
+    it("hides the table once a search leaves it with no rows, as the list does", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({
+            unit: makeUnit([makeRow()]),
+            loading: false,
+            isMaintain: false,
+            search: "no match",
+        })
+
+        expect(desktopShown(wrapper)).toBeFalsy()
+    })
+
+    it("keeps the emptied table in maintain mode, where it carries the add button", () => {
+        expect.hasAssertions()
+        const wrapper = mountTable({
+            unit: makeUnit([makeRow()]),
+            loading: false,
+            isMaintain: true,
+            search: "no match",
+        })
+
+        expect(desktopShown(wrapper)).toBeTruthy()
     })
 })
 

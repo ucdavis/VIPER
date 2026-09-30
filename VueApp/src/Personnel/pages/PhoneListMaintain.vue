@@ -15,7 +15,12 @@
     </StatusBanner>
 
     <template v-if="!loading && !errorMessage">
-        <PhoneListFilter v-model="search" />
+        <PhoneListFilter v-model="search">
+            <SectionJumpLinks
+                class="lt-md"
+                :targets="jumpTargets"
+            />
+        </PhoneListFilter>
     </template>
 
     <PhoneListUnitTable
@@ -23,6 +28,7 @@
         :key="unit.id"
         :is-maintain="true"
         :unit="unit"
+        :anchor-id="unitAnchorId(unit.id)"
         :search="search"
         :loading="loading"
         @add-record="addRecord"
@@ -41,17 +47,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import { useQuasar } from "quasar"
 import { useRoute, useRouter } from "vue-router"
 import { phoneListUnitService } from "../services/phone-list-unit-service.ts"
 import { getPhoneListData } from "../composables/phone-list-data-fetch.ts"
 import { useConfirmDialog } from "@/composables/use-confirm-dialog"
 import { phoneListService } from "../services/phone-list-service.ts"
+import { allJumpTargets, phoneListJumpSections, unitAnchorId } from "../composables/section-jump-targets"
 import StatusBanner from "@/components/StatusBanner.vue"
 import PhoneListAddRecordDialog from "../components/PhoneListAddRecordDialog.vue"
 import PhoneListFilter from "../components/PhoneListFilter.vue"
 import PhoneListUnitTable from "../components/PhoneListUnitTable.vue"
+import SectionJumpLinks from "../components/SectionJumpLinks.vue"
 import type { Ref } from "vue"
 import type { PhoneListDisplayRecord, PhoneListUnit } from "../types/phone-list-phone-types.ts"
 
@@ -68,6 +76,9 @@ const listName = ref("Phone List")
 const editData = ref() as Ref<PhoneListDisplayRecord | null>
 const search = ref("")
 const { confirmAction } = useConfirmDialog()
+
+// Every unit, whatever the search: here an emptied unit stays shown, with its add button.
+const jumpTargets = computed(() => allJumpTargets(phoneListJumpSections(units.value)))
 const $q = useQuasar()
 
 // Loads or reloads phone data for a generic phone list like VMDO.

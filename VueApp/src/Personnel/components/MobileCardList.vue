@@ -1,23 +1,34 @@
 <template>
-    <div class="lt-md">
+    <div
+        class="lt-md"
+        v-show="isMaintain || visibleRows.length"
+    >
         <!-- Shown whether or not the list can be edited, unlike a table's own title: the column
              headers that identify a table on desktop are not rendered at this width, so without
              this heading the cards say nothing about what they belong to. A real heading rather
              than a styled div, so the page is navigable structure. -->
-        <!-- tabindex allows a jump link to land focus here, not just the viewport. -->
-        <h2
-            :id="anchorId"
-            class="q-mt-none q-mb-sm sticky-filter-offset"
-            tabindex="-1"
-        >
-            {{ title }}
-            <slot name="title-append" />
-        </h2>
-        <MobileSortControl
-            v-model="sortBy"
-            v-model:descending="sortDescending"
-            :options="sortOptions"
-        />
+        <!-- tabindex allows a jump link to land focus here, not just the viewport. The sort
+             control shares the heading's row while both fit, and wraps under it when they do not
+             (a narrow screen with enlarged text). title-append sits beside the heading, not in it,
+             so a button's label does not become part of the heading's name. -->
+        <div class="mobile-card-list__header q-mb-xs">
+            <div class="table-section-header mobile-card-list__title">
+                <h2
+                    :id="anchorId"
+                    class="table-section-heading sticky-filter-offset"
+                    tabindex="-1"
+                >
+                    {{ title }}
+                </h2>
+                <slot name="title-append" />
+            </div>
+            <MobileSortControl
+                v-model="sortBy"
+                v-model:descending="sortDescending"
+                class="mobile-card-list__sort"
+                :options="sortOptions"
+            />
+        </div>
         <q-list
             bordered
             separator
@@ -93,6 +104,7 @@ const props = defineProps<{
     rows: T[]
     search: string
     loading: boolean
+    isMaintain: boolean
     /** Row property holding a stable key, as QTable's row-key does. */
     rowKey: string
     /** Columns the caller renders itself, as a card title or as buttons. */
@@ -125,3 +137,25 @@ function detailLines(row: T) {
         .filter((detail) => detail.value !== "")
 }
 </script>
+
+<style scoped>
+.mobile-card-list__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+}
+
+/* A small basis, so the heading shares a line with the sort control at 320px, yet a heading that
+   needs more room pushes the control onto its own line rather than off the screen. */
+.mobile-card-list__title {
+    flex: 1 1 6rem;
+    min-width: 0;
+}
+
+/* Wide enough to read the chosen column; shrinks to the line once wrapped onto its own. */
+.mobile-card-list__sort {
+    flex: 0 1 13rem;
+    min-width: 0;
+}
+</style>

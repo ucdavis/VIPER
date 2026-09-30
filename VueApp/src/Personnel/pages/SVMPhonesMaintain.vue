@@ -18,12 +18,18 @@
     <PhoneListFilter
         v-if="!loading"
         v-model="search"
-    />
+    >
+        <SectionJumpLinks
+            class="lt-md"
+            :targets="jumpTargets"
+        />
+    </PhoneListFilter>
 
     <SVMPhoneSectionTable
         v-for="section in sections"
         :key="section.id"
         :section="section"
+        :anchor-id="sectionAnchorId(section.id)"
         :search="search"
         :is-modify="true"
         :loading="loading"
@@ -34,6 +40,7 @@
 
     <SVMFrequentNumberTable
         :frequent-numbers="frequentNumbers"
+        :anchor-id="FREQUENT_NUMBERS_ANCHOR_ID"
         :loading="loading"
         :search="search"
         :edit-records="true"
@@ -62,14 +69,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { computed, ref, onMounted } from "vue"
 import { useQuasar } from "quasar"
 import { svmUnitService } from "../services/svm-unit-service"
 import SVMAddRecordDialog from "../components/SVMAddRecordDialog.vue"
 import SVMAddFrequentNumberDialog from "../components/SVMAddFrequentNumberDialog.vue"
 import SVMFrequentNumberTable from "../components/SVMFrequentNumberTable.vue"
 import PhoneListFilter from "../components/PhoneListFilter.vue"
+import SectionJumpLinks from "../components/SectionJumpLinks.vue"
 import SVMPhoneSectionTable from "../components/SVMPhoneSectionTable.vue"
+import {
+    FREQUENT_NUMBERS_ANCHOR_ID,
+    allJumpTargets,
+    sectionAnchorId,
+    svmJumpSections,
+} from "../composables/section-jump-targets"
 import StatusBanner from "@/components/StatusBanner.vue"
 import { svmFrequentNumberService } from "../services/svm-frequent-number-service.ts"
 import { useConfirmDialog } from "@/composables/use-confirm-dialog"
@@ -100,6 +114,9 @@ const editFrequentData = ref() as Ref<SVMFrequentNumberRecord | null>
 const frequentNumbers = ref([]) as Ref<SVMFrequentNumberRecord[]>
 const { confirmAction } = useConfirmDialog()
 const $q = useQuasar()
+
+// Every section, whatever the search: here an emptied section stays shown, with its add button.
+const jumpTargets = computed(() => allJumpTargets(svmJumpSections(sections.value, frequentNumbers.value)))
 
 async function loadPhoneData() {
     loading.value = true

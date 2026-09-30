@@ -1,0 +1,41 @@
+/* Styles shared by the phone list components, kept with the Personnel area rather than in the
+   app-wide base.css. Imported once by personnel.ts. */
+
+/* Heads each of the stacked tables on the phone list pages. Deliberately below the 1.2rem in-app
+   heading size: a page repeats it once per unit, so at full size the headings outweigh the short
+   tables under them. Still bold and still an h2, so the page keeps its heading structure. The
+   .q-page-container prefix outweighs the global h2 rule in base.css, whichever loads first. */
+.q-page-container .table-section-heading {
+    font-size: 1rem;
+    line-height: 1.25;
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* The heading with its add button beside it rather than inside it, where the button's label would
+   become part of the heading's accessible name. */
+.table-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* The add button is xs, which alone falls short of the 24px minimum hit area (WCAG 2.2 SC 2.5.8). */
+.table-section-header .q-btn {
+    flex: none;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+}
+
+/* Clears the fixed app header and the sticky filter bar on the phone list mobile views. A focus
+   target the browser scrolls into view would otherwise land underneath them, hiding the focus
+   ring. Both heights are measured and published by the components that own them - ViperLayout for
+   the header, PhoneListFilter for the bar - because neither is a constant across the range this
+   applies to. Paired with PhoneListFilter.vue's own query, so the two must stay on the same
+   breakpoint. */
+@media (width <= 1023.98px) and (height >= 480px) {
+    .sticky-filter-offset {
+        scroll-margin-top: calc(var(--viper-header-height, 86px) + var(--phone-list-filter-height, 56px));
+    }
+}

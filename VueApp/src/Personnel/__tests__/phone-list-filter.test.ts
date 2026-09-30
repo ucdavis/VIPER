@@ -2,9 +2,9 @@ import { mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import PhoneListFilter from "../components/PhoneListFilter.vue"
 
-function mountFilter(search = "") {
+function mountFilter(search = "", noMatches?: boolean) {
     return mount(PhoneListFilter, {
-        props: { modelValue: search },
+        props: { modelValue: search, noMatches },
         global: { plugins: [Quasar] },
     })
 }
@@ -52,5 +52,31 @@ describe("phoneListFilter.vue", () => {
         // Jsdom reports 0 for every measurement, so this guards that the variable is published at
         // all, not what it comes to. The value itself is only meaningful in a real browser.
         expect(document.documentElement.style.getPropertyValue("--phone-list-filter-height")).toBe("0px")
+    })
+})
+
+describe("phoneListFilter.vue - no matches line", () => {
+    it("names the search that matched nothing", () => {
+        expect.hasAssertions()
+
+        expect(mountFilter("smith", true).find("[role='status']").text()).toBe('No records match "smith".')
+    })
+
+    it("says nothing while the search has matches", () => {
+        expect.hasAssertions()
+
+        expect(mountFilter("smith", false).find("[role='status']").text()).toBe("")
+    })
+
+    it("says nothing when the page does not set it, as the maintain pages do not", () => {
+        expect.hasAssertions()
+
+        expect(mountFilter("smith").find("[role='status']").text()).toBe("")
+    })
+
+    it("keeps the live region rendered while it is silent, so its first message is announced", () => {
+        expect.hasAssertions()
+
+        expect(mountFilter("smith", false).find("[role='status']").exists()).toBeTruthy()
     })
 })

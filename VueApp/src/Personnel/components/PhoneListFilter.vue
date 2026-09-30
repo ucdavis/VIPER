@@ -15,6 +15,16 @@
                 <q-icon name="filter_alt" />
             </template>
         </q-input>
+        <!-- Displays only when no matches are found across the entire page.
+             The div is always rendered to assist screen readers, which will see
+             and announce a change of text. -->
+        <div
+            role="status"
+            class="text-grey q-mx-xs"
+            :class="{ 'q-mt-sm': noMatches }"
+        >
+            <template v-if="noMatches">No records match "{{ search }}".</template>
+        </div>
         <!-- Anything a page adds here is pinned with the filter, rather than scrolling away and
              leaving the reader to scroll back up to it. Counted in the published height. -->
         <slot />
@@ -28,6 +38,12 @@ import { useElementSize } from "@vueuse/core"
 // The label prop is the accessible name as well as the visible one: QInput copies it to the
 // native input's aria-label, so no separate aria-label is needed or wanted here.
 const search = defineModel<string>({ required: true })
+
+defineProps<{
+    /** Set by a read-only page when the search has emptied every table. Maintain pages leave it
+     * unset: their tables stay shown, each with its own empty line. */
+    noMatches?: boolean
+}>()
 
 // Published rather than guessed at, so .sticky-filter-offset can be exactly this bar plus the
 // header above it. The height is not a constant: the field is a fixed 40px but the padding is in
@@ -50,7 +66,7 @@ watchEffect(() => {
  * height it scrolls with the page like anything else.
  *
  * Focus targets that the browser scrolls into view can land underneath a sticky bar. The paired
- * .sticky-filter-offset utility in base.css gives them the scroll-margin to clear it.
+ * .sticky-filter-offset utility in assets/phone-list.css gives them the scroll-margin to clear it.
  */
 @media (width <= 1023.98px) and (height >= 480px) {
     .phone-list-filter {

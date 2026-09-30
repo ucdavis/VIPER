@@ -1,52 +1,54 @@
 <template>
     <div class="q-mb-md">
-        <!-- Desktop: table -->
-        <q-table
+        <!-- Desktop: displays as a table.
+             In read-only mode, no header and hidden when empty.
+             In modify mode, the header does not use QTable's top slot. Displays when empty with the add button. -->
+        <div
+            v-show="loading || isModify || hasMatches"
             class="gt-sm"
-            :rows="section.rows"
-            :columns="section.cols"
-            row-key="entryId"
-            dense
-            :hide-pagination="true"
-            v-model:pagination="pagination"
-            :filter="search"
-            :loading="loading"
         >
-            <template
-                #top-left
+            <div
                 v-if="isModify"
+                class="table-section-header q-mb-xs"
             >
-                <div class="row items-center q-gutter-sm">
-                    <div class="q-table__title">
-                        {{ section.title }}
-                        <q-btn
-                            type="button"
-                            color="primary"
-                            dense
-                            no-caps
-                            :aria-label="`Add to ${section.title}`"
-                            @click="$emit('addRecord', section.title, section.id)"
-                            icon="add"
-                            size="xs"
-                        />
-                    </div>
-                </div>
-            </template>
-            <template #body-cell-edit="cell">
-                <RecordActionCell
-                    action="edit"
-                    :cell="cell"
-                    @action="$emit('editRecord', cell.row)"
+                <h2 class="table-section-heading">{{ section.title }}</h2>
+                <q-btn
+                    type="button"
+                    color="primary"
+                    dense
+                    no-caps
+                    :aria-label="`Add to ${section.title}`"
+                    @click="$emit('addRecord', section.title, section.id)"
+                    icon="add"
+                    size="xs"
                 />
-            </template>
-            <template #body-cell-delete="cell">
-                <RecordActionCell
-                    action="delete"
-                    :cell="cell"
-                    @action="$emit('deleteRecord', cell.row)"
-                />
-            </template>
-        </q-table>
+            </div>
+            <q-table
+                :rows="section.rows"
+                :columns="section.cols"
+                row-key="entryId"
+                dense
+                :hide-pagination="true"
+                v-model:pagination="pagination"
+                :filter="search"
+                :loading="loading"
+            >
+                <template #body-cell-edit="cell">
+                    <RecordActionCell
+                        action="edit"
+                        :cell="cell"
+                        @action="$emit('editRecord', cell.row)"
+                    />
+                </template>
+                <template #body-cell-delete="cell">
+                    <RecordActionCell
+                        action="delete"
+                        :cell="cell"
+                        @action="$emit('deleteRecord', cell.row)"
+                    />
+                </template>
+            </q-table>
+        </div>
 
         <MobileCardList
             v-model:pagination="pagination"
@@ -56,6 +58,7 @@
             :rows="section.rows"
             :search="search"
             :loading="loading"
+            :is-maintain="isModify"
             row-key="entryId"
             :omit-columns="['unitName', 'abbreviation', 'edit', 'delete']"
             empty-message="No records to display."
@@ -96,7 +99,7 @@ import { computed, ref } from "vue"
 import MobileCardList from "./MobileCardList.vue"
 import RecordActionButton from "./RecordActionButton.vue"
 import RecordActionCell from "./RecordActionCell.vue"
-import { columnText } from "../composables/use-mobile-table-rows"
+import { columnText, filterRows } from "../composables/use-mobile-table-rows"
 import type { Ref } from "vue"
 import type { QTableProps } from "quasar"
 import type { SVMPhoneDisplayRecord, SVMPhoneSection } from "../types/svm-phone-types"
@@ -112,6 +115,9 @@ const props = defineProps<{
 defineEmits(["addRecord", "editRecord", "deleteRecord"])
 // Bound to the table, and shared with the card list's sort control.
 const pagination: Ref<QTableProps["pagination"]> = ref({ rowsPerPage: 0, sortBy: null, descending: false })
+
+// The same filterRows the card list and the page's jump links use, so all three agree on it.
+const hasMatches = computed(() => filterRows(props.section.cols, props.section.rows, props.search).length > 0)
 
 // Gated on the column rather than the row's own field: a section that does not include the
 // abbreviation column does not show one on desktop either.

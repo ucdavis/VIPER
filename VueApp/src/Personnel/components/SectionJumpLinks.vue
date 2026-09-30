@@ -31,7 +31,7 @@
             auto-close
         >
             <nav aria-label="Phone list sections">
-                <ul class="section-jump-links q-pa-sm q-ma-none">
+                <ul class="section-jump-links q-py-xs q-px-none q-ma-none">
                     <li
                         v-for="target in targets"
                         :key="target.id"
@@ -59,12 +59,15 @@ defineProps<{ targets: JumpTarget[] }>()
 </script>
 
 <style scoped>
-/* A wrapping row of links rather than a stacked list: a dozen sections stacked would be taller
-   than the content they navigate to. */
+/* One link per line, so every link starts at the same edge. The menu caps its own height and
+   scrolls, so a long list of sections costs no room on the page. */
 .section-jump-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
     list-style: none;
+}
+
+/* Block rather than inline, so the whole row is the tap target, not just the words. */
+.section-jump-links a {
+    display: block;
+    padding: 0.5rem 1rem;
 }
 </style>
