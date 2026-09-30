@@ -5,9 +5,9 @@ import type { SVMFrequentNumberRecord } from "../types/svm-phone-types"
 
 const numbers: SVMFrequentNumberRecord[] = [{ label: "Front Desk", phone: "530-555-1000", entryId: 1 }]
 
-function mountTable(editRecords: boolean, rows: SVMFrequentNumberRecord[] = numbers, search = "") {
+function mountTable(editRecords: boolean, rows: SVMFrequentNumberRecord[] = numbers, search = "", loading = false) {
     return mount(SVMFrequentNumberTable, {
-        props: { frequentNumbers: rows, loading: false, editRecords, search },
+        props: { frequentNumbers: rows, loading, editRecords, search },
         global: { plugins: [Quasar] },
     })
 }
@@ -46,8 +46,46 @@ describe("sVMFrequentNumberTable.vue - editRecords gating", () => {
     })
 })
 
+/** Whether the desktop table and its heading are left showing, rather than hidden by v-show. */
+function desktopShown(wrapper: ReturnType<typeof mountTable>): boolean {
+    return (wrapper.find(".gt-sm").element as HTMLElement).style.display !== "none"
+}
+
+describe("sVMFrequentNumberTable.vue - desktop table visibility", () => {
+    it("shows the table while the search matches one of its numbers", () => {
+        expect.hasAssertions()
+
+        expect(desktopShown(mountTable(false, numbers, "front"))).toBeTruthy()
+    })
+
+    it("hides the table once a search leaves it with no numbers, as the list does", () => {
+        expect.hasAssertions()
+
+        expect(desktopShown(mountTable(false, numbers, "no match"))).toBeFalsy()
+    })
+
+    it("keeps the emptied table in edit mode, where it carries the add button", () => {
+        expect.hasAssertions()
+
+        expect(desktopShown(mountTable(true, numbers, "no match"))).toBeTruthy()
+    })
+
+    it("keeps the table while its numbers are still loading, so the loading bar shows", () => {
+        expect.hasAssertions()
+
+        expect(desktopShown(mountTable(false, [], "", true))).toBeTruthy()
+    })
+
+    it("heads the table whether or not it can be edited, so a jump link has somewhere to land", () => {
+        expect.hasAssertions()
+
+        expect(mountTable(false).find(".gt-sm h2").text()).toBe("Frequently Called Numbers")
+        expect(mountTable(true).find(".gt-sm h2").text()).toBe("Frequently Called Numbers")
+    })
+})
+
 describe("sVMFrequentNumberTable.vue - narrow screen list", () => {
-    it("heads each entry with its location and carries the number beneath it, unlabelled", () => {
+    it("heads each entry with its location and carries the number beneath it, unlabeled", () => {
         expect.hasAssertions()
 
         const [location, number] = listItems(mountTable(false))[0].findAll(".q-item__label")
@@ -69,8 +107,8 @@ describe("sVMFrequentNumberTable.vue - narrow screen list", () => {
     it("shows the section heading whether or not the list can be edited", () => {
         expect.hasAssertions()
 
-        expect(mountTable(false).find("h2").text()).toContain("Frequently Called Numbers")
-        expect(mountTable(true).find("h2").text()).toContain("Frequently Called Numbers")
+        expect(mountTable(false).find(".lt-md h2").text()).toContain("Frequently Called Numbers")
+        expect(mountTable(true).find(".lt-md h2").text()).toContain("Frequently Called Numbers")
     })
 
     it("applies the search box to the list, the way the filter prop does for the table", () => {

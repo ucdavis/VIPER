@@ -92,14 +92,52 @@ describe("sVMPhoneSectionTable.vue - isModify gating", () => {
     })
 })
 
+/** Whether the desktop table and its heading are left showing, rather than hidden by v-show. */
+function desktopShown(wrapper: ReturnType<typeof mountTable>): boolean {
+    return (wrapper.find(".gt-sm").element as HTMLElement).style.display !== "none"
+}
+
+describe("sVMPhoneSectionTable.vue - desktop table visibility", () => {
+    it("shows the table while the search matches one of its rows", () => {
+        expect.hasAssertions()
+
+        expect(
+            desktopShown(mountTable(false, { sectionCols: readOnlyCols, rows: [makeRow()], search: "dean" })),
+        ).toBeTruthy()
+    })
+
+    it("hides the table once a search leaves it with no rows, as the list does", () => {
+        expect.hasAssertions()
+
+        expect(
+            desktopShown(mountTable(false, { sectionCols: readOnlyCols, rows: [makeRow()], search: "no match" })),
+        ).toBeFalsy()
+    })
+
+    it("keeps the emptied table in modify mode, where it carries the add button", () => {
+        expect.hasAssertions()
+
+        expect(
+            desktopShown(mountTable(true, { sectionCols: readOnlyCols, rows: [makeRow()], search: "no match" })),
+        ).toBeTruthy()
+    })
+
+    it("heads the table whether or not it can be edited, so a jump link has somewhere to land", () => {
+        expect.hasAssertions()
+
+        expect(mountTable(false).find(".gt-sm h2").text()).toBe("VMDO")
+        expect(mountTable(true).find(".gt-sm h2").text()).toBe("VMDO")
+    })
+})
+
 describe("sVMPhoneSectionTable.vue - narrow screen list", () => {
     it("shows the section heading whether or not the list can be edited", () => {
         expect.hasAssertions()
 
-        // The table only titles itself in maintain mode; the cards have no column headers to
-        // identify the section, so the heading is always rendered here.
-        expect(mountTable(false).find("h2").text()).toContain("VMDO")
-        expect(mountTable(true).find("h2").text()).toContain("VMDO")
+        // The cards have no column headers to identify the section, so the heading is always
+        // rendered here.
+        expect(mountTable(false).find(".lt-md h2").text()).toContain("VMDO")
+        expect(mountTable(true).find(".lt-md h2").text()).toContain("VMDO")
     })
 
     it("renders one list item per row, headed by the unit name", () => {

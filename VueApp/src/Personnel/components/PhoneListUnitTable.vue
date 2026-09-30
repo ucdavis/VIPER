@@ -1,79 +1,86 @@
 <template>
     <div class="q-mb-md">
-        <!-- Desktop: table -->
-        <q-table
+        <!-- Desktop: displays as a table, whose header does not use QTable's title.
+             In read-only mode, hidden when empty.
+             In maintain mode, displays when empty with the add button. -->
+        <div
+            v-show="showDesktopTable"
             class="gt-sm"
-            :rows="unit.rows"
-            :columns="unit.cols"
-            row-key="unitPersonId"
-            dense
-            :hide-pagination="true"
-            v-model:pagination="pagination"
-            :filter="search"
-            :title="unit.name"
-            :loading="loading"
         >
-            <template
-                v-if="isMaintain"
-                #top-left
-            >
-                <div class="row items-center q-gutter-sm">
-                    <div class="q-table__title">
-                        {{ unit.name }}
-                        <q-btn
-                            type="button"
-                            color="primary"
-                            dense
-                            no-caps
-                            :aria-label="`Add to ${unit.name}`"
-                            @click="$emit('addRecord', unit)"
-                            icon="add"
-                            size="xs"
-                        />
-                    </div>
-                </div>
-            </template>
-            <template
-                #body-cell-name="nameProps"
-                v-if="!isMaintain"
-            >
-                <q-td
-                    :props="nameProps"
-                    v-if="nameProps.row.employeeMailId !== ''"
+            <div class="table-section-header q-mb-xs">
+                <!-- tabindex allows a jump link to land focus here, as on the mobile heading. -->
+                <h2
+                    :id="desktopAnchorId"
+                    class="table-section-heading"
+                    tabindex="-1"
                 >
-                    <a :href="`mailto:${nameProps.row.employeeMailId}@ucdavis.edu`">{{ nameProps.row.name }}</a>
-                </q-td>
-                <q-td
-                    :props="nameProps"
-                    v-else
+                    {{ unit.name }}
+                </h2>
+                <q-btn
+                    v-if="isMaintain"
+                    type="button"
+                    color="primary"
+                    dense
+                    no-caps
+                    :aria-label="`Add to ${unit.name}`"
+                    @click="$emit('addRecord', unit)"
+                    icon="add"
+                    size="xs"
+                />
+            </div>
+            <q-table
+                :rows="unit.rows"
+                :columns="unit.cols"
+                row-key="unitPersonId"
+                dense
+                :hide-pagination="true"
+                v-model:pagination="pagination"
+                :filter="search"
+                :loading="loading"
+            >
+                <template
+                    #body-cell-name="nameProps"
+                    v-if="!isMaintain"
                 >
-                    {{ nameProps.row.name }}
-                </q-td>
-            </template>
-            <template #body-cell-listFirst="listFirstProps">
-                <q-td :props="listFirstProps">
-                    <q-icon
-                        v-if="listFirstProps.row.listFirst"
-                        name="check"
-                    ></q-icon>
-                </q-td>
-            </template>
-            <template #body-cell-edit="cell">
-                <RecordActionCell
-                    action="edit"
-                    :cell="cell"
-                    @action="$emit('editRecord', cell.row)"
-                />
-            </template>
-            <template #body-cell-delete="cell">
-                <RecordActionCell
-                    action="delete"
-                    :cell="cell"
-                    @action="$emit('deleteRecord', cell.row)"
-                />
-            </template>
-        </q-table>
+                    <q-td
+                        :props="nameProps"
+                        v-if="canMail(nameProps.row)"
+                    >
+                        <a :href="mailtoHref(nameProps.row)">{{ nameProps.row.name }}</a>
+                    </q-td>
+                    <q-td
+                        :props="nameProps"
+                        v-else
+                    >
+                        {{ nameProps.row.name }}
+                    </q-td>
+                </template>
+                <template #body-cell-listFirst="listFirstProps">
+                    <q-td :props="listFirstProps">
+                        <q-icon
+                            v-if="listFirstProps.row.listFirst"
+                            name="check"
+                        ></q-icon>
+                    </q-td>
+                </template>
+                <template #body-cell-edit="cell">
+                    <RecordActionCell
+                        action="edit"
+                        :cell="cell"
+                        @action="$emit('editRecord', cell.row)"
+                    />
+                </template>
+                <template #body-cell-delete="cell">
+                    <RecordActionCell
+                        action="delete"
+                        :cell="cell"
+                        @action="$emit('deleteRecord', cell.row)"
+                    />
+                </template>
+            </q-table>
+        </div>
 
+        <!-- The v-show for filters is handled within the component itself -->
         <MobileCardList
             v-model:pagination="pagination"
             :title="unit.name"
@@ -81,6 +88,8 @@
             :rows="unit.rows"
             :search="search"
             :loading="loading"
+            :keep-when-empty="isMaintain"
+            :anchor-id="mobileAnchorId"
             row-key="unitPersonId"
             :omit-columns="['name', 'edit', 'delete']"
             empty-message="No records to display."
@@ -102,8 +111,8 @@
                  editing the record, not for contacting the person. -->
             <template #card-title="{ row }">
                 <a
-                    v-if="!isMaintain && row.employeeMailId !== ''"
-                    :href="`mailto:${row.employeeMailId}@ucdavis.edu`"
+                    v-if="canMail(row)"
+                    :href="mailtoHref(row)"
                     >{{ row.name }}</a
                 >
                 <template v-else>{{ row.name }}</template>
@@ -126,16 +135,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed } from "vue"
 import MobileCardList from "./MobileCardList.vue"
 import RecordActionButton from "./RecordActionButton.vue"
 import RecordActionCell from "./RecordActionCell.vue"
-import type { Ref } from "vue"
-import type { QTableProps } from "quasar"
-import type { PhoneListUnit } from "../types/phone-list-phone-types"
+import { useSectionTable } from "../composables/use-section-table"
+import type { PhoneListDisplayRecord, PhoneListUnit } from "../types/phone-list-phone-types"
 
-defineProps<{ unit: PhoneListUnit; loading: boolean; isMaintain: boolean; search: string }>()
+const props = defineProps<{
+    unit: PhoneListUnit
+    loading: boolean
+    isMaintain: boolean
+    search: string
+    /** Set by a page offering jump links, so this heading can be one of the targets. */
+    anchorId?: string
+}>()
 defineEmits(["addRecord", "editRecord", "deleteRecord"])
-// Bound to the table, and shared with the card list's sort control.
-const pagination: Ref<QTableProps["pagination"]> = ref({ rowsPerPage: 0, sortBy: null, descending: false })
+
+const { pagination, hasMatches, desktopAnchorId, mobileAnchorId } = useSectionTable({
+    columns: () => props.unit.cols,
+    rows: () => props.unit.rows,
+    search: () => props.search,
+    anchorId: () => props.anchorId,
+})
+
+// Loading keeps the table up for its loading bar; maintain keeps an emptied table for its add button.
+const showDesktopTable = computed(() => props.loading || props.isMaintain || hasMatches.value)
+
+/** Names are mailed from the read-only list only: the maintain view is for editing the record. */
+function canMail(row: PhoneListDisplayRecord): boolean {
+    return !props.isMaintain && row.employeeMailId !== ""
+}
+
+function mailtoHref(row: PhoneListDisplayRecord): string {
+    return `mailto:${row.employeeMailId}@ucdavis.edu`
+}
 </script>

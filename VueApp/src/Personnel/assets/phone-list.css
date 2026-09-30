@@ -1,0 +1,64 @@
+/* Styles shared by the phone list components, kept with the Personnel area rather than in the
+   app-wide base.css. Imported once by personnel.ts. */
+
+/* Heads each of the stacked tables on the phone list pages. Deliberately below the 1.2rem in-app
+   heading size: a page repeats it once per unit, so at full size the headings outweigh the short
+   tables under them. Still bold and still an h2, so the page keeps its heading structure. The
+   .q-page-container prefix outweighs the global h2 rule in base.css, whichever loads first. */
+.q-page-container .table-section-heading {
+    font-size: 1rem;
+    line-height: 1.25;
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+
+    /* As tall as the row it shares with taller controls (an add button, a sort select), with its
+       text still centered. A jump link lines up the heading's top edge below the pinned bar, so a
+       heading shorter than its neighbors would leave their tops tucked under the bar. */
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+}
+
+/* The heading with its add button beside it rather than inside it, where the button's label would
+   become part of the heading's accessible name. */
+.table-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* The add button is xs, which alone is a small hit area. 1.5rem makes it 24px at 768px and up, the
+   WCAG 2.2 SC 2.5.8 minimum, but 21px below that, where the root font-size is 14px. There it
+   passes on the criterion's spacing exception instead: no other target sits within the 24px
+   circle around it. Keep that clearance if anything is placed beside it. */
+.table-section-header .q-btn {
+    flex: none;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+}
+
+/* Clears the fixed app header and the pinned filter bar on the phone list pages (WCAG technique
+   C43). Anything the browser scrolls into view - a jump link's heading, or a table cell or card
+   reached with Tab or Shift+Tab - would otherwise land underneath them, hiding the focus ring
+   (SC 2.4.11). Padding on the page's scroller covers every such target, where a scroll-margin
+   would have to be put on each one. Scoped by :has to the pages that show the bar, as this file
+   loads for the whole Personnel area.
+
+   Both heights are measured and published by the components that own them - ViperLayout for the
+   header, PhoneListFilter for the bar - because neither is a constant. The header is fixed at
+   every height; the bar only within PhoneListFilter.vue's own query, so the two must stay on the
+   same breakpoint.
+
+   The extra 0.5rem stops a target short of the bar rather than flush against it: a focus ring is
+   drawn outside the element's box (the browser's ring by 2-3px, the app's halo by 0.25rem), so a
+   flush target would have the top of its ring under the bar. */
+html:has(.phone-list-filter) {
+    scroll-padding-top: calc(var(--viper-header-height, 86px) + 0.5rem);
+}
+
+@media (height >= 400px) {
+    html:has(.phone-list-filter) {
+        scroll-padding-top: calc(var(--viper-header-height, 86px) + var(--phone-list-filter-height, 56px) + 0.5rem);
+    }
+}
