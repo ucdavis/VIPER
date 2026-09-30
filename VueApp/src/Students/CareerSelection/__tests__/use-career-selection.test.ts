@@ -99,6 +99,24 @@ describe("loading a record", () => {
 })
 
 describe("dirty tracking", () => {
+    // The unsaved-changes prompt reads isDirty, so a form that never opened must not claim changes.
+    it("is clean before any record has loaded", () => {
+        expect.hasAssertions()
+        const { isDirty } = useCareerSelection()
+
+        expect(isDirty.value).toBeFalsy()
+    })
+
+    it("stays clean when the record cannot be read", async () => {
+        expect.hasAssertions()
+        mockGetDetail.mockResolvedValue(null)
+        const { loadDetail, isDirty } = useCareerSelection()
+
+        await loadDetail(100)
+
+        expect(isDirty.value).toBeFalsy()
+    })
+
     it("starts clean after loading", async () => {
         expect.hasAssertions()
         mockGetDetail.mockResolvedValue(detail())
