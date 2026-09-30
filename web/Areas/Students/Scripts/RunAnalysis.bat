@@ -13,8 +13,8 @@ REM Reads only. The SIS connection is forced to ApplicationIntent=ReadOnly
 REM by the script, so this cannot write to the legacy student system.
 REM
 REM Needs three connection strings for the target environment, all of which
-REM the web app already uses: SIS (legacy source), VIPER (destination and
-REM users.Person) and AAUD (vw_CurrentAffiliates, for the mentor check).
+REM the web app already uses: SIS (legacy source), VIPER (destination) and
+REM AAUD (aaudUser and vw_CurrentAffiliates, for the mentor check).
 REM ================================================================
 
 echo.

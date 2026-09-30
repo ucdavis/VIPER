@@ -21,5 +21,11 @@ internal class TestableAAUDContext : AAUDContext
             entity.HasKey(e => e.IdsMothraId);
             entity.ToTable("VwDvmStudentsMaxTerm");
         });
+
+        modelBuilder.Entity<VwCurrentAffiliate>(entity =>
+        {
+            entity.HasKey(e => e.IdsMothraid);
+            entity.ToTable("VwCurrentAffiliate");
+        });
     }
 }

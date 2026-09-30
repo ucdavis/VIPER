@@ -467,6 +467,43 @@ public sealed class CareerSelectionServiceTests : IDisposable
         Assert.Null(saved.FacultyMothraId);
     }
 
+    [Fact]
+    public async Task UpdateStudentCareerSelectionAsync_AdminSave_KeepsAMentorWithNoAaudUser()
+    {
+        // The form cannot show a mentor it cannot resolve, so the null it sends back is not a
+        // decision to clear one.
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001");
+        await SeedOptionsAsync();
+        await SeedSelectionAsync("20000001", s => s.FacultyMothraId = MentorMothraId);
+
+        var errors = await _service.UpdateStudentCareerSelectionAsync(100, new StudentCareerInfoDto
+        {
+            ShortTermPlans = "Internship",
+            MentorId = null,
+        }, isAdmin: true);
+
+        Assert.Empty(errors);
+        var saved = await _viperContext.CareerSelections.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(MentorMothraId, saved.FacultyMothraId);
+        Assert.Equal("Internship", saved.ShortTermStatement);
+    }
+
+    [Fact]
+    public async Task UpdateStudentCareerSelectionAsync_AdminSave_ReplacesAMentorWithNoAaudUser()
+    {
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001");
+        await SeedMentorAsync(501, OtherMentorMothraId, "Doc", "Bea", isCurrentAffiliate: true);
+        await SeedOptionsAsync();
+        await SeedSelectionAsync("20000001", s => s.FacultyMothraId = MentorMothraId);
+
+        var errors = await _service.UpdateStudentCareerSelectionAsync(100,
+            new StudentCareerInfoDto { MentorId = 501 }, isAdmin: true);
+
+        Assert.Empty(errors);
+        var saved = await _viperContext.CareerSelections.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(OtherMentorMothraId, saved.FacultyMothraId);
+    }
+
     #endregion
 
     #region CanEdit
@@ -575,8 +612,20 @@ public sealed class CareerSelectionServiceTests : IDisposable
         return user;
     }
 
-    private async Task SeedMentorAsync(int personId, string mothraId, string lastName, string firstName)
+    private async Task SeedMentorAsync(int personId, string mothraId, string lastName, string firstName,
+        bool isCurrentAffiliate = false)
     {
+        if (isCurrentAffiliate)
+        {
+            _aaudContext.VwCurrentAffiliates.Add(new VwCurrentAffiliate
+            {
+                IdsMothraid = mothraId,
+                LastName = lastName,
+                FirstName = firstName,
+                MiddleName = ""
+            });
+        }
+
         _aaudContext.AaudUsers.Add(new AaudUser
         {
             AaudUserId = personId,
