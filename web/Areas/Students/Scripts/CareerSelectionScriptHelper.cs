@@ -12,11 +12,11 @@ using Amazon.Extensions.NETCore.Setup;
 namespace Viper.Areas.Students.Scripts
 {
     /// <summary>
-    /// A person resolved from users.Person by legacy MothraId, plus whether AAUD still lists them
+    /// A person resolved from AAUD's aaudUser by legacy MothraId, plus whether AAUD still lists them
     /// as a current SVM affiliate. The mentor picker validates against vw_CurrentAffiliates, so a
     /// mentor who resolves but is no longer an affiliate migrates fine and then fails the first
     /// time an admin tries to save that student's record - which is worth reporting separately
-    /// from a MothraId that names nobody at all.
+    /// from a MothraId the app cannot resolve at all.
     /// </summary>
     public sealed record MentorLookup(string FullName, bool IsCurrentAffiliate);
 
@@ -208,48 +208,40 @@ namespace Viper.Areas.Students.Scripts
         /// Builds a MothraId -> MentorLookup map for resolving tb_CareerSelection.facultyMothraID.
         /// Unlike the PhoneLists migration this does not resolve onto IamId - students.CareerSelection
         /// stores the MothraId itself - so the lookup exists only to report who no longer resolves.
-        /// The affiliate flag comes from AAUD's vw_CurrentAffiliates, which is what
-        /// CareerSelectionService.IsCurrentAffiliateAsync validates a submitted mentor against.
+        /// Mirrors how CareerSelectionService resolves a mentor: by MothraId against aaudUser, and
+        /// as a current affiliate only when that aaudUser row also joins to vw_CurrentAffiliates,
+        /// as in IsCurrentAffiliateAsync. An affiliate with no aaudUser row is left out of the map,
+        /// because the app cannot show, pick or keep them either.
         /// </summary>
-        public static Dictionary<string, MentorLookup> BuildMentorLookupMap(
-            SqlConnection viperConnection, SqlConnection aaudConnection)
+        public static Dictionary<string, MentorLookup> BuildMentorLookupMap(SqlConnection aaudConnection)
         {
             var map = new Dictionary<string, MentorLookup>(StringComparer.OrdinalIgnoreCase);
 
-            const string personSql = @"
-                SELECT MothraId, FullName
-                FROM [users].[Person]
-                WHERE MothraId IS NOT NULL";
+            // Named "Last, First" as the app displays a mentor, so the report reads the same.
+            const string sql = @"
+                SELECT u.mothraID, u.display_last_name, u.display_first_name,
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM [dbo].[vw_CurrentAffiliates] a
+                        WHERE a.ids_mothraid = u.mothraID) THEN 1 ELSE 0 END
+                FROM [dbo].[aaudUser] u
+                WHERE u.mothraID IS NOT NULL";
 
-            using (var cmd = new SqlCommand(personSql, viperConnection))
-            using (var reader = cmd.ExecuteReader())
+            using var cmd = new SqlCommand(sql, aaudConnection);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                while (reader.Read())
+                var mothraId = reader.GetString(0).Trim();
+                var lastName = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                var firstName = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                var isCurrentAffiliate = reader.GetInt32(3) == 1;
+
+                // Should a MothraId have more than one aaudUser row, reporting it as an affiliate
+                // if any row is keeps the result independent of the order rows come back in.
+                if (map.TryGetValue(mothraId, out var existing) && existing.IsCurrentAffiliate)
                 {
-                    var mothraId = reader.GetString(0).Trim();
-                    var fullName = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                    map[mothraId] = new MentorLookup(fullName, false);
+                    continue;
                 }
-            }
-
-            const string affiliateSql = @"
-                SELECT DISTINCT ids_mothraid
-                FROM [dbo].[vw_CurrentAffiliates]
-                WHERE ids_mothraid IS NOT NULL";
-
-            using (var cmd = new SqlCommand(affiliateSql, aaudConnection))
-            using (var reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    var mothraId = reader.GetString(0).Trim();
-
-                    // An affiliate with no users.Person row still counts as a current affiliate;
-                    // record it so the two failure modes stay distinguishable in the report.
-                    map[mothraId] = map.TryGetValue(mothraId, out var existing)
-                        ? existing with { IsCurrentAffiliate = true }
-                        : new MentorLookup("", true);
-                }
+                map[mothraId] = new MentorLookup($"{lastName}, {firstName}", isCurrentAffiliate);
             }
 
             return map;
