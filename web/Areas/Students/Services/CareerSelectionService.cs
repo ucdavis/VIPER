@@ -277,10 +277,15 @@ public class CareerSelectionService : ICareerSelectionService
         // must leave whatever is already stored untouched.
         var mentorMothraId = isAdmin ? await ResolveMentorMothraIdAsync(request.MentorId) : null;
 
-        void ApplyTo(CareerSelection target)
+        // Asked of the row actually being saved, which after a lost insert race is not the one
+        // first loaded.
+        async Task<bool> KeepsStoredMentorAsync(CareerSelection target)
+            => isAdmin && request.MentorId == null && await IsUnresolvedMentorAsync(target.FacultyMothraId);
+
+        void ApplyTo(CareerSelection target, bool keepStoredMentor)
         {
             CareerSelectionMapper.ApplyStudentInfoToEntity(request, target);
-            if (isAdmin)
+            if (isAdmin && !keepStoredMentor)
             {
                 target.FacultyMothraId = mentorMothraId;
             }
@@ -301,7 +306,7 @@ public class CareerSelectionService : ICareerSelectionService
             _viperContext.CareerSelections.Add(careerSelection);
         }
 
-        ApplyTo(careerSelection);
+        ApplyTo(careerSelection, await KeepsStoredMentorAsync(careerSelection));
 
         try
         {
@@ -323,7 +328,7 @@ public class CareerSelectionService : ICareerSelectionService
                 throw;
             }
 
-            ApplyTo(stored);
+            ApplyTo(stored, await KeepsStoredMentorAsync(stored));
             await _viperContext.SaveChangesAsync();
         }
 
@@ -431,7 +436,8 @@ public class CareerSelectionService : ICareerSelectionService
         => option == null ? null : new CareerDropdownOption { Label = option.Label, Value = option.Id, IsOther = option.IsOther };
 
     /// <summary>
-    /// Resolves a mentor PersonId to the MothraId the table stores. A null id clears the mentor.
+    /// Resolves a mentor PersonId to the MothraId the table stores. A null id clears the mentor,
+    /// unless the stored one cannot be resolved (see <see cref="IsUnresolvedMentorAsync"/>).
     /// </summary>
     private async Task<string?> ResolveMentorMothraIdAsync(int? mentorId)
     {
@@ -445,6 +451,15 @@ public class CareerSelectionService : ICareerSelectionService
             .Select(u => u.MothraId)
             .FirstOrDefaultAsync();
     }
+
+    /// <summary>
+    /// Whether a stored mentor MothraId has no AaudUser row. The detail lookup cannot resolve
+    /// such a mentor, so the form shows no mentor and sends none back. This means it cannot
+    /// be cleared from the form, only overridden explicitly.
+    /// </summary>
+    private async Task<bool> IsUnresolvedMentorAsync(string? mentorMothraId)
+        => !string.IsNullOrWhiteSpace(mentorMothraId)
+            && !await _aaudContext.AaudUsers.AnyAsync(u => u.MothraId == mentorMothraId);
 
     /// <inheritdoc/>
     /// <param name="access">
@@ -662,7 +677,8 @@ public class CareerSelectionService : ICareerSelectionService
     /// Only current SVM affiliates may be recorded as a mentor. The picker offers nobody else, so
     /// a PersonId outside that set reached the API from something other than the form.
     /// If a current mentor becomes a former affiliate, they are no longer selectable as a mentor.
-    /// Student edits are unaffected, and admin edits will need to replace the old mentor.
+    /// Student edits are unaffected, and an admin save is refused until the old mentor is replaced
+    /// or cleared.
     /// </summary>
     private async Task<bool> IsCurrentAffiliateAsync(int personId)
     {

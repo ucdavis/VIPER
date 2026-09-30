@@ -17,7 +17,7 @@ namespace Viper.Areas.Students.Scripts
     /// <summary>
     /// A facultyMothraID the new app would not accept, plus whether the student it belongs to is
     /// one an admin can actually open. A problem on a student who has left is inert history; one
-    /// on a current student is a record an admin will be blocked from saving.
+    /// on a current student is a record whose mentor an admin will have to deal with.
     /// </summary>
     public sealed record MentorProblem(
         int CareerSelectionId, string MothraId, string Problem, string ResolvedName,
@@ -76,8 +76,8 @@ namespace Viper.Areas.Students.Scripts
 
     /// <summary>
     /// Read-only data-quality analysis for the SIS career selection -> students schema migration.
-    /// Connects to the legacy "SIS" database (read-only), "VIPER" (for users.Person and the
-    /// destination column widths) and "AAUD" (for the current-affiliate check), and reports every
+    /// Connects to the legacy "SIS" database (read-only), "VIPER" (for the destination column
+    /// widths) and "AAUD" (for aaudUser and the current-affiliate check), and reports every
     /// conflict/risk identified while planning the migration. Writes no data anywhere - this is
     /// the dry-run pass that precedes the real transform/apply script.
     /// </summary>
@@ -228,10 +228,10 @@ namespace Viper.Areas.Students.Scripts
             WriteColoredCount("  Rows with a populated classYear", populatedClassYears.Sum(v => v.Count), isCritical: true);
             Console.WriteLine();
 
-            Console.WriteLine("Resolving facultyMothraID against users.Person and vw_CurrentAffiliates...");
-            AnalyzeMentors(legacyConn, viperConn, aaudConn);
+            Console.WriteLine("Resolving facultyMothraID against aaudUser and vw_CurrentAffiliates...");
+            AnalyzeMentors(legacyConn, aaudConn);
             // Only the ones on a current student are actionable: those are records an admin can
-            // open, and the mentor picker will block the first save of each.
+            // open, where the mentor either shows as missing or blocks the first save.
             var activeMentorProblems = _report.MentorProblems.Count(m => m.StudentIsActive);
             WriteColoredCount("  On a current DVM student", activeMentorProblems, isCritical: true);
             WriteColoredCount("  On a student who has left (inert history)",
@@ -581,13 +581,15 @@ namespace Viper.Areas.Students.Scripts
 
         // Check 6: a blank or all-zero facultyMothraID migrates as NULL (no mentor), and any other
         // value migrates unchanged, so an unresolvable value is not a migration failure. It matters
-        // later: the admin mentor picker validates a submitted mentor against vw_CurrentAffiliates,
-        // so a mentor who is no longer an affiliate blocks the first save of that student's record.
-        // The two cases are reported separately.
-        private void AnalyzeMentors(SqlConnection legacyConn, SqlConnection viperConn, SqlConnection aaudConn)
+        // later, in two different ways. The app resolves a mentor through aaudUser, so one with no
+        // aaudUser row shows as no mentor at all, though admin saves keep it. One that resolves but
+        // is no longer an affiliate fails the picker's vw_CurrentAffiliates check, blocking the first
+        // admin save of that student's record until the mentor is replaced or cleared. The two are
+        // reported separately.
+        private void AnalyzeMentors(SqlConnection legacyConn, SqlConnection aaudConn)
         {
-            var mentorLookup = CareerSelectionScriptHelper.BuildMentorLookupMap(viperConn, aaudConn);
-            Console.WriteLine($"  Loaded {mentorLookup.Count:N0} person/affiliate records.");
+            var mentorLookup = CareerSelectionScriptHelper.BuildMentorLookupMap(aaudConn);
+            Console.WriteLine($"  Loaded {mentorLookup.Count:N0} aaudUser records.");
 
             var activePidms = CareerSelectionScriptHelper.LoadActiveStudentPidms(aaudConn);
             Console.WriteLine($"  Loaded {activePidms.Count:N0} current DVM students.");
@@ -617,7 +619,7 @@ namespace Viper.Areas.Students.Scripts
                 if (!mentorLookup.TryGetValue(mothraId, out var mentor))
                 {
                     _report.MentorProblems.Add(new MentorProblem(
-                        id, mothraId, "no users.Person row", "", rawPidm, isActive));
+                        id, mothraId, "no aaudUser row", "", rawPidm, isActive));
                     continue;
                 }
 
@@ -792,8 +794,10 @@ namespace Viper.Areas.Students.Scripts
             sb.AppendLine();
 
             sb.AppendLine("== facultyMothraID problems ==");
-            sb.AppendLine("   NOTE: these migrate as-is. A mentor who is not a current affiliate blocks");
-            sb.AppendLine("   the first admin save of that student's record, not the migration.");
+            sb.AppendLine("   NOTE: these migrate as-is. A mentor with no aaudUser row shows as no mentor");
+            sb.AppendLine("   in the app; admin saves keep it, and can replace it but not clear it. A mentor");
+            sb.AppendLine("   who is not a current affiliate blocks the first admin save of that student's");
+            sb.AppendLine("   record until replaced or cleared. Neither blocks the migration.");
             sb.AppendLine("   Split by whether the student is in vw_DVM_Students_maxTerm, which is the");
             sb.AppendLine("   roster the admin screens are built from - a problem on a student who has");
             sb.AppendLine("   left is history nobody can reach, so only the current ones need fixing.");
