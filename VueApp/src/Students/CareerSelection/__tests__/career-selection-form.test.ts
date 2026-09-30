@@ -5,9 +5,9 @@ import { careerSelectionService } from "../services/career-selection-service"
 import type { CareerDropdownOption, StudentCareerDetail } from "../types"
 
 /**
- * Tests for the career selection form's loading. The record and the dropdown options load side by
- * side, and the form must not open until all of them have, or a saved choice could be cleared and
- * saved against an empty option list.
+ * Tests for the career selection form's loading. The record loads first, since it says whether the
+ * user may edit, and the dropdown options only for those who can. The form must not open until
+ * all of them have, or a saved choice could be cleared and saved against an empty option list.
  */
 
 const { mockReplace } = vi.hoisted(() => ({ mockReplace: vi.fn<(to: unknown) => void>() }))
@@ -82,12 +82,27 @@ describe("career selection form", () => {
     it("sends staff the server will not let edit on to the view page", async () => {
         expect.hasAssertions()
         vi.spyOn(careerSelectionService, "getDetail").mockResolvedValue({ ...detail, canEdit: false })
-        vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
+        const getOptions = vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
 
         mountForm()
         await flushPromises()
 
         expect(mockReplace).toHaveBeenCalledWith({ name: "CareerSelectionView", params: { pidm: 42 } })
+        // The options endpoint serves only editors, so asking for them here would raise a
+        // permission error before the redirect.
+        expect(getOptions).not.toHaveBeenCalled()
+    })
+
+    it("fetches no options when the record does not load", async () => {
+        expect.hasAssertions()
+        vi.spyOn(careerSelectionService, "getDetail").mockResolvedValue(null)
+        const getOptions = vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
+
+        const wrapper = mountForm()
+        await flushPromises()
+
+        expect(getOptions).not.toHaveBeenCalled()
+        expect(wrapper.findComponent({ name: "StudentRecordPageShell" }).props("loading")).toBeFalsy()
     })
 
     it("opens the form for anyone the server lets edit", async () => {
@@ -95,11 +110,12 @@ describe("career selection form", () => {
         // The client checks nothing here (checkHasOnePermission is mocked to deny everything),
         // so only the server's canEdit keeps the form open.
         vi.spyOn(careerSelectionService, "getDetail").mockResolvedValue(detail)
-        vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
+        const getOptions = vi.spyOn(careerSelectionService, "getDropdownOptions").mockResolvedValue([])
 
         mountForm()
         await flushPromises()
 
         expect(mockReplace).not.toHaveBeenCalled()
+        expect(getOptions).toHaveBeenCalledTimes(3)
     })
 })
