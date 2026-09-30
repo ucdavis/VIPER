@@ -66,7 +66,7 @@ const postGradOptions = ref([]) as Ref<CareerDropdownOption[]>
 const missingFields = computed(() => missingFieldLabels(studentInfo.value))
 
 // loadDetail clears its own loading flag once the record arrives, but the dropdown options load
-// alongside it; the form stays hidden until both have, so a choice is never shown without them.
+// after it; the form stays hidden until both have, so a choice is never shown without them.
 const initializing = ref(true)
 
 async function handleSave(): Promise<void> {
@@ -113,17 +113,15 @@ function leaveForm(): void {
 async function initForm(): Promise<void> {
     try {
         if (personId.value) {
-            const [careerOptions, speciesOpts, postGradOpts] = await Promise.all([
-                careerSelectionService.getDropdownOptions("career"),
-                careerSelectionService.getDropdownOptions("species"),
-                careerSelectionService.getDropdownOptions("postGrad"),
-                loadDetail(personId.value),
-            ])
-            careerDirectionOptions.value = careerOptions
-            focusOptions.value = speciesOpts
-            postGradOptions.value = postGradOpts
+            // The record comes first because it carries canEdit. The option lists are served only to
+            // those who can edit, so fetching them for anyone else would fail with a permission
+            // error before the redirect below could send them on.
+            await loadDetail(personId.value)
+            if (!detail.value) {
+                return
+            }
             // Anyone the server will not let edit this record reads it on the view page instead.
-            if (detail.value && !detail.value.canEdit) {
+            if (!detail.value.canEdit) {
                 // Hand any notice on, so the view page shows it rather than it leaving with this one.
                 if (accessNotice.value) {
                     setAccessNotice(accessNotice.value)
@@ -131,6 +129,14 @@ async function initForm(): Promise<void> {
                 router.replace({ name: "CareerSelectionView", params: { pidm: personId.value } })
                 return
             }
+            const [careerOptions, speciesOpts, postGradOpts] = await Promise.all([
+                careerSelectionService.getDropdownOptions("career"),
+                careerSelectionService.getDropdownOptions("species"),
+                careerSelectionService.getDropdownOptions("postGrad"),
+            ])
+            careerDirectionOptions.value = careerOptions
+            focusOptions.value = speciesOpts
+            postGradOptions.value = postGradOpts
         }
     } finally {
         initializing.value = false
