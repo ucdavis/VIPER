@@ -36,7 +36,9 @@ function useCareerSelection() {
     }
 
     const currentSnapshot = computed(() => takeSnapshot())
-    const isDirty = computed(() => initialSnapshot.value !== currentSnapshot.value)
+    // Nothing is dirty until a record has filled the form. Before then there is no snapshot to
+    // compare against, and the form is not shown, so there are no changes to lose.
+    const isDirty = computed(() => initialSnapshot.value !== "" && initialSnapshot.value !== currentSnapshot.value)
 
     function populateForm(data: StudentCareerDetail): void {
         studentInfo.value = { ...data.studentInfo }
