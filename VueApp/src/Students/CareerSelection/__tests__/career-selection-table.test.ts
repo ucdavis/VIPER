@@ -65,7 +65,6 @@ function mountTable({ xs = false, rows = [reportRow()], rowsPerPage = 25, realTo
             cellFields: statementFields,
             columnStorageKey: COLUMN_STORAGE_KEY,
             excelExport: vi.fn<(rowKeys: string[]) => Promise<void>>(),
-            csvExport: vi.fn<(rowKeys: string[]) => Promise<void>>(),
             pdfExport: vi.fn<(rowKeys: string[]) => Promise<void>>(),
         },
         slots: {
@@ -193,10 +192,7 @@ describe("career selection table exports", () => {
     }
 
     /** Runs one toolbar export as a click would, returning the keys the page's handler received. */
-    async function runExport(
-        wrapper: VueWrapper,
-        exportProp: "excelExport" | "csvExport" | "pdfExport",
-    ): Promise<string[]> {
+    async function runExport(wrapper: VueWrapper, exportProp: "excelExport" | "pdfExport"): Promise<string[]> {
         const run = wrapper.findComponent(ExportToolbar).props(exportProp) as () => Promise<void>
         await run()
         const handler = (wrapper.props() as Record<string, unknown>)[exportProp] as ReturnType<typeof vi.fn>
@@ -225,7 +221,6 @@ describe("career selection table exports", () => {
         await flushPromises()
 
         expect(await runExport(wrapper, "excelExport")).toStrictEqual(["2", "1", "STU00003"])
-        expect(await runExport(wrapper, "csvExport")).toStrictEqual(["2", "1", "STU00003"])
         expect(await runExport(wrapper, "pdfExport")).toStrictEqual(["2", "1", "STU00003"])
     })
 

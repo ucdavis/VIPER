@@ -9,7 +9,6 @@ const props = withDefaults(
         filter?: string
         showSearch?: boolean
         excelExport?: () => Promise<void>
-        csvExport?: () => Promise<void>
         pdfExport?: () => void | Promise<void>
         wordExport?: () => Promise<void>
         printAction?: () => void
@@ -21,7 +20,6 @@ const props = withDefaults(
         filter: "",
         showSearch: false,
         excelExport: undefined,
-        csvExport: undefined,
         pdfExport: undefined,
         wordExport: undefined,
         printAction: undefined,
@@ -62,7 +60,6 @@ const navButtons = computed(() =>
 const exportButtons = computed(() =>
     [
         { key: "excel", icon: "table_chart", label: "Excel", class: "export-excel", run: props.excelExport },
-        { key: "csv", icon: "grid_on", label: "CSV", class: "export-csv", run: props.csvExport },
         { key: "word", icon: "description", label: "Word", class: "export-word", run: props.wordExport },
         { key: "pdf", icon: "picture_as_pdf", label: "Print/PDF", class: "export-pdf", run: props.pdfExport },
     ].filter((button) => button.run !== undefined),
@@ -203,10 +200,6 @@ async function runExport(button: { key: string; run?: () => void | Promise<void>
 
 .export-excel {
     color: #217346;
-}
-
-.export-csv {
-    color: var(--q-primary);
 }
 
 .export-word {

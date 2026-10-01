@@ -252,8 +252,6 @@ describe("exports", () => {
         await careerSelectionService.downloadExcel(["2"])
         await careerSelectionService.downloadOverviewPdf(["5"])
         await careerSelectionService.downloadPdf(["5"])
-        await careerSelectionService.downloadOverviewCsv(["7"])
-        await careerSelectionService.downloadCsv(["7"])
 
         const bodies = mockPostForBlob.mock.calls.map(([, body]) => body)
         expect(bodies).toStrictEqual([
@@ -261,8 +259,6 @@ describe("exports", () => {
             { rowKeys: ["2"] },
             { rowKeys: ["5"] },
             { rowKeys: ["5"] },
-            { rowKeys: ["7"] },
-            { rowKeys: ["7"] },
         ])
     })
 
