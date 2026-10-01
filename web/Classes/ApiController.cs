@@ -87,15 +87,6 @@ namespace Viper.Classes
         }
 
         /// <summary>
-        /// Returns a CSV as a download, named by <see cref="ExcelHelper.BuildExportFilename"/>.
-        /// </summary>
-        protected FileContentResult CsvFile(byte[] bytes, string reportName)
-        {
-            return File(bytes, CsvContentType,
-                ExcelHelper.BuildExportFilename(new ExportFilenameOptions { ReportName = reportName, Extension = ".csv" }));
-        }
-
-        /// <summary>
         /// Builds an export from <paramref name="data"/>, or returns 204 No Content when there is
         /// nothing to export so the client can tell the user rather than hand them an empty file.
         /// </summary>
@@ -105,6 +96,5 @@ namespace Viper.Classes
         }
 
         private const string ExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        private const string CsvContentType = "text/csv";
     }
 }

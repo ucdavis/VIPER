@@ -27,12 +27,6 @@ public interface ICareerSelectionExportService
     byte[] GenerateOverviewPdf(List<StudentCareerListItemDto> data);
 
     /// <summary>
-    /// Generate the overview CSV: the same rows as the overview workbook, for a reader who wants
-    /// the data rather than the formatting.
-    /// </summary>
-    byte[] GenerateOverviewCsv(List<StudentCareerListItemDto> data);
-
-    /// <summary>
     /// Generate the full-detail Excel workbook — one row per student with the
     /// selected value for each career selection field.
     /// </summary>
@@ -43,12 +37,6 @@ public interface ICareerSelectionExportService
     /// value for each career selection field.
     /// </summary>
     byte[] GeneratePdf(List<StudentCareerReportDto> data);
-
-    /// <summary>
-    /// Generate the full-detail CSV: the same rows as the report workbook, whole statements
-    /// included.
-    /// </summary>
-    byte[] GenerateCsv(List<StudentCareerReportDto> data);
 }
 
 public class CareerSelectionExportService : ICareerSelectionExportService
@@ -148,22 +136,6 @@ public class CareerSelectionExportService : ICareerSelectionExportService
             }
         });
 
-    public byte[] GenerateOverviewCsv(List<StudentCareerListItemDto> data) =>
-        CsvExportHelper.Build(ColumnHeaders, data.Select(d => new[]
-        {
-            d.ClassLevel,
-            d.FullName,
-            d.Email,
-            CompletenessLabel(d.DirectionCompleted),
-            CompletenessLabel(d.PrimaryFocusCompleted),
-            OptionalCompletenessLabel(d.SecondaryFocusCompleted),
-            CompletenessLabel(d.PostGradCompleted),
-            d.MentorName ?? string.Empty,
-            CompletenessLabel(d.ShortTermPlansCompleted),
-            CompletenessLabel(d.LongTermPlansCompleted),
-            d.LastUpdated?.ToString("M/d/yyyy") ?? string.Empty,
-        }));
-
     public MemoryStream GenerateExcel(List<StudentCareerReportDto> data)
     {
         using var wb = new XLWorkbook();
@@ -240,22 +212,6 @@ public class CareerSelectionExportService : ICareerSelectionExportService
                 table.Cell().BorderBottom(0.5f).Padding(2).Text(d.LastUpdated?.ToString("M/d/yyyy") ?? "—");
             }
         });
-
-    public byte[] GenerateCsv(List<StudentCareerReportDto> data) =>
-        CsvExportHelper.Build(ColumnHeaders, data.Select(d => new[]
-        {
-            d.ClassLevel,
-            d.FullName,
-            d.Email,
-            d.Direction,
-            d.PrimaryFocus,
-            d.SecondaryFocus,
-            d.PostGrad,
-            d.MentorName,
-            d.ShortTermPlans,
-            d.LongTermPlans,
-            d.LastUpdated?.ToString("M/d/yyyy") ?? string.Empty,
-        }));
 
     private static void PdfHeaderRow(TableDescriptor table)
     {
