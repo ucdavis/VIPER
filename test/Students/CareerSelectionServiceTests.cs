@@ -226,6 +226,33 @@ public sealed class CareerSelectionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetStudentCareerListAsync_MentorWithTwoAaudUserRows_ShowsTheCurrentOne()
+    {
+        // The MothraId index on aaudUser is not unique; a second row must not fail the roster.
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001");
+        await SeedMentorAsync(500, MentorMothraId, "Former", "Name");
+        await SeedMentorAsync(501, MentorMothraId, "Vet", "Ann", current: 1);
+        await SeedSelectionAsync("20000001", s => s.FacultyMothraId = MentorMothraId);
+
+        var student = Assert.Single(await _service.GetStudentCareerListAsync(StudentListAccess.AllStudents));
+
+        Assert.Equal("Vet, Ann", student.MentorName);
+    }
+
+    [Fact]
+    public async Task GetStudentCareerReportAsync_MentorWithTwoAaudUserRows_ShowsTheCurrentOne()
+    {
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001");
+        await SeedMentorAsync(500, MentorMothraId, "Former", "Name");
+        await SeedMentorAsync(501, MentorMothraId, "Vet", "Ann", current: 1);
+        await SeedSelectionAsync("20000001", s => s.FacultyMothraId = MentorMothraId);
+
+        var student = Assert.Single(await _service.GetStudentCareerReportAsync(StudentListAccess.AllStudents));
+
+        Assert.Equal("Vet, Ann", student.MentorName);
+    }
+
+    [Fact]
     public async Task GetStudentCareerListAsync_StudentWithNoAaudUser_IsListedWithoutARoute()
     {
         // A student missing from AaudUser has no PersonId to route on, but still belongs on the roster.
@@ -390,6 +417,22 @@ public sealed class CareerSelectionServiceTests : IDisposable
         Assert.Equal("Vet, Ann", detail.StudentInfo.MentorName);
     }
 
+    [Fact]
+    public async Task GetStudentCareerDetailAsync_MentorWithTwoAaudUserRows_ShowsTheCurrentOne()
+    {
+        // Must pick the same row the list and report do, or the pages disagree on the mentor.
+        await SeedStudentAsync(100, "STU00001", pidm: "20000001");
+        await SeedMentorAsync(500, MentorMothraId, "Former", "Name");
+        await SeedMentorAsync(501, MentorMothraId, "Vet", "Ann", current: 1);
+        await SeedSelectionAsync("20000001", s => s.FacultyMothraId = MentorMothraId);
+
+        var detail = await _service.GetStudentCareerDetailAsync(100, canEdit: false, canViewStudentList: true);
+
+        Assert.NotNull(detail);
+        Assert.Equal(501, detail.StudentInfo.MentorId);
+        Assert.Equal("Vet, Ann", detail.StudentInfo.MentorName);
+    }
+
     #endregion
 
     #region UpdateStudentCareerSelectionAsync
@@ -397,7 +440,7 @@ public sealed class CareerSelectionServiceTests : IDisposable
     [Fact]
     public async Task UpdateStudentCareerSelectionAsync_NotACurrentStudent_Throws()
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<StudentNotFoundException>(
             () => _service.UpdateStudentCareerSelectionAsync(999, new StudentCareerInfoDto(), isAdmin: true));
     }
 
@@ -613,7 +656,7 @@ public sealed class CareerSelectionServiceTests : IDisposable
     }
 
     private async Task SeedMentorAsync(int personId, string mothraId, string lastName, string firstName,
-        bool isCurrentAffiliate = false)
+        bool isCurrentAffiliate = false, int current = 0)
     {
         if (isCurrentAffiliate)
         {
@@ -637,7 +680,8 @@ public sealed class CareerSelectionServiceTests : IDisposable
             DisplayFirstName = firstName,
             DisplayLastName = lastName,
             LastName = lastName,
-            FirstName = firstName
+            FirstName = firstName,
+            Current = current
         });
         await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
