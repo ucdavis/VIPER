@@ -51,7 +51,7 @@ function mountWith(getStatus: () => Promise<Status>, toggle: () => Promise<boole
         global: {
             // The component's own $q is mocked above; Quasar is installed for the components it renders.
             plugins: [[Quasar, {}]],
-            stubs: { StatusBanner: { template: "<div><slot /></div>" } },
+            stubs: { StatusBanner: { template: '<div><slot /><slot name="action" /></div>' } },
             // A rejected callback is still reported; this keeps it from failing the run as unhandled.
             config: { errorHandler: vi.fn<(err: unknown) => void>() },
         },
@@ -210,6 +210,39 @@ describe("rejected callbacks", () => {
         await flushPromises()
 
         expect(wrapper.findComponent({ name: "QInnerLoading" }).props("showing")).toBeFalsy()
+    })
+
+    it("offers Try Again rather than checking forever when the first status read rejects", async () => {
+        expect.hasAssertions()
+        const getStatus = vi.fn<() => Promise<Status>>().mockRejectedValue(new Error("network"))
+        const wrapper = mountWith(getStatus, vi.fn<() => Promise<boolean | null>>())
+        await flushPromises()
+
+        expect(wrapper.text()).toContain("Unable to check")
+        expect(wrapper.text()).not.toContain("Checking whether")
+        expect(wrapper.text()).toContain("Try Again")
+    })
+
+    it("keeps the last known state and refuses the toggle when the re-read rejects", async () => {
+        expect.hasAssertions()
+        delete dialogCallbacks.onOk
+        const getStatus = vi
+            .fn<() => Promise<Status>>()
+            .mockResolvedValueOnce({ appOpen: false })
+            .mockRejectedValue(new Error("network"))
+        const toggle = vi.fn<() => Promise<boolean | null>>()
+        const wrapper = mountWith(getStatus, toggle)
+        await flushPromises()
+
+        await confirmToggle(wrapper)
+
+        expect(toggle).not.toHaveBeenCalled()
+        expect(mockNotify).toHaveBeenCalledWith({
+            type: "negative",
+            message: "Unable to verify current access status. Please try again.",
+        })
+        expect(wrapper.text()).toContain("Student editing is")
+        expect(wrapper.text()).not.toContain("Unable to check")
     })
 
     it("stops the toggle button spinning when the toggle rejects", async () => {
