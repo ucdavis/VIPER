@@ -34,7 +34,6 @@ const props = defineProps<{
     // Each export is handed the keys of the rows the grid shows, searched and sorted, so the file
     // matches the screen.
     excelExport: (rowKeys: string[]) => Promise<void>
-    csvExport?: (rowKeys: string[]) => Promise<void>
     pdfExport: (rowKeys: string[]) => Promise<void>
     reportRoute?: RouteLocationRaw
     overviewRoute?: RouteLocationRaw
@@ -88,10 +87,6 @@ function shownRowKeys(): string[] {
 // The toolbar calls its handlers with no arguments; these supply the grid's rows.
 const exportExcel = () => props.excelExport(shownRowKeys())
 const exportPdf = () => props.pdfExport(shownRowKeys())
-const exportCsv = computed(() => {
-    const { csvExport } = props
-    return csvExport === undefined ? undefined : () => csvExport(shownRowKeys())
-})
 
 function fieldValue(row: Row, field: CareerField): string | null | undefined {
     return (row as Record<string, unknown>)[field.valueField] as string | null | undefined
@@ -120,7 +115,6 @@ useScrollableTableRegion(tableRef, props.label)
                 v-model:filter="filter"
                 show-search
                 :excel-export="exportExcel"
-                :csv-export="exportCsv"
                 :pdf-export="exportPdf"
                 :report-route="reportRoute"
                 :overview-route="overviewRoute"

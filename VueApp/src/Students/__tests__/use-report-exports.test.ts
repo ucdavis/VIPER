@@ -15,22 +15,13 @@ vi.mock("quasar", () => ({
 function setup(rowCount: number, downloadResult = true) {
     const rows = ref(Array.from({ length: rowCount }, (_, i) => ({ id: i })))
     const downloadExcel = vi.fn<() => Promise<boolean>>().mockResolvedValue(downloadResult)
-    const downloadCsv = vi.fn<() => Promise<boolean>>().mockResolvedValue(downloadResult)
     const openPdf = vi.fn<() => void>()
     return {
         rows,
         downloadExcel,
-        downloadCsv,
         openPdf,
-        ...useReportExports(rows, { downloadExcel, openPdf, downloadCsv }),
+        ...useReportExports(rows, { downloadExcel, openPdf }),
     }
-}
-
-/** A report with no CSV endpoint, as the emergency contact pages are today. */
-function setupWithoutCsv() {
-    const rows = ref([{ id: 1 }])
-    const downloadExcel = vi.fn<() => Promise<boolean>>().mockResolvedValue(true)
-    return useReportExports(rows, { downloadExcel, openPdf: vi.fn<() => void>() })
 }
 
 describe("excel export", () => {
@@ -133,27 +124,22 @@ describe("grid-narrowed exports", () => {
         const rows = ref(Array.from({ length: rowCount }, (_, i) => ({ id: i })))
         const downloadExcel = vi.fn<(rowKeys?: string[]) => Promise<boolean>>().mockResolvedValue(true)
         const downloadPdf = vi.fn<(rowKeys?: string[]) => Promise<boolean>>().mockResolvedValue(true)
-        const downloadCsv = vi.fn<(rowKeys?: string[]) => Promise<boolean>>().mockResolvedValue(true)
         return {
             downloadExcel,
             downloadPdf,
-            downloadCsv,
-            ...useReportExports(rows, { downloadExcel, downloadPdf, downloadCsv }, { exportWhenEmpty: true }),
+            ...useReportExports(rows, { downloadExcel, downloadPdf }, { exportWhenEmpty: true }),
         }
     }
 
     it("passes the grid's row keys through to each download", async () => {
         expect.hasAssertions()
-        const { handleExcelExport, handlePdfExport, handleCsvExport, downloadExcel, downloadPdf, downloadCsv } =
-            setupGrid(2)
+        const { handleExcelExport, handlePdfExport, downloadExcel, downloadPdf } = setupGrid(2)
 
         await handleExcelExport(["2", "1"])
         await handlePdfExport(["2"])
-        await handleCsvExport!(["1"])
 
         expect(downloadExcel).toHaveBeenCalledWith(["2", "1"])
         expect(downloadPdf).toHaveBeenCalledWith(["2"])
-        expect(downloadCsv).toHaveBeenCalledWith(["1"])
     })
 
     it("exports an empty grid rather than warning, for a headers-only file", async () => {
@@ -164,31 +150,5 @@ describe("grid-narrowed exports", () => {
 
         expect(downloadPdf).toHaveBeenCalledWith([])
         expect(mockNotify).toHaveBeenCalledWith({ type: "positive", message: "PDF report downloaded." })
-    })
-})
-
-describe("csv export", () => {
-    it("confirms the download when the file arrives", async () => {
-        expect.hasAssertions()
-        const { handleCsvExport, downloadCsv } = setup(2)
-
-        await handleCsvExport!()
-
-        expect(downloadCsv).toHaveBeenCalledWith(undefined)
-        expect(mockNotify).toHaveBeenCalledWith({ type: "positive", message: "CSV report downloaded." })
-    })
-
-    it("warns instead when the server had nothing to export", async () => {
-        expect.hasAssertions()
-        const { handleCsvExport } = setup(2, false)
-
-        await handleCsvExport!()
-
-        expect(mockNotify).toHaveBeenCalledWith({ type: "warning", message: "No data to export." })
-    })
-
-    it("hands back no handler for a report that serves no csv, so the toolbar hides the button", () => {
-        expect.hasAssertions()
-        expect(setupWithoutCsv().handleCsvExport).toBeUndefined()
     })
 })
