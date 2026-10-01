@@ -15,14 +15,12 @@ reviews:
   review_status: false
   collapse_walkthrough: true
   auto_review:
-    enabled: false
+    enabled: true
     drafts: false
     auto_pause_after_reviewed_commits: 5
+    # Every base branch, so stacked PRs (based on another feature branch) are reviewed too.
     base_branches:
-      - main
-      - "VPR-.*"
-    labels:
-      - "review-ready"
+      - ".*"
     ignore_usernames:
       - "dependabot[bot]"
     ignore_title_keywords:
