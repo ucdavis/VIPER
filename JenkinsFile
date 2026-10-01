@@ -5,8 +5,8 @@ def copyOperations = [
 		testDestination: "%vipertestnet%",
 		prodDestination: "%viperprodnet%",
 		includeFiles: "*.*",
-		// Keep /MIR from purging app_offline.htm mid-copy: the app would restart onto the
-		// old binaries and lock Viper.dll against the rest of the copy.
+		// The robocopy mirror (/MIR) deletes files missing from the publish folder, so exclude
+		// app_offline.htm to keep the app offline (and Viper.dll unlocked) during the copy.
 		excludeFiles: "app_offline.htm",
 		excludeDirectories: ""
 	]
