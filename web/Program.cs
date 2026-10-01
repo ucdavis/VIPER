@@ -12,6 +12,12 @@ using DotNetEnv;
 using Joonasw.AspNetCore.SecurityHeaders;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+// dotnet format reports IDE0005 here, but the build disagrees: removing this using breaks
+// OpenIdConnectEvents at the bottom of the file with CS0246. The analyzer misses the reference
+// because it sits in a static local function below the top-level statements.
+#pragma warning disable IDE0005
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+#pragma warning restore IDE0005
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Rewrite;
@@ -19,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using NLog;
 using NLog.Web;
 using Polly;
@@ -37,6 +44,7 @@ using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
 using Viper.Classes.SQLContext;
+using Viper.Classes.Utilities;
 using Viper.EmailTemplates.Services;
 using Viper.Services;
 using Web;
@@ -138,14 +146,55 @@ try
         options.Cookie.Name = "VIPER.Antiforgery";
     });
 
-    // Setup CAS authentication cookie
-    builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    // How long a sign-in cookie stays usable, and therefore how long a revoked Entra session has
+    // to be remembered for the revocation to mean anything.
+    var authCookieLifetime = TimeSpan.FromHours(12);
+
+    builder.Services.AddSingleton(sp =>
+        new EntraSessionRevocationStore(sp.GetRequiredService<IMemoryCache>(), authCookieLifetime));
+
+    // Setup the shared sign-in cookie. Both CAS and Entra ID sign in to this same cookie, so a
+    // session looks identical downstream no matter which provider issued it.
+    var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
         {
             options.Cookie.Name = "VIPER.Authentication.UCD";
             options.LoginPath = new PathString("/login");
             options.AccessDeniedPath = new PathString("/Error/403");
-            options.ExpireTimeSpan = TimeSpan.FromHours(12);
+            options.ExpireTimeSpan = authCookieLifetime;
+
+            options.Events = new CookieAuthenticationEvents
+            {
+                // Front-channel logout cannot clear this cookie itself: Entra frames the logout URL
+                // on its own origin, and a SameSite=Lax cookie is neither sent nor accepted in that
+                // context. So the sign-out is recorded server side and enforced here instead, on
+                // the next request the cookie is presented for. CAS sessions carry no sid and skip
+                // the lookup entirely.
+                OnValidatePrincipal = async context =>
+                {
+                    var sessionId = context.Principal?
+                        .FindFirst(EntraIdClaimMapper.SessionIdClaimType)?.Value;
+
+                    if (string.IsNullOrEmpty(sessionId))
+                    {
+                        return;
+                    }
+
+                    var revocations = context.HttpContext.RequestServices
+                        .GetRequiredService<EntraSessionRevocationStore>();
+
+                    if (revocations.IsRevoked(sessionId))
+                    {
+                        context.RejectPrincipal();
+                        await context.HttpContext.SignOutAsync(
+                            CookieAuthenticationDefaults.AuthenticationScheme);
+                        return;
+                    }
+
+                    // The anonymous front-channel endpoint only honours ids seen on a live cookie.
+                    revocations.NoteActive(sessionId);
+                }
+            };
         });
 
     // Add CAS settings from appSettings configuration
@@ -159,15 +208,36 @@ try
     builder.Services.AddSingleton<IValidateOptions<PublicUrlOptions>, PublicUrlOptionsValidator>();
     builder.Services.AddSingleton<IPublicUrlService, PublicUrlService>();
 
+    // The login provider this environment uses. Campus is retiring CAS in favor of Entra ID, and
+    // the cutover is a switch of this setting.
+    builder.Services.Configure<AuthenticationSettings>(builder.Configuration.GetSection("Authentication"));
+    builder.Services.Configure<EntraIdSettings>(
+        builder.Configuration.GetSection(EntraIdSettings.SectionName));
+
+    // Relays a front-channel logout to VIPER 1. Its own client so the short timeout applies here
+    // and nowhere else: this call runs inside an iframe Entra is blocking on.
+    builder.Services.AddHttpClient(EntraIdSettings.FrontChannelLogoutClientName, (sp, client) =>
+        client.Timeout = TimeSpan.FromSeconds(
+            sp.GetRequiredService<IOptions<EntraIdSettings>>().Value.FrontChannelLogoutTimeoutSeconds));
+
+    // Re-register the resolved set, which may be narrower than what was configured, so the app
+    // never advertises a provider that failed to wire up.
+    var resolvedProviders = ConfigureLoginProviders(builder, authenticationBuilder, logger);
+    builder.Services.PostConfigure<AuthenticationSettings>(options => options.EnabledProviders = resolvedProviders);
+
+    // Accepted values for the authentication-method claim. Every provider that signs in to the
+    // shared cookie must appear here or its users fail the default policy on every request.
+    string[] acceptedAuthenticationMethods = ["CAS", EntraIdClaimMapper.AuthenticationMethod];
+
     // Define authorization policies
     builder.Services.AddAuthorization(options =>
     {
-        options.AddPolicy("SVMUser", policy => policy.RequireClaim(ClaimTypes.AuthenticationMethod, "CAS"));
+        options.AddPolicy("SVMUser", policy => policy.RequireClaim(ClaimTypes.AuthenticationMethod, acceptedAuthenticationMethods));
         options.AddPolicy("2faAuthentication", policy => policy.RequireAuthenticatedUser().AddRequirements(new DuoAuthenticationRequirement()));
 
         options.DefaultPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
-            .AddRequirements(new AuthorizationPolicyBuilder().RequireClaim(ClaimTypes.AuthenticationMethod, "CAS").Build().Requirements.ToArray())
+            .RequireClaim(ClaimTypes.AuthenticationMethod, acceptedAuthenticationMethods)
             .Build();
 
         // Attribute-routed controllers are not covered by RequireAuthorization() on the conventional
@@ -323,12 +393,9 @@ try
 
     var app = builder.Build();
 
-    // Add Content Security Policy. Skip for HealthChecks.UI paths - the bundled UI
-    // uses inline scripts and data: fonts that our strict CSP would block. Those
-    // paths are already IP-gated to trusted SVM admin subnets, so relaxing CSP
-    // there is acceptable.
+    // Add Content Security Policy, except on the paths CspPolicy.IsExemptPath names.
     app.UseWhen(
-        ctx => !HealthCheckExtensions.IsUIPath(ctx.Request.Path),
+        ctx => !CspPolicy.IsExemptPath(ctx.Request.Path),
         branch => branch.UseCsp(csp =>
     {
         // Legacy Razor pages need 'unsafe-eval'; the /2/vue branch below drops it. See CspPolicy.
@@ -549,6 +616,203 @@ finally
 {
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
     LogManager.Shutdown();
+}
+
+// Works out which login provider this environment can actually use, and registers the Entra ID
+// handler when it is both enabled and fully configured. Falls back to CAS when the configured
+// value is unusable, such as Entra switched on without the settings to back it.
+static LoginProviders ConfigureLoginProviders(WebApplicationBuilder builder, AuthenticationBuilder authenticationBuilder, Logger logger)
+{
+    var settings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>()
+        ?? new AuthenticationSettings();
+    var entraIdSettings = builder.Configuration.GetSection(EntraIdSettings.SectionName).Get<EntraIdSettings>()
+        ?? new EntraIdSettings();
+
+    // Configuration binds any integer onto the flags enum, so drop bits that name no provider
+    // before anything downstream reads them.
+    settings.EnabledProviders &= LoginProviders.Cas | LoginProviders.EntraId;
+
+    if (settings.CasEnabled && settings.EntraIdEnabled)
+    {
+        // Offering both needs a page to choose between them, and there is none yet.
+        logger.Error("Authentication:EnabledProviders names both CAS and Entra ID, but only one "
+            + "provider is supported. Falling back to CAS.");
+        return LoginProviders.Cas;
+    }
+
+    if (settings.EntraIdEnabled)
+    {
+        if (entraIdSettings.IsConfigured)
+        {
+            AddEntraIdAuthentication(authenticationBuilder, entraIdSettings);
+        }
+        else
+        {
+            // Fail loudly at startup rather than serving a sign-in button that dead-ends.
+            logger.Fatal("Entra ID login is enabled but EntraId configuration is incomplete "
+                + "(need TenantId and a GUID ClientId). The Entra sign-in option will not be offered.");
+            settings.EnabledProviders &= ~LoginProviders.EntraId;
+        }
+    }
+
+    if (settings.EnabledProviders == LoginProviders.None)
+    {
+        // Degrade to CAS rather than throw. Throwing here propagates out of the startup try/catch
+        // and kills the host, so a half-finished Entra cutover (a blank ClientId, say)
+        // would take CAS down with it and lock everyone out of the site. Serving the provider that
+        // still works is strictly better than serving nothing.
+        logger.Fatal("No login provider is usable, so falling back to CAS to keep the site "
+            + "reachable. Check Authentication:EnabledProviders and the EntraId settings.");
+        return LoginProviders.Cas;
+    }
+
+    return settings.EnabledProviders;
+}
+
+// Register the Entra ID (OpenID Connect) handler alongside CAS. It signs in to the same cookie CAS
+// uses, and OnTokenValidated rewrites the principal into the claim shape the app already expects,
+// so nothing downstream has to know which provider the user picked.
+static void AddEntraIdAuthentication(AuthenticationBuilder authenticationBuilder, EntraIdSettings settings)
+{
+    const string EntraNoAccountItemKey = "viper:entra_no_account";
+
+    authenticationBuilder.AddOpenIdConnect(EntraIdClaimMapper.AuthenticationScheme, options =>
+    {
+        options.Authority = settings.Authority;
+        options.MetadataAddress = settings.MetadataAddress;
+        options.ClientId = settings.ClientId;
+
+        // Authorization code + PKCE with no client secret. The redirect URIs are registered on the
+        // "Mobile and desktop applications" platform, which makes Entra treat the app as a public
+        // client, so the code exchange is bound by the PKCE verifier alone and there is nothing to
+        // rotate or leak. (The Web platform would demand a secret: AADSTS7000218.) The implicit and
+        // hybrid flows are not enabled on the registration and should not be.
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.UsePkce = true;
+        options.ResponseMode = OpenIdConnectResponseMode.FormPost;
+
+        // Relative to PathBase, so the URI to register for TEST is "https://<host>/2/signin-entra".
+        options.CallbackPath = new PathString(settings.CallbackPath);
+        options.SignedOutCallbackPath = new PathString(settings.SignedOutCallbackPath);
+
+        // Land on the shared cookie so CAS and Entra sessions are indistinguishable afterwards.
+        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
+        // The access/id tokens are not used after sign-in, and keeping them would bloat the cookie.
+        options.SaveTokens = false;
+        options.GetClaimsFromUserInfoEndpoint = false;
+        options.MapInboundClaims = false;
+
+        options.Scope.Clear();
+        options.Scope.Add("openid");
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var loginId = EntraIdClaimMapper.ResolveLoginId(context.Principal, settings);
+
+                if (string.IsNullOrWhiteSpace(loginId))
+                {
+                    // Without a kerberos id the user cannot be resolved in AAUD, so they would sign
+                    // in with no roles at all. Reject instead, and log which claims did arrive.
+                    var received = string.Join(", ", context.Principal?.Claims.Select(c => c.Type) ?? []);
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn,
+                        "Entra ID login rejected: no login id claim. Configured claim: "
+                        + LogSanitizer.SanitizeString(settings.LoginIdClaim)
+                        + ". Claims received: " + LogSanitizer.SanitizeString(received));
+
+                    context.Fail("Entra ID token did not contain a usable campus login id.");
+                    return;
+                }
+
+                // Entra also holds accounts that are not VIPER users, such as departmental ones like
+                // svm-entra. Signed in, they would land roleless with no hint why, so refuse them here.
+                var aaudContext = context.HttpContext.RequestServices.GetRequiredService<AAUDContext>();
+                if (!await aaudContext.AaudUsers.AsNoTracking().AnyAsync(u => u.LoginId == loginId, context.HttpContext.RequestAborted))
+                {
+                    HttpHelper.Logger.Log(NLog.LogLevel.Warn,
+                        "Entra ID login rejected: no AAUD user for login id "
+                        + LogSanitizer.SanitizeString(loginId));
+
+                    // Read by OnRemoteFailure, which runs later in this same callback request.
+                    context.HttpContext.Items[EntraNoAccountItemKey] = true;
+                    context.Fail("Entra ID account has no AAUD user.");
+                    return;
+                }
+
+                // The two claims from the token worth keeping besides identity, and this is the
+                // last point the raw token is in hand: sid is what a later front-channel logout
+                // names, login_hint is what sign-out sends back as logout_hint.
+                var sessionId = context.Principal?
+                    .FindFirst(EntraIdClaimMapper.SessionIdClaimType)?.Value;
+                var loginHint = context.Principal?
+                    .FindFirst(EntraIdClaimMapper.LoginHintClaimType)?.Value;
+
+                context.Principal = EntraIdClaimMapper.BuildPrincipal(
+                    loginId,
+                    EntraIdClaimMapper.HasMultifactorAuthentication(context.Principal),
+                    DateTime.Now,
+                    sessionId,
+                    loginHint);
+            },
+
+            OnRedirectToIdentityProvider = context =>
+            {
+                // Skips Microsoft's home-realm step, where the user would otherwise type an email
+                // address before being handed to the campus identity provider. There is no
+                // OpenIdConnectOptions.DomainHint, so it has to be set on the outgoing message.
+                //
+                // Left off when a picker was asked for: domain_hint sends the browser on to
+                // adfs.ucdavis.edu before the picker could render, and it hides accounts in other
+                // verified domains such as ad3.ucdavis.edu. The handler has already copied Prompt
+                // off the challenge properties by the time this runs, so it is the signal to read.
+                var pickingAccount = string.Equals(
+                    context.ProtocolMessage.Prompt, "select_account", StringComparison.Ordinal);
+
+                if (!string.IsNullOrWhiteSpace(settings.DomainHint) && !pickingAccount)
+                {
+                    context.ProtocolMessage.DomainHint = settings.DomainHint;
+                }
+
+                return Task.CompletedTask;
+            },
+
+            OnRedirectToIdentityProviderForSignOut = context =>
+            {
+                // End the account this cookie belongs to instead of asking which, when more than
+                // one is signed in. SaveTokens is off, so id_token_hint is never sent and this is
+                // the only handle sign-out has. Entra ignores a UPN here: only the login_hint
+                // claim's value works.
+                if (context.Properties.Items.TryGetValue(
+                        EntraIdClaimMapper.LogoutHintPropertyKey, out var logoutHint)
+                    && !string.IsNullOrWhiteSpace(logoutHint))
+                {
+                    context.ProtocolMessage.SetParameter("logout_hint", logoutHint);
+                }
+
+                return Task.CompletedTask;
+            },
+
+            OnRemoteFailure = context =>
+            {
+                // The failure text can carry an error_description straight from the callback POST,
+                // which anyone can send, so it is sanitized like any other request-supplied value.
+                HttpHelper.Logger.Log(NLog.LogLevel.Warn,
+                    "Entra ID remote authentication failure ("
+                    + (context.Failure?.GetType().Name ?? "unknown") + "): "
+                    + LogSanitizer.SanitizeString(context.Failure?.Message));
+
+                // Swallow the raw provider error page and send the user somewhere recoverable.
+                var noAccount = context.HttpContext.Items.ContainsKey(EntraNoAccountItemKey);
+                context.Response.Redirect(context.Request.PathBase + "/SignInProblem" + (noAccount ? "?reason=" + EntraIdClaimMapper.NoAccountReason : ""));
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
+    });
 }
 
 // Try and parse the AWS credentials XML file and store it in the encrypted JSON

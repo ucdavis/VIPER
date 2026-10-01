@@ -45,16 +45,33 @@
                 </q-item-section>
                 <q-item-section> My Profile </q-item-section>
             </q-item>
-            <q-item :href="logoutHref">
-                <q-item-section avatar>
-                    <q-avatar
-                        icon="logout"
-                        color="secondary"
-                        text-color="white"
-                    ></q-avatar>
-                </q-item-section>
-                <q-item-section> Logout </q-item-section>
-            </q-item>
+            <!-- Logout is POST-only, so this posts a form rather than navigating. -->
+            <form
+                method="post"
+                role="none"
+                :action="logoutHref"
+            >
+                <input
+                    type="hidden"
+                    name="__RequestVerificationToken"
+                    :value="userStore.userInfo.token"
+                />
+                <q-item
+                    clickable
+                    dense
+                    tag="button"
+                    class="full-width no-border bg-transparent text-left"
+                >
+                    <q-item-section avatar>
+                        <q-avatar
+                            icon="logout"
+                            color="secondary"
+                            text-color="white"
+                        ></q-avatar>
+                    </q-item-section>
+                    <q-item-section> Logout </q-item-section>
+                </q-item>
+            </form>
         </q-list>
     </q-btn-dropdown>
     <q-btn
