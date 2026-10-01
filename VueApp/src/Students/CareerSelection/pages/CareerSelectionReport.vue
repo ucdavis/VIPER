@@ -15,7 +15,6 @@ const rows = ref<StudentCareerReport[]>([])
 
 const statementFields = CAREER_FIELDS.filter((f) => f.statement)
 
-// CSV is left off for now, as Excel covers it; the service and endpoints still serve it.
 const { handleExcelExport, handlePdfExport } = useReportExports(
     rows,
     {
