@@ -20,6 +20,14 @@ public interface IDvmStudentLookupService
     Task<(List<VwDvmStudentsMaxTerm> DvmStudents, Dictionary<string, int> MothraToPersonId)> LoadDvmStudentsAsync();
 
     /// <summary>
+    /// One AaudUser per MothraId, for the MothraIds given, whether or not they are students. The
+    /// MothraId index on aaudUser is not unique, so where a person has more than one row the
+    /// current one wins, then the lowest id. Anything keyed on MothraId goes through here so every
+    /// page picks the same row. A MothraId with no AaudUser row is absent from the map.
+    /// </summary>
+    Task<Dictionary<string, AaudPersonIdentity>> LoadAaudUsersByMothraIdAsync(List<string> mothraIds);
+
+    /// <summary>
     /// The name, class level and PIDM of one current DVM student, or null if the person is not one.
     /// </summary>
     Task<DvmStudentIdentity?> GetDvmStudentAsync(int personId);

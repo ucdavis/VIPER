@@ -56,6 +56,9 @@ public interface ICareerSelectionService
     /// the save, or an empty list once it is saved. Only an admin save may change the mentor; a
     /// student's own save leaves whatever is stored untouched.
     /// </summary>
+    /// <exception cref="StudentNotFoundException">
+    /// The person is not a current DVM student, or has no PIDM.
+    /// </exception>
     Task<List<string>> UpdateStudentCareerSelectionAsync(int personId, StudentCareerInfoDto request, bool isAdmin);
 
     /// <summary>

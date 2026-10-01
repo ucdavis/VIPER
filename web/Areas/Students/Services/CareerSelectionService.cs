@@ -207,15 +207,7 @@ public class CareerSelectionService : ICareerSelectionService
 
         if (career != null)
         {
-            dto.StudentInfo.Direction = ToDropdownOption(career.CareerOption);
-            dto.StudentInfo.DirectionOther = career.CareerOther;
-            dto.StudentInfo.PrimaryFocus = ToDropdownOption(career.FirstSpeciesOption);
-            dto.StudentInfo.PrimaryFocusOther = career.FirstSpeciesOther;
-            dto.StudentInfo.SecondaryFocus = ToDropdownOption(career.SecondSpeciesOption);
-            dto.StudentInfo.SecondaryFocusOther = career.SecondSpeciesOther;
-            dto.StudentInfo.PostGrad = ToDropdownOption(career.PostGradOption);
-            dto.StudentInfo.ShortTermPlans = career.ShortTermStatement;
-            dto.StudentInfo.LongTermPlans = career.LongTermStatement;
+            dto.StudentInfo = CareerSelectionMapper.ToStudentInfo(career);
             dto.LastUpdated = career.DateModified ?? career.DateAdded;
 
             // The mentor is stored as a MothraId; the client works in PersonIds.
@@ -223,6 +215,10 @@ public class CareerSelectionService : ICareerSelectionService
             {
                 var mentor = await _aaudContext.AaudUsers
                     .Where(u => u.MothraId == career.FacultyMothraId)
+                    // The same row LoadAaudUsersByMothraIdAsync picks for the list and report
+                    // when a MothraId has more than one aaudUser row.
+                    .OrderByDescending(u => u.Current)
+                    .ThenBy(u => u.AaudUserId)
                     // "Last, First" rather than the stored DisplayFullName, so the mentor reads
                     // the same here, in the picker, and in the list and report.
                     .Select(u => new { u.AaudUserId, u.IamId, FullName = u.DisplayLastName + ", " + u.DisplayFirstName })
@@ -245,13 +241,13 @@ public class CareerSelectionService : ICareerSelectionService
     {
         if (!await _dvmStudentLookup.IsCurrentDvmStudentAsync(personId))
         {
-            throw new InvalidOperationException($"PersonId {personId} is not a current DVM student");
+            throw new StudentNotFoundException($"PersonId {personId} is not a current DVM student");
         }
 
         var pidm = await _dvmStudentLookup.GetCurrentDvmPidmAsync(personId);
         if (pidm == null)
         {
-            throw new InvalidOperationException($"No PIDM found for PersonId {personId}");
+            throw new StudentNotFoundException($"No PIDM found for PersonId {personId}");
         }
 
         var studentPidm = pidm.Value;
@@ -428,12 +424,6 @@ public class CareerSelectionService : ICareerSelectionService
             .FirstOrDefaultAsync(),
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown career option type."),
     };
-
-    /// <summary>
-    /// A stored option as the form's dropdown value, or null when nothing is selected.
-    /// </summary>
-    private static CareerDropdownOption? ToDropdownOption(ICareerSelectionOption? option)
-        => option == null ? null : new CareerDropdownOption { Label = option.Label, Value = option.Id, IsOther = option.IsOther };
 
     /// <summary>
     /// Resolves a mentor PersonId to the MothraId the table stores. A null id clears the mentor,
@@ -613,7 +603,7 @@ public class CareerSelectionService : ICareerSelectionService
     /// MothraId the career selection stores. Names are read through rather than copied, so a
     /// mentor who changes their name reads correctly everywhere without a data fix.
     /// </summary>
-    private async Task<Dictionary<string, MentorIdentity>> LoadMentorsByMothraIdAsync(
+    private Task<Dictionary<string, AaudPersonIdentity>> LoadMentorsByMothraIdAsync(
         IEnumerable<CareerSelection> careerSelections)
     {
         var mentorMothraIds = careerSelections
@@ -623,21 +613,8 @@ public class CareerSelectionService : ICareerSelectionService
             .Distinct()
             .ToList();
 
-        if (mentorMothraIds.Count == 0)
-        {
-            return [];
-        }
-
-        return await _aaudContext.AaudUsers
-            .Where(u => EF.Parameter(mentorMothraIds).Contains(u.MothraId))
-            .Select(u => new MentorIdentity(
-                u.MothraId,
-                u.DisplayLastName + ", " + u.DisplayFirstName))
-            .AsNoTracking()
-            .ToDictionaryAsync(m => m.MothraId);
+        return _dvmStudentLookup.LoadAaudUsersByMothraIdAsync(mentorMothraIds);
     }
-
-    private sealed record MentorIdentity(string MothraId, string FullName);
 
     /// <summary>
     /// Starts a roster row with the student's identity columns. A student with no AaudUser

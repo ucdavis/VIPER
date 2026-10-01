@@ -304,11 +304,25 @@ public class CareerSelectionControllerTests
         var admin = GrantPermission(CreateUser(1, "admin", "ADMIN001"), CareerSelectionPermissions.Admin);
         _service.CanEdit(100, admin).Returns(true);
         _service.UpdateStudentCareerSelectionAsync(100, Arg.Any<StudentCareerInfoDto>(), true)
-            .ThrowsAsync(new InvalidOperationException("PersonId 100 is not a current DVM student"));
+            .ThrowsAsync(new StudentNotFoundException("PersonId 100 is not a current DVM student"));
 
         var result = await _controller.UpdateStudentCareerSelection(100, new StudentCareerInfoDto());
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdateStudentCareerSelection_OtherInvalidOperation_Propagates()
+    {
+        // An EF Core failure of the same base type is a defect, not a missing student, so it
+        // must reach the 500 path rather than be read as a 404.
+        var admin = GrantPermission(CreateUser(1, "admin", "ADMIN001"), CareerSelectionPermissions.Admin);
+        _service.CanEdit(100, admin).Returns(true);
+        _service.UpdateStudentCareerSelectionAsync(100, Arg.Any<StudentCareerInfoDto>(), true)
+            .ThrowsAsync(new InvalidOperationException("A second operation was started on this context"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _controller.UpdateStudentCareerSelection(100, new StudentCareerInfoDto()));
     }
 
     [Fact]

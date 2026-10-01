@@ -284,7 +284,7 @@ public class CareerSelectionController : ApiController
                 return ValidationProblem(ModelState);
             }
         }
-        catch (InvalidOperationException ex)
+        catch (StudentNotFoundException ex)
         {
             _logger.LogWarning(ex,
                 "Cannot update career selection for PersonId {PersonId}: {Message}",

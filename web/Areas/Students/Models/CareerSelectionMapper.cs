@@ -31,6 +31,30 @@ public static class CareerSelectionMapper
     }
 
     /// <summary>
+    /// The stored row as the form's answers. The option navigations must be loaded, or every
+    /// dropdown reads as unanswered. The mentor is left unset, since the row stores a MothraId
+    /// and the form works in PersonIds, so the service resolves it.
+    /// </summary>
+    public static StudentCareerInfoDto ToStudentInfo(CareerSelection source) => new()
+    {
+        Direction = ToDropdownOption(source.CareerOption),
+        DirectionOther = source.CareerOther,
+        PrimaryFocus = ToDropdownOption(source.FirstSpeciesOption),
+        PrimaryFocusOther = source.FirstSpeciesOther,
+        SecondaryFocus = ToDropdownOption(source.SecondSpeciesOption),
+        SecondaryFocusOther = source.SecondSpeciesOther,
+        PostGrad = ToDropdownOption(source.PostGradOption),
+        ShortTermPlans = source.ShortTermStatement,
+        LongTermPlans = source.LongTermStatement,
+    };
+
+    /// <summary>
+    /// A stored option as the form's dropdown value, or null when nothing is selected.
+    /// </summary>
+    private static CareerDropdownOption? ToDropdownOption(ICareerSelectionOption? option)
+        => option == null ? null : new CareerDropdownOption { Label = option.Label, Value = option.Id, IsOther = option.IsOther };
+
+    /// <summary>
     /// The free text means something only while the catch-all option is selected. Anything else
     /// clears it, so a stale value cannot reappear when the student switches back to "Other".
     /// </summary>

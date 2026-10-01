@@ -5,7 +5,8 @@ namespace Viper.test.Students;
 
 /// <summary>
 /// Tests for CareerSelectionMapper: how a submitted form becomes the stored row, in particular
-/// which free text survives and what an unfilled field is stored as.
+/// which free text survives and what an unfilled field is stored as, and how the stored row
+/// becomes the form's answers again.
 /// </summary>
 public class CareerSelectionMapperTests
 {
@@ -115,6 +116,53 @@ public class CareerSelectionMapperTests
         CareerSelectionMapper.ApplyStudentInfoToEntity(new StudentCareerInfoDto { MentorId = 500 }, entity);
 
         Assert.Equal("FAC00001", entity.FacultyMothraId);
+    }
+
+    [Fact]
+    public void ToStudentInfo_ReadsTheOptionsAndTextBack()
+    {
+        var entity = NewEntity();
+        entity.CareerOption = new CareerOption { CareerOptionId = 9, Career = "Other", IsOther = true };
+        entity.CareerOther = "Wildlife rehabilitation";
+        entity.FirstSpeciesOption = new SpeciesOption { SpeciesOptionId = 2, Species = "Equine" };
+        entity.SecondSpeciesOption = new SpeciesOption { SpeciesOptionId = 3, Species = "Bovine" };
+        entity.PostGradOption = new PostGradOption { PostGradOptionId = 4, PostGrad = "Residency" };
+        entity.ShortTermStatement = "Internship";
+        entity.LongTermStatement = "Practice ownership";
+
+        var info = CareerSelectionMapper.ToStudentInfo(entity);
+
+        Assert.Equivalent(Option("Other", 9, isOther: true), info.Direction, strict: true);
+        Assert.Equal("Wildlife rehabilitation", info.DirectionOther);
+        Assert.Equivalent(Option("Equine", 2), info.PrimaryFocus, strict: true);
+        Assert.Equivalent(Option("Bovine", 3), info.SecondaryFocus, strict: true);
+        Assert.Equivalent(Option("Residency", 4), info.PostGrad, strict: true);
+        Assert.Equal("Internship", info.ShortTermPlans);
+        Assert.Equal("Practice ownership", info.LongTermPlans);
+    }
+
+    [Fact]
+    public void ToStudentInfo_NothingSelected_LeavesTheDropdownsEmpty()
+    {
+        var info = CareerSelectionMapper.ToStudentInfo(NewEntity());
+
+        Assert.Null(info.Direction);
+        Assert.Null(info.PrimaryFocus);
+        Assert.Null(info.SecondaryFocus);
+        Assert.Null(info.PostGrad);
+    }
+
+    [Fact]
+    public void ToStudentInfo_LeavesTheMentorUnset()
+    {
+        // The row stores a MothraId and the form works in PersonIds; the service resolves it.
+        var entity = NewEntity();
+        entity.FacultyMothraId = "FAC00001";
+
+        var info = CareerSelectionMapper.ToStudentInfo(entity);
+
+        Assert.Null(info.MentorId);
+        Assert.Null(info.MentorName);
     }
 
     private static CareerSelection NewEntity() => new() { Pidm = 20000001, DateAdded = DateTime.Now };
