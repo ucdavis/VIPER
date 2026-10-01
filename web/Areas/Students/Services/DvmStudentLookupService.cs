@@ -33,13 +33,37 @@ public class DvmStudentLookupService : IDvmStudentLookupService
             .Select(s => s.IdsMothraId)
             .Distinct()
             .ToList();
-        var mothraToPersonId = await _aaudContext.AaudUsers
-            .Where(u => EF.Parameter(mothraIds).Contains(u.MothraId))
-            .Select(u => new { u.MothraId, u.AaudUserId })
-            .AsNoTracking()
-            .ToDictionaryAsync(u => u.MothraId, u => u.AaudUserId);
+        var users = await LoadAaudUsersByMothraIdAsync(mothraIds);
+        var mothraToPersonId = users.ToDictionary(u => u.Key, u => u.Value.PersonId);
 
         return (dvmStudents, mothraToPersonId);
+    }
+
+    /// <summary>
+    /// One AaudUser per MothraId, for the MothraIds given. A MothraId with no AaudUser row is
+    /// absent from the map.
+    /// </summary>
+    public async Task<Dictionary<string, AaudPersonIdentity>> LoadAaudUsersByMothraIdAsync(List<string> mothraIds)
+    {
+        if (mothraIds.Count == 0)
+        {
+            return [];
+        }
+
+        var users = await _aaudContext.AaudUsers
+            .Where(u => EF.Parameter(mothraIds).Contains(u.MothraId))
+            // "Last, First" rather than the stored DisplayFullName, so a person reads the same in
+            // the roster, the report and the mentor picker.
+            .Select(u => new { u.MothraId, u.AaudUserId, u.Current, FullName = u.DisplayLastName + ", " + u.DisplayFirstName })
+            .AsNoTracking()
+            .ToListAsync();
+
+        // The MothraId index on aaudUser is not unique, so one person can have more than one row.
+        // Prefer the current row, then the lowest id, so every load picks the same one.
+        return users
+            .GroupBy(u => u.MothraId)
+            .Select(g => g.OrderByDescending(u => u.Current).ThenBy(u => u.AaudUserId).First())
+            .ToDictionary(u => u.MothraId, u => new AaudPersonIdentity(u.MothraId, u.AaudUserId, u.FullName));
     }
 
     /// <summary>
@@ -124,3 +148,5 @@ public class DvmStudentLookupService : IDvmStudentLookupService
 }
 
 public sealed record DvmStudentIdentity(int PersonId, string FullName, string ClassLevel, int? Pidm);
+
+public sealed record AaudPersonIdentity(string MothraId, int PersonId, string FullName);

@@ -68,6 +68,64 @@ public sealed class DvmStudentLookupServiceTests : IDisposable
         Assert.Single(mothraToPersonId);
     }
 
+    [Fact]
+    public async Task LoadDvmStudentsAsync_StudentWithTwoAaudUserRows_MapsToTheCurrentOne()
+    {
+        // The MothraId index on aaudUser is not unique; a second row must not fail the roster.
+        await SeedStudentAsync("STU00001", 100, pidm: "20000001");
+        _aaudContext.AaudUsers.Add(NewUser("STU00001", 101, current: 1));
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var (_, mothraToPersonId) = await _service.LoadDvmStudentsAsync();
+
+        Assert.Equal(101, Assert.Single(mothraToPersonId).Value);
+    }
+
+    #endregion
+
+    #region LoadAaudUsersByMothraIdAsync
+
+    [Fact]
+    public async Task LoadAaudUsersByMothraIdAsync_ReadsNameAsLastCommaFirst()
+    {
+        _aaudContext.AaudUsers.Add(NewUser("FAC00001", 500, lastName: "Vet", firstName: "Ann"));
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var users = await _service.LoadAaudUsersByMothraIdAsync(["FAC00001"]);
+
+        Assert.Equal(new AaudPersonIdentity("FAC00001", 500, "Vet, Ann"), users["FAC00001"]);
+    }
+
+    [Fact]
+    public async Task LoadAaudUsersByMothraIdAsync_TwoRowsNeitherCurrent_PicksTheLowestId()
+    {
+        _aaudContext.AaudUsers.AddRange(NewUser("FAC00001", 502), NewUser("FAC00001", 501));
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var users = await _service.LoadAaudUsersByMothraIdAsync(["FAC00001"]);
+
+        Assert.Equal(501, users["FAC00001"].PersonId);
+    }
+
+    [Fact]
+    public async Task LoadAaudUsersByMothraIdAsync_CurrentRowWinsOverALowerId()
+    {
+        _aaudContext.AaudUsers.AddRange(NewUser("FAC00001", 501), NewUser("FAC00001", 502, current: 1));
+        await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var users = await _service.LoadAaudUsersByMothraIdAsync(["FAC00001"]);
+
+        Assert.Equal(502, users["FAC00001"].PersonId);
+    }
+
+    [Fact]
+    public async Task LoadAaudUsersByMothraIdAsync_UnknownMothraId_IsAbsent()
+    {
+        var users = await _service.LoadAaudUsersByMothraIdAsync(["NOBODY01"]);
+
+        Assert.Empty(users);
+    }
+
     #endregion
 
     #region GetDvmStudentAsync
@@ -192,7 +250,8 @@ public sealed class DvmStudentLookupServiceTests : IDisposable
         await _aaudContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
-    private static AaudUser NewUser(string mothraId, int personId, string lastName = "Person", string firstName = "Test") =>
+    private static AaudUser NewUser(string mothraId, int personId, string lastName = "Person", string firstName = "Test",
+        int current = 0) =>
         new()
         {
             AaudUserId = personId,
@@ -203,6 +262,7 @@ public sealed class DvmStudentLookupServiceTests : IDisposable
             DisplayFirstName = firstName,
             DisplayLastName = lastName,
             LastName = lastName,
-            FirstName = firstName
+            FirstName = firstName,
+            Current = current
         };
 }
