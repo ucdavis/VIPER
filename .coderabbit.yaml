@@ -8,11 +8,11 @@ tone_instructions: >
 reviews:
   profile: assertive
   request_changes_workflow: false
-  # No unsolicited summaries — CodeRabbit should only summarize when a review
-  # is explicitly requested via `@coderabbitai review` or `@coderabbitai summary`.
+  # No unsolicited summaries: CodeRabbit summarizes only on `@coderabbitai summary`.
   high_level_summary: false
   poem: false
-  review_status: false
+  # Say so when a review is skipped; otherwise the green check reads as reviewed.
+  review_status: true
   collapse_walkthrough: true
   auto_review:
     enabled: true
@@ -37,6 +37,19 @@ reviews:
     - "!**/*.min.js"
     - "!**/*.min.css"
 
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: >
+        Conventional Commits `type(scope): subject`, where type is feat, fix,
+        refactor, docs, test or chore. When the branch names a JIRA ticket, prefix
+        its ID (e.g. `VPR-104 fix(a11y): ...`). Subject is imperative, at most 72
+        characters, with no trailing period.
+    # Repo convention documents only what isn't clear from the code, so a coverage
+    # threshold would warn on nearly every PR.
+    docstrings:
+      mode: "off"
+
   tools:
     github-checks:
       enabled: true
@@ -60,7 +73,13 @@ knowledge_base:
     scope: auto
   pull_requests:
     scope: auto
+  # Only used when the Jira integration is connected in the CodeRabbit app.
+  jira:
+    project_keys:
+      - VPR
   code_guidelines:
     enabled: true
     filePatterns:
       - ".github/copilot-instructions.md"
+      - "CLAUDE.md"
+      - "DESIGN.md"
