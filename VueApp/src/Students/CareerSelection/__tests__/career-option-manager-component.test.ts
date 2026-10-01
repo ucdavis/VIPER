@@ -1,4 +1,4 @@
-import { mount, flushPromises } from "@vue/test-utils"
+import { enableAutoUnmount, mount, flushPromises } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { ref } from "vue"
 import CareerOptionManager from "../components/CareerOptionManager.vue"
@@ -74,11 +74,11 @@ function buttonWithText(wrapper: ReturnType<typeof mountManager>, text: string) 
     return wrapper.findAll("button").find((b) => b.text().includes(text))
 }
 
-describe("career option manager", () => {
-    afterEach(() => {
-        document.body.innerHTML = ""
-    })
+// Unmounted rather than only cleared from the page: a mounted manager keeps reading the shared
+// managerState refs, so every later test's mount would re-render it too.
+enableAutoUnmount(afterEach)
 
+describe("career option manager", () => {
     it("wraps a long option name rather than pushing the actions off a narrow screen", () => {
         expect.hasAssertions()
         const wrapper = mountManager([option(1, "A very long species focus name ".repeat(3))])
