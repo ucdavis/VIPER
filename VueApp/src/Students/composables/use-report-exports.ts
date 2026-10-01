@@ -23,8 +23,6 @@ type PdfExport =
 
 type ReportExports = PdfExport & {
     downloadExcel: DownloadExport
-    /** Left out by a report that serves no CSV, which then shows no CSV button. */
-    downloadCsv?: DownloadExport
 }
 
 type ReportExportOptions = {
@@ -61,10 +59,6 @@ export function useReportExports(
         await download(exports.downloadExcel, "Excel", rowKeys)
     }
 
-    const { downloadCsv } = exports
-    const handleCsvExport =
-        downloadCsv === undefined ? undefined : (rowKeys?: string[]) => download(downloadCsv, "CSV", rowKeys)
-
     // Async only for the download. An opening report reaches openPdf before the first await, so
     // the new tab still opens within the click and popup blockers let it through.
     async function handlePdfExport(rowKeys?: string[]): Promise<void> {
@@ -79,5 +73,5 @@ export function useReportExports(
         exports.openPdf()
     }
 
-    return { handleExcelExport, handlePdfExport, handleCsvExport }
+    return { handleExcelExport, handlePdfExport }
 }
