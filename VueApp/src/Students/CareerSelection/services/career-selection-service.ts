@@ -48,12 +48,6 @@ class CareerSelectionService extends StudentAppService<boolean> {
     override downloadExcel = (rowKeys?: string[]): Promise<boolean> =>
         this.downloadGridExport("export/excel", EXPORT_FILENAMES.excel, rowKeys)
 
-    downloadOverviewCsv = (rowKeys?: string[]): Promise<boolean> =>
-        this.downloadGridExport("export/overview/csv", "career-selection-overview.csv", rowKeys)
-
-    downloadCsv = (rowKeys?: string[]): Promise<boolean> =>
-        this.downloadGridExport("export/csv", "career-selection.csv", rowKeys)
-
     // Downloaded rather than opened in a tab: the endpoints are POSTs, so they can carry the grid's
     // rows, and a tab opened only once the response arrives falls foul of popup blockers.
     downloadOverviewPdf = (rowKeys?: string[]): Promise<boolean> =>

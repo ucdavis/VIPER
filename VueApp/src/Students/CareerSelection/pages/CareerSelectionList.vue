@@ -24,7 +24,6 @@ const isAdmin = computed(() => checkHasOnePermission([CAREER_SELECTION_PERMISSIO
 // Fields shown as a completeness icon; the rest are plain text.
 const completenessFields = CAREER_FIELDS.filter((f) => f.completedField)
 
-// CSV is left off for now, as Excel covers it; the service and endpoints still serve it.
 const { handleExcelExport, handlePdfExport } = useReportExports(
     rows,
     {
