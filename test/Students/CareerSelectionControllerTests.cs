@@ -630,68 +630,7 @@ public class CareerSelectionControllerTests
     }
 
     [Fact]
-    public async Task ExportOverviewCsv_WithStudents_ReturnsACsvDownload()
-    {
-        var admin = CreateUser(1, "admin", "ADMIN001");
-        _userHelper.GetCurrentUser().Returns(admin);
-        _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
-        _service.GetStudentCareerListAsync(StudentListAccess.AllStudents)
-            .Returns([new StudentCareerListItemDto { PersonId = 5, FullName = "Student, Test" }]);
-        _exportService.GenerateOverviewCsv(Arg.Any<List<StudentCareerListItemDto>>()).Returns([1, 2, 3]);
-
-        var result = await _controller.ExportOverviewCsv();
-
-        var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("text/csv", file.ContentType);
-        Assert.Equal("CareerSelectionOverview.csv", file.FileDownloadName);
-    }
-
-    [Fact]
-    public async Task ExportCsv_WithStudents_ReturnsTheReportCsv()
-    {
-        var admin = CreateUser(1, "admin", "ADMIN001");
-        _userHelper.GetCurrentUser().Returns(admin);
-        _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
-        _service.GetStudentCareerReportAsync(StudentListAccess.AllStudents)
-            .Returns([new StudentCareerReportDto { PersonId = 5, FullName = "Student, Test" }]);
-        _exportService.GenerateCsv(Arg.Any<List<StudentCareerReportDto>>()).Returns([1, 2, 3]);
-
-        var result = await _controller.ExportCsv();
-
-        var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("CareerSelection.csv", file.FileDownloadName);
-    }
-
-    [Fact]
-    public async Task ExportCsv_WithoutListAccess_ReturnsForbid()
-    {
-        var student = CreateUser(100, "student", "STU001");
-        _userHelper.GetCurrentUser().Returns(student);
-        _service.ResolveScope(student).Returns(CareerSelectionScope.Own);
-
-        var result = await _controller.ExportCsv();
-
-        AssertForbidden(result);
-        await _service.DidNotReceive().GetStudentCareerReportAsync(Arg.Any<StudentListAccess>());
-    }
-
-    [Fact]
-    public async Task ExportOverviewCsv_NoStudents_ReturnsAHeadersOnlyCsv()
-    {
-        var admin = CreateUser(1, "admin", "ADMIN001");
-        _userHelper.GetCurrentUser().Returns(admin);
-        _service.ResolveScope(admin).Returns(CareerSelectionScope.All);
-        _service.GetStudentCareerListAsync(StudentListAccess.AllStudents).Returns([]);
-        _exportService.GenerateOverviewCsv(Arg.Any<List<StudentCareerListItemDto>>()).Returns([1, 2, 3]);
-
-        var result = await _controller.ExportOverviewCsv();
-
-        Assert.IsType<FileContentResult>(result);
-        _exportService.Received(1).GenerateOverviewCsv(Arg.Is<List<StudentCareerListItemDto>>(d => d.Count == 0));
-    }
-
-    [Fact]
-    public async Task ExportCsv_WithRowKeys_ExportsThoseRowsInTheGridsOrder()
+    public async Task ExportExcel_WithRowKeys_ExportsThoseRowsInTheGridsOrder()
     {
         var admin = CreateUser(1, "admin", "ADMIN001");
         _userHelper.GetCurrentUser().Returns(admin);
@@ -702,11 +641,12 @@ public class CareerSelectionControllerTests
             new StudentCareerReportDto { PersonId = 6, RowKey = "6" },
             new StudentCareerReportDto { PersonId = 7, RowKey = "7" },
         ]);
-        _exportService.GenerateCsv(Arg.Any<List<StudentCareerReportDto>>()).Returns([1, 2, 3]);
+        using var stream = new MemoryStream([1, 2, 3]);
+        _exportService.GenerateExcel(Arg.Any<List<StudentCareerReportDto>>()).Returns(stream);
 
-        await _controller.ExportCsv(new CareerSelectionExportRequest { RowKeys = ["7", "5"] });
+        await _controller.ExportExcel(new CareerSelectionExportRequest { RowKeys = ["7", "5"] });
 
-        _exportService.Received(1).GenerateCsv(Arg.Is<List<StudentCareerReportDto>>(
+        _exportService.Received(1).GenerateExcel(Arg.Is<List<StudentCareerReportDto>>(
             d => d.Select(r => r.PersonId).SequenceEqual(new[] { 7, 5 })));
     }
 

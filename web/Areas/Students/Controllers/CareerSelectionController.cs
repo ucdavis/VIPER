@@ -393,17 +393,6 @@ public class CareerSelectionController : ApiController
             $"CareerSelectionOverview_{DateTime.Now:yyyyMMdd}.pdf"));
 
     /// <summary>
-    /// Export the overview (completeness summary) as a CSV file.
-    /// </summary>
-    [HttpPost("export/overview/csv")]
-    [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportOverviewCsv(
-        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
-        request,
-        _service.GetStudentCareerListAsync,
-        data => CsvFile(_exportService.GenerateOverviewCsv(data), "CareerSelectionOverview"));
-
-    /// <summary>
     /// Export all career selections as an Excel file.
     /// </summary>
     [HttpPost("export/excel")]
@@ -426,17 +415,6 @@ public class CareerSelectionController : ApiController
         _service.GetStudentCareerReportAsync,
         data => File(_exportService.GeneratePdf(data), "application/pdf",
             $"CareerSelection_{DateTime.Now:yyyyMMdd}.pdf"));
-
-    /// <summary>
-    /// Export all career selections as a CSV file.
-    /// </summary>
-    [HttpPost("export/csv")]
-    [Permission(Allow = CareerSelectionPermissions.StudentListViewers)]
-    public Task<ActionResult> ExportCsv(
-        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CareerSelectionExportRequest? request = null) => ExportAsync(
-        request,
-        _service.GetStudentCareerReportAsync,
-        data => CsvFile(_exportService.GenerateCsv(data), "CareerSelection"));
 
     /// <summary>
     /// Runs an export over the students the caller may see: a faculty mentor's export is narrowed
