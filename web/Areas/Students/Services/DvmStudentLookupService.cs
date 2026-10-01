@@ -63,7 +63,7 @@ public class DvmStudentLookupService : IDvmStudentLookupService
         return users
             .GroupBy(u => u.MothraId)
             .Select(g => g.OrderByDescending(u => u.Current).ThenBy(u => u.AaudUserId).First())
-            .ToDictionary(u => u.MothraId, u => new AaudPersonIdentity(u.MothraId, u.AaudUserId, u.FullName));
+            .ToDictionary(u => u.MothraId, u => new AaudPersonIdentity(u.AaudUserId, u.FullName));
     }
 
     /// <summary>
@@ -149,4 +149,4 @@ public class DvmStudentLookupService : IDvmStudentLookupService
 
 public sealed record DvmStudentIdentity(int PersonId, string FullName, string ClassLevel, int? Pidm);
 
-public sealed record AaudPersonIdentity(string MothraId, int PersonId, string FullName);
+public sealed record AaudPersonIdentity(int PersonId, string FullName);

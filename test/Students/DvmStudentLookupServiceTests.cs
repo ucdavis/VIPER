@@ -93,7 +93,7 @@ public sealed class DvmStudentLookupServiceTests : IDisposable
 
         var users = await _service.LoadAaudUsersByMothraIdAsync(["FAC00001"]);
 
-        Assert.Equal(new AaudPersonIdentity("FAC00001", 500, "Vet, Ann"), users["FAC00001"]);
+        Assert.Equal(new AaudPersonIdentity(500, "Vet, Ann"), users["FAC00001"]);
     }
 
     [Fact]
