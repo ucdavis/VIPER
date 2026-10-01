@@ -4,6 +4,7 @@
     Layout = null;
 
     var noAccount = ViewData["NoAccount"] as bool? ?? false;
+    var entraIdEnabled = ViewData["EntraIdEnabled"] as bool? ?? false;
     const string helpEmail = "svmithelp@ucdavis.edu";
     var (beforeEmail, afterEmail) = noAccount
         ? ("Your account's login id could not be matched to a VIPER account. Please contact ", ".")
@@ -45,8 +46,11 @@
                         <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
                     </a>
                 </div>
-                @* A plain retry would silently reuse whichever account Entra still holds. *@
-                <a class="welcome-help" href="@Url.Content("~/EntraLogin")?selectAccount=true">Sign in with a different account</a>
+                @if (entraIdEnabled)
+                {
+                    @* A plain retry would silently reuse whichever account Entra still holds. *@
+                    <a class="welcome-help" href="@Url.Content("~/EntraLogin")?selectAccount=true">Sign in with a different account</a>
+                }
             </div>
         </div>
 

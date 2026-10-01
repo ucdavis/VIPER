@@ -699,6 +699,8 @@ namespace Viper.Controllers
 #pragma warning restore S6967
         {
             ViewData["NoAccount"] = string.Equals(reason, EntraIdClaimMapper.NoAccountReason, StringComparison.Ordinal);
+            // The page is anonymous, so a CAS-only environment can still reach it; EntraLogin 404s there.
+            ViewData["EntraIdEnabled"] = _authSettings.EntraIdEnabled;
             return View();
         }
 
