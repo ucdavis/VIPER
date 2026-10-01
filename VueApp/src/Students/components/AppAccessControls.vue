@@ -62,6 +62,9 @@ async function loadAccessStatus(): Promise<boolean> {
     // The callbacks are props, so a rejection cannot be ruled out; it must not leave the banner loading.
     try {
         result = await props.getStatus()
+    } catch {
+        // Treated as a failed read, so the banner offers Try Again rather than checking forever.
+        result = null
     } finally {
         loading.value = false
     }

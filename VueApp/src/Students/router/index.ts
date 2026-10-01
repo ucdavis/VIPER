@@ -5,6 +5,7 @@ import { checkHasOnePermission } from "@/composables/CheckPagePermission"
 import { useUserStore } from "@/store/UserStore"
 import { ensurePermissions } from "./ensure-permissions"
 import { CAREER_SELECTION_PERMISSION_PREFIX } from "@/Students/CareerSelection/constants/permissions"
+import { redeliverAccessNotice } from "@/Students/composables/use-access-notice"
 
 const router = createSpaRouter(routes)
 
@@ -36,5 +37,7 @@ router.beforeEach(async (to, from) => {
         }
     }
 })
+
+router.afterEach(redeliverAccessNotice)
 
 export { router }
