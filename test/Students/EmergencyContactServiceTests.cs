@@ -1400,7 +1400,9 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var userHelper = CreateMockUserHelper();
         var logger = Substitute.For<ILogger<EmergencyContactService>>();
         return new EmergencyContactService(
-            _sisContext, _rapsContext, _aaudContext, userHelper, logger);
+            _sisContext, _rapsContext, _aaudContext, userHelper, logger,
+            new StudentAppAccessService(_rapsContext, userHelper),
+            new DvmStudentLookupService(_aaudContext));
     }
 
     private static IUserHelper CreateMockUserHelper()
@@ -1434,7 +1436,9 @@ public sealed class EmergencyContactServiceTests : IDisposable
         }
         var logger = Substitute.For<ILogger<EmergencyContactService>>();
         return new EmergencyContactService(
-            _sisContext, _rapsContext, _aaudContext, userHelper, logger);
+            _sisContext, _rapsContext, _aaudContext, userHelper, logger,
+            new StudentAppAccessService(_rapsContext, userHelper),
+            new DvmStudentLookupService(_aaudContext));
     }
 
     private static AaudUser CreateTestUser(int personId, string loginId)
@@ -1468,7 +1472,9 @@ public sealed class EmergencyContactServiceTests : IDisposable
         var userHelper = CreateMockUserHelper();
         var logger = Substitute.For<ILogger<EmergencyContactService>>();
         var service = new EmergencyContactService(
-            _sisContext, _rapsContext, testAaudContext, userHelper, logger);
+            _sisContext, _rapsContext, testAaudContext, userHelper, logger,
+            new StudentAppAccessService(_rapsContext, userHelper),
+            new DvmStudentLookupService(testAaudContext));
         return (testAaudContext, service);
     }
 
@@ -1504,26 +1510,6 @@ public sealed class EmergencyContactServiceTests : IDisposable
             LastName = lastName,
             FirstName = firstName
         });
-    }
-
-    /// <summary>
-    /// AAUDContext subclass that maps keyless views as tables with keys,
-    /// enabling InMemory provider to store test data.
-    /// </summary>
-    private class TestableAAUDContext : AAUDContext
-    {
-        public TestableAAUDContext(DbContextOptions<AAUDContext> options) : base(options) { }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<VwDvmStudentsMaxTerm>(entity =>
-            {
-                entity.HasKey(e => e.IdsMothraId);
-                entity.ToTable("VwDvmStudentsMaxTerm");
-            });
-        }
     }
 
     #endregion

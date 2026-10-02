@@ -52,4 +52,30 @@ public class DbUpdateExceptionExtensionsTests
 
         Assert.False(ex.IsDataRejection());
     }
+
+    [Theory]
+    [InlineData(2601)] // duplicate key in a unique index
+    [InlineData(2627)] // unique or primary key constraint violation
+    public void IsUniqueKeyViolationNumber_IsTrue_ForUniqueKeyErrors(int number)
+    {
+        Assert.True(DbUpdateExceptionExtensions.IsUniqueKeyViolationNumber(number));
+    }
+
+    [Theory]
+    [InlineData(547)]  // foreign key - a retry against the winning row would fail the same way
+    [InlineData(8152)] // truncation - likewise
+    [InlineData(2628)]
+    [InlineData(1205)]
+    public void IsUniqueKeyViolationNumber_IsFalse_ForOtherErrors(int number)
+    {
+        Assert.False(DbUpdateExceptionExtensions.IsUniqueKeyViolationNumber(number));
+    }
+
+    [Fact]
+    public void IsUniqueKeyViolation_IsFalse_WhenTheInnerExceptionIsNotFromSqlServer()
+    {
+        var ex = new DbUpdateException("Something failed", new TimeoutException("The wait expired"));
+
+        Assert.False(ex.IsUniqueKeyViolation());
+    }
 }
