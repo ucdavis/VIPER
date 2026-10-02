@@ -33,6 +33,7 @@ using Viper.Areas.Effort.Data;
 using Viper.Areas.Effort.Services.Harvest;
 using Viper.Areas.Personnel;
 using Viper.Areas.RAPS.Services;
+using Viper.Areas.Reports;
 using Viper.Classes;
 using Viper.Classes.HealthChecks;
 using Viper.Classes.Scheduler;
@@ -247,6 +248,9 @@ try
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
 
+    // Code-defined reports (IReportDefinition) and the registry that indexes them
+    builder.Services.AddReports(typeof(Program).Assembly);
+
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
@@ -269,6 +273,7 @@ try
                 "Viper.Areas.Curriculum.Services",
                 "Viper.Areas.Effort.Services",
                 "Viper.Areas.Personnel.Services",
+                "Viper.Areas.Reports.Services",
                 "Viper.Areas.CMS.Services"
             )
             .Where(type => type.Name.EndsWith("Service") || type.Name.EndsWith("Validator")))

@@ -48,6 +48,14 @@ const routes = [
         name: "MaintainSchoolwidePhones",
     },
     {
+        // Any Personnel report, by key. The API enforces each report's own permissions, so the
+        // route needs none of its own; a report the user can't run shows as not available.
+        path: "/Personnel/Reports/:key",
+        meta: { layout: ViperLayout, allowUnAuth: false },
+        component: () => import("@/Personnel/pages/PersonnelReport.vue"),
+        name: "PersonnelReport",
+    },
+    {
         path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
         component: () => import("@/pages/Error404.vue"),

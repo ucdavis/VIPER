@@ -1,0 +1,23 @@
+/* Report highlight tints (report-tones.ts). Light enough that ink text clears WCAG AA, and each
+   highlight's label is also listed in the Notes column, so color is never the only signal. The
+   tints match StatusBanner's, so a warning row reads like a warning banner. */
+
+.report-tone-info {
+    background-color: color-mix(in srgb, var(--q-info) 12%, white);
+}
+
+.report-tone-positive {
+    background-color: color-mix(in srgb, var(--q-positive) 12%, white);
+}
+
+.report-tone-warning {
+    background-color: color-mix(in srgb, var(--q-warning) 15%, white);
+}
+
+.report-tone-negative {
+    background-color: color-mix(in srgb, var(--q-negative) 12%, white);
+}
+
+.report-tone-muted {
+    background-color: var(--ucdavis-black-10);
+}
