@@ -317,6 +317,10 @@ try
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
 
+    // UserInfo feature: its EF contexts (equipment loans, ID cards, keys, PPS),
+    // HttpClient factory, and service. See UserInfoServiceCollectionExtensions.
+    builder.AddUserInfoServices(enableDetailedErrors);
+
     // Shared HTML sanitizer for user-authored content (CMS, CTS, ...). Thread-safe singleton.
     builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
@@ -439,6 +443,7 @@ try
         csp.AllowImages
             .FromSelf()// This domain
             .From("data:")// Allow data: images
+            .From("blob:")// Allow blob: images (e.g. UserInfo's alt-photo fetch-then-createObjectURL)
             .From("https://www.google-analytics.com")
             .From("*.ucdavis.edu")
             .From("vetmed.ucdavis.edu")

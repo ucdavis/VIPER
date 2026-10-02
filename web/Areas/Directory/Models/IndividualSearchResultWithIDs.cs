@@ -46,10 +46,18 @@ namespace Viper.Areas.Directory.Models
                 Phone = ldapUserContact.TelephoneNumber;
                 Mobile = ldapUserContact.Mobile;
                 UserName = ldapUserContact.Uid;
-                PostalAddress = (ldapUserContact.PostalAddress ?? "").Replace("$", '\n'.ToString());
+                PostalAddress = ldapUserContact.PostalAddress?.Replace("$", '\n'.ToString()) ?? "";
                 UCDAffiliation = ldapUserContact.UcdPersonAffiliation;
                 MothraId = ldapUserContact.MothraId;
                 IamId = ldapUserContact.IamId;
+                // AAUD has no row for this person (e.g. a continuing student between terms,
+                // before AAUD flips current/future for the upcoming term - see the comment on
+                // DirectoryController.SearchCurrentOrFutureAaudUsers). Fall back to the
+                // equivalent LDAP identifiers so Banner ID/PIDM/Employee ID and the "Jump to
+                // SIS" link (which depends on SpridenId) still show.
+                SpridenId = ldapUserContact.UcdStudentSid;
+                Pidm = ldapUserContact.UcdPersonPidm;
+                EmployeeId = ldapUserContact.EmployeeNumber;
                 if (string.IsNullOrEmpty(DisplayFullName))
                 {
                     DisplayFullName = ldapUserContact.DisplayName;
@@ -62,3 +70,4 @@ namespace Viper.Areas.Directory.Models
         }
     }
 }
+
