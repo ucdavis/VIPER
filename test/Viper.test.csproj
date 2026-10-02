@@ -23,23 +23,23 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-    <PackageReference Include="Microsoft.Testing.Platform" Version="2.3.3" />
-    <PackageReference Include="MockQueryable.NSubstitute" Version="10.0.8" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.4.1" />
+    <PackageReference Include="MockQueryable.NSubstitute" Version="10.0.12" />
     <PackageReference Include="NSubstitute" Version="6.2.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.33.0.1635">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.34.0.3385">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="xunit.v3" Version="4.0.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
-    <PackageReference Include="Hangfire.Core" Version="1.8.24" />
+    <PackageReference Include="Hangfire.Core" Version="1.8.25" />
     <!-- MTP's coverage extension, not coverlet: the VSTest data collector does not run under Microsoft.Testing.Platform -->
-    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
   </ItemGroup>
 
   <ItemGroup>
