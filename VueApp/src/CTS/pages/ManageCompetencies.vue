@@ -314,7 +314,6 @@ load()
                     <q-btn
                         dense
                         flat
-                        size="1.4rem"
                         icon="add"
                         color="secondary"
                         @click="addChild(prop.node.comp)"
@@ -329,7 +328,6 @@ load()
                     <q-btn
                         dense
                         flat
-                        size="1.2rem"
                         icon="edit"
                         color="secondary"
                         @click="editComp(prop.node.comp)"
