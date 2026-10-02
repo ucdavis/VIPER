@@ -1,56 +1,53 @@
 # CLAUDE.md
 
-When I ask a question or make an observation, respond with an answer - do NOT jump to making code changes unless I explicitly ask for them.
+When I ask a question ("why does X...", "is Y right?") or make an observation ("X looks off"), answer it and stop. Edit code only when I ask for a change ("fix", "change", "add", "do it").
 
 ## Environment & Commands
 
-- Run via npm scripts, never direct .NET/dotnet commands (avoids lock-file conflicts): Dev `npm run dev` | Test `npm run test` (`test:backend`, `test:frontend`; single test: `npm run test:backend -- <TestClassName>` / `npm run test:frontend -- <file-pattern>`) | Lint `npm run lint <path>` | Build `npm run verify:build`
+- Run via npm scripts, never direct `dotnet` commands (avoids lock-file conflicts): Dev `npm run dev` | Test `npm run test` (`test:backend -- <TestClassName>`, `test:frontend -- <file-pattern>`) | Lint `npm run lint <path>` | Build `npm run verify:build`
 - **Stale cache**: Add `-- --clear-cache` to `verify:build` or `lint` if builds fail with cached errors
 
 ## Architecture
 
-- **DB**: SQL Server 2016 + EF Core (CTS, RAPS, AAUD schemas) | **Auth**: CAS + `[Permission]` (see API & Cross-Environment)
+- **DB**: SQL Server 2016 + EF Core (CTS, RAPS, AAUD schemas) | **Auth**: CAS + `[Permission]`
 - **Identity:** `AaudUser.AaudUserId` = `Person.PersonId`. If mismatched, TEST DB needs refresh.
-- **Design system (UI)**: All UI rules (colors, typography, components, `<main>` landmark, WCAG-AA contrast) live in [DESIGN.md](DESIGN.md). Read it before building or changing UI. Always use Quasar components.
-- **VueUse**: Prefer VueUse composables over hand-rolled reactive logic.
-- **O(n²) lookups**: Pre-build a `Map`/`Set`/`Dictionary` rather than nesting `.find()`/`.FirstOrDefault()` in a loop over a growable list. In EF this is N+1, see Correlated subqueries.
-- **Plurals**: Use `inflect("word", count)` from the `inflection` package, never hand-roll ternaries for noun pluralization
+- **UI**: Read [DESIGN.md](DESIGN.md) before building or changing UI. Always use Quasar components; prefer VueUse composables over hand-rolled reactive logic.
+- **O(n²) lookups**: Pre-build a `Map`/`Set`/`Dictionary` instead of nesting `.find()`/`.FirstOrDefault()` in a loop over a growable list.
+- **Plurals**: `inflect("word", count)` from `inflection`, never hand-rolled ternaries
 
 ## Database & EF Core
 
 - **SQL Server 2016**: no `STRING_AGG`, `TRIM`, `CONCAT_WS`, `GREATEST/LEAST`
 - Prefer EF entities over raw SQL. Raw SQL only for non-EF tables via `GetConnectionString()`. Never mix raw SQL + EF entities (causes auth failures).
-- **Read-only queries**: Always `.AsNoTracking()` | `.Include()` before `.Select()` is unnecessary, EF resolves navigations in projections
-- **Correlated subqueries**: Avoid `.Any()` on large tables inside `.Where()`/`.CountAsync()`: pre-load ID sets then use `.Contains()`, or replace with `.Join()`
-- **`.Contains()` with large collections (10+)**: Wrap with `EF.Parameter()` for `OPENJSON` translation: `.Where(x => EF.Parameter(largeList).Contains(x.Id))`. Small collections (<10) are fine without it.
+- **Read-only queries**: Always `.AsNoTracking()` | No `.Include()` before `.Select()`, projections resolve navigations
+- **Correlated subqueries**: Avoid `.Any()` on large tables inside `.Where()`/`.CountAsync()`: pre-load ID sets then `.Contains()`, or `.Join()`
+- **`.Contains()` with 10+ items**: `.Where(x => EF.Parameter(list).Contains(x.Id))` for `OPENJSON` translation
 - **Thread safety**: DbContext not thread-safe, no parallel EF queries
 
 ## API & Cross-Environment
 
 - **Routes**: Absolute `/api/{area}/{controller}` + `ApiController` base
 - **Frontend API calls**: Service layer + `useFetch()`, never raw `fetch()` (must unwrap `{ result, success }`)
-- **API URL**: `${import.meta.env.VITE_API_URL}`, never hardcode `/api/` (TEST uses `/2/` prefix)
-- **Subpath PathBase (`/2`)**: TEST/PROD run VIPER 2 under a `/2` PathBase (IIS sub-app), legacy VIPER 1 at `/`; with no base locally, these bugs surface only on TEST/PROD (not in unit tests). Use `~/` for app-root redirects, never bare `/` (escapes to the legacy site). Guards matching root-relative paths (`/api`, `/welcome`) must strip the base off the base-prefixed `ReturnUrl` (`/2/...`) or use `Request.PathBase`. `RedirectToAction`, `@Url.Content("~/")`, and tag-helpers include the base; raw string paths (`Redirect("/x")`, `returnUrl.StartsWith("/api")`) don't.
-- **Auth**: `[Permission(Allow = "SVMSecure.{Area}")]`, or finer `"SVMSecure.{Area}.{Permission}"`. Authenticate before validating params
+- **API URL**: `${import.meta.env.VITE_API_URL}`, never hardcode `/api/`
+- **Subpath PathBase (`/2`)**: TEST/PROD run VIPER 2 under a `/2` PathBase, legacy VIPER 1 at `/`; locally there is no base, so these bugs only surface on TEST/PROD. Use `~/` for app-root redirects, never bare `/`. Guards matching root-relative paths (`/api`, `/welcome`) must strip the base off `ReturnUrl` (`/2/...`) or use `Request.PathBase`. `RedirectToAction`, `@Url.Content("~/")`, and tag-helpers include the base; raw strings (`Redirect("/x")`, `returnUrl.StartsWith("/api")`) don't.
+- **Auth**: `[Permission(Allow = "SVMSecure.{Area}")]` or `"SVMSecure.{Area}.{Permission}"`. Authenticate before validating params
 
 ## C# Standards
 
-- **Exceptions**: Catch specific types (`DbUpdateException`, `SqlException`, `InvalidOperationException`). Never generic `catch (Exception ex)`.
+- **Exceptions**: Catch specific types (`DbUpdateException`, `SqlException`, `InvalidOperationException`), never `catch (Exception ex)`
 - **Paths**: `Path.Join()` not `Path.Combine()` (`Combine` silently discards everything before a rooted segment) | **DateTime**: prefer `DateTimeKind.Local`
-- **Mapperly**: Prefer over manual property mapping. Static partial mapper class per area with `[Mapper(RequiredMappingStrategy = RequiredMappingStrategy.None)]`. Use `[MapperIgnoreTarget]` for computed properties, manual wrappers for transforms. Align entity/DTO names: use EF `HasColumnName()` to decouple from DB columns.
-- **Scrutor**: Convention-based DI auto-registers `*Service`/`*Validator` from configured namespaces, prefer over manual `AddScoped`. Follow `IFooService`/`FooService` naming. Explicit `AddScoped` before Scrutor takes precedence (`RegistrationStrategy.Skip`).
-- **`required` on bound models**: never on a server-generated primary key. A create body has no id yet, so System.Text.Json 400s it before the action runs. Use `int?` (a client sending `0` only masks it).
+- **Mapperly** over manual property mapping, one static partial mapper per area (follow existing ones). Align entity/DTO names via EF `HasColumnName()`.
+- **DI**: Scrutor auto-registers `*Service`/`*Validator` (`IFooService`/`FooService`); add explicit `AddScoped` only to override.
+- **`required` on bound models**: never on a server-generated primary key (a create body has no id, so System.Text.Json 400s it). Use `int?`.
 - **Bug fixes**: Check for duplicate/parallel implementations of the affected logic and fix consistently, or DRY into a shared method.
-- **Log injection**: Sanitize user input before logging via `LogSanitizer` (`SanitizeId()`, `SanitizeString()`, `SanitizeYear()`). Skip hard-coded strings, enums, DB values.
+- **Log injection**: Sanitize user input via `LogSanitizer` before logging. Skip hard-coded strings, enums, DB values.
 
 ## Testing & Git
 
-- **UI**: Test UI changes with Playwright MCP (modals, forms, keyboard nav)
-- **API**: Use Playwright MCP to visit endpoints, APIs require browser auth, `curl` fails
-- **Frontend mocks**: Vitest clears mock call history before every test (`clearMocks` default), so `vi.clearAllMocks()` in a `beforeEach` is redundant. Clear a mock explicitly only mid-test, when an assertion must ignore calls made earlier in the same test.
-- **Frontend test realm**: tests run on the `vmThreads` pool (one happy-dom per worker, ~4x faster than one per file). Values built outside the test realm (`FormData.getAll()`, a component prop) carry a foreign `Array` prototype, so `toStrictEqual` fails with "values have no visual difference". Spread first: `expect([...fd.getAll("x")]).toStrictEqual([...])`.
-- **Branch & merge flow**: Branch off `main`, named `feature/`|`fix/`|etc. plus the JIRA ticket if applicable (e.g. `feature/VPR-104-clinical-scheduler`). After code review, merge into `Development` and push, which deploys to TEST. After the PR is approved on TEST, merge into `main`. Every change goes through `Development` first.
-- **Never branch off `Development`**: it is a merge/deploy target, never a base. A branch being "behind `Development`" is expected and not a concern (you never sync or rebase from it). Its history is messy by design and never rewritten.
-- **Squash during review**: If a branch is still unmerged and worked by a single developer, squash code-review fixes into the relevant existing commit for cleaner history rather than stacking "address review" commits.
-- **Plan/smoketest notes**: `PLAN-*.md` and `SMOKETEST-*.md` at the repo root are local working notes, gitignored by design.
-- **Commit messages**: Conventional Commits `type(scope): subject` (`feat`|`fix`|`refactor`|`docs`|`test`|`chore`; prefer `feat` for new behavior), ticket ID from branch as prefix (e.g. `VPR-104 fix(a11y): ...`). Subject: imperative, max 72 chars, no trailing period, intent not implementation. Body only when the subject is insufficient: `-` bullets that each earn their place (skip plumbing/helpers/test scaffolding), wrapped at 72.
+- **Playwright MCP**: Test UI changes (modals, forms, keyboard nav) and hit API endpoints with it; APIs need browser auth, `curl` fails
+- **Frontend mocks**: Vitest `clearMocks` is on, so `vi.clearAllMocks()` in `beforeEach` is redundant
+- **Frontend test realm**: `vmThreads` pool means values built outside the test realm (`FormData.getAll()`, component props) have a foreign `Array` prototype and `toStrictEqual` fails with "no visual difference". Spread first: `expect([...fd.getAll("x")]).toStrictEqual([...])`.
+- **Branch & merge flow**: Branch off `main` as `feature/`|`fix/`|etc. plus JIRA ticket (e.g. `feature/VPR-104-clinical-scheduler`). After code review, merge into `Development` and push (deploys to TEST); after approval on TEST, merge the PR into `main`. `Development` is a messy merge target only: never branch off, rebase from, or rewrite it, and being behind it is fine.
+- **Squash during review**: On an unmerged single-developer branch, squash review fixes into the relevant commit instead of stacking "address review" commits.
+- **Plan/smoketest notes**: `PLAN-*.md` and `SMOKETEST-*.md` at the repo root are gitignored local notes.
+- **Commit messages**: Conventional Commits `type(scope): subject` (`feat`|`fix`|`refactor`|`docs`|`test`|`chore`; prefer `feat` for new behavior), branch ticket ID as prefix (e.g. `VPR-104 fix(a11y): ...`). Subject: imperative, max 72 chars, no trailing period, intent not implementation. Body only when needed: `-` bullets that each earn their place (skip plumbing/helpers/test scaffolding), wrapped at 72.
