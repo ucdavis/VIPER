@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import EmergencyContactPageShell from "../components/EmergencyContactPageShell.vue"
+import StudentRecordPageShell from "@/Students/components/StudentRecordPageShell.vue"
+import { EMERGENCY_CONTACT_RECORD_PAGE } from "../constants/record-page"
 import { emergencyContactService } from "../services/emergency-contact-service"
 import { stripToDigits, formatPhone } from "../utils/phone"
 import type { StudentContactDetail } from "../types"
@@ -46,9 +47,11 @@ onMounted(() => {
 </script>
 
 <template>
-    <EmergencyContactPageShell
+    <StudentRecordPageShell
+        v-bind="EMERGENCY_CONTACT_RECORD_PAGE"
         :loading="loading"
         :detail="detail"
+        :can-view-list="detail?.isAdmin ?? false"
     >
         <template v-if="detail">
             <h1 class="q-ma-none q-mb-md">
@@ -244,7 +247,7 @@ onMounted(() => {
                 </div>
             </div>
         </template>
-    </EmergencyContactPageShell>
+    </StudentRecordPageShell>
 </template>
 
 <style scoped>
