@@ -7,14 +7,11 @@ namespace Viper.Views.Shared.Components.SessionTimeout
     {
         public IViewComponentResult Invoke()
         {
-            UserHelper userHelper = new UserHelper();
-            string? loginId = userHelper.GetCurrentUser()?.LoginId;
-            bool onDev = HttpHelper.Environment?.EnvironmentName == "Development";
-            ViewData["sessionRefreshUrl"] = (onDev ? "http://localhost/" : ("https://" + HttpHelper.HttpContext?.Request.Host.Value + "/"))
-                + "/public/timeout/seconds_until_timeout_v2.cfm?id="
-                + (loginId ?? "")
-                + "&service=" + (onDev ? "Viper2-dev" : "Viper2");
-            return View("Default");
+            // The layout renders this on public pages too. An anonymous visitor has no session, and
+            // the poll would report zero seconds left and tell them it had expired.
+            return UserClaimsPrincipal?.Identity?.IsAuthenticated == true
+                ? View("Default")
+                : Content(string.Empty);
         }
 
     }
