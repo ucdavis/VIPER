@@ -75,7 +75,18 @@ namespace Viper.Classes.Scheduler
             // explicitly (the overload that takes additionalProcesses also
             // requires a non-null JobStorage).
             services.AddSingleton<IBackgroundProcess>(_ => new ProcessMonitor(checkInterval: TimeSpan.FromSeconds(30)));
-            services.AddHangfireServer();
+
+            // Inner link of the graceful-shutdown chain: Hangfire 15s <= host
+            // 30s (Program.cs) <= IIS app pool shutdownTimeLimit 90s (unset,
+            // so the IIS default applies), so a slot flip drains instead of
+            // killing work mid-job. Both C# links are pinned at today's
+            // framework defaults on purpose: the host default already moved
+            // once (5s to 30s in .NET 6) and a move either way would invert
+            // the ordering silently. Note this bounds how long a worker gets
+            // to return AFTER cancellation, so a long-running job's real
+            // lever is how fast it honors the token, not this 15s.
+            services.AddHangfireServer(options =>
+                options.ShutdownTimeout = TimeSpan.FromSeconds(15));
 
             // Hangfire-specific check piggybacks on the /health/detail "ready"
             // surface stood up in PR 0. Only registered when Hangfire itself is
