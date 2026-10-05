@@ -5,7 +5,7 @@
     >
         <q-input
             v-model="search"
-            class="q-ml-xs q-mr-xs"
+            class="phone-list-filter__input q-mx-xs"
             dense
             outlined
             debounce="300"
@@ -18,6 +18,17 @@
         <!-- Anything a page adds here is pinned with the filter, rather than scrolling away and
              leaving the reader to scroll back up to it. Counted in the published height. -->
         <slot />
+        <!-- Displays only when no matches are found across the entire page. The div is always
+             rendered to assist screen readers, which will see and announce a change of text. After
+             the slot, so it reads in the order it is shown: on its own line below the field and
+             anything beside it. -->
+        <div
+            role="status"
+            class="phone-list-filter__status text-grey q-mx-xs"
+            :class="{ 'q-mt-sm': noMatches }"
+        >
+            <template v-if="noMatches">No records match "{{ search }}".</template>
+        </div>
     </div>
 </template>
 
@@ -29,9 +40,15 @@ import { useElementSize } from "@vueuse/core"
 // native input's aria-label, so no separate aria-label is needed or wanted here.
 const search = defineModel<string>({ required: true })
 
-// Published rather than guessed at, so .sticky-filter-offset can be exactly this bar plus the
-// header above it. The height is not a constant: the field is a fixed 40px but the padding is in
-// rem, and the root font-size steps from 14px to 16px at 768px.
+defineProps<{
+    /** Set by a read-only page when the search has emptied every table. Maintain pages leave it
+     * unset: their tables stay shown, each with its own empty line. */
+    noMatches?: boolean
+}>()
+
+// Enables the scroll padding in assets/phone-list.css to be exactly this bar plus the header
+// above it. The height is not a constant since the padding is in rem and the root font-size changes
+// at 768px, and the controls either share a line or stack depending on the width.
 const barRef = useTemplateRef<HTMLElement>("bar")
 const { height } = useElementSize(barRef, undefined, { box: "border-box" })
 watchEffect(() => {
@@ -41,18 +58,39 @@ watchEffect(() => {
 
 <style scoped>
 /*
- * Pinned only where it earns its place. Below 1024px the tables render as stacked card lists, so
- * the page is tall enough that the filter would otherwise scroll away on the first swipe; at
- * desktop widths the table fits and a pinned bar would only take space.
+ * The field and whatever a page adds share a line while they fit, and stack on a narrow screen.
+ * Where the bar is pinned, every line it saves is a line more of the list. No row gap: the status
+ * line is empty most of the time, and brings its own margin when it is not.
+ */
+.phone-list-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.5rem;
+}
+
+/* Takes the line's spare width, down to a size a name can still be typed into comfortably. */
+.phone-list-filter__input {
+    flex: 1 1 20rem;
+}
+
+/* Always a line of its own, below the controls. */
+.phone-list-filter__status {
+    flex-basis: 100%;
+}
+
+/*
+ * Pinned at every width: the phone lists run to many screens on desktop as well as on a phone, and
+ * the jump links are only worth having if they can be reached without scrolling back up for them.
  *
  * The min-height guard is the WCAG 1.4.10 concern: on a short viewport - a landscape phone, or a
- * zoomed page - a bar fixed to the top eats a large share of what is left to read. Under 480px of
+ * zoomed page - a bar fixed to the top eats a large share of what is left to read. Under 400px of
  * height it scrolls with the page like anything else.
  *
  * Focus targets that the browser scrolls into view can land underneath a sticky bar. The paired
- * .sticky-filter-offset utility in base.css gives them the scroll-margin to clear it.
+ * scroll padding in assets/phone-list.css keeps them clear of it.
  */
-@media (width <= 1023.98px) and (height >= 480px) {
+@media (height >= 400px) {
     .phone-list-filter {
         position: sticky;
 
@@ -67,7 +105,7 @@ watchEffect(() => {
         /* Under the header's 2000, above page content, which sets no z-index at all. */
         z-index: 2;
 
-        /* Opaque: cards scrolling underneath must never show through the field. */
+        /* Opaque: rows scrolling underneath must never show through the field. */
         background-color: var(--surface, #fff);
         padding-block: 0.5rem;
     }

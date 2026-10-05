@@ -6,7 +6,7 @@ import { getPhoneListData } from "../composables/phone-list-data-fetch.ts"
 import { phoneListService } from "../services/phone-list-service.ts"
 import { phoneListUnitService } from "../services/phone-list-unit-service.ts"
 import type { PhoneListUnit } from "../types/phone-list-phone-types"
-import { apiError, apiResult } from "./test-utils"
+import { apiError, apiResult, linkTargets, openJumpLinks, trackAttached, unmountAttached } from "./test-utils"
 
 /**
  * PhoneListMaintain shows a StatusBanner only when a delete/save action reports an error
@@ -90,14 +90,19 @@ const personSelectorStub = {
     template: "<div class='selector-stub' />",
 }
 
-function mountPage() {
-    return mount(PhoneListMaintain, {
+/** Pass attach to mount into the document, which the jump links' portalled menu needs. */
+function mountPage(attach = false) {
+    const wrapper = mount(PhoneListMaintain, {
         global: {
             plugins: [[Quasar, { plugins: { Notify } }]],
             stubs: { PersonSelector: personSelectorStub },
         },
+        ...(attach ? { attachTo: document.body } : {}),
     })
+    return attach ? trackAttached(wrapper) : wrapper
 }
+
+afterEach(unmountAttached)
 
 function findAddButton(wrapper: ReturnType<typeof mountPage>) {
     return wrapper.findAllComponents({ name: "QBtn" }).find((btn) => btn.props("icon") === "add")
@@ -240,5 +245,48 @@ describe("phoneListMaintain.vue - error banner", () => {
         await flushPromises()
 
         expect(vi.mocked(getPhoneListData).mock.calls.length).toBeGreaterThan(callsBeforeSave)
+    })
+})
+
+describe("phoneListMaintain.vue - unit jump links", () => {
+    async function mountWithTwoUnits() {
+        stubListInfo()
+        vi.mocked(getPhoneListData).mockResolvedValue([
+            unitWithDeletableRow(),
+            { ...unitWithDeletableRow(), id: 11, name: "Business Office" },
+        ])
+        const wrapper = mountPage(true)
+        await flushPromises()
+        return wrapper
+    }
+
+    it("links to every unit", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountWithTwoUnits()
+
+        await expect(linkTargets(wrapper)).resolves.toStrictEqual(["Dean's Office", "Business Office"])
+    })
+
+    it("keeps linking to units a search has emptied, since they stay shown with their add button", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountWithTwoUnits()
+
+        await wrapper.findComponent({ name: "QInput" }).setValue("nobody")
+
+        await expect(linkTargets(wrapper)).resolves.toStrictEqual(["Dean's Office", "Business Office"])
+    })
+
+    it("points each link at the heading of its own unit", async () => {
+        expect.hasAssertions()
+        const wrapper = await mountWithTwoUnits()
+        const links = await openJumpLinks(wrapper)
+
+        expect(links).toHaveLength(2)
+
+        for (const link of links) {
+            const id = link.getAttribute("href")!.slice(1)
+
+            expect(wrapper.find(`h2#${id}`).exists()).toBeTruthy()
+        }
     })
 })
