@@ -84,6 +84,7 @@ public class PhonesDbContext : DbContext
             entity.Property(e => e.Name).HasColumnName("Name").HasMaxLength(100);
             entity.Property(e => e.Fax).HasColumnName("Fax").HasMaxLength(25);
             entity.Property(e => e.Abbrv).HasColumnName("Abbrv").HasMaxLength(20);
+            entity.Property(e => e.DeptCode).HasColumnName("DeptCode").HasMaxLength(6).IsUnicode(false);
             entity.Property(e => e.SortOrder).HasColumnName("SortOrder");
             entity.Property(e => e.ModifiedDate).HasColumnName("ModifiedDate");
             entity.Property(e => e.ModifiedBy).HasColumnName("ModifiedBy").HasMaxLength(10);
