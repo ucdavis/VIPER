@@ -30,7 +30,11 @@ public sealed class PersonCollectorExcelTests
         Assert.Equal(["Senate Faculty", "Students"], workbook.Worksheets.Select(sheet => sheet.Name));
         IXLWorksheet senate = workbook.Worksheet("Senate Faculty");
         Assert.Equal(["Name", "Email"], senate.Row(1).CellsUsed().Select(cell => cell.GetString()));
-        Assert.Equal("'=ada@ucdavis.edu", senate.Cell(2, 2).GetString());
+        // Formula injection: the value must stay text. ClosedXML turns the sanitizer's leading
+        // apostrophe into Excel's quote prefix, so the apostrophe itself isn't read back.
+        IXLCell email = senate.Cell(2, 2);
+        Assert.False(email.HasFormula);
+        Assert.EndsWith("=ada@ucdavis.edu", email.GetString());
         Assert.Equal(PersonCollectorExcel.EmptySectionText, workbook.Worksheet("Students").Cell(2, 1).GetString());
     }
 
