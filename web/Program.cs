@@ -230,6 +230,7 @@ try
     }
 
     RegisterDbContext<AAUDContext>("AAUD");
+    RegisterDbContext<AcademicPersonnelContext>("AcademicPersonnel");
     RegisterDbContext<CoursesContext>("Courses");
     RegisterDbContext<CrestContext>("CREST");
     RegisterDbContext<DictionaryContext>("Dictionary");
@@ -243,6 +244,11 @@ try
     // Phone tables are in the VIPER database's [phones] schema.
     RegisterDbContext<PhonesDbContext>("VIPER");
     RegisterDbContext<EvalHarvestDbContext>("EvalHarvest");
+    // EIS reads MyInfoVault boards and focus areas through MPVote's procedures.
+    RegisterDbContext<MPVoteContext>("MPVote");
+
+    // The clock services read "now" from, so tests can fix it (EIS uses it for the academic year).
+    builder.Services.AddSingleton(TimeProvider.System);
 
     // Register UserHelper service (must be before Scrutor to take precedence)
     builder.Services.AddScoped<IUserHelper, UserHelper>();
