@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ClosedXML.Excel;
 
 namespace Viper.Classes.Utilities;
 
@@ -19,12 +20,26 @@ public static partial class ExcelHelper
 {
     /// <summary>
     /// Prevent CSV/Excel formula injection (OWASP CWE-1236).
-    /// Prefixes strings starting with =, +, -, or @ with a leading apostrophe.
+    /// Prefixes a leading apostrophe when the first character that is not whitespace or a control
+    /// character is =, +, -, or @. Leading tabs, line breaks and spaces are skipped rather than
+    /// trusted, because some spreadsheet apps strip them on import and then evaluate the formula.
     /// </summary>
     public static string SanitizeStringCell(string? value)
     {
         if (string.IsNullOrEmpty(value)) return value ?? string.Empty;
-        return value[0] is '=' or '+' or '-' or '@' ? "'" + value : value;
+        var first = value.FirstOrDefault(c => !char.IsWhiteSpace(c) && !char.IsControl(c));
+        return first is '=' or '+' or '-' or '@' ? "'" + value : value;
+    }
+
+    /// <summary>
+    /// Save a workbook to a new stream, rewound so it can be returned as a file download.
+    /// </summary>
+    public static MemoryStream SaveToStream(XLWorkbook workbook)
+    {
+        var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+        return stream;
     }
 
     /// <summary>
