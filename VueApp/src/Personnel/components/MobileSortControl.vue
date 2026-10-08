@@ -3,7 +3,7 @@
          rendered as cards. Renders nothing for a table with no sortable column. -->
     <div
         v-if="options.length > 0"
-        class="row items-center no-wrap q-gutter-sm q-mb-sm"
+        class="row items-center no-wrap q-gutter-x-xs"
     >
         <q-select
             v-model="sortBy"

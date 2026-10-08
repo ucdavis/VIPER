@@ -8,7 +8,7 @@ import { getFrequentlyCalledNumbers, getSVMData } from "../composables/svm-data-
 import { svmUnitService } from "../services/svm-unit-service"
 import { svmFrequentNumberService } from "../services/svm-frequent-number-service.ts"
 import type { SVMFrequentNumberRecord, SVMPhoneDisplayRecord, SVMPhoneSection } from "../types/svm-phone-types"
-import { apiError, apiResult } from "./test-utils"
+import { apiError, apiResult, linkTargets, openJumpLinks, trackAttached, unmountAttached } from "./test-utils"
 
 /**
  * SVMPhonesMaintain reports delete outcomes as toasts rather than as a page banner, since the
@@ -112,6 +112,8 @@ async function mountPage(
         sections?: SVMPhoneSection[]
         frequentNumbers?: SVMFrequentNumberRecord[]
         loadError?: string | null
+        /** Mount into the document, which the jump links' portalled menu needs. */
+        attach?: boolean
     } = {},
 ) {
     vi.mocked(getSVMData).mockResolvedValue({
@@ -131,10 +133,16 @@ async function mountPage(
             plugins: [[Quasar, { plugins: { Notify } }]],
             stubs: { PersonSelector: personSelectorStub },
         },
+        ...(data.attach ? { attachTo: document.body } : {}),
     })
+    if (data.attach) {
+        trackAttached(wrapper)
+    }
     await flushPromises()
     return wrapper
 }
+
+afterEach(unmountAttached)
 
 type Page = Awaited<ReturnType<typeof mountPage>>
 
@@ -151,9 +159,8 @@ async function clickAction(root: Pick<Page, "findAllComponents">, action: "edit"
 }
 
 /**
- * Per-test reset, called as the first line of each test rather than from a beforeEach, since
- * vitest/no-hooks is on and the rest of the suite keeps its setup inside the test body.
- * Pass false to decline the confirmation dialog.
+ * Per-test reset, called as the first line of each test. A call rather than a beforeEach, because
+ * the confirmation answer differs between tests: pass false to decline the confirmation dialog.
  */
 function resetMocks(confirmed = true) {
     mockConfirmAction.mockResolvedValue(confirmed)
@@ -468,5 +475,48 @@ describe("sVMPhonesMaintain.vue - frequently called numbers", () => {
         const filterParent = wrapper.find(".phone-list-filter").element.parentElement
 
         expect(filterParent?.childElementCount).toBeGreaterThan(1)
+    })
+})
+
+describe("sVMPhonesMaintain.vue - section jump links", () => {
+    function mountWithTwoSections() {
+        return mountPage({
+            sections: [sectionWithDeletableRow(), { ...sectionWithDeletableRow(), id: 2, title: "VMTH" }],
+            frequentNumbers: [frequentNumber],
+            attach: true,
+        })
+    }
+
+    it("links to every section, and to the frequently called numbers alongside them", async () => {
+        expect.hasAssertions()
+        resetMocks()
+        const wrapper = await mountWithTwoSections()
+
+        await expect(linkTargets(wrapper)).resolves.toStrictEqual(["VMDO", "VMTH", "Frequently Called Numbers"])
+    })
+
+    it("keeps linking to sections a search has emptied, since they stay shown with their add button", async () => {
+        expect.hasAssertions()
+        resetMocks()
+        const wrapper = await mountWithTwoSections()
+
+        await wrapper.findComponent({ name: "QInput" }).setValue("nobody")
+
+        await expect(linkTargets(wrapper)).resolves.toStrictEqual(["VMDO", "VMTH", "Frequently Called Numbers"])
+    })
+
+    it("points each link at the heading of its own section", async () => {
+        expect.hasAssertions()
+        resetMocks()
+        const wrapper = await mountWithTwoSections()
+        const links = await openJumpLinks(wrapper)
+
+        expect(links).toHaveLength(3)
+
+        for (const link of links) {
+            const id = link.getAttribute("href")!.slice(1)
+
+            expect(wrapper.find(`h2#${id}`).exists()).toBeTruthy()
+        }
     })
 })
