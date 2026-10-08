@@ -30,7 +30,7 @@
         "chart.js": "^4.5.1",
         "inflection": "^3.0.2",
         "pinia": "^4.0.3",
-        "quasar": "^2.27.0",
+        "quasar": "^2.35.0",
         "vue": "^3.5.41",
         "vue-chartjs": "^5.3.4",
         "vue-draggable-plus": "^0.6.1",
