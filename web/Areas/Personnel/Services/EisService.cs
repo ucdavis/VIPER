@@ -302,7 +302,7 @@ public partial class EisService : IEisService
             ToDate(row.EndDate),
             row.Percent,
             Clean(row.Account),
-            row.Step.ToString("0", CultureInfo.InvariantCulture),
+            row.Step.ToString("0.##", CultureInfo.InvariantCulture),
             Clean(row.DosCode),
             row.AnnualAmount * (row.Percent ?? 0m) / Hundred);
     }
@@ -344,7 +344,7 @@ public partial class EisService : IEisService
             Clean(row.Department),
             DateOnly.FromDateTime(row.BeginDate),
             ToDate(row.EndDate),
-            row.Step.ToString("0", CultureInfo.InvariantCulture),
+            row.Step.ToString("0.##", CultureInfo.InvariantCulture),
             row.Percent,
             row.PayRate,
             Clean(row.Comment));

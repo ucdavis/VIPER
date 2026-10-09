@@ -266,6 +266,17 @@ public sealed class EisServiceTests
         Assert.Equal("1", distribution.Number);
     }
 
+    [Theory]
+    [InlineData(5.0, "5")]
+    [InlineData(5.5, "5.5")]
+    public void ToDistribution_ShowsHalfStepsAndWholeStepsWithoutDecimals(double step, string expected)
+    {
+        EisDistributionRow row = Distribution(annual: 50_000m, percent: null, payRate: 0m);
+        row.Step = (decimal)step;
+
+        Assert.Equal(expected, EisService.ToDistribution(row).Step);
+    }
+
     [Fact]
     public async Task GetHistory_WithAPpsId_IncludesPpsRecords()
     {
