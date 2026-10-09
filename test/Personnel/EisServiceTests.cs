@@ -4,6 +4,7 @@ using Viper.Areas.Personnel.Models.Eis;
 using Viper.Areas.Personnel.Services;
 using Viper.Classes.SQLContext;
 using Viper.Models.AAUD;
+using Viper.Models.RAPS;
 using static Viper.test.Personnel.EisTestData;
 
 namespace Viper.test.Personnel;
@@ -34,6 +35,17 @@ public sealed class EisServiceTests
         {
             _userHelper.HasPermission(Arg.Any<RAPSContext?>(), Arg.Any<AaudUser?>(), permission).Returns(true);
         }
+        _userHelper.GetAllPermissions(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>())
+            .Returns([.. permissions.Select(permission => new TblPermission { Permission = permission })]);
+    }
+
+    /// <summary>A superuser: HasPermission grants every name, but only SVMSecure.SU is assigned.</summary>
+    private void SignInAsSuperuser()
+    {
+        _userHelper.GetCurrentUser().Returns(User());
+        _userHelper.HasPermission(Arg.Any<RAPSContext?>(), Arg.Any<AaudUser?>(), Arg.Any<string>()).Returns(true);
+        _userHelper.GetAllPermissions(Arg.Any<RAPSContext>(), Arg.Any<AaudUser>())
+            .Returns([new TblPermission { Permission = "SVMSecure.SU" }]);
     }
 
     private void UnitHas(params EisPersonRow[] people)
@@ -118,6 +130,17 @@ public sealed class EisServiceTests
 
         Assert.True(await _service.CanViewAsync(EmployeeId, Ct));
         Assert.False(await _service.CanViewAsync(OtherEmployeeId, Ct));
+    }
+
+    [Fact]
+    public async Task Superuser_IsNotLimitedToTheirUnits()
+    {
+        SignInAsSuperuser();
+        _data.GetPeopleAsync(Arg.Any<CancellationToken>()).Returns([Person(EmployeeId, "Lovelace, Ada")]);
+
+        Assert.Equal([EmployeeId], (await _service.GetPeopleAsync(Ct)).Select(person => person.EmployeeId));
+        Assert.True(await _service.CanViewAsync(OtherEmployeeId, Ct));
+        await _data.DidNotReceive().GetUnitPeopleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
