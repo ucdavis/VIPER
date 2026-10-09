@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Personnel.Controllers;
 using Viper.Areas.Personnel.Models.Eis;
 using Viper.Areas.Personnel.Services;
@@ -66,7 +67,7 @@ public sealed class EisControllerTests
     public async Task GetHeader_UnknownEmployee_IsNotFound()
     {
         Allow();
-        _eis.GetHeaderAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns((EisPersonHeader?)null);
+        _eis.GetHeaderAsync(EmployeeId, Arg.Any<CancellationToken>()).ReturnsNull();
 
         ActionResult<EisPersonHeader> result = await _controller.GetHeader(EmployeeId, Ct);
 
@@ -128,7 +129,7 @@ public sealed class EisControllerTests
     public async Task GetPhoto_WithoutAMailId_AsksForTheDefaultPhoto()
     {
         Allow();
-        _eis.GetMailIdAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns((string?)null);
+        _eis.GetMailIdAsync(EmployeeId, Arg.Any<CancellationToken>()).ReturnsNull();
         _photos.GetStudentPhotoAsync(string.Empty).Returns(PhotoBytes);
 
         Assert.IsType<FileContentResult>(await _controller.GetPhoto(EmployeeId, Ct));
@@ -195,7 +196,7 @@ public sealed class EisControllerTests
     public async Task SetFlag_WhenTheServiceRefuses_IsForbidden()
     {
         Allow();
-        _eis.SetFlagAsync(EmployeeId, 4, true, Arg.Any<CancellationToken>()).Returns((EisAppointmentCategories?)null);
+        _eis.SetFlagAsync(EmployeeId, 4, true, Arg.Any<CancellationToken>()).ReturnsNull();
 
         Assert.Equal(StatusCodes.Status403Forbidden, StatusOf((await _controller.SetFlag(EmployeeId, 4, Ct)).Result));
     }

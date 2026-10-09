@@ -1,4 +1,5 @@
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Models.Eis;
 using Viper.Areas.Personnel.Services;
@@ -354,7 +355,7 @@ public sealed class EisServiceTests
     public async Task GetAddress_WhenTheDirectoryIsDown_SaysSo()
     {
         Ids(null);
-        _directory.GetCampusListings(EmployeeId, null).Returns((IReadOnlyList<EisCampusListing>?)null);
+        _directory.GetCampusListings(EmployeeId, null).ReturnsNull();
 
         EisAddress address = await _service.GetAddressAsync(EmployeeId, Ct);
 
