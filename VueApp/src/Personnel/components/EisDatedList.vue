@@ -1,3 +1,4 @@
+<!-- fallow-ignore-file css-broken-reference -- q-mb-lg is a Quasar spacing class, defined by Quasar rather than in this project -->
 <template>
     <p v-if="items.length === 0">{{ empty }}</p>
     <q-markup-table

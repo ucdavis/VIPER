@@ -24,6 +24,11 @@ function formatEisDate(value: string | null): string {
     return parts ? `${parts.month}/${parts.day}/${parts.year}` : value
 }
 
+/** An open-ended distribution or stipend reads "INDEF", as in UCPath. */
+function formatEndDate(value: string | null): string {
+    return value === null ? "INDEF" : formatEisDate(value)
+}
+
 /** 1234.5 becomes "1,234.50"; null becomes "". */
 function formatMoney(value: number | null): string {
     return value === null ? "" : moneyFormat.format(value)
@@ -82,6 +87,7 @@ export {
     filterPeople,
     formatDecimal,
     formatEisDate,
+    formatEndDate,
     formatHours,
     formatMoney,
     formatPercent,
