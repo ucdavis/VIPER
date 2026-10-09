@@ -111,7 +111,7 @@ public partial class EisService : IEisService
             return false;
         }
 
-        if (!HasPermission(user, EisPermissions.Department))
+        if (!IsDepartmentOnly(user))
         {
             return HasPermission(user, EisPermissions.View);
         }
@@ -398,7 +398,7 @@ public partial class EisService : IEisService
             return null;
         }
 
-        if (HasPermission(user, EisPermissions.Department))
+        if (IsDepartmentOnly(user))
         {
             return await GetUnitPeopleAsync(user, ct);
         }
@@ -424,6 +424,17 @@ public partial class EisService : IEisService
     private bool HasPermission(AaudUser user, string permission)
     {
         return _userHelper.HasPermission(_rapsContext, user, permission);
+    }
+
+    /// <summary>
+    /// Whether the user holds <see cref="EisPermissions.Department"/> itself. It narrows access, so it
+    /// is looked up by name rather than through <see cref="IUserHelper.HasPermission"/>, which grants
+    /// every permission to superusers and would restrict them to their own units.
+    /// </summary>
+    private bool IsDepartmentOnly(AaudUser user)
+    {
+        return _userHelper.GetAllPermissions(_rapsContext, user)
+            .Any(p => string.Equals(p.Permission, EisPermissions.Department, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>UCPath text is often padded with spaces; blank text becomes null.</summary>
