@@ -1,4 +1,5 @@
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Models.PersonCollector;
 using Viper.Areas.Personnel.Services;
@@ -106,7 +107,7 @@ public sealed class PersonCollectorServiceTests
     [Fact]
     public async Task Collect_WithoutAUser_ShowsNoIds()
     {
-        _userHelper.GetCurrentUser().Returns((AaudUser?)null);
+        _userHelper.GetCurrentUser().ReturnsNull();
         Grant(PersonCollectorPermissions.MoreIds);
 
         PersonCollectorResult result = await _service.CollectAsync(new PersonCollectorRequest { SenateEmeriti = true }, Ct);
