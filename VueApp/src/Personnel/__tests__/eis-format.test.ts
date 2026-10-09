@@ -3,6 +3,7 @@ import {
     filterPeople,
     formatDecimal,
     formatEisDate,
+    formatEndDate,
     formatHours,
     formatMoney,
     formatPercent,
@@ -35,6 +36,12 @@ describe("eis-format", () => {
         expect(formatEisDate("2026-07-01T00:00:00")).toBe("07/01/2026")
         expect(formatEisDate("07/2026")).toBe("07/2026")
         expect(formatEisDate(null)).toBe("")
+    })
+
+    it("shows an open-ended end date as INDEF, as UCPath does", () => {
+        expect.hasAssertions()
+        expect(formatEndDate(null)).toBe("INDEF")
+        expect(formatEndDate("2026-06-30")).toBe("06/30/2026")
     })
 
     it("formats money and percents with cents", () => {

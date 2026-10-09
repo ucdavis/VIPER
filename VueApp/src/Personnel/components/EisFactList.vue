@@ -19,16 +19,12 @@
 </template>
 
 <script setup lang="ts">
+import type { EisFact } from "../services/eis-facts"
+
 /**
  * Labelled values in a responsive grid, as the legacy EIS header laid them out in pairs.
- * A fact with an href shows its value as a link.
+ * A fact with an href shows its value as a link; a null value shows as blank.
  */
-interface EisFact {
-    label: string
-    value: string
-    href?: string
-}
-
 defineProps<{ facts: EisFact[] }>()
 </script>
 
