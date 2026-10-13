@@ -1,0 +1,128 @@
+@{
+    Layout = null;
+    // Controller has already validated ReturnUrl with Url.IsLocalUrl and nulled it if unsafe.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+
+    // "provider" is explicit on both buttons: without it /login would send the two-provider case
+    // back to this page instead of on to CAS.
+    string SignInUrl(string provider)
+    {
+        var url = $"{Url.Content("~/login")}?provider={provider}";
+        return string.IsNullOrEmpty(returnUrl)
+            ? url
+            : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    // Straight to the Entra endpoint rather than through /login, because this is the one link
+    // that forces the account picker and /login deliberately never does.
+    string SwitchAccountUrl()
+    {
+        var url = $"{Url.Content("~/EntraLogin")}?selectAccount=true";
+        return string.IsNullOrEmpty(returnUrl)
+            ? url
+            : $"{url}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    // Which providers to offer. Defaults to CAS alone if the controller didn't say, so a
+    // misconfiguration degrades to the pre-Entra behavior rather than to no way to sign in.
+    var casEnabled = ViewData["CasEnabled"] as bool? ?? true;
+    var entraIdEnabled = ViewData["EntraIdEnabled"] as bool? ?? false;
+    var showBoth = casEnabled && entraIdEnabled;
+
+    // With one provider there is no choice to explain, so the button keeps the plain "Sign in"
+    // and the solid primary style. The outlined variant only makes sense against a primary.
+    var casLabel = showBoth ? "Sign in with CAS" : "Sign in";
+    var entraLabel = showBoth ? "Sign in with Entra ID" : "Sign in";
+    var entraClass = showBoth ? "welcome-cta welcome-cta--secondary" : "welcome-cta";
+
+    var hero = ViewData["Hero"] as string ?? "ophthalmology";
+    var destinationLabel = ViewData["DestinationLabel"] as string;
+    // Preload the AVIF that the CSS image-set() picks on capable browsers (must
+    // match that URL byte-for-byte to be reused). The type hint below lets
+    // browsers without AVIF skip the preload and fall back to the JPEG.
+    var heroImageUrl = Url.Content($"~/images/login/photo-{hero.Replace("_", "-")}.avif");
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in - VIPER 2.0</title>
+    @* Proxima Nova comes from the campus font server (see welcome.css), so warm
+       the connection early: the splash headline is display-scale and the
+       handshake would otherwise land in the middle of the font-display swap. *@
+    <link rel="preconnect" href="https://campusfont.ucdavis.edu" crossorigin />
+    <link rel="preload" as="image" href="@heroImageUrl" type="image/avif" fetchpriority="high" />
+    <link rel="stylesheet" href="~/css/welcome.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="welcome-header">
+        <div class="welcome-header__bar">
+            <partial name="_ViperBrand" />
+        </div>
+        <div class="welcome-header__rule" aria-hidden="true"></div>
+    </header>
+
+    <main class="welcome-hero welcome-hero--@hero">
+        <div class="welcome-hero__inner">
+            <div class="welcome-editorial">
+                <h1 class="welcome-editorial__headline">VIPER&nbsp;2.0</h1>
+                <div class="welcome-editorial__rule" aria-hidden="true"></div>
+                <p class="welcome-editorial__tagline">
+                    The SVM portal for students, staff, and faculty.
+                </p>
+            </div>
+
+            <div class="welcome-card-wrap">
+                <div class="welcome-card">
+                    <h2 class="welcome-card__heading">Welcome</h2>
+                    @if (!string.IsNullOrEmpty(destinationLabel))
+                    {
+                        <p class="welcome-card__destination">
+                            You'll be taken to <strong>@destinationLabel</strong> after signing in.
+                        </p>
+                    }
+                    @if (showBoth)
+                    {
+                        <p class="welcome-card__choice">
+                            Campus is moving from CAS to Entra ID. Either option signs you in to the
+                            same account.
+                        </p>
+                    }
+                    <div class="welcome-cta-group">
+                        @if (casEnabled)
+                        {
+                            <a class="welcome-cta" href="@SignInUrl("Cas")">
+                                <span>@casLabel</span>
+                                <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                            </a>
+                        }
+                        @if (entraIdEnabled)
+                        {
+                            <a class="@entraClass" href="@SignInUrl("EntraId")">
+                                <span>@entraLabel</span>
+                                <span class="welcome-cta__arrow" aria-hidden="true">&rarr;</span>
+                            </a>
+                        }
+                    </div>
+                    @if (entraIdEnabled)
+                    {
+                        @* The buttons above send no prompt, so Entra signs a single account
+                           straight through. This is the way out for someone who wants another. *@
+                        <a class="welcome-help" href="@SwitchAccountUrl()">Use a different account</a>
+                    }
+                    <a class="welcome-help"
+                       href="https://www.vetmed.ucdavis.edu/about/svmit"
+                       target="_blank"
+                       rel="noopener">
+                        Need help signing in?
+                        <span class="sr-only">(opens in new window)</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <partial name="_WelcomeFooter" />
+    </main>
+</body>
+</html>

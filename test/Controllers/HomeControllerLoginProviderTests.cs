@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -31,7 +32,8 @@ public sealed class HomeControllerLoginProviderTests
             Options.Create(new AuthenticationSettings { EnabledProviders = enabledProviders }),
             Substitute.For<AAUDContext>(),
             Substitute.For<RAPSContext>(),
-            Substitute.For<VIPERContext>());
+            Substitute.For<VIPERContext>(),
+            Substitute.For<IActionDescriptorCollectionProvider>());
 
         var identity = authenticated
             ? new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "tester") }, authenticationType: "TestAuth")
