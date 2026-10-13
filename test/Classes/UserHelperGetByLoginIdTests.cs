@@ -35,13 +35,16 @@ namespace Viper.test.Classes
             _context.Dispose();
         }
 
-        private void AddUser(int current = 1, int future = 0)
+        private const int ActiveUserId = 1;
+        private const string ActiveMothraId = "00012345";
+
+        private void AddUser(int current = 1, int future = 0, int aaudUserId = ActiveUserId, string mothraId = ActiveMothraId)
         {
             _context.AaudUsers.Add(new AaudUser
             {
-                AaudUserId = 1,
-                ClientId = "C1",
-                MothraId = "00012345",
+                AaudUserId = aaudUserId,
+                ClientId = "C" + aaudUserId,
+                MothraId = mothraId,
                 LoginId = LoginId,
                 FirstName = "Jane",
                 LastName = "Doe",
@@ -71,7 +74,7 @@ namespace Viper.test.Classes
             var result = new UserHelper().GetByLoginId(_context, LoginId);
 
             Assert.NotNull(result);
-            Assert.Equal(LoginId, result.LoginId);
+            Assert.Equal(ActiveUserId, result.AaudUserId);
         }
 
         [Fact]
@@ -80,6 +83,30 @@ namespace Viper.test.Classes
             AddUser(current: 0, future: 0);
 
             Assert.Null(new UserHelper().GetByLoginId(_context, LoginId));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void GetByLoginId_PrefersActiveUserOverFormerUserWithSameLoginId(bool formerInsertedFirst)
+        {
+            // Both orders, so the active-flag filter is proven rather than the row order.
+            if (formerInsertedFirst)
+            {
+                AddUser(current: 0, future: 0, aaudUserId: 2, mothraId: "00099999");
+                AddUser();
+            }
+            else
+            {
+                AddUser();
+                AddUser(current: 0, future: 0, aaudUserId: 2, mothraId: "00099999");
+            }
+
+            var result = new UserHelper().GetByLoginId(_context, LoginId);
+
+            Assert.NotNull(result);
+            Assert.Equal(ActiveUserId, result.AaudUserId);
+            Assert.Equal(ActiveMothraId, result.MothraId);
         }
 
         [Fact]
@@ -91,7 +118,7 @@ namespace Viper.test.Classes
 
             RemoveUsers();
 
-            Assert.NotNull(helper.GetByLoginId(_context, LoginId));
+            Assert.Equal(ActiveUserId, helper.GetByLoginId(_context, LoginId)?.AaudUserId);
         }
 
         [Fact]
@@ -103,7 +130,7 @@ namespace Viper.test.Classes
             // A user who becomes active after a failed lookup must not be locked out by a cached null.
             AddUser();
 
-            Assert.NotNull(helper.GetByLoginId(_context, LoginId));
+            Assert.Equal(ActiveUserId, helper.GetByLoginId(_context, LoginId)?.AaudUserId);
         }
 
         [Fact]
