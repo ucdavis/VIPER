@@ -262,24 +262,24 @@ namespace Viper
             {
                 try
                 {
-                    string userLoginId = loginId.ToLower();
-                    AaudUser? user = null;
+                    string cacheKey = "AaudUser-" + loginId.ToLower();
 
                     // if we have already cached this user as an UCD user then create a Viper user from that object
-                    if (HttpHelper.Cache != null)
+                    if (HttpHelper.Cache?.TryGetValue(cacheKey, out AaudUser? cachedUser) == true && cachedUser != null)
                     {
-                        user = HttpHelper.Cache.Get<AaudUser>("AaudUser-" + userLoginId);
-                    }
-
-                    if (user != null)
-                    {
-                        return user;
+                        return cachedUser;
                     }
 
                     if (HttpHelper.Cache != null && aaudContext != null)
                     {
-                        user = HttpHelper.Cache.GetOrCreate("AaudUser-" + userLoginId,
-                            _ => aaudContext.AaudUsers.AsNoTracking().FirstOrDefault(m => m.LoginId == loginId && (m.Current == 1 || m.Future == 1)))
+                        AaudUser? user = aaudContext.AaudUsers.AsNoTracking()
+                            .FirstOrDefault(m => m.LoginId == loginId && (m.Current == 1 || m.Future == 1));
+
+                        // Only cache found users, and expire them so changes to active flags are picked up
+                        if (user != null)
+                        {
+                            HttpHelper.Cache.Set(cacheKey, user, TimeSpan.FromMinutes(10));
+                        }
 
                         return user;
                     }
