@@ -26,6 +26,10 @@ public class PhonesDbContext : DbContext
     // Read-only cross-schema reference (users schema in same database)
     public virtual DbSet<ViperPerson> ViperPerson { get; set; }
 
+    // Read-only views
+    public virtual DbSet<VwVMDOPhoneList> VwVMDOPhoneList { get; set; }
+    public virtual DbSet<VwUnitHeads> VwUnitHeads { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -170,6 +174,8 @@ public class PhonesDbContext : DbContext
             entity.Property(e => e.Name).HasColumnName("Name").HasMaxLength(100);
             entity.Property(e => e.PhoneListId).HasColumnName("PhoneListId");
             entity.Property(e => e.SortOrder).HasColumnName("SortOrder");
+            entity.Property(e => e.ListProcName).HasColumnName("ListProcName").HasMaxLength(50).IsUnicode(false);
+            entity.Property(e => e.LegacyUnitId).HasColumnName("LegacyUnitId");
 
             entity.HasOne(e => e.PhoneList)
                 .WithMany(s => s.PhoneListUnits)
@@ -215,6 +221,48 @@ public class PhonesDbContext : DbContext
             entity.Property(e => e.IamId).HasMaxLength(10);
             entity.Property(e => e.MailId);
             entity.Property(e => e.CurrentEmployee);
+        });
+
+        // VwVMDOPhoneList (phones.vwVMDOPhoneList) - read-only view.
+        // Keyless: DISTINCT removes duplicate users.Person matches in practice,
+        // but the view doesn't guarantee unique rows.
+        modelBuilder.Entity<VwVMDOPhoneList>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView("vwVMDOPhoneList", schema: "phones");
+
+            entity.Property(e => e.UnitId).HasColumnName("unitID");
+            entity.Property(e => e.UnitName).HasColumnName("unitName").HasMaxLength(100);
+            entity.Property(e => e.MothraId).HasColumnName("mothraID").HasMaxLength(8).IsUnicode(false);
+            entity.Property(e => e.ListFirst).HasColumnName("ListFirst");
+            entity.Property(e => e.LastName).HasColumnName("lastName").HasMaxLength(60);
+            entity.Property(e => e.FirstName).HasColumnName("firstName").HasMaxLength(30);
+            entity.Property(e => e.PublicNumber).HasColumnName("publicNumber").HasMaxLength(25);
+            entity.Property(e => e.PrivateNumber).HasColumnName("privateNumber").HasMaxLength(25);
+            entity.Property(e => e.Office).HasColumnName("office").HasMaxLength(100);
+            entity.Property(e => e.LegacyUnitId).HasColumnName("LegacyUnitId");
+        });
+
+        // VwUnitHeads (phones.vwUnitHeads) - read-only view.
+        // Keyless: units with several directors or admin staff return one row per pairing.
+        modelBuilder.Entity<VwUnitHeads>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView("vwUnitHeads", schema: "phones");
+
+            entity.Property(e => e.UnitId).HasColumnName("unitID");
+            entity.Property(e => e.DeptCode).HasColumnName("dvtUnit_deptCode").HasMaxLength(6).IsUnicode(false);
+            entity.Property(e => e.UnitName).HasColumnName("dvtUnit_unitName").HasMaxLength(100);
+            entity.Property(e => e.Abbreviation).HasColumnName("dvtUnit_abbreviation").HasMaxLength(20);
+            entity.Property(e => e.DirectorLocation).HasColumnName("Location").HasMaxLength(50);
+            entity.Property(e => e.DirectorName).HasColumnName("Dean_Director").HasMaxLength(91);
+            entity.Property(e => e.DirectorMailId).HasColumnName("Dean_Director_MailID");
+            entity.Property(e => e.DirectorMothraId).HasColumnName("Dean_Director_MothraID").HasMaxLength(8).IsUnicode(false);
+            entity.Property(e => e.DirectorPhone).HasColumnName("Dir_Phone").HasMaxLength(25);
+            entity.Property(e => e.AdminName).HasColumnName("Admin_Staff").HasMaxLength(91);
+            entity.Property(e => e.AdminMailId).HasColumnName("Admin_Email");
+            entity.Property(e => e.AdminMothraId).HasColumnName("Admin_MothraID").HasMaxLength(8).IsUnicode(false);
+            entity.Property(e => e.AdminPhone).HasColumnName("Phone").HasMaxLength(25);
         });
     }
 }
