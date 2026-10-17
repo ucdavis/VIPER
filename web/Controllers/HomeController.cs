@@ -254,7 +254,7 @@ namespace Viper.Controllers
         public IActionResult RefreshSession()
         {
             SessionTimeoutService.UpdateSessionTimeout(_viperContext);
-            return Ok(SessionTimeoutService.GetSessionTimeout(_viperContext));
+            return Ok(SessionTimeoutService.GetStatus(_viperContext));
         }
 
         /// <summary>
