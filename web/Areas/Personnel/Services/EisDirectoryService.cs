@@ -32,6 +32,7 @@ public class EisDirectoryService : IEisDirectoryService
     private const string LdapServer = "ldap.ucdavis.edu";
     private const string PeopleBase = "OU=People,DC=ucdavis,DC=edu";
     private const int LdapSslPort = 636;
+    private static readonly TimeSpan LdapTimeout = TimeSpan.FromSeconds(5);
 
     private readonly ILogger<EisDirectoryService> _logger;
 
@@ -85,6 +86,8 @@ public class EisDirectoryService : IEisDirectoryService
             AuthType.Basic);
         connection.SessionOptions.ProtocolVersion = 3;
         connection.SessionOptions.SecureSocketLayer = true;
+        // A slow directory should fall back to "unavailable" quickly rather than hold up the page.
+        connection.Timeout = LdapTimeout;
         connection.Bind();
         return connection;
     }

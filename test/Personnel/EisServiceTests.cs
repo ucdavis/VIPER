@@ -1,4 +1,5 @@
 using NSubstitute;
+using NSubstitute.ReturnsExtensions;
 using Viper.Areas.Personnel;
 using Viper.Areas.Personnel.Models.Eis;
 using Viper.Areas.Personnel.Services;
@@ -265,6 +266,17 @@ public sealed class EisServiceTests
         Assert.Equal("1", distribution.Number);
     }
 
+    [Theory]
+    [InlineData(5.0, "5")]
+    [InlineData(5.5, "5.5")]
+    public void ToDistribution_ShowsHalfStepsAndWholeStepsWithoutDecimals(double step, string expected)
+    {
+        EisDistributionRow row = Distribution(annual: 50_000m, percent: null, payRate: 0m);
+        row.Step = (decimal)step;
+
+        Assert.Equal(expected, EisService.ToDistribution(row).Step);
+    }
+
     [Fact]
     public async Task GetHistory_WithAPpsId_IncludesPpsRecords()
     {
@@ -354,7 +366,7 @@ public sealed class EisServiceTests
     public async Task GetAddress_WhenTheDirectoryIsDown_SaysSo()
     {
         Ids(null);
-        _directory.GetCampusListings(EmployeeId, null).Returns((IReadOnlyList<EisCampusListing>?)null);
+        _directory.GetCampusListings(EmployeeId, null).ReturnsNull();
 
         EisAddress address = await _service.GetAddressAsync(EmployeeId, Ct);
 

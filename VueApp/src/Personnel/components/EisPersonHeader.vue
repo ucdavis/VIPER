@@ -17,6 +17,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import EisFactList from "./EisFactList.vue"
+import { headerFacts } from "../services/eis-facts"
 import { eisService } from "../services/eis-service"
 import type { EisPersonHeader } from "../types/eis-types"
 
@@ -26,24 +27,5 @@ import type { EisPersonHeader } from "../types/eis-types"
  */
 const { header } = defineProps<{ header: EisPersonHeader }>()
 
-const facts = computed(() => [
-    { label: "Employee ID", value: header.employeeId },
-    { label: "Primary affiliation", value: header.primaryAffiliation ?? "" },
-    { label: "Primary title", value: header.primaryTitle ?? "" },
-    { label: "Job group ID", value: header.jobGroup ?? "" },
-    { label: "Home department", value: header.homeDepartment ?? "" },
-    { label: "Alternate department", value: header.alternateDepartment ?? "" },
-    ...(header.isStaff
-        ? [
-              { label: "Staff program", value: header.staffProgram ?? "" },
-              { label: "Staff type", value: header.staffStatus ?? "" },
-          ]
-        : []),
-    ...(header.isFaculty
-        ? [
-              { label: "Faculty program", value: header.facultyProgram ?? "" },
-              { label: "Ladder rank", value: header.ladderRank ?? "" },
-          ]
-        : []),
-])
+const facts = computed(() => headerFacts(header))
 </script>

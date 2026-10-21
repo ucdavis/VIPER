@@ -1,54 +1,42 @@
 <template>
     <h2>Appointment history</h2>
     <p>Data available from as far back as the PPS data warehouse contains.</p>
-    <div
-        v-if="loading"
-        role="status"
+    <EisSectionState
+        v-slot="{ data: history }"
+        :loading="loading"
+        :data="data"
+        what="appointment history"
     >
-        <q-spinner-dots
-            size="2rem"
-            color="primary"
-            aria-hidden="true"
-        />
-        <span class="sr-only">Loading appointment history</span>
-    </div>
-    <StatusBanner
-        v-else-if="failed || data === null"
-        type="error"
-    >
-        The appointment history could not be loaded.
-    </StatusBanner>
-    <template v-else>
         <EisHistoryTable
             caption="Appointment history"
             empty-text="No appointment history available."
-            :entries="data.appointments"
+            :entries="history.appointments"
         />
         <EisHistoryTable
             caption="Appointment PPS history"
             empty-text="No PPS history available."
-            :entries="data.ppsAppointments"
+            :entries="history.ppsAppointments"
         />
         <EisLeaveTable
             caption="Leave of absence history"
             empty-text="No leave data available."
-            :leaves="data.leaves"
+            :leaves="history.leaves"
         />
         <EisLeaveTable
             caption="Leave of absence PPS history"
             empty-text="No PPS leave data available."
-            :leaves="data.ppsLeaves"
+            :leaves="history.ppsLeaves"
         />
-    </template>
+    </EisSectionState>
 </template>
 
 <script setup lang="ts">
-import StatusBanner from "@/components/StatusBanner.vue"
 import EisHistoryTable from "../components/EisHistoryTable.vue"
 import EisLeaveTable from "../components/EisLeaveTable.vue"
+import EisSectionState from "../components/EisSectionState.vue"
 import { useEisSection } from "../composables/use-eis-section"
 import { eisService } from "../services/eis-service"
 
 /** Appointment and leave history from UCPath and, for older records, the retired PPS system. */
-const { data, loading, failed } = useEisSection((employeeId) => eisService.getHistory(employeeId))
+const { data, loading } = useEisSection((employeeId) => eisService.getHistory(employeeId))
 </script>

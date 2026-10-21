@@ -1,3 +1,4 @@
+<!-- fallow-ignore-file css-broken-reference -- q-mb-lg is a Quasar spacing class, defined by Quasar rather than in this project -->
 <template>
     <h3>{{ caption }}</h3>
     <p v-if="leaves.length === 0">{{ emptyText }}</p>

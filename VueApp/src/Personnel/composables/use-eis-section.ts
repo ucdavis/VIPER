@@ -4,14 +4,13 @@ import { useRoute } from "vue-router"
 
 /**
  * Loads one EIS page's data for the employee in the route, reloading when the employee changes.
- * A response for an employee the user has since left is ignored, so a slow request can't
- * replace the newer page's data.
+ * Data stays null when the load fails. A response for an employee the user has since left is
+ * ignored, so a slow request can't replace the newer page's data.
  */
 export function useEisSection<T>(load: (employeeId: string) => Promise<T | null>) {
     const route = useRoute()
     const data = ref(null) as Ref<T | null>
     const loading = ref(true)
-    const failed = ref(false)
     let loadId = 0
 
     watch(
@@ -20,18 +19,16 @@ export function useEisSection<T>(load: (employeeId: string) => Promise<T | null>
             loadId += 1
             const current = loadId
             loading.value = true
-            failed.value = false
             data.value = null
             const result = await load(employeeId)
             if (current !== loadId) {
                 return
             }
             data.value = result
-            failed.value = result === null
             loading.value = false
         },
         { immediate: true },
     )
 
-    return { data, loading, failed }
+    return { data, loading }
 }
