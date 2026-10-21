@@ -22,13 +22,15 @@ public static class EisCampusListings
         ArgumentNullException.ThrowIfNull(attributes);
         bool isPublic = isPrimary
             || string.Equals(Value(attributes, "ucdPublish"), PublicFlag, StringComparison.OrdinalIgnoreCase);
-        return new EisCampusListing(
-            isPrimary,
-            isPublic,
-            Value(attributes, "title"),
-            Value(attributes, "ou"),
-            Address(attributes),
-            Value(attributes, "telephoneNumber"));
+        return new EisCampusListing
+        {
+            IsPrimary = isPrimary,
+            IsPublic = isPublic,
+            Title = Value(attributes, "title"),
+            Department = Value(attributes, "ou"),
+            Address = Address(attributes),
+            Phone = Value(attributes, "telephoneNumber"),
+        };
     }
 
     /// <summary>

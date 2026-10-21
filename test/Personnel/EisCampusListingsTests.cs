@@ -30,7 +30,15 @@ public sealed class EisCampusListingsTests
             isPrimary: true);
 
         Assert.Equal(
-            new EisCampusListing(true, true, "Professor", "VM: VME", "1 Shields Ave, Davis, CA 95616", "530-752-1000"),
+            new EisCampusListing
+            {
+                IsPrimary = true,
+                IsPublic = true,
+                Title = "Professor",
+                Department = "VM: VME",
+                Address = "1 Shields Ave, Davis, CA 95616",
+                Phone = "530-752-1000",
+            },
             listing);
     }
 

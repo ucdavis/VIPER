@@ -14,8 +14,12 @@ namespace Viper.test.Personnel;
 /// </summary>
 public sealed class PersonCollectorControllerTests
 {
-    private static readonly PersonCollectorResult Result = new(
-        [new PersonCollectorSection("senate", "Senate Faculty", [])], ShowLoginIds: false, ShowMoreIds: false);
+    private static readonly PersonCollectorResult Result = new()
+    {
+        Sections = [new PersonCollectorSection { Key = "senate", Title = "Senate Faculty", People = [] }],
+        ShowLoginIds = false,
+        ShowMoreIds = false,
+    };
 
     private readonly IPersonCollectorService _collector = Substitute.For<IPersonCollectorService>();
     private readonly ILogger<PersonCollectorController> _logger = Substitute.For<ILogger<PersonCollectorController>>();
@@ -36,7 +40,15 @@ public sealed class PersonCollectorControllerTests
     [Fact]
     public void GetForm_ReturnsTheServiceForm()
     {
-        var form = new PersonCollectorForm([], [], [], [], ShowLoginIds: true, ShowMoreIds: false);
+        var form = new PersonCollectorForm
+        {
+            Departments = [],
+            SenateGroups = [],
+            FederationGroups = [],
+            StudentClasses = [],
+            ShowLoginIds = true,
+            ShowMoreIds = false,
+        };
         _collector.GetForm().Returns(form);
 
         Assert.Same(form, Assert.IsType<OkObjectResult>(_controller.GetForm().Result).Value);
