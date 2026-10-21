@@ -130,7 +130,12 @@ public static class EisCategoryRules
             new HashSet<int>(flags),
             IsProgram(programs.StaffProgram, MspProgram),
             IsProgram(programs.FacultyProgram, SenateProgram));
-        return [.. Rules.Select(rule => new EisCategory(rule.Label, rule.Applies(facts), rule.FlagCode))];
+        return [.. Rules.Select(rule => new EisCategory
+        {
+            Label = rule.Label,
+            Applies = rule.Applies(facts),
+            FlagCode = rule.FlagCode,
+        })];
     }
 
     /// <summary>
@@ -165,8 +170,8 @@ public static class EisCategoryRules
     {
         return new Rule(label, null, facts =>
         {
-            bool paid = facts.Jobs.Any(job => job.IsCurrent && job.IsPaid && matches(job));
-            bool withoutSalary = facts.Jobs.Any(job => job.IsCurrent && job.IsWithoutSalary && matches(job));
+            bool paid = facts.JobRows.Any(job => job.IsCurrent && job.IsPaid && matches(job));
+            bool withoutSalary = facts.JobRows.Any(job => job.IsCurrent && job.IsWithoutSalary && matches(job));
             return salary switch
             {
                 EisSalaryRule.Paid => paid,
@@ -179,7 +184,7 @@ public static class EisCategoryRules
 
     private static Rule Flag(int code)
     {
-        return new Rule(Flags[code], code, facts => facts.Flags.Contains(code));
+        return new Rule(Flags[code], code, facts => facts.FlagCodes.Contains(code));
     }
 
     private static Rule Special(string label, Func<Facts, bool> applies)
@@ -190,11 +195,12 @@ public static class EisCategoryRules
     private sealed record Rule(string Label, int? FlagCode, Func<Facts, bool> Applies);
 
     private sealed record Facts(
-        IReadOnlyList<EisJobRow> Jobs, HashSet<string> RateCodes, HashSet<int> Flags, bool IsMsp, bool IsSenate)
+        IReadOnlyList<EisJobRow> JobRows, HashSet<string> RateCodes, HashSet<int> FlagCodes, bool IsMsp, bool IsSenate)
     {
         public bool HasActiveJobLike(string text)
         {
-            return Jobs.Any(job => job.IsActive && job.Description?.Contains(text, StringComparison.OrdinalIgnoreCase) == true);
+            return JobRows.Any(job =>
+                job.IsActive && job.Description?.Contains(text, StringComparison.OrdinalIgnoreCase) == true);
         }
     }
 }

@@ -43,7 +43,8 @@ public sealed class EisControllerTests
     [Fact]
     public async Task GetPeople_ReturnsTheServiceList()
     {
-        _eis.GetPeopleAsync(Arg.Any<CancellationToken>()).Returns([new EisPersonOption(EmployeeId, "Lovelace, Ada")]);
+        _eis.GetPeopleAsync(Arg.Any<CancellationToken>())
+            .Returns([new EisPersonOption { EmployeeId = EmployeeId, Name = "Lovelace, Ada" }]);
 
         ActionResult<IReadOnlyList<EisPersonOption>> result = await _controller.GetPeople(Ct);
 
@@ -99,9 +100,9 @@ public sealed class EisControllerTests
     public async Task PageRequests_ReturnTheServiceData()
     {
         Allow();
-        var appointments = new EisAppointments([], [], 0m);
-        var history = new EisHistory([], [], [], []);
-        var address = new EisAddress(null, null, [], CampusDirectoryAvailable: true);
+        var appointments = new EisAppointments { Appointments = [], Stipends = [], TotalAnnual = 0m };
+        var history = new EisHistory { Appointments = [], PpsAppointments = [], Leaves = [], PpsLeaves = [] };
+        var address = new EisAddress { CampusListings = [], CampusDirectoryAvailable = true };
         _eis.GetAppointmentsAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(appointments);
         _eis.GetHistoryAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(history);
         _eis.GetAddressAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(address);
@@ -148,8 +149,22 @@ public sealed class EisControllerTests
     public async Task MyInfoVaultAndCategoryPages_ReturnTheServiceData()
     {
         Allow();
-        var academics = new EisAcademics(false, [], [], [], [], [], []);
-        var categories = new EisAppointmentCategories([], "2026-2027", CanEditFlags: false);
+        var academics = new EisAcademics
+        {
+            HasMivAccount = false,
+            Degrees = [],
+            Boards = [],
+            Memberships = [],
+            ResearchFocus = [],
+            SpecialtyFocus = [],
+            Honors = [],
+        };
+        var categories = new EisAppointmentCategories
+        {
+            Categories = [],
+            AcademicYear = "2026-2027",
+            CanEditFlags = false,
+        };
         _eis.GetAcademicsAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(academics);
         _eis.GetAppointmentCategoriesAsync(EmployeeId, Arg.Any<CancellationToken>()).Returns(categories);
 
@@ -173,7 +188,12 @@ public sealed class EisControllerTests
     public async Task SetAndClearFlag_ReturnTheUpdatedCategories()
     {
         Allow();
-        var categories = new EisAppointmentCategories([], "2026-2027", CanEditFlags: true);
+        var categories = new EisAppointmentCategories
+        {
+            Categories = [],
+            AcademicYear = "2026-2027",
+            CanEditFlags = true,
+        };
         _eis.SetFlagAsync(EmployeeId, 4, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(categories);
 
         Assert.Same(categories, ValueOf((await _controller.SetFlag(EmployeeId, 4, Ct)).Result));

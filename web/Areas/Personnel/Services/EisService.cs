@@ -95,7 +95,11 @@ public partial class EisService : IEisService
         IReadOnlyList<EisPersonRow>? rows = await GetVisiblePeopleAsync(ct);
         return rows is null
             ? []
-            : [.. rows.Select(row => new EisPersonOption(row.EmployeeId.Trim(), row.Name.Trim()))];
+            : [.. rows.Select(row => new EisPersonOption
+            {
+                EmployeeId = row.EmployeeId.Trim(),
+                Name = row.Name.Trim(),
+            })];
     }
 
     public async Task<bool> CanViewAsync(string employeeId, CancellationToken ct)
@@ -177,7 +181,7 @@ public partial class EisService : IEisService
         List<EisStipend> stipends = [.. (await _data.GetStipendsAsync(employeeId, ct)).Select(ToStipend)];
         decimal total = appointments.Sum(appointment => appointment.Total ?? 0m)
             + stipends.Sum(stipend => stipend.AnnualAmount);
-        return new EisAppointments(appointments, stipends, total);
+        return new EisAppointments { Appointments = appointments, Stipends = stipends, TotalAnnual = total };
     }
 
     public async Task<EisHistory> GetHistoryAsync(string employeeId, CancellationToken ct)
@@ -194,11 +198,13 @@ public partial class EisService : IEisService
             ppsLeaves = await _data.GetPpsLeavesAsync(ppsId, ct);
         }
 
-        return new EisHistory(
-            [.. history.Select(ToHistoryEntry)],
-            [.. ppsHistory.Select(ToHistoryEntry)],
-            [.. leaves.Select(ToLeave)],
-            [.. ppsLeaves.Select(ToLeave)]);
+        return new EisHistory
+        {
+            Appointments = [.. history.Select(ToHistoryEntry)],
+            PpsAppointments = [.. ppsHistory.Select(ToHistoryEntry)],
+            Leaves = [.. leaves.Select(ToLeave)],
+            PpsLeaves = [.. ppsLeaves.Select(ToLeave)],
+        };
     }
 
     public async Task<EisAddress> GetAddressAsync(string employeeId, CancellationToken ct)
@@ -208,11 +214,13 @@ public partial class EisService : IEisService
         EisPersonIds? ids = await _data.GetPersonIdsAsync(employeeId, ct);
         IReadOnlyList<EisCampusListing>? listings = _directory.GetCampusListings(employeeId, Clean(ids?.MothraId));
 
-        return new EisAddress(
-            address is null ? null : ToPermanentAddress(address),
-            phone is null ? null : ToHomePhone(phone),
-            listings ?? [],
-            listings is not null);
+        return new EisAddress
+        {
+            Permanent = address is null ? null : ToPermanentAddress(address),
+            HomePhone = phone is null ? null : ToHomePhone(phone),
+            CampusListings = listings ?? [],
+            CampusDirectoryAvailable = listings is not null,
+        };
     }
 
     public async Task<string?> GetMailIdAsync(string employeeId, CancellationToken ct)
@@ -227,10 +235,12 @@ public partial class EisService : IEisService
         IReadOnlyList<string> rateCodes = await _data.GetRateCodesAsync(employeeId, ct);
         IReadOnlyList<int> flags = await _data.GetFlagCodesAsync(employeeId, academicYear, ct);
         EisPrograms programs = await _data.GetProgramsAsync(employeeId, ct);
-        return new EisAppointmentCategories(
-            EisCategoryRules.Evaluate(jobs, rateCodes, flags, programs),
-            academicYear,
-            CanEditFlags());
+        return new EisAppointmentCategories
+        {
+            Categories = EisCategoryRules.Evaluate(jobs, rateCodes, flags, programs),
+            AcademicYear = academicYear,
+            CanEditFlags = CanEditFlags(),
+        };
     }
 
     public async Task<EisAppointmentCategories?> SetFlagAsync(string employeeId, int code, bool isSet, CancellationToken ct)
@@ -256,7 +266,16 @@ public partial class EisService : IEisService
         // The legacy page treated a missing or negative MyInfoVault ID as "no account".
         if ((await _data.GetPersonIdsAsync(employeeId, ct))?.MivId is not { } mivId || mivId <= 0)
         {
-            return new EisAcademics(false, [], [], [], [], [], []);
+            return new EisAcademics
+            {
+                HasMivAccount = false,
+                Degrees = [],
+                Boards = [],
+                Memberships = [],
+                ResearchFocus = [],
+                SpecialtyFocus = [],
+                Honors = [],
+            };
         }
 
         IReadOnlyList<EisMivDegreeRow> degrees = await _data.GetMivDegreesAsync(mivId, ct);
@@ -265,14 +284,16 @@ public partial class EisService : IEisService
         IReadOnlyList<EisMivTextRow> research = await _data.GetMivResearchFocusAsync(mivId, ct);
         IReadOnlyList<EisMivTextRow> specialty = await _data.GetMivSpecialtyFocusAsync(mivId, ct);
         IReadOnlyList<EisMivTextRow> honors = await _data.GetMivHonorsAsync(mivId, ct);
-        return new EisAcademics(
-            true,
-            [.. degrees.Select(ToDegree)],
-            ToDatedItems(boards),
-            [.. memberships.Select(row => EisHtmlText.ToText(row.Text)).OfType<string>()],
-            [.. research.SelectMany(row => EisHtmlText.ToItems(row.Text))],
-            [.. specialty.SelectMany(row => EisHtmlText.ToItems(row.Text))],
-            ToDatedItems(honors));
+        return new EisAcademics
+        {
+            HasMivAccount = true,
+            Degrees = [.. degrees.Select(ToDegree)],
+            Boards = ToDatedItems(boards),
+            Memberships = [.. memberships.Select(row => EisHtmlText.ToText(row.Text)).OfType<string>()],
+            ResearchFocus = [.. research.SelectMany(row => EisHtmlText.ToItems(row.Text))],
+            SpecialtyFocus = [.. specialty.SelectMany(row => EisHtmlText.ToItems(row.Text))],
+            Honors = ToDatedItems(honors),
+        };
     }
 
     /// <summary>
@@ -281,30 +302,34 @@ public partial class EisService : IEisService
     /// </summary>
     internal static EisAppointment ToAppointment(EisAppointmentRow row, IReadOnlyList<EisDistributionRow> distributions)
     {
-        return new EisAppointment(
-            Clean(row.Number),
-            row.Title.Trim(),
-            row.TitleCode.Trim(),
-            Clean(row.Grade),
-            row.ExemptStatus.Trim(),
-            row.Department.Trim(),
-            Clean(row.BeginDate),
-            Clean(row.EndDate),
-            [.. distributions.Select(ToDistribution)],
-            distributions.Count > 0 ? distributions[0].PayRate : null);
+        return new EisAppointment
+        {
+            Number = Clean(row.Number),
+            Title = row.Title.Trim(),
+            TitleCode = row.TitleCode.Trim(),
+            Grade = Clean(row.Grade),
+            ExemptStatus = row.ExemptStatus.Trim(),
+            Department = row.Department.Trim(),
+            BeginDate = Clean(row.BeginDate),
+            EndDate = Clean(row.EndDate),
+            Distributions = [.. distributions.Select(ToDistribution)],
+            Total = distributions.Count > 0 ? distributions[0].PayRate : null,
+        };
     }
 
     internal static EisDistribution ToDistribution(EisDistributionRow row)
     {
-        return new EisDistribution(
-            row.Number?.ToString("0.###", CultureInfo.InvariantCulture),
-            DateOnly.FromDateTime(row.BeginDate),
-            ToDate(row.EndDate),
-            row.Percent,
-            Clean(row.Account),
-            row.Step.ToString("0.##", CultureInfo.InvariantCulture),
-            Clean(row.DosCode),
-            row.AnnualAmount * (row.Percent ?? 0m) / Hundred);
+        return new EisDistribution
+        {
+            Number = row.Number?.ToString("0.###", CultureInfo.InvariantCulture),
+            BeginDate = DateOnly.FromDateTime(row.BeginDate),
+            EndDate = ToDate(row.EndDate),
+            Percent = row.Percent,
+            Account = Clean(row.Account),
+            Step = row.Step.ToString("0.##", CultureInfo.InvariantCulture),
+            DosCode = Clean(row.DosCode),
+            Amount = row.AnnualAmount * (row.Percent ?? 0m) / Hundred,
+        };
     }
 
     internal static EisStipend ToStipend(EisStipendRow row)
@@ -312,82 +337,104 @@ public partial class EisService : IEisService
         decimal annual = string.Equals(row.PayFrequency.Trim(), PeriodicPay, StringComparison.OrdinalIgnoreCase)
             ? row.Pay * MonthsPerYear
             : row.Pay;
-        return new EisStipend(
-            DateOnly.FromDateTime(row.EffectiveDate), ToDate(row.EndDate), row.EarningsCode.Trim(), annual);
+        return new EisStipend
+        {
+            EffectiveDate = DateOnly.FromDateTime(row.EffectiveDate),
+            EndDate = ToDate(row.EndDate),
+            EarningsCode = row.EarningsCode.Trim(),
+            AnnualAmount = annual,
+        };
     }
 
     /// <summary>A MyInfoVault degree; the legacy page showed its end date as the year.</summary>
     internal static EisDegree ToDegree(EisMivDegreeRow row)
     {
-        return new EisDegree(
-            EisHtmlText.ToText(row.EndDate),
-            EisHtmlText.ToText(row.Degree),
-            EisHtmlText.ToText(row.Institution),
-            EisHtmlText.ToText(row.Location),
-            EisHtmlText.ToText(row.Field));
+        return new EisDegree
+        {
+            Year = EisHtmlText.ToText(row.EndDate),
+            Degree = EisHtmlText.ToText(row.Degree),
+            Institution = EisHtmlText.ToText(row.Institution),
+            Location = EisHtmlText.ToText(row.Location),
+            Field = EisHtmlText.ToText(row.Field),
+        };
     }
 
     /// <summary>Dated MyInfoVault entries as plain text, leaving out entries with no text.</summary>
     internal static IReadOnlyList<EisDatedItem> ToDatedItems(IEnumerable<EisMivTextRow> rows)
     {
         return [.. rows
-            .Select(row => EisHtmlText.ToText(row.Text) is { } text ? new EisDatedItem(EisHtmlText.ToText(row.Year), text) : null)
+            .Select(row => EisHtmlText.ToText(row.Text) is { } text
+                ? new EisDatedItem { Year = EisHtmlText.ToText(row.Year), Text = text }
+                : null)
             .OfType<EisDatedItem>()];
     }
 
     private static EisHistoryEntry ToHistoryEntry(EisHistoryRow row)
     {
-        return new EisHistoryEntry(
-            DateOnly.FromDateTime(row.ActionDate),
-            Clean(row.Title),
-            Clean(row.TitleCode),
-            Clean(row.Department),
-            DateOnly.FromDateTime(row.BeginDate),
-            ToDate(row.EndDate),
-            row.Step.ToString("0.##", CultureInfo.InvariantCulture),
-            row.Percent,
-            row.PayRate,
-            Clean(row.Comment));
+        return new EisHistoryEntry
+        {
+            ActionDate = DateOnly.FromDateTime(row.ActionDate),
+            Title = Clean(row.Title),
+            TitleCode = Clean(row.TitleCode),
+            Department = Clean(row.Department),
+            BeginDate = DateOnly.FromDateTime(row.BeginDate),
+            EndDate = ToDate(row.EndDate),
+            Step = row.Step.ToString("0.##", CultureInfo.InvariantCulture),
+            Percent = row.Percent,
+            PayRate = row.PayRate,
+            Comment = Clean(row.Comment),
+        };
     }
 
     private static EisHistoryEntry ToHistoryEntry(EisPpsHistoryRow row)
     {
-        return new EisHistoryEntry(
-            ToDate(row.ActionDate),
-            Clean(row.Title),
-            Clean(row.TitleCode),
-            Clean(row.Department),
-            ToDate(row.BeginDate),
-            ToDate(row.EndDate),
-            Clean(row.Step),
-            row.Percent,
-            row.PayRate,
-            Clean(row.Comment));
+        return new EisHistoryEntry
+        {
+            ActionDate = ToDate(row.ActionDate),
+            Title = Clean(row.Title),
+            TitleCode = Clean(row.TitleCode),
+            Department = Clean(row.Department),
+            BeginDate = ToDate(row.BeginDate),
+            EndDate = ToDate(row.EndDate),
+            Step = Clean(row.Step),
+            Percent = row.Percent,
+            PayRate = row.PayRate,
+            Comment = Clean(row.Comment),
+        };
     }
 
     private static EisLeave ToLeave(EisLeaveRow row)
     {
-        return new EisLeave(ToDate(row.BeginDate), ToDate(row.ReturnDate), Clean(row.Description));
+        return new EisLeave
+        {
+            BeginDate = ToDate(row.BeginDate),
+            ReturnDate = ToDate(row.ReturnDate),
+            Description = Clean(row.Description),
+        };
     }
 
     private static EisPermanentAddress ToPermanentAddress(EisPermanentAddressRow row)
     {
-        return new EisPermanentAddress(
-            row.Line1.Trim(),
-            Clean(row.Line2),
-            row.City.Trim(),
-            row.State.Trim(),
-            row.Zip.Trim(),
-            row.ReleaseCampus.Trim(),
-            row.ReleaseOrganization.Trim());
+        return new EisPermanentAddress
+        {
+            Line1 = row.Line1.Trim(),
+            Line2 = Clean(row.Line2),
+            City = row.City.Trim(),
+            State = row.State.Trim(),
+            Zip = row.Zip.Trim(),
+            ReleaseCampus = row.ReleaseCampus.Trim(),
+            ReleaseOrganization = row.ReleaseOrganization.Trim(),
+        };
     }
 
     private static EisHomePhone ToHomePhone(EisHomePhoneRow row)
     {
-        return new EisHomePhone(
-            row.Phone.Trim(),
-            row.ReleaseCampus?.ToString(CultureInfo.InvariantCulture),
-            row.ReleaseOrganization?.ToString(CultureInfo.InvariantCulture));
+        return new EisHomePhone
+        {
+            Phone = row.Phone.Trim(),
+            ReleaseCampus = row.ReleaseCampus?.ToString(CultureInfo.InvariantCulture),
+            ReleaseOrganization = row.ReleaseOrganization?.ToString(CultureInfo.InvariantCulture),
+        };
     }
 
     private async Task<IReadOnlyList<EisPersonRow>?> GetVisiblePeopleAsync(CancellationToken ct)

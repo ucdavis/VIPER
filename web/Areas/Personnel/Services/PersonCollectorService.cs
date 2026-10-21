@@ -33,13 +33,15 @@ public class PersonCollectorService : IPersonCollectorService
     public PersonCollectorForm GetForm()
     {
         (bool showLoginIds, bool showMoreIds) = Columns();
-        return new PersonCollectorForm(
-            Choices(PersonCollectorOptions.Departments),
-            Choices(PersonCollectorOptions.SenateGroups),
-            Choices(PersonCollectorOptions.FederationGroups),
-            Choices(PersonCollectorOptions.StudentClasses),
-            showLoginIds,
-            showMoreIds);
+        return new PersonCollectorForm
+        {
+            Departments = Choices(PersonCollectorOptions.Departments),
+            SenateGroups = Choices(PersonCollectorOptions.SenateGroups),
+            FederationGroups = Choices(PersonCollectorOptions.FederationGroups),
+            StudentClasses = Choices(PersonCollectorOptions.StudentClasses),
+            ShowLoginIds = showLoginIds,
+            ShowMoreIds = showMoreIds,
+        };
     }
 
     public async Task<PersonCollectorResult> CollectAsync(PersonCollectorRequest request, CancellationToken ct)
@@ -48,7 +50,12 @@ public class PersonCollectorService : IPersonCollectorService
         (bool showLoginIds, bool showMoreIds) = Columns();
         var sections = new List<PersonCollectorSection>();
         PersonCollectorSection Section(string key, IReadOnlyList<PersonCollectorRow> rows) =>
-            new(key, PersonCollectorPlan.Titles[key], [.. rows.Select(row => Limit(ToPerson(row), showLoginIds, showMoreIds))]);
+            new()
+            {
+                Key = key,
+                Title = PersonCollectorPlan.Titles[key],
+                People = [.. rows.Select(row => Limit(ToPerson(row), showLoginIds, showMoreIds))],
+            };
 
         // One procedure call per section, one after another: a DbContext can't run queries in parallel.
         if (plan.FullDepartmentList is { } departments)
@@ -77,39 +84,48 @@ public class PersonCollectorService : IPersonCollectorService
             sections.Add(Section(PersonCollectorPlan.StudentsKey, await _data.GetStudentsAsync(students, terms, ct)));
         }
 
-        return new PersonCollectorResult(sections, showLoginIds, showMoreIds);
+        return new PersonCollectorResult
+        {
+            Sections = sections,
+            ShowLoginIds = showLoginIds,
+            ShowMoreIds = showMoreIds,
+        };
     }
 
     /// <summary>The person with the columns this user may not see removed.</summary>
     internal static PersonCollectorPerson Limit(PersonCollectorPerson person, bool showLoginIds, bool showMoreIds)
     {
-        return new PersonCollectorPerson(
-            person.Name,
-            person.Email,
-            showLoginIds ? person.LoginId : null,
-            showMoreIds ? person.EmployeeId : null,
-            showMoreIds ? person.MothraId : null,
-            showMoreIds ? person.MailId : null,
-            showMoreIds ? person.Pidm : null,
-            showMoreIds ? person.BannerId : null);
+        return new PersonCollectorPerson
+        {
+            Name = person.Name,
+            Email = person.Email,
+            LoginId = showLoginIds ? person.LoginId : null,
+            EmployeeId = showMoreIds ? person.EmployeeId : null,
+            MothraId = showMoreIds ? person.MothraId : null,
+            MailId = showMoreIds ? person.MailId : null,
+            Pidm = showMoreIds ? person.Pidm : null,
+            BannerId = showMoreIds ? person.BannerId : null,
+        };
     }
 
     private static PersonCollectorPerson ToPerson(PersonCollectorRow row)
     {
-        return new PersonCollectorPerson(
-            Clean(row.Name),
-            Clean(row.Email),
-            Clean(row.LoginId),
-            Clean(row.EmployeeId),
-            Clean(row.MothraId),
-            Clean(row.MailId),
-            Clean(row.Pidm),
-            Clean(row.BannerId));
+        return new PersonCollectorPerson
+        {
+            Name = Clean(row.Name),
+            Email = Clean(row.Email),
+            LoginId = Clean(row.LoginId),
+            EmployeeId = Clean(row.EmployeeId),
+            MothraId = Clean(row.MothraId),
+            MailId = Clean(row.MailId),
+            Pidm = Clean(row.Pidm),
+            BannerId = Clean(row.BannerId),
+        };
     }
 
     private static IReadOnlyList<PersonCollectorChoice> Choices(IReadOnlyList<PersonCollectorOption> options)
     {
-        return [.. options.Select(option => new PersonCollectorChoice(option.Key, option.Label))];
+        return [.. options.Select(option => new PersonCollectorChoice { Key = option.Key, Label = option.Label })];
     }
 
     private (bool ShowLoginIds, bool ShowMoreIds) Columns()
