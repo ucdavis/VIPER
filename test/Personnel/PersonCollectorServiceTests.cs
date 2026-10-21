@@ -50,7 +50,7 @@ public sealed class PersonCollectorServiceTests
         PersonCollectorForm form = _service.GetForm();
 
         Assert.Equal(14, form.Departments.Count);
-        Assert.Equal(new PersonCollectorChoice("CCM", "CCM/CIID"), form.Departments[9]);
+        Assert.Equal(new PersonCollectorChoice { Key = "CCM", Label = "CCM/CIID" }, form.Departments[9]);
         Assert.Equal(["CLINICAL", "PROFESSOR", "RESIDENCE", "DEAN"], form.SenateGroups.Select(choice => choice.Key));
         Assert.Equal(7, form.FederationGroups.Count);
         Assert.Equal((true, false), (form.ShowLoginIds, form.ShowMoreIds));
@@ -86,7 +86,7 @@ public sealed class PersonCollectorServiceTests
         PersonCollectorResult result = await _service.CollectAsync(new PersonCollectorRequest { SenateEmeriti = true }, Ct);
 
         Assert.Equal(
-            new PersonCollectorPerson("Lovelace, Ada", "ada@ucdavis.edu", null, null, null, null, null, null),
+            new PersonCollectorPerson { Name = "Lovelace, Ada", Email = "ada@ucdavis.edu" },
             Assert.Single(Assert.Single(result.Sections).People));
         Assert.Equal((false, false), (result.ShowLoginIds, result.ShowMoreIds));
         await _data.DidNotReceive().GetCurrentTermsAsync(Arg.Any<CancellationToken>());
@@ -100,7 +100,16 @@ public sealed class PersonCollectorServiceTests
         PersonCollectorResult result = await _service.CollectAsync(new PersonCollectorRequest { SenateEmeriti = true }, Ct);
 
         Assert.Equal(
-            new PersonCollectorPerson("Lovelace, Ada", "ada@ucdavis.edu", "alovelace", "10123456", "01234567", "alovelace", "123", null),
+            new PersonCollectorPerson
+            {
+                Name = "Lovelace, Ada",
+                Email = "ada@ucdavis.edu",
+                LoginId = "alovelace",
+                EmployeeId = "10123456",
+                MothraId = "01234567",
+                MailId = "alovelace",
+                Pidm = "123",
+            },
             Assert.Single(Assert.Single(result.Sections).People));
     }
 

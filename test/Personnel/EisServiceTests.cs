@@ -81,7 +81,7 @@ public sealed class EisServiceTests
 
         IReadOnlyList<EisPersonOption> people = await _service.GetPeopleAsync(Ct);
 
-        Assert.Equal([new EisPersonOption(EmployeeId, "Lovelace, Ada")], people);
+        Assert.Equal([new EisPersonOption { EmployeeId = EmployeeId, Name = "Lovelace, Ada" }], people);
     }
 
     [Fact]
@@ -348,7 +348,15 @@ public sealed class EisServiceTests
         });
         _data.GetHomePhoneAsync(EmployeeId, Arg.Any<CancellationToken>())
             .Returns(new EisHomePhoneRow { Phone = "530-555-1000", ReleaseCampus = 1 });
-        EisCampusListing listing = new(true, true, "Professor", "VM: VME", "1 Shields Ave, Davis, CA 95616", "530-752-1000");
+        EisCampusListing listing = new()
+        {
+            IsPrimary = true,
+            IsPublic = true,
+            Title = "Professor",
+            Department = "VM: VME",
+            Address = "1 Shields Ave, Davis, CA 95616",
+            Phone = "530-752-1000",
+        };
         _directory.GetCampusListings(EmployeeId, "02345678").Returns([listing]);
 
         EisAddress address = await _service.GetAddressAsync(EmployeeId, Ct);
@@ -357,7 +365,7 @@ public sealed class EisServiceTests
         Assert.Equal("1 Shields Ave", address.Permanent.Line1);
         Assert.Null(address.Permanent.Line2);
         Assert.Equal("N", address.Permanent.ReleaseCampus);
-        Assert.Equal(new EisHomePhone("530-555-1000", "1", null), address.HomePhone);
+        Assert.Equal(new EisHomePhone { Phone = "530-555-1000", ReleaseCampus = "1" }, address.HomePhone);
         Assert.Equal([listing], address.CampusListings);
         Assert.True(address.CampusDirectoryAvailable);
     }
@@ -540,10 +548,18 @@ public sealed class EisServiceTests
 
         EisAcademics academics = await _service.GetAcademicsAsync(EmployeeId, Ct);
 
-        Assert.Equal([new EisDegree("1994", "DVM", "UC Davis", "Davis, CA", "Veterinary Medicine")], academics.Degrees);
-        Assert.Equal([new EisDatedItem("2001-present", "ACVIM")], academics.Boards);
+        var degree = new EisDegree
+        {
+            Year = "1994",
+            Degree = "DVM",
+            Institution = "UC Davis",
+            Location = "Davis, CA",
+            Field = "Veterinary Medicine",
+        };
+        Assert.Equal([degree], academics.Degrees);
+        Assert.Equal([new EisDatedItem { Year = "2001-present", Text = "ACVIM" }], academics.Boards);
         Assert.Equal(["AVMA"], academics.Memberships);
         Assert.Equal(["Virology", "Immunology", "Equine"], academics.ResearchFocus.Concat(academics.SpecialtyFocus));
-        Assert.Equal([new EisDatedItem("2010", "Teaching award & medal")], academics.Honors);
+        Assert.Equal([new EisDatedItem { Year = "2010", Text = "Teaching award & medal" }], academics.Honors);
     }
 }

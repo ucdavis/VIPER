@@ -9,8 +9,17 @@ namespace Viper.test.Personnel;
 /// </summary>
 public sealed class PersonCollectorExcelTests
 {
-    private static readonly PersonCollectorPerson Ada = new(
-        "Lovelace, Ada", "=ada@ucdavis.edu", "alovelace", "01234567", "02345678", "alovelace", "123", "912345678");
+    private static readonly PersonCollectorPerson Ada = new()
+    {
+        Name = "Lovelace, Ada",
+        Email = "=ada@ucdavis.edu",
+        LoginId = "alovelace",
+        EmployeeId = "01234567",
+        MothraId = "02345678",
+        MailId = "alovelace",
+        Pidm = "123",
+        BannerId = "912345678",
+    };
 
     private static XLWorkbook Open(PersonCollectorResult result)
     {
@@ -20,10 +29,16 @@ public sealed class PersonCollectorExcelTests
     [Fact]
     public void Build_WritesASheetPerSectionWithTheVisibleColumns()
     {
-        var result = new PersonCollectorResult(
-            [new PersonCollectorSection("senate", "Senate Faculty", [Ada]), new PersonCollectorSection("students", "Students", [])],
-            ShowLoginIds: false,
-            ShowMoreIds: false);
+        var result = new PersonCollectorResult
+        {
+            Sections =
+            [
+                new PersonCollectorSection { Key = "senate", Title = "Senate Faculty", People = [Ada] },
+                new PersonCollectorSection { Key = "students", Title = "Students", People = [] },
+            ],
+            ShowLoginIds = false,
+            ShowMoreIds = false,
+        };
 
         using XLWorkbook workbook = Open(result);
 
@@ -41,8 +56,12 @@ public sealed class PersonCollectorExcelTests
     [Fact]
     public void Build_AddsIdColumnsAsText()
     {
-        var result = new PersonCollectorResult(
-            [new PersonCollectorSection("staff", "Staff Employees", [Ada])], ShowLoginIds: true, ShowMoreIds: true);
+        var result = new PersonCollectorResult
+        {
+            Sections = [new PersonCollectorSection { Key = "staff", Title = "Staff Employees", People = [Ada] }],
+            ShowLoginIds = true,
+            ShowMoreIds = true,
+        };
 
         using XLWorkbook workbook = Open(result);
         IXLWorksheet sheet = workbook.Worksheet("Staff Employees");
