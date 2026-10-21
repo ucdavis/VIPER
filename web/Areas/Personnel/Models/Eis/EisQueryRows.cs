@@ -276,9 +276,12 @@ public sealed class EisFlagRow
 /// <summary>The staff and faculty programs, which decide the MSP and Senate categories.</summary>
 public sealed record EisPrograms(string? StaffProgram, string? FacultyProgram);
 
-/// <summary>usp_eis_getPersonMIVDegrees, read as text because the procedure's types can't be described.</summary>
+/// <summary>
+/// usp_eis_getPersonMIVDegrees, read as text because the procedure's types can't be described. The
+/// start date is left out: the page shows only the end date, as the year, like the legacy page.
+/// </summary>
 public sealed record EisMivDegreeRow(
-    string? Degree, string? StartDate, string? EndDate, string? Institution, string? Location, string? Field);
+    string? Degree, string? EndDate, string? Institution, string? Location, string? Field);
 
 /// <summary>
 /// A MyInfoVault text entry (membership, honor, board or focus area), usually HTML, with the
