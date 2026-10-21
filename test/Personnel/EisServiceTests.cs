@@ -538,7 +538,7 @@ public sealed class EisServiceTests
     {
         Ids(new EisPersonIds(null, null, null, MivId));
         _data.GetMivDegreesAsync(MivId, Arg.Any<CancellationToken>()).Returns(
-            [new EisMivDegreeRow("DVM", "1990", " 1994 ", "UC Davis", "Davis, CA", "Veterinary <i>Medicine</i>")]);
+            [new EisMivDegreeRow("DVM", " 1994 ", "UC Davis", "Davis, CA", "Veterinary <i>Medicine</i>")]);
         _data.GetMivBoardsAsync(MivId, Arg.Any<CancellationToken>()).Returns(
             [Text("<p>ACVIM</p>", "2001-present"), Text(" ")]);
         _data.GetMivMembershipsAsync(MivId, Arg.Any<CancellationToken>()).Returns([Text("<b>AVMA</b>"), Text(null)]);

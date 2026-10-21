@@ -292,7 +292,7 @@ public class EisDataService : IEisDataService
     {
         List<Dictionary<string, string?>> rows = await ReadProcedureAsync(_context, "dbo.usp_eis_getPersonMIVDegrees", mivId, ct);
         return [.. rows.Select(row => new EisMivDegreeRow(
-            Field(row, "Degree"), Field(row, "StartDate"), Field(row, "EndDate"),
+            Field(row, "Degree"), Field(row, "EndDate"),
             Field(row, "Institution"), Field(row, "location"), Field(row, "field")))];
     }
 
