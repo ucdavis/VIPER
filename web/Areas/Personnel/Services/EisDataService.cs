@@ -373,9 +373,15 @@ public class EisDataService : IEisDataService
         return [.. rows.Select(row => new EisMivTextRow(yearColumn is null ? null : Field(row, yearColumn), Field(row, textColumn)))];
     }
 
-    private static string? Field(Dictionary<string, string?> row, string column)
+    /// <summary>
+    /// One column of a MyInfoVault row, matched ignoring case. A null value is fine, but a missing
+    /// column means the procedure has changed shape, so it fails rather than show blank data.
+    /// </summary>
+    internal static string? Field(Dictionary<string, string?> row, string column)
     {
-        return row.TryGetValue(column, out string? value) ? value : null;
+        return row.TryGetValue(column, out string? value)
+            ? value
+            : throw new InvalidOperationException($"The MyInfoVault procedure returned no \"{column}\" column.");
     }
 
     private async Task<string?> GetDepartmentAsync(string employeeId, string field, CancellationToken ct)

@@ -495,6 +495,6 @@ public partial class EisService : IEisService
         return value is { } date ? DateOnly.FromDateTime(date) : null;
     }
 
-    [GeneratedRegex("^[0-9]{1,11}$", RegexOptions.None, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex(@"^[0-9]{1,11}\z", RegexOptions.None, matchTimeoutMilliseconds: 100)]
     private static partial Regex EmployeeIdPattern();
 }

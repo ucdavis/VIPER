@@ -54,7 +54,7 @@ public class PersonCollectorService : IPersonCollectorService
             {
                 Key = key,
                 Title = PersonCollectorPlan.Titles[key],
-                People = [.. rows.Select(row => Limit(ToPerson(row), showLoginIds, showMoreIds))],
+                People = [.. rows.Select(row => Limit(PersonCollectorMapper.ToPerson(row), showLoginIds, showMoreIds))],
             };
 
         // One procedure call per section, one after another: a DbContext can't run queries in parallel.
@@ -108,21 +108,6 @@ public class PersonCollectorService : IPersonCollectorService
         };
     }
 
-    private static PersonCollectorPerson ToPerson(PersonCollectorRow row)
-    {
-        return new PersonCollectorPerson
-        {
-            Name = Clean(row.Name),
-            Email = Clean(row.Email),
-            LoginId = Clean(row.LoginId),
-            EmployeeId = Clean(row.EmployeeId),
-            MothraId = Clean(row.MothraId),
-            MailId = Clean(row.MailId),
-            Pidm = Clean(row.Pidm),
-            BannerId = Clean(row.BannerId),
-        };
-    }
-
     private static IReadOnlyList<PersonCollectorChoice> Choices(IReadOnlyList<PersonCollectorOption> options)
     {
         return [.. options.Select(option => new PersonCollectorChoice { Key = option.Key, Label = option.Label })];
@@ -139,10 +124,5 @@ public class PersonCollectorService : IPersonCollectorService
     private bool HasPermission(AaudUser user, string permission)
     {
         return _userHelper.HasPermission(_rapsContext, user, permission);
-    }
-
-    private static string? Clean(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }
