@@ -55,7 +55,18 @@ namespace Viper.Areas.CMS.Controllers
         private async Task<IActionResult> ServePhoto(string? mailId, string? loginId, string? iamId,
             string? mothraId, bool altPhoto, CancellationToken ct)
         {
-            var photo = await _photoService.GetUserPhotoAsync(mailId, loginId, iamId, mothraId, altPhoto, ct);
+            CmsUserPhotoResult? photo = altPhoto
+                ? await _photoService.GetAlternatePhotoAsync(mailId, loginId, iamId, mothraId, ct)
+                : await _photoService.GetUserPhotoAsync(mailId, loginId, iamId, mothraId, ct);
+
+            if (photo == null)
+            {
+                // Only reachable for the alternate photo - the primary/id-card path always
+                // returns a result (falling back to a placeholder). 404 lets UserInfo.cshtml's
+                // client-side script hide the element instead of showing a broken image or
+                // silently re-rendering the primary photo.
+                return NotFound();
+            }
 
             // Photos change rarely; let browsers cache for an hour and keep serving a stale copy
             // for up to a day while revalidating (legacy used short-lived cache headers with long
