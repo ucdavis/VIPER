@@ -68,6 +68,7 @@ public sealed class EisServiceTests
     [InlineData(null, false)]
     [InlineData("1012345a", false)]
     [InlineData("10 23456", false)]
+    [InlineData("10123456\n", false)]
     public void IsValidEmployeeId_AcceptsUpToElevenDigits(string? employeeId, bool expected)
     {
         Assert.Equal(expected, EisService.IsValidEmployeeId(employeeId));
