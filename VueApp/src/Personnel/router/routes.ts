@@ -47,6 +47,44 @@ const routes = [
         component: () => import("@/Personnel/pages/SVMPhonesMaintain.vue"),
         name: "MaintainSchoolwidePhones",
     },
+    // No meta.permissions: the guard only loads SVMSecure.PhoneLists.* into the browser, so a
+    // route gate on SVMSecure.Personnel.PersonCollector could never pass. The API enforces it.
+    {
+        path: "/Personnel/PersonCollector",
+        meta: { layout: ViperLayout, allowUnAuth: false },
+        component: () => import("@/Personnel/pages/PersonCollector.vue"),
+        name: "PersonCollector",
+    },
+    // Employee Information System. The API checks access to each employee (department users
+    // see only the people their units pay), so these routes carry no permission meta; a page the
+    // API refuses says the employee isn't available.
+    {
+        path: "/Personnel/EIS",
+        meta: { layout: ViperLayout, allowUnAuth: false },
+        component: () => import("@/Personnel/pages/EisSelectPerson.vue"),
+        name: "EisSelectPerson",
+    },
+    {
+        path: "/Personnel/EIS/:employeeId",
+        meta: { layout: ViperLayout, allowUnAuth: false },
+        component: () => import("@/Personnel/pages/EisPerson.vue"),
+        children: [
+            { path: "", name: "EisSummary", component: () => import("@/Personnel/pages/EisSummary.vue") },
+            { path: "Academics", name: "EisAcademics", component: () => import("@/Personnel/pages/EisAcademics.vue") },
+            {
+                path: "Appointments",
+                name: "EisAppointments",
+                component: () => import("@/Personnel/pages/EisAppointments.vue"),
+            },
+            {
+                path: "Category",
+                name: "EisAppointmentCategory",
+                component: () => import("@/Personnel/pages/EisAppointmentCategory.vue"),
+            },
+            { path: "History", name: "EisHistory", component: () => import("@/Personnel/pages/EisHistory.vue") },
+            { path: "Address", name: "EisAddress", component: () => import("@/Personnel/pages/EisAddress.vue") },
+        ],
+    },
     {
         path: "/:catchAll(.*)*",
         meta: { layout: ViperLayout },
