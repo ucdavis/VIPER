@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MockQueryable.NSubstitute;
 using NSubstitute;
 using System.Net;
 using System.Text;
@@ -16,6 +17,7 @@ using Viper.Models.IDCards;
 using Viper.Models.Keys;
 using Viper.Models.RAPS;
 using Viper.Models.Courses;
+using Viper.Models.PPS;
 
 namespace Viper.test.Services
 {
@@ -739,6 +741,74 @@ namespace Viper.test.Services
         }
 
         [Fact]
+        public async Task PopulateUCPathHistoryAsync_UsesJobEffectiveDateNotPositionEffectiveDate()
+        {
+            // Arrange
+            var aaudOptions = CreateInMemoryOptions<AAUDContext>();
+            using (var aaudSetup = new AAUDContext(aaudOptions))
+            {
+                aaudSetup.AaudUsers.Add(CreateTestUser("iam-ucpath", "mothra-ucpath", employeeId: "emp-ucpath"));
+                await aaudSetup.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            // Effdt (the job record's own effective date) and PositionEffdt (the position
+            // record's effective date) are deliberately different, so the test fails if the
+            // history row ever goes back to showing the position's date instead of the job's.
+            var historyRows = new List<VwPersonJobPositionAll>
+            {
+                new()
+                {
+                    Emplid = "emp-ucpath",
+                    Name = "Jane Doe",
+                    LastName = "Doe",
+                    FirstName = "Jane",
+                    Jobcode = "001234",
+                    JobcodeDesc = "Lecturer",
+                    JobcodeShortDesc = "Lect",
+                    Jobgroup = "G1",
+                    JobgroupDesc = "Group 1",
+                    FlsaStatus = "E",
+                    JobcodeUnionCode = "99",
+                    Deptid = "062000",
+                    DeptDesc = "VetMed Dean",
+                    DeptCd = "062000",
+                    DeptShortDesc = "VM Dean",
+                    SubDivCd = "01",
+                    SubDivDesc = "SVM",
+                    JobStatusDesc = "Active",
+                    JobStatus1 = "A",
+                    ActionDescr = "Pay Rate Change",
+                    Effdt = new DateTime(2026, 3, 1),
+                    PositionEffdt = new DateTime(2025, 1, 1),
+                    PositionNbr = null,
+                    ReportsTo = null
+                }
+            };
+            var mockHistorySet = historyRows.BuildMockDbSet();
+
+            using var aaud = new AAUDContext(aaudOptions);
+            using var raps = new RAPSContext(CreateInMemoryOptions<RAPSContext>());
+            using var pps = Substitute.ForPartsOf<PPSContext>(CreateInMemoryOptions<PPSContext>());
+            pps.VwPersonJobPositionAlls.Returns(mockHistorySet);
+            using var courses = new CoursesContext(CreateInMemoryOptions<CoursesContext>());
+            using var loans = new EquipmentLoanContext(CreateInMemoryOptions<EquipmentLoanContext>());
+            using var idcards = new IDCardsContext(CreateInMemoryOptions<IDCardsContext>());
+            using var keys = new KeysContext(CreateInMemoryOptions<KeysContext>());
+
+            var httpFactory = CreateMockHttpClientFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+            var service = new UserInfoService(aaud, raps, courses, loans, pps, idcards, keys, _configuration, httpFactory, _memoryCache, Substitute.For<ILogger<UserInfoService>>(), Substitute.For<ICmsUserPhotoService>());
+
+            // Act
+            var result = await service.GetUserInfoAsync("iam-ucpath", null, AllPermissions);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Single(result.UCPathHistory);
+            Assert.Equal(new DateOnly(2026, 3, 1), result.UCPathHistory[0].JobEffectiveDate);
+            Assert.NotEqual(new DateOnly(2025, 1, 1), result.UCPathHistory[0].JobEffectiveDate);
+        }
+
+        [Fact]
         public async Task PopulateIamInfoAsync_CallsApiAndMapsCollections()
         {
             // Arrange
@@ -1028,7 +1098,7 @@ namespace Viper.test.Services
 
                 Assert.NotNull(result);
                 Assert.NotNull(result.InstinctInfo);
-                Assert.NotNull(result.InstinctInfo!.ErrorMessage);
+                Assert.NotNull(result.InstinctInfo.ErrorMessage);
                 Assert.Contains("Downstream service unavailable", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);
@@ -1136,7 +1206,7 @@ namespace Viper.test.Services
 
                 Assert.NotNull(result);
                 Assert.NotNull(result.InstinctInfo?.ErrorMessage);
-                Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo!.ErrorMessage);
+                Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);
             }

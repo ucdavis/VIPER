@@ -7,7 +7,7 @@ namespace Viper.Areas.Directory.Models
         public string? DepartmentId { get; set; }
         public string? DepartmentDescription { get; set; }
         public string? ActionDescription { get; set; }
-        public DateOnly? PositionEffectiveDate { get; set; }
+        public DateOnly? JobEffectiveDate { get; set; }
         public string? ReportsTo { get; set; }
         public string? ReportsToPosition { get; set; }
     }
