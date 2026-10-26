@@ -813,7 +813,9 @@ namespace Viper.Areas.Directory.Services
             var roleMembers = await _rapsContext.TblRoleMembers
                 .AsNoTracking()
                 .Include(rm => rm.Role)
-                .Where(rm => rm.MemberId == result.MothraId && rm.ViewName == null)
+                .Where(rm => rm.MemberId == result.MothraId
+                    && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
+                    && (rm.EndDate == null || rm.EndDate >= DateTime.Today))
                 .ToListAsync();
 
             foreach (var system in systems)
@@ -1054,8 +1056,8 @@ namespace Viper.Areas.Directory.Services
                 var historyData = await _ppsContext.VwPersonJobPositionAlls
                     .AsNoTracking()
                     .Where(p => p.Emplid == result.EmployeeId)
-                    .OrderByDescending(p => p.PositionEffdt)
-                    .ThenByDescending(p => p.Effdt)
+                    .OrderByDescending(p => p.Effdt)
+                    .ThenByDescending(p => p.PositionEffdt)
                     .ToListAsync();
 
                 var reportsToIds = historyData
@@ -1080,7 +1082,7 @@ namespace Viper.Areas.Directory.Services
                         DepartmentId = history.Deptid,
                         DepartmentDescription = history.DeptDesc,
                         ActionDescription = history.ActionDescr,
-                        PositionEffectiveDate = history.PositionEffdt.HasValue ? DateOnly.FromDateTime(history.PositionEffdt.Value) : null,
+                        JobEffectiveDate = history.Effdt.HasValue ? DateOnly.FromDateTime(history.Effdt.Value) : null,
                         ReportsTo = reportsTo.Name,
                         ReportsToPosition = reportsTo.Position
                     };

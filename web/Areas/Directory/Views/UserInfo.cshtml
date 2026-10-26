@@ -416,7 +416,7 @@
                         <tr>
                             <td>@history.JobCode @history.JobCodeDescription — @history.DepartmentId @history.DepartmentDescription</td>
                             <td>@history.ActionDescription</td>
-                            <td>@history.PositionEffectiveDate?.ToString("M/d/yyyy")</td>
+                            <td>@history.JobEffectiveDate?.ToString("M/d/yyyy")</td>
                             <td class="just">@history.ReportsTo@(!string.IsNullOrEmpty(history.ReportsTo) && !string.IsNullOrEmpty(history.ReportsToPosition) ? ", " : "")@history.ReportsToPosition</td>
                         </tr>
                     }
