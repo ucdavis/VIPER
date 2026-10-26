@@ -1205,7 +1205,8 @@ namespace Viper.test.Services
                 var result = await service.GetUserInfoAsync("iam-prodnoconfig", null, AllPermissions);
 
                 Assert.NotNull(result);
-                Assert.NotNull(result.InstinctInfo?.ErrorMessage);
+                Assert.NotNull(result.InstinctInfo);
+                Assert.NotNull(result.InstinctInfo.ErrorMessage);
                 Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);
