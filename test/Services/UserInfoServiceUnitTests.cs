@@ -778,8 +778,8 @@ namespace Viper.test.Services
                     JobStatusDesc = "Active",
                     JobStatus1 = "A",
                     ActionDescr = "Pay Rate Change",
-                    Effdt = new DateTime(2026, 3, 1),
-                    PositionEffdt = new DateTime(2025, 1, 1),
+                    Effdt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Unspecified),
+                    PositionEffdt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
                     PositionNbr = null,
                     ReportsTo = null
                 }

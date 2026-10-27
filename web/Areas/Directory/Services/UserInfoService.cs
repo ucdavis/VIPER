@@ -528,6 +528,10 @@ namespace Viper.Areas.Directory.Services
                     .SqlQueryRaw<ConfidentialScopeResult>("EXEC usp_sis_getConfidentialScope @Pidm = {0}", pidm)
                     .ToListAsync();
 
+                // Only mark the lookup as having succeeded once we actually have a result - the
+                // view uses this, not just a null scope, to decide whether it's safe to show
+                // confidential student fields (see StudentConfidentialScopeLookupSucceeded).
+                result.StudentConfidentialScopeLookupSucceeded = true;
                 return rows.FirstOrDefault()?.ZtvconfDesc;
             }
             catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
@@ -807,52 +811,59 @@ namespace Viper.Areas.Directory.Services
             if (string.IsNullOrEmpty(result.MothraId))
                 return;
 
-            var systems = new[] { "VIPER", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" };
-
-            // Query tblRoleMembers and join tblRoles for this user
-            var roleMembers = await _rapsContext.TblRoleMembers
-                .AsNoTracking()
-                .Include(rm => rm.Role)
-                .Where(rm => rm.MemberId == result.MothraId
-                    && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
-                    && (rm.EndDate == null || rm.EndDate >= DateTime.Today))
-                .ToListAsync();
-
-            foreach (var system in systems)
+            try
             {
-                // Filter roles belonging to the current system/instance
-                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-                var filteredRoles = roleMembers
-                    .Where(rm => rm.Role != null && RAPSSecurityService.RoleBelongsToInstance(system, rm.Role))
-                    .Select(rm => rm.Role)
-                    .OrderBy(r => r.DisplayName ?? r.Role);
+                var systems = new[] { "VIPER", "VMACS.VMTH", "VMACS.VMLF", "VMACS.UCVMCSD" };
 
-                result.SystemRoles.AddRange(filteredRoles.Select(role =>
+                // Query tblRoleMembers and join tblRoles for this user
+                var roleMembers = await _rapsContext.TblRoleMembers
+                    .AsNoTracking()
+                    .Include(rm => rm.Role)
+                    .Where(rm => rm.MemberId == result.MothraId
+                        && (rm.StartDate == null || rm.StartDate <= DateTime.Today)
+                        && (rm.EndDate == null || rm.EndDate >= DateTime.Today))
+                    .ToListAsync();
+
+                foreach (var system in systems)
                 {
-                    string displayName = role.DisplayName ?? role.Role;
-                    return new SystemRole
+                    // Filter roles belonging to the current system/instance
+                    // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                    var filteredRoles = roleMembers
+                        .Where(rm => rm.Role != null && RAPSSecurityService.RoleBelongsToInstance(system, rm.Role))
+                        .Select(rm => rm.Role)
+                        .OrderBy(r => r.DisplayName ?? r.Role);
+
+                    result.SystemRoles.AddRange(filteredRoles.Select(role =>
                     {
-                        System = system,
-                        DisplayName = FormatPermissionName(displayName)
-                    };
-                }));
-            }
+                        string displayName = role.DisplayName ?? role.Role;
+                        return new SystemRole
+                        {
+                            System = system,
+                            DisplayName = FormatPermissionName(displayName)
+                        };
+                    }));
+                }
 
-            var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
-            var allPermissions = await GetUserPermissionsAsync(result.MothraId);
-            foreach (var category in categories)
-            {
-                var categoryPerms = allPermissions
-                    .Where(p => p.Permission.StartsWith(category))
-                    .OrderBy(p => p.Permission)
-                    .ToList();
-                var sysPerm = new SystemPermission
+                var categories = new[] { "API", "RAPS", "SVMSecure", "VIPERForms", "VMACS" };
+                var allPermissions = await GetUserPermissionsAsync(result.MothraId);
+                foreach (var category in categories)
                 {
-                    Category = category,
-                    Count = categoryPerms.Count,
-                    Permissions = categoryPerms.Select(p => p.Permission).ToList()
-                };
-                result.SystemPermissions.Add(sysPerm);
+                    var categoryPerms = allPermissions
+                        .Where(p => p.Permission.StartsWith(category))
+                        .OrderBy(p => p.Permission)
+                        .ToList();
+                    var sysPerm = new SystemPermission
+                    {
+                        Category = category,
+                        Count = categoryPerms.Count,
+                        Permissions = categoryPerms.Select(p => p.Permission).ToList()
+                    };
+                    result.SystemPermissions.Add(sysPerm);
+                }
+            }
+            catch (Exception ex) when (ex is DbException || ex is InvalidOperationException)
+            {
+                RecordSectionFailure(result, "System Roles", ex, "PopulateSystemRolesAsync failed");
             }
         }
 
@@ -1143,6 +1154,13 @@ namespace Viper.Areas.Directory.Services
         /// </summary>
         private async Task PopulateIDCardsAsync(UserInfoResult result)
         {
+            // Without this, a null LoginId would translate to "WHERE IdCardLoginId IS NULL"
+            // below, returning other people's ID cards instead of none.
+            if (string.IsNullOrEmpty(result.LoginId))
+            {
+                return;
+            }
+
             try
             {
                 var cards = await (from card in _idCardsContext.IdCards
