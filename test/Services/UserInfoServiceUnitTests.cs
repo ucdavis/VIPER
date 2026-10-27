@@ -778,8 +778,8 @@ namespace Viper.test.Services
                     JobStatusDesc = "Active",
                     JobStatus1 = "A",
                     ActionDescr = "Pay Rate Change",
-                    Effdt = new DateTime(2026, 3, 1),
-                    PositionEffdt = new DateTime(2025, 1, 1),
+                    Effdt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Unspecified),
+                    PositionEffdt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
                     PositionNbr = null,
                     ReportsTo = null
                 }
@@ -1205,7 +1205,8 @@ namespace Viper.test.Services
                 var result = await service.GetUserInfoAsync("iam-prodnoconfig", null, AllPermissions);
 
                 Assert.NotNull(result);
-                Assert.NotNull(result.InstinctInfo?.ErrorMessage);
+                Assert.NotNull(result.InstinctInfo);
+                Assert.NotNull(result.InstinctInfo.ErrorMessage);
                 Assert.Contains("Instinct:ApiUrl is not configured", result.InstinctInfo.ErrorMessage);
                 Assert.Null(result.InstinctId);
                 Assert.Contains("Instinct", result.UnavailableSections);

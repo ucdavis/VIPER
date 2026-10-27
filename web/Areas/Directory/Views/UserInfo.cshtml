@@ -160,8 +160,12 @@
     @if (Model.IsStudent && Model.CanViewDirectoryDetail)
     {
         // A non-empty confidentiality scope is a FERPA hold: hide directory-identifying
-        // student fields from everyone except the student viewing their own page.
-        bool showConfidentialStudentFields = string.IsNullOrEmpty(Model.StudentConfidentialScope) || Model.IsOwnPage;
+        // student fields from everyone except the student viewing their own page. A failed
+        // lookup (StudentConfidentialScopeLookupSucceeded false) must not be treated as a
+        // confirmed "no hold" - that would show these fields during a SIS outage.
+        bool showConfidentialStudentFields =
+            (Model.StudentConfidentialScopeLookupSucceeded && string.IsNullOrEmpty(Model.StudentConfidentialScope))
+            || Model.IsOwnPage;
         <div class="student">
             <h2><a href="/students/sis/default.cfm?Page=SelectStudent&amp;pidm=@Model.Pidm" target="u">Student Information</a></h2>
             <ul>

@@ -50,6 +50,12 @@ namespace Viper.Areas.Directory.Models
         /// student fields (prior name, Banner ID, majors) in the view - see UserInfo.cshtml.
         /// </summary>
         public string? StudentConfidentialScope { get; set; }
+        /// <summary>
+        /// True only when the confidentiality scope lookup itself ran without error. The view must
+        /// not treat a failed lookup (StudentConfidentialScope left null) the same as a confirmed
+        /// "no hold" - that would show confidential fields during an outage instead of hiding them.
+        /// </summary>
+        public bool StudentConfidentialScopeLookupSucceeded { get; set; }
         public string? StudentStatus { get; set; }
         public string? StudentPrimaryMajor { get; set; }
         public string? StudentAllMajors { get; set; }
